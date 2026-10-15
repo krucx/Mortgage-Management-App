@@ -1,0 +1,24 @@
+Mortgage management system
+
+- Customer table : master -> Customer name, address, contact number 1 and 2, reference name, reference address, reference phone numbers*
+- Mortgage : cust id, mort id, item name, description, weight, mortgage amount, approx. prod value, rate of interest*, date of mortgage
+- Payments : cust id, mort id, payment received, payment date, principal component, interest component
+
+Customer -> Search him in db -> If yes then show the mortgages and then we can punch new mortgages, or take payment (Choose mortgages) (while taking payment have switch for simple or compound interest)
+
+Customer -> Mortgage clicked - show calculations
+
+Calculations:
+
+1. 14th of first month - 13th of next month ** for 31st etc.
+2. All payment must be interest first
+
+**Receipt for every payments
+
+Simple interest for YTD, Compound
+
+Product photograph also to be stored, notice for payments - sms/WhatsApp - every month automatically
+
+Review mortgages and send to notices (Notice table)
+
+Everyday dashboard - what payments due today - for calling
