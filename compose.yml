@@ -1,0 +1,19 @@
+# The Lender runs this with `docker compose up -d` (see README and docs/adr/0004).
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Kolkata}
+    volumes:
+      - ${DATA_DIR:?Set DATA_DIR in .env}:/data
+      - ${BACKUP_DIR:?Set BACKUP_DIR in .env}:/backups
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      # Reachable from this laptop only, never from the network.
+      - "127.0.0.1:${APP_PORT:-8080}:80"

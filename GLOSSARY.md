@@ -29,6 +29,10 @@ _Avoid_: Pledge number, mortgage ID
 **Terms**:
 A Mortgage's rate, Interest Mode and Part-Month Rule, fixed when it is created.
 
+**Default Terms**:
+The Terms the Lender has set to be copied into every new Mortgage.
+_Avoid_: Global rate, settings
+
 **Term Change**:
 A dated change to a Mortgage's Terms that applies from its effective date onward and never rewrites earlier interest.
 _Avoid_: Rate edit, amendment

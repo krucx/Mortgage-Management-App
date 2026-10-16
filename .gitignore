@@ -1,0 +1,6 @@
+# Lender data and secrets never go in git
+.env
+data/
+backups/
+
+.DS_Store
