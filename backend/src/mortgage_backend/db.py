@@ -3,7 +3,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Column, MetaData, String, Table
+from sqlalchemy import Column, MetaData, String, Table, make_url
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
@@ -27,7 +27,10 @@ def database_url_from_env() -> str:
 
 
 def migrate(database_url: str) -> None:
-    """Bring the database schema up to date."""
+    """Create the database if needed and bring its schema up to date."""
+    database_file = make_url(database_url).database
+    if database_file:
+        Path(database_file).parent.mkdir(parents=True, exist_ok=True)
     alembic_config = Config()
     alembic_config.set_main_option("script_location", str(MIGRATIONS_DIR))
     alembic_config.set_main_option("sqlalchemy.url", database_url)

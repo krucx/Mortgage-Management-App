@@ -1,8 +1,13 @@
+"""FastAPI app. Run with: uvicorn mortgage_backend.main:app"""
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import APIRouter, FastAPI, Request
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
-from mortgage_backend.db import database_url_from_env
+from mortgage_backend.db import database_url_from_env, migrate
 from mortgage_backend.default_terms import DefaultTerms, get_default_terms, set_default_terms
 
 router = APIRouter(prefix="/api")
@@ -27,11 +32,15 @@ def update_default_terms(terms: DefaultTerms, request: Request) -> DefaultTerms:
 
 
 def create_app(database_url: str) -> FastAPI:
-    app = FastAPI(title="Mortgage Management")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        migrate(database_url)  # every start brings the schema up to date
+        yield
+
+    app = FastAPI(title="Mortgage Management", lifespan=lifespan)
     app.state.engine = create_engine(database_url)
     app.include_router(router)
     return app
 
 
-def create_app_from_env() -> FastAPI:
-    return create_app(database_url_from_env())
+app = create_app(database_url_from_env())

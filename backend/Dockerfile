@@ -13,5 +13,5 @@ RUN uv sync --frozen --no-dev
 
 ENV DATA_DIR=/data
 EXPOSE 8000
-# Migrates the database, then serves the API.
-CMD ["python", "-m", "mortgage_backend"]
+# Migrations run on app start.
+CMD ["uvicorn", "mortgage_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

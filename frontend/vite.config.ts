@@ -5,12 +5,9 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,
-    proxy: {
-      '/api': process.env.API_TARGET ?? 'http://localhost:8000',
-    },
+    proxy: { '/api': 'http://localhost:8000' },
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['tests/**/*.test.ts'],
   },
 })

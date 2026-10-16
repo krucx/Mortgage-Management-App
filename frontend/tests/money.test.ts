@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatINR } from './money'
+import { formatINR } from '../src/money'
 
 describe('formatINR', () => {
   it.each([

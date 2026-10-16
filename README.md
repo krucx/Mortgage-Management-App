@@ -29,10 +29,11 @@ docker compose up -d --build
 
 ## Development
 
-Hot reload for both halves:
+Run the two halves directly for hot reload (no Docker needed):
 
 ```sh
-docker compose -f compose.yml -f compose.dev.yml up --build
+cd backend && uv run uvicorn mortgage_backend.main:app --reload   # API on :8000
+cd frontend && npm install && npm run dev                          # UI on :5173, proxies /api to :8000
 ```
 
 - `backend/`: FastAPI + SQLite (SQLAlchemy, Alembic migrations), managed with [uv](https://docs.astral.sh/uv/).
@@ -47,4 +48,4 @@ cd frontend && npm test && npm run typecheck
 
 ### Database migrations
 
-Add a new revision under `backend/src/mortgage_backend/migrations/versions/`. Migrations run on every backend start.
+Add a new revision under `backend/src/mortgage_backend/migrations/versions/`. Migrations run every time the backend starts.
