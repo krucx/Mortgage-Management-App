@@ -524,13 +524,14 @@ dialog.confirm h2 {
   margin-bottom: 1.25rem;
 }
 
-.confirm-body dl {
+/* Label / value rows (Summary): one row per line, wherever they appear. */
+dl.summary {
   display: block;
 }
 
 .summary-row {
   display: grid;
-  grid-template-columns: 9rem 1fr;
+  grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr);
   gap: 1rem;
   padding: 0.3rem 0;
   border-bottom: 1px solid var(--border);
@@ -588,4 +589,17 @@ tr.ledger-part_month td {
 
 dialog.modal {
   width: min(640px, calc(100vw - 2rem));
+}
+
+/* Form controls never overflow their column. */
+input,
+select,
+textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.grid-2 > *,
+.grid-3 > * {
+  min-width: 0;
 }

@@ -239,6 +239,13 @@ export function CloseMortgage({
             ? `Redeem${redemption ? ` for ${formatINR(redemption.total)}` : ''}`
             : 'Forfeit'}
         </button>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => (onCancel ? onCancel() : setAction(null))}
+        >
+          Cancel
+        </button>
       </div>
       {future && (
         <p className="hint">

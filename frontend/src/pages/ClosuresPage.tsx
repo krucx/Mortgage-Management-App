@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import { api, type Mortgage, type MortgagePage, type ReadyToRedeem, type Redemption } from '../api'
-import { CloseMortgage } from '../components/CloseMortgage'
+import { api, type MortgagePage, type ReadyToRedeem, type Redemption } from '../api'
 import { Summary } from '../components/ConfirmDialog'
-import { Modal } from '../components/Modal'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
 import { useConfirm } from '../components/useConfirm'
@@ -18,7 +16,6 @@ export function ClosuresPage() {
   const [ready, setReady] = useState<ReadyToRedeem[] | null>(null)
   const [active, setActive] = useState<MortgagePage | null>(null)
   const [page, setPage] = useState(1)
-  const [redeeming, setRedeeming] = useState<Mortgage | null>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
 
@@ -30,14 +27,6 @@ export function ClosuresPage() {
   }, [page])
 
   useEffect(load, [load])
-
-  async function openRedeem(mortgageId: number) {
-    try {
-      setRedeeming(await api.getMortgage(mortgageId))
-    } catch (err) {
-      setError((err as Error).message)
-    }
-  }
 
   function toggle(id: number) {
     const next = new Set(selected)
@@ -91,9 +80,9 @@ export function ClosuresPage() {
                     )}
                   </td>
                   <td>
-                    <button type="button" className="small" onClick={() => openRedeem(mortgage.id)}>
+                    <Link className="button small" to={`/mortgages/${mortgage.id}/redeem`}>
                       Redeem…
-                    </button>
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -166,20 +155,6 @@ export function ClosuresPage() {
         />
       )}
 
-      {redeeming && (
-        <Modal onClose={() => setRedeeming(null)}>
-          <h2>Redeem {redeeming.name}</h2>
-          <CloseMortgage
-            mortgage={redeeming}
-            initialAction="redeem"
-            onCancel={() => setRedeeming(null)}
-            onClosed={() => {
-              setRedeeming(null)
-              load()
-            }}
-          />
-        </Modal>
-      )}
     </section>
   )
 }

@@ -10,6 +10,7 @@ import { NewMortgagePage } from './pages/NewMortgagePage'
 import { NewPaymentPage } from './pages/NewPaymentPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { PaymentsPage } from './pages/PaymentsPage'
+import { RedeemPage } from './pages/RedeemPage'
 import { ReferrerPage } from './pages/ReferrerPage'
 import { SettingsPage } from './pages/SettingsPage'
 
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/mortgages" element={<MortgagesPage />} />
             <Route path="/mortgages/new" element={<NewMortgagePage />} />
             <Route path="/mortgages/:id" element={<MortgagePage />} />
+            <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
             <Route path="/closures" element={<ClosuresPage />} />
             <Route path="/referrers/:id" element={<ReferrerPage />} />
             <Route path="/settings" element={<SettingsPage />} />
