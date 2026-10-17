@@ -4,7 +4,12 @@ from datetime import date
 
 import pytest
 
-from mortgage_backend.ledger import accrual_date, compute_ledger
+from mortgage_backend.ledger import (
+    Allocation,
+    Overpayment,
+    accrual_date,
+    compute_ledger,
+)
 from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
 
 LAKH = 100_000_00  # ₹1,00,000 in paise
@@ -113,3 +118,152 @@ def test_compounded_monthly_capitalises_on_every_accrual_date():
         (date(2026, 4, 14), "interest", 3_183, 106_090, 3_183),  # ₹3,182.70 rounds up
         (date(2026, 4, 14), "capitalised", 3_183, 109_273, 0),
     ]
+
+
+# --- Payments: each Allocation pays unpaid interest first, then Principal.
+
+
+def paid(start, as_of, allocations, mode=InterestMode.SIMPLE, principal=LAKH):
+    """Ledger rows as (date, event, amount ₹, Principal ₹, unpaid ₹), plus payment splits."""
+    ledger = compute_ledger(start, principal, terms(mode), as_of, allocations)
+    return [
+        (s.on, s.event, s.amount / 100, s.principal / 100, s.unpaid_interest / 100)
+        + (
+            (s.interest_paid / 100, s.principal_paid / 100)
+            if s.event == "payment"
+            else ()
+        )
+        for s in ledger
+    ]
+
+
+def test_a_partial_interest_payment_reduces_only_unpaid_interest():
+    ledger = paid(
+        date(2026, 1, 14),
+        date(2026, 3, 20),
+        [Allocation(on=date(2026, 3, 20), amount=4_000_00, payment_id=1)],
+    )
+
+    assert ledger[-1] == (date(2026, 3, 20), "payment", 4_000, 100_000, 2_000, 4_000, 0)
+
+
+def test_a_payment_beyond_the_interest_reduces_principal_from_the_next_month():
+    # Paid 1 Mar: the month 14 Feb–14 Mar started on ₹1,00,000, so it is still charged
+    # on ₹1,00,000; the reduced ₹90,000 is charged from the month starting 14 Mar.
+    ledger = paid(
+        date(2026, 1, 14),
+        date(2026, 4, 14),
+        [Allocation(on=date(2026, 3, 1), amount=13_000_00, payment_id=1)],
+    )
+
+    assert ledger[2:] == [
+        (date(2026, 3, 1), "payment", 13_000, 90_000, 0, 3_000, 10_000),
+        (date(2026, 3, 14), "interest", 3_000, 90_000, 3_000),
+        (date(2026, 4, 14), "interest", 2_700, 90_000, 5_700),
+    ]
+
+
+def test_paying_principal_the_day_before_an_accrual_date_does_not_skip_that_months_interest():
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        terms(),
+        date(2026, 3, 14),
+        [Allocation(on=date(2026, 3, 13), amount=53_000_00, payment_id=1)],
+    )
+
+    interest = ledger[-1]
+    assert (interest.event, interest.amount, interest.charged_on) == (
+        "interest",
+        3_000_00,
+        LAKH,
+    )
+
+
+def test_a_payment_on_an_accrual_date_counts_for_the_month_that_starts_then():
+    ledger = paid(
+        date(2026, 1, 14),
+        date(2026, 3, 14),
+        [Allocation(on=date(2026, 2, 14), amount=53_000_00, payment_id=1)],
+    )
+
+    assert ledger[-1] == (date(2026, 3, 14), "interest", 1_500, 50_000, 1_500)
+
+
+def test_a_back_dated_payment_is_slotted_in_by_date():
+    later = Allocation(on=date(2026, 4, 1), amount=1_000_00, payment_id=1)
+    earlier = Allocation(
+        on=date(2026, 2, 20), amount=2_000_00, payment_id=2
+    )  # entered second
+
+    ledger = paid(date(2026, 1, 14), date(2026, 4, 1), [later, earlier])
+
+    assert [(on, event) for on, event, *_ in ledger] == [
+        (date(2026, 1, 14), "started"),
+        (date(2026, 2, 14), "interest"),
+        (date(2026, 2, 20), "payment"),
+        (date(2026, 3, 14), "interest"),
+        (date(2026, 4, 1), "payment"),
+    ]
+    assert ledger[-1][4] == 3_000  # 3,000 + 3,000 − 2,000 − 1,000
+
+
+def test_a_payment_on_an_accrual_date_comes_after_that_days_interest():
+    ledger = paid(
+        date(2026, 1, 14),
+        date(2026, 2, 14),
+        [Allocation(on=date(2026, 2, 14), amount=3_000_00, payment_id=1)],
+    )
+
+    assert ledger[1:] == [
+        (date(2026, 2, 14), "interest", 3_000, 100_000, 3_000),
+        (date(2026, 2, 14), "payment", 3_000, 100_000, 0, 3_000, 0),
+    ]
+
+
+def test_compounded_yearly_capitalises_only_the_unpaid_interest():
+    # 5 months' interest (15,000) by 1 Jul; 10,000 paid leaves 5,000 unpaid,
+    # then 7 more months (21,000) → 26,000 capitalised on the anniversary.
+    ledger = paid(
+        date(2025, 1, 14),
+        date(2026, 1, 14),
+        [Allocation(on=date(2025, 7, 1), amount=10_000_00, payment_id=1)],
+        mode=InterestMode.COMPOUNDED_YEARLY,
+    )
+
+    assert ledger[-1] == (date(2026, 1, 14), "capitalised", 26_000, 126_000, 0)
+
+
+def test_paying_on_the_anniversary_avoids_capitalisation():
+    ledger = paid(
+        date(2025, 1, 14),
+        date(2026, 1, 14),
+        [Allocation(on=date(2026, 1, 14), amount=36_000_00, payment_id=1)],
+        mode=InterestMode.COMPOUNDED_YEARLY,
+    )
+
+    assert ledger[-1] == (date(2026, 1, 14), "payment", 36_000, 100_000, 0, 36_000, 0)
+
+
+def test_a_payment_larger_than_what_is_owed_on_its_date_is_an_overpayment():
+    with pytest.raises(Overpayment) as raised:
+        compute_ledger(
+            date(2026, 1, 14),
+            LAKH,
+            terms(),
+            date(2026, 3, 1),
+            [Allocation(on=date(2026, 3, 1), amount=103_000_01, payment_id=7)],
+        )
+
+    assert raised.value.payment_id == 7
+    assert raised.value.outstanding == 103_000_00
+
+
+def test_paying_off_everything_leaves_nothing_owed():
+    ledger = paid(
+        date(2026, 1, 14),
+        date(2026, 3, 1),
+        [Allocation(on=date(2026, 3, 1), amount=103_000_00, payment_id=1)],
+    )
+
+    assert ledger[-1] == (date(2026, 3, 1), "payment", 103_000, 0, 0, 3_000, 100_000)

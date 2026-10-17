@@ -49,7 +49,7 @@ _Avoid_: Rate edit, amendment
 The amount on a Mortgage on which interest is charged; grows when unpaid interest is capitalised and shrinks when payments exceed interest.
 
 **Accrual Date**:
-The monthly day on which a Mortgage's interest is added, taken from its start date and clamped to month-end when the month is shorter.
+The monthly day on which a month's interest is added, charged on the Principal as it stood at the previous Accrual Date; taken from the start date and clamped to month-end when the month is shorter.
 _Avoid_: Due date, interest date
 
 **Interest Mode**:

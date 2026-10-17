@@ -6,7 +6,7 @@ from datetime import date
 
 from fastapi import APIRouter, FastAPI
 
-from mortgage_backend import customers, mortgages, photos
+from mortgage_backend import customers, mortgages, payments, photos
 from mortgage_backend.db import (
     EngineDep,
     database_url_from_env,
@@ -46,6 +46,7 @@ def create_app(database_url: str, today: Callable[[], date] = date.today) -> Fas
     app.include_router(router)
     app.include_router(customers.router)
     app.include_router(mortgages.router)
+    app.include_router(payments.router)
     app.include_router(photos.router)
     return app
 

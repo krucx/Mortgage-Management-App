@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 import { api, type LedgerStep, type Mortgage } from '../api'
 import { PersonLink } from '../components/PersonLink'
+import { RecordPayment } from '../components/RecordPayment'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
 import { formatDate, formatGrams } from '../format'
@@ -110,6 +111,16 @@ export function MortgagePage() {
       )}
       <PhotoSource multiple onPhotos={addPhotos} />
 
+      {mortgage.status === 'active' && (
+        <>
+          <h3>Record a Payment</h3>
+          <RecordPayment
+            mortgage={mortgage}
+            onRecorded={() => api.getMortgage(id).then(setMortgage)}
+          />
+        </>
+      )}
+
       <h3>Ledger</h3>
       <p className="hint">
         Calculated from the Terms up to {formatDate(mortgage.as_of)}; nothing here is stored.
@@ -148,7 +159,12 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
     case 'started':
       return 'Mortgage started: Principal lent'
     case 'interest':
-      return `Interest: ${formatRate(mortgage.terms.monthly_rate_bps)} of ${formatINR(step.principal)}`
+      return `Interest: ${formatRate(mortgage.terms.monthly_rate_bps)} of ${formatINR(step.charged_on)}`
+    case 'payment':
+      return (
+        `Payment: ${formatINR(step.interest_paid)} to interest, ` +
+        `${formatINR(step.principal_paid)} to Principal`
+      )
     case 'capitalised':
       return 'Unpaid interest capitalised into Principal'
   }

@@ -484,3 +484,7 @@ button.result:hover {
 fieldset:disabled {
   opacity: 0.7;
 }
+
+tr.ledger-payment td {
+  color: var(--ok);
+}

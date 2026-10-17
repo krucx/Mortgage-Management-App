@@ -81,10 +81,47 @@ export interface MortgageIn {
 
 export interface LedgerStep {
   on: string
-  event: 'started' | 'interest' | 'capitalised'
+  event: 'started' | 'interest' | 'payment' | 'capitalised'
   amount: number // paise
   principal: number // running, paise
   unpaid_interest: number // running, paise
+  charged_on: number // interest steps: the Principal at the start of that month
+  interest_paid: number // payment steps only
+  principal_paid: number // payment steps only
+  payment_id: number | null
+}
+
+export type PaymentMethod = 'cash' | 'upi' | 'bank_transfer'
+
+export const PAYMENT_METHODS: Record<PaymentMethod, string> = {
+  cash: 'Cash',
+  upi: 'UPI',
+  bank_transfer: 'Bank transfer',
+}
+
+export interface PaymentIn {
+  customer_id: number
+  paid_on: string
+  amount: number // paise
+  method: PaymentMethod
+  reference: string | null
+  allocations: { mortgage_id: number; amount: number }[]
+}
+
+export interface Payment {
+  id: number
+  customer: PersonSummary
+  paid_on: string
+  amount: number
+  method: PaymentMethod
+  reference: string | null
+  allocations: {
+    mortgage_id: number
+    mortgage_name: string
+    amount: number
+    interest_paid: number
+    principal_paid: number
+  }[]
 }
 
 export type MortgageStatus = 'active' | 'redeemed' | 'forfeited'
@@ -208,6 +245,8 @@ export const api = {
   },
   deleteMortgagePhoto: (id: number, photoId: number) =>
     request<Mortgage>(`/mortgages/${id}/photos/${photoId}`, { method: 'DELETE' }),
+
+  recordPayment: (payment: PaymentIn) => request<Payment>('/payments', sendJson('POST', payment)),
 
   personByPhone: (phone: string) =>
     request<PersonSummary | null>(`/people/by-phone?phone=${encodeURIComponent(phone)}`),

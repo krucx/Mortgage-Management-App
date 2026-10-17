@@ -1,0 +1,3 @@
+# Each month's interest is charged on the Principal at the start of that month
+
+A month's interest is charged on the Principal as it stood at the previous Accrual Date, so paying Principal mid-month lowers interest only from the next month. We chose this over charging on the Principal at the Accrual Date itself (which let a Customer avoid almost a whole month's interest by paying Principal a day before the Accrual Date) and over day-weighted interest (fairest, but every interest line becomes a multi-part calculation). It matches "a month started is a month charged", the same thinking as the Full-month Part-Month Rule. A Payment made on an Accrual Date, after that day's interest, counts for the month that starts then.

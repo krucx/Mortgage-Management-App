@@ -1,6 +1,7 @@
 """Mortgages: one loan against one pledged packet of jewellery (see GLOSSARY.md)."""
 
 import re
+from collections.abc import Sequence
 from datetime import date
 from enum import StrEnum
 from typing import Annotated, Any, Literal
@@ -14,13 +15,15 @@ from mortgage_backend.clock import TodayDep
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
     EngineDep,
+    allocation_table,
     customer_table,
     exists,
     mortgage_photo_table,
     mortgage_table,
+    payment_table,
 )
 from mortgage_backend.default_terms import get_default_terms
-from mortgage_backend.ledger import LedgerStep, compute_ledger
+from mortgage_backend.ledger import Allocation, LedgerStep, compute_ledger
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 from mortgage_backend.terms import Terms
 
@@ -117,11 +120,51 @@ def _terms(row: RowMapping) -> Terms:
     )
 
 
-def _ledger(row: RowMapping, today: date) -> list[LedgerStep]:
-    return compute_ledger(row["start_date"], row["amount_lent"], _terms(row), today)
+def _allocations_to(
+    conn: Connection, mortgage_ids: list[int]
+) -> dict[int, list[Allocation]]:
+    """Every Payment Allocation to each of these Mortgages, as ledger events."""
+    rows = conn.execute(
+        select(
+            allocation_table.c.mortgage_id,
+            allocation_table.c.amount,
+            allocation_table.c.payment_id,
+            payment_table.c.paid_on,
+        )
+        .join(payment_table, payment_table.c.id == allocation_table.c.payment_id)
+        .where(allocation_table.c.mortgage_id.in_(mortgage_ids))
+    )
+    found: dict[int, list[Allocation]] = {
+        mortgage_id: [] for mortgage_id in mortgage_ids
+    }
+    for row in rows:
+        found[row.mortgage_id].append(
+            Allocation(on=row.paid_on, amount=row.amount, payment_id=row.payment_id)
+        )
+    return found
 
 
-def _outstanding(ledger: list[LedgerStep]) -> Outstanding:
+def ledgers_of(
+    conn: Connection, rows: Sequence[RowMapping], as_of: date
+) -> dict[int, list[LedgerStep]]:
+    """Each Mortgage row's Ledger up to `as_of`, replaying its Payment Allocations.
+
+    Raises Overpayment if any Allocation is larger than what was owed on its date.
+    """
+    allocations = _allocations_to(conn, [row["id"] for row in rows])
+    return {
+        row["id"]: compute_ledger(
+            row["start_date"],
+            row["amount_lent"],
+            _terms(row),
+            as_of,
+            allocations[row["id"]],
+        )
+        for row in rows
+    }
+
+
+def _outstanding_of(ledger: list[LedgerStep]) -> Outstanding:
     last = ledger[-1]
     return Outstanding(
         principal=last.principal,
@@ -156,7 +199,7 @@ def _load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         .where(mortgage_photo_table.c.mortgage_id == mortgage_id)
         .order_by(mortgage_photo_table.c.id)
     )
-    ledger = _ledger(row, today)
+    ledger = ledgers_of(conn, [row], today)[mortgage_id]
     return Mortgage(
         id=row["id"],
         name=row["name"],
@@ -172,7 +215,7 @@ def _load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         photos=[MortgagePhoto(id=p.id, url=photo_url(p.file) or "") for p in photos],
         as_of=today,
         ledger=ledger,
-        outstanding=_outstanding(ledger),
+        outstanding=_outstanding_of(ledger),
     )
 
 
@@ -313,13 +356,18 @@ def list_mortgages(
             .select_from(mortgage_table.join(customer_table))
             .where(match)
         ).scalar_one()
-        rows = conn.execute(
-            _select_with_customer()
-            .where(match)
-            .order_by(mortgage_table.c.start_date.desc(), mortgage_table.c.name)
-            .limit(PAGE_SIZE)
-            .offset((page - 1) * PAGE_SIZE)
-        ).mappings()
+        rows = (
+            conn.execute(
+                _select_with_customer()
+                .where(match)
+                .order_by(mortgage_table.c.start_date.desc(), mortgage_table.c.name)
+                .limit(PAGE_SIZE)
+                .offset((page - 1) * PAGE_SIZE)
+            )
+            .mappings()
+            .all()
+        )
+        ledgers = ledgers_of(conn, rows, today)
         items = [
             MortgageRow(
                 id=row["id"],
@@ -328,7 +376,7 @@ def list_mortgages(
                 start_date=row["start_date"],
                 amount_lent=row["amount_lent"],
                 status=row["status"],
-                outstanding_total=_outstanding(_ledger(row, today)).total,
+                outstanding_total=_outstanding_of(ledgers[row["id"]]).total,
             )
             for row in rows
         ]

@@ -99,6 +99,32 @@ mortgage_photo_table = Table(
     Column("file", String, nullable=False),  # file name under the photos folder
 )
 
+payment_table = Table(
+    "payment",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "customer_id", Integer, ForeignKey("customer.id"), nullable=False, index=True
+    ),
+    Column("paid_on", Date, nullable=False),
+    Column("amount", Integer, nullable=False),  # paise
+    Column("method", String, nullable=False),
+    Column("reference", String),
+    Column("created_at", DateTime, nullable=False, server_default=func.now()),
+)
+
+# The part of a Payment applied to one Mortgage.
+allocation_table = Table(
+    "allocation",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("payment_id", Integer, ForeignKey("payment.id"), nullable=False, index=True),
+    Column(
+        "mortgage_id", Integer, ForeignKey("mortgage.id"), nullable=False, index=True
+    ),
+    Column("amount", Integer, nullable=False),  # paise
+)
+
 
 def exists(conn: Connection, table: Table, row_id: int) -> bool:
     return (
