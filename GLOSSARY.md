@@ -35,14 +35,14 @@ A human-readable label for a Mortgage, beginning with the year it started.
 _Avoid_: Pledge number, mortgage ID
 
 **Terms**:
-A Mortgage's rate, Interest Mode and Part-Month Rule, fixed when it is created.
+A Mortgage's rate, Interest Mode and Part-Month Rule: set when it is created, and changed only by a Term Change; each month is charged under the Terms in force when it starts.
 
 **Default Terms**:
 The Terms the Lender has set to be copied into every new Mortgage.
 _Avoid_: Global rate, settings
 
 **Term Change**:
-A dated change to a Mortgage's Terms that applies from its effective date onward and never rewrites earlier interest.
+A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.
 _Avoid_: Rate edit, amendment
 
 **Principal**:

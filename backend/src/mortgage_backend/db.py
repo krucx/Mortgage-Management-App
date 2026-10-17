@@ -18,6 +18,7 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    UniqueConstraint,
     create_engine,
     event,
     func,
@@ -124,6 +125,21 @@ payment_table = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.now()),
     Column("voided_at", DateTime),  # a Void keeps the Payment but out of every Ledger
     Column("void_reason", String),
+)
+
+# A change to a Mortgage's Terms from an Accrual Date on (see GLOSSARY.md: Term Change).
+term_change_table = Table(
+    "term_change",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("mortgage_id", Integer, ForeignKey("mortgage.id"), nullable=False),
+    Column("effective_on", Date, nullable=False),
+    # Only what changes; None carries over from the Terms in force then.
+    Column("monthly_rate_bps", Integer),
+    Column("interest_mode", String),
+    Column("part_month_rule", String),
+    Column("created_at", DateTime, nullable=False, server_default=func.now()),
+    UniqueConstraint("mortgage_id", "effective_on"),
 )
 
 # One change to a Customer, Mortgage or Payment (one row per changed field).

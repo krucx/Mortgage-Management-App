@@ -81,7 +81,14 @@ export interface MortgageIn {
 
 export interface LedgerStep {
   on: string
-  event: 'started' | 'interest' | 'part_month' | 'payment' | 'capitalised' | 'forfeited'
+  event:
+    | 'started'
+    | 'interest'
+    | 'part_month'
+    | 'payment'
+    | 'capitalised'
+    | 'forfeited'
+    | 'term_changed'
   amount: number // paise
   principal: number // running, paise
   unpaid_interest: number // running, paise
@@ -90,6 +97,7 @@ export interface LedgerStep {
   interest_paid: number // payment steps only
   principal_paid: number // payment steps only
   payment_id: number | null
+  terms: Terms | null // term_changed steps: the Terms from then on
 }
 
 export type PaymentMethod = 'cash' | 'upi' | 'bank_transfer'
@@ -165,7 +173,9 @@ export interface Mortgage {
   gross_weight_mg: number
   net_weight_mg: number
   purity_karat: Purity
-  terms: Terms
+  terms: Terms // in force today
+  term_changes: TermChange[]
+  upcoming_accrual_dates: string[] // when a Term Change could start
   status: MortgageStatus
   photos: { id: number; url: string }[]
   as_of: string
@@ -173,6 +183,36 @@ export interface Mortgage {
   outstanding: Outstanding
   collateral: Collateral | null // null until a Gold Rate or manual value is set
   closure: Closure | null
+}
+
+/** New Terms from an Accrual Date on. */
+export interface TermChange {
+  id: number
+  effective_on: string
+  terms: Terms
+  removable: boolean // until it takes effect
+}
+
+export interface ProjectedPoint {
+  months: number
+  on: string
+  principal: number
+  unpaid_interest: number
+  redemption_amount: number
+  loan_to_value: number | null
+}
+
+export interface ProjectedSeries {
+  points: ProjectedPoint[] // today, then each month for a year
+  paid_off_on: string | null
+}
+
+export interface Projection {
+  as_of: string
+  collateral_value: number | null
+  monthly_payment: number | null
+  baseline: ProjectedSeries
+  what_if: ProjectedSeries | null
 }
 
 /** Collateral Value: net weight at the Gold Rate, unless set by hand. */
@@ -220,6 +260,8 @@ export type AuditAction =
   | 'reopened'
   | 'photo_added'
   | 'photo_removed'
+  | 'term_change_added'
+  | 'term_change_removed'
 
 /** One change in the audit log; edits have one entry per changed field. */
 export interface AuditEntry {
@@ -440,6 +482,16 @@ export const api = {
     changesLedger(request<Mortgage>(`/mortgages/${id}/reopen`, sendJson('POST', { reason }))),
   mortgageHistory: (id: number) => request<AuditEntry[]>(`/mortgages/${id}/history`),
   customerHistory: (id: number) => request<AuditEntry[]>(`/customers/${id}/history`),
+  addTermChange: (id: number, change: { effective_on: string } & Terms) =>
+    changesLedger(request<Mortgage>(`/mortgages/${id}/term-changes`, sendJson('POST', change))),
+  removeTermChange: (id: number, changeId: number) =>
+    changesLedger(
+      request<Mortgage>(`/mortgages/${id}/term-changes/${changeId}`, { method: 'DELETE' }),
+    ),
+  getProjection: (id: number, monthlyPayment: number | null) =>
+    request<Projection>(
+      `/mortgages/${id}/projection` + (monthlyPayment ? `?monthly_payment=${monthlyPayment}` : ''),
+    ),
   setCollateral: (id: number, value: number | null) =>
     request<Mortgage>(`/mortgages/${id}/collateral`, sendJson('PUT', { value })),
 

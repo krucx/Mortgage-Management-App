@@ -13,7 +13,13 @@ from typing import Literal
 from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
 
 LedgerEvent = Literal[
-    "started", "interest", "part_month", "payment", "capitalised", "forfeited"
+    "started",
+    "interest",
+    "part_month",
+    "payment",
+    "capitalised",
+    "forfeited",
+    "term_changed",
 ]
 
 
@@ -38,7 +44,45 @@ class LedgerStep:
     part_month_days: int = 0  # part_month steps: days since the last Accrual Date
     interest_paid: int = 0  # payment steps: the part that paid interest
     principal_paid: int = 0  # payment steps: the part that paid Principal
-    payment_id: int | None = None
+    payment_id: int | None = None  # None for a hypothetical Payment in a Projection
+    terms: Terms | None = None  # term_changed steps: the Terms from then on
+
+
+@dataclass(frozen=True)
+class TermChange:
+    """What changes for the months starting on `on`, an Accrual Date; anything left
+    as None carries over from the Terms in force then."""
+
+    on: date
+    monthly_rate_bps: int | None = None
+    interest_mode: InterestMode | None = None
+    part_month_rule: PartMonthRule | None = None
+    id: int | None = None  # the stored Term Change, if any
+
+    def apply(self, terms: Terms) -> Terms:
+        changed = {
+            field: value
+            for field in ("monthly_rate_bps", "interest_mode", "part_month_rule")
+            if (value := getattr(self, field)) is not None
+        }
+        return Terms.model_validate({**terms.model_dump(), **changed})
+
+
+def terms_on(terms: Terms, changes: Iterable[TermChange], day: date) -> Terms:
+    """The Terms for a month starting on `day`: each Term Change in date order."""
+    for change in sorted(changes, key=lambda change: change.on):
+        if change.on <= day:
+            terms = change.apply(terms)
+    return terms
+
+
+@dataclass(frozen=True)
+class HypotheticalPayments:
+    """For a Projection: `amount` paid on every Accrual Date after `after`, capped at
+    what is owed, until nothing is."""
+
+    after: date
+    amount: int  # paise
 
 
 class Overpayment(Exception):
@@ -59,6 +103,11 @@ def accrual_date(start: date, n: int) -> date:
     months = start.month - 1 + n
     year, month = start.year + months // 12, months % 12 + 1
     return date(year, month, min(start.day, calendar.monthrange(year, month)[1]))
+
+
+def is_accrual_date(start: date, day: date) -> bool:
+    months = (day.year - start.year) * 12 + day.month - start.month
+    return months >= 1 and accrual_date(start, months) == day
 
 
 DAYS_IN_A_MONTH = 30  # the pro-rata Part-Month Rule counts days out of 30
@@ -113,6 +162,8 @@ def compute_ledger(
     allocations: Iterable[Allocation] = (),
     closed_on: date | None = None,
     forfeited: bool = False,
+    term_changes: Iterable[TermChange] = (),
+    hypothetical: HypotheticalPayments | None = None,
 ) -> list[LedgerStep]:
     """Replay a Mortgage from its start up to and including `as_of`.
 
@@ -126,6 +177,10 @@ def compute_ledger(
     from the next month (ADR 0006). On any one date the order is: that day's interest,
     then Payments, then capitalisation, so paying on an Accrual Date clears that day's
     interest before it compounds and counts for the month that starts then.
+
+    A Term Change on an Accrual Date applies to the months starting then: that day's
+    interest and capitalisation still follow the old Terms, so no earlier interest
+    changes. Hypothetical Payments, for Projections, come after that day's Payments.
     Raises Overpayment if an Allocation exceeds what is owed on its date.
     """
     if closed_on is not None:
@@ -136,34 +191,43 @@ def compute_ledger(
         (a for a in allocations if a.on <= as_of), key=lambda a: (a.on, a.payment_id)
     )
 
-    def pay_through(day: date) -> None:
+    def pay(on: date, amount: int, payment_id: int | None) -> None:
+        """Interest first, then Principal."""
         nonlocal principal, unpaid
+        to_interest = min(amount, unpaid)
+        unpaid -= to_interest
+        principal -= amount - to_interest
+        steps.append(
+            LedgerStep(
+                on,
+                "payment",
+                amount,
+                principal,
+                unpaid,
+                interest_paid=to_interest,
+                principal_paid=amount - to_interest,
+                payment_id=payment_id,
+            )
+        )
+
+    def pay_through(day: date) -> None:
         while pending and pending[0].on <= day:
             allocation = pending.pop(0)
             if allocation.amount > principal + unpaid:
                 raise Overpayment(allocation, principal + unpaid)
-            to_interest = min(allocation.amount, unpaid)
-            to_principal = allocation.amount - to_interest
-            unpaid -= to_interest
-            principal -= to_principal
-            steps.append(
-                LedgerStep(
-                    allocation.on,
-                    "payment",
-                    allocation.amount,
-                    principal,
-                    unpaid,
-                    interest_paid=to_interest,
-                    principal_paid=to_principal,
-                    payment_id=allocation.payment_id,
-                )
-            )
+            pay(allocation.on, allocation.amount, allocation.payment_id)
+
+    changes = list(term_changes)
+
+    def terms_from(day: date) -> Terms:
+        return terms_on(terms, changes, day)
 
     month_start_principal = principal
     n = 1
     while (on := accrual_date(start, n)) <= as_of:
+        month_terms = terms_from(accrual_date(start, n - 1))
         pay_through(on - timedelta(days=1))  # Payments before this Accrual Date
-        interest = monthly_interest(month_start_principal, terms)
+        interest = monthly_interest(month_start_principal, month_terms)
         unpaid += interest
         steps.append(
             LedgerStep(
@@ -176,16 +240,23 @@ def compute_ledger(
             )
         )
         pay_through(on)
-        if _capitalises(terms, n) and unpaid:
+        if hypothetical and on > hypothetical.after and principal + unpaid:
+            pay(on, min(hypothetical.amount, principal + unpaid), None)
+        if _capitalises(month_terms, n) and unpaid:
             principal, capitalised, unpaid = principal + unpaid, unpaid, 0
             steps.append(LedgerStep(on, "capitalised", capitalised, principal, unpaid))
+        if (new_terms := terms_from(on)) != month_terms:
+            steps.append(
+                LedgerStep(on, "term_changed", 0, principal, unpaid, terms=new_terms)
+            )
         month_start_principal = principal  # the next month starts now
         n += 1
 
     if closed_on is not None and closed_on == as_of:
         pay_through(closed_on - timedelta(days=1))
         days = days_since_accrual(start, closed_on)
-        charge = part_month_charge(month_start_principal, terms, days)
+        month_start = accrual_date(start, n - 1)
+        charge = part_month_charge(month_start_principal, terms_from(month_start), days)
         if charge:
             unpaid += charge
             steps.append(

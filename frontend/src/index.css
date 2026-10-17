@@ -693,3 +693,61 @@ dialog.scroll-popup h2 {
 .scroll-popup-body .table-scroll {
   overflow: visible;
 }
+
+ul.term-changes {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+label.what-if input {
+  max-width: 14rem;
+}
+
+tr.projection-group th {
+  text-align: left;
+  padding-top: 0.9rem;
+}
+
+/* Projection chart */
+figure.chart {
+  margin: 0;
+}
+
+figure.chart svg {
+  width: 100%;
+  height: auto;
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+figure.chart .grid {
+  stroke: var(--border);
+}
+
+figure.chart .series {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.series.baseline,
+.key.baseline::before {
+  stroke: var(--error);
+  background: var(--error);
+}
+
+.series.what-if,
+.key.what-if::before {
+  stroke: var(--accent);
+  background: var(--accent);
+}
+
+.key::before {
+  content: '';
+  display: inline-block;
+  width: 1rem;
+  height: 3px;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}

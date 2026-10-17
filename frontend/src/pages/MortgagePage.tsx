@@ -8,12 +8,14 @@ import { History } from '../components/History'
 import { PersonLink } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
+import { ProjectionPanel } from '../components/ProjectionPanel'
 import { ReasonDialog } from '../components/ReasonDialog'
 import { ScrollPopup } from '../components/ScrollPopup'
+import { TermsPanel } from '../components/TermsPanel'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, formatGrams } from '../format'
 import { formatINR } from '../money'
-import { formatRate, INTEREST_MODES, PART_MONTH_RULES } from '../terms'
+import { describeTerms, formatRate, PART_MONTH_RULES } from '../terms'
 
 /** Ledger steps shown on the page; the rest are in the complete Ledger popup. */
 const LEDGER_SHOWN = 8
@@ -59,7 +61,7 @@ export function MortgagePage() {
   }
 
   if (!mortgage) return error ? <p className="status error">{error}</p> : <p>Loading…</p>
-  const { terms, outstanding } = mortgage
+  const { outstanding } = mortgage
 
   return (
     <section className="card wide">
@@ -113,12 +115,10 @@ export function MortgagePage() {
           {formatGrams(mortgage.gross_weight_mg)} gross, {formatGrams(mortgage.net_weight_mg)} net,{' '}
           {mortgage.purity_karat}K
         </dd>
-        <dt>Terms</dt>
-        <dd>
-          {formatRate(terms.monthly_rate_bps)} a month · {INTEREST_MODES[terms.interest_mode]} ·
-          Part-Month Rule: {PART_MONTH_RULES[terms.part_month_rule]}
-        </dd>
       </dl>
+
+      <h3>Terms</h3>
+      <TermsPanel mortgage={mortgage} onChange={setMortgage} />
 
       <h3>Collateral Value</h3>
       <CollateralPanel mortgage={mortgage} onChange={setMortgage} />
@@ -186,6 +186,13 @@ export function MortgagePage() {
         >
           <LedgerTable steps={mortgage.ledger} mortgage={mortgage} />
         </ScrollPopup>
+      )}
+
+      {mortgage.status === 'active' && (
+        <>
+          <h3>Projection</h3>
+          <ProjectionPanel mortgage={mortgage} />
+        </>
       )}
 
       <h3>History</h3>
@@ -269,5 +276,7 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
       return 'Forfeited: the jewellery settles what was owed'
     case 'capitalised':
       return 'Unpaid interest capitalised into Principal'
+    case 'term_changed':
+      return `Terms changed: ${step.terms ? describeTerms(step.terms) : ''}`
   }
 }

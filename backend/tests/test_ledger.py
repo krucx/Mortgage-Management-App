@@ -6,10 +6,13 @@ import pytest
 
 from mortgage_backend.ledger import (
     Allocation,
+    HypotheticalPayments,
     Overpayment,
+    TermChange,
     accrual_date,
     compute_ledger,
     months_unpaid,
+    terms_on,
 )
 from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
 
@@ -439,3 +442,145 @@ def test_a_payment_cannot_cover_interest_not_yet_charged():
         InterestMode.SIMPLE, date(2026, 4, 14), (date(2026, 2, 1), 20_000_00)
     )
     assert months == 3
+
+
+# Term Changes: each month is charged under the Terms in force at its start.
+
+
+def interest_and_capitalisation(ledger):
+    return [
+        (s.on, s.event, s.amount / 100)
+        for s in ledger
+        if s.event in ("interest", "capitalised", "term_changed")
+    ]
+
+
+def test_a_rate_change_mid_year_under_compounded_yearly():
+    yearly = terms(InterestMode.COMPOUNDED_YEARLY)
+    two_percent = terms(InterestMode.COMPOUNDED_YEARLY, bps=200)
+
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        yearly,
+        date(2027, 1, 14),
+        term_changes=[TermChange(date(2026, 7, 14), monthly_rate_bps=200)],
+    )
+
+    steps = interest_and_capitalisation(ledger)
+    # Interest charged on 14 Jul is for the month before it: still 3%.
+    assert steps[5:8] == [
+        (date(2026, 7, 14), "interest", 3_000),
+        (date(2026, 7, 14), "term_changed", 0),
+        (date(2026, 8, 14), "interest", 2_000),
+    ]
+    assert steps[-1] == (date(2027, 1, 14), "capitalised", 6 * 3_000 + 6 * 2_000)
+    assert ledger[-1].principal == 1_30_000_00
+    assert (
+        ledger[next(i for i, s in enumerate(ledger) if s.event == "term_changed")].terms
+        == two_percent
+    )
+
+
+def test_a_switch_from_simple_to_compounded_monthly():
+    monthly = terms(InterestMode.COMPOUNDED_MONTHLY)
+
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        terms(InterestMode.SIMPLE),
+        date(2026, 6, 14),
+        term_changes=[
+            TermChange(date(2026, 4, 14), interest_mode=monthly.interest_mode)
+        ],
+    )
+
+    assert interest_and_capitalisation(ledger)[3:] == [
+        (date(2026, 4, 14), "term_changed", 0),
+        (date(2026, 5, 14), "interest", 3_000),
+        (date(2026, 5, 14), "capitalised", 12_000),  # the simple months' interest too
+        (date(2026, 6, 14), "interest", 3_360),  # 3% of 1,12,000
+        (date(2026, 6, 14), "capitalised", 3_360),
+    ]
+
+
+def test_closing_follows_the_part_month_rule_in_force():
+    nothing = Terms(
+        monthly_rate_bps=300,
+        interest_mode=InterestMode.SIMPLE,
+        part_month_rule=PartMonthRule.NOTHING,
+    )
+
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        terms(),  # full month
+        date(2026, 4, 20),
+        closed_on=date(2026, 4, 20),
+        term_changes=[
+            TermChange(date(2026, 3, 14), part_month_rule=nothing.part_month_rule)
+        ],
+    )
+
+    assert all(step.event != "part_month" for step in ledger)
+
+
+def test_a_term_change_after_the_date_changes_nothing_yet():
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        terms(),
+        date(2026, 4, 20),
+        term_changes=[TermChange(date(2026, 5, 14), monthly_rate_bps=100)],
+    )
+
+    assert ledger == compute_ledger(date(2026, 1, 14), LAKH, terms(), date(2026, 4, 20))
+
+
+# Hypothetical Payments, for Projections
+
+
+def test_hypothetical_payments_fall_on_each_accrual_date_until_paid_off():
+    ten_thousand = 10_000_00  # 3%: ₹300 a month
+
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        ten_thousand,
+        terms(),
+        date(2026, 6, 14),
+        hypothetical=HypotheticalPayments(after=date(2026, 1, 20), amount=6_000_00),
+    )
+
+    payments = [(s.on, s.amount / 100) for s in ledger if s.event == "payment"]
+    assert payments == [
+        (date(2026, 2, 14), 6_000),
+        (date(2026, 3, 14), 4_429),  # what was left: ₹4,300 + ₹129 interest
+    ]
+    assert (ledger[-1].principal, ledger[-1].unpaid_interest) == (0, 0)
+
+
+def test_hypothetical_payments_start_after_the_given_date():
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        terms(),
+        date(2026, 5, 14),
+        hypothetical=HypotheticalPayments(after=date(2026, 4, 14), amount=5_000_00),
+    )
+
+    assert [s.on for s in ledger if s.event == "payment"] == [date(2026, 5, 14)]
+
+
+def test_term_changes_each_change_only_what_they_say():
+    # A rate change, then a later mode change: the later one keeps the new rate.
+    changes = [
+        TermChange(date(2026, 3, 14), monthly_rate_bps=200),
+        TermChange(date(2026, 5, 14), interest_mode=InterestMode.COMPOUNDED_MONTHLY),
+    ]
+
+    assert terms_on(terms(), changes, date(2026, 5, 14)) == terms(
+        InterestMode.COMPOUNDED_MONTHLY, bps=200
+    )
+    assert terms_on(terms(), changes[1:], date(2026, 5, 14)) == terms(
+        InterestMode.COMPOUNDED_MONTHLY, bps=300
+    )

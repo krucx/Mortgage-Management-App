@@ -18,6 +18,8 @@ from mortgage_backend import (
     mortgages,
     payments,
     photos,
+    projections,
+    term_changes,
 )
 from mortgage_backend.backups import (
     Backups,
@@ -104,6 +106,8 @@ def create_app(
     app.include_router(call_list.router)
     app.include_router(backups.router)
     app.include_router(audit.router)
+    app.include_router(term_changes.router)
+    app.include_router(projections.router)
     return app
 
 

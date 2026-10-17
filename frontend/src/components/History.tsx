@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { PAYMENT_METHODS, type AuditEntry, type PaymentMethod } from '../api'
+import {
+  PAYMENT_METHODS,
+  type AuditEntry,
+  type InterestMode,
+  type PartMonthRule,
+  type PaymentMethod,
+} from '../api'
+import { formatRate, INTEREST_MODES, PART_MONTH_RULES } from '../terms'
 import { formatDate, formatDateTime, formatGrams } from '../format'
 import { formatINR } from '../money'
 import { ScrollPopup } from './ScrollPopup'
@@ -26,6 +33,7 @@ const FIELD_LABELS: Record<string, string> = {
   amount: 'Amount',
   method: 'Method',
   reference: 'Reference',
+  effective_on: 'From',
 }
 
 /** A stored value as the Lender reads it. */
@@ -43,7 +51,14 @@ function formatValue(field: string, value: string | null): string {
       return `${value}K`
     case 'start_date':
     case 'paid_on':
+    case 'effective_on':
       return formatDate(value)
+    case 'monthly_rate_bps':
+      return formatRate(Number(value))
+    case 'interest_mode':
+      return INTEREST_MODES[value as InterestMode] ?? value
+    case 'part_month_rule':
+      return PART_MONTH_RULES[value as PartMonthRule] ?? value
     default:
       return value
   }
@@ -65,6 +80,8 @@ const ACTION_LABELS: Record<AuditEntry['action'], string> = {
   reopened: 'reopened',
   photo_added: 'photo added',
   photo_removed: 'photo removed',
+  term_change_added: 'Term Change added',
+  term_change_removed: 'Term Change removed',
 }
 
 /** One change: the audit log keeps a row per field, written together. */
@@ -100,9 +117,10 @@ function describe(change: Change, showMortgage: boolean) {
       ENTITY_LABELS[first.entity]
     )
   let detail = null
-  if (first.action === 'edited' || first.action === 'reopened') {
+  if (['edited', 'reopened', 'term_change_added'].includes(first.action)) {
+    const from = valueOf('effective_on')
     detail = change
-      .filter((e) => e.field)
+      .filter((e) => e.field && e.field !== 'effective_on')
       .map((e, index) => (
         <span key={e.id}>
           {index === 0 ? ': ' : '; '}
@@ -111,6 +129,7 @@ function describe(change: Change, showMortgage: boolean) {
           {formatValue(e.field ?? '', e.new_value)}
         </span>
       ))
+    if (from) detail = <> from {formatDate(from)}{detail}</>
   } else if (first.action === 'voided') {
     detail = <span className="hint"> · {valueOf('void_reason')}</span>
   } else if (first.action === 'created' && first.entity === 'payment') {
@@ -153,7 +172,14 @@ export function History({
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    load().then(setEntries, (err: Error) => setError(err.message))
+    let replaced = false // by a newer reload, whose answer must win
+    load().then(
+      (loaded) => !replaced && setEntries(loaded),
+      (err: Error) => !replaced && setError(err.message),
+    )
+    return () => {
+      replaced = true
+    }
   }, [load, refresh])
 
   if (error) return <p className="status error">{error}</p>
