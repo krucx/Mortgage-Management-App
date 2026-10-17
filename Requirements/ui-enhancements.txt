@@ -1,0 +1,4 @@
+Don't show the paid off Mortgages directly have a separate drop down
+Paginate the list wherever used as they might outgrow what could be physically shown
+Sort the selected ones to the top and in general add some sorting to all lists
+The change previews should also be collapsable if they are multiple for example in split payments for better UI UX
