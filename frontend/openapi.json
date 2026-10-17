@@ -4655,7 +4655,7 @@
     },
     "/api/notices": {
       "get": {
-        "description": "Notices, after queueing any now due: a Mortgage added today, a longer\n`notice_days_before` or a reopened Mortgage shows at once, not after the next\ndaily run. Queueing twice adds nothing.",
+        "description": "Notices, synced first: a Mortgage added today or a reopened Mortgage shows at\nonce, not after the next daily run.",
         "operationId": "read_notices_api_notices_get",
         "parameters": [
           {

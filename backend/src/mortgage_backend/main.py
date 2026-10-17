@@ -39,7 +39,6 @@ from mortgage_backend.db import (
     photos_dir,
 )
 from mortgage_backend.default_terms import get_default_terms, set_default_terms
-from mortgage_backend.notices import queue_notices
 from mortgage_backend.terms import Terms
 
 router = APIRouter(prefix="/api")
@@ -69,12 +68,12 @@ def create_app(
     engine = make_engine(database_url)
     backup = Backups(engine, database_url, backup_dir, backup_password, now)
 
-    def queue_todays_notices(day: date) -> None:
+    def sync_notices(day: date) -> None:
         with engine.begin() as conn:
-            queue_notices(conn, day)
+            notices.sync(conn, day)
 
     daily_run = DailyRun(
-        engine, today, jobs=[backup.start_if_due, queue_todays_notices]
+        engine, today, jobs=[backup.start_if_due, sync_notices]
     )
 
     @asynccontextmanager

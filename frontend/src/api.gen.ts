@@ -572,9 +572,8 @@ export interface paths {
         };
         /**
          * Read Notices
-         * @description Notices, after queueing any now due: a Mortgage added today, a longer
-         *     `notice_days_before` or a reopened Mortgage shows at once, not after the next
-         *     daily run. Queueing twice adds nothing.
+         * @description Notices, synced first: a Mortgage added today or a reopened Mortgage shows at
+         *     once, not after the next daily run.
          */
         get: operations["read_notices_api_notices_get"];
         put?: never;

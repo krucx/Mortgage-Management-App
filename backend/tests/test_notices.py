@@ -15,24 +15,34 @@ from sqlalchemy.engine import Connection
 from mortgage_backend.main import create_app
 from mortgage_backend.message_settings import get_message_settings
 from mortgage_backend.notices import (
+    NoticeAction,
+    NoticeNotFound,
+    NoticeRefused,
+    act,
     change_message_settings,
     list_notices,
-    mark_sent,
-    queue_notices,
+    sync,
 )
 
+TODAY = date(2026, 5, 12)
 NOW = datetime(2026, 5, 12, 10, 0)
 
 
-def settings(conn: Connection, **changes: object) -> None:
-    change_message_settings(conn, get_message_settings(conn).model_copy(update=changes))
+def settings(conn: Connection, today: date = TODAY, **changes: object) -> None:
+    change_message_settings(
+        conn, get_message_settings(conn).model_copy(update=changes), today
+    )
+
+
+def mark_sent(conn: Connection, notice_id: int, now: datetime = NOW) -> None:
+    act(conn, notice_id, NoticeAction.SEND, now)
 
 
 def test_a_notice_is_queued_days_before_the_accrual_date(conn: Connection) -> None:
     ramesh = add_customer(conn)
     add_mortgage(conn, ramesh)
 
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
 
     [notice] = list_notices(conn)
     assert (notice.customer.name, notice.accrues_on, notice.status) == (
@@ -52,7 +62,7 @@ def test_one_notice_covers_every_mortgage_accruing_that_day(conn: Connection) ->
     add_mortgage(conn, ramesh)
     add_mortgage(conn, ramesh, suffix="Ring", description="Ring", amount_lent=LAKH // 2)
 
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
 
     [notice] = list_notices(conn)
     assert [m.name for m in notice.mortgages] == [
@@ -65,9 +75,9 @@ def test_one_notice_covers_every_mortgage_accruing_that_day(conn: Connection) ->
 def test_running_again_adds_no_duplicates(conn: Connection) -> None:
     add_mortgage(conn, add_customer(conn))
 
-    queue_notices(conn, date(2026, 5, 12))
-    queue_notices(conn, date(2026, 5, 12))
-    queue_notices(conn, date(2026, 5, 13))  # 14 May is still 1 day away
+    sync(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 13))  # 14 May is still 1 day away
 
     assert len(list_notices(conn)) == 1
 
@@ -79,9 +89,9 @@ def test_missed_days_are_back_filled_only_for_coming_accrual_dates(
     # Accrue on the 12th, 13th, 14th and 15th; the app was off from 10 to 12 May.
     for day in (12, 13, 14, 15):
         add_mortgage(conn, ramesh, suffix=f"Day{day}", start_date=date(2026, 1, day))
-    settings(conn, notice_days_before=3)
+    settings(conn, date(2026, 5, 13), notice_days_before=3)
 
-    queue_notices(conn, date(2026, 5, 13))
+    sync(conn, date(2026, 5, 13))
 
     # Today's (13th) and yesterday's (12th) accrued already; the 14th, 15th and 16th
     # are ahead, so the Notices missed for the 14th and 15th are made now.
@@ -99,15 +109,14 @@ def test_fewer_days_before_withdraws_unsent_notices_now_too_far_ahead(
     suresh = add_customer(conn, phone="9829054321")
     add_mortgage(conn, suresh, start_date=date(2026, 1, 25))
     settings(conn, notice_days_before=15)
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
     assert len(list_notices(conn)) == 2  # 14 and 25 May
 
     settings(conn, notice_days_before=2)
-    queue_notices(conn, date(2026, 5, 12))
 
     # 25 May is 13 days ahead: its Notice waits until 23 May, when it is queued again.
     assert [n.accrues_on for n in list_notices(conn)] == [date(2026, 5, 14)]
-    queue_notices(conn, date(2026, 5, 23))
+    sync(conn, date(2026, 5, 23))
     assert [n.accrues_on for n in list_notices(conn)] == [
         date(2026, 5, 14),
         date(2026, 5, 25),
@@ -119,12 +128,11 @@ def test_fewer_days_before_keeps_notices_already_sent(
 ) -> None:
     add_mortgage(conn, add_customer(conn), start_date=date(2026, 1, 25))
     settings(conn, notice_days_before=15)
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
     (notice,) = list_notices(conn)
     mark_sent(conn, notice.id, NOW)
 
     settings(conn, notice_days_before=2)
-    queue_notices(conn, date(2026, 5, 12))
 
     assert [n.status for n in list_notices(conn)] == ["sent"]
 
@@ -133,7 +141,7 @@ def test_approve_first_holds_notices_for_the_lender(conn: Connection) -> None:
     add_mortgage(conn, add_customer(conn))
     settings(conn, notice_approve_first=True)
 
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
 
     assert [n.status for n in list_notices(conn)] == ["awaiting_approval"]
 
@@ -142,7 +150,7 @@ def test_closed_mortgages_get_no_notices(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
     close(conn, chain, status="redeemed", closed_on=date(2026, 5, 1))
 
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
 
     assert list_notices(conn) == []
 
@@ -151,7 +159,7 @@ def test_the_notice_follows_the_lenders_template(conn: Connection) -> None:
     add_mortgage(conn, add_customer(conn))
     settings(conn, notice_template="{customer_name}: {interest} on {date}")
 
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
 
     assert list_notices(conn)[0].message == "Ramesh Kumar: ₹3,000 on 14 May 2026"
 
@@ -249,7 +257,7 @@ def test_an_awaiting_notice_is_approved_or_skipped(app_client, clock) -> None:
 def test_a_queued_notice_shows_what_is_owed_when_it_is_read(conn: Connection) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
 
     # Paid after it was queued: ₹1,09,000 owed then, so ₹9,000 clears the interest.
     add_payment(conn, ramesh, date(2026, 5, 12), {chain: 9_000 * RUPEE})
@@ -260,7 +268,7 @@ def test_a_queued_notice_shows_what_is_owed_when_it_is_read(conn: Connection) ->
 def test_a_queued_notice_covers_a_mortgage_added_later(conn: Connection) -> None:
     ramesh = add_customer(conn)
     add_mortgage(conn, ramesh)
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
 
     add_mortgage(conn, ramesh, suffix="Ring", description="Ring", amount_lent=LAKH // 2)
 
@@ -272,7 +280,7 @@ def test_a_queued_notice_covers_a_mortgage_added_later(conn: Connection) -> None
 def test_a_sent_notice_keeps_the_message_that_was_sent(conn: Connection) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
     [queued] = list_notices(conn)
 
     mark_sent(conn, queued.id, NOW)
@@ -288,7 +296,7 @@ def test_turning_approval_off_queues_the_notices_waiting_for_it(
 ) -> None:
     add_mortgage(conn, add_customer(conn))
     settings(conn, notice_approve_first=True)
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
 
     settings(conn, notice_approve_first=False)
 
@@ -299,7 +307,7 @@ def test_turning_approval_on_holds_the_notices_already_queued(
     conn: Connection,
 ) -> None:
     add_mortgage(conn, add_customer(conn))
-    queue_notices(conn, date(2026, 5, 12))
+    sync(conn, date(2026, 5, 12))
 
     settings(conn, notice_approve_first=True)
 
@@ -453,3 +461,66 @@ def test_the_dashboard_counts_the_notices_to_send_and_approve(app_client, clock)
     )
     # Turning approval on holds Ramesh's unsent one too; Suresh's is new, so it waits.
     assert counts() == (0, 2)
+
+
+def test_an_approval_lasts_while_approval_stays_on(conn: Connection) -> None:
+    ramesh = add_customer(conn)
+    add_mortgage(conn, ramesh, suffix="Ring", start_date=date(2026, 1, 13))
+    suresh = add_customer(conn, phone="9829054321")
+    add_mortgage(conn, suresh)
+    settings(conn, notice_approve_first=True)
+    ring, chain = list_notices(conn)
+
+    act(conn, ring.id, NoticeAction.APPROVE, NOW)
+    settings(conn, notice_template="{customer_name}")
+    sync(conn, TODAY)
+
+    assert [(n.id, n.status) for n in list_notices(conn)] == [
+        (ring.id, "queued"),
+        (chain.id, "awaiting_approval"),
+    ]
+
+
+def test_turning_approval_on_again_holds_notices_approved_before(
+    conn: Connection,
+) -> None:
+    add_mortgage(conn, add_customer(conn))
+    settings(conn, notice_approve_first=True)
+    [notice] = list_notices(conn)
+    act(conn, notice.id, NoticeAction.APPROVE, NOW)
+
+    settings(conn, notice_approve_first=False)
+    settings(conn, notice_approve_first=True)
+
+    assert [n.status for n in list_notices(conn)] == ["awaiting_approval"]
+
+
+def test_a_notice_is_refused_an_action_its_status_does_not_allow(
+    conn: Connection,
+) -> None:
+    add_mortgage(conn, add_customer(conn))
+    settings(conn, notice_approve_first=True)
+    [notice] = list_notices(conn)
+
+    with pytest.raises(NoticeRefused, match="awaiting approval"):
+        act(conn, notice.id, NoticeAction.SEND, NOW)
+    act(conn, notice.id, NoticeAction.SKIP, NOW)
+    with pytest.raises(NoticeRefused, match="already skipped"):
+        act(conn, notice.id, NoticeAction.APPROVE, NOW)
+
+
+def test_a_notice_with_nothing_to_say_can_only_be_skipped(conn: Connection) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    sync(conn, TODAY)
+    [notice] = list_notices(conn)
+    close(conn, chain, status="redeemed", closed_on=TODAY)
+
+    with pytest.raises(NoticeRefused, match="skip it"):
+        act(conn, notice.id, NoticeAction.SEND, NOW)
+    assert act(conn, notice.id, NoticeAction.SKIP, NOW).status == "skipped"
+
+
+def test_acting_on_a_missing_notice_is_refused(conn: Connection) -> None:
+    with pytest.raises(NoticeNotFound):
+        act(conn, 404, NoticeAction.SKIP, NOW)

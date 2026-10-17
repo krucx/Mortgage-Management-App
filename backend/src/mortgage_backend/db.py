@@ -9,6 +9,7 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from fastapi import Depends, Request
 from sqlalchemy import (
+    Boolean,
     Column,
     Date,
     DateTime,
@@ -194,6 +195,8 @@ notice_table = Table(
     Column("status", String, nullable=False),
     Column("message", String),  # kept once sent or skipped
     Column("sent_at", DateTime),
+    # The Lender approved it; while "approve first" is on, only then is it queued
+    Column("approved", Boolean, nullable=False, default=False),
     UniqueConstraint("customer_id", "accrues_on"),
 )
 

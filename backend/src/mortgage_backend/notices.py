@@ -1,7 +1,12 @@
-"""Notices (see GLOSSARY.md).
+"""Notices (see GLOSSARY.md): the Notice queue.
 
-One Notice is queued per Customer per Accrual Date coming up within
-`notice_days_before` days: by the daily run, and whenever the Notices are listed. Until it is sent or skipped, a Notice is only that Customer
+Every Notice status rule lives here, behind two calls. `sync` makes the unsent Notices
+what they should be today under the current settings: one per Customer per Accrual Date
+coming up within `notice_days_before` days, none further ahead, each awaiting approval or
+queued: held for approval while "approve first" is on and the Lender has not approved
+it, queued otherwise. The daily run, reading the
+Notices or the Dashboard, and saving message settings all sync. `act` approves, skips
+or sends one Notice. Until it is sent or skipped, a Notice is only that Customer
 and date: which of their Active Mortgages accrue then, the amounts and the wording are
 worked out whenever it is read (ADR 0001), so a later Payment, Mortgage or template edit
 shows. Sending or skipping keeps the message as it was then, for the log. The Lender
@@ -14,7 +19,7 @@ from enum import StrEnum
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, false, insert, not_, select, update
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.clock import NowDep, TodayDep
@@ -78,12 +83,17 @@ def _coming_accrual_dates(start: date, after: date, until: date) -> list[date]:
     return found
 
 
-def queue_notices(conn: Connection, today: date) -> None:
-    """The daily-run job: a Notice for each Customer with Active Mortgages accruing in
-    the coming `notice_days_before` days and none yet. Days the app was off are made up
-    this way, but never for an Accrual Date already past. Unsent Notices further ahead
-    (queued before `notice_days_before` was lowered) are withdrawn: until sent or
-    skipped a Notice is only its Customer and date, so it is queued again in time."""
+def sync(conn: Connection, today: date) -> None:
+    """Make the unsent Notices what they should be today under the current settings.
+
+    A Notice for each Customer with Active Mortgages accruing in the coming
+    `notice_days_before` days and none yet; days the app was off are made up this way,
+    but never for an Accrual Date already past. Unsent Notices further ahead (queued
+    before `notice_days_before` was lowered) are withdrawn: until sent or skipped a
+    Notice is only its Customer and date, so it is queued again in time. Every unsent
+    Notice then awaits approval if "approve first" is on and the Lender has not approved
+    it, and is queued otherwise; while it is off, approvals are forgotten, so turning it
+    on again holds every unsent Notice. Syncing twice changes nothing."""
     settings = get_message_settings(conn)
     until = today + timedelta(days=settings.notice_days_before)
     conn.execute(
@@ -108,20 +118,31 @@ def queue_notices(conn: Connection, today: date) -> None:
             )
         )
     }
-    status_now = (
-        NoticeStatus.AWAITING_APPROVAL
-        if settings.notice_approve_first
-        else NoticeStatus.QUEUED
-    )
     for customer_id, on in sorted(accruing - already, key=lambda due: due[1]):
         conn.execute(
             insert(notice_table).values(
                 customer_id=customer_id,
                 accrues_on=on,
                 created_on=today,
-                status=status_now,
+                status=NoticeStatus.QUEUED,
             )
         )
+    unsent = notice_table.c.status.in_(_UNSENT)
+    if settings.notice_approve_first:
+        held = not_(notice_table.c.approved)
+    else:
+        held = false()
+        conn.execute(update(notice_table).where(unsent).values(approved=False))
+    conn.execute(
+        update(notice_table)
+        .where(unsent, held)
+        .values(status=NoticeStatus.AWAITING_APPROVAL)
+    )
+    conn.execute(
+        update(notice_table)
+        .where(unsent, not_(held))
+        .values(status=NoticeStatus.QUEUED)
+    )
 
 
 def _notice_line(mortgage: MortgageReplay, description: str, on: date) -> NoticeLine:
@@ -254,25 +275,34 @@ _ACTIONS: dict[NoticeAction, tuple[set[NoticeStatus], NoticeStatus]] = {
 }
 
 
-def _act(
+class NoticeNotFound(LookupError):
+    """No Notice has that id."""
+
+
+class NoticeRefused(Exception):
+    """The Notice can't be acted on as asked; the message is for the Lender."""
+
+
+def act(
     conn: Connection, notice_id: int, action: NoticeAction, now: datetime
 ) -> Notice:
+    """Approve, skip or send one Notice, or refuse to."""
     found = list_notices(conn, notice_id=notice_id)
     if not found:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Notice not found")
+        raise NoticeNotFound(notice_id)
     notice = found[0]
     allowed, becomes = _ACTIONS[action]
     if notice.status not in allowed:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"This Notice is already {notice.status.value.replace('_', ' ')}",
+        raise NoticeRefused(
+            f"This Notice is already {notice.status.value.replace('_', ' ')}"
         )
     if action == NoticeAction.SEND and not notice.mortgages:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "None of their Active Mortgages accrues that day any more: skip it",
+        raise NoticeRefused(
+            "None of their Active Mortgages accrues that day any more: skip it"
         )
     values: dict[str, object] = {"status": becomes}
+    if action == NoticeAction.APPROVE:
+        values["approved"] = True
     if becomes not in _UNSENT:
         # Sent or skipped: keep it as it was, for the log.
         values["message"] = notice.message
@@ -292,31 +322,12 @@ def _act(
     return list_notices(conn, notice_id=notice_id)[0]
 
 
-def mark_sent(conn: Connection, notice_id: int, now: datetime) -> Notice:
-    return _act(conn, notice_id, NoticeAction.SEND, now)
-
-
-def change_message_settings(conn: Connection, settings: MessageSettings) -> None:
-    """Save the settings. Turning approval off queues the Notices waiting for it;
-    turning it on holds those already queued for approval too (only when it is turned
-    on, so saving other settings never undoes an approval)."""
-    turned_on = (
-        settings.notice_approve_first
-        and not get_message_settings(conn).notice_approve_first
-    )
+def change_message_settings(
+    conn: Connection, settings: MessageSettings, today: date
+) -> None:
+    """Save the settings, and sync the Notices to them at once."""
     set_message_settings(conn, settings)
-    if not settings.notice_approve_first:
-        conn.execute(
-            update(notice_table)
-            .where(notice_table.c.status == NoticeStatus.AWAITING_APPROVAL)
-            .values(status=NoticeStatus.QUEUED)
-        )
-    elif turned_on:
-        conn.execute(
-            update(notice_table)
-            .where(notice_table.c.status == NoticeStatus.QUEUED)
-            .values(status=NoticeStatus.AWAITING_APPROVAL)
-        )
+    sync(conn, today)
 
 
 router = APIRouter(prefix="/api")
@@ -330,10 +341,10 @@ def read_message_settings(engine: EngineDep) -> MessageSettings:
 
 @router.put("/settings/messages")
 def update_message_settings(
-    settings: MessageSettings, engine: EngineDep
+    settings: MessageSettings, engine: EngineDep, today: TodayDep
 ) -> MessageSettings:
     with engine.begin() as conn:
-        change_message_settings(conn, settings)
+        change_message_settings(conn, settings, today)
         return get_message_settings(conn)
 
 
@@ -344,11 +355,10 @@ def read_notices(
     status: NoticeStatus | None = None,
     page: PageNumber = 1,
 ) -> NoticePage:
-    """Notices, after queueing any now due: a Mortgage added today, a longer
-    `notice_days_before` or a reopened Mortgage shows at once, not after the next
-    daily run. Queueing twice adds nothing."""
+    """Notices, synced first: a Mortgage added today or a reopened Mortgage shows at
+    once, not after the next daily run."""
     with engine.begin() as conn:
-        queue_notices(conn, today)
+        sync(conn, today)
         notices = list_notices(conn, status)
     return NoticePage(
         items=page_of(notices, page),
@@ -358,20 +368,29 @@ def read_notices(
     )
 
 
+def _answer(
+    engine: EngineDep, notice_id: int, action: NoticeAction, now: datetime
+) -> Notice:
+    try:
+        with engine.begin() as conn:
+            return act(conn, notice_id, action, now)
+    except NoticeNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Notice not found") from None
+    except NoticeRefused as refused:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(refused)) from None
+
+
 @router.post("/notices/{notice_id}/approve")
 def approve_notice(notice_id: int, engine: EngineDep, now: NowDep) -> Notice:
-    with engine.begin() as conn:
-        return _act(conn, notice_id, NoticeAction.APPROVE, now)
+    return _answer(engine, notice_id, NoticeAction.APPROVE, now)
 
 
 @router.post("/notices/{notice_id}/skip")
 def skip_notice(notice_id: int, engine: EngineDep, now: NowDep) -> Notice:
-    with engine.begin() as conn:
-        return _act(conn, notice_id, NoticeAction.SKIP, now)
+    return _answer(engine, notice_id, NoticeAction.SKIP, now)
 
 
 @router.post("/notices/{notice_id}/sent")
 def mark_notice_sent(notice_id: int, engine: EngineDep, now: NowDep) -> Notice:
     """The Lender opened the prefilled WhatsApp chat (click-to-send counts that as sent)."""
-    with engine.begin() as conn:
-        return mark_sent(conn, notice_id, now)
+    return _answer(engine, notice_id, NoticeAction.SEND, now)
