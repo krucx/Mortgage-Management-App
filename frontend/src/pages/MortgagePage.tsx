@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { api, type LedgerStep, type Mortgage } from '../api'
+import { CallNotes } from '../components/CallNotes'
 import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
+import { CollateralPanel } from '../components/CollateralPanel'
 import { PersonLink } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
@@ -105,6 +107,12 @@ export function MortgagePage() {
           Part-Month Rule: {PART_MONTH_RULES[terms.part_month_rule]}
         </dd>
       </dl>
+
+      <h3>Collateral Value</h3>
+      <CollateralPanel mortgage={mortgage} onChange={setMortgage} />
+
+      <h3>Call Notes</h3>
+      <CallNotes mortgageId={mortgage.id} mortgageName={mortgage.name} />
 
       <h3>Photos</h3>
       {mortgage.photos.length > 0 ? (

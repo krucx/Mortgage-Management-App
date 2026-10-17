@@ -203,3 +203,25 @@ def compute_ledger(
     if forfeited and closed_on == as_of:
         steps.append(LedgerStep(closed_on, "forfeited", principal + unpaid, 0, 0))
     return steps
+
+
+def months_unpaid(steps: Iterable[LedgerStep]) -> int:
+    """How many of the latest monthly interest charges the Payments have not covered.
+
+    Each Payment covers the interest charged so far, oldest month first; whatever is
+    left pays Principal and cannot cover later months. Capitalised interest still
+    counts as unpaid. A partly covered month counts as unpaid.
+    """
+    uncovered: list[int] = []  # the unpaid part of each month's interest, oldest first
+    for step in steps:
+        if step.event == "interest":
+            uncovered.append(step.amount)
+        elif step.event == "payment":
+            left = step.amount
+            while uncovered and left:
+                paid = min(left, uncovered[0])
+                uncovered[0] -= paid
+                left -= paid
+                if not uncovered[0]:
+                    uncovered.pop(0)
+    return sum(1 for charge in uncovered if charge)

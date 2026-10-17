@@ -9,6 +9,7 @@ from mortgage_backend.ledger import (
     Overpayment,
     accrual_date,
     compute_ledger,
+    months_unpaid,
 )
 from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
 
@@ -395,3 +396,46 @@ def test_forfeiting_settles_what_was_owed_so_nothing_stays_outstanding():
             0,
         ),  # the Redemption Amount, settled by the jewellery
     ]
+
+
+def unpaid_months(mode, as_of, *payments):
+    allocations = [Allocation(on, amount, i) for i, (on, amount) in enumerate(payments)]
+    return months_unpaid(
+        compute_ledger(date(2026, 1, 14), LAKH, terms(mode), as_of, allocations)
+    )
+
+
+def test_nothing_is_unpaid_before_the_first_accrual_date():
+    assert unpaid_months(InterestMode.SIMPLE, date(2026, 2, 13)) == 0
+
+
+def test_each_unpaid_monthly_charge_counts_as_a_month_unpaid():
+    assert unpaid_months(InterestMode.SIMPLE, date(2026, 5, 14)) == 4
+
+
+def test_payments_cover_the_oldest_interest_first():
+    # ₹3,000 a month: ₹7,000 covers February and March, part of April
+    months = unpaid_months(
+        InterestMode.SIMPLE, date(2026, 5, 20), (date(2026, 5, 20), 7_000_00)
+    )
+    assert months == 2  # April (partly covered) and May
+
+
+def test_paying_every_month_in_full_leaves_nothing_unpaid():
+    paid = [(date(2026, m, 14), 3_000_00) for m in range(2, 6)]
+    assert unpaid_months(InterestMode.SIMPLE, date(2026, 5, 20), *paid) == 0
+
+
+@pytest.mark.parametrize(
+    "mode", [InterestMode.COMPOUNDED_MONTHLY, InterestMode.COMPOUNDED_YEARLY]
+)
+def test_capitalised_interest_still_counts_as_unpaid(mode):
+    assert unpaid_months(mode, date(2027, 3, 14)) == 14
+
+
+def test_a_payment_cannot_cover_interest_not_yet_charged():
+    # Paying ₹20,000 off the Principal in month one does not pre-pay later interest.
+    months = unpaid_months(
+        InterestMode.SIMPLE, date(2026, 4, 14), (date(2026, 2, 1), 20_000_00)
+    )
+    assert months == 3

@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router'
 import { useReadyToRedeemCount } from './components/useReadyToRedeem'
+import { CallListPage } from './pages/CallListPage'
 import { ClosuresPage } from './pages/ClosuresPage'
 import { CustomerFormPage } from './pages/CustomerFormPage'
 import { CustomerPage } from './pages/CustomerPage'
@@ -21,6 +22,7 @@ function Nav() {
       <NavLink to="/payments">Payments</NavLink>
       <NavLink to="/customers">Customers</NavLink>
       <NavLink to="/mortgages">Mortgages</NavLink>
+      <NavLink to="/call-list">Call List</NavLink>
       <NavLink
         to="/closures"
         title={waiting ? `${waiting} paid off, waiting to be Redeemed` : undefined}
@@ -55,6 +57,7 @@ export default function App() {
             <Route path="/mortgages/new" element={<NewMortgagePage />} />
             <Route path="/mortgages/:id" element={<MortgagePage />} />
             <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
+            <Route path="/call-list" element={<CallListPage />} />
             <Route path="/closures" element={<ClosuresPage />} />
             <Route path="/referrers/:id" element={<ReferrerPage />} />
             <Route path="/settings" element={<SettingsPage />} />

@@ -1,10 +1,9 @@
 """The default Terms copied into every new Mortgage (see GLOSSARY.md)."""
 
 from sqlalchemy import select
-from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.db import config_table
+from mortgage_backend.db import config_table, set_config
 from mortgage_backend.terms import Terms
 
 _CONFIG_KEY_BY_FIELD = {
@@ -26,9 +25,4 @@ def get_default_terms(conn: Connection) -> Terms:
 
 def set_default_terms(conn: Connection, terms: Terms) -> None:
     for field, key in _CONFIG_KEY_BY_FIELD.items():
-        value = str(getattr(terms, field))
-        conn.execute(
-            insert(config_table)
-            .values(key=key, value=value)
-            .on_conflict_do_update(index_elements=["key"], set_={"value": value})
-        )
+        set_config(conn, key, str(getattr(terms, field)))

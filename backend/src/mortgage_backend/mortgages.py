@@ -12,6 +12,7 @@ from sqlalchemy import Select, delete, func, insert, or_, select, true
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.clock import TodayDep
+from mortgage_backend.collateral import Collateral, Purity, collateral_of, gold_rates
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
     EngineDep,
@@ -32,8 +33,6 @@ from mortgage_backend.ledger import (
 )
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 from mortgage_backend.terms import Terms
-
-Purity = Literal[24, 22, 20, 18, 14]
 
 
 class MortgageStatus(StrEnum):
@@ -139,6 +138,7 @@ class Mortgage(BaseModel):
     as_of: date
     ledger: list[LedgerStep]
     outstanding: Outstanding
+    collateral: Collateral | None  # None until a Gold Rate or manual value is set
     closure: Closure | None
 
 
@@ -247,7 +247,7 @@ def _closure(conn: Connection, row: RowMapping) -> Closure | None:
     )
 
 
-def _outstanding_of(ledger: list[LedgerStep]) -> Outstanding:
+def outstanding_of(ledger: list[LedgerStep]) -> Outstanding:
     last = ledger[-1]
     return Outstanding(
         principal=last.principal,
@@ -269,7 +269,7 @@ def mortgage_rows(
             start_date=row["start_date"],
             amount_lent=row["amount_lent"],
             status=row["status"],
-            outstanding_total=_outstanding_of(ledgers[row["id"]]).total,
+            outstanding_total=outstanding_of(ledgers[row["id"]]).total,
         )
         for row in rows
     ]
@@ -302,6 +302,7 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         .order_by(mortgage_photo_table.c.id)
     )
     ledger = ledgers_of(conn, [row], today)[mortgage_id]
+    outstanding = outstanding_of(ledger)
     return Mortgage(
         id=row["id"],
         name=row["name"],
@@ -317,7 +318,8 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         photos=[MortgagePhoto(id=p.id, url=photo_url(p.file) or "") for p in photos],
         as_of=today,
         ledger=ledger,
-        outstanding=_outstanding_of(ledger),
+        outstanding=outstanding,
+        collateral=collateral_of(row, gold_rates(conn), outstanding.total),
         closure=_closure(conn, row),
     )
 
@@ -536,3 +538,26 @@ def delete_mortgage_photo(
         mortgage = load_mortgage(conn, mortgage_id, today)
     delete_photo(photos_dir, file_name)
     return mortgage
+
+
+class CollateralIn(BaseModel):
+    value: int | None = Field(default=None, gt=0)  # paise; None: the Gold Rate again
+
+
+@router.put("/mortgages/{mortgage_id}/collateral")
+def set_collateral(
+    mortgage_id: int, collateral: CollateralIn, engine: EngineDep, today: TodayDep
+) -> Mortgage:
+    """Set the Collateral Value by hand, or clear it to value at the Gold Rate again."""
+    with engine.begin() as conn:
+        if not exists(conn, mortgage_table, mortgage_id):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
+        conn.execute(
+            mortgage_table.update()
+            .where(mortgage_table.c.id == mortgage_id)
+            .values(
+                collateral_override=collateral.value,
+                collateral_override_on=today if collateral.value else None,
+            )
+        )
+        return load_mortgage(conn, mortgage_id, today)

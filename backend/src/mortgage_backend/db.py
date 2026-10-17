@@ -21,6 +21,7 @@ from sqlalchemy import (
     make_url,
     select,
 )
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Connection, Engine
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
@@ -89,6 +90,8 @@ mortgage_table = Table(
     Column("redemption_payment_id", Integer, ForeignKey("payment.id")),
     Column("recovered_amount", Integer),  # paise; Forfeited only
     Column("closure_note", String),
+    Column("collateral_override", Integer),  # paise; a Collateral Value set by hand
+    Column("collateral_override_on", Date),
     Column("created_at", DateTime, nullable=False, server_default=func.now()),
 )
 
@@ -118,6 +121,19 @@ payment_table = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.now()),
 )
 
+# The Lender phoning a Customer about a Mortgage (see GLOSSARY.md: Call Note).
+call_note_table = Table(
+    "call_note",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "mortgage_id", Integer, ForeignKey("mortgage.id"), nullable=False, index=True
+    ),
+    Column("called_on", Date, nullable=False),
+    Column("note", String, nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.now()),
+)
+
 # The part of a Payment applied to one Mortgage.
 allocation_table = Table(
     "allocation",
@@ -129,6 +145,15 @@ allocation_table = Table(
     ),
     Column("amount", Integer, nullable=False),  # paise
 )
+
+
+def set_config(conn: Connection, key: str, value: str) -> None:
+    """Insert or replace one setting in the config table."""
+    conn.execute(
+        sqlite_insert(config_table)
+        .values(key=key, value=value)
+        .on_conflict_do_update(index_elements=["key"], set_={"value": value})
+    )
 
 
 def exists(conn: Connection, table: Table, row_id: int) -> bool:

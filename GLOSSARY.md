@@ -80,9 +80,17 @@ _Avoid_: Payoff, closing balance
 
 ## Collateral
 
+**Gold Rate**:
+The Lender's current price per gram of gold of one purity.
+_Avoid_: Market rate, price
+
 **Collateral Value**:
-The current estimated worth of a Mortgage's jewellery.
+The current estimated worth of a Mortgage's jewellery: its net weight at the Gold Rate for its purity, unless the Lender sets a value by hand.
 _Avoid_: Product value, current_product_value
+
+**Loan-to-Value**:
+A Mortgage's Outstanding as a share of its Collateral Value.
+_Avoid_: LTV ratio, coverage
 
 ## Payments
 
@@ -104,9 +112,17 @@ _Avoid_: Delete, reverse
 A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day.
 _Avoid_: Reminder, notification
 
+**Months Unpaid**:
+How many of a Mortgage's latest monthly interest charges its Payments have not yet covered, counting Payments against the oldest interest first; capitalised interest still counts as unpaid.
+_Avoid_: Months overdue, arrears
+
 **Call List**:
-The day's Mortgages the Lender should phone about: interest unpaid for too long, outstanding too close to Collateral Value, or accruing today.
+The day's Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today.
 _Avoid_: Due list, payments due
+
+**Call Note**:
+The Lender's record of phoning a Customer about a Mortgage, with what was said.
+_Avoid_: Follow-up, contact log
 
 ## Status
 

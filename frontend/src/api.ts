@@ -168,7 +168,54 @@ export interface Mortgage {
   as_of: string
   ledger: LedgerStep[]
   outstanding: Outstanding
+  collateral: Collateral | null // null until a Gold Rate or manual value is set
   closure: Closure | null
+}
+
+/** Collateral Value: net weight at the Gold Rate, unless set by hand. */
+export interface Collateral {
+  value: number // paise
+  source: 'gold_rate' | 'manual'
+  set_on: string
+  loan_to_value: number // Outstanding ÷ Collateral Value
+}
+
+export interface GoldRate {
+  purity_karat: Purity
+  rate_per_gram: number | null // paise
+  updated_on: string | null
+}
+
+export interface CallListSettings {
+  months_unpaid: number
+  loan_to_value_pct: number
+}
+
+export interface CallNote {
+  id: number
+  called_on: string
+  note: string
+  created_at: string
+}
+
+export type CallReason = 'months_unpaid' | 'loan_to_value' | 'accrues_today'
+
+export interface CallListRow {
+  mortgage_id: number
+  mortgage_name: string
+  reasons: CallReason[]
+  months_unpaid: number
+  loan_to_value: number | null
+  outstanding: number
+  called: CallNote | null // today's latest Call Note
+}
+
+/** One Customer's Mortgages on the Call List. */
+export interface CallListGroup {
+  customer: PersonSummary
+  phone_1: string
+  phone_2: string | null
+  rows: CallListRow[]
 }
 
 /** What it takes to close a Mortgage on a date. */
@@ -270,6 +317,18 @@ export const api = {
   updateDefaultTerms: (terms: Terms) =>
     request<Terms>('/settings/default-terms', sendJson('PUT', terms)),
 
+  getGoldRates: () => request<GoldRate[]>('/settings/gold-rates'),
+  updateGoldRates: (rates: { purity_karat: Purity; rate_per_gram: number }[]) =>
+    request<GoldRate[]>('/settings/gold-rates', sendJson('PUT', rates)),
+  getCallListSettings: () => request<CallListSettings>('/settings/call-list'),
+  updateCallListSettings: (settings: CallListSettings) =>
+    request<CallListSettings>('/settings/call-list', sendJson('PUT', settings)),
+
+  getCallList: () => request<CallListGroup[]>('/call-list'),
+  listCallNotes: (mortgageId: number) => request<CallNote[]>(`/mortgages/${mortgageId}/call-notes`),
+  addCallNote: (mortgageId: number, note: string) =>
+    request<CallNote>(`/mortgages/${mortgageId}/call-notes`, sendJson('POST', { note })),
+
   search: (query: string) => request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}`),
 
   listCustomers: (page: number, query: string) =>
@@ -321,6 +380,8 @@ export const api = {
   },
   deleteMortgagePhoto: (id: number, photoId: number) =>
     request<Mortgage>(`/mortgages/${id}/photos/${photoId}`, { method: 'DELETE' }),
+  setCollateral: (id: number, value: number | null) =>
+    request<Mortgage>(`/mortgages/${id}/collateral`, sendJson('PUT', { value })),
 
   recordPayment: (payment: PaymentIn) =>
     changesLedger(request<Payment>('/payments', sendJson('POST', payment))),

@@ -17,3 +17,7 @@ export function todayIso(): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
+
+/** A ratio as a percentage with one decimal, e.g. 0.9561 → "95.6%". */
+export const formatPercent = (ratio: number) =>
+  `${(ratio * 100).toLocaleString('en-IN', { maximumFractionDigits: 1 })}%`
