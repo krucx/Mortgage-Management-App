@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allocateEqually, amountsFromPercentages, percentagesOf, tickedFirst } from '../src/allocate'
+import { allocateEqually, amountsFromPercentages, percentagesOf } from '../src/allocate'
 
 const r = (rupees: number) => Math.round(rupees * 100) // rupees → paise
 const rupees = (paise: number[] | null) => paise?.map((p) => p / 100) ?? null
@@ -99,12 +99,5 @@ describe('amountsFromPercentages with Outstanding limits', () => {
     const amounts = amountsFromPercentages(r(1_000), [50, 50], [r(100), r(100)])!
 
     expect(rupees(amounts)).toEqual([100, 100])
-  })
-})
-
-describe('tickedFirst', () => {
-  it('moves the ticked Mortgages to the top, each group keeping its order', () => {
-    const rows = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]
-    expect(tickedFirst(rows, new Set([4, 2])).map((m) => m.id)).toEqual([2, 4, 1, 3])
   })
 })

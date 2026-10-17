@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextSort, sortedBy, sortFromParam, sortToParam } from '../src/sort'
+import { nextSort, sortedBy, sortFromParam, sortToParam, tickedFirst } from '../src/sort'
 
 describe('nextSort', () => {
   it('sorts by a new column in its first direction', () => {
@@ -62,5 +62,12 @@ describe('sortedBy', () => {
 
   it('keeps the list’s own order with no sort', () => {
     expect(sortedBy(rows, null, valueOf)).toEqual(rows)
+  })
+})
+
+describe('tickedFirst', () => {
+  it('moves the ticked Mortgages to the top, each group keeping its order', () => {
+    const rows = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]
+    expect(tickedFirst(rows, new Set([4, 2])).map((m) => m.id)).toEqual([2, 4, 1, 3])
   })
 })

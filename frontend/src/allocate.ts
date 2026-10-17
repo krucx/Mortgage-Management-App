@@ -97,9 +97,3 @@ export function percentagesOf(amounts: number[], total: number): number[] {
   }
   return hundredths.map((h) => h / 100)
 }
-
-/** The ticked Mortgages first, so the ones being paid are together; each group keeps
- *  its order. */
-export function tickedFirst<Row extends { id: number }>(rows: Row[], ticked: Set<number>): Row[] {
-  return [...rows.filter((row) => ticked.has(row.id)), ...rows.filter((row) => !ticked.has(row.id))]
-}

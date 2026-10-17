@@ -16,7 +16,7 @@ import { useUrlSort } from '../components/useUrlSort'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
 import { showOrStepBack } from '../paging'
-import { sortedBy } from '../sort'
+import { sortedBy, tickedFirst } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
 
 // Ready to Redeem is sorted a page at a time, in the browser.
@@ -170,7 +170,8 @@ export function ClosuresPage() {
               </tr>
             </thead>
             <tbody>
-              {forfeitable.map((m) => (
+              {/* The ticked ones first, so the Mortgages to Forfeit are together. */}
+              {tickedFirst(forfeitable, selected).map((m) => (
                 <tr key={m.id}>
                   <td>
                     <input

@@ -59,3 +59,9 @@ export function sortedBy<Row, Column extends string>(
     return order * direction
   })
 }
+
+/** The ticked rows first, so the ones being acted on are together (e.g. the Mortgages
+ *  a Payment is split across, or those to Forfeit); each group keeps its order. */
+export function tickedFirst<Row extends { id: number }>(rows: Row[], ticked: Set<number>): Row[] {
+  return [...rows.filter((row) => ticked.has(row.id)), ...rows.filter((row) => !ticked.has(row.id))]
+}

@@ -16,7 +16,8 @@ import { useConfirm } from '../components/useConfirm'
 import { usePreview } from '../components/usePreview'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
-import { allocateEqually, amountsFromPercentages, percentagesOf, tickedFirst } from '../allocate'
+import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
+import { tickedFirst } from '../sort'
 
 type AllocationMode = 'equal' | 'amount' | 'percent'
 
