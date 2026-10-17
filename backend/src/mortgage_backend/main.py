@@ -12,6 +12,7 @@ from mortgage_backend import (
     audit,
     backups,
     call_list,
+    changes,
     closing,
     collateral,
     customers,
@@ -101,6 +102,7 @@ def create_app(
     app.include_router(customers.router)
     app.include_router(mortgages.router)
     app.include_router(payments.router)
+    app.include_router(changes.router)
     app.include_router(closing.router)
     app.include_router(photos.router)
     app.include_router(collateral.router)

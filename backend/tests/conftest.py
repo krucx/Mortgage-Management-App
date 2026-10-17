@@ -1,8 +1,11 @@
+from collections.abc import Iterator
 from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.engine import Connection
 
+from mortgage_backend.db import make_engine, migrate
 from mortgage_backend.main import create_app
 
 TODAY = date(2026, 4, 20)
@@ -17,3 +20,11 @@ def database_url(tmp_path):
 def client(database_url):
     with TestClient(create_app(database_url, today=lambda: TODAY)) as client:
         yield client
+
+
+@pytest.fixture
+def conn(database_url: str) -> Iterator[Connection]:
+    """A connection to a fresh database (no app), in a transaction committed at the end."""
+    migrate(database_url)
+    with make_engine(database_url).begin() as conn:
+        yield conn

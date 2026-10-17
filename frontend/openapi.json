@@ -2974,7 +2974,7 @@
       },
       "put": {
         "description": "Correct a Mortgage's details; its Ledger is recalculated from them.",
-        "operationId": "edit_mortgage_api_mortgages__mortgage_id__put",
+        "operationId": "put_mortgage_api_mortgages__mortgage_id__put",
         "parameters": [
           {
             "in": "path",
@@ -3018,7 +3018,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Edit Mortgage"
+        "summary": "Put Mortgage"
       }
     },
     "/api/mortgages/{mortgage_id}/call-notes": {
@@ -3615,7 +3615,7 @@
     },
     "/api/mortgages/{mortgage_id}/term-changes": {
       "post": {
-        "operationId": "add_term_change_api_mortgages__mortgage_id__term_changes_post",
+        "operationId": "post_term_change_api_mortgages__mortgage_id__term_changes_post",
         "parameters": [
           {
             "in": "path",
@@ -3659,7 +3659,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Add Term Change"
+        "summary": "Post Term Change"
       }
     },
     "/api/mortgages/{mortgage_id}/term-changes/preview": {
@@ -3816,7 +3816,7 @@
         "summary": "List Payments"
       },
       "post": {
-        "operationId": "record_payment_api_payments_post",
+        "operationId": "post_payment_api_payments_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3849,7 +3849,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Record Payment"
+        "summary": "Post Payment"
       }
     },
     "/api/payments/{payment_id}": {
@@ -3894,7 +3894,7 @@
     "/api/payments/{payment_id}/void": {
       "post": {
         "description": "Void a Payment entered by mistake; a corrected one is entered as a new Payment.",
-        "operationId": "void_api_payments__payment_id__void_post",
+        "operationId": "post_void_api_payments__payment_id__void_post",
         "parameters": [
           {
             "in": "path",
@@ -3938,7 +3938,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Void"
+        "summary": "Post Void"
       }
     },
     "/api/payments/{payment_id}/void-preview": {

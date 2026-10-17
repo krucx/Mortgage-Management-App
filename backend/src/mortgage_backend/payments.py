@@ -6,55 +6,26 @@ from enum import StrEnum
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel
 from sqlalchemy import exists as sql_exists
-from sqlalchemy import func, insert, or_, select, true, update
+from sqlalchemy import func, or_, select, true
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend import audit
-from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
     EngineDep,
     allocation_table,
     customer_table,
-    exists,
     mortgage_table,
     payment_table,
 )
-from mortgage_backend.errors import unprocessable
-from mortgage_backend.ledger import Overpayment
-from mortgage_backend.money import format_inr
-from mortgage_backend.replay import MortgageStatus, replays
+from mortgage_backend.replay import replays
 
 
 class PaymentMethod(StrEnum):
     CASH = "cash"
     UPI = "upi"
     BANK_TRANSFER = "bank_transfer"
-
-
-class AllocationIn(BaseModel):
-    mortgage_id: int
-    amount: int = Field(gt=0)  # paise
-
-
-class PaymentIn(BaseModel):
-    customer_id: int
-    paid_on: date
-    amount: int = Field(gt=0)  # paise
-    method: PaymentMethod
-    reference: str | None = None
-    allocations: list[AllocationIn] = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def allocations_add_up(self) -> "PaymentIn":
-        if sum(allocation.amount for allocation in self.allocations) != self.amount:
-            raise ValueError("Allocations must add up to the Payment amount")
-        if len({a.mortgage_id for a in self.allocations}) != len(self.allocations):
-            raise ValueError("Each Mortgage can appear only once in a Payment")
-        self.reference = (self.reference or "").strip() or None
-        return self
 
 
 class AllocationOut(BaseModel):
@@ -120,7 +91,7 @@ def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
     )
 
 
-def _load_payment(conn: Connection, payment_id: int) -> Payment:
+def load_payment(conn: Connection, payment_id: int) -> Payment:
     payment = conn.execute(
         select(payment_table, customer_table.c.name.label("customer_name"))
         .join(customer_table, customer_table.c.id == payment_table.c.customer_id)
@@ -167,141 +138,13 @@ def _load_payment(conn: Connection, payment_id: int) -> Payment:
     )
 
 
-def insert_payment(conn: Connection, payment: PaymentIn, at: datetime) -> int:
-    """Store a Payment and its Allocations; returns its id. Callers check it first."""
-    payment_id: int = conn.execute(
-        insert(payment_table)
-        .values(**payment.model_dump(exclude={"allocations"}))
-        .returning(payment_table.c.id)
-    ).scalar_one()
-    conn.execute(
-        insert(allocation_table),
-        [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
-    )
-    audit.record(
-        conn,
-        at,
-        "payment",
-        payment_id,
-        "created",
-        audit.created(
-            {**payment.model_dump(), "method": payment.method.value},
-            ["paid_on", "amount", "method", "reference"],
-        ),
-    )
-    return payment_id
-
-
-def void_payment(conn: Connection, payment_id: int, reason: str, at: datetime) -> None:
-    """Void a Payment: kept on record, left out of every Ledger. Callers check it first."""
-    conn.execute(
-        update(payment_table)
-        .where(payment_table.c.id == payment_id)
-        .values(voided_at=at, void_reason=reason)
-    )
-    audit.record(
-        conn,
-        at,
-        "payment",
-        payment_id,
-        "voided",
-        [audit.Change("void_reason", None, reason)],
-    )
-
-
-def check_no_overpayment(conn: Connection, payment_id: int, today: date) -> None:
-    """Replay each Mortgage the Payment touches; no Allocation may pay more than is owed."""
-    mortgages = mortgages_of(conn, payment_id)
-    replayed = replays(conn, mortgages)
-    for mortgage in mortgages:
-        try:
-            replayed[mortgage["id"]].ledger(today)
-        except Overpayment as over:
-            if over.payment_id == payment_id:
-                raise unprocessable(
-                    f"{mortgage['name']}: only {format_inr(over.outstanding)} was owed on "
-                    f"{over.on:%d %b %Y}, less than this Payment"
-                )
-            raise unprocessable(
-                f"{mortgage['name']}: this Payment would leave a later Payment on "
-                f"{over.on:%d %b %Y} larger than the {format_inr(over.outstanding)} owed then"
-            )
-
-
 router = APIRouter(prefix="/api")
-
-
-@router.post("/payments", status_code=status.HTTP_201_CREATED)
-def record_payment(
-    payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> Payment:
-    if payment.paid_on > today:
-        raise unprocessable("The Payment date cannot be in the future")
-    with engine.begin() as conn:
-        if not exists(conn, customer_table, payment.customer_id):
-            raise unprocessable("Customer not found")
-        for allocation in payment.allocations:
-            mortgage = conn.execute(
-                select(mortgage_table).where(
-                    mortgage_table.c.id == allocation.mortgage_id
-                )
-            ).first()
-            if mortgage is None or mortgage.customer_id != payment.customer_id:
-                raise unprocessable("Each Mortgage must belong to the paying Customer")
-            if mortgage.status != MortgageStatus.ACTIVE:
-                raise unprocessable(f"{mortgage.name} is not Active")
-            if payment.paid_on < mortgage.start_date:
-                raise unprocessable(f"{mortgage.name} had not started on that date")
-
-        payment_id = insert_payment(conn, payment, now)
-        # Raising here rolls the whole Payment back.
-        check_no_overpayment(conn, payment_id, today)
-        return _load_payment(conn, payment_id)
-
-
-class VoidIn(BaseModel):
-    reason: str = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def tidy(self) -> "VoidIn":
-        self.reason = self.reason.strip()
-        if not self.reason:
-            raise ValueError("A reason is needed")
-        return self
-
-
-def apply_void(conn: Connection, payment_id: int, reason: str, now: datetime) -> None:
-    """Void a Payment (or refuse): a Redemption's final Payment, or one to a closed
-    Mortgage, is Voided by reopening instead."""
-    if _load_payment(conn, payment_id).voided_at is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Already voided")
-    for mortgage in mortgages_of(conn, payment_id):
-        if mortgage["redemption_payment_id"] == payment_id:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"This is the final Payment of the Redemption of {mortgage['name']}: "
-                "reopen the Mortgage instead, which voids it",
-            )
-        if mortgage["status"] != MortgageStatus.ACTIVE:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"{mortgage['name']} is {mortgage['status']}: reopen it first",
-            )
-    void_payment(conn, payment_id, reason, now)
-
-
-@router.post("/payments/{payment_id}/void")
-def void(payment_id: int, body: VoidIn, engine: EngineDep, now: NowDep) -> Payment:
-    """Void a Payment entered by mistake; a corrected one is entered as a new Payment."""
-    with engine.begin() as conn:
-        apply_void(conn, payment_id, body.reason, now)
-        return _load_payment(conn, payment_id)
 
 
 @router.get("/payments/{payment_id}")
 def read_payment(payment_id: int, engine: EngineDep) -> Payment:
     with engine.connect() as conn:
-        return _load_payment(conn, payment_id)
+        return load_payment(conn, payment_id)
 
 
 PAGE_SIZE = 20

@@ -19,15 +19,15 @@ from mortgage_backend.mortgages import (
     mortgage_rows,
     select_with_customer,
 )
-from mortgage_backend.payments import (
+from mortgage_backend.changes import (
     AllocationIn,
     PaymentIn,
-    PaymentMethod,
     VoidIn,
-    check_no_overpayment,
+    check_replays,
     insert_payment,
-    void_payment,
+    insert_void,
 )
+from mortgage_backend.payments import PaymentMethod
 from mortgage_backend.replay import (
     MortgageReplay,
     MortgageStatus,
@@ -131,7 +131,7 @@ def redeem(
             redemption_payment_id=payment_id,
         )
         if payment_id is not None:
-            check_no_overpayment(conn, payment_id, today)
+            check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
         audit.record(
             conn,
             now,
@@ -186,7 +186,7 @@ def reopen(
         if row["status"] == MortgageStatus.ACTIVE:
             raise HTTPException(status.HTTP_409_CONFLICT, f"{row['name']} is Active")
         if row["redemption_payment_id"] is not None:
-            void_payment(conn, row["redemption_payment_id"], body.reason, now)
+            insert_void(conn, row["redemption_payment_id"], body.reason, now)
         _close(
             conn,
             mortgage_id,

@@ -2,12 +2,12 @@
 
 import re
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import Select, delete, func, insert, or_, select, true, update
+from sqlalchemy import Select, delete, func, insert, or_, select, true
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend import audit
@@ -25,18 +25,14 @@ from mortgage_backend.default_terms import get_default_terms
 from mortgage_backend.errors import unprocessable
 from mortgage_backend.ledger import (
     LedgerStep,
-    Overpayment,
     accrual_date,
-    is_accrual_date,
 )
-from mortgage_backend.money import format_inr
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 from mortgage_backend.replay import (
     MortgageReplay,
     MortgageStatus,
     Outstanding,
     mortgage_row,
-    replay,
     replays,
 )
 from mortgage_backend.terms import Terms
@@ -75,9 +71,8 @@ class MortgageEdit(MortgageDetails):
     name: str
 
 
-# Changing these on a closed Mortgage would contradict how it was closed.
-_LOCKED_WHEN_CLOSED = ["start_date", "amount_lent"]
-_AUDITED = [
+_AUDITED_ON_CREATE = [
+    "customer_id",
     "name",
     "start_date",
     "amount_lent",
@@ -85,10 +80,6 @@ _AUDITED = [
     "gross_weight_mg",
     "net_weight_mg",
     "purity_karat",
-]
-_AUDITED_ON_CREATE = [
-    "customer_id",
-    *_AUDITED,
     "monthly_rate_bps",
     "interest_mode",
     "part_month_rule",
@@ -524,76 +515,4 @@ def set_collateral(
         )
         if changed:
             audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
-        return load_mortgage(conn, mortgage_id, today)
-
-
-def apply_edit(
-    conn: Connection, mortgage_id: int, edit: MortgageEdit, today: date, now: datetime
-) -> None:
-    """Correct a Mortgage's details (or refuse); the Ledger follows from them."""
-    if edit.start_date > today:
-        raise unprocessable("Start date cannot be in the future")
-    before = mortgage_row(conn, mortgage_id)
-    after = edit.model_dump()
-    changed = audit.changes(before, after, _AUDITED)
-    if before["status"] != MortgageStatus.ACTIVE and any(
-        c.field in _LOCKED_WHEN_CLOSED for c in changed
-    ):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"{before['name']} is {before['status']}: reopen it to change its "
-            "start date or Principal",
-        )
-    taken = conn.execute(
-        select(mortgage_table.c.id).where(
-            func.lower(mortgage_table.c.name) == edit.name.lower(),
-            mortgage_table.c.id != mortgage_id,
-        )
-    ).first()
-    if taken:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"The Mortgage Name {edit.name} is already used",
-        )
-    mortgage = replay(conn, mortgage_id)
-    first_payment = min((a.on for a in mortgage.allocations), default=None)
-    stranded = [
-        c.on
-        for c in mortgage.term_changes
-        if not is_accrual_date(edit.start_date, c.on)
-    ]
-    if stranded:
-        raise unprocessable(
-            f"The Term Change from {stranded[0]:%d %b %Y} would no longer be on an "
-            "Accrual Date: keep the same day of the month, or remove it first"
-        )
-    if first_payment is not None and edit.start_date > first_payment:
-        raise unprocessable(
-            f"There is a Payment on {first_payment:%d %b %Y}, before that start date"
-        )
-    conn.execute(
-        update(mortgage_table).where(mortgage_table.c.id == mortgage_id).values(**after)
-    )
-    try:
-        replay(conn, mortgage_id).ledger(today)
-    except Overpayment as over:
-        raise unprocessable(
-            f"The Payment on {over.on:%d %b %Y} would then be more than the "
-            f"{format_inr(over.outstanding)} owed"
-        ) from None
-    if changed:
-        audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
-
-
-@router.put("/mortgages/{mortgage_id}")
-def edit_mortgage(
-    mortgage_id: int,
-    edit: MortgageEdit,
-    engine: EngineDep,
-    today: TodayDep,
-    now: NowDep,
-) -> Mortgage:
-    """Correct a Mortgage's details; its Ledger is recalculated from them."""
-    with engine.begin() as conn:
-        apply_edit(conn, mortgage_id, edit, today, now)
         return load_mortgage(conn, mortgage_id, today)

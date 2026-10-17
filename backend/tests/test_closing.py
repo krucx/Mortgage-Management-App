@@ -120,7 +120,8 @@ def test_a_closed_mortgage_takes_no_more_payments(client, ramesh, mortgage):
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 409
+    assert "reopen it first" in response.json()["detail"]
 
 
 def test_a_paid_off_mortgage_redeemed_on_an_accrual_date_needs_no_final_payment(
@@ -235,7 +236,8 @@ def test_a_forfeited_mortgage_takes_no_more_payments(client, ramesh, mortgage):
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 409
+    assert "reopen it first" in response.json()["detail"]
 
 
 def test_closed_mortgages_can_be_listed_by_status(client, ramesh, mortgage):

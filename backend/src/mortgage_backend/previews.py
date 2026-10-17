@@ -15,11 +15,16 @@ from sqlalchemy.engine import Connection
 from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.db import EngineDep
 from mortgage_backend.ledger import LedgerEvent, LedgerStep
-from mortgage_backend.mortgages import MortgageEdit, apply_edit
-from mortgage_backend.payments import apply_void, mortgages_of
+from mortgage_backend.changes import (
+    TermChangeIn,
+    add_term_change,
+    edit_mortgage,
+    void_payment,
+)
+from mortgage_backend.mortgages import MortgageEdit
+from mortgage_backend.payments import mortgages_of
 from mortgage_backend.projections import ComingTermChange, ProjectedPoint, baseline
 from mortgage_backend.replay import MortgageStatus, replay
-from mortgage_backend.term_changes import TermChangeIn, apply_term_change
 
 
 class PreviewSide(BaseModel):
@@ -144,7 +149,7 @@ def preview_edit(
             conn,
             [mortgage_id],
             today,
-            lambda: apply_edit(conn, mortgage_id, edit, today, now),
+            lambda: edit_mortgage(conn, mortgage_id, edit, today, now),
         )
 
 
@@ -161,7 +166,7 @@ def preview_term_change(
             conn,
             [mortgage_id],
             today,
-            lambda: apply_term_change(conn, mortgage_id, change, today, now),
+            lambda: add_term_change(conn, mortgage_id, change, today, now),
         )
 
 
@@ -176,5 +181,5 @@ def preview_void(
             conn,
             mortgage_ids,
             today,
-            lambda: apply_void(conn, payment_id, "preview", now),
+            lambda: void_payment(conn, payment_id, "preview", today, now),
         )

@@ -191,10 +191,10 @@ export interface paths {
         /** Read Mortgage */
         get: operations["read_mortgage_api_mortgages__mortgage_id__get"];
         /**
-         * Edit Mortgage
+         * Put Mortgage
          * @description Correct a Mortgage's details; its Ledger is recalculated from them.
          */
-        put: operations["edit_mortgage_api_mortgages__mortgage_id__put"];
+        put: operations["put_mortgage_api_mortgages__mortgage_id__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -424,8 +424,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add Term Change */
-        post: operations["add_term_change_api_mortgages__mortgage_id__term_changes_post"];
+        /** Post Term Change */
+        post: operations["post_term_change_api_mortgages__mortgage_id__term_changes_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -482,8 +482,8 @@ export interface paths {
          */
         get: operations["list_payments_api_payments_get"];
         put?: never;
-        /** Record Payment */
-        post: operations["record_payment_api_payments_post"];
+        /** Post Payment */
+        post: operations["post_payment_api_payments_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -517,10 +517,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Void
+         * Post Void
          * @description Void a Payment entered by mistake; a corrected one is entered as a new Payment.
          */
-        post: operations["void_api_payments__payment_id__void_post"];
+        post: operations["post_void_api_payments__payment_id__void_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2001,7 +2001,7 @@ export interface operations {
             };
         };
     };
-    edit_mortgage_api_mortgages__mortgage_id__put: {
+    put_mortgage_api_mortgages__mortgage_id__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -2441,7 +2441,7 @@ export interface operations {
             };
         };
     };
-    add_term_change_api_mortgages__mortgage_id__term_changes_post: {
+    post_term_change_api_mortgages__mortgage_id__term_changes_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2575,7 +2575,7 @@ export interface operations {
             };
         };
     };
-    record_payment_api_payments_post: {
+    post_payment_api_payments_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2639,7 +2639,7 @@ export interface operations {
             };
         };
     };
-    void_api_payments__payment_id__void_post: {
+    post_void_api_payments__payment_id__void_post: {
         parameters: {
             query?: never;
             header?: never;
