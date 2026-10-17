@@ -25,9 +25,11 @@ from mortgage_backend.ledger import (
     Allocation,
     HypotheticalPayments,
     LedgerStep,
+    Projected,
     TermChange,
     compute_ledger,
     days_since_accrual,
+    project,
     terms_on,
 )
 from mortgage_backend.terms import Terms
@@ -80,9 +82,7 @@ class MortgageReplay:
         """The Terms for a month starting on `day`, Term Changes included."""
         return terms_on(self._terms, self.term_changes, day)
 
-    def ledger(
-        self, as_of: date, hypothetical: HypotheticalPayments | None = None
-    ) -> list[LedgerStep]:
+    def ledger(self, as_of: date) -> list[LedgerStep]:
         """The Ledger up to `as_of` (or the Closure, if earlier).
 
         Raises Overpayment if any Allocation is larger than what was owed on its date.
@@ -92,7 +92,6 @@ class MortgageReplay:
             self.allocations,
             closed_on=self.row["closed_on"],
             forfeited=self.row["status"] == MortgageStatus.FORFEITED,
-            hypothetical=hypothetical,
         )
 
     def outstanding(self, on: date) -> Outstanding:
@@ -104,18 +103,15 @@ class MortgageReplay:
             total=last.principal + last.unpaid_interest,
         )
 
-    def redemption(
-        self, on: date, hypothetical: HypotheticalPayments | None = None
-    ) -> Redemption:
+    def redemption(self, on: date) -> Redemption:
         """The Redemption Amount if closed on `on`, leaving out the Redemption's own
-        final Payment (and after hypothetical Payments, for a Projection)."""
+        final Payment."""
         final_payment = self.row["redemption_payment_id"]
         ledger = self._replay(
             on,
             [a for a in self.allocations if a.payment_id != final_payment],
             closed_on=on,
             forfeited=False,
-            hypothetical=hypothetical,
         )
         last = ledger[-1]
         part_month = next((s for s in ledger if s.event == "part_month"), None)
@@ -129,13 +125,32 @@ class MortgageReplay:
             total=last.principal + last.unpaid_interest,
         )
 
+    def projection(
+        self,
+        dates: Sequence[date],
+        hypothetical: HypotheticalPayments | None = None,
+        paid_off_by: date | None = None,
+    ) -> Projected:
+        """An Active Mortgage continued past its Payments in one replay: where it stands
+        on each of `dates`, the Term Changes taking effect, and when the hypothetical
+        Payments would pay it off (looking as far as `paid_off_by`)."""
+        return project(
+            self.row["start_date"],
+            self.row["amount_lent"],
+            self._terms,
+            dates,
+            self.allocations,
+            self.term_changes,
+            hypothetical,
+            paid_off_by,
+        )
+
     def _replay(
         self,
         as_of: date,
         allocations: Sequence[Allocation],
         closed_on: date | None,
         forfeited: bool,
-        hypothetical: HypotheticalPayments | None,
     ) -> list[LedgerStep]:
         return compute_ledger(
             self.row["start_date"],
@@ -146,7 +161,6 @@ class MortgageReplay:
             closed_on=closed_on,
             forfeited=forfeited,
             term_changes=self.term_changes,
-            hypothetical=hypothetical,
         )
 
 

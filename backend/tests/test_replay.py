@@ -23,6 +23,7 @@ from mortgage_backend.db import (
     payment_table,
     term_change_table,
 )
+from mortgage_backend.ledger import HypotheticalPayments
 from mortgage_backend.replay import replay, replays
 
 RUPEE = 100  # paise
@@ -227,3 +228,46 @@ def test_mortgages_are_replayed_together_each_with_only_its_own_facts(
     assert both[chain].outstanding(TODAY).total == 1_05_000 * RUPEE
     # ₹50,000 with ₹1,500 a month for three months, less ₹1,000.
     assert both[bangle].outstanding(TODAY).total == 53_500 * RUPEE
+
+
+def test_a_projection_reports_each_chosen_date_in_one_replay(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    conn.execute(
+        insert(term_change_table).values(
+            mortgage_id=chain, effective_on=date(2026, 6, 14), monthly_rate_bps=200
+        )
+    )
+
+    projected = replay(conn, chain).projection([TODAY, date(2026, 7, 20)])
+
+    today, july = projected.snapshots
+    # Today: ₹1,09,000 owed, plus a full month's ₹3,000 if Redeemed.
+    assert (today.on, today.principal, today.unpaid_interest) == (
+        TODAY,
+        LAKH,
+        9_000 * RUPEE,
+    )
+    assert today.redemption_amount == 1_12_000 * RUPEE
+    # 14 May and 14 Jun at 3% (each charges the month before), 14 Jul at 2%; and
+    # Redeeming on 20 Jul adds a full month at 2%.
+    assert july.unpaid_interest == 17_000 * RUPEE
+    assert july.redemption_amount == 1_19_000 * RUPEE
+    assert [(on, terms.monthly_rate_bps) for on, terms in projected.term_changes] == [
+        (date(2026, 6, 14), 200)
+    ]
+    assert projected.paid_off_on is None
+
+
+def test_a_projection_finds_when_hypothetical_payments_pay_it_off(
+    conn: Connection,
+) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+
+    projected = replay(conn, chain).projection(
+        [TODAY],
+        HypotheticalPayments(after=TODAY, amount=60_000 * RUPEE),
+        paid_off_by=date(2027, 4, 20),
+    )
+
+    # 14 May: ₹60,000 of ₹1,12,000; 14 Jun: the remaining ₹52,000 + ₹1,560.
+    assert projected.paid_off_on == date(2026, 6, 14)

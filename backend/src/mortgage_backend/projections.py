@@ -14,7 +14,7 @@ from sqlalchemy.engine import Connection
 from mortgage_backend.clock import TodayDep
 from mortgage_backend.collateral import collateral_of, gold_rates
 from mortgage_backend.db import EngineDep
-from mortgage_backend.ledger import HypotheticalPayments, LedgerStep, accrual_date
+from mortgage_backend.ledger import HypotheticalPayments, accrual_date
 from mortgage_backend.replay import MortgageReplay, MortgageStatus, replay
 from mortgage_backend.terms import Terms
 
@@ -56,44 +56,34 @@ def _series(
     collateral_value: int | None,
     hypothetical: HypotheticalPayments | None,
 ) -> ProjectedSeries:
-    def ledger(until: date) -> list[LedgerStep]:
-        return mortgage.ledger(until, hypothetical)
-
-    points = []
-    for months in range(MONTHS_AHEAD + 1):
-        on = accrual_date(today, months)
-        last = ledger(on)[-1]
-        owed = last.principal + last.unpaid_interest
-        points.append(
+    dates = [accrual_date(today, months) for months in range(MONTHS_AHEAD + 1)]
+    projected = mortgage.projection(
+        dates,
+        hypothetical,
+        paid_off_by=(
+            accrual_date(today, PAID_OFF_SEARCH_MONTHS) if hypothetical else None
+        ),
+    )
+    return ProjectedSeries(
+        points=[
             ProjectedPoint(
                 months=months,
-                on=on,
-                principal=last.principal,
-                unpaid_interest=last.unpaid_interest,
-                redemption_amount=mortgage.redemption(on, hypothetical).total,
-                loan_to_value=owed / collateral_value if collateral_value else None,
+                on=point.on,
+                principal=point.principal,
+                unpaid_interest=point.unpaid_interest,
+                redemption_amount=point.redemption_amount,
+                loan_to_value=(
+                    (point.principal + point.unpaid_interest) / collateral_value
+                    if collateral_value
+                    else None
+                ),
             )
-        )
-    term_changes = [
-        ComingTermChange(on=step.on, terms=step.terms)
-        for step in ledger(points[-1].on)
-        if step.on > today and step.event == "term_changed" and step.terms
-    ]
-    paid_off_on = None
-    if hypothetical is not None:
-        far = ledger(accrual_date(today, PAID_OFF_SEARCH_MONTHS))
-        paid_off_on = next(
-            (
-                step.on
-                for step in far
-                if step.event == "payment"
-                and step.payment_id is None
-                and step.principal + step.unpaid_interest == 0
-            ),
-            None,
-        )
-    return ProjectedSeries(
-        points=points, term_changes=term_changes, paid_off_on=paid_off_on
+            for months, point in enumerate(projected.snapshots)
+        ],
+        term_changes=[
+            ComingTermChange(on=on, terms=terms) for on, terms in projected.term_changes
+        ],
+        paid_off_on=projected.paid_off_on,
     )
 
 
