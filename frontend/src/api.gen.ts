@@ -566,7 +566,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Notices */
+        /**
+         * Read Notices
+         * @description Notices, after queueing any now due: a Mortgage added today, a longer
+         *     `notice_days_before` or a reopened Mortgage shows at once, not after the next
+         *     daily run. Queueing twice adds nothing.
+         */
         get: operations["read_notices_api_notices_get"];
         put?: never;
         post?: never;

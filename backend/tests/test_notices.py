@@ -255,3 +255,47 @@ def test_turning_approval_off_queues_the_notices_waiting_for_it(
     settings(conn, notice_approve_first=False)
 
     assert [n.status for n in list_notices(conn)] == ["queued"]
+
+
+def test_the_notices_page_queues_what_is_due_without_waiting_a_day(
+    app_client, clock
+) -> None:
+    clock.today = date(2026, 5, 12)
+    assert app_client.get("/api/notices").json() == []  # today's daily run is done
+    owner = app_client.post(
+        "/api/customers",
+        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
+    ).json()
+    for start in ("2026-01-14", "2026-01-25"):  # accrue on 14 May and 25 May
+        app_client.post(
+            "/api/mortgages",
+            json={
+                "customer_id": owner["id"],
+                "start_date": start,
+                "amount_lent": LAKH,
+                "description": "Gold chain",
+                "gross_weight_mg": 20_000,
+                "net_weight_mg": 19_000,
+                "purity_karat": 22,
+                "terms": {
+                    "monthly_rate_bps": 300,
+                    "interest_mode": "simple",
+                    "part_month_rule": "full_month",
+                },
+            },
+        )
+
+    # Added today: its Notice shows at once, not tomorrow.
+    assert [n["accrues_on"] for n in app_client.get("/api/notices").json()] == [
+        "2026-05-14"
+    ]
+
+    # Notices 15 days ahead now reach 25 May as well.
+    settings_now = app_client.get("/api/settings/messages").json()
+    app_client.put(
+        "/api/settings/messages", json={**settings_now, "notice_days_before": 15}
+    )
+    assert [n["accrues_on"] for n in app_client.get("/api/notices").json()] == [
+        "2026-05-14",
+        "2026-05-25",
+    ]

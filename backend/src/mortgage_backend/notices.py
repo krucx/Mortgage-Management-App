@@ -1,7 +1,7 @@
 """Notices (see GLOSSARY.md).
 
-The daily run queues one Notice per Customer per Accrual Date coming up within
-`notice_days_before` days. Until it is sent or skipped, a Notice is only that Customer
+One Notice is queued per Customer per Accrual Date coming up within
+`notice_days_before` days: by the daily run, and whenever the Notices are listed. Until it is sent or skipped, a Notice is only that Customer
 and date: which of their Active Mortgages accrue then, the amounts and the wording are
 worked out whenever it is read (ADR 0001), so a later Payment, Mortgage or template edit
 shows. Sending or skipping keeps the message as it was then, for the log. The Lender
@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import insert, select, update
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.clock import NowDep
+from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.customers import PersonSummary, phones_of
 from mortgage_backend.db import (
     EngineDep,
@@ -311,8 +311,14 @@ def update_message_settings(
 
 
 @router.get("/notices")
-def read_notices(engine: EngineDep, status: NoticeStatus | None = None) -> list[Notice]:
-    with engine.connect() as conn:
+def read_notices(
+    engine: EngineDep, today: TodayDep, status: NoticeStatus | None = None
+) -> list[Notice]:
+    """Notices, after queueing any now due: a Mortgage added today, a longer
+    `notice_days_before` or a reopened Mortgage shows at once, not after the next
+    daily run. Queueing twice adds nothing."""
+    with engine.begin() as conn:
+        queue_notices(conn, today)
         return list_notices(conn, status)
 
 
