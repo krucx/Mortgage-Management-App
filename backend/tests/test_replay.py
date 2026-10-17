@@ -1,5 +1,6 @@
 """The Mortgage replay: a Mortgage's stored facts replayed into its Ledger, Outstanding
-and Redemption Amount, straight against the database (no HTTP).
+and Redemption Amount, straight against the database (no HTTP). Today is 20 Apr 2026
+(see conftest).
 
 The Mortgage throughout: ₹1,00,000 at 3% a month, Simple, Full-month rule, from
 14 Jan 2026, so ₹3,000 of interest on each Accrual Date and ₹1,09,000 owed on 20 Apr.
@@ -10,8 +11,9 @@ from typing import Any
 
 import pytest
 from sqlalchemy import insert, update
-from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.engine import Connection
 
+from conftest import TODAY
 from mortgage_backend.db import (
     allocation_table,
     customer_table,
@@ -25,19 +27,12 @@ from mortgage_backend.replay import replay, replays
 
 RUPEE = 100  # paise
 LAKH = 1_00_000 * RUPEE
-TODAY = date(2026, 4, 20)
 
 
 @pytest.fixture
-def engine(tmp_path: Any) -> Engine:
-    url = f"sqlite:///{tmp_path / 'mortgage.db'}"
-    migrate(url)
-    return make_engine(url)
-
-
-@pytest.fixture
-def conn(engine: Engine) -> Any:
-    with engine.begin() as conn:
+def conn(database_url: str) -> Any:
+    migrate(database_url)
+    with make_engine(database_url).begin() as conn:
         yield conn
 
 
@@ -175,25 +170,29 @@ def test_a_redemption_amount_leaves_out_the_redemptions_own_final_payment(
     assert replay(conn, chain).redemption(date(2026, 3, 14)).total == 1_05_000 * RUPEE
 
 
-def test_a_forfeited_mortgages_debt_is_settled_by_its_jewellery(
+def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
     conn: Connection,
 ) -> None:
     chain = add_mortgage(conn, add_customer(conn))
+    # Forfeited 6 days after the 14 Mar Accrual Date: ₹6,000 of interest plus a full
+    # month's ₹3,000 under the Full-month rule, and nothing on 14 Apr.
     close(
         conn,
         chain,
         status="forfeited",
-        closed_on=date(2026, 4, 14),
+        closed_on=date(2026, 3, 20),
         recovered_amount=90_000 * RUPEE,
     )
 
     mortgage = replay(conn, chain)
 
     assert mortgage.outstanding(TODAY).total == 0
-    forfeited = mortgage.ledger(TODAY)[-1]
+    ledger = mortgage.ledger(TODAY)
+    assert all(step.on <= date(2026, 3, 20) for step in ledger)
+    forfeited = ledger[-1]
     assert (forfeited.event, forfeited.amount) == ("forfeited", 1_09_000 * RUPEE)
     # What the Mortgage owed when it was Forfeited.
-    assert mortgage.redemption(date(2026, 4, 14)).total == 1_09_000 * RUPEE
+    assert mortgage.redemption(date(2026, 3, 20)).total == 1_09_000 * RUPEE
 
 
 def test_term_changes_apply_from_their_accrual_date(conn: Connection) -> None:

@@ -87,19 +87,16 @@ class MortgageReplay:
 
         Raises Overpayment if any Allocation is larger than what was owed on its date.
         """
-        return compute_ledger(
-            self.row["start_date"],
-            self.row["amount_lent"],
-            self._terms,
+        return self._replay(
             as_of,
             self.allocations,
             closed_on=self.row["closed_on"],
             forfeited=self.row["status"] == MortgageStatus.FORFEITED,
-            term_changes=self.term_changes,
             hypothetical=hypothetical,
         )
 
     def outstanding(self, on: date) -> Outstanding:
+        """What the Mortgage owes on `on`: nothing once Redeemed or Forfeited."""
         last = self.ledger(on)[-1]
         return Outstanding(
             principal=last.principal,
@@ -113,14 +110,11 @@ class MortgageReplay:
         """The Redemption Amount if closed on `on`, leaving out the Redemption's own
         final Payment (and after hypothetical Payments, for a Projection)."""
         final_payment = self.row["redemption_payment_id"]
-        ledger = compute_ledger(
-            self.row["start_date"],
-            self.row["amount_lent"],
-            self._terms,
+        ledger = self._replay(
             on,
             [a for a in self.allocations if a.payment_id != final_payment],
             closed_on=on,
-            term_changes=self.term_changes,
+            forfeited=False,
             hypothetical=hypothetical,
         )
         last = ledger[-1]
@@ -133,6 +127,26 @@ class MortgageReplay:
             part_month_days=days_since_accrual(self.row["start_date"], on),
             part_month_charge=charge,
             total=last.principal + last.unpaid_interest,
+        )
+
+    def _replay(
+        self,
+        as_of: date,
+        allocations: Sequence[Allocation],
+        closed_on: date | None,
+        forfeited: bool,
+        hypothetical: HypotheticalPayments | None,
+    ) -> list[LedgerStep]:
+        return compute_ledger(
+            self.row["start_date"],
+            self.row["amount_lent"],
+            self._terms,
+            as_of,
+            allocations,
+            closed_on=closed_on,
+            forfeited=forfeited,
+            term_changes=self.term_changes,
+            hypothetical=hypothetical,
         )
 
 

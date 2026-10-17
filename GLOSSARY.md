@@ -66,6 +66,10 @@ How interest is charged for the days since the last Accrual Date when a Mortgage
 The step-by-step history of a Mortgage — interest added, capitalisations, payments — derived from its terms and payments.
 _Avoid_: Statement, MortgageLedger
 
+**Replay**:
+Working out a Mortgage's Ledger, Outstanding or Redemption Amount from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).
+_Avoid_: Recalculation, recompute, refresh
+
 **Projection**:
 The Ledger continued into the future under stated assumptions, used to compare outcomes before a decision.
 _Avoid_: Forecast, estimate
