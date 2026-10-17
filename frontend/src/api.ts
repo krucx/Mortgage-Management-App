@@ -108,6 +108,24 @@ export interface PaymentIn {
   allocations: { mortgage_id: number; amount: number }[]
 }
 
+/** A Payment as listed on the Payments page. */
+export interface PaymentRow {
+  id: number
+  paid_on: string
+  customer: PersonSummary
+  amount: number
+  method: PaymentMethod
+  reference: string | null
+  mortgage_names: string[]
+}
+
+export interface PaymentPage {
+  items: PaymentRow[]
+  total: number
+  page: number
+  page_size: number
+}
+
 export interface Payment {
   id: number
   customer: PersonSummary
@@ -223,12 +241,13 @@ export const api = {
   listMortgages: (
     page: number,
     query: string,
-    filters: { customerId?: number; status?: MortgageStatus } = {},
+    filters: { customerId?: number; status?: MortgageStatus; asOf?: string } = {},
   ) =>
     request<MortgagePage>(
       `/mortgages?page=${page}&q=${encodeURIComponent(query)}` +
         (filters.customerId ? `&customer_id=${filters.customerId}` : '') +
-        (filters.status ? `&status=${filters.status}` : ''),
+        (filters.status ? `&status=${filters.status}` : '') +
+        (filters.asOf ? `&as_of=${filters.asOf}` : ''),
     ),
   getMortgage: (id: number) => request<Mortgage>(`/mortgages/${id}`),
   createMortgage: (mortgage: MortgageIn) =>
@@ -247,6 +266,9 @@ export const api = {
     request<Mortgage>(`/mortgages/${id}/photos/${photoId}`, { method: 'DELETE' }),
 
   recordPayment: (payment: PaymentIn) => request<Payment>('/payments', sendJson('POST', payment)),
+  getPayment: (id: number) => request<Payment>(`/payments/${id}`),
+  listPayments: (page: number, query: string) =>
+    request<PaymentPage>(`/payments?page=${page}&q=${encodeURIComponent(query)}`),
 
   personByPhone: (phone: string) =>
     request<PersonSummary | null>(`/people/by-phone?phone=${encodeURIComponent(phone)}`),

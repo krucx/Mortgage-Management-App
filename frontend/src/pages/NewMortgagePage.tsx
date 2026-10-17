@@ -1,12 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { api, PURITIES, type Customer, type MortgageRow, type Purity } from '../api'
+import { CustomerChooser } from '../components/CustomerChooser'
 import { MortgageTable } from '../components/MortgageTable'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
 import { TermsFields } from '../components/TermsFields'
 import { useDebounced } from '../components/useDebounced'
-import { useSearch } from '../components/useSearch'
 import { todayIso } from '../format'
 import { rupeesToPaise } from '../money'
 import { fromDraft, toDraft, type TermsDraft } from '../terms'
@@ -33,53 +33,17 @@ export function NewMortgagePage() {
           <MortgageForm customer={customer} />
         </>
       ) : (
-        <CustomerChooser onChoose={(id) => setParams({ customer: String(id) })} />
+        <CustomerChooser
+          onChoose={(id) => setParams({ customer: String(id) })}
+          footer={
+            <p className="hint">
+              Not a Customer yet?{' '}
+              <Link to="/customers/new?next=mortgage">Add a new Customer</Link> first.
+            </p>
+          }
+        />
       )}
     </section>
-  )
-}
-
-function CustomerChooser({ onChoose }: { onChoose: (customerId: number) => void }) {
-  const [query, setQuery] = useState('')
-  const hits = useSearch(query).filter((hit) => hit.kind === 'customer')
-
-  return (
-    <div className="stack">
-      <label>
-        Customer
-        <input
-          autoFocus
-          type="search"
-          placeholder="Search by name or phone"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
-      {hits.length > 0 && (
-        <ul className="plain results">
-          {hits.map((hit) => (
-            <li key={hit.id}>
-              <button type="button" className="result" onClick={() => onChoose(hit.id)}>
-                {hit.photo_url ? (
-                  <img src={hit.photo_url} alt="" className="thumb" />
-                ) : (
-                  <span className="thumb placeholder" />
-                )}
-                <span>
-                  <strong>{hit.name}</strong>
-                  <br />
-                  <span className="hint">{hit.phone}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="hint">
-        Not a Customer yet? <Link to="/customers/new?next=mortgage">Add a new Customer</Link>{' '}
-        first.
-      </p>
-    </div>
   )
 }
 

@@ -335,8 +335,17 @@ def list_mortgages(
     q: str = "",
     customer_id: int | None = None,
     mortgage_status: Annotated[MortgageStatus | None, Query(alias="status")] = None,
+    as_of: date | None = None,
 ) -> MortgagePage:
-    """Mortgages, newest first, filtered by Mortgage Name or Customer name."""
+    """Mortgages, newest first, filtered by Mortgage Name or Customer name.
+
+    With `as_of`, only Mortgages started by then, with what they owed on that date
+    (used when recording a back-dated Payment).
+    """
+    if as_of is not None and as_of > today:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "The date cannot be in the future"
+        )
     query = q.strip()
     match = (
         or_(
@@ -348,6 +357,8 @@ def list_mortgages(
     )
     if customer_id is not None:
         match = match & (mortgage_table.c.customer_id == customer_id)
+    if as_of is not None:
+        match = match & (mortgage_table.c.start_date <= as_of)
     if mortgage_status is not None:
         match = match & (mortgage_table.c.status == mortgage_status)
     with engine.connect() as conn:
@@ -367,7 +378,7 @@ def list_mortgages(
             .mappings()
             .all()
         )
-        ledgers = ledgers_of(conn, rows, today)
+        ledgers = ledgers_of(conn, rows, as_of or today)
         items = [
             MortgageRow(
                 id=row["id"],

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { api, type LedgerStep, type Mortgage } from '../api'
 import { PersonLink } from '../components/PersonLink'
-import { RecordPayment } from '../components/RecordPayment'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
 import { formatDate, formatGrams } from '../format'
@@ -48,9 +47,19 @@ export function MortgagePage() {
         <h2>
           {mortgage.name} <span className={`badge status-${mortgage.status}`}>{mortgage.status}</span>
         </h2>
-        <span>
-          Customer: <PersonLink person={mortgage.customer} />
-        </span>
+        <div className="row">
+          <span>
+            Customer: <PersonLink person={mortgage.customer} />
+          </span>
+          {mortgage.status === 'active' && (
+            <Link
+              className="button small"
+              to={`/payments/new?customer=${mortgage.customer.id}&mortgage=${mortgage.id}`}
+            >
+              Record a Payment
+            </Link>
+          )}
+        </div>
       </div>
       {error && <p className="status error">{error}</p>}
 
@@ -111,16 +120,6 @@ export function MortgagePage() {
       )}
       <PhotoSource multiple onPhotos={addPhotos} />
 
-      {mortgage.status === 'active' && (
-        <>
-          <h3>Record a Payment</h3>
-          <RecordPayment
-            mortgage={mortgage}
-            onRecorded={() => api.getMortgage(id).then(setMortgage)}
-          />
-        </>
-      )}
-
       <h3>Ledger</h3>
       <p className="hint">
         Calculated from the Terms up to {formatDate(mortgage.as_of)}; nothing here is stored.
@@ -140,7 +139,13 @@ export function MortgagePage() {
             {mortgage.ledger.map((step, index) => (
               <tr key={index} className={`ledger-${step.event}`}>
                 <td>{formatDate(step.on)}</td>
-                <td>{describe(step, mortgage)}</td>
+                <td>
+                  {step.payment_id ? (
+                    <Link to={`/payments/${step.payment_id}`}>{describe(step, mortgage)}</Link>
+                  ) : (
+                    describe(step, mortgage)
+                  )}
+                </td>
                 <td className="num">{formatINR(step.amount)}</td>
                 <td className="num">{formatINR(step.principal)}</td>
                 <td className="num">{formatINR(step.unpaid_interest)}</td>

@@ -3,10 +3,12 @@
 from collections.abc import Sequence
 from datetime import date
 from enum import StrEnum
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import insert, select
+from sqlalchemy import exists as sql_exists
+from sqlalchemy import func, insert, or_, select, true
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.clock import TodayDep
@@ -69,6 +71,25 @@ class Payment(BaseModel):
     method: PaymentMethod
     reference: str | None
     allocations: list[AllocationOut]
+
+
+class PaymentRow(BaseModel):
+    """A Payment as listed on the Payments page."""
+
+    id: int
+    paid_on: date
+    customer: PersonSummary
+    amount: int
+    method: PaymentMethod
+    reference: str | None
+    mortgage_names: list[str]
+
+
+class PaymentPage(BaseModel):
+    items: list[PaymentRow]
+    total: int
+    page: int
+    page_size: int
 
 
 def _unprocessable(message: str) -> HTTPException:
@@ -186,3 +207,65 @@ def record_payment(payment: PaymentIn, engine: EngineDep, today: TodayDep) -> Pa
 def read_payment(payment_id: int, engine: EngineDep) -> Payment:
     with engine.connect() as conn:
         return _load_payment(conn, payment_id)
+
+
+PAGE_SIZE = 20
+
+
+@router.get("/payments")
+def list_payments(
+    engine: EngineDep, page: Annotated[int, Query(ge=1)] = 1, q: str = ""
+) -> PaymentPage:
+    """Payments, newest first, filtered by Customer, Mortgage Name or reference."""
+    query = q.strip()
+    match = (
+        or_(
+            customer_table.c.name.icontains(query),
+            payment_table.c.reference.icontains(query),
+            sql_exists().where(
+                allocation_table.c.payment_id == payment_table.c.id,
+                allocation_table.c.mortgage_id == mortgage_table.c.id,
+                mortgage_table.c.name.icontains(query),
+            ),
+        )
+        if query
+        else true()
+    )
+    with_customer = payment_table.join(
+        customer_table, customer_table.c.id == payment_table.c.customer_id
+    )
+    with engine.connect() as conn:
+        total = conn.execute(
+            select(func.count()).select_from(with_customer).where(match)
+        ).scalar_one()
+        payments = conn.execute(
+            select(payment_table, customer_table.c.name.label("customer_name"))
+            .select_from(with_customer)
+            .where(match)
+            .order_by(payment_table.c.paid_on.desc(), payment_table.c.id.desc())
+            .limit(PAGE_SIZE)
+            .offset((page - 1) * PAGE_SIZE)
+        ).all()
+        names: dict[int, list[str]] = {payment.id: [] for payment in payments}
+        for row in conn.execute(
+            select(allocation_table.c.payment_id, mortgage_table.c.name)
+            .join(mortgage_table, mortgage_table.c.id == allocation_table.c.mortgage_id)
+            .where(allocation_table.c.payment_id.in_(names))
+            .order_by(allocation_table.c.id)
+        ):
+            names[row.payment_id].append(row.name)
+    items = [
+        PaymentRow(
+            id=payment.id,
+            paid_on=payment.paid_on,
+            customer=PersonSummary(
+                kind="customer", id=payment.customer_id, name=payment.customer_name
+            ),
+            amount=payment.amount,
+            method=payment.method,
+            reference=payment.reference,
+            mortgage_names=names[payment.id],
+        )
+        for payment in payments
+    ]
+    return PaymentPage(items=items, total=total, page=page, page_size=PAGE_SIZE)

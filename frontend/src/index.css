@@ -399,6 +399,7 @@ h3 {
 .grid-3 {
   display: grid;
   gap: 1rem;
+  align-items: start;
 }
 
 .grid-2 {
@@ -487,4 +488,15 @@ fieldset:disabled {
 
 tr.ledger-payment td {
   color: var(--ok);
+}
+
+input.small-input {
+  width: 8rem;
+  text-align: right;
+}
+
+ul.problems {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--error);
 }

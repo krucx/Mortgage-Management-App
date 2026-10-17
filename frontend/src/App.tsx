@@ -5,6 +5,9 @@ import { CustomersPage } from './pages/CustomersPage'
 import { MortgagePage } from './pages/MortgagePage'
 import { MortgagesPage } from './pages/MortgagesPage'
 import { NewMortgagePage } from './pages/NewMortgagePage'
+import { NewPaymentPage } from './pages/NewPaymentPage'
+import { PaymentPage } from './pages/PaymentPage'
+import { PaymentsPage } from './pages/PaymentsPage'
 import { ReferrerPage } from './pages/ReferrerPage'
 import { SettingsPage } from './pages/SettingsPage'
 
@@ -15,6 +18,7 @@ export default function App() {
         <header>
           <h1>Mortgage Management</h1>
           <nav>
+            <NavLink to="/payments">Payments</NavLink>
             <NavLink to="/customers">Customers</NavLink>
             <NavLink to="/mortgages">Mortgages</NavLink>
             <NavLink to="/settings">Settings</NavLink>
@@ -22,7 +26,10 @@ export default function App() {
         </header>
         <main>
           <Routes>
-            <Route path="/" element={<Navigate to="/customers" replace />} />
+            <Route path="/" element={<Navigate to="/payments" replace />} />
+            <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/payments/new" element={<NewPaymentPage />} />
+            <Route path="/payments/:id" element={<PaymentPage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/customers/new" element={<CustomerFormPage />} />
             <Route path="/customers/:id" element={<CustomerPage />} />
