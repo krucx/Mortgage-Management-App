@@ -1,406 +1,91 @@
-export type InterestMode = 'simple' | 'compounded_yearly' | 'compounded_monthly'
-export type PartMonthRule = 'pro_rata' | 'full_month' | 'nothing'
+// Request and response types are generated from the backend's OpenAPI schema into
+// api.gen.ts (`npm run gen:types`); this file names them and holds the fetch calls.
+import type { components } from './api.gen'
 
+type Schemas = components['schemas']
+
+export type InterestMode = Schemas['InterestMode']
+export type PartMonthRule = Schemas['PartMonthRule']
 /** A Mortgage's rate, Interest Mode and Part-Month Rule; also the Default Terms in Settings. */
-export interface Terms {
-  /** Basis points per month: 300 = 3% a month. */
-  monthly_rate_bps: number
-  interest_mode: InterestMode
-  part_month_rule: PartMonthRule
-}
+export type Terms = Schemas['Terms']
 
 /** A Customer or standalone Referrer, as shown in lists and links. */
-export interface PersonSummary {
-  kind: 'customer' | 'referrer'
-  id: number
-  name: string
-}
-
-export interface SearchHit extends PersonSummary {
-  phone: string
-  photo_url: string | null
-}
-
-export type ReferrerChoice =
-  | { kind: 'customer' | 'referrer'; id: number }
-  | { kind: 'new'; name: string; address: string; phone: string }
-
-export interface CustomerIn {
-  name: string
-  address: string
-  phone_1: string
-  phone_2: string | null
-  referrer: ReferrerChoice | null
-}
-
+export type PersonSummary = Schemas['PersonSummary']
+export type SearchHit = Schemas['SearchHit']
+export type ReferrerChoice = NonNullable<Schemas['CustomerIn']['referrer']>
+export type CustomerIn = Schemas['CustomerIn']
 /** A Customer as listed in the Customers table. */
-export interface CustomerRow {
-  id: number
-  name: string
-  address: string
-  phone_1: string
-  phone_2: string | null
-  photo_url: string | null
-  referrer: PersonSummary | null
-}
+export type CustomerRow = Schemas['CustomerRow']
+export type CustomerPage = Schemas['CustomerPage']
+export type Customer = Schemas['Customer']
+export type StandaloneReferrer = Schemas['StandaloneReferrer']
 
-export interface CustomerPage {
-  items: CustomerRow[]
-  total: number
-  page: number
-  page_size: number
-}
-
-export interface Customer extends CustomerRow {
-  referred: PersonSummary[]
-  shares_phone_with: PersonSummary[]
-}
-
-export interface StandaloneReferrer {
-  id: number
-  name: string
-  address: string
-  phone: string
-  referred: PersonSummary[]
-}
-
-export type Purity = 24 | 22 | 20 | 18 | 14
+export type Purity = Schemas['MortgageIn']['purity_karat']
 export const PURITIES: Purity[] = [24, 22, 20, 18, 14]
 
-export interface MortgageIn {
-  customer_id: number
-  name: string | null
-  start_date: string // YYYY-MM-DD
-  amount_lent: number // paise; the starting Principal
-  description: string
-  gross_weight_mg: number
-  net_weight_mg: number
-  purity_karat: Purity
-  terms: Terms | null
-}
+export type MortgageIn = Schemas['MortgageIn']
+export type LedgerStep = Schemas['LedgerStep']
 
-export interface LedgerStep {
-  on: string
-  event:
-    | 'started'
-    | 'interest'
-    | 'part_month'
-    | 'payment'
-    | 'capitalised'
-    | 'forfeited'
-    | 'term_changed'
-  amount: number // paise
-  principal: number // running, paise
-  unpaid_interest: number // running, paise
-  charged_on: number // interest / part_month steps: the Principal at the start of that month
-  part_month_days: number // part_month steps: days since the last Accrual Date
-  interest_paid: number // payment steps only
-  principal_paid: number // payment steps only
-  payment_id: number | null
-  terms: Terms | null // term_changed steps: the Terms from then on
-}
-
-export type PaymentMethod = 'cash' | 'upi' | 'bank_transfer'
-
+export type PaymentMethod = Schemas['PaymentMethod']
 export const PAYMENT_METHODS: Record<PaymentMethod, string> = {
   cash: 'Cash',
   upi: 'UPI',
   bank_transfer: 'Bank transfer',
 }
-
-export interface PaymentIn {
-  customer_id: number
-  paid_on: string
-  amount: number // paise
-  method: PaymentMethod
-  reference: string | null
-  allocations: { mortgage_id: number; amount: number }[]
-}
-
+export type PaymentIn = Schemas['PaymentIn']
 /** A Payment as listed on the Payments page. */
-export interface PaymentRow {
-  id: number
-  paid_on: string
-  customer: PersonSummary
-  amount: number
-  method: PaymentMethod
-  reference: string | null
-  mortgages: { id: number; name: string }[] // in the order the Allocations were made
-  voided: boolean
-}
+export type PaymentRow = Schemas['PaymentRow']
+export type PaymentPage = Schemas['PaymentPage']
+export type Payment = Schemas['Payment']
 
-export interface PaymentPage {
-  items: PaymentRow[]
-  total: number
-  page: number
-  page_size: number
-}
-
-export interface Payment {
-  id: number
-  customer: PersonSummary
-  paid_on: string
-  amount: number
-  method: PaymentMethod
-  reference: string | null
-  allocations: {
-    mortgage_id: number
-    mortgage_name: string
-    amount: number
-    interest_paid: number | null // null once Voided
-    principal_paid: number | null
-  }[]
-  voided_at: string | null
-  void_reason: string | null
-}
-
-export type MortgageStatus = 'active' | 'redeemed' | 'forfeited'
-
+export type MortgageStatus = Schemas['MortgageStatus']
 /** Principal plus unpaid interest on a date, before any Part-Month Rule charge. */
-export interface Outstanding {
-  principal: number
-  unpaid_interest: number
-  total: number
-}
-
-export interface Mortgage {
-  id: number
-  name: string
-  customer: PersonSummary
-  start_date: string
-  amount_lent: number
-  description: string
-  gross_weight_mg: number
-  net_weight_mg: number
-  purity_karat: Purity
-  terms: Terms // in force today
-  term_changes: TermChange[]
-  upcoming_accrual_dates: string[] // when a Term Change could start
-  status: MortgageStatus
-  photos: { id: number; url: string }[]
-  as_of: string
-  ledger: LedgerStep[]
-  outstanding: Outstanding
-  collateral: Collateral | null // null until a Gold Rate or manual value is set
-  closure: Closure | null
-}
-
+export type Outstanding = Schemas['Outstanding']
+export type Mortgage = Schemas['Mortgage']
 /** New Terms from an Accrual Date on. */
-export interface TermChange {
-  id: number
-  effective_on: string
-  terms: Terms
-  removable: boolean // until it takes effect
-}
+export type TermChange = Schemas['TermChangeOut']
+export type MortgageRow = Schemas['MortgageRow']
+export type MortgagePage = Schemas['MortgagePage']
 
-export interface ProjectedPoint {
-  months: number
-  on: string
-  principal: number
-  unpaid_interest: number
-  redemption_amount: number
-  loan_to_value: number | null
-}
-
+export type ProjectedPoint = Schemas['ProjectedPoint']
 /** A Term Change in the coming year. */
-export interface ComingTermChange {
-  on: string
-  terms: Terms // from then on
-}
+export type ComingTermChange = Schemas['ComingTermChange']
+export type ProjectedSeries = Schemas['ProjectedSeries']
+export type Projection = Schemas['Projection']
 
-export interface ProjectedSeries {
-  points: ProjectedPoint[] // today, then each month for a year
-  term_changes: ComingTermChange[] // in the coming year
-  paid_off_on: string | null
-}
-
-export interface Projection {
-  as_of: string
-  collateral_value: number | null
-  monthly_payment: number | null
-  baseline: ProjectedSeries
-  what_if: ProjectedSeries | null
-}
-
-/** A Ledger step that an edit would change: null on the side where it doesn't exist. */
-export interface LedgerChange {
-  on: string
-  event: LedgerStep['event']
-  before: LedgerStep | null
-  after: LedgerStep | null
-}
-
-export interface PreviewSide {
-  outstanding: number // today
-  points: ProjectedPoint[] // with no further Payments; empty for a closed Mortgage
-  term_changes: ComingTermChange[]
-}
-
+/** A Ledger step that a change would alter: null on the side where it doesn't exist. */
+export type LedgerChange = Schemas['LedgerChange']
+export type PreviewSide = Schemas['PreviewSide']
 /** One Mortgage before and after a change that has not been saved. */
-export interface MortgagePreview {
-  mortgage_id: number
-  mortgage_name: string
-  before: PreviewSide
-  after: PreviewSide
-  ledger_changes: LedgerChange[]
-}
-
+export type MortgagePreview = Schemas['MortgagePreview']
 /** What a Term Change says; anything left out carries over. */
-export interface TermChangeIn {
-  effective_on: string
-  monthly_rate_bps?: number
-  interest_mode?: InterestMode
-  part_month_rule?: PartMonthRule
-}
+export type TermChangeIn = Schemas['TermChangeIn']
+/** The details of a Mortgage that can be corrected (not its Customer or Terms). */
+export type MortgageEdit = Schemas['MortgageEdit']
 
 /** Collateral Value: net weight at the Gold Rate, unless set by hand. */
-export interface Collateral {
-  value: number // paise
-  source: 'gold_rate' | 'manual'
-  set_on: string
-  loan_to_value: number // Outstanding ÷ Collateral Value
-}
+export type Collateral = Schemas['Collateral']
+export type GoldRate = Schemas['GoldRate']
+export type BackupStatus = Schemas['BackupStatus']
 
-export interface GoldRate {
-  purity_karat: Purity
-  rate_per_gram: number | null // paise
-  updated_on: string | null
-}
+/** One change in the History; edits have one entry per changed field. */
+export type AuditEntry = Schemas['AuditEntry']
+export type AuditAction = AuditEntry['action']
 
-export interface BackupStatus {
-  enabled: boolean
-  encrypted: boolean // false when no BACKUP_PASSWORD is set
-  running: boolean
-  last_backup_at: string | null
-  last_backup_file: string | null
-  last_error: string | null
-  keep: number
-}
-
-/** The details of a Mortgage that can be corrected (not its Customer or Terms). */
-export interface MortgageEdit {
-  name: string
-  start_date: string
-  amount_lent: number // paise
-  description: string
-  gross_weight_mg: number
-  net_weight_mg: number
-  purity_karat: Purity
-}
-
-export type AuditAction =
-  | 'created'
-  | 'edited'
-  | 'deleted'
-  | 'voided'
-  | 'redeemed'
-  | 'forfeited'
-  | 'reopened'
-  | 'photo_added'
-  | 'photo_removed'
-  | 'term_change_added'
-  | 'term_change_removed'
-
-/** One change in the audit log; edits have one entry per changed field. */
-export interface AuditEntry {
-  id: number
-  at: string
-  entity: 'customer' | 'mortgage' | 'payment'
-  entity_id: number
-  action: AuditAction
-  field: string | null
-  old_value: string | null
-  new_value: string | null
-  note: string | null
-  mortgage_name: string | null // for a Mortgage's entries
-}
-
-export interface CallListSettings {
-  months_unpaid: number
-  loan_to_value_pct: number
-}
-
-export interface CallNote {
-  id: number
-  called_on: string
-  note: string
-  created_at: string
-}
-
-export type CallReason = 'months_unpaid' | 'loan_to_value' | 'accrues_today'
-
-export interface CallListRow {
-  mortgage_id: number
-  mortgage_name: string
-  reasons: CallReason[]
-  months_unpaid: number
-  loan_to_value: number | null
-  outstanding: number
-  called: CallNote | null // today's latest Call Note
-}
-
+export type CallListSettings = Schemas['CallListSettings']
+export type CallNote = Schemas['CallNote']
+export type CallListRow = Schemas['CallListRow']
+export type CallReason = CallListRow['reasons'][number]
 /** One Customer's Mortgages on the Call List. */
-export interface CallListGroup {
-  customer: PersonSummary
-  phone_1: string
-  phone_2: string | null
-  rows: CallListRow[]
-}
+export type CallListGroup = Schemas['CallListGroup']
 
 /** What it takes to close a Mortgage on a date. */
-export interface Redemption {
-  on: string
-  principal: number
-  unpaid_interest: number
-  part_month_days: number
-  part_month_charge: number
-  total: number // the Redemption Amount
-}
-
-export interface RedeemIn {
-  redeemed_on: string
-  method: PaymentMethod // of the final Payment
-  reference: string | null
-}
-
-export interface ForfeitIn {
-  forfeited_on: string
-  recovered_amount: number // paise
-  note: string
-}
-
+export type Redemption = Schemas['Redemption']
+export type RedeemIn = Schemas['RedeemIn']
+export type ForfeitIn = Schemas['ForfeitIn']
 /** An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back. */
-export interface ReadyToRedeem {
-  mortgage: MortgageRow
-  redemption: Redemption // redeeming today
-}
-
-export interface Closure {
-  kind: 'redeemed' | 'forfeited'
-  on: string
-  redemption_amount: number
-  payment_id: number | null
-  recovered_amount: number | null
-  profit_loss: number | null
-  note: string | null
-}
-
-export interface MortgageRow {
-  id: number
-  name: string
-  customer: PersonSummary
-  start_date: string
-  amount_lent: number
-  status: MortgageStatus
-  outstanding_total: number
-}
-
-export interface MortgagePage {
-  items: MortgageRow[]
-  total: number
-  page: number
-  page_size: number
-}
+export type ReadyToRedeem = Schemas['ReadyToRedeem']
+export type Closure = Schemas['Closure']
 
 /** Turns a FastAPI error body into one readable line. */
 function errorMessage(status: number, body: unknown): string {

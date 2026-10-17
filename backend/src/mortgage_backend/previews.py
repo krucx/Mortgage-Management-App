@@ -33,7 +33,7 @@ class LedgerChange(BaseModel):
     """A Ledger step that differs: None on the side where it does not exist."""
 
     on: date
-    event: str
+    event: LedgerEvent
     before: LedgerStep | None
     after: LedgerStep | None
 

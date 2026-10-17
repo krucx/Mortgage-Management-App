@@ -63,6 +63,16 @@ cd backend && uv run pytest && uv run mypy src
 cd frontend && npm test && npm run typecheck
 ```
 
+### API types
+
+The frontend's request and response types are generated from the backend's models, never written by hand. After changing a model the backend returns or accepts, run:
+
+```sh
+cd frontend && npm run gen:types
+```
+
+and commit `frontend/openapi.json` and `frontend/src/api.gen.ts`. The backend tests fail if `openapi.json` is stale, and the frontend tests fail if `api.gen.ts` doesn't match it.
+
 ### Database migrations
 
 Add a new revision under `backend/src/mortgage_backend/migrations/versions/`. Migrations run every time the backend starts.

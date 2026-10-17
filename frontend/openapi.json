@@ -1,0 +1,4370 @@
+{
+  "components": {
+    "schemas": {
+      "AllocationIn": {
+        "properties": {
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "type": "integer"
+          },
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mortgage_id",
+          "amount"
+        ],
+        "title": "AllocationIn",
+        "type": "object"
+      },
+      "AllocationOut": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "interest_paid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest Paid"
+          },
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          },
+          "mortgage_name": {
+            "title": "Mortgage Name",
+            "type": "string"
+          },
+          "principal_paid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principal Paid"
+          }
+        },
+        "required": [
+          "mortgage_id",
+          "mortgage_name",
+          "amount",
+          "interest_paid",
+          "principal_paid"
+        ],
+        "title": "AllocationOut",
+        "type": "object"
+      },
+      "AuditEntry": {
+        "properties": {
+          "action": {
+            "enum": [
+              "created",
+              "edited",
+              "deleted",
+              "voided",
+              "redeemed",
+              "forfeited",
+              "reopened",
+              "photo_added",
+              "photo_removed",
+              "term_change_added",
+              "term_change_removed"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "entity": {
+            "enum": [
+              "customer",
+              "mortgage",
+              "payment"
+            ],
+            "title": "Entity",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "integer"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "mortgage_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mortgage Name"
+          },
+          "new_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Value"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "old_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Value"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "entity",
+          "entity_id",
+          "action",
+          "field",
+          "old_value",
+          "new_value",
+          "note",
+          "mortgage_name"
+        ],
+        "title": "AuditEntry",
+        "type": "object"
+      },
+      "BackupSettings": {
+        "properties": {
+          "keep": {
+            "minimum": 1.0,
+            "title": "Keep",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "keep"
+        ],
+        "title": "BackupSettings",
+        "type": "object"
+      },
+      "BackupStatus": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "encrypted": {
+            "title": "Encrypted",
+            "type": "boolean"
+          },
+          "keep": {
+            "title": "Keep",
+            "type": "integer"
+          },
+          "last_backup_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Backup At"
+          },
+          "last_backup_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Backup File"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "encrypted",
+          "running",
+          "last_backup_at",
+          "last_backup_file",
+          "last_error",
+          "keep"
+        ],
+        "title": "BackupStatus",
+        "type": "object"
+      },
+      "Body_add_mortgage_photo_api_mortgages__mortgage_id__photos_post": {
+        "properties": {
+          "photo": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Photo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "photo"
+        ],
+        "title": "Body_add_mortgage_photo_api_mortgages__mortgage_id__photos_post",
+        "type": "object"
+      },
+      "Body_replace_customer_photo_api_customers__customer_id__photo_put": {
+        "properties": {
+          "photo": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Photo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "photo"
+        ],
+        "title": "Body_replace_customer_photo_api_customers__customer_id__photo_put",
+        "type": "object"
+      },
+      "CallListGroup": {
+        "description": "One Customer's listed Mortgages.",
+        "properties": {
+          "customer": {
+            "$ref": "#/components/schemas/PersonSummary"
+          },
+          "phone_1": {
+            "title": "Phone 1",
+            "type": "string"
+          },
+          "phone_2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone 2"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CallListRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "customer",
+          "phone_1",
+          "phone_2",
+          "rows"
+        ],
+        "title": "CallListGroup",
+        "type": "object"
+      },
+      "CallListRow": {
+        "properties": {
+          "called": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CallNote"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "loan_to_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loan To Value"
+          },
+          "months_unpaid": {
+            "title": "Months Unpaid",
+            "type": "integer"
+          },
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          },
+          "mortgage_name": {
+            "title": "Mortgage Name",
+            "type": "string"
+          },
+          "outstanding": {
+            "title": "Outstanding",
+            "type": "integer"
+          },
+          "reasons": {
+            "items": {
+              "enum": [
+                "months_unpaid",
+                "loan_to_value",
+                "accrues_today"
+              ],
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mortgage_id",
+          "mortgage_name",
+          "reasons",
+          "months_unpaid",
+          "loan_to_value",
+          "outstanding",
+          "called"
+        ],
+        "title": "CallListRow",
+        "type": "object"
+      },
+      "CallListSettings": {
+        "properties": {
+          "loan_to_value_pct": {
+            "default": 85,
+            "exclusiveMinimum": 0.0,
+            "title": "Loan To Value Pct",
+            "type": "integer"
+          },
+          "months_unpaid": {
+            "default": 3,
+            "minimum": 1.0,
+            "title": "Months Unpaid",
+            "type": "integer"
+          }
+        },
+        "title": "CallListSettings",
+        "type": "object"
+      },
+      "CallNote": {
+        "properties": {
+          "called_on": {
+            "format": "date",
+            "title": "Called On",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "called_on",
+          "note",
+          "created_at"
+        ],
+        "title": "CallNote",
+        "type": "object"
+      },
+      "CallNoteIn": {
+        "properties": {
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "CallNoteIn",
+        "type": "object"
+      },
+      "Closure": {
+        "description": "How and when a Mortgage was closed.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "redeemed",
+              "forfeited"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "payment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Id"
+          },
+          "profit_loss": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profit Loss"
+          },
+          "recovered_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovered Amount"
+          },
+          "redemption_amount": {
+            "title": "Redemption Amount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "on",
+          "redemption_amount",
+          "payment_id",
+          "recovered_amount",
+          "profit_loss",
+          "note"
+        ],
+        "title": "Closure",
+        "type": "object"
+      },
+      "Collateral": {
+        "properties": {
+          "loan_to_value": {
+            "title": "Loan To Value",
+            "type": "number"
+          },
+          "set_on": {
+            "format": "date",
+            "title": "Set On",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "gold_rate",
+              "manual"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value",
+          "source",
+          "set_on",
+          "loan_to_value"
+        ],
+        "title": "Collateral",
+        "type": "object"
+      },
+      "CollateralIn": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "CollateralIn",
+        "type": "object"
+      },
+      "ComingTermChange": {
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/Terms"
+          }
+        },
+        "required": [
+          "on",
+          "terms"
+        ],
+        "title": "ComingTermChange",
+        "type": "object"
+      },
+      "Customer": {
+        "description": "A Customer's own page.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone_1": {
+            "title": "Phone 1",
+            "type": "string"
+          },
+          "phone_2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone 2"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          },
+          "referred": {
+            "items": {
+              "$ref": "#/components/schemas/PersonSummary"
+            },
+            "title": "Referred",
+            "type": "array"
+          },
+          "referrer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shares_phone_with": {
+            "items": {
+              "$ref": "#/components/schemas/PersonSummary"
+            },
+            "title": "Shares Phone With",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "phone_1",
+          "phone_2",
+          "photo_url",
+          "referrer",
+          "referred",
+          "shares_phone_with"
+        ],
+        "title": "Customer",
+        "type": "object"
+      },
+      "CustomerIn": {
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone_1": {
+            "title": "Phone 1",
+            "type": "string"
+          },
+          "phone_2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone 2"
+          },
+          "referrer": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "customer": "#/components/schemas/ExistingCustomerReferrer",
+                    "new": "#/components/schemas/NewStandaloneReferrer",
+                    "referrer": "#/components/schemas/ExistingStandaloneReferrer"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ExistingCustomerReferrer"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ExistingStandaloneReferrer"
+                  },
+                  {
+                    "$ref": "#/components/schemas/NewStandaloneReferrer"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referrer"
+          }
+        },
+        "required": [
+          "name",
+          "address",
+          "phone_1"
+        ],
+        "title": "CustomerIn",
+        "type": "object"
+      },
+      "CustomerPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "CustomerPage",
+        "type": "object"
+      },
+      "CustomerRow": {
+        "description": "A Customer as listed in the Customers table.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone_1": {
+            "title": "Phone 1",
+            "type": "string"
+          },
+          "phone_2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone 2"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          },
+          "referrer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "phone_1",
+          "phone_2",
+          "photo_url",
+          "referrer"
+        ],
+        "title": "CustomerRow",
+        "type": "object"
+      },
+      "ExistingCustomerReferrer": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "customer",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "ExistingCustomerReferrer",
+        "type": "object"
+      },
+      "ExistingStandaloneReferrer": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "referrer",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "ExistingStandaloneReferrer",
+        "type": "object"
+      },
+      "ForfeitIn": {
+        "properties": {
+          "forfeited_on": {
+            "format": "date",
+            "title": "Forfeited On",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "recovered_amount": {
+            "minimum": 0.0,
+            "title": "Recovered Amount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "forfeited_on",
+          "recovered_amount"
+        ],
+        "title": "ForfeitIn",
+        "type": "object"
+      },
+      "GoldRate": {
+        "properties": {
+          "purity_karat": {
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
+            "title": "Purity Karat",
+            "type": "integer"
+          },
+          "rate_per_gram": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Per Gram"
+          },
+          "updated_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated On"
+          }
+        },
+        "required": [
+          "purity_karat",
+          "rate_per_gram",
+          "updated_on"
+        ],
+        "title": "GoldRate",
+        "type": "object"
+      },
+      "GoldRateIn": {
+        "properties": {
+          "purity_karat": {
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
+            "title": "Purity Karat",
+            "type": "integer"
+          },
+          "rate_per_gram": {
+            "exclusiveMinimum": 0.0,
+            "title": "Rate Per Gram",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "purity_karat",
+          "rate_per_gram"
+        ],
+        "title": "GoldRateIn",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InterestMode": {
+        "enum": [
+          "simple",
+          "compounded_yearly",
+          "compounded_monthly"
+        ],
+        "title": "InterestMode",
+        "type": "string"
+      },
+      "LedgerChange": {
+        "description": "A Ledger step that differs: None on the side where it does not exist.",
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LedgerStep"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LedgerStep"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "event": {
+            "enum": [
+              "started",
+              "interest",
+              "part_month",
+              "payment",
+              "capitalised",
+              "forfeited",
+              "term_changed"
+            ],
+            "title": "Event",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "event",
+          "before",
+          "after"
+        ],
+        "title": "LedgerChange",
+        "type": "object"
+      },
+      "LedgerStep": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "charged_on": {
+            "default": 0,
+            "title": "Charged On",
+            "type": "integer"
+          },
+          "event": {
+            "enum": [
+              "started",
+              "interest",
+              "part_month",
+              "payment",
+              "capitalised",
+              "forfeited",
+              "term_changed"
+            ],
+            "title": "Event",
+            "type": "string"
+          },
+          "interest_paid": {
+            "default": 0,
+            "title": "Interest Paid",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "part_month_days": {
+            "default": 0,
+            "title": "Part Month Days",
+            "type": "integer"
+          },
+          "payment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Id"
+          },
+          "principal": {
+            "title": "Principal",
+            "type": "integer"
+          },
+          "principal_paid": {
+            "default": 0,
+            "title": "Principal Paid",
+            "type": "integer"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Terms"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unpaid_interest": {
+            "title": "Unpaid Interest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "event",
+          "amount",
+          "principal",
+          "unpaid_interest"
+        ],
+        "title": "LedgerStep",
+        "type": "object"
+      },
+      "Mortgage": {
+        "description": "A Mortgage's own page, with its Ledger computed up to `as_of`.",
+        "properties": {
+          "amount_lent": {
+            "title": "Amount Lent",
+            "type": "integer"
+          },
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "closure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Closure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "collateral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Collateral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer": {
+            "$ref": "#/components/schemas/PersonSummary"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "gross_weight_mg": {
+            "title": "Gross Weight Mg",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "ledger": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerStep"
+            },
+            "title": "Ledger",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "net_weight_mg": {
+            "title": "Net Weight Mg",
+            "type": "integer"
+          },
+          "outstanding": {
+            "$ref": "#/components/schemas/Outstanding"
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/MortgagePhoto"
+            },
+            "title": "Photos",
+            "type": "array"
+          },
+          "purity_karat": {
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
+            "title": "Purity Karat",
+            "type": "integer"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MortgageStatus"
+          },
+          "term_changes": {
+            "items": {
+              "$ref": "#/components/schemas/TermChangeOut"
+            },
+            "title": "Term Changes",
+            "type": "array"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/Terms"
+          },
+          "upcoming_accrual_dates": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Upcoming Accrual Dates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "customer",
+          "start_date",
+          "amount_lent",
+          "description",
+          "gross_weight_mg",
+          "net_weight_mg",
+          "purity_karat",
+          "terms",
+          "term_changes",
+          "upcoming_accrual_dates",
+          "status",
+          "photos",
+          "as_of",
+          "ledger",
+          "outstanding",
+          "collateral",
+          "closure"
+        ],
+        "title": "Mortgage",
+        "type": "object"
+      },
+      "MortgageEdit": {
+        "properties": {
+          "amount_lent": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Lent",
+            "type": "integer"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "gross_weight_mg": {
+            "exclusiveMinimum": 0.0,
+            "title": "Gross Weight Mg",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "net_weight_mg": {
+            "exclusiveMinimum": 0.0,
+            "title": "Net Weight Mg",
+            "type": "integer"
+          },
+          "purity_karat": {
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
+            "title": "Purity Karat",
+            "type": "integer"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "start_date",
+          "amount_lent",
+          "description",
+          "gross_weight_mg",
+          "net_weight_mg",
+          "purity_karat"
+        ],
+        "title": "MortgageEdit",
+        "type": "object"
+      },
+      "MortgageIn": {
+        "properties": {
+          "amount_lent": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Lent",
+            "type": "integer"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "integer"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "gross_weight_mg": {
+            "exclusiveMinimum": 0.0,
+            "title": "Gross Weight Mg",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "net_weight_mg": {
+            "exclusiveMinimum": 0.0,
+            "title": "Net Weight Mg",
+            "type": "integer"
+          },
+          "purity_karat": {
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
+            "title": "Purity Karat",
+            "type": "integer"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Terms"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "start_date",
+          "amount_lent",
+          "description",
+          "gross_weight_mg",
+          "net_weight_mg",
+          "purity_karat",
+          "customer_id"
+        ],
+        "title": "MortgageIn",
+        "type": "object"
+      },
+      "MortgageLink": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MortgageLink",
+        "type": "object"
+      },
+      "MortgagePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MortgageRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "MortgagePage",
+        "type": "object"
+      },
+      "MortgagePhoto": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url"
+        ],
+        "title": "MortgagePhoto",
+        "type": "object"
+      },
+      "MortgagePreview": {
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/PreviewSide"
+          },
+          "before": {
+            "$ref": "#/components/schemas/PreviewSide"
+          },
+          "ledger_changes": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerChange"
+            },
+            "title": "Ledger Changes",
+            "type": "array"
+          },
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          },
+          "mortgage_name": {
+            "title": "Mortgage Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mortgage_id",
+          "mortgage_name",
+          "before",
+          "after",
+          "ledger_changes"
+        ],
+        "title": "MortgagePreview",
+        "type": "object"
+      },
+      "MortgageRow": {
+        "description": "A Mortgage as listed in tables.",
+        "properties": {
+          "amount_lent": {
+            "title": "Amount Lent",
+            "type": "integer"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/PersonSummary"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "outstanding_total": {
+            "title": "Outstanding Total",
+            "type": "integer"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MortgageStatus"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "customer",
+          "start_date",
+          "amount_lent",
+          "status",
+          "outstanding_total"
+        ],
+        "title": "MortgageRow",
+        "type": "object"
+      },
+      "MortgageStatus": {
+        "enum": [
+          "active",
+          "redeemed",
+          "forfeited"
+        ],
+        "title": "MortgageStatus",
+        "type": "string"
+      },
+      "NewStandaloneReferrer": {
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "kind": {
+            "const": "new",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "address",
+          "phone"
+        ],
+        "title": "NewStandaloneReferrer",
+        "type": "object"
+      },
+      "Outstanding": {
+        "description": "Principal plus unpaid interest on a date, before any Part-Month Rule charge.",
+        "properties": {
+          "principal": {
+            "title": "Principal",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "unpaid_interest": {
+            "title": "Unpaid Interest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "principal",
+          "unpaid_interest",
+          "total"
+        ],
+        "title": "Outstanding",
+        "type": "object"
+      },
+      "PartMonthRule": {
+        "enum": [
+          "pro_rata",
+          "full_month",
+          "nothing"
+        ],
+        "title": "PartMonthRule",
+        "type": "string"
+      },
+      "Payment": {
+        "properties": {
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/AllocationOut"
+            },
+            "title": "Allocations",
+            "type": "array"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/PersonSummary"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "paid_on": {
+            "format": "date",
+            "title": "Paid On",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "void_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Void Reason"
+          },
+          "voided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voided At"
+          }
+        },
+        "required": [
+          "id",
+          "customer",
+          "paid_on",
+          "amount",
+          "method",
+          "reference",
+          "allocations",
+          "voided_at",
+          "void_reason"
+        ],
+        "title": "Payment",
+        "type": "object"
+      },
+      "PaymentIn": {
+        "properties": {
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/AllocationIn"
+            },
+            "minItems": 1,
+            "title": "Allocations",
+            "type": "array"
+          },
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "type": "integer"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "integer"
+          },
+          "method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "paid_on": {
+            "format": "date",
+            "title": "Paid On",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          }
+        },
+        "required": [
+          "customer_id",
+          "paid_on",
+          "amount",
+          "method",
+          "allocations"
+        ],
+        "title": "PaymentIn",
+        "type": "object"
+      },
+      "PaymentMethod": {
+        "enum": [
+          "cash",
+          "upi",
+          "bank_transfer"
+        ],
+        "title": "PaymentMethod",
+        "type": "string"
+      },
+      "PaymentPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PaymentPage",
+        "type": "object"
+      },
+      "PaymentRow": {
+        "description": "A Payment as listed on the Payments page.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/PersonSummary"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "mortgages": {
+            "items": {
+              "$ref": "#/components/schemas/MortgageLink"
+            },
+            "title": "Mortgages",
+            "type": "array"
+          },
+          "paid_on": {
+            "format": "date",
+            "title": "Paid On",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "voided": {
+            "title": "Voided",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "paid_on",
+          "customer",
+          "amount",
+          "method",
+          "reference",
+          "mortgages",
+          "voided"
+        ],
+        "title": "PaymentRow",
+        "type": "object"
+      },
+      "PersonSummary": {
+        "description": "A Customer or standalone Referrer, as shown in lists and links.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "customer",
+              "referrer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "title": "PersonSummary",
+        "type": "object"
+      },
+      "PreviewSide": {
+        "properties": {
+          "outstanding": {
+            "title": "Outstanding",
+            "type": "integer"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectedPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "term_changes": {
+            "items": {
+              "$ref": "#/components/schemas/ComingTermChange"
+            },
+            "title": "Term Changes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "outstanding",
+          "points",
+          "term_changes"
+        ],
+        "title": "PreviewSide",
+        "type": "object"
+      },
+      "ProjectedPoint": {
+        "properties": {
+          "loan_to_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loan To Value"
+          },
+          "months": {
+            "title": "Months",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "principal": {
+            "title": "Principal",
+            "type": "integer"
+          },
+          "redemption_amount": {
+            "title": "Redemption Amount",
+            "type": "integer"
+          },
+          "unpaid_interest": {
+            "title": "Unpaid Interest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "months",
+          "on",
+          "principal",
+          "unpaid_interest",
+          "redemption_amount",
+          "loan_to_value"
+        ],
+        "title": "ProjectedPoint",
+        "type": "object"
+      },
+      "ProjectedSeries": {
+        "properties": {
+          "paid_off_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid Off On"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectedPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "term_changes": {
+            "items": {
+              "$ref": "#/components/schemas/ComingTermChange"
+            },
+            "title": "Term Changes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "points",
+          "term_changes",
+          "paid_off_on"
+        ],
+        "title": "ProjectedSeries",
+        "type": "object"
+      },
+      "Projection": {
+        "properties": {
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/ProjectedSeries"
+          },
+          "collateral_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Value"
+          },
+          "monthly_payment": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Payment"
+          },
+          "what_if": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectedSeries"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "as_of",
+          "collateral_value",
+          "monthly_payment",
+          "baseline",
+          "what_if"
+        ],
+        "title": "Projection",
+        "type": "object"
+      },
+      "ReadyToRedeem": {
+        "description": "An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back.",
+        "properties": {
+          "mortgage": {
+            "$ref": "#/components/schemas/MortgageRow"
+          },
+          "redemption": {
+            "$ref": "#/components/schemas/Redemption"
+          }
+        },
+        "required": [
+          "mortgage",
+          "redemption"
+        ],
+        "title": "ReadyToRedeem",
+        "type": "object"
+      },
+      "RedeemIn": {
+        "properties": {
+          "method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "redeemed_on": {
+            "format": "date",
+            "title": "Redeemed On",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          }
+        },
+        "required": [
+          "redeemed_on",
+          "method"
+        ],
+        "title": "RedeemIn",
+        "type": "object"
+      },
+      "Redemption": {
+        "description": "What it takes to close a Mortgage on a date (see Redemption Amount in GLOSSARY.md).",
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "part_month_charge": {
+            "title": "Part Month Charge",
+            "type": "integer"
+          },
+          "part_month_days": {
+            "title": "Part Month Days",
+            "type": "integer"
+          },
+          "principal": {
+            "title": "Principal",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "unpaid_interest": {
+            "title": "Unpaid Interest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "principal",
+          "unpaid_interest",
+          "part_month_days",
+          "part_month_charge",
+          "total"
+        ],
+        "title": "Redemption",
+        "type": "object"
+      },
+      "SearchHit": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "customer",
+              "referrer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "phone",
+          "photo_url"
+        ],
+        "title": "SearchHit",
+        "type": "object"
+      },
+      "StandaloneReferrer": {
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "referred": {
+            "items": {
+              "$ref": "#/components/schemas/PersonSummary"
+            },
+            "title": "Referred",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "phone",
+          "referred"
+        ],
+        "title": "StandaloneReferrer",
+        "type": "object"
+      },
+      "TermChangeIn": {
+        "description": "What changes; anything left out carries over from the Terms in force then.",
+        "properties": {
+          "effective_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective On"
+          },
+          "interest_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InterestMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monthly_rate_bps": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Rate Bps"
+          },
+          "part_month_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartMonthRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "TermChangeIn",
+        "type": "object"
+      },
+      "TermChangeOut": {
+        "properties": {
+          "effective_on": {
+            "format": "date",
+            "title": "Effective On",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "removable": {
+            "title": "Removable",
+            "type": "boolean"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/Terms"
+          }
+        },
+        "required": [
+          "id",
+          "effective_on",
+          "terms",
+          "removable"
+        ],
+        "title": "TermChangeOut",
+        "type": "object"
+      },
+      "Terms": {
+        "properties": {
+          "interest_mode": {
+            "$ref": "#/components/schemas/InterestMode"
+          },
+          "monthly_rate_bps": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 10000.0,
+            "title": "Monthly Rate Bps",
+            "type": "integer"
+          },
+          "part_month_rule": {
+            "$ref": "#/components/schemas/PartMonthRule"
+          }
+        },
+        "required": [
+          "monthly_rate_bps",
+          "interest_mode",
+          "part_month_rule"
+        ],
+        "title": "Terms",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VoidIn": {
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "VoidIn",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Mortgage Management",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/backups": {
+      "get": {
+        "operationId": "read_backup_status_api_backups_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Backup Status"
+      },
+      "post": {
+        "description": "Start a Backup in the background; poll GET /backups for the result.",
+        "operationId": "back_up_now_api_backups_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Back Up Now"
+      }
+    },
+    "/api/call-list": {
+      "get": {
+        "operationId": "read_call_list_api_call_list_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CallListGroup"
+                  },
+                  "title": "Response Read Call List Api Call List Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Call List"
+      }
+    },
+    "/api/closures/ready-to-redeem": {
+      "get": {
+        "description": "Active Mortgages paid down to nothing Outstanding, oldest first.",
+        "operationId": "ready_to_redeem_api_closures_ready_to_redeem_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReadyToRedeem"
+                  },
+                  "title": "Response Ready To Redeem Api Closures Ready To Redeem Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready To Redeem"
+      }
+    },
+    "/api/customers": {
+      "get": {
+        "description": "All Customers by name, a page at a time, optionally filtered by name or phone.",
+        "operationId": "list_customers_api_customers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Customers"
+      },
+      "post": {
+        "operationId": "create_customer_api_customers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Customer"
+      }
+    },
+    "/api/customers/{customer_id}": {
+      "delete": {
+        "description": "Delete a Customer; anyone they referred keeps their record but loses the link.",
+        "operationId": "delete_customer_api_customers__customer_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Customer"
+      },
+      "get": {
+        "operationId": "read_customer_api_customers__customer_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Customer"
+      },
+      "put": {
+        "operationId": "update_customer_api_customers__customer_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Customer"
+      }
+    },
+    "/api/customers/{customer_id}/history": {
+      "get": {
+        "operationId": "read_customer_history_api_customers__customer_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntry"
+                  },
+                  "title": "Response Read Customer History Api Customers  Customer Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Customer History"
+      }
+    },
+    "/api/customers/{customer_id}/photo": {
+      "put": {
+        "operationId": "replace_customer_photo_api_customers__customer_id__photo_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_replace_customer_photo_api_customers__customer_id__photo_put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Customer Photo"
+      }
+    },
+    "/api/mortgages": {
+      "get": {
+        "description": "Mortgages, newest first, filtered by Mortgage Name or Customer name.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).",
+        "operationId": "list_mortgages_api_mortgages_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "customer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MortgageStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owing",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Owing",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MortgagePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Mortgages"
+      },
+      "post": {
+        "operationId": "create_mortgage_api_mortgages_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MortgageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Mortgage"
+      }
+    },
+    "/api/mortgages/suggested-name": {
+      "get": {
+        "operationId": "suggested_name_api_mortgages_suggested_name_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Start Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "description",
+            "required": true,
+            "schema": {
+              "title": "Description",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Suggested Name Api Mortgages Suggested Name Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggested Name"
+      }
+    },
+    "/api/mortgages/{mortgage_id}": {
+      "get": {
+        "operationId": "read_mortgage_api_mortgages__mortgage_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Mortgage"
+      },
+      "put": {
+        "description": "Correct a Mortgage's details; its Ledger is recalculated from them.",
+        "operationId": "edit_mortgage_api_mortgages__mortgage_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MortgageEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit Mortgage"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/call-notes": {
+      "get": {
+        "description": "A Mortgage's Call Notes, newest first.",
+        "operationId": "list_call_notes_api_mortgages__mortgage_id__call_notes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CallNote"
+                  },
+                  "title": "Response List Call Notes Api Mortgages  Mortgage Id  Call Notes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Call Notes"
+      },
+      "post": {
+        "description": "Mark a Mortgage as called today, with what was said.",
+        "operationId": "add_call_note_api_mortgages__mortgage_id__call_notes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallNoteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallNote"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Call Note"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/collateral": {
+      "put": {
+        "description": "Set the Collateral Value by hand, or clear it to value at the Gold Rate again.",
+        "operationId": "set_collateral_api_mortgages__mortgage_id__collateral_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollateralIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Collateral"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/edit-preview": {
+      "post": {
+        "operationId": "preview_edit_api_mortgages__mortgage_id__edit_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MortgageEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Edit Api Mortgages  Mortgage Id  Edit Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Edit"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/forfeit": {
+      "post": {
+        "description": "Mark the Mortgage Forfeited, recording what the jewellery recovered.",
+        "operationId": "forfeit_api_mortgages__mortgage_id__forfeit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForfeitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forfeit"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/history": {
+      "get": {
+        "operationId": "read_mortgage_history_api_mortgages__mortgage_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntry"
+                  },
+                  "title": "Response Read Mortgage History Api Mortgages  Mortgage Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Mortgage History"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/photos": {
+      "post": {
+        "operationId": "add_mortgage_photo_api_mortgages__mortgage_id__photos_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_mortgage_photo_api_mortgages__mortgage_id__photos_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Mortgage Photo"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/photos/{photo_id}": {
+      "delete": {
+        "operationId": "delete_mortgage_photo_api_mortgages__mortgage_id__photos__photo_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "photo_id",
+            "required": true,
+            "schema": {
+              "title": "Photo Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Mortgage Photo"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/projection": {
+      "get": {
+        "description": "Where the Mortgage is heading: with no more Payments, and with `monthly_payment`\n(paise) paid on every Accrual Date.",
+        "operationId": "project_api_mortgages__mortgage_id__projection_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "monthly_payment",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Monthly Payment"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Projection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/redeem": {
+      "post": {
+        "description": "Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed.",
+        "operationId": "redeem_api_mortgages__mortgage_id__redeem_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redeem"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/redemption": {
+      "get": {
+        "description": "What it takes to redeem the Mortgage on `on`.",
+        "operationId": "redemption_amount_api_mortgages__mortgage_id__redemption_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "on",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "On",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Redemption"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redemption Amount"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/reopen": {
+      "post": {
+        "description": "Undo a Redemption or Forfeiture; a Redemption's final Payment is Voided.",
+        "operationId": "reopen_api_mortgages__mortgage_id__reopen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reopen"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/term-changes": {
+      "post": {
+        "operationId": "add_term_change_api_mortgages__mortgage_id__term_changes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TermChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Term Change"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/term-changes/preview": {
+      "post": {
+        "operationId": "preview_term_change_api_mortgages__mortgage_id__term_changes_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TermChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Term Change Api Mortgages  Mortgage Id  Term Changes Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Term Change"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/term-changes/{change_id}": {
+      "delete": {
+        "description": "Remove a Term Change that has not taken effect yet.",
+        "operationId": "remove_term_change_api_mortgages__mortgage_id__term_changes__change_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "change_id",
+            "required": true,
+            "schema": {
+              "title": "Change Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Term Change"
+      }
+    },
+    "/api/payments": {
+      "get": {
+        "description": "Payments, newest first, filtered by Customer, Mortgage Name or reference.",
+        "operationId": "list_payments_api_payments_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Payments"
+      },
+      "post": {
+        "operationId": "record_payment_api_payments_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Payment"
+      }
+    },
+    "/api/payments/{payment_id}": {
+      "get": {
+        "operationId": "read_payment_api_payments__payment_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "title": "Payment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Payment"
+      }
+    },
+    "/api/payments/{payment_id}/void": {
+      "post": {
+        "description": "Void a Payment entered by mistake; a corrected one is entered as a new Payment.",
+        "operationId": "void_api_payments__payment_id__void_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "title": "Payment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Void"
+      }
+    },
+    "/api/payments/{payment_id}/void-preview": {
+      "post": {
+        "description": "Every Mortgage the Payment was allocated to, before and after Voiding it.",
+        "operationId": "preview_void_api_payments__payment_id__void_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "title": "Payment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Void Api Payments  Payment Id  Void Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Void"
+      }
+    },
+    "/api/people/by-phone": {
+      "get": {
+        "description": "Who a Primary Number belongs to, if anyone (None for an incomplete number).",
+        "operationId": "person_with_number_api_people_by_phone_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "required": true,
+            "schema": {
+              "title": "Phone",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PersonSummary"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Person With Number Api People By Phone Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Person With Number"
+      }
+    },
+    "/api/photos/{file_name}": {
+      "get": {
+        "operationId": "read_photo_api_photos__file_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_name",
+            "required": true,
+            "schema": {
+              "title": "File Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Photo"
+      }
+    },
+    "/api/referrers/{referrer_id}": {
+      "get": {
+        "operationId": "read_referrer_api_referrers__referrer_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "referrer_id",
+            "required": true,
+            "schema": {
+              "title": "Referrer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandaloneReferrer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Referrer"
+      }
+    },
+    "/api/search": {
+      "get": {
+        "description": "Customers and standalone Referrers whose name or phone number matches.",
+        "operationId": "search_api_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SearchHit"
+                  },
+                  "title": "Response Search Api Search Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search"
+      }
+    },
+    "/api/settings/backups": {
+      "put": {
+        "operationId": "update_backup_settings_api_settings_backups_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Backup Settings"
+      }
+    },
+    "/api/settings/call-list": {
+      "get": {
+        "operationId": "read_call_list_settings_api_settings_call_list_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallListSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Call List Settings"
+      },
+      "put": {
+        "operationId": "update_call_list_settings_api_settings_call_list_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallListSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallListSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Call List Settings"
+      }
+    },
+    "/api/settings/default-terms": {
+      "get": {
+        "operationId": "read_default_terms_api_settings_default_terms_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Terms"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Default Terms"
+      },
+      "put": {
+        "operationId": "update_default_terms_api_settings_default_terms_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Terms"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Terms"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Default Terms"
+      }
+    },
+    "/api/settings/gold-rates": {
+      "get": {
+        "operationId": "read_gold_rates_api_settings_gold_rates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GoldRate"
+                  },
+                  "title": "Response Read Gold Rates Api Settings Gold Rates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Gold Rates"
+      },
+      "put": {
+        "description": "Set the given Gold Rates; a rate's date moves only when the rate changes.",
+        "operationId": "update_gold_rates_api_settings_gold_rates_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/GoldRateIn"
+                },
+                "title": "Rates",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GoldRate"
+                  },
+                  "title": "Response Update Gold Rates Api Settings Gold Rates Put",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Gold Rates"
+      }
+    }
+  }
+}

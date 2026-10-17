@@ -157,7 +157,7 @@ class Mortgage(BaseModel):
     description: str
     gross_weight_mg: int
     net_weight_mg: int
-    purity_karat: int
+    purity_karat: Purity
     terms: Terms  # in force today
     term_changes: list[TermChangeOut]
     upcoming_accrual_dates: list[date]  # when a Term Change could start

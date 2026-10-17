@@ -9,7 +9,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen:types": "cd ../backend && uv run python -m mortgage_backend.openapi ../frontend/openapi.json && cd ../frontend && openapi-typescript openapi.json -o src/api.gen.ts"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -21,9 +22,15 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "openapi-typescript": "^7.13.0",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.5"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }

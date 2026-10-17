@@ -16,7 +16,7 @@ PURITIES: tuple[int, ...] = get_args(Purity)
 
 
 class GoldRate(BaseModel):
-    purity_karat: int
+    purity_karat: Purity
     rate_per_gram: int | None  # paise
     updated_on: date | None
 
