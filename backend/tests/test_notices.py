@@ -91,6 +91,44 @@ def test_missed_days_are_back_filled_only_for_coming_accrual_dates(
     ]
 
 
+def test_fewer_days_before_withdraws_unsent_notices_now_too_far_ahead(
+    conn: Connection,
+) -> None:
+    ramesh = add_customer(conn)
+    add_mortgage(conn, ramesh, suffix="Soon", start_date=date(2026, 1, 14))
+    suresh = add_customer(conn, phone="9829054321")
+    add_mortgage(conn, suresh, start_date=date(2026, 1, 25))
+    settings(conn, notice_days_before=15)
+    queue_notices(conn, date(2026, 5, 12))
+    assert len(list_notices(conn)) == 2  # 14 and 25 May
+
+    settings(conn, notice_days_before=2)
+    queue_notices(conn, date(2026, 5, 12))
+
+    # 25 May is 13 days ahead: its Notice waits until 23 May, when it is queued again.
+    assert [n.accrues_on for n in list_notices(conn)] == [date(2026, 5, 14)]
+    queue_notices(conn, date(2026, 5, 23))
+    assert [n.accrues_on for n in list_notices(conn)] == [
+        date(2026, 5, 14),
+        date(2026, 5, 25),
+    ]
+
+
+def test_fewer_days_before_keeps_notices_already_sent(
+    conn: Connection,
+) -> None:
+    add_mortgage(conn, add_customer(conn), start_date=date(2026, 1, 25))
+    settings(conn, notice_days_before=15)
+    queue_notices(conn, date(2026, 5, 12))
+    (notice,) = list_notices(conn)
+    mark_sent(conn, notice.id, NOW)
+
+    settings(conn, notice_days_before=2)
+    queue_notices(conn, date(2026, 5, 12))
+
+    assert [n.status for n in list_notices(conn)] == ["sent"]
+
+
 def test_approve_first_holds_notices_for_the_lender(conn: Connection) -> None:
     add_mortgage(conn, add_customer(conn))
     settings(conn, notice_approve_first=True)

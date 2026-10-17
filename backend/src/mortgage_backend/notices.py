@@ -14,7 +14,7 @@ from enum import StrEnum
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import insert, select, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.clock import NowDep, TodayDep
@@ -81,9 +81,16 @@ def _coming_accrual_dates(start: date, after: date, until: date) -> list[date]:
 def queue_notices(conn: Connection, today: date) -> None:
     """The daily-run job: a Notice for each Customer with Active Mortgages accruing in
     the coming `notice_days_before` days and none yet. Days the app was off are made up
-    this way, but never for an Accrual Date already past."""
+    this way, but never for an Accrual Date already past. Unsent Notices further ahead
+    (queued before `notice_days_before` was lowered) are withdrawn: until sent or
+    skipped a Notice is only its Customer and date, so it is queued again in time."""
     settings = get_message_settings(conn)
     until = today + timedelta(days=settings.notice_days_before)
+    conn.execute(
+        delete(notice_table).where(
+            notice_table.c.status.in_(_UNSENT), notice_table.c.accrues_on > until
+        )
+    )
     accruing = {
         (row.customer_id, on)
         for row in conn.execute(
