@@ -5,6 +5,8 @@ import { PeopleInline, PersonLink } from '../components/PersonLink'
 import { PhotoPicker } from '../components/PhotoPicker'
 import { ReferrerPicker, type ReferrerSelection } from '../components/ReferrerPicker'
 import { useNumberOwner } from '../components/useNumberOwner'
+import { Summary } from '../components/ConfirmDialog'
+import { useConfirm } from '../components/useConfirm'
 import { normalisePhone } from '../phone'
 
 const EMPTY = { name: '', address: '', phone_1: '', phone_2: '' }
@@ -23,6 +25,8 @@ export function CustomerFormPage() {
   const [existing, setExisting] = useState<Customer | null>(null)
   const [fields, setFields] = useState(EMPTY)
   const [referrer, setReferrer] = useState<ReferrerSelection>(null)
+  const [referrerName, setReferrerName] = useState<string>()
+  const [confirm, confirmDialog] = useConfirm()
   const [photo, setPhoto] = useState<Blob | null>(null)
   const [phone2Shared, setPhone2Shared] = useState<PersonSummary[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -41,6 +45,7 @@ export function CustomerFormPage() {
           phone_2: customer.phone_2 ?? '',
         })
         setReferrer(customer.referrer && { kind: customer.referrer.kind, id: customer.referrer.id })
+        setReferrerName(customer.referrer?.name)
       })
       .catch((err: Error) => setError(err.message))
   }, [id])
@@ -68,6 +73,28 @@ export function CustomerFormPage() {
       setError('Pick the Referrer from the search results, or choose "None".')
       return
     }
+    const confirmed = await confirm({
+      title: customerId === undefined ? 'Add this Customer?' : `Save changes to ${fields.name}?`,
+      body: (
+        <Summary
+          rows={[
+            ['Name', fields.name],
+            ['Address', fields.address || '—'],
+            ['Contact numbers', [fields.phone_1, fields.phone_2].filter(Boolean).join(', ')],
+            [
+              'Referrer',
+              referrer === null
+                ? '—'
+                : referrer.kind === 'new'
+                  ? `${referrerName} (new Referrer, ${referrer.phone})`
+                  : referrerName,
+            ],
+            ['Photo', photo ? 'New photo' : existing?.photo_url ? 'Unchanged' : '—'],
+          ]}
+        />
+      ),
+    })
+    if (!confirmed) return
     setSaving(true)
     setError(null)
     const customer = { ...fields, phone_2: fields.phone_2.trim() || null, referrer }
@@ -161,7 +188,10 @@ export function CustomerFormPage() {
         <ReferrerPicker
           initial={existing?.referrer ?? null}
           excludeCustomerId={customerId}
-          onChange={setReferrer}
+          onChange={(selection, name) => {
+            setReferrer(selection)
+            setReferrerName(name)
+          }}
         />
 
         <div className="row">
@@ -174,6 +204,7 @@ export function CustomerFormPage() {
         </div>
         {error && <p className="status error">{error}</p>}
       </form>
+      {confirmDialog}
     </section>
   )
 }

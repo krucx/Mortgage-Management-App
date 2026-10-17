@@ -4,6 +4,7 @@ import { api, type LedgerStep, type Mortgage } from '../api'
 import { PersonLink } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
+import { useConfirm } from '../components/useConfirm'
 import { formatDate, formatGrams } from '../format'
 import { formatINR } from '../money'
 import { formatRate, INTEREST_MODES, PART_MONTH_RULES } from '../terms'
@@ -12,6 +13,7 @@ export function MortgagePage() {
   const id = Number(useParams().id)
   const [mortgage, setMortgage] = useState<Mortgage | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [confirm, confirmDialog] = useConfirm()
 
   useEffect(() => {
     api
@@ -30,7 +32,13 @@ export function MortgagePage() {
   }
 
   async function removePhoto(photoId: number) {
-    if (!window.confirm('Delete this photo?')) return
+    const confirmed = await confirm({
+      title: 'Delete this photo?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      danger: true,
+    })
+    if (!confirmed) return
     try {
       setMortgage(await api.deleteMortgagePhoto(id, photoId))
     } catch (err) {
@@ -154,6 +162,7 @@ export function MortgagePage() {
           </tbody>
         </table>
       </div>
+      {confirmDialog}
     </section>
   )
 }

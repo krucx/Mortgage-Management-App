@@ -1,12 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api'
+import { Summary } from '../components/ConfirmDialog'
 import { TermsFields } from '../components/TermsFields'
-import { fromDraft, toDraft, type TermsDraft } from '../terms'
+import { useConfirm } from '../components/useConfirm'
+import { fromDraft, INTEREST_MODES, PART_MONTH_RULES, toDraft, type TermsDraft } from '../terms'
 
 export function SettingsPage() {
   const [draft, setDraft] = useState<TermsDraft | null>(null)
   const [status, setStatus] = useState<{ kind: 'saved' | 'error'; text: string } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [confirm, confirmDialog] = useConfirm()
 
   useEffect(() => {
     api
@@ -18,6 +21,22 @@ export function SettingsPage() {
   async function save(event: FormEvent) {
     event.preventDefault()
     if (!draft) return
+    const confirmed = await confirm({
+      title: 'Change the Default Terms?',
+      body: (
+        <>
+          <Summary
+            rows={[
+              ['Monthly rate', `${draft.ratePercent}%`],
+              ['Interest Mode', INTEREST_MODES[draft.interest_mode]],
+              ['Part-Month Rule', PART_MONTH_RULES[draft.part_month_rule]],
+            ]}
+          />
+          <p className="hint">Only new Mortgages use these; existing ones keep their Terms.</p>
+        </>
+      ),
+    })
+    if (!confirmed) return
     setSaving(true)
     setStatus(null)
     try {
@@ -50,6 +69,7 @@ export function SettingsPage() {
       )}
 
       {status && <p className={`status ${status.kind}`}>{status.text}</p>}
+      {confirmDialog}
     </section>
   )
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api, type CustomerPage, type CustomerRow } from '../api'
 import { Pager } from '../components/Pager'
+import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
 import { PersonLink, PersonList } from '../components/PersonLink'
 import { useSearch } from '../components/useSearch'
@@ -13,6 +14,7 @@ export function CustomersPage() {
   const [page, setPage] = useState(1)
   const [result, setResult] = useState<CustomerPage | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [confirm, confirmDialog] = useConfirm()
   const referrers = useSearch(debouncedQuery).filter((hit) => hit.kind === 'referrer')
 
 
@@ -37,11 +39,24 @@ export function CustomersPage() {
     setError(null)
     try {
       const { referred } = await api.getCustomer(row.id)
-      const warning = referred.length
-        ? `\n\n${row.name} referred ${referred.map((person) => person.name).join(', ')}. ` +
-          'Their Referrer will be cleared.'
-        : ''
-      if (!window.confirm(`Delete ${row.name}? This cannot be undone.${warning}`)) return
+      const confirmed = await confirm({
+        title: `Delete ${row.name}?`,
+        body: (
+          <>
+            <p>This cannot be undone.</p>
+            {referred.length > 0 && (
+              <p>
+                {row.name} referred {referred.map((person) => person.name).join(', ')}. Their
+                Referrer will be cleared.
+              </p>
+            )}
+          </>
+        ),
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+        danger: true,
+      })
+      if (!confirmed) return
       await api.deleteCustomer(row.id)
       await load()
     } catch (err) {
@@ -145,6 +160,7 @@ export function CustomersPage() {
           <PersonList people={referrers} empty="" />
         </>
       )}
+      {confirmDialog}
     </section>
   )
 }

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { api, PAYMENT_METHODS, type Customer, type MortgageRow, type PaymentMethod } from '../api'
+import { Summary } from '../components/ConfirmDialog'
 import { CustomerChooser } from '../components/CustomerChooser'
+import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
@@ -62,6 +64,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const selectionStarted = useRef(false)
+  const [confirm, confirmDialog] = useConfirm()
 
   // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
   useEffect(() => {
@@ -139,6 +142,22 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   async function save(event: FormEvent) {
     event.preventDefault()
     if (problems.length || !amounts) return
+    const confirmed = await confirm({
+      title: `Record a Payment of ${formatINR(total)}?`,
+      body: (
+        <Summary
+          rows={[
+            ['From', customer.name],
+            ['Received', formatDate(paidOn)],
+            ['Method', PAYMENT_METHODS[method] + (reference.trim() ? ` · ${reference.trim()}` : '')],
+            ...chosen
+              .map((m, i): [string, string] => [m.name, formatINR(amounts[i])])
+              .filter((_, i) => amounts[i] > 0),
+          ]}
+        />
+      ),
+    })
+    if (!confirmed) return
     setSaving(true)
     setError(null)
     try {
@@ -338,6 +357,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         </button>
       </div>
       {error && <p className="status error">{error}</p>}
+      {confirmDialog}
     </form>
   )
 }

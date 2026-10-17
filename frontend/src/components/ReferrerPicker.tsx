@@ -20,7 +20,8 @@ export function ReferrerPicker({
 }: {
   initial: PersonSummary | null
   excludeCustomerId?: number
-  onChange: (selection: ReferrerSelection) => void
+  /** `name` is who the selection points at, for summaries. */
+  onChange: (selection: ReferrerSelection, name?: string) => void
 }) {
   const [mode, setMode] = useState<Mode>(initial ? 'existing' : 'none')
   const [picked, setPicked] = useState<PersonSummary | null>(initial)
@@ -35,20 +36,21 @@ export function ReferrerPicker({
   function switchMode(next: Mode) {
     setMode(next)
     if (next === 'none') onChange(null)
-    if (next === 'existing') onChange(picked ? { kind: picked.kind, id: picked.id } : 'unpicked')
-    if (next === 'new') onChange({ kind: 'new', ...newReferrer })
+    if (next === 'existing')
+      onChange(picked ? { kind: picked.kind, id: picked.id } : 'unpicked', picked?.name)
+    if (next === 'new') onChange({ kind: 'new', ...newReferrer }, newReferrer.name)
   }
 
   function pick(person: PersonSummary) {
     setPicked(person)
     setQuery('')
-    onChange({ kind: person.kind, id: person.id })
+    onChange({ kind: person.kind, id: person.id }, person.name)
   }
 
   function editNew(field: keyof typeof newReferrer, value: string) {
     const updated = { ...newReferrer, [field]: value }
     setNewReferrer(updated)
-    onChange({ kind: 'new', ...updated })
+    onChange({ kind: 'new', ...updated }, updated.name)
   }
 
   return (

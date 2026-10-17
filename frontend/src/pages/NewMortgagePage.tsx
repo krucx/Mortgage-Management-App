@@ -2,14 +2,16 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { api, PURITIES, type Customer, type MortgageRow, type Purity } from '../api'
 import { CustomerChooser } from '../components/CustomerChooser'
+import { Summary } from '../components/ConfirmDialog'
 import { MortgageTable } from '../components/MortgageTable'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
 import { TermsFields } from '../components/TermsFields'
+import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
-import { todayIso } from '../format'
-import { rupeesToPaise } from '../money'
-import { fromDraft, toDraft, type TermsDraft } from '../terms'
+import { formatDate, todayIso } from '../format'
+import { formatINR, rupeesToPaise } from '../money'
+import { formatRate, fromDraft, INTEREST_MODES, toDraft, type TermsDraft } from '../terms'
 
 /**
  * Create a Mortgage: pick (or create) the Customer, see their Active Mortgages,
@@ -122,6 +124,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
   const [createdId, setCreatedId] = useState<number>()
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [confirm, confirmDialog] = useConfirm()
 
   useEffect(() => {
     api.getDefaultTerms().then((defaults) => setTerms(toDraft(defaults)))
@@ -143,6 +146,30 @@ function MortgageForm({ customer }: { customer: Customer }) {
   async function save(event: FormEvent) {
     event.preventDefault()
     if (!terms) return
+    if (createdId === undefined) {
+      const chosenTerms = fromDraft(terms)
+      const confirmed = await confirm({
+        title: `Create Mortgage ${name}?`,
+        body: (
+          <Summary
+            rows={[
+              ['Customer', customer.name],
+              ['Start date', formatDate(fields.start_date)],
+              ['Amount lent', formatINR(rupeesToPaise(fields.amountLent))],
+              ['Jewellery', fields.description],
+              ['Weight', `${fields.gross} g gross, ${fields.net} g net, ${fields.purity}K`],
+              [
+                'Terms',
+                `${formatRate(chosenTerms.monthly_rate_bps)} a month · ` +
+                  INTEREST_MODES[chosenTerms.interest_mode],
+              ],
+              ['Photos', String(photos.length)],
+            ]}
+          />
+        ),
+      })
+      if (!confirmed) return
+    }
     setSaving(true)
     setError(null)
     const pending = [...photos] // photos still to upload
@@ -319,6 +346,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
         </button>
       </div>
       {error && <p className="status error">{error}</p>}
+      {confirmDialog}
     </form>
   )
 }

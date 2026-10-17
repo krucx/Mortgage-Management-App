@@ -500,3 +500,47 @@ ul.problems {
   padding-left: 1.25rem;
   color: var(--error);
 }
+
+dialog.confirm {
+  width: min(520px, calc(100vw - 2rem));
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.25);
+}
+
+dialog.confirm::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+dialog.confirm h2 {
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+}
+
+.confirm-body {
+  margin-bottom: 1.25rem;
+}
+
+.confirm-body dl {
+  display: block;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.row.end {
+  justify-content: flex-end;
+}
+
+button.danger-solid {
+  background: var(--error);
+  color: #fff;
+}
