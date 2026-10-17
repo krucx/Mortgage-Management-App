@@ -8,6 +8,7 @@ export function ReasonDialog({
   confirmLabel,
   onConfirm,
   onClose,
+  wide = false,
 }: {
   title: string
   body?: ReactNode
@@ -15,6 +16,8 @@ export function ReasonDialog({
   /** Does the work; an error it throws is shown and the dialog stays open. */
   onConfirm: (reason: string) => Promise<void>
   onClose: () => void
+  /** Room for a larger body, such as a before/after preview. */
+  wide?: boolean
 }) {
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
@@ -34,7 +37,7 @@ export function ReasonDialog({
   }
 
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} className={wide ? 'wide-dialog' : ''}>
       <form onSubmit={submit} className="stack">
         <h2>{title}</h2>
         {body}

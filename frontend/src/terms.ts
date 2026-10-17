@@ -31,6 +31,11 @@ export const fromDraft = (draft: TermsDraft): Terms => ({
   part_month_rule: draft.part_month_rule,
 })
 
+export const sameTerms = (a: Terms, b: Terms) =>
+  a.monthly_rate_bps === b.monthly_rate_bps &&
+  a.interest_mode === b.interest_mode &&
+  a.part_month_rule === b.part_month_rule
+
 /** Basis points per month → "3%". */
 export const formatRate = (bps: number) => `${bps / 100}%`
 

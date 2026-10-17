@@ -4,11 +4,12 @@ Each month is charged under the Terms in force at its start, so a Term Change ne
 alters interest already charged. It can be removed until it takes effect.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, insert, select
+from sqlalchemy.engine import Connection
 
 from mortgage_backend import audit
 from mortgage_backend.clock import NowDep, TodayDep
@@ -39,6 +40,59 @@ class TermChangeIn(BaseModel):
 router = APIRouter(prefix="/api")
 
 
+def apply_term_change(
+    conn: Connection, mortgage_id: int, change: TermChangeIn, today: date, now: datetime
+) -> None:
+    """Add a Term Change (or refuse)."""
+    row = mortgage_row(conn, mortgage_id)
+    if row["status"] != MortgageStatus.ACTIVE:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f"{row['name']} is {row['status']}"
+        )
+    next_one = next(
+        d for d in upcoming_accrual_dates(row["start_date"], today) if d > today
+    )
+    effective_on = change.effective_on or next_one
+    if effective_on < today or not is_accrual_date(row["start_date"], effective_on):
+        raise unprocessable(
+            "A Term Change starts on an Accrual Date, today or later "
+            f"(the next is {next_one:%d %b %Y})"
+        )
+    changes = term_changes_of(conn, [mortgage_id])[mortgage_id]
+    if any(c.on == effective_on for c in changes):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"There is already a Term Change on {effective_on:%d %b %Y}",
+        )
+    before = terms_on(terms_of(row), changes, effective_on)
+    # Only what differs is stored, so a later Term Change keeps its own effect.
+    changed = audit.changes(
+        before.model_dump(),
+        {**before.model_dump(), **change.model_dump(exclude_none=True)},
+        Terms.model_fields,
+    )
+    if not changed:
+        raise unprocessable("The Term Change must change the rate, mode or rule")
+    conn.execute(
+        insert(term_change_table).values(
+            mortgage_id=mortgage_id,
+            effective_on=effective_on,
+            **{c.field: getattr(change, c.field) for c in changed},
+        )
+    )
+    audit.record(
+        conn,
+        now,
+        "mortgage",
+        mortgage_id,
+        "term_change_added",
+        [
+            audit.Change("effective_on", None, effective_on.isoformat()),
+            *changed,
+        ],
+    )
+
+
 @router.post(
     "/mortgages/{mortgage_id}/term-changes", status_code=status.HTTP_201_CREATED
 )
@@ -50,53 +104,7 @@ def add_term_change(
     now: NowDep,
 ) -> Mortgage:
     with engine.begin() as conn:
-        row = mortgage_row(conn, mortgage_id)
-        if row["status"] != MortgageStatus.ACTIVE:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, f"{row['name']} is {row['status']}"
-            )
-        next_one = next(
-            d for d in upcoming_accrual_dates(row["start_date"], today) if d > today
-        )
-        effective_on = change.effective_on or next_one
-        if effective_on < today or not is_accrual_date(row["start_date"], effective_on):
-            raise unprocessable(
-                "A Term Change starts on an Accrual Date, today or later "
-                f"(the next is {next_one:%d %b %Y})"
-            )
-        changes = term_changes_of(conn, [mortgage_id])[mortgage_id]
-        if any(c.on == effective_on for c in changes):
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"There is already a Term Change on {effective_on:%d %b %Y}",
-            )
-        before = terms_on(terms_of(row), changes, effective_on)
-        # Only what differs is stored, so a later Term Change keeps its own effect.
-        changed = audit.changes(
-            before.model_dump(),
-            {**before.model_dump(), **change.model_dump(exclude_none=True)},
-            Terms.model_fields,
-        )
-        if not changed:
-            raise unprocessable("The Term Change must change the rate, mode or rule")
-        conn.execute(
-            insert(term_change_table).values(
-                mortgage_id=mortgage_id,
-                effective_on=effective_on,
-                **{c.field: getattr(change, c.field) for c in changed},
-            )
-        )
-        audit.record(
-            conn,
-            now,
-            "mortgage",
-            mortgage_id,
-            "term_change_added",
-            [
-                audit.Change("effective_on", None, effective_on.isoformat()),
-                *changed,
-            ],
-        )
+        apply_term_change(conn, mortgage_id, change, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
 

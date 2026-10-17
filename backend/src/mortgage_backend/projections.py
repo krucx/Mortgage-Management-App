@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy.engine import RowMapping
+from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.clock import TodayDep
 from mortgage_backend.collateral import collateral_of, gold_rates
@@ -111,6 +111,23 @@ def _series(
     return ProjectedSeries(points=points, paid_off_on=paid_off_on)
 
 
+def _inputs(
+    conn: Connection, row: RowMapping, today: date
+) -> tuple[list[Allocation], list[TermChange], int | None]:
+    """What a Projection replays: Allocations, Term Changes, today's Collateral Value."""
+    allocations = allocations_to(conn, [row["id"]])[row["id"]]
+    changes = term_changes_of(conn, [row["id"]])[row["id"]]
+    today_owed = outstanding_of(ledgers_of(conn, [row], today)[row["id"]]).total
+    collateral = collateral_of(row, gold_rates(conn), today_owed)
+    return allocations, changes, collateral.value if collateral else None
+
+
+def baseline(conn: Connection, row: RowMapping, today: date) -> ProjectedSeries:
+    """The Projection with no further Payments."""
+    allocations, changes, value = _inputs(conn, row, today)
+    return _series(row, allocations, changes, today, value, None)
+
+
 router = APIRouter(prefix="/api")
 
 
@@ -129,11 +146,7 @@ def project(
             raise HTTPException(
                 status.HTTP_409_CONFLICT, f"{row['name']} is {row['status']}"
             )
-        allocations = allocations_to(conn, [mortgage_id])[mortgage_id]
-        changes = term_changes_of(conn, [mortgage_id])[mortgage_id]
-        today_owed = outstanding_of(ledgers_of(conn, [row], today)[mortgage_id]).total
-        collateral = collateral_of(row, gold_rates(conn), today_owed)
-    value = collateral.value if collateral else None
+        allocations, changes, value = _inputs(conn, row, today)
     hypothetical = (
         HypotheticalPayments(after=today, amount=monthly_payment)
         if monthly_payment

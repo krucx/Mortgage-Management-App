@@ -1,8 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { api, PURITIES, type Mortgage, type Purity } from '../api'
+import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { useConfirm } from '../components/useConfirm'
+import { usePreview } from '../components/usePreview'
 import { formatDate, formatGrams, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 
@@ -44,6 +46,26 @@ export function EditMortgagePage() {
       (err: Error) => setError(err.message),
     )
   }, [id])
+
+  // Only the start date and Principal change what is owed: preview those.
+  const numbersChanged =
+    mortgage !== null &&
+    Number(fields.amountLent) > 0 &&
+    (fields.start_date !== mortgage.start_date ||
+      rupeesToPaise(fields.amountLent) !== mortgage.amount_lent)
+  const proposed = numbersChanged
+    ? JSON.stringify({
+        name: fields.name.trim(),
+        start_date: fields.start_date,
+        amount_lent: rupeesToPaise(fields.amountLent),
+        description: fields.description,
+        gross_weight_mg: gramsToMg(fields.gross),
+        net_weight_mg: gramsToMg(fields.net),
+        purity_karat: fields.purity,
+      })
+    : ''
+  const load = useCallback(() => api.previewEdit(id, JSON.parse(proposed)), [id, proposed])
+  const preview = usePreview(proposed ? load : null)
 
   if (!mortgage) return error ? <p className="status error">{error}</p> : <p>Loading…</p>
 
@@ -184,8 +206,14 @@ export function EditMortgagePage() {
             </select>
           </label>
         </div>
+        {numbersChanged && (
+          <>
+            <h3>What changes</h3>
+            <PreviewSection preview={preview} />
+          </>
+        )}
         <div className="row">
-          <button type="submit" disabled={saving || changes.length === 0}>
+          <button type="submit" disabled={saving || changes.length === 0 || !!preview.error}>
             {saving ? 'Saving…' : 'Save changes'}
           </button>
           <button type="button" className="secondary" onClick={() => navigate(-1)}>

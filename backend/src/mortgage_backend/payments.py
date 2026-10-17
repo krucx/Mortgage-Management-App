@@ -103,7 +103,7 @@ class PaymentPage(BaseModel):
     page_size: int
 
 
-def _mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
+def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
     """The Mortgages a Payment is allocated to (with the amount, as `allocated`), in the
     order the Allocations were made."""
     return (
@@ -129,7 +129,7 @@ def _load_payment(conn: Connection, payment_id: int) -> Payment:
     if payment is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
 
-    mortgages = _mortgages_of(conn, payment_id)
+    mortgages = mortgages_of(conn, payment_id)
     voided = payment.voided_at is not None
     # How it was applied comes from the replay, so it reflects every earlier Payment; a
     # Voided Payment is in no Ledger, so only its amounts remain.
@@ -209,7 +209,7 @@ def void_payment(conn: Connection, payment_id: int, reason: str, at: datetime) -
 
 def check_no_overpayment(conn: Connection, payment_id: int, today: date) -> None:
     """Replay each Mortgage the Payment touches; no Allocation may pay more than is owed."""
-    for mortgage in _mortgages_of(conn, payment_id):
+    for mortgage in mortgages_of(conn, payment_id):
         try:
             ledgers_of(conn, [mortgage], today)
         except Overpayment as over:
@@ -266,26 +266,31 @@ class VoidIn(BaseModel):
         return self
 
 
+def apply_void(conn: Connection, payment_id: int, reason: str, now: datetime) -> None:
+    """Void a Payment (or refuse): a Redemption's final Payment, or one to a closed
+    Mortgage, is Voided by reopening instead."""
+    if _load_payment(conn, payment_id).voided_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Already voided")
+    for mortgage in mortgages_of(conn, payment_id):
+        if mortgage["redemption_payment_id"] == payment_id:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"This is the final Payment of the Redemption of {mortgage['name']}: "
+                "reopen the Mortgage instead, which voids it",
+            )
+        if mortgage["status"] != MortgageStatus.ACTIVE:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"{mortgage['name']} is {mortgage['status']}: reopen it first",
+            )
+    void_payment(conn, payment_id, reason, now)
+
+
 @router.post("/payments/{payment_id}/void")
 def void(payment_id: int, body: VoidIn, engine: EngineDep, now: NowDep) -> Payment:
     """Void a Payment entered by mistake; a corrected one is entered as a new Payment."""
     with engine.begin() as conn:
-        payment = _load_payment(conn, payment_id)
-        if payment.voided_at is not None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Already voided")
-        for mortgage in _mortgages_of(conn, payment_id):
-            if mortgage["redemption_payment_id"] == payment_id:
-                raise HTTPException(
-                    status.HTTP_409_CONFLICT,
-                    f"This is the final Payment of the Redemption of {mortgage['name']}: "
-                    "reopen the Mortgage instead, which voids it",
-                )
-            if mortgage["status"] != MortgageStatus.ACTIVE:
-                raise HTTPException(
-                    status.HTTP_409_CONFLICT,
-                    f"{mortgage['name']} is {mortgage['status']}: reopen it first",
-                )
-        void_payment(conn, payment_id, body.reason, now)
+        apply_void(conn, payment_id, body.reason, now)
         return _load_payment(conn, payment_id)
 
 

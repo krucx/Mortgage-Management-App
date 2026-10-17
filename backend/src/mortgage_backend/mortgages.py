@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
@@ -702,6 +702,66 @@ def mortgage_row(conn: Connection, mortgage_id: int) -> RowMapping:
     return row
 
 
+def apply_edit(
+    conn: Connection, mortgage_id: int, edit: MortgageEdit, today: date, now: datetime
+) -> None:
+    """Correct a Mortgage's details (or refuse); the Ledger follows from them."""
+    if edit.start_date > today:
+        raise unprocessable("Start date cannot be in the future")
+    before = mortgage_row(conn, mortgage_id)
+    after = edit.model_dump()
+    changed = audit.changes(before, after, _AUDITED)
+    if before["status"] != MortgageStatus.ACTIVE and any(
+        c.field in _LOCKED_WHEN_CLOSED for c in changed
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{before['name']} is {before['status']}: reopen it to change its "
+            "start date or Principal",
+        )
+    taken = conn.execute(
+        select(mortgage_table.c.id).where(
+            func.lower(mortgage_table.c.name) == edit.name.lower(),
+            mortgage_table.c.id != mortgage_id,
+        )
+    ).first()
+    if taken:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"The Mortgage Name {edit.name} is already used",
+        )
+    first_payment = min(
+        (a.on for a in allocations_to(conn, [mortgage_id])[mortgage_id]),
+        default=None,
+    )
+    stranded = [
+        c.on
+        for c in term_changes_of(conn, [mortgage_id])[mortgage_id]
+        if not is_accrual_date(edit.start_date, c.on)
+    ]
+    if stranded:
+        raise unprocessable(
+            f"The Term Change from {stranded[0]:%d %b %Y} would no longer be on an "
+            "Accrual Date: keep the same day of the month, or remove it first"
+        )
+    if first_payment is not None and edit.start_date > first_payment:
+        raise unprocessable(
+            f"There is a Payment on {first_payment:%d %b %Y}, before that start date"
+        )
+    conn.execute(
+        update(mortgage_table).where(mortgage_table.c.id == mortgage_id).values(**after)
+    )
+    try:
+        ledgers_of(conn, [mortgage_row(conn, mortgage_id)], today)
+    except Overpayment as over:
+        raise unprocessable(
+            f"The Payment on {over.on:%d %b %Y} would then be more than the "
+            f"{format_inr(over.outstanding)} owed"
+        ) from None
+    if changed:
+        audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
+
+
 @router.put("/mortgages/{mortgage_id}")
 def edit_mortgage(
     mortgage_id: int,
@@ -711,61 +771,6 @@ def edit_mortgage(
     now: NowDep,
 ) -> Mortgage:
     """Correct a Mortgage's details; its Ledger is recalculated from them."""
-    if edit.start_date > today:
-        raise unprocessable("Start date cannot be in the future")
     with engine.begin() as conn:
-        before = mortgage_row(conn, mortgage_id)
-        after = edit.model_dump()
-        changed = audit.changes(before, after, _AUDITED)
-        if before["status"] != MortgageStatus.ACTIVE and any(
-            c.field in _LOCKED_WHEN_CLOSED for c in changed
-        ):
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"{before['name']} is {before['status']}: reopen it to change its "
-                "start date or Principal",
-            )
-        taken = conn.execute(
-            select(mortgage_table.c.id).where(
-                func.lower(mortgage_table.c.name) == edit.name.lower(),
-                mortgage_table.c.id != mortgage_id,
-            )
-        ).first()
-        if taken:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"The Mortgage Name {edit.name} is already used",
-            )
-        first_payment = min(
-            (a.on for a in allocations_to(conn, [mortgage_id])[mortgage_id]),
-            default=None,
-        )
-        stranded = [
-            c.on
-            for c in term_changes_of(conn, [mortgage_id])[mortgage_id]
-            if not is_accrual_date(edit.start_date, c.on)
-        ]
-        if stranded:
-            raise unprocessable(
-                f"The Term Change from {stranded[0]:%d %b %Y} would no longer be on an "
-                "Accrual Date: keep the same day of the month, or remove it first"
-            )
-        if first_payment is not None and edit.start_date > first_payment:
-            raise unprocessable(
-                f"There is a Payment on {first_payment:%d %b %Y}, before that start date"
-            )
-        conn.execute(
-            update(mortgage_table)
-            .where(mortgage_table.c.id == mortgage_id)
-            .values(**after)
-        )
-        try:
-            ledgers_of(conn, [mortgage_row(conn, mortgage_id)], today)
-        except Overpayment as over:
-            raise unprocessable(
-                f"The Payment on {over.on:%d %b %Y} would then be more than the "
-                f"{format_inr(over.outstanding)} owed"
-            ) from None
-        if changed:
-            audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
+        apply_edit(conn, mortgage_id, edit, today, now)
         return load_mortgage(conn, mortgage_id, today)

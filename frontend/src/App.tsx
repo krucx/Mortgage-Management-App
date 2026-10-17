@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router'
 import { useReadyToRedeemCount } from './components/useReadyToRedeem'
 import { CallListPage } from './pages/CallListPage'
+import { ChangeTermsPage } from './pages/ChangeTermsPage'
 import { ClosuresPage } from './pages/ClosuresPage'
 import { CustomerFormPage } from './pages/CustomerFormPage'
 import { CustomerPage } from './pages/CustomerPage'
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="/mortgages/:id" element={<MortgagePage />} />
             <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
             <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
+            <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
             <Route path="/call-list" element={<CallListPage />} />
             <Route path="/closures" element={<ClosuresPage />} />
             <Route path="/referrers/:id" element={<ReferrerPage />} />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatINR } from '../src/money'
+import { formatChange, formatINR } from '../src/money'
 
 describe('formatINR', () => {
   it.each([
@@ -21,5 +21,15 @@ describe('formatINR', () => {
 
   it('puts the minus sign before the rupee symbol', () => {
     expect(formatINR(-500_000)).toBe('-₹5,000')
+  })
+})
+
+describe('formatChange', () => {
+  it.each([
+    [420_000, '+₹4,200'],
+    [-420_000, '−₹4,200'],
+    [0, 'no change'],
+  ])('shows a difference with its sign: %i paise → %s', (paise, expected) => {
+    expect(formatChange(paise)).toBe(expected)
   })
 })

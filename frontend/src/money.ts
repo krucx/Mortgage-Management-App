@@ -16,3 +16,7 @@ export function formatINR(paise: number): string {
 
 /** What the Lender types in rupees (e.g. "1234.5") → paise. */
 export const rupeesToPaise = (rupees: string) => Math.round(Number(rupees) * 100)
+
+/** A difference with its sign, e.g. 420000 → "+₹4,200", -420000 → "−₹4,200". */
+export const formatChange = (paise: number) =>
+  paise === 0 ? 'no change' : `${paise > 0 ? '+' : '−'}${formatINR(Math.abs(paise))}`

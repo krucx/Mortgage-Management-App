@@ -769,3 +769,37 @@ tr.clickable {
 tr.clickable:hover td {
   background: var(--accent-soft);
 }
+
+/* A dialog with a larger body, e.g. a before/after preview; the body scrolls. */
+dialog.wide-dialog {
+  width: min(900px, calc(100vw - 2rem));
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* Before/after previews */
+.change-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+}
+
+.change-summary .tile {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.change-summary .tile.changed {
+  border-color: var(--accent-edge);
+  background: var(--accent-soft);
+}
+
+.before-after .changed {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.refreshing {
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}

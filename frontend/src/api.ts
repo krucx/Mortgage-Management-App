@@ -215,6 +215,36 @@ export interface Projection {
   what_if: ProjectedSeries | null
 }
 
+/** A Ledger step that an edit would change: null on the side where it doesn't exist. */
+export interface LedgerChange {
+  on: string
+  event: LedgerStep['event']
+  before: LedgerStep | null
+  after: LedgerStep | null
+}
+
+export interface PreviewSide {
+  outstanding: number // today
+  points: ProjectedPoint[] // with no further Payments; empty for a closed Mortgage
+}
+
+/** One Mortgage before and after a change that has not been saved. */
+export interface MortgagePreview {
+  mortgage_id: number
+  mortgage_name: string
+  before: PreviewSide
+  after: PreviewSide
+  ledger_changes: LedgerChange[]
+}
+
+/** What a Term Change says; anything left out carries over. */
+export interface TermChangeIn {
+  effective_on: string
+  monthly_rate_bps?: number
+  interest_mode?: InterestMode
+  part_month_rule?: PartMonthRule
+}
+
 /** Collateral Value: net weight at the Gold Rate, unless set by hand. */
 export interface Collateral {
   value: number // paise
@@ -482,7 +512,13 @@ export const api = {
     changesLedger(request<Mortgage>(`/mortgages/${id}/reopen`, sendJson('POST', { reason }))),
   mortgageHistory: (id: number) => request<AuditEntry[]>(`/mortgages/${id}/history`),
   customerHistory: (id: number) => request<AuditEntry[]>(`/customers/${id}/history`),
-  addTermChange: (id: number, change: { effective_on: string } & Terms) =>
+  previewEdit: (id: number, mortgage: MortgageEdit) =>
+    request<MortgagePreview[]>(`/mortgages/${id}/edit-preview`, sendJson('POST', mortgage)),
+  previewTermChange: (id: number, change: TermChangeIn) =>
+    request<MortgagePreview[]>(`/mortgages/${id}/term-changes/preview`, sendJson('POST', change)),
+  previewVoid: (paymentId: number) =>
+    request<MortgagePreview[]>(`/payments/${paymentId}/void-preview`, { method: 'POST' }),
+  addTermChange: (id: number, change: TermChangeIn) =>
     changesLedger(request<Mortgage>(`/mortgages/${id}/term-changes`, sendJson('POST', change))),
   removeTermChange: (id: number, changeId: number) =>
     changesLedger(

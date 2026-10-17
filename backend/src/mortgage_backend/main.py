@@ -18,6 +18,7 @@ from mortgage_backend import (
     mortgages,
     payments,
     photos,
+    previews,
     projections,
     term_changes,
 )
@@ -108,6 +109,7 @@ def create_app(
     app.include_router(audit.router)
     app.include_router(term_changes.router)
     app.include_router(projections.router)
+    app.include_router(previews.router)
     return app
 
 
