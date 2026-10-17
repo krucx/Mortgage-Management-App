@@ -256,7 +256,26 @@ def _outstanding_of(ledger: list[LedgerStep]) -> Outstanding:
     )
 
 
-def _select_with_customer() -> Select[Any]:
+def mortgage_rows(
+    conn: Connection, rows: Sequence[RowMapping], as_of: date
+) -> list[MortgageRow]:
+    """Rows from select_with_customer() as listed in tables, Outstanding as of `as_of`."""
+    ledgers = ledgers_of(conn, rows, as_of)
+    return [
+        MortgageRow(
+            id=row["id"],
+            name=row["name"],
+            customer=_customer_of(row),
+            start_date=row["start_date"],
+            amount_lent=row["amount_lent"],
+            status=row["status"],
+            outstanding_total=_outstanding_of(ledgers[row["id"]]).total,
+        )
+        for row in rows
+    ]
+
+
+def select_with_customer() -> Select[Any]:
     """Mortgages joined to their Customer's name."""
     return select(mortgage_table, customer_table.c.name.label("customer_name")).join(
         customer_table, customer_table.c.id == mortgage_table.c.customer_id
@@ -271,7 +290,7 @@ def _customer_of(row: RowMapping) -> PersonSummary:
 
 def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
     row = (
-        conn.execute(_select_with_customer().where(mortgage_table.c.id == mortgage_id))
+        conn.execute(select_with_customer().where(mortgage_table.c.id == mortgage_id))
         .mappings()
         .first()
     )
@@ -418,11 +437,13 @@ def list_mortgages(
     customer_id: int | None = None,
     mortgage_status: Annotated[MortgageStatus | None, Query(alias="status")] = None,
     as_of: date | None = None,
+    owing: bool = False,
 ) -> MortgagePage:
     """Mortgages, newest first, filtered by Mortgage Name or Customer name.
 
     With `as_of`, only Mortgages started by then, with what they owed on that date
-    (used when recording a back-dated Payment).
+    (used when recording a back-dated Payment). With `owing`, only those with something
+    Outstanding (Outstanding is computed, so that filter is applied after the replay).
     """
     if as_of is not None and as_of > today:
         raise unprocessable("The date cannot be in the future")
@@ -441,36 +462,35 @@ def list_mortgages(
         match = match & (mortgage_table.c.start_date <= as_of)
     if mortgage_status is not None:
         match = match & (mortgage_table.c.status == mortgage_status)
+    newest_first = (
+        select_with_customer()
+        .where(match)
+        .order_by(mortgage_table.c.start_date.desc(), mortgage_table.c.name)
+    )
+    start = (page - 1) * PAGE_SIZE
     with engine.connect() as conn:
+        if owing:
+            rows = conn.execute(newest_first).mappings().all()
+            owed = [
+                row
+                for row in mortgage_rows(conn, rows, as_of or today)
+                if row.outstanding_total > 0
+            ]
+            return MortgagePage(
+                items=owed[start : start + PAGE_SIZE],
+                total=len(owed),
+                page=page,
+                page_size=PAGE_SIZE,
+            )
         total = conn.execute(
             select(func.count())
             .select_from(mortgage_table.join(customer_table))
             .where(match)
         ).scalar_one()
         rows = (
-            conn.execute(
-                _select_with_customer()
-                .where(match)
-                .order_by(mortgage_table.c.start_date.desc(), mortgage_table.c.name)
-                .limit(PAGE_SIZE)
-                .offset((page - 1) * PAGE_SIZE)
-            )
-            .mappings()
-            .all()
+            conn.execute(newest_first.limit(PAGE_SIZE).offset(start)).mappings().all()
         )
-        ledgers = ledgers_of(conn, rows, as_of or today)
-        items = [
-            MortgageRow(
-                id=row["id"],
-                name=row["name"],
-                customer=_customer_of(row),
-                start_date=row["start_date"],
-                amount_lent=row["amount_lent"],
-                status=row["status"],
-                outstanding_total=_outstanding_of(ledgers[row["id"]]).total,
-            )
-            for row in rows
-        ]
+        items = mortgage_rows(conn, rows, as_of or today)
     return MortgagePage(items=items, total=total, page=page, page_size=PAGE_SIZE)
 
 

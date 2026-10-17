@@ -28,11 +28,16 @@ function ProfitLoss({ amount }: { amount: number }) {
 export function CloseMortgage({
   mortgage,
   onClosed,
+  initialAction = null,
+  onCancel,
 }: {
   mortgage: Mortgage
   onClosed: (updated: Mortgage) => void
+  /** Open straight into Redeem or Forfeit (e.g. from the Redeem / Forfeit page). */
+  initialAction?: Action | null
+  onCancel?: () => void
 }) {
-  const [action, setAction] = useState<Action | null>(null)
+  const [action, setAction] = useState<Action | null>(initialAction)
   const [on, setOn] = useState(todayIso())
   const [quote, setQuote] = useState<{ on: string; redemption: Redemption | null; error?: string }>()
   const [method, setMethod] = useState<PaymentMethod>('cash')
@@ -144,7 +149,11 @@ export function CloseMortgage({
     <form onSubmit={submit} className="stack close-panel">
       <div className="row spread">
         <strong>{action === 'redeem' ? 'Redeem' : 'Forfeit'} this Mortgage</strong>
-        <button type="button" className="secondary small" onClick={() => setAction(null)}>
+        <button
+          type="button"
+          className="secondary small"
+          onClick={() => (onCancel ? onCancel() : setAction(null))}
+        >
           Cancel
         </button>
       </div>

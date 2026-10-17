@@ -193,6 +193,12 @@ export interface ForfeitIn {
   note: string
 }
 
+/** An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back. */
+export interface ReadyToRedeem {
+  mortgage: MortgageRow
+  redemption: Redemption // redeeming today
+}
+
 export interface Closure {
   kind: 'redeemed' | 'forfeited'
   on: string
@@ -245,6 +251,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 
+/** Fired after anything that can change what Mortgages owe (Payments, Redemption, Forfeiture). */
+export const LEDGER_CHANGED = 'ledger-changed'
+
+async function changesLedger<T>(result: Promise<T>): Promise<T> {
+  const value = await result
+  window.dispatchEvent(new Event(LEDGER_CHANGED))
+  return value
+}
+
 const sendJson = (method: string, data: unknown): RequestInit => ({
   method,
   body: JSON.stringify(data),
@@ -275,21 +290,23 @@ export const api = {
   listMortgages: (
     page: number,
     query: string,
-    filters: { customerId?: number; status?: MortgageStatus; asOf?: string } = {},
+    filters: { customerId?: number; status?: MortgageStatus; asOf?: string; owing?: boolean } = {},
   ) =>
     request<MortgagePage>(
       `/mortgages?page=${page}&q=${encodeURIComponent(query)}` +
         (filters.customerId ? `&customer_id=${filters.customerId}` : '') +
         (filters.status ? `&status=${filters.status}` : '') +
-        (filters.asOf ? `&as_of=${filters.asOf}` : ''),
+        (filters.asOf ? `&as_of=${filters.asOf}` : '') +
+        (filters.owing ? '&owing=true' : ''),
     ),
   getMortgage: (id: number) => request<Mortgage>(`/mortgages/${id}`),
+  readyToRedeem: () => request<ReadyToRedeem[]>('/closures/ready-to-redeem'),
   getRedemption: (id: number, on: string) =>
     request<Redemption>(`/mortgages/${id}/redemption?on=${on}`),
   redeem: (id: number, body: RedeemIn) =>
-    request<Mortgage>(`/mortgages/${id}/redeem`, sendJson('POST', body)),
+    changesLedger(request<Mortgage>(`/mortgages/${id}/redeem`, sendJson('POST', body))),
   forfeit: (id: number, body: ForfeitIn) =>
-    request<Mortgage>(`/mortgages/${id}/forfeit`, sendJson('POST', body)),
+    changesLedger(request<Mortgage>(`/mortgages/${id}/forfeit`, sendJson('POST', body))),
   createMortgage: (mortgage: MortgageIn) =>
     request<Mortgage>('/mortgages', sendJson('POST', mortgage)),
   suggestMortgageName: (customerId: number, startDate: string, description: string) =>
@@ -305,7 +322,8 @@ export const api = {
   deleteMortgagePhoto: (id: number, photoId: number) =>
     request<Mortgage>(`/mortgages/${id}/photos/${photoId}`, { method: 'DELETE' }),
 
-  recordPayment: (payment: PaymentIn) => request<Payment>('/payments', sendJson('POST', payment)),
+  recordPayment: (payment: PaymentIn) =>
+    changesLedger(request<Payment>('/payments', sendJson('POST', payment))),
   getPayment: (id: number) => request<Payment>(`/payments/${id}`),
   listPayments: (page: number, query: string) =>
     request<PaymentPage>(`/payments?page=${page}&q=${encodeURIComponent(query)}`),

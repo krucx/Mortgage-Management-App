@@ -564,3 +564,28 @@ button.danger-solid {
 tr.ledger-part_month td {
   font-style: italic;
 }
+
+.layout nav a {
+  position: relative;
+}
+
+/* Notification dot: something is waiting on that page. */
+.dot {
+  position: absolute;
+  top: -2px;
+  right: -9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--error);
+}
+
+.badge.count {
+  background: var(--error);
+  border-color: var(--error);
+  color: #fff;
+}
+
+dialog.modal {
+  width: min(640px, calc(100vw - 2rem));
+}

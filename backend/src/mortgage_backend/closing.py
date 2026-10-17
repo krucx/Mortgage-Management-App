@@ -17,10 +17,13 @@ from mortgage_backend.db import (
 from mortgage_backend.errors import unprocessable
 from mortgage_backend.mortgages import (
     Mortgage,
+    MortgageRow,
     MortgageStatus,
     Redemption,
     load_mortgage,
+    mortgage_rows,
     redemption_on,
+    select_with_customer,
 )
 from mortgage_backend.payments import (
     AllocationIn,
@@ -35,6 +38,13 @@ class RedeemIn(BaseModel):
     redeemed_on: date
     method: PaymentMethod  # how the final Payment was made
     reference: str | None = None
+
+
+class ReadyToRedeem(BaseModel):
+    """An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back."""
+
+    mortgage: MortgageRow
+    redemption: Redemption  # redeeming today; may include a Part-Month Rule charge
 
 
 class ForfeitIn(BaseModel):
@@ -148,3 +158,24 @@ def forfeit(
             closure_note=forfeit.note.strip() or None,
         )
         return load_mortgage(conn, mortgage_id, today)
+
+
+@router.get("/closures/ready-to-redeem")
+def ready_to_redeem(engine: EngineDep, today: TodayDep) -> list[ReadyToRedeem]:
+    """Active Mortgages paid down to nothing Outstanding, oldest first."""
+    with engine.connect() as conn:
+        rows = (
+            conn.execute(
+                select_with_customer()
+                .where(mortgage_table.c.status == MortgageStatus.ACTIVE)
+                .order_by(mortgage_table.c.start_date, mortgage_table.c.id)
+            )
+            .mappings()
+            .all()
+        )
+        listed = mortgage_rows(conn, rows, today)
+        return [
+            ReadyToRedeem(mortgage=mortgage, redemption=redemption_on(conn, row, today))
+            for row, mortgage in zip(rows, listed, strict=True)
+            if mortgage.outstanding_total == 0
+        ]

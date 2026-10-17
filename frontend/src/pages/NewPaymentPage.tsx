@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { api, PAYMENT_METHODS, type Customer, type MortgageRow, type PaymentMethod } from '../api'
+import {
+  api,
+  PAYMENT_METHODS,
+  type Customer,
+  type MortgageRow,
+  type Payment,
+  type PaymentMethod,
+} from '../api'
 import { Summary } from '../components/ConfirmDialog'
 import { CustomerChooser } from '../components/CustomerChooser'
+import { RedeemPaidOff } from '../components/RedeemPaidOff'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
@@ -65,6 +73,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const [saving, setSaving] = useState(false)
   const selectionStarted = useRef(false)
   const [confirm, confirmDialog] = useConfirm()
+  // After saving: Mortgages this Payment paid off, offered for Redemption.
+  const [paidOff, setPaidOff] = useState<{ payment: Payment; mortgages: MortgageRow[] }>()
 
   // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
   useEffect(() => {
@@ -171,7 +181,12 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i] }))
           .filter((allocation) => allocation.amount > 0),
       })
-      navigate(`/payments/${payment.id}`)
+      const allocated = new Set(payment.allocations.map((a) => a.mortgage_id))
+      const cleared = (await api.readyToRedeem().catch(() => []))
+        .map((item) => item.mortgage)
+        .filter((m) => allocated.has(m.id))
+      if (cleared.length) setPaidOff({ payment, mortgages: cleared })
+      else navigate(`/payments/${payment.id}`)
     } catch (err) {
       setError((err as Error).message)
       setSaving(false)
@@ -358,6 +373,13 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       </div>
       {error && <p className="status error">{error}</p>}
       {confirmDialog}
+      {paidOff && (
+        <RedeemPaidOff
+          payment={paidOff.payment}
+          mortgages={paidOff.mortgages}
+          onDone={() => navigate(`/payments/${paidOff.payment.id}`)}
+        />
+      )}
     </form>
   )
 }

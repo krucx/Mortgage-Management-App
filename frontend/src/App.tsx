@@ -1,4 +1,6 @@
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router'
+import { useReadyToRedeemCount } from './components/useReadyToRedeem'
+import { ClosuresPage } from './pages/ClosuresPage'
 import { CustomerFormPage } from './pages/CustomerFormPage'
 import { CustomerPage } from './pages/CustomerPage'
 import { CustomersPage } from './pages/CustomersPage'
@@ -11,18 +13,32 @@ import { PaymentsPage } from './pages/PaymentsPage'
 import { ReferrerPage } from './pages/ReferrerPage'
 import { SettingsPage } from './pages/SettingsPage'
 
+function Nav() {
+  const waiting = useReadyToRedeemCount()
+  return (
+    <nav>
+      <NavLink to="/payments">Payments</NavLink>
+      <NavLink to="/customers">Customers</NavLink>
+      <NavLink to="/mortgages">Mortgages</NavLink>
+      <NavLink
+        to="/closures"
+        title={waiting ? `${waiting} paid off, waiting to be Redeemed` : undefined}
+      >
+        Redeem / Forfeit
+        {waiting > 0 && <span className="dot" aria-label={`${waiting} waiting to be Redeemed`} />}
+      </NavLink>
+      <NavLink to="/settings">Settings</NavLink>
+    </nav>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <div className="layout">
         <header>
           <h1>Mortgage Management</h1>
-          <nav>
-            <NavLink to="/payments">Payments</NavLink>
-            <NavLink to="/customers">Customers</NavLink>
-            <NavLink to="/mortgages">Mortgages</NavLink>
-            <NavLink to="/settings">Settings</NavLink>
-          </nav>
+          <Nav />
         </header>
         <main>
           <Routes>
@@ -37,6 +53,7 @@ export default function App() {
             <Route path="/mortgages" element={<MortgagesPage />} />
             <Route path="/mortgages/new" element={<NewMortgagePage />} />
             <Route path="/mortgages/:id" element={<MortgagePage />} />
+            <Route path="/closures" element={<ClosuresPage />} />
             <Route path="/referrers/:id" element={<ReferrerPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>

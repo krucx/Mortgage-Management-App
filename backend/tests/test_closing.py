@@ -276,3 +276,71 @@ def test_the_redemption_amount_can_be_quoted_for_a_future_date(client, mortgage)
         redemption(client, mortgage, on="2026-05-20")["total"]
         == LAKH + 12_000_00 + 3_000_00
     )
+
+
+# --- Mortgages ready to Redeem: Active, with nothing Outstanding.
+
+
+def pay_all(client, customer, mortgage, amount, on):
+    response = client.post(
+        "/api/payments",
+        json={
+            "customer_id": customer["id"],
+            "paid_on": on,
+            "amount": amount,
+            "method": "cash",
+            "allocations": [{"mortgage_id": mortgage["id"], "amount": amount}],
+        },
+    )
+    assert response.status_code == 201, response.text
+
+
+def ready(client):
+    response = client.get("/api/closures/ready-to-redeem")
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_nothing_is_ready_to_redeem_while_something_is_outstanding(client, mortgage):
+    assert ready(client) == []
+
+
+def test_a_paid_off_mortgage_is_ready_to_redeem_with_todays_redemption_amount(
+    client, ramesh, mortgage
+):
+    other = open_mortgage(client, ramesh)
+    # Paid off on an Accrual Date: the new month starts with no Principal, so no charge.
+    pay_all(client, ramesh, mortgage, 109_000_00, "2026-04-14")
+    # Paid off mid-month (today, 6 days in): redeeming adds a full month on ₹1,00,000.
+    pay_all(client, ramesh, other, 109_000_00, "2026-04-20")
+
+    items = ready(client)
+
+    assert [(i["mortgage"]["name"], i["redemption"]["total"]) for i in items] == [
+        (mortgage["name"], 0),
+        (other["name"], 3_000_00),
+    ]
+    assert items[0]["mortgage"]["customer"]["name"] == "Ramesh Kumar"
+    assert items[0]["redemption"]["on"] == "2026-04-20"
+
+
+def test_a_redeemed_mortgage_is_no_longer_waiting(client, ramesh, mortgage):
+    pay_all(client, ramesh, mortgage, 109_000_00, "2026-04-14")
+
+    redeem(client, mortgage)
+
+    assert ready(client) == []
+
+
+def test_mortgages_can_be_listed_by_whether_anything_is_outstanding(
+    client, ramesh, mortgage
+):
+    other = open_mortgage(client, ramesh)
+    pay_all(client, ramesh, mortgage, 109_000_00, "2026-04-14")
+
+    page = client.get(
+        "/api/mortgages", params={"status": "active", "owing": True}
+    ).json()
+
+    assert [row["id"] for row in page["items"]] == [other["id"]]
+    assert page["total"] == 1
