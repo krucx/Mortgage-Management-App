@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from pydantic import AfterValidator, BaseModel, Field
-from sqlalchemy import Column, Table, insert, or_, select, update
+from sqlalchemy import Column, Table, func, insert, or_, select, update
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.db import EngineDep, customer_table, standalone_referrer_table
@@ -27,6 +27,17 @@ def normalise_phone(raw: str) -> str:
 Phone = Annotated[str, AfterValidator(normalise_phone)]
 
 
+def tidy_name(raw: str) -> str:
+    """Trim and collapse spaces, e.g. "  Ramesh   Kumar " → "Ramesh Kumar"."""
+    name = " ".join(raw.split())
+    if not name:
+        raise ValueError("must not be empty")
+    return name
+
+
+Name = Annotated[str, AfterValidator(tidy_name)]
+
+
 # --- Choosing a Referrer: an existing Customer, an existing standalone Referrer, or a new one.
 
 
@@ -42,7 +53,7 @@ class ExistingStandaloneReferrer(BaseModel):
 
 class NewStandaloneReferrer(BaseModel):
     kind: Literal["new"]
-    name: str = Field(min_length=1)
+    name: Name
     address: str
     phone: Phone
 
@@ -54,7 +65,7 @@ ReferrerChoice = Annotated[
 
 
 class CustomerIn(BaseModel):
-    name: str = Field(min_length=1)
+    name: Name
     address: str
     phone_1: Phone
     phone_2: Phone | None = None
@@ -106,6 +117,25 @@ def _exists(conn: Connection, table: Table, row_id: int) -> bool:
     return (
         conn.execute(select(table.c.id).where(table.c.id == row_id)).first() is not None
     )
+
+
+def _reject_duplicate(
+    conn: Connection, customer: CustomerIn, customer_id: int | None = None
+) -> None:
+    """One Customer per name (ignoring case) and contact number 1."""
+    same = conn.execute(
+        select(customer_table.c.id).where(
+            func.lower(customer_table.c.name) == customer.name.lower(),
+            customer_table.c.phone_1 == customer.phone_1,
+            customer_table.c.id.is_distinct_from(customer_id),
+        )
+    ).first()
+    if same is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"A Customer named {customer.name} with contact number 1 "
+            f"{customer.phone_1} already exists",
+        )
 
 
 def _referrer_columns(
@@ -225,6 +255,7 @@ router = APIRouter(prefix="/api")
 @router.post("/customers", status_code=status.HTTP_201_CREATED)
 def create_customer(customer: CustomerIn, engine: EngineDep) -> Customer:
     with engine.begin() as conn:
+        _reject_duplicate(conn, customer)
         customer_id = conn.execute(
             insert(customer_table)
             .values(
@@ -248,6 +279,7 @@ def update_customer(
     with engine.begin() as conn:
         if not _exists(conn, customer_table, customer_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+        _reject_duplicate(conn, customer, customer_id)
         conn.execute(
             update(customer_table)
             .where(customer_table.c.id == customer_id)

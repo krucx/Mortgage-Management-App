@@ -9,6 +9,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     MetaData,
     String,
@@ -57,6 +58,13 @@ customer_table = Table(
         ForeignKey("standalone_referrer.id"),
     ),
     Column("created_at", DateTime, nullable=False, server_default=func.now()),
+)
+# One Customer per name (ignoring case) and contact number 1.
+Index(
+    "uq_customer_name_phone_1",
+    func.lower(customer_table.c.name),
+    customer_table.c.phone_1,
+    unique=True,
 )
 
 
