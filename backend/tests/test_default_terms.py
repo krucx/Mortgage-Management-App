@@ -7,7 +7,9 @@ DEFAULTS = {
 }
 
 
-def test_new_database_has_default_terms_of_3_percent_compounded_yearly_full_month(client):
+def test_new_database_has_default_terms_of_3_percent_compounded_yearly_full_month(
+    client,
+):
     response = client.get("/api/settings/default-terms")
 
     assert response.status_code == 200
@@ -40,7 +42,9 @@ def test_lender_can_change_default_terms_and_they_persist(client):
     ],
 )
 def test_invalid_default_terms_are_rejected_and_nothing_changes(client, bad_change):
-    response = client.put("/api/settings/default-terms", json={**DEFAULTS, **bad_change})
+    response = client.put(
+        "/api/settings/default-terms", json={**DEFAULTS, **bad_change}
+    )
 
     assert response.status_code == 422
     assert client.get("/api/settings/default-terms").json() == DEFAULTS

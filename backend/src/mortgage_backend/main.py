@@ -3,30 +3,34 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI, Request
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
+from fastapi import APIRouter, FastAPI
 
-from mortgage_backend.db import database_url_from_env, migrate
-from mortgage_backend.default_terms import DefaultTerms, get_default_terms, set_default_terms
+from mortgage_backend import customers, photos
+from mortgage_backend.db import (
+    EngineDep,
+    database_url_from_env,
+    make_engine,
+    migrate,
+    photos_dir,
+)
+from mortgage_backend.default_terms import (
+    DefaultTerms,
+    get_default_terms,
+    set_default_terms,
+)
 
 router = APIRouter(prefix="/api")
 
 
-def _engine(request: Request) -> Engine:
-    engine: Engine = request.app.state.engine
-    return engine
-
-
 @router.get("/settings/default-terms")
-def read_default_terms(request: Request) -> DefaultTerms:
-    with _engine(request).connect() as conn:
+def read_default_terms(engine: EngineDep) -> DefaultTerms:
+    with engine.connect() as conn:
         return get_default_terms(conn)
 
 
 @router.put("/settings/default-terms")
-def update_default_terms(terms: DefaultTerms, request: Request) -> DefaultTerms:
-    with _engine(request).begin() as conn:
+def update_default_terms(terms: DefaultTerms, engine: EngineDep) -> DefaultTerms:
+    with engine.begin() as conn:
         set_default_terms(conn, terms)
         return get_default_terms(conn)
 
@@ -38,8 +42,11 @@ def create_app(database_url: str) -> FastAPI:
         yield
 
     app = FastAPI(title="Mortgage Management", lifespan=lifespan)
-    app.state.engine = create_engine(database_url)
+    app.state.engine = make_engine(database_url)
+    app.state.photos_dir = photos_dir(database_url)
     app.include_router(router)
+    app.include_router(customers.router)
+    app.include_router(photos.router)
     return app
 
 

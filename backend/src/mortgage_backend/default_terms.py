@@ -43,7 +43,9 @@ def get_default_terms(conn: Connection) -> DefaultTerms:
         )
     )
     values = {key: value for key, value in rows}
-    return DefaultTerms(**{field: values[key] for field, key in _CONFIG_KEY_BY_FIELD.items()})
+    return DefaultTerms(
+        **{field: values[key] for field, key in _CONFIG_KEY_BY_FIELD.items()}
+    )
 
 
 def set_default_terms(conn: Connection, terms: DefaultTerms) -> None:

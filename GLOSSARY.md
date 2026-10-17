@@ -16,6 +16,10 @@ _Avoid_: Borrower, loanee, client
 A person who introduced one or more Customers to the Lender; either an existing Customer or a person known only as a Referrer.
 _Avoid_: Reference
 
+**Standalone Referrer**:
+A Referrer who is not a Customer, known only by name, address and phone.
+_Avoid_: External referrer, contact
+
 ## Lending
 
 **Mortgage**:
