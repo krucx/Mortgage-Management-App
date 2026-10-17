@@ -115,4 +115,6 @@ export const api = {
   },
 
   getReferrer: (id: number) => request<StandaloneReferrer>(`/referrers/${id}`),
+  personByPhone: (phone: string) =>
+    request<PersonSummary | null>(`/people/by-phone?phone=${encodeURIComponent(phone)}`),
 }

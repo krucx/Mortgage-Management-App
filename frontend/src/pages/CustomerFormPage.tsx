@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { api, type Customer, type PersonSummary } from '../api'
-import { PeopleInline } from '../components/PersonLink'
+import { PeopleInline, PersonLink } from '../components/PersonLink'
 import { PhotoPicker } from '../components/PhotoPicker'
 import { ReferrerPicker, type ReferrerSelection } from '../components/ReferrerPicker'
+import { useNumberOwner } from '../components/useNumberOwner'
 import { normalisePhone } from '../phone'
 
 const EMPTY = { name: '', address: '', phone_1: '', phone_2: '' }
@@ -21,7 +22,7 @@ export function CustomerFormPage() {
   const [fields, setFields] = useState(EMPTY)
   const [referrer, setReferrer] = useState<ReferrerSelection>(null)
   const [photo, setPhoto] = useState<Blob | null>(null)
-  const [phoneWarnings, setPhoneWarnings] = useState<Record<string, PersonSummary[]>>({})
+  const [phone2Shared, setPhone2Shared] = useState<PersonSummary[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -43,15 +44,20 @@ export function CustomerFormPage() {
   }, [id])
 
   /** Warn (never block) when another Customer already uses this number. */
-  async function checkPhone(field: 'phone_1' | 'phone_2') {
-    // Only a complete number is checked; stored numbers are exactly 10 digits, so this is an exact match.
-    const phone = normalisePhone(fields[field])
+  // Contact number 1 is the Primary Number: it identifies the person.
+  const numberOwner = useNumberOwner(fields.phone_1)
+  const ownerIsSelf = numberOwner?.kind === 'customer' && numberOwner.id === customerId
+
+  /** Contact number 2 may be shared (e.g. a family phone): warn, never block. */
+  async function checkPhone2() {
+    // Stored numbers are exactly 10 digits, so searching a complete number is an exact match.
+    const phone = normalisePhone(fields.phone_2)
     const others = phone
       ? (await api.search(phone).catch(() => [])).filter(
           (hit) => hit.kind === 'customer' && hit.id !== customerId,
         )
       : []
-    setPhoneWarnings((warnings) => ({ ...warnings, [field]: others }))
+    setPhone2Shared(others)
   }
 
   async function save(event: FormEvent) {
@@ -80,19 +86,41 @@ export function CustomerFormPage() {
   const editing = id !== undefined
   if (editing && !existing && !error) return <p>Loading…</p>
 
-  const phoneField = (field: 'phone_1' | 'phone_2', label: string, required: boolean) => (
+  const phone1Field = (
     <label>
-      {label}
+      Contact number 1
       <input
         inputMode="tel"
-        required={required}
-        value={fields[field]}
-        onChange={(event) => setFields({ ...fields, [field]: event.target.value })}
-        onBlur={() => checkPhone(field)}
+        required
+        value={fields.phone_1}
+        onChange={(event) => setFields({ ...fields, phone_1: event.target.value })}
       />
-      {(phoneWarnings[field]?.length ?? 0) > 0 && (
+      {numberOwner?.kind === 'customer' && !ownerIsSelf && (
+        <span className="status error">
+          Already belongs to Customer <PersonLink person={numberOwner} />
+        </span>
+      )}
+      {numberOwner?.kind === 'referrer' && (
         <span className="status warning">
-          Also used by <PeopleInline people={phoneWarnings[field]} />
+          Belongs to <PersonLink person={numberOwner} />. Saving makes them this Customer, and
+          the people they referred move with them.
+        </span>
+      )}
+    </label>
+  )
+
+  const phone2Field = (
+    <label>
+      Contact number 2 (optional)
+      <input
+        inputMode="tel"
+        value={fields.phone_2}
+        onChange={(event) => setFields({ ...fields, phone_2: event.target.value })}
+        onBlur={checkPhone2}
+      />
+      {phone2Shared.length > 0 && (
+        <span className="status warning">
+          Also used by <PeopleInline people={phone2Shared} />
         </span>
       )}
     </label>
@@ -121,8 +149,8 @@ export function CustomerFormPage() {
                 onChange={(event) => setFields({ ...fields, address: event.target.value })}
               />
             </label>
-            {phoneField('phone_1', 'Contact number 1', true)}
-            {phoneField('phone_2', 'Contact number 2 (optional)', false)}
+            {phone1Field}
+            {phone2Field}
           </div>
         </div>
 

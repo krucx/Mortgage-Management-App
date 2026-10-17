@@ -293,40 +293,6 @@ def test_blank_search_finds_nothing(client, people):
     assert search(client, "  ") == []
 
 
-def test_only_one_customer_per_name_and_contact_number_1(client):
-    create_customer(client, name="Ramesh Kumar", phone_1="9829012345")
-
-    # Same person typed differently: case, extra spaces, phone formatting.
-    response = client.post(
-        "/api/customers",
-        json={**RAMESH, "name": "  ramesh   KUMAR ", "phone_1": "+91 98290 12345"},
-    )
-
-    assert response.status_code == 409
-    assert "already exists" in response.json()["detail"]
-    assert search(client, "ramesh") == [("customer", "Ramesh Kumar")]
-
-
-def test_same_name_with_a_different_contact_number_1_is_a_different_customer(client):
-    create_customer(client, name="Ramesh Kumar", phone_1="9829012345")
-
-    create_customer(client, name="Ramesh Kumar", phone_1="9000000001")
-
-    assert len(search(client, "ramesh")) == 2
-
-
-def test_editing_a_customer_into_a_duplicate_is_rejected(client):
-    create_customer(client, name="Ramesh Kumar", phone_1="9829012345")
-    other = create_customer(client, name="Suresh", phone_1="9829012345")
-
-    response = client.put(
-        f"/api/customers/{other['id']}", json={**RAMESH, "name": "Ramesh Kumar"}
-    )
-
-    assert response.status_code == 409
-    assert client.get(f"/api/customers/{other['id']}").json()["name"] == "Suresh"
-
-
 def test_names_are_saved_without_stray_spaces(client):
     assert create_customer(client, name="  Ramesh   Kumar ")["name"] == "Ramesh Kumar"
 

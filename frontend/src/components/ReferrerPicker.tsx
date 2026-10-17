@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { PersonSummary, ReferrerChoice } from '../api'
-import { ReferrerBadge } from './PersonLink'
+import { PersonLink, ReferrerBadge } from './PersonLink'
+import { useNumberOwner } from './useNumberOwner'
 import { useSearch } from './useSearch'
 
 type Mode = 'none' | 'existing' | 'new'
@@ -25,6 +26,8 @@ export function ReferrerPicker({
   const [picked, setPicked] = useState<PersonSummary | null>(initial)
   const [query, setQuery] = useState('')
   const [newReferrer, setNewReferrer] = useState({ name: '', address: '', phone: '' })
+  // A new Referrer's number may already belong to someone; they are linked instead.
+  const newNumberOwner = useNumberOwner(mode === 'new' ? newReferrer.phone : '')
   const hits = useSearch(query).filter(
     (hit) => !(hit.kind === 'customer' && hit.id === excludeCustomerId),
   )
@@ -124,6 +127,12 @@ export function ReferrerPicker({
               value={newReferrer.phone}
               onChange={(event) => editNew('phone', event.target.value)}
             />
+            {newNumberOwner && (
+              <span className="status warning">
+                This number belongs to <PersonLink person={newNumberOwner} />. They will be linked
+                as the Referrer.
+              </span>
+            )}
           </label>
         </div>
       )}

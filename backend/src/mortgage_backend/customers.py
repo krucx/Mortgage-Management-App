@@ -144,35 +144,56 @@ def _exists(conn: Connection, table: Table, row_id: int) -> bool:
     )
 
 
-def _reject_duplicate(
-    conn: Connection, customer: CustomerIn, customer_id: int | None = None
-) -> None:
-    """One Customer per name (ignoring case) and contact number 1."""
-    same = conn.execute(
-        select(customer_table.c.id).where(
-            func.lower(customer_table.c.name) == customer.name.lower(),
-            customer_table.c.phone_1 == customer.phone_1,
-            customer_table.c.id.is_distinct_from(customer_id),
+def _owner_of(conn: Connection, phone: str) -> PersonSummary | None:
+    """The person whose Primary Number this is, if anyone's."""
+    customer = conn.execute(
+        select(customer_table.c.id, customer_table.c.name).where(
+            customer_table.c.phone_1 == phone
         )
     ).first()
-    if same is not None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"A Customer named {customer.name} with contact number 1 "
-            f"{customer.phone_1} already exists",
+    if customer is not None:
+        return PersonSummary(kind="customer", id=customer.id, name=customer.name)
+    referrer = conn.execute(
+        select(standalone_referrer_table.c.id, standalone_referrer_table.c.name).where(
+            standalone_referrer_table.c.phone == phone
         )
+    ).first()
+    if referrer is not None:
+        return PersonSummary(kind="referrer", id=referrer.id, name=referrer.name)
+    return None
+
+
+def _number_taken(phone: str, owner: PersonSummary) -> HTTPException:
+    label = "Customer" if owner.kind == "customer" else "Referrer"
+    return HTTPException(
+        status.HTTP_409_CONFLICT,
+        f"Contact number 1 {phone} already belongs to {label} {owner.name}",
+    )
+
+
+def _link_to(person: PersonSummary | None) -> dict[str, int | None]:
+    """The customer row's two referrer columns (at most one set) pointing at a person."""
+    return {
+        "referred_by_customer_id": person.id
+        if person and person.kind == "customer"
+        else None,
+        "referred_by_standalone_referrer_id": person.id
+        if person and person.kind == "referrer"
+        else None,
+    }
 
 
 def _referrer_columns(
-    conn: Connection, choice: ReferrerChoice | None
+    conn: Connection, choice: ReferrerChoice | None, own_phone: str
 ) -> dict[str, int | None]:
-    """Turn a Referrer choice into the customer row's two referrer columns (at most one set)."""
+    """Resolve a Referrer choice to the customer row's referrer columns.
+
+    A "new" Referrer whose number already belongs to someone is linked to that person
+    rather than duplicated.
+    """
     match choice:
         case None:
-            return {
-                "referred_by_customer_id": None,
-                "referred_by_standalone_referrer_id": None,
-            }
+            return _link_to(None)
         case ExistingCustomerReferrer(id=customer_id):
             if not _exists(conn, customer_table, customer_id):
                 raise _unprocessable("Referrer Customer not found")
@@ -188,15 +209,33 @@ def _referrer_columns(
                 "referred_by_standalone_referrer_id": referrer_id,
             }
         case NewStandaloneReferrer():
+            if choice.phone == own_phone:
+                raise _unprocessable("A Customer cannot be their own Referrer")
+            existing = _owner_of(conn, choice.phone)
+            if existing is not None:
+                return _link_to(existing)
             new_id = conn.execute(
                 insert(standalone_referrer_table)
                 .values(name=choice.name, address=choice.address, phone=choice.phone)
                 .returning(standalone_referrer_table.c.id)
             ).scalar_one()
-            return {
-                "referred_by_customer_id": None,
-                "referred_by_standalone_referrer_id": new_id,
-            }
+            return _link_to(PersonSummary(kind="referrer", id=new_id, name=choice.name))
+
+
+def _promote_referrer(conn: Connection, referrer_id: int, customer_id: int) -> None:
+    """A Standalone Referrer who became a Customer: move their referrals over, then remove them."""
+    conn.execute(
+        update(customer_table)
+        .where(customer_table.c.referred_by_standalone_referrer_id == referrer_id)
+        .values(
+            referred_by_standalone_referrer_id=None, referred_by_customer_id=customer_id
+        )
+    )
+    conn.execute(
+        delete(standalone_referrer_table).where(
+            standalone_referrer_table.c.id == referrer_id
+        )
+    )
 
 
 def _customers_referred_by(
@@ -285,15 +324,25 @@ router = APIRouter(prefix="/api")
 @router.post("/customers", status_code=status.HTTP_201_CREATED)
 def create_customer(customer: CustomerIn, engine: EngineDep) -> Customer:
     with engine.begin() as conn:
-        _reject_duplicate(conn, customer)
+        owner = _owner_of(conn, customer.phone_1)
+        if owner is not None and owner.kind == "customer":
+            raise _number_taken(customer.phone_1, owner)
+        # A Standalone Referrer with this number is the same person: promote them.
+        promoted = owner.id if owner is not None else None
+        if promoted is not None and customer.referrer == ExistingStandaloneReferrer(
+            kind="referrer", id=promoted
+        ):
+            raise _unprocessable("A Customer cannot be their own Referrer")
         customer_id = conn.execute(
             insert(customer_table)
             .values(
                 **customer.model_dump(exclude={"referrer"}),
-                **_referrer_columns(conn, customer.referrer),
+                **_referrer_columns(conn, customer.referrer, customer.phone_1),
             )
             .returning(customer_table.c.id)
         ).scalar_one()
+        if promoted is not None:
+            _promote_referrer(conn, promoted, customer_id)
         return _load_customer(conn, customer_id)
 
 
@@ -309,13 +358,17 @@ def update_customer(
     with engine.begin() as conn:
         if not _exists(conn, customer_table, customer_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
-        _reject_duplicate(conn, customer, customer_id)
+        owner = _owner_of(conn, customer.phone_1)
+        if owner is not None and owner != PersonSummary(
+            kind="customer", id=customer_id, name=owner.name
+        ):
+            raise _number_taken(customer.phone_1, owner)
         conn.execute(
             update(customer_table)
             .where(customer_table.c.id == customer_id)
             .values(
                 **customer.model_dump(exclude={"referrer"}),
-                **_referrer_columns(conn, customer.referrer),
+                **_referrer_columns(conn, customer.referrer, customer.phone_1),
             )
         )
         return _load_customer(conn, customer_id)
@@ -497,3 +550,14 @@ def delete_customer(
         conn.execute(delete(customer_table).where(customer_table.c.id == customer_id))
     delete_photo(photos_dir, photo.photo)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/people/by-phone")
+def person_with_number(phone: str, engine: EngineDep) -> PersonSummary | None:
+    """Who a Primary Number belongs to, if anyone (None for an incomplete number)."""
+    try:
+        number = normalise_phone(phone)
+    except ValueError:
+        return None
+    with engine.connect() as conn:
+        return _owner_of(conn, number)

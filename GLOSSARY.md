@@ -20,6 +20,10 @@ _Avoid_: Reference
 A Referrer who is not a Customer, known only by name, address and phone.
 _Avoid_: External referrer, contact
 
+**Primary Number**:
+The 10-digit mobile number that identifies a person: a Customer's contact number 1 or a Standalone Referrer's phone. No two people share one.
+_Avoid_: Customer ID, main phone
+
 ## Lending
 
 **Mortgage**:

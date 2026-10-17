@@ -9,7 +9,6 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
-    Index,
     Integer,
     MetaData,
     String,
@@ -38,7 +37,8 @@ standalone_referrer_table = Table(
     Column("id", Integer, primary_key=True),
     Column("name", String, nullable=False),
     Column("address", String, nullable=False),
-    Column("phone", String, nullable=False),
+    # Primary Number: identifies the person (see GLOSSARY.md).
+    Column("phone", String, nullable=False, unique=True, index=True),
 )
 
 customer_table = Table(
@@ -47,7 +47,8 @@ customer_table = Table(
     Column("id", Integer, primary_key=True),
     Column("name", String, nullable=False),
     Column("address", String, nullable=False),
-    Column("phone_1", String, nullable=False, index=True),
+    # Primary Number: identifies the person (see GLOSSARY.md).
+    Column("phone_1", String, nullable=False, unique=True, index=True),
     Column("phone_2", String, index=True),
     Column("photo", String),  # file name under the photos folder
     # A Referrer is either another Customer or a standalone Referrer; at most one is set.
@@ -58,13 +59,6 @@ customer_table = Table(
         ForeignKey("standalone_referrer.id"),
     ),
     Column("created_at", DateTime, nullable=False, server_default=func.now()),
-)
-# One Customer per name (ignoring case) and contact number 1.
-Index(
-    "uq_customer_name_phone_1",
-    func.lower(customer_table.c.name),
-    customer_table.c.phone_1,
-    unique=True,
 )
 
 
