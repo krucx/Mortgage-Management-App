@@ -7,7 +7,17 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import Select, delete, func, insert, or_, select, true
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    case,
+    delete,
+    func,
+    insert,
+    or_,
+    select,
+    true,
+)
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend import audit
@@ -27,7 +37,7 @@ from mortgage_backend.ledger import (
     LedgerStep,
     accrual_date,
 )
-from mortgage_backend.paging import PAGE_SIZE, PageNumber, page_of
+from mortgage_backend.paging import PAGE_SIZE, PageNumber, ordered, page_of
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 from mortgage_backend.replay import (
     MortgageReplay,
@@ -371,6 +381,24 @@ def read_mortgage(mortgage_id: int, engine: EngineDep, today: TodayDep) -> Mortg
         return load_mortgage(conn, mortgage_id, today)
 
 
+# A column of the Mortgages list to sort it by.
+MortgageSort = Literal["name", "customer", "started", "lent", "outstanding", "status"]
+
+# Each stored column; Outstanding is computed, so it is sorted after the replay.
+_SORT_COLUMNS: dict[MortgageSort, ColumnElement[Any]] = {
+    "name": func.lower(mortgage_table.c.name),
+    "customer": func.lower(customer_table.c.name),
+    "started": mortgage_table.c.start_date,
+    "lent": mortgage_table.c.amount_lent,
+    # In their lifecycle order, not alphabetical.
+    "status": case(
+        {MortgageStatus.ACTIVE: 0, MortgageStatus.REDEEMED: 1},
+        value=mortgage_table.c.status,
+        else_=2,
+    ),
+}
+
+
 @router.get("/mortgages")
 def list_mortgages(
     engine: EngineDep,
@@ -384,8 +412,11 @@ def list_mortgages(
     closed_in: MonthQuery = None,
     closed: bool = False,
     paged: bool = True,
+    sort: MortgageSort | None = None,
+    descending: bool = False,
 ) -> MortgagePage:
-    """Mortgages, newest first, filtered by Mortgage Name or Customer name.
+    """Mortgages, newest first (or by `sort`, reversed when `descending`), filtered by
+    Mortgage Name or Customer name.
 
     With `as_of`, only Mortgages started by then, with what they owed on that date
     (used when recording a back-dated Payment). With `owing`, only those with something
@@ -416,20 +447,30 @@ def list_mortgages(
         match = match & (mortgage_table.c.status != MortgageStatus.ACTIVE)
     if closed_in is not None:
         match = match & mortgage_table.c.closed_on.between(*month_span(closed_in))
-    newest_first = (
+    by_column = (
+        [ordered(_SORT_COLUMNS[sort], descending)] if sort in _SORT_COLUMNS else []
+    )
+    in_order = (
         select_with_customer()
         .where(match)
-        .order_by(mortgage_table.c.start_date.desc(), mortgage_table.c.name)
+        .order_by(
+            *by_column,
+            mortgage_table.c.start_date.desc(),
+            mortgage_table.c.name,
+            mortgage_table.c.id,
+        )
     )
     with engine.connect() as conn:
-        if owing or not paged:
+        if owing or not paged or sort == "outstanding":
             # Outstanding is computed, so these are listed after the replay.
-            rows = conn.execute(newest_first).mappings().all()
+            rows = conn.execute(in_order).mappings().all()
             listed = [
                 row
                 for row in mortgage_rows(conn, rows, as_of or today)
                 if row.outstanding_total > 0 or not owing
             ]
+            if sort == "outstanding":
+                listed.sort(key=lambda row: row.outstanding_total, reverse=descending)
             return MortgagePage(
                 items=page_of(listed, page) if paged else listed,
                 total=len(listed),
@@ -442,7 +483,7 @@ def list_mortgages(
             .where(match)
         ).scalar_one()
         rows = (
-            conn.execute(newest_first.limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE))
+            conn.execute(in_order.limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE))
             .mappings()
             .all()
         )

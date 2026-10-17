@@ -16,7 +16,7 @@ import { useConfirm } from '../components/useConfirm'
 import { usePreview } from '../components/usePreview'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
-import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
+import { allocateEqually, amountsFromPercentages, percentagesOf, tickedFirst } from '../allocate'
 
 type AllocationMode = 'equal' | 'amount' | 'percent'
 
@@ -309,7 +309,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                 </tr>
               </thead>
               <tbody>
-                {payable.map((m) => {
+                {/* The ticked ones first, so the Mortgages being paid are together. */}
+                {tickedFirst(payable, selected).map((m) => {
                   const index = chosen.findIndex((c) => c.id === m.id)
                   const amount = index >= 0 && amounts ? amounts[index] : null
                   return (

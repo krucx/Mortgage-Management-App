@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { api, type MortgagePage, type MortgageStatus } from '../api'
+import { api, MORTGAGE_SORTS, type MortgagePage, type MortgageStatus } from '../api'
 import { MortgageTable } from '../components/MortgageTable'
 import { Pager } from '../components/Pager'
+import { useUrlSort } from '../components/useUrlSort'
 import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { isMonth } from '../format'
@@ -27,6 +28,8 @@ export function MortgagesPage() {
       ? ''
       : (STATUSES.find((s) => s === statusParam) ?? (closedIn ? '' : 'active'))
   const closedFilter = statusFilter === 'active' ? '' : closedIn
+  const sorting = useUrlSort(MORTGAGE_SORTS, { onChange: () => setPage(1) })
+  const { sort } = sorting
 
   function setFilter(name: 'status' | 'closed_in', value: string) {
     setFilters({ [name]: value || null })
@@ -41,10 +44,11 @@ export function MortgagesPage() {
       .listMortgages(page, debouncedQuery, {
         status: statusFilter || undefined,
         closedIn: closedFilter || undefined,
+        sort,
       })
       .then(setResult)
       .catch((err: Error) => setError(err.message))
-  }, [page, debouncedQuery, statusFilter, closedFilter])
+  }, [page, debouncedQuery, statusFilter, closedFilter, sort])
 
   return (
     <section className="card wide">
@@ -100,7 +104,7 @@ export function MortgagesPage() {
           {debouncedQuery || closedFilter ? 'No Mortgages match.' : 'No Mortgages yet.'}
         </p>
       ) : (
-        result && <MortgageTable rows={result.items} />
+        result && <MortgageTable rows={result.items} sorting={sorting} />
       )}
       {result && (
         <Pager

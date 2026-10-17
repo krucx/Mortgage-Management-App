@@ -3,11 +3,11 @@
 from collections.abc import Sequence
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import Select, func, or_, select, true
+from sqlalchemy import ColumnElement, Select, func, or_, select, true
 from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
@@ -20,7 +20,7 @@ from mortgage_backend.db import (
     mortgage_table,
     payment_table,
 )
-from mortgage_backend.paging import PAGE_SIZE, PageNumber
+from mortgage_backend.paging import PAGE_SIZE, PageNumber, ordered
 from mortgage_backend.replay import replays
 
 
@@ -67,6 +67,22 @@ class PaymentRow(BaseModel):
     reference: str | None
     mortgages: list[MortgageLink]  # in the order the Allocations were made
     voided: bool
+
+
+# A column of the Payments list to sort it by.
+PaymentSort = Literal["date", "customer", "mortgages", "method", "amount"]
+
+_SORT_COLUMNS: dict[PaymentSort, ColumnElement[Any]] = {
+    "date": payment_table.c.paid_on,
+    "customer": func.lower(customer_table.c.name),
+    # By the first of the Mortgages it paid, by name.
+    "mortgages": select(func.min(func.lower(mortgage_table.c.name)))
+    .select_from(allocation_table.join(mortgage_table))
+    .where(allocation_table.c.payment_id == payment_table.c.id)
+    .scalar_subquery(),
+    "method": payment_table.c.method,
+    "amount": payment_table.c.amount,
+}
 
 
 class PaymentPage(BaseModel):
@@ -185,9 +201,12 @@ def list_payments(
     month: MonthQuery = None,
     year: Annotated[int | None, Query(ge=1900, le=9999)] = None,
     include_voided: bool = True,
+    sort: PaymentSort | None = None,
+    descending: bool = False,
 ) -> PaymentPage:
-    """Payments, newest first, filtered by Customer, Mortgage Name or reference, and
-    to a month (YYYY-MM) or year. With a month or year, the interest they paid too."""
+    """Payments, newest first (or by `sort`, reversed when `descending`), filtered by
+    Customer, Mortgage Name or reference, and to a month (YYYY-MM) or year. With a
+    month or year, the interest they paid too."""
     query = q.strip()
     match = (
         or_(
@@ -228,7 +247,11 @@ def list_payments(
             select(payment_table, customer_table.c.name.label("customer_name"))
             .select_from(with_customer)
             .where(match)
-            .order_by(payment_table.c.paid_on.desc(), payment_table.c.id.desc())
+            .order_by(
+                *([ordered(_SORT_COLUMNS[sort], descending)] if sort else []),
+                payment_table.c.paid_on.desc(),
+                payment_table.c.id.desc(),
+            )
             .limit(PAGE_SIZE)
             .offset((page - 1) * PAGE_SIZE)
         ).all()

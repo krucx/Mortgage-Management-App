@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { api, type CustomerPage, type CustomerRow } from '../api'
+import { api, CUSTOMER_SORTS, type CustomerPage, type CustomerRow } from '../api'
 import { Pager } from '../components/Pager'
+import { SortHeading } from '../components/SortHeading'
+import { useUrlSort } from '../components/useUrlSort'
 import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
@@ -21,19 +23,20 @@ export function CustomersPage() {
   // In the URL, so the narrowed list can be shared (e.g. from the Dashboard).
   const [searchParams, setFilters] = useUrlFilters()
   const activeOnly = searchParams.get('active') === 'true'
-
+  const sorting = useUrlSort(CUSTOMER_SORTS, { onChange: () => setPage(1) })
+  const { sort } = sorting
 
   const load = useCallback(
     () =>
       api
-        .listCustomers(page, debouncedQuery, { hasActiveMortgage: activeOnly })
+        .listCustomers(page, debouncedQuery, { hasActiveMortgage: activeOnly, sort })
         .then((loaded) => {
           // Deleting the last row of a page leaves it empty; step back a page.
           if (loaded.items.length === 0 && page > 1) setPage(page - 1)
           else setResult(loaded)
         })
         .catch((err: Error) => setError(err.message)),
-    [page, debouncedQuery, activeOnly],
+    [page, debouncedQuery, activeOnly, sort],
   )
 
   useEffect(() => {
@@ -110,10 +113,18 @@ export function CustomersPage() {
             <thead>
               <tr>
                 <th aria-label="Photo" />
-                <th>Name</th>
-                <th>Contact numbers</th>
-                <th>Address</th>
-                <th>Referred by</th>
+                <SortHeading sorting={sorting} column="name">
+                  Name
+                </SortHeading>
+                <SortHeading sorting={sorting} column="phone">
+                  Contact numbers
+                </SortHeading>
+                <SortHeading sorting={sorting} column="address">
+                  Address
+                </SortHeading>
+                <SortHeading sorting={sorting} column="referrer">
+                  Referred by
+                </SortHeading>
                 <th aria-label="Actions" />
               </tr>
             </thead>

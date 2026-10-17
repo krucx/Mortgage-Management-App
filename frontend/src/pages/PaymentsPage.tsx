@@ -1,8 +1,10 @@
 import { Fragment, useEffect, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { api, PAYMENT_METHODS, type PaymentPage } from '../api'
+import { api, PAYMENT_METHODS, PAYMENT_SORTS, type PaymentPage } from '../api'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
+import { SortHeading } from '../components/SortHeading'
+import { useUrlSort } from '../components/useUrlSort'
 import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { formatDate, isMonth, todayIso } from '../format'
@@ -40,6 +42,8 @@ export function PaymentsPage() {
   const month = period.kind === 'month' ? period.month : undefined
   const year = period.kind === 'year' ? period.year : undefined
   const includeVoided = searchParams.get('include_voided') !== 'false'
+  const sorting = useUrlSort(PAYMENT_SORTS, { onChange: () => setPage(1) })
+  const { sort } = sorting
   const [result, setResult] = useState<PaymentPage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -56,10 +60,11 @@ export function PaymentsPage() {
         month,
         year,
         includeVoided,
+        sort,
       })
       .then(setResult)
       .catch((err: Error) => setError(err.message))
-  }, [page, debouncedQuery, month, year, includeVoided])
+  }, [page, debouncedQuery, month, year, includeVoided, sort])
 
   function choosePeriod(next: Period) {
     setFilters({
@@ -166,11 +171,21 @@ export function PaymentsPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Customer</th>
-                  <th>Mortgages</th>
-                  <th>Method</th>
-                  <th className="num">Amount</th>
+                  <SortHeading sorting={sorting} column="date" firstDescending>
+                    Date
+                  </SortHeading>
+                  <SortHeading sorting={sorting} column="customer">
+                    Customer
+                  </SortHeading>
+                  <SortHeading sorting={sorting} column="mortgages">
+                    Mortgages
+                  </SortHeading>
+                  <SortHeading sorting={sorting} column="method">
+                    Method
+                  </SortHeading>
+                  <SortHeading sorting={sorting} column="amount" firstDescending className="num">
+                    Amount
+                  </SortHeading>
                 </tr>
               </thead>
               <tbody>

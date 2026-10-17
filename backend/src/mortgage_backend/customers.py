@@ -1,7 +1,7 @@
 """Customers and the Referrers who introduced them (see GLOSSARY.md)."""
 
 import re
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Response, UploadFile, status
 from pydantic import AfterValidator, BaseModel, Field
@@ -29,7 +29,7 @@ from mortgage_backend.db import (
     standalone_referrer_table,
 )
 from mortgage_backend.errors import unprocessable
-from mortgage_backend.paging import PAGE_SIZE, PageNumber
+from mortgage_backend.paging import PAGE_SIZE, PageNumber, ordered
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 from mortgage_backend.replay import MortgageStatus
 
@@ -112,6 +112,34 @@ class CustomerRow(BaseModel):
     phone_2: str | None
     photo_url: str | None
     referrer: PersonSummary | None
+
+
+# A column of the Customers list to sort it by.
+CustomerSort = Literal["name", "phone", "address", "referrer"]
+
+
+_referrer = customer_table.alias("referrer")
+
+_SORT_COLUMNS: dict[CustomerSort, ColumnElement[Any]] = {
+    "name": func.lower(customer_table.c.name),
+    "phone": customer_table.c.phone_1,
+    "address": func.lower(customer_table.c.address),
+    # The Referrer's name, a Customer's or a standalone Referrer's; none sorts first.
+    "referrer": func.lower(
+        func.coalesce(
+            select(_referrer.c.name)
+            .where(_referrer.c.id == customer_table.c.referred_by_customer_id)
+            .scalar_subquery(),
+            select(standalone_referrer_table.c.name)
+            .where(
+                standalone_referrer_table.c.id
+                == customer_table.c.referred_by_standalone_referrer_id
+            )
+            .scalar_subquery(),
+            "",
+        )
+    ),
+}
 
 
 class CustomerPage(BaseModel):
@@ -546,9 +574,11 @@ def list_customers(
     page: PageNumber = 1,
     q: str = "",
     has_active_mortgage: bool = False,
+    sort: CustomerSort = "name",
+    descending: bool = False,
 ) -> CustomerPage:
-    """All Customers by name, a page at a time, optionally filtered by name or phone,
-    or to those with an Active Mortgage."""
+    """All Customers by name (or `sort`, reversed when `descending`), a page at a
+    time, optionally filtered by name or phone, or to those with an Active Mortgage."""
     query = q.strip()
     match = _customer_matches(query) if query else true()
     if has_active_mortgage:
@@ -563,7 +593,10 @@ def list_customers(
         rows = conn.execute(
             select(customer_table)
             .where(match)
-            .order_by(func.lower(customer_table.c.name), customer_table.c.id)
+            .order_by(
+                ordered(_SORT_COLUMNS[sort], descending),
+                ordered(customer_table.c.id, descending),
+            )
             .limit(PAGE_SIZE)
             .offset((page - 1) * PAGE_SIZE)
         ).mappings()

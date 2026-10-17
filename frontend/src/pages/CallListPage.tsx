@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { api, type CallListPage, type CallListRow } from '../api'
+import { api, type CallListGroup, type CallListPage, type CallListRow } from '../api'
 import { MarkCalled } from '../components/CallNotes'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
+import { SortButton, SortHeading } from '../components/SortHeading'
+import { useUrlSort } from '../components/useUrlSort'
 import { formatPercent } from '../format'
 import { showOrStepBack } from '../paging'
+import { sortedBy, type Sort } from '../sort'
 import { formatINR } from '../money'
 
 /** Why a Mortgage is on the Call List, in words. */
@@ -19,6 +22,28 @@ function reasonsOf(row: CallListRow): string[] {
       case 'accrues_today':
         return 'Accrues today'
     }
+  })
+}
+
+// Sorted a page at a time, in the browser.
+const SORTS = ['customer', 'mortgage', 'why', 'outstanding'] as const
+type CallSort = (typeof SORTS)[number]
+
+const ROW_VALUES: Record<CallSort, (row: CallListRow) => string | number> = {
+  customer: () => 0, // a group's rows all have the same Customer
+  mortgage: (row) => row.mortgage_name,
+  why: (row) => row.months_unpaid,
+  outstanding: (row) => row.outstanding,
+}
+
+/** Each Customer's rows sorted, and the groups by their first row (or by Customer). */
+function sortedGroups(groups: CallListGroup[], sort: Sort<CallSort> | null): CallListGroup[] {
+  const sorted = groups.map((group) => ({ ...group, rows: sortedBy(group.rows, sort, ROW_VALUES) }))
+  return sortedBy(sorted, sort, {
+    customer: (group) => group.customer.name,
+    mortgage: (group) => ROW_VALUES.mortgage(group.rows[0]),
+    why: (group) => ROW_VALUES.why(group.rows[0]),
+    outstanding: (group) => ROW_VALUES.outstanding(group.rows[0]),
   })
 }
 
@@ -37,7 +62,8 @@ function ContactLinks({ phone }: { phone: string }) {
 export function CallListPage() {
   const [listed, setListed] = useState<CallListPage | null>(null)
   const [page, setPage] = useState(1)
-  const groups = listed?.items ?? null
+  const sorting = useUrlSort(SORTS)
+  const groups = listed && sortedGroups(listed.items, sorting.sort)
   const [error, setError] = useState<string | null>(null)
   const [noting, setNoting] = useState<number | null>(null) // the Mortgage being marked called
 
@@ -58,10 +84,15 @@ export function CallListPage() {
       </p>
       {error && <p className="status error">{error}</p>}
       {listed && listed.total > 0 && (
-        <p>
-          {listed.mortgages} Mortgage{listed.mortgages === 1 ? '' : 's'} for {listed.total}{' '}
-          Customer{listed.total === 1 ? '' : 's'}
-        </p>
+        <div className="row spread">
+          <p>
+            {listed.mortgages} Mortgage{listed.mortgages === 1 ? '' : 's'} for {listed.total}{' '}
+            Customer{listed.total === 1 ? '' : 's'}
+          </p>
+          <SortButton sorting={sorting} column="customer">
+            Sort by Customer
+          </SortButton>
+        </div>
       )}
       {groups === null ? (
         !error && <p>Loading…</p>
@@ -83,9 +114,20 @@ export function CallListPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>Mortgage</th>
-                    <th>Why</th>
-                    <th className="num">Outstanding</th>
+                    <SortHeading sorting={sorting} column="mortgage">
+                      Mortgage
+                    </SortHeading>
+                    <SortHeading sorting={sorting} column="why" firstDescending>
+                      Why
+                    </SortHeading>
+                    <SortHeading
+                      sorting={sorting}
+                      column="outstanding"
+                      firstDescending
+                      className="num"
+                    >
+                      Outstanding
+                    </SortHeading>
                     <th aria-label="Called" />
                   </tr>
                 </thead>

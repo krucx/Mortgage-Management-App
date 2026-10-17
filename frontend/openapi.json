@@ -2992,7 +2992,7 @@
     },
     "/api/customers": {
       "get": {
-        "description": "All Customers by name, a page at a time, optionally filtered by name or phone,\nor to those with an Active Mortgage.",
+        "description": "All Customers by name (or `sort`, reversed when `descending`), a page at a\ntime, optionally filtered by name or phone, or to those with an Active Mortgage.",
         "operationId": "list_customers_api_customers_get",
         "parameters": [
           {
@@ -3023,6 +3023,32 @@
             "schema": {
               "default": false,
               "title": "Has Active Mortgage",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "name",
+              "enum": [
+                "name",
+                "phone",
+                "address",
+                "referrer"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "descending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Descending",
               "type": "boolean"
             }
           }
@@ -3317,7 +3343,7 @@
     },
     "/api/mortgages": {
       "get": {
-        "description": "Mortgages, newest first, filtered by Mortgage Name or Customer name.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).\nWith `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month; with\n`closed`, only those Redeemed or Forfeited. With `paged` false, every match on one\npage: for pickers, such as a Payment's Allocations, which must never leave a\nMortgage out.",
+        "description": "Mortgages, newest first (or by `sort`, reversed when `descending`), filtered by\nMortgage Name or Customer name.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).\nWith `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month; with\n`closed`, only those Redeemed or Forfeited. With `paged` false, every match on one\npage: for pickers, such as a Payment's Allocations, which must never leave a\nMortgage out.",
         "operationId": "list_mortgages_api_mortgages_get",
         "parameters": [
           {
@@ -3434,6 +3460,40 @@
             "schema": {
               "default": true,
               "title": "Paged",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "name",
+                    "customer",
+                    "started",
+                    "lent",
+                    "outstanding",
+                    "status"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "descending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Descending",
               "type": "boolean"
             }
           }
@@ -4771,7 +4831,7 @@
     },
     "/api/payments": {
       "get": {
-        "description": "Payments, newest first, filtered by Customer, Mortgage Name or reference, and\nto a month (YYYY-MM) or year. With a month or year, the interest they paid too.",
+        "description": "Payments, newest first (or by `sort`, reversed when `descending`), filtered by\nCustomer, Mortgage Name or reference, and to a month (YYYY-MM) or year. With a\nmonth or year, the interest they paid too.",
         "operationId": "list_payments_api_payments_get",
         "parameters": [
           {
@@ -4837,6 +4897,39 @@
             "schema": {
               "default": true,
               "title": "Include Voided",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "date",
+                    "customer",
+                    "mortgages",
+                    "method",
+                    "amount"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "descending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Descending",
               "type": "boolean"
             }
           }

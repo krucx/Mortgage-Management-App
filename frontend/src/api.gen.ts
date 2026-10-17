@@ -71,8 +71,8 @@ export interface paths {
         };
         /**
          * List Customers
-         * @description All Customers by name, a page at a time, optionally filtered by name or phone,
-         *     or to those with an Active Mortgage.
+         * @description All Customers by name (or `sort`, reversed when `descending`), a page at a
+         *     time, optionally filtered by name or phone, or to those with an Active Mortgage.
          */
         get: operations["list_customers_api_customers_get"];
         put?: never;
@@ -166,7 +166,8 @@ export interface paths {
         };
         /**
          * List Mortgages
-         * @description Mortgages, newest first, filtered by Mortgage Name or Customer name.
+         * @description Mortgages, newest first (or by `sort`, reversed when `descending`), filtered by
+         *     Mortgage Name or Customer name.
          *
          *     With `as_of`, only Mortgages started by then, with what they owed on that date
          *     (used when recording a back-dated Payment). With `owing`, only those with something
@@ -647,8 +648,9 @@ export interface paths {
         };
         /**
          * List Payments
-         * @description Payments, newest first, filtered by Customer, Mortgage Name or reference, and
-         *     to a month (YYYY-MM) or year. With a month or year, the interest they paid too.
+         * @description Payments, newest first (or by `sort`, reversed when `descending`), filtered by
+         *     Customer, Mortgage Name or reference, and to a month (YYYY-MM) or year. With a
+         *     month or year, the interest they paid too.
          */
         get: operations["list_payments_api_payments_get"];
         put?: never;
@@ -2117,6 +2119,8 @@ export interface operations {
                 page?: number;
                 q?: string;
                 has_active_mortgage?: boolean;
+                sort?: "name" | "phone" | "address" | "referrer";
+                descending?: boolean;
             };
             header?: never;
             path?: never;
@@ -2370,6 +2374,8 @@ export interface operations {
                 closed_in?: string | null;
                 closed?: boolean;
                 paged?: boolean;
+                sort?: ("name" | "customer" | "started" | "lent" | "outstanding" | "status") | null;
+                descending?: boolean;
             };
             header?: never;
             path?: never;
@@ -3304,6 +3310,8 @@ export interface operations {
                 month?: string | null;
                 year?: number | null;
                 include_voided?: boolean;
+                sort?: ("date" | "customer" | "mortgages" | "method" | "amount") | null;
+                descending?: boolean;
             };
             header?: never;
             path?: never;

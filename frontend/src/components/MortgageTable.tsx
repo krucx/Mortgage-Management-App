@@ -1,27 +1,50 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import type { MortgageRow } from '../api'
+import type { MortgageRow, MortgageSort } from '../api'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
 import { PersonLink } from './PersonLink'
+import { SortHeading } from './SortHeading'
+import type { Sorting } from './useUrlSort'
 
 export function MortgageTable({
   rows,
   showCustomer = true,
+  sorting,
 }: {
   rows: MortgageRow[]
   showCustomer?: boolean
+  /** Sortable headings, when given. */
+  sorting?: Sorting<MortgageSort>
 }) {
+  const heading = (
+    column: MortgageSort,
+    label: ReactNode,
+    { num = false, firstDescending = false } = {},
+  ) =>
+    sorting ? (
+      <SortHeading
+        sorting={sorting}
+        column={column}
+        firstDescending={firstDescending}
+        className={num ? 'num' : undefined}
+      >
+        {label}
+      </SortHeading>
+    ) : (
+      <th className={num ? 'num' : undefined}>{label}</th>
+    )
   return (
     <div className="table-scroll">
       <table>
         <thead>
           <tr>
-            <th>Mortgage</th>
-            {showCustomer && <th>Customer</th>}
-            <th>Started</th>
-            <th className="num">Principal lent</th>
-            <th className="num">Outstanding today</th>
-            <th>Status</th>
+            {heading('name', 'Mortgage')}
+            {showCustomer && heading('customer', 'Customer')}
+            {heading('started', 'Started', { firstDescending: true })}
+            {heading('lent', 'Principal lent', { num: true, firstDescending: true })}
+            {heading('outstanding', 'Outstanding today', { num: true, firstDescending: true })}
+            {heading('status', 'Status')}
           </tr>
         </thead>
         <tbody>

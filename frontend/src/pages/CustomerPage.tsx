@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { api, type Customer, type MortgagePage } from '../api'
+import { api, MORTGAGE_SORTS, type Customer, type MortgagePage, type MortgageSort } from '../api'
 import { History } from '../components/History'
 import { MortgageTable } from '../components/MortgageTable'
 import { Pager } from '../components/Pager'
 import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
+import { useUrlSort, type Sorting } from '../components/useUrlSort'
 
 export function CustomerPage() {
   const id = Number(useParams().id)
@@ -14,6 +15,13 @@ export function CustomerPage() {
   const [activePage, setActivePage] = useState(1)
   const [closed, setClosed] = useState<MortgagePage | null>(null)
   const [closedPage, setClosedPage] = useState(1)
+  const activeSorting = useUrlSort(MORTGAGE_SORTS, { onChange: () => setActivePage(1) })
+  const closedSorting = useUrlSort(MORTGAGE_SORTS, {
+    param: 'closed_sort',
+    onChange: () => setClosedPage(1),
+  })
+  const activeSort = activeSorting.sort
+  const closedSort = closedSorting.sort
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -25,18 +33,18 @@ export function CustomerPage() {
 
   useEffect(() => {
     api
-      .listMortgages(activePage, '', { customerId: id, status: 'active' })
+      .listMortgages(activePage, '', { customerId: id, status: 'active', sort: activeSort })
       .then(setActive)
       .catch((err: Error) => setError(err.message))
-  }, [id, activePage])
+  }, [id, activePage, activeSort])
 
   // Redeemed and Forfeited, tucked away below the Active ones.
   useEffect(() => {
     api
-      .listMortgages(closedPage, '', { customerId: id, closed: true })
+      .listMortgages(closedPage, '', { customerId: id, closed: true, sort: closedSort })
       .then(setClosed)
       .catch((err: Error) => setError(err.message))
-  }, [id, closedPage])
+  }, [id, closedPage, closedSort])
 
   const loadHistory = useCallback(() => api.customerHistory(id), [id])
 
@@ -88,12 +96,12 @@ export function CustomerPage() {
           {active.total === 0 ? (
             <p className="hint">No Active Mortgages.</p>
           ) : (
-            <PagedMortgages listed={active} onPage={setActivePage} />
+            <PagedMortgages listed={active} onPage={setActivePage} sorting={activeSorting} />
           )}
           {closed.total > 0 && (
             <details className="tucked">
               <summary>Closed ({closed.total})</summary>
-              <PagedMortgages listed={closed} onPage={setClosedPage} />
+              <PagedMortgages listed={closed} onPage={setClosedPage} sorting={closedSorting} />
             </details>
           )}
         </>
@@ -111,13 +119,15 @@ export function CustomerPage() {
 function PagedMortgages({
   listed,
   onPage,
+  sorting,
 }: {
   listed: MortgagePage
   onPage: (page: number) => void
+  sorting: Sorting<MortgageSort>
 }) {
   return (
     <>
-      <MortgageTable rows={listed.items} showCustomer={false} />
+      <MortgageTable rows={listed.items} showCustomer={false} sorting={sorting} />
       <Pager
         page={listed.page}
         pageSize={listed.page_size}

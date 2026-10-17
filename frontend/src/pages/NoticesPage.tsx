@@ -4,10 +4,13 @@ import { api, type Notice, type NoticePage, type NoticeStatus } from '../api'
 import { Modal } from '../components/Modal'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
+import { SortHeading } from '../components/SortHeading'
+import { useUrlSort } from '../components/useUrlSort'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
 import { showOrStepBack } from '../paging'
+import { sortedBy } from '../sort'
 
 const SHOWN: [NoticeStatus | 'all', string][] = [
   ['awaiting_approval', 'To approve'],
@@ -28,6 +31,15 @@ const NOTHING_TO_SEND =
   'Nothing to send: none of their Active Mortgages accrues on this date any more ' +
   '(Redeemed, Forfeited or edited since).'
 
+// Sorted a page at a time, in the browser; status in the order of the tabs.
+const NOTICE_SORTS = ['customer', 'accrues', 'mortgages', 'status'] as const
+const NOTICE_VALUES = {
+  customer: (notice: Notice) => notice.customer.name,
+  accrues: (notice: Notice) => notice.accrues_on, // YYYY-MM-DD sorts as text
+  mortgages: (notice: Notice) => notice.mortgages[0]?.name ?? '',
+  status: (notice: Notice) => SHOWN.findIndex(([value]) => value === notice.status),
+}
+
 /** Notices the daily run queued ahead of Accrual Dates, to approve, send or skip. */
 export function NoticesPage() {
   const [params, setFilters] = useUrlFilters()
@@ -38,7 +50,8 @@ export function NoticesPage() {
   const [pageOf, setPageOf] = useState({ tab: shown, page: 1 })
   const page = pageOf.tab === shown ? pageOf.page : 1
   const setPage = useCallback((next: number) => setPageOf({ tab: shown, page: next }), [shown])
-  const notices = listed?.items ?? null
+  const sorting = useUrlSort(NOTICE_SORTS)
+  const notices = listed && sortedBy(listed.items, sorting.sort, NOTICE_VALUES)
   const [error, setError] = useState<string | null>(null)
   // The Notice whose message is open, to read before approving or sending it.
   const [reviewing, setReviewing] = useState<Notice | null>(null)
@@ -92,62 +105,93 @@ export function NoticesPage() {
       </div>
       {error && <p className="status error">{error}</p>}
       {listed?.total === 0 && <p className="hint">No Notices here.</p>}
-      <div className="stack tight">
-        {notices?.map((notice) => (
-          <article key={notice.id} className="notice">
-            <div>
-              <PersonLink person={notice.customer} />{' '}
-              <span className="hint">
-                for {formatDate(notice.accrues_on)} ·{' '}
-                {notice.mortgages.map((m, i) => (
-                  <span key={m.id}>
-                    {i > 0 && ', '}
-                    <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
-                  </span>
-                ))}
-              </span>
-            </div>
-            <div className="row">
-              <span className={`badge notice-${notice.status}`}>
-                {STATUS_NAMES[notice.status]}
-                {notice.sent_at && ` ${formatDateTime(notice.sent_at)}`}
-              </span>
-              {!notice.message ? (
-                <span className="hint">{NOTHING_TO_SEND}</span>
-              ) : notice.status === 'awaiting_approval' ? (
-                <button type="button" className="small" onClick={() => setReviewing(notice)}>
-                  Review and approve
-                </button>
-              ) : notice.status === 'queued' ? (
-                <button
-                  type="button"
-                  className="small whatsapp-send"
-                  onClick={() => setReviewing(notice)}
-                >
-                  Send on WhatsApp
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="small secondary"
-                  onClick={() => setReviewing(notice)}
-                >
-                  Message
-                </button>
-              )}
-              {(notice.status === 'awaiting_approval' || notice.status === 'queued') && (
-                <button
-                  type="button"
-                  className="small secondary"
-                  onClick={() => act(api.skipNotice, notice.id)}
-                >
-                  Skip
-                </button>
-              )}
-            </div>
-          </article>
-        ))}
-      </div>
+      {notices && notices.length > 0 && (
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <SortHeading sorting={sorting} column="customer">
+                  Customer
+                </SortHeading>
+                <SortHeading sorting={sorting} column="accrues">
+                  Accrues on
+                </SortHeading>
+                <SortHeading sorting={sorting} column="mortgages">
+                  Mortgages
+                </SortHeading>
+                <SortHeading sorting={sorting} column="status">
+                  Status
+                </SortHeading>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {notices.map((notice) => (
+                <tr key={notice.id}>
+                  <td>
+                    <PersonLink person={notice.customer} />
+                  </td>
+                  <td>{formatDate(notice.accrues_on)}</td>
+                  <td>
+                    {notice.mortgages.map((m, i) => (
+                      <span key={m.id}>
+                        {i > 0 && ', '}
+                        <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
+                      </span>
+                    ))}
+                  </td>
+                  <td>
+                    <span className={`badge notice-${notice.status}`}>
+                      {STATUS_NAMES[notice.status]}
+                      {notice.sent_at && ` ${formatDateTime(notice.sent_at)}`}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="row nowrap">
+                      {!notice.message ? (
+                        <span className="hint">{NOTHING_TO_SEND}</span>
+                      ) : notice.status === 'awaiting_approval' ? (
+                        <button
+                          type="button"
+                          className="small"
+                          onClick={() => setReviewing(notice)}
+                        >
+                          Review and approve
+                        </button>
+                      ) : notice.status === 'queued' ? (
+                        <button
+                          type="button"
+                          className="small whatsapp-send"
+                          onClick={() => setReviewing(notice)}
+                        >
+                          Send on WhatsApp
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="small secondary"
+                          onClick={() => setReviewing(notice)}
+                        >
+                          Message
+                        </button>
+                      )}
+                      {(notice.status === 'awaiting_approval' || notice.status === 'queued') && (
+                        <button
+                          type="button"
+                          className="small secondary"
+                          onClick={() => act(api.skipNotice, notice.id)}
+                        >
+                          Skip
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {reviewing?.message && (
         <Modal onClose={() => setReviewing(null)}>
           <h2>Notice to {reviewing.customer.name}</h2>

@@ -199,10 +199,6 @@ a {
   gap: 1rem;
 }
 
-.stack.tight {
-  gap: 0.5rem;
-}
-
 textarea {
   font: inherit;
   padding: 0.5rem 0.6rem;
@@ -459,6 +455,37 @@ h3 {
   .grid-3 {
     grid-template-columns: 1fr;
   }
+}
+
+/* A heading that sorts its list: reads as the heading, with an arrow for the sort. */
+button.sort-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-weight: inherit;
+  text-align: inherit;
+}
+
+button.sort-heading:hover,
+button.sort-heading.sorted {
+  color: var(--text);
+}
+
+th.num button.sort-heading {
+  flex-direction: row-reverse;
+}
+
+.sort-arrow {
+  font-size: 0.75em;
+  opacity: 0.45;
+}
+
+button.sort-heading.sorted .sort-arrow {
+  opacity: 1;
+  color: var(--accent);
 }
 
 th.num,
@@ -1132,19 +1159,6 @@ details.tucked > summary .hint {
 
 details.tucked[open] > summary {
   margin-bottom: 0.75rem;
-}
-
-/* Notices */
-/* One compact line each; the message itself opens in a dialog. */
-article.notice {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
-  flex-wrap: wrap;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
 }
 
 /* A template's text and help read as text, not as part of its bold label */

@@ -1,8 +1,33 @@
 // Request and response types are generated from the backend's OpenAPI schema into
 // api.gen.ts (`npm run gen:types`); this file names them and holds the fetch calls.
-import type { components } from './api.gen'
+import type { components, operations } from './api.gen'
+import type { Sort } from './sort'
 
 type Schemas = components['schemas']
+
+/** The columns a list endpoint can sort by. */
+type SortOf<Operation extends keyof operations> = NonNullable<
+  NonNullable<operations[Operation]['parameters']['query']> extends { sort?: infer S } ? S : never
+>
+export type CustomerSort = SortOf<'list_customers_api_customers_get'>
+export const CUSTOMER_SORTS: CustomerSort[] = ['name', 'phone', 'address', 'referrer']
+export type MortgageSort = SortOf<'list_mortgages_api_mortgages_get'>
+export const MORTGAGE_SORTS: MortgageSort[] = [
+  'name',
+  'customer',
+  'started',
+  'lent',
+  'outstanding',
+  'status',
+]
+export type PaymentSort = SortOf<'list_payments_api_payments_get'>
+export const PAYMENT_SORTS: PaymentSort[] = ['date', 'customer', 'mortgages', 'method', 'amount']
+
+/** A list's sort as query parameters; none for the list's own order. */
+function sortQuery(sort: Sort | null | undefined): string {
+  if (!sort) return ''
+  return `&sort=${sort.column}` + (sort.descending ? '&descending=true' : '')
+}
 
 export type InterestMode = Schemas['InterestMode']
 export type PartMonthRule = Schemas['PartMonthRule']
@@ -175,10 +200,15 @@ export const api = {
 
   search: (query: string) => request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}`),
 
-  listCustomers: (page: number, query: string, filters: { hasActiveMortgage?: boolean } = {}) =>
+  listCustomers: (
+    page: number,
+    query: string,
+    filters: { hasActiveMortgage?: boolean; sort?: Sort<CustomerSort> | null } = {},
+  ) =>
     request<CustomerPage>(
       `/customers?page=${page}&q=${encodeURIComponent(query)}` +
-        (filters.hasActiveMortgage ? '&has_active_mortgage=true' : ''),
+        (filters.hasActiveMortgage ? '&has_active_mortgage=true' : '') +
+        sortQuery(filters.sort),
     ),
   getCustomer: (id: number) => request<Customer>(`/customers/${id}`),
   deleteCustomer: (id: number) => request<null>(`/customers/${id}`, { method: 'DELETE' }),
@@ -206,6 +236,7 @@ export const api = {
       closedIn?: string // YYYY-MM
       /** Only the Redeemed and Forfeited. */
       closed?: boolean
+      sort?: Sort<MortgageSort> | null
     } = {},
   ) =>
     request<MortgagePage>(
@@ -216,7 +247,8 @@ export const api = {
         (filters.owing ? '&owing=true' : '') +
         (filters.paged === false ? '&paged=false' : '') +
         (filters.closedIn ? `&closed_in=${filters.closedIn}` : '') +
-        (filters.closed ? '&closed=true' : ''),
+        (filters.closed ? '&closed=true' : '') +
+        sortQuery(filters.sort),
     ),
   getMortgage: (id: number) => request<Mortgage>(`/mortgages/${id}`),
   readyToRedeem: (page: number) =>
@@ -286,13 +318,19 @@ export const api = {
   listPayments: (
     page: number,
     query: string,
-    filters: { month?: string; year?: string; includeVoided?: boolean } = {},
+    filters: {
+      month?: string
+      year?: string
+      includeVoided?: boolean
+      sort?: Sort<PaymentSort> | null
+    } = {},
   ) =>
     request<PaymentPage>(
       `/payments?page=${page}&q=${encodeURIComponent(query)}` +
         (filters.month ? `&month=${filters.month}` : '') +
         (filters.year ? `&year=${filters.year}` : '') +
-        (filters.includeVoided === false ? '&include_voided=false' : ''),
+        (filters.includeVoided === false ? '&include_voided=false' : '') +
+        sortQuery(filters.sort),
     ),
 
   personByPhone: (phone: string) =>

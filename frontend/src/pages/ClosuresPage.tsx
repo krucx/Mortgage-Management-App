@@ -1,13 +1,31 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import { api, type MortgagePage, type ReadyToRedeemPage, type Redemption } from '../api'
+import {
+  api,
+  MORTGAGE_SORTS,
+  type MortgagePage,
+  type ReadyToRedeem,
+  type ReadyToRedeemPage,
+  type Redemption,
+} from '../api'
 import { Summary } from '../components/ConfirmDialog'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
+import { SortHeading } from '../components/SortHeading'
+import { useUrlSort } from '../components/useUrlSort'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
 import { showOrStepBack } from '../paging'
+import { sortedBy } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
+
+// Ready to Redeem is sorted a page at a time, in the browser.
+const READY_SORTS = ['mortgage', 'customer', 'amount'] as const
+const READY_VALUES = {
+  mortgage: (row: ReadyToRedeem) => row.mortgage.name,
+  customer: (row: ReadyToRedeem) => row.mortgage.customer.name,
+  amount: (row: ReadyToRedeem) => row.redemption.total,
+}
 
 /**
  * Closures in one place: Mortgages paid off and waiting to be Redeemed, and Active
@@ -16,9 +34,13 @@ import { formatINR, rupeesToPaise } from '../money'
 export function ClosuresPage() {
   const [readyList, setReadyList] = useState<ReadyToRedeemPage | null>(null)
   const [readyPage, setReadyPage] = useState(1)
-  const ready = readyList?.items ?? null
+  const readySorting = useUrlSort(READY_SORTS, { param: 'ready_sort' })
+  const ready = readyList && sortedBy(readyList.items, readySorting.sort, READY_VALUES)
   const [active, setActive] = useState<MortgagePage | null>(null)
   const [page, setPage] = useState(1)
+  // The Forfeit list is sorted on the server, across its pages.
+  const sorting = useUrlSort(MORTGAGE_SORTS, { param: 'forfeit_sort', onChange: () => setPage(1) })
+  const { sort } = sorting
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
 
@@ -30,12 +52,12 @@ export function ClosuresPage() {
         (err: Error) => setError(err.message),
       )
     api
-      .listMortgages(page, '', { status: 'active', owing: true })
+      .listMortgages(page, '', { status: 'active', owing: true, sort })
       .then(
         (result) => showOrStepBack(result, setActive, setPage),
         (err: Error) => setError(err.message),
       )
-  }, [page, readyPage])
+  }, [page, readyPage, sort])
 
   useEffect(load, [load])
 
@@ -71,9 +93,15 @@ export function ClosuresPage() {
           <table>
             <thead>
               <tr>
-                <th>Mortgage</th>
-                <th>Customer</th>
-                <th className="num">Redemption Amount today</th>
+                <SortHeading sorting={readySorting} column="mortgage">
+                  Mortgage
+                </SortHeading>
+                <SortHeading sorting={readySorting} column="customer">
+                  Customer
+                </SortHeading>
+                <SortHeading sorting={readySorting} column="amount" firstDescending className="num">
+                  Redemption Amount today
+                </SortHeading>
                 <th aria-label="Redeem" />
               </tr>
             </thead>
@@ -127,10 +155,18 @@ export function ClosuresPage() {
             <thead>
               <tr>
                 <th aria-label="Choose" />
-                <th>Mortgage</th>
-                <th>Customer</th>
-                <th>Started</th>
-                <th className="num">Outstanding today</th>
+                <SortHeading sorting={sorting} column="name">
+                  Mortgage
+                </SortHeading>
+                <SortHeading sorting={sorting} column="customer">
+                  Customer
+                </SortHeading>
+                <SortHeading sorting={sorting} column="started" firstDescending>
+                  Started
+                </SortHeading>
+                <SortHeading sorting={sorting} column="outstanding" firstDescending className="num">
+                  Outstanding today
+                </SortHeading>
               </tr>
             </thead>
             <tbody>
