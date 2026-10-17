@@ -9,6 +9,7 @@ App for a jewellery Lender to manage Mortgages, Payments and follow-ups. It runs
 3. Copy `.env.example` to `.env` and adjust it:
    - `DATA_DIR`: folder for the database and photos.
    - `BACKUP_DIR`: point it at a Google Drive / iCloud synced folder.
+   - `BACKUP_PASSWORD`: the password for the Backup zips. Write it down somewhere safe.
    - `TZ`: your time zone (default `Asia/Kolkata`).
 4. In this folder, run:
 
@@ -19,6 +20,22 @@ App for a jewellery Lender to manage Mortgages, Payments and follow-ups. It runs
 5. Open <http://localhost:8080> (or whatever `APP_PORT` is set to).
 
 The app restarts by itself with Docker. Database updates run automatically when the app starts. Your data lives only in `DATA_DIR`, never inside Docker.
+
+### Backups
+
+Once a week (on the first use of the day it falls due) the app writes
+`mortgage-backup-<date>-<time>.zip` to `BACKUP_DIR`, holding the database and photos,
+and keeps the last few (4 by default, see Settings). It also takes one, marked
+`-before-update`, before any database update; if that Backup fails the app does not
+start, so the data is never updated without one (`docker compose logs backend` says why). Settings shows the last Backup and has a
+**Back up now** button.
+
+To restore:
+
+1. `docker compose down`
+2. Open the zip with the `BACKUP_PASSWORD` (Explorer, Finder, 7-Zip or `unzip` all work).
+3. Replace `mortgage.db` and the `photos` folder in `DATA_DIR` with the ones from the zip.
+4. `docker compose up -d`
 
 ### Updating
 

@@ -1,9 +1,12 @@
 import os
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Annotated, Any
 
 from alembic import command
 from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from fastapi import Depends, Request
 from sqlalchemy import (
     Column,
@@ -147,6 +150,16 @@ allocation_table = Table(
 )
 
 
+def get_config(conn: Connection, keys: Iterable[str]) -> dict[str, str]:
+    """The settings stored under `keys`; missing ones are left out."""
+    rows = conn.execute(
+        select(config_table.c.key, config_table.c.value).where(
+            config_table.c.key.in_(list(keys))
+        )
+    )
+    return {key: value for key, value in rows}
+
+
 def set_config(conn: Connection, key: str, value: str) -> None:
     """Insert or replace one setting in the config table."""
     conn.execute(
@@ -199,10 +212,26 @@ def get_engine(request: Request) -> Engine:
 EngineDep = Annotated[Engine, Depends(get_engine)]
 
 
-def migrate(database_url: str) -> None:
-    """Create the database if needed and bring its schema up to date."""
+def migrate(
+    database_url: str, before_update: Callable[[], object] | None = None
+) -> None:
+    """Create the database if needed and bring its schema up to date.
+
+    `before_update` runs first when an existing database is about to be migrated
+    (never on a fresh install); if it raises, nothing is migrated.
+    """
     database_file(database_url).parent.mkdir(parents=True, exist_ok=True)
     alembic_config = Config()
     alembic_config.set_main_option("script_location", str(MIGRATIONS_DIR))
     alembic_config.set_main_option("sqlalchemy.url", database_url)
+    if before_update is not None:
+        head = ScriptDirectory.from_config(alembic_config).get_current_head()
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as conn:
+                current = MigrationContext.configure(conn).get_current_revision()
+        finally:
+            engine.dispose()
+        if current is not None and current != head:
+            before_update()
     command.upgrade(alembic_config, "head")

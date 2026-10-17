@@ -14,9 +14,9 @@ from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
     EngineDep,
     call_note_table,
-    config_table,
     customer_table,
     exists,
+    get_config,
     mortgage_table,
     set_config,
 )
@@ -73,12 +73,7 @@ _CONFIG_KEY_BY_FIELD = {
 
 
 def get_settings(conn: Connection) -> CallListSettings:
-    rows = conn.execute(
-        select(config_table.c.key, config_table.c.value).where(
-            config_table.c.key.in_(_CONFIG_KEY_BY_FIELD.values())
-        )
-    )
-    values = {key: value for key, value in rows}
+    values = get_config(conn, _CONFIG_KEY_BY_FIELD.values())
     return CallListSettings.model_validate(
         {f: values[k] for f, k in _CONFIG_KEY_BY_FIELD.items() if k in values}
     )

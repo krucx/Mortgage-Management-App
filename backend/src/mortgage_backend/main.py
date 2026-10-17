@@ -1,12 +1,15 @@
 """FastAPI app. Run with: uvicorn mortgage_backend.main:app"""
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime
+from pathlib import Path
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request, Response
+from fastapi.concurrency import run_in_threadpool
 
 from mortgage_backend import (
+    backups,
     call_list,
     closing,
     collateral,
@@ -15,6 +18,12 @@ from mortgage_backend import (
     payments,
     photos,
 )
+from mortgage_backend.backups import (
+    Backups,
+    backup_dir_from_env,
+    backup_password_from_env,
+)
+from mortgage_backend.daily_run import DailyRun
 from mortgage_backend.db import (
     EngineDep,
     database_url_from_env,
@@ -41,16 +50,48 @@ def update_default_terms(terms: Terms, engine: EngineDep) -> Terms:
         return get_default_terms(conn)
 
 
-def create_app(database_url: str, today: Callable[[], date] = date.today) -> FastAPI:
+def create_app(
+    database_url: str,
+    today: Callable[[], date] = date.today,
+    now: Callable[[], datetime] = datetime.now,
+    backup_dir: Path | None = None,
+    backup_password: str = "",
+) -> FastAPI:
+    """The app; without a `backup_dir` it takes no Backups."""
+    engine = make_engine(database_url)
+    backup = Backups(engine, database_url, backup_dir, backup_password, now)
+    daily_run = DailyRun(engine, today, jobs=[backup.start_if_due])
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        migrate(database_url)  # every start brings the schema up to date
+        backup.clean_leftovers()
+        # Every start brings the schema up to date, backing up the old one first.
+        migrate(
+            database_url,
+            before_update=(
+                (lambda: backup.make("before-update")) if backup.backup_dir else None
+            ),
+        )
+        # Also retries a weekly Backup that a shutdown interrupted.
+        backup.start_if_due(today())
         yield
+        backup.wait(timeout=8)  # let a running Backup finish if it can
 
     app = FastAPI(title="Mortgage Management", lifespan=lifespan)
-    app.state.engine = make_engine(database_url)
+    app.state.engine = engine
     app.state.photos_dir = photos_dir(database_url)
     app.state.today = today
+    app.state.backups = backup
+    app.state.daily_run = daily_run
+
+    @app.middleware("http")
+    async def run_daily_jobs(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        if request.url.path.startswith("/api/"):
+            await run_in_threadpool(daily_run.run_if_due)
+        return await call_next(request)
+
     app.include_router(router)
     app.include_router(customers.router)
     app.include_router(mortgages.router)
@@ -59,7 +100,12 @@ def create_app(database_url: str, today: Callable[[], date] = date.today) -> Fas
     app.include_router(photos.router)
     app.include_router(collateral.router)
     app.include_router(call_list.router)
+    app.include_router(backups.router)
     return app
 
 
-app = create_app(database_url_from_env())
+app = create_app(
+    database_url_from_env(),
+    backup_dir=backup_dir_from_env(),
+    backup_password=backup_password_from_env(),
+)

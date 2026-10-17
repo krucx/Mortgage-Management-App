@@ -647,3 +647,7 @@ form.call-form input {
 .card.wide > * {
   min-width: 0;
 }
+
+.row.align-end {
+  align-items: flex-end;
+}

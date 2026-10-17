@@ -8,6 +8,10 @@ const dateFormat = new Intl.DateTimeFormat('en-IN', {
 /** "2026-01-14" → "14 Jan 2026". */
 export const formatDate = (isoDate: string) => dateFormat.format(new Date(`${isoDate}T00:00:00Z`))
 
+/** "2026-04-20T10:30:00" → "20 Apr 2026, 10:30" (a local date-time from the server). */
+export const formatDateTime = (isoDateTime: string) =>
+  `${formatDate(isoDateTime.slice(0, 10))}, ${isoDateTime.slice(11, 16)}`
+
 /** Milligrams → grams with up to 3 decimals, e.g. 25400 → "25.4 g". */
 export const formatGrams = (mg: number) => `${(mg / 1000).toLocaleString('en-IN')} g`
 

@@ -124,6 +124,12 @@ _Avoid_: Due list, payments due
 The Lender's record of phoning a Customer about a Mortgage, with what was said.
 _Avoid_: Follow-up, contact log
 
+## Safekeeping
+
+**Backup**:
+A copy of all the Lender's data — the database and photos — kept in a folder outside the app, from which everything can be restored.
+_Avoid_: Export, snapshot, archive
+
 ## Status
 
 **Active**:

@@ -186,6 +186,16 @@ export interface GoldRate {
   updated_on: string | null
 }
 
+export interface BackupStatus {
+  enabled: boolean
+  encrypted: boolean // false when no BACKUP_PASSWORD is set
+  running: boolean
+  last_backup_at: string | null
+  last_backup_file: string | null
+  last_error: string | null
+  keep: number
+}
+
 export interface CallListSettings {
   months_unpaid: number
   loan_to_value_pct: number
@@ -323,6 +333,11 @@ export const api = {
   getCallListSettings: () => request<CallListSettings>('/settings/call-list'),
   updateCallListSettings: (settings: CallListSettings) =>
     request<CallListSettings>('/settings/call-list', sendJson('PUT', settings)),
+
+  getBackupStatus: () => request<BackupStatus>('/backups'),
+  backUpNow: () => request<BackupStatus>('/backups', { method: 'POST' }),
+  updateBackupSettings: (keep: number) =>
+    request<BackupStatus>('/settings/backups', sendJson('PUT', { keep })),
 
   getCallList: () => request<CallListGroup[]>('/call-list'),
   listCallNotes: (mortgageId: number) => request<CallNote[]>(`/mortgages/${mortgageId}/call-notes`),

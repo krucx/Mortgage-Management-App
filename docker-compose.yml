@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Kolkata}
+      BACKUP_PASSWORD: ${BACKUP_PASSWORD:-}
     volumes:
       - ${DATA_DIR:?Set DATA_DIR in .env}:/data
       - ${BACKUP_DIR:?Set BACKUP_DIR in .env}:/backups
