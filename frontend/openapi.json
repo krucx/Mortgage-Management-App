@@ -796,37 +796,6 @@
         "title": "CustomerIn",
         "type": "object"
       },
-      "CustomerPage": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/CustomerRow"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "page": {
-            "title": "Page",
-            "type": "integer"
-          },
-          "page_size": {
-            "title": "Page Size",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "page_size"
-        ],
-        "title": "CustomerPage",
-        "type": "object"
-      },
       "CustomerRow": {
         "description": "A Customer as listed in the Customers table.",
         "properties": {
@@ -1634,37 +1603,6 @@
         "title": "MortgageLink",
         "type": "object"
       },
-      "MortgagePage": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/MortgageRow"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "page": {
-            "title": "Page",
-            "type": "integer"
-          },
-          "page_size": {
-            "title": "Page Size",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "page_size"
-        ],
-        "title": "MortgagePage",
-        "type": "object"
-      },
       "MortgagePhoto": {
         "properties": {
           "id": {
@@ -1928,6 +1866,68 @@
           "total"
         ],
         "title": "Outstanding",
+        "type": "object"
+      },
+      "Page_CustomerRow_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[CustomerRow]",
+        "type": "object"
+      },
+      "Page_MortgageRow_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MortgageRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[MortgageRow]",
         "type": "object"
       },
       "PartMonthRule": {
@@ -3058,7 +3058,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CustomerPage"
+                  "$ref": "#/components/schemas/Page_CustomerRow_"
                 }
               }
             },
@@ -3503,7 +3503,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MortgagePage"
+                  "$ref": "#/components/schemas/Page_MortgageRow_"
                 }
               }
             },

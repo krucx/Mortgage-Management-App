@@ -41,7 +41,7 @@ export type ReferrerChoice = NonNullable<Schemas['CustomerIn']['referrer']>
 export type CustomerIn = Schemas['CustomerIn']
 /** A Customer as listed in the Customers table. */
 export type CustomerRow = Schemas['CustomerRow']
-export type CustomerPage = Schemas['CustomerPage']
+export type CustomerPage = Schemas['Page_CustomerRow_']
 export type Customer = Schemas['Customer']
 export type StandaloneReferrer = Schemas['StandaloneReferrer']
 
@@ -70,7 +70,7 @@ export type Mortgage = Schemas['Mortgage']
 /** New Terms from an Accrual Date on. */
 export type TermChange = Schemas['TermChangeOut']
 export type MortgageRow = Schemas['MortgageRow']
-export type MortgagePage = Schemas['MortgagePage']
+export type MortgagePage = Schemas['Page_MortgageRow_']
 
 export type ProjectedPoint = Schemas['ProjectedPoint']
 /** A Term Change in the coming year. */

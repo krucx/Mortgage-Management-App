@@ -1,14 +1,13 @@
 """Mortgages: one loan against one pledged packet of jewellery (see GLOSSARY.md)."""
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import (
-    ColumnElement,
     Select,
     case,
     delete,
@@ -37,7 +36,7 @@ from mortgage_backend.ledger import (
     LedgerStep,
     accrual_date,
 )
-from mortgage_backend.paging import PAGE_SIZE, PageNumber, ordered, page_of
+from mortgage_backend.paging import Page, PageNumber, Sorting, query_page, rows_page
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 from mortgage_backend.replay import (
     MortgageReplay,
@@ -112,13 +111,6 @@ class MortgageRow(BaseModel):
     amount_lent: int
     status: MortgageStatus
     outstanding_total: int
-
-
-class MortgagePage(BaseModel):
-    items: list[MortgageRow]
-    total: int
-    page: int
-    page_size: int
 
 
 class Closure(BaseModel):
@@ -389,18 +381,30 @@ def read_mortgage(mortgage_id: int, engine: EngineDep, today: TodayDep) -> Mortg
 # A column of the Mortgages list to sort it by.
 MortgageSort = Literal["name", "customer", "started", "lent", "outstanding", "status"]
 
-# Each stored column; Outstanding is computed, so it is sorted after the replay.
-_SORT_COLUMNS: dict[MortgageSort, ColumnElement[Any]] = {
-    "name": func.lower(mortgage_table.c.name),
-    "customer": func.lower(customer_table.c.name),
-    "started": mortgage_table.c.start_date,
-    "lent": mortgage_table.c.amount_lent,
-    # In their lifecycle order, not alphabetical.
-    "status": case(
-        {MortgageStatus.ACTIVE: 0, MortgageStatus.REDEEMED: 1},
-        value=mortgage_table.c.status,
-        else_=2,
-    ),
+# Each stored column, newest first otherwise; Outstanding is computed, so it is sorted
+# after the replay.
+_SORTING = Sorting[MortgageSort](
+    columns={
+        "name": func.lower(mortgage_table.c.name),
+        "customer": func.lower(customer_table.c.name),
+        "started": mortgage_table.c.start_date,
+        "lent": mortgage_table.c.amount_lent,
+        # In their lifecycle order, not alphabetical.
+        "status": case(
+            {MortgageStatus.ACTIVE: 0, MortgageStatus.REDEEMED: 1},
+            value=mortgage_table.c.status,
+            else_=2,
+        ),
+    },
+    default_order=[
+        mortgage_table.c.start_date.desc(),
+        mortgage_table.c.name.asc(),
+        mortgage_table.c.id.asc(),
+    ],
+)
+# Outstanding is computed, so the rows are sorted by it after the replay.
+_SORT_AFTER_REPLAY: dict[MortgageSort, Callable[[MortgageRow], int]] = {
+    "outstanding": lambda row: row.outstanding_total
 }
 
 
@@ -419,7 +423,7 @@ def list_mortgages(
     paged: bool = True,
     sort: MortgageSort | None = None,
     descending: bool = False,
-) -> MortgagePage:
+) -> Page[MortgageRow]:
     """Mortgages, newest first (or by `sort`, reversed when `descending`), filtered by
     Mortgage Name or Customer name.
 
@@ -452,48 +456,40 @@ def list_mortgages(
         match = match & (mortgage_table.c.status != MortgageStatus.ACTIVE)
     if closed_in is not None:
         match = match & mortgage_table.c.closed_on.between(*month_span(closed_in))
-    by_column = (
-        [ordered(_SORT_COLUMNS[sort], descending)] if sort in _SORT_COLUMNS else []
-    )
-    in_order = (
-        select_with_customer()
-        .where(match)
-        .order_by(
-            *by_column,
-            mortgage_table.c.start_date.desc(),
-            mortgage_table.c.name,
-            mortgage_table.c.id,
-        )
-    )
+    after_replay = sort if sort in _SORT_AFTER_REPLAY else None
+    by_column = None if after_replay else sort
+    matching = select_with_customer().where(match)
     with engine.connect() as conn:
-        if owing or not paged or sort == "outstanding":
+        if owing or not paged or after_replay:
             # Outstanding is computed, so these are listed after the replay.
-            rows = conn.execute(in_order).mappings().all()
+            rows = (
+                conn.execute(
+                    matching.order_by(*_SORTING.order(by_column, descending))
+                )
+                .mappings()
+                .all()
+            )
             listed = [
                 row
                 for row in mortgage_rows(conn, rows, as_of or today)
                 if row.outstanding_total > 0 or not owing
             ]
-            if sort == "outstanding":
-                listed.sort(key=lambda row: row.outstanding_total, reverse=descending)
-            return MortgagePage(
-                items=page_of(listed, page) if paged else listed,
-                total=len(listed),
-                page=page if paged else 1,
-                page_size=PAGE_SIZE if paged else max(1, len(listed)),
+            return rows_page(
+                listed,
+                page if paged else None,  # unpaged: every match, for pickers
+                _SORT_AFTER_REPLAY,
+                sort=after_replay,
+                descending=descending,
             )
-        total = conn.execute(
-            select(func.count())
-            .select_from(mortgage_table.join(customer_table))
-            .where(match)
-        ).scalar_one()
-        rows = (
-            conn.execute(in_order.limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE))
-            .mappings()
-            .all()
+        return query_page(
+            conn,
+            matching,
+            _SORTING,
+            page,
+            lambda rows: mortgage_rows(conn, rows, as_of or today),
+            sort=by_column,
+            descending=descending,
         )
-        items = mortgage_rows(conn, rows, as_of or today)
-    return MortgagePage(items=items, total=total, page=page, page_size=PAGE_SIZE)
 
 
 @router.post("/mortgages/{mortgage_id}/photos")

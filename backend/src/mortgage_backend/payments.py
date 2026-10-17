@@ -7,7 +7,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, Select, func, or_, select, true
+from sqlalchemy import Select, func, or_, select, true
 from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
@@ -20,7 +20,7 @@ from mortgage_backend.db import (
     mortgage_table,
     payment_table,
 )
-from mortgage_backend.paging import PAGE_SIZE, PageNumber, ordered
+from mortgage_backend.paging import Page, PageNumber, Sorting, query_page
 from mortgage_backend.replay import replays
 
 
@@ -72,24 +72,24 @@ class PaymentRow(BaseModel):
 # A column of the Payments list to sort it by.
 PaymentSort = Literal["date", "customer", "mortgages", "method", "amount"]
 
-_SORT_COLUMNS: dict[PaymentSort, ColumnElement[Any]] = {
-    "date": payment_table.c.paid_on,
-    "customer": func.lower(customer_table.c.name),
-    # By the first of the Mortgages it paid, by name.
-    "mortgages": select(func.min(func.lower(mortgage_table.c.name)))
-    .select_from(allocation_table.join(mortgage_table))
-    .where(allocation_table.c.payment_id == payment_table.c.id)
-    .scalar_subquery(),
-    "method": payment_table.c.method,
-    "amount": payment_table.c.amount,
-}
+# Newest first otherwise.
+_SORTING = Sorting[PaymentSort](
+    columns={
+        "date": payment_table.c.paid_on,
+        "customer": func.lower(customer_table.c.name),
+        # By the first of the Mortgages it paid, by name.
+        "mortgages": select(func.min(func.lower(mortgage_table.c.name)))
+        .select_from(allocation_table.join(mortgage_table))
+        .where(allocation_table.c.payment_id == payment_table.c.id)
+        .scalar_subquery(),
+        "method": payment_table.c.method,
+        "amount": payment_table.c.amount,
+    },
+    default_order=[payment_table.c.paid_on.desc(), payment_table.c.id.desc()],
+)
 
 
-class PaymentPage(BaseModel):
-    items: list[PaymentRow]
-    total: int
-    page: int
-    page_size: int
+class PaymentPage(Page[PaymentRow]):
     # With a month or year: the interest all the listed Payments paid (every page)
     interest_paid: int | None = None
 
@@ -233,9 +233,6 @@ def list_payments(
         customer_table, customer_table.c.id == payment_table.c.customer_id
     )
     with engine.connect() as conn:
-        total = conn.execute(
-            select(func.count()).select_from(with_customer).where(match)
-        ).scalar_one()
         interest = None
         if month is not None or year is not None:
             interest = _interest_paid(
@@ -243,49 +240,50 @@ def list_payments(
                 select(payment_table.c.id).select_from(with_customer).where(match),
                 today,
             )
-        payments = conn.execute(
+        listed = query_page(
+            conn,
             select(payment_table, customer_table.c.name.label("customer_name"))
             .select_from(with_customer)
-            .where(match)
-            .order_by(
-                *([ordered(_SORT_COLUMNS[sort], descending)] if sort else []),
-                payment_table.c.paid_on.desc(),
-                payment_table.c.id.desc(),
-            )
-            .limit(PAGE_SIZE)
-            .offset((page - 1) * PAGE_SIZE)
-        ).all()
-        allocated: dict[int, list[MortgageLink]] = {p.id: [] for p in payments}
-        for row in conn.execute(
-            select(
-                allocation_table.c.payment_id,
-                mortgage_table.c.id,
-                mortgage_table.c.name,
-            )
-            .join(mortgage_table, mortgage_table.c.id == allocation_table.c.mortgage_id)
-            .where(allocation_table.c.payment_id.in_(allocated))
-            .order_by(allocation_table.c.id)
-        ):
-            allocated[row.payment_id].append(MortgageLink(id=row.id, name=row.name))
-    items = [
+            .where(match),
+            _SORTING,
+            page,
+            lambda payments: _payment_rows(conn, payments),
+            sort=sort,
+            descending=descending,
+        )
+    return PaymentPage(**dict(listed), interest_paid=interest)
+
+
+def _payment_rows(
+    conn: Connection, payments: Sequence[RowMapping]
+) -> list[PaymentRow]:
+    """Payments as listed, with the Mortgages each paid."""
+    allocated: dict[int, list[MortgageLink]] = {p["id"]: [] for p in payments}
+    for row in conn.execute(
+        select(
+            allocation_table.c.payment_id,
+            mortgage_table.c.id,
+            mortgage_table.c.name,
+        )
+        .join(mortgage_table, mortgage_table.c.id == allocation_table.c.mortgage_id)
+        .where(allocation_table.c.payment_id.in_(allocated))
+        .order_by(allocation_table.c.id)
+    ):
+        allocated[row.payment_id].append(MortgageLink(id=row.id, name=row.name))
+    return [
         PaymentRow(
-            id=payment.id,
-            paid_on=payment.paid_on,
+            id=payment["id"],
+            paid_on=payment["paid_on"],
             customer=PersonSummary(
-                kind="customer", id=payment.customer_id, name=payment.customer_name
+                kind="customer",
+                id=payment["customer_id"],
+                name=payment["customer_name"],
             ),
-            amount=payment.amount,
-            method=payment.method,
-            reference=payment.reference,
-            mortgages=allocated[payment.id],
-            voided=payment.voided_at is not None,
+            amount=payment["amount"],
+            method=payment["method"],
+            reference=payment["reference"],
+            mortgages=allocated[payment["id"]],
+            voided=payment["voided_at"] is not None,
         )
         for payment in payments
     ]
-    return PaymentPage(
-        items=items,
-        total=total,
-        page=page,
-        page_size=PAGE_SIZE,
-        interest_paid=interest,
-    )

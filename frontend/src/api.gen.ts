@@ -1194,17 +1194,6 @@ export interface components {
             /** Referrer */
             referrer?: (components["schemas"]["ExistingCustomerReferrer"] | components["schemas"]["ExistingStandaloneReferrer"] | components["schemas"]["NewStandaloneReferrer"]) | null;
         };
-        /** CustomerPage */
-        CustomerPage: {
-            /** Items */
-            items: components["schemas"]["CustomerRow"][];
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total */
-            total: number;
-        };
         /**
          * CustomerRow
          * @description A Customer as listed in the Customers table.
@@ -1543,17 +1532,6 @@ export interface components {
             /** Name */
             name: string;
         };
-        /** MortgagePage */
-        MortgagePage: {
-            /** Items */
-            items: components["schemas"]["MortgageRow"][];
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total */
-            total: number;
-        };
         /** MortgagePhoto */
         MortgagePhoto: {
             /** Id */
@@ -1664,6 +1642,28 @@ export interface components {
             total: number;
             /** Unpaid Interest */
             unpaid_interest: number;
+        };
+        /** Page[CustomerRow] */
+        Page_CustomerRow_: {
+            /** Items */
+            items: components["schemas"]["CustomerRow"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[MortgageRow] */
+        Page_MortgageRow_: {
+            /** Items */
+            items: components["schemas"]["MortgageRow"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
         };
         /**
          * PartMonthRule
@@ -2133,7 +2133,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomerPage"];
+                    "application/json": components["schemas"]["Page_CustomerRow_"];
                 };
             };
             /** @description Validation Error */
@@ -2388,7 +2388,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePage"];
+                    "application/json": components["schemas"]["Page_MortgageRow_"];
                 };
             };
             /** @description Validation Error */
