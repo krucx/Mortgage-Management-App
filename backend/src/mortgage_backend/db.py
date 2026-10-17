@@ -183,6 +183,28 @@ allocation_table = Table(
     Column("amount", Integer, nullable=False),  # paise
 )
 
+# A message to a Customer ahead of an Accrual Date (see GLOSSARY.md: Notice).
+notice_table = Table(
+    "notice",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("customer_id", Integer, ForeignKey("customer.id"), nullable=False),
+    Column("accrues_on", Date, nullable=False),
+    Column("created_on", Date, nullable=False),
+    Column("status", String, nullable=False),
+    Column("message", String),  # kept once sent or skipped
+    Column("sent_at", DateTime),
+    UniqueConstraint("customer_id", "accrues_on"),
+)
+
+# The Mortgages a Notice covers.
+notice_mortgage_table = Table(
+    "notice_mortgage",
+    metadata,
+    Column("notice_id", Integer, ForeignKey("notice.id"), primary_key=True),
+    Column("mortgage_id", Integer, ForeignKey("mortgage.id"), primary_key=True),
+)
+
 
 def get_config(conn: Connection, keys: Iterable[str]) -> dict[str, str]:
     """The settings stored under `keys`; missing ones are left out."""

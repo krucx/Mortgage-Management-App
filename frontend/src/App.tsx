@@ -12,9 +12,11 @@ import { MortgagePage } from './pages/MortgagePage'
 import { MortgagesPage } from './pages/MortgagesPage'
 import { NewMortgagePage } from './pages/NewMortgagePage'
 import { NewPaymentPage } from './pages/NewPaymentPage'
+import { NoticesPage } from './pages/NoticesPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { PaymentsPage } from './pages/PaymentsPage'
 import { RedeemPage } from './pages/RedeemPage'
+import { ReceiptPage } from './pages/ReceiptPage'
 import { ReferrerPage } from './pages/ReferrerPage'
 import { SettingsPage } from './pages/SettingsPage'
 
@@ -29,6 +31,7 @@ function Nav() {
       <NavLink to="/customers">Customers</NavLink>
       <NavLink to="/mortgages">Mortgages</NavLink>
       <NavLink to="/call-list">Call List</NavLink>
+      <NavLink to="/notices">Notices</NavLink>
       <NavLink
         to="/closures"
         title={waiting ? `${waiting} paid off, waiting to be Redeemed` : undefined}
@@ -57,6 +60,7 @@ export default function App() {
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/payments/new" element={<NewPaymentPage />} />
             <Route path="/payments/:id" element={<PaymentPage />} />
+            <Route path="/payments/:id/receipt" element={<ReceiptPage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/customers/new" element={<CustomerFormPage />} />
             <Route path="/customers/:id" element={<CustomerPage />} />
@@ -68,6 +72,7 @@ export default function App() {
             <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
             <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
             <Route path="/call-list" element={<CallListPage />} />
+            <Route path="/notices" element={<NoticesPage />} />
             <Route path="/closures" element={<ClosuresPage />} />
             <Route path="/referrers/:id" element={<ReferrerPage />} />
             <Route path="/settings" element={<SettingsPage />} />

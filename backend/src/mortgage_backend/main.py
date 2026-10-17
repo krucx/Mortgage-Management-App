@@ -18,10 +18,12 @@ from mortgage_backend import (
     customers,
     dashboard,
     mortgages,
+    notices,
     payments,
     photos,
     previews,
     projections,
+    receipts,
 )
 from mortgage_backend.backups import (
     Backups,
@@ -37,6 +39,7 @@ from mortgage_backend.db import (
     photos_dir,
 )
 from mortgage_backend.default_terms import get_default_terms, set_default_terms
+from mortgage_backend.notices import queue_notices
 from mortgage_backend.terms import Terms
 
 router = APIRouter(prefix="/api")
@@ -65,7 +68,14 @@ def create_app(
     """The app; without a `backup_dir` it takes no Backups."""
     engine = make_engine(database_url)
     backup = Backups(engine, database_url, backup_dir, backup_password, now)
-    daily_run = DailyRun(engine, today, jobs=[backup.start_if_due])
+
+    def queue_todays_notices(day: date) -> None:
+        with engine.begin() as conn:
+            queue_notices(conn, day)
+
+    daily_run = DailyRun(
+        engine, today, jobs=[backup.start_if_due, queue_todays_notices]
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -112,6 +122,8 @@ def create_app(
     app.include_router(audit.router)
     app.include_router(projections.router)
     app.include_router(previews.router)
+    app.include_router(receipts.router)
+    app.include_router(notices.router)
     return app
 
 

@@ -1,8 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { api, type BackupStatus, type CallListSettings, type GoldRate } from '../api'
+import {
+  api,
+  type BackupStatus,
+  type CallListSettings,
+  type GoldRate,
+  type MessageSettings,
+} from '../api'
 import { Summary } from '../components/ConfirmDialog'
 import { TermsFields } from '../components/TermsFields'
 import { useConfirm } from '../components/useConfirm'
+import { WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { fromDraft, INTEREST_MODES, PART_MONTH_RULES, toDraft, type TermsDraft } from '../terms'
@@ -13,6 +20,7 @@ export function SettingsPage() {
       <DefaultTermsSettings />
       <GoldRateSettings />
       <CallListThresholds />
+      <MessageSettingsForm />
       <BackupSettings />
     </>
   )
@@ -280,6 +288,122 @@ function CallListThresholds() {
       )}
       {status && <p className={`status ${status.kind}`}>{status.text}</p>}
       {confirmDialog}
+    </section>
+  )
+}
+
+const RECEIPT_PLACEHOLDERS =
+  '{customer_name} {amount} {method} {reference} {date} {mortgages} {total_owed}'
+const NOTICE_PLACEHOLDERS = '{customer_name} {date} {interest} {mortgages} {total_owed}'
+
+/** One editable WhatsApp template, with how its formatting will look. */
+function TemplateField({
+  label,
+  placeholders,
+  value,
+  onChange,
+}: {
+  label: string
+  placeholders: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="receipt-panel">
+      <label>
+        {label}
+        <textarea rows={10} required value={value} onChange={(event) => onChange(event.target.value)} />
+        <span className="hint">
+          Placeholders: <code>{placeholders}</code>. {'{mortgages}'} is a small table per
+          Mortgage, showing its description, never the Mortgage Name. *bold*, _italic_ as in WhatsApp.
+        </span>
+      </label>
+      <WhatsAppPreview text={value} />
+    </div>
+  )
+}
+
+/** The wording of Receipts and Notices, and when Notices are queued. */
+function MessageSettingsForm() {
+  const [draft, setDraft] = useState<MessageSettings | null>(null)
+  const [status, setStatus] = useState<Status>(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    api
+      .getMessageSettings()
+      .then(setDraft, (error: Error) => setStatus({ kind: 'error', text: error.message }))
+  }, [])
+
+  async function save(event: FormEvent) {
+    event.preventDefault()
+    if (!draft) return
+    setSaving(true)
+    setStatus(null)
+    try {
+      setDraft(await api.updateMessageSettings(draft))
+      setStatus({ kind: 'saved', text: 'Saved.' })
+    } catch (error) {
+      setStatus({ kind: 'error', text: (error as Error).message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="card wide">
+      <h2>WhatsApp messages</h2>
+      <p className="hint">
+        Receipts and Notices open in WhatsApp ready to send; you press Send.
+      </p>
+      {draft && (
+        <form onSubmit={save} className="stack">
+          <TemplateField
+            label="Receipt"
+            placeholders={RECEIPT_PLACEHOLDERS}
+            value={draft.receipt_template}
+            onChange={(receipt_template) => setDraft({ ...draft, receipt_template })}
+          />
+          <TemplateField
+            label="Notice"
+            placeholders={NOTICE_PLACEHOLDERS}
+            value={draft.notice_template}
+            onChange={(notice_template) => setDraft({ ...draft, notice_template })}
+          />
+          <div className="grid-2">
+            <label>
+              Queue Notices this many days before an Accrual Date
+              <input
+                type="number"
+                required
+                min="1"
+                max="28"
+                step="1"
+                value={draft.notice_days_before}
+                onChange={(event) =>
+                  setDraft({ ...draft, notice_days_before: Number(event.target.value) })
+                }
+              />
+            </label>
+            <label className="inline">
+              <input
+                type="checkbox"
+                checked={draft.notice_approve_first}
+                onChange={(event) =>
+                  setDraft({ ...draft, notice_approve_first: event.target.checked })
+                }
+              />
+              Approve each Notice before it can be sent
+            </label>
+          </div>
+          <div>
+            <button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </form>
+      )}
+      {status && <p className={`status ${status.kind}`}>{status.text}</p>}
     </section>
   )
 }

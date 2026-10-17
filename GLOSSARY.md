@@ -104,7 +104,11 @@ _Avoid_: LTV ratio, coverage
 
 **Payment**:
 A single sum received from a Customer on one date, possibly covering several Mortgages.
-_Avoid_: Receipt, collection
+_Avoid_: Receipt (that is the acknowledgement of a Payment), collection
+
+**Receipt**:
+The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes, sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
+_Avoid_: Invoice, bill
 
 **Allocation**:
 The portion of a Payment applied to one Mortgage; within a Mortgage it pays interest before Principal.
@@ -117,7 +121,7 @@ _Avoid_: Delete, reverse
 ## Follow-up
 
 **Notice**:
-A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day.
+A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped.
 _Avoid_: Reminder, notification
 
 **Months Unpaid**:

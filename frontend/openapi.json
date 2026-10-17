@@ -1258,6 +1258,36 @@
         "title": "LedgerStep",
         "type": "object"
       },
+      "MessageSettings": {
+        "properties": {
+          "notice_approve_first": {
+            "default": false,
+            "title": "Notice Approve First",
+            "type": "boolean"
+          },
+          "notice_days_before": {
+            "default": 2,
+            "maximum": 28.0,
+            "minimum": 1.0,
+            "title": "Notice Days Before",
+            "type": "integer"
+          },
+          "notice_template": {
+            "default": "*Interest notice* \ud83d\udd14\n\nNamaste {customer_name},\nOn *{date}*, interest of *{interest}* will be added.\n\n{mortgages}\n\nTotal owed after that: *{total_owed}*\nPlease get in touch with any questions. \ud83d\ude4f",
+            "minLength": 1,
+            "title": "Notice Template",
+            "type": "string"
+          },
+          "receipt_template": {
+            "default": "*Payment received* \u2705\n\nNamaste {customer_name},\nWe have received *{amount}* by {method} on {date}. Thank you!\n\n{mortgages}\n\nTotal still owed: *{total_owed}*",
+            "minLength": 1,
+            "title": "Receipt Template",
+            "type": "string"
+          }
+        },
+        "title": "MessageSettings",
+        "type": "object"
+      },
       "MonthlyPayments": {
         "properties": {
           "amount": {
@@ -1720,6 +1750,83 @@
         ],
         "title": "NewStandaloneReferrer",
         "type": "object"
+      },
+      "Notice": {
+        "properties": {
+          "accrues_on": {
+            "format": "date",
+            "title": "Accrues On",
+            "type": "string"
+          },
+          "created_on": {
+            "format": "date",
+            "title": "Created On",
+            "type": "string"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/PersonSummary"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "mortgages": {
+            "items": {
+              "$ref": "#/components/schemas/MortgageLink"
+            },
+            "title": "Mortgages",
+            "type": "array"
+          },
+          "phones": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Phones",
+            "type": "array"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/NoticeStatus"
+          }
+        },
+        "required": [
+          "id",
+          "customer",
+          "phones",
+          "accrues_on",
+          "created_on",
+          "status",
+          "message",
+          "mortgages",
+          "sent_at"
+        ],
+        "title": "Notice",
+        "type": "object"
+      },
+      "NoticeStatus": {
+        "enum": [
+          "awaiting_approval",
+          "queued",
+          "sent",
+          "skipped"
+        ],
+        "title": "NoticeStatus",
+        "type": "string"
       },
       "Outstanding": {
         "description": "Principal plus unpaid interest on a date, before any Part-Month Rule charge.",
@@ -2236,6 +2343,110 @@
           "redemption"
         ],
         "title": "ReadyToRedeem",
+        "type": "object"
+      },
+      "Receipt": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/PersonSummary"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "paid_on": {
+            "format": "date",
+            "title": "Paid On",
+            "type": "string"
+          },
+          "payment_id": {
+            "title": "Payment Id",
+            "type": "integer"
+          },
+          "phones": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Phones",
+            "type": "array"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_id",
+          "customer",
+          "phones",
+          "paid_on",
+          "amount",
+          "method",
+          "reference",
+          "lines",
+          "text"
+        ],
+        "title": "Receipt",
+        "type": "object"
+      },
+      "ReceiptLineOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "interest_paid": {
+            "title": "Interest Paid",
+            "type": "integer"
+          },
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          },
+          "owed_after": {
+            "title": "Owed After",
+            "type": "integer"
+          },
+          "paid": {
+            "title": "Paid",
+            "type": "integer"
+          },
+          "principal_paid": {
+            "title": "Principal Paid",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "description",
+          "paid",
+          "interest_paid",
+          "principal_paid",
+          "owed_after",
+          "mortgage_id"
+        ],
+        "title": "ReceiptLineOut",
         "type": "object"
       },
       "RedeemIn": {
@@ -4215,6 +4426,174 @@
         "summary": "Preview Term Change Removal"
       }
     },
+    "/api/notices": {
+      "get": {
+        "operationId": "read_notices_api_notices_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/NoticeStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Notice"
+                  },
+                  "title": "Response Read Notices Api Notices Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Notices"
+      }
+    },
+    "/api/notices/{notice_id}/approve": {
+      "post": {
+        "operationId": "approve_notice_api_notices__notice_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notice_id",
+            "required": true,
+            "schema": {
+              "title": "Notice Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notice"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Notice"
+      }
+    },
+    "/api/notices/{notice_id}/sent": {
+      "post": {
+        "description": "The Lender opened the prefilled WhatsApp chat (click-to-send counts that as sent).",
+        "operationId": "mark_notice_sent_api_notices__notice_id__sent_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notice_id",
+            "required": true,
+            "schema": {
+              "title": "Notice Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notice"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Notice Sent"
+      }
+    },
+    "/api/notices/{notice_id}/skip": {
+      "post": {
+        "operationId": "skip_notice_api_notices__notice_id__skip_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notice_id",
+            "required": true,
+            "schema": {
+              "title": "Notice Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notice"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skip Notice"
+      }
+    },
     "/api/payments": {
       "get": {
         "description": "Payments, newest first, filtered by Customer, Mortgage Name or reference, and\nto a month (YYYY-MM) or year. With a month or year, the interest they paid too.",
@@ -4428,6 +4807,45 @@
           }
         },
         "summary": "Read Payment"
+      }
+    },
+    "/api/payments/{payment_id}/receipt": {
+      "get": {
+        "operationId": "read_receipt_api_payments__payment_id__receipt_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "title": "Payment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Receipt"
       }
     },
     "/api/payments/{payment_id}/void": {
@@ -4903,6 +5321,60 @@
           }
         },
         "summary": "Update Gold Rates"
+      }
+    },
+    "/api/settings/messages": {
+      "get": {
+        "operationId": "read_message_settings_api_settings_messages_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Message Settings"
+      },
+      "put": {
+        "operationId": "update_message_settings_api_settings_messages_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Message Settings"
       }
     }
   }

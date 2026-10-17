@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { api, PAYMENT_METHODS, type Payment } from '../api'
+import { api, PAYMENT_METHODS, type Payment, type Receipt } from '../api'
 import { PersonLink } from '../components/PersonLink'
 import { ChangePreview } from '../components/BeforeAfter'
 import { ReasonDialog } from '../components/ReasonDialog'
+import { SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
 import { formatINR } from '../money'
 
@@ -86,6 +87,7 @@ export function PaymentPage() {
           </tbody>
         </table>
       </div>
+      {!payment.voided_at && <ReceiptPanel paymentId={payment.id} />}
       {voiding && (
         <ReasonDialog
           title={`Void this Payment of ${formatINR(payment.amount)}?`}
@@ -105,5 +107,33 @@ export function PaymentPage() {
         />
       )}
     </section>
+  )
+}
+
+/** The Receipt for the Customer: sent on WhatsApp, or printed. Reopen it any time. */
+function ReceiptPanel({ paymentId }: { paymentId: number }) {
+  const [receipt, setReceipt] = useState<Receipt | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
+
+  useEffect(() => {
+    api.getReceipt(paymentId).then(setReceipt, (err: Error) => setError(err.message))
+  }, [paymentId])
+
+  if (error) return <p className="status error">{error}</p>
+  if (!receipt) return null
+  return (
+    <>
+      <h3>Receipt</h3>
+      <div className="receipt-panel">
+        <WhatsAppPreview text={receipt.text} />
+        <div className="stack">
+          <SendOnWhatsApp phones={receipt.phones} text={receipt.text} onSent={() => setSent(true)} />
+          {sent && <p className="hint">WhatsApp opened: press Send there.</p>}
+          <Link to={`/payments/${paymentId}/receipt`}>Print or save as PDF</Link>
+          <p className="hint">The wording comes from the Receipt template in Settings.</p>
+        </div>
+      </div>
+    </>
   )
 }

@@ -92,6 +92,10 @@ export type Dashboard = Schemas['Dashboard']
 export type MonthlyPayments = Schemas['MonthlyPayments']
 export type ProjectionHorizon = Schemas['ProjectionHorizon']
 export type ComingMonth = Schemas['ComingMonth']
+export type Receipt = Schemas['Receipt']
+export type Notice = Schemas['Notice']
+export type NoticeStatus = Notice['status']
+export type MessageSettings = Schemas['MessageSettings']
 
 /** Turns a FastAPI error body into one readable line. */
 function errorMessage(status: number, body: unknown): string {
@@ -150,6 +154,16 @@ export const api = {
     request<BackupStatus>('/settings/backups', sendJson('PUT', { keep })),
 
   getDashboard: () => request<Dashboard>('/dashboard'),
+
+  getReceipt: (paymentId: number) => request<Receipt>(`/payments/${paymentId}/receipt`),
+  getMessageSettings: () => request<MessageSettings>('/settings/messages'),
+  updateMessageSettings: (settings: MessageSettings) =>
+    request<MessageSettings>('/settings/messages', sendJson('PUT', settings)),
+  listNotices: (status?: NoticeStatus) =>
+    request<Notice[]>(`/notices${status ? `?status=${status}` : ''}`),
+  approveNotice: (id: number) => request<Notice>(`/notices/${id}/approve`, { method: 'POST' }),
+  skipNotice: (id: number) => request<Notice>(`/notices/${id}/skip`, { method: 'POST' }),
+  markNoticeSent: (id: number) => request<Notice>(`/notices/${id}/sent`, { method: 'POST' }),
 
   getCallList: () => request<CallListGroup[]>('/call-list'),
   listCallNotes: (mortgageId: number) => request<CallNote[]>(`/mortgages/${mortgageId}/call-notes`),

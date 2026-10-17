@@ -1,0 +1,123 @@
+"""Receipts (see GLOSSARY.md): what a Payment did, to send on WhatsApp or print.
+
+Worked out from the Replay whenever asked, so a Receipt can be reopened and resent
+later and still shows each Mortgage as it stood just after the Payment.
+"""
+
+from datetime import date
+
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.engine import Connection
+
+from mortgage_backend.customers import PersonSummary, phones_of
+from mortgage_backend.db import EngineDep, customer_table, payment_table
+from mortgage_backend.message_settings import get_message_settings
+from mortgage_backend.messages import (
+    ReceiptLine,
+    ReceiptMessage,
+    descriptions,
+    receipt_text,
+)
+from mortgage_backend.payments import PaymentMethod, mortgages_of
+from mortgage_backend.replay import replays
+
+METHOD_NAMES = {
+    PaymentMethod.CASH: "Cash",
+    PaymentMethod.UPI: "UPI",
+    PaymentMethod.BANK_TRANSFER: "Bank transfer",
+}
+
+
+class ReceiptLineOut(ReceiptLine):
+    mortgage_id: int  # for the Lender's links; never shown to the Customer
+
+
+class Receipt(BaseModel):
+    payment_id: int
+    customer: PersonSummary
+    phones: list[str]  # the Customer's numbers, primary first
+    paid_on: date
+    amount: int
+    method: str
+    reference: str | None
+    lines: list[ReceiptLineOut]
+    text: str  # the WhatsApp message, from the Lender's Receipt template
+
+
+def load_receipt(conn: Connection, payment_id: int) -> Receipt:
+    payment = (
+        conn.execute(
+            select(
+                payment_table,
+                customer_table.c.name,
+                customer_table.c.phone_1,
+                customer_table.c.phone_2,
+            )
+            .join(customer_table, customer_table.c.id == payment_table.c.customer_id)
+            .where(payment_table.c.id == payment_id)
+        )
+        .mappings()
+        .first()
+    )
+    if payment is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
+    if payment["voided_at"] is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "This Payment was Voided: it has no Receipt"
+        )
+    mortgages = mortgages_of(conn, payment_id)
+    replayed = replays(conn, mortgages)
+    described = descriptions(mortgages)
+    lines = []
+    for mortgage in mortgages:
+        step = next(
+            s
+            for s in replayed[mortgage["id"]].ledger(payment["paid_on"])
+            if s.payment_id == payment_id
+        )
+        lines.append(
+            ReceiptLineOut(
+                description=described[mortgage["id"]],
+                mortgage_id=mortgage["id"],
+                paid=mortgage["allocated"],
+                interest_paid=step.interest_paid,
+                principal_paid=step.principal_paid,
+                owed_after=step.principal + step.unpaid_interest,
+            )
+        )
+    method = METHOD_NAMES[PaymentMethod(payment["method"])]
+    text = receipt_text(
+        get_message_settings(conn).receipt_template,
+        ReceiptMessage(
+            customer_name=payment["name"],
+            paid_on=payment["paid_on"],
+            amount=payment["amount"],
+            method=method,
+            reference=payment["reference"],
+            lines=lines,
+        ),
+    )
+    return Receipt(
+        payment_id=payment_id,
+        customer=PersonSummary(
+            kind="customer", id=payment["customer_id"], name=payment["name"]
+        ),
+        phones=phones_of(payment),
+        paid_on=payment["paid_on"],
+        amount=payment["amount"],
+        method=method,
+        reference=payment["reference"],
+        lines=lines,
+        text=text,
+    )
+
+
+router = APIRouter(prefix="/api")
+
+
+@router.get("/payments/{payment_id}/receipt")
+def read_receipt(payment_id: int, engine: EngineDep) -> Receipt:
+    with engine.connect() as conn:
+        return load_receipt(conn, payment_id)

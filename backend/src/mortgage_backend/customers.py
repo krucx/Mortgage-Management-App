@@ -144,6 +144,11 @@ class StandaloneReferrer(BaseModel):
     referred: list[PersonSummary]
 
 
+def phones_of(row: RowMapping) -> list[str]:
+    """A Customer's contact numbers, primary first."""
+    return [phone for phone in (row["phone_1"], row["phone_2"]) if phone]
+
+
 def _owner_of(conn: Connection, phone: str) -> PersonSummary | None:
     """The person whose Primary Number this is, if anyone's."""
     customer = conn.execute(

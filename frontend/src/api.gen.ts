@@ -559,6 +559,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Notices */
+        get: operations["read_notices_api_notices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notices/{notice_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Notice */
+        post: operations["approve_notice_api_notices__notice_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notices/{notice_id}/sent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Notice Sent
+         * @description The Lender opened the prefilled WhatsApp chat (click-to-send counts that as sent).
+         */
+        post: operations["mark_notice_sent_api_notices__notice_id__sent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notices/{notice_id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Skip Notice */
+        post: operations["skip_notice_api_notices__notice_id__skip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/payments": {
         parameters: {
             query?: never;
@@ -610,6 +681,23 @@ export interface paths {
         };
         /** Read Payment */
         get: operations["read_payment_api_payments__payment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payments/{payment_id}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Receipt */
+        get: operations["read_receipt_api_payments__payment_id__receipt_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -799,6 +887,24 @@ export interface paths {
          * @description Set the given Gold Rates; a rate's date moves only when the rate changes.
          */
         put: operations["update_gold_rates_api_settings_gold_rates_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Message Settings */
+        get: operations["read_message_settings_api_settings_messages_get"];
+        /** Update Message Settings */
+        put: operations["update_message_settings_api_settings_messages_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1260,6 +1366,44 @@ export interface components {
             /** Unpaid Interest */
             unpaid_interest: number;
         };
+        /** MessageSettings */
+        MessageSettings: {
+            /**
+             * Notice Approve First
+             * @default false
+             */
+            notice_approve_first: boolean;
+            /**
+             * Notice Days Before
+             * @default 2
+             */
+            notice_days_before: number;
+            /**
+             * Notice Template
+             * @default *Interest notice* 🔔
+             *
+             *     Namaste {customer_name},
+             *     On *{date}*, interest of *{interest}* will be added.
+             *
+             *     {mortgages}
+             *
+             *     Total owed after that: *{total_owed}*
+             *     Please get in touch with any questions. 🙏
+             */
+            notice_template: string;
+            /**
+             * Receipt Template
+             * @default *Payment received* ✅
+             *
+             *     Namaste {customer_name},
+             *     We have received *{amount}* by {method} on {date}. Thank you!
+             *
+             *     {mortgages}
+             *
+             *     Total still owed: *{total_owed}*
+             */
+            receipt_template: string;
+        };
         /** MonthlyPayments */
         MonthlyPayments: {
             /** Amount */
@@ -1439,6 +1583,36 @@ export interface components {
             /** Phone */
             phone: string;
         };
+        /** Notice */
+        Notice: {
+            /**
+             * Accrues On
+             * Format: date
+             */
+            accrues_on: string;
+            /**
+             * Created On
+             * Format: date
+             */
+            created_on: string;
+            customer: components["schemas"]["PersonSummary"];
+            /** Id */
+            id: number;
+            /** Message */
+            message: string;
+            /** Mortgages */
+            mortgages: components["schemas"]["MortgageLink"][];
+            /** Phones */
+            phones: string[];
+            /** Sent At */
+            sent_at: string | null;
+            status: components["schemas"]["NoticeStatus"];
+        };
+        /**
+         * NoticeStatus
+         * @enum {string}
+         */
+        NoticeStatus: "awaiting_approval" | "queued" | "sent" | "skipped";
         /**
          * Outstanding
          * @description Principal plus unpaid interest on a date, before any Part-Month Rule charge.
@@ -1626,6 +1800,44 @@ export interface components {
         ReadyToRedeem: {
             mortgage: components["schemas"]["MortgageRow"];
             redemption: components["schemas"]["Redemption"];
+        };
+        /** Receipt */
+        Receipt: {
+            /** Amount */
+            amount: number;
+            customer: components["schemas"]["PersonSummary"];
+            /** Lines */
+            lines: components["schemas"]["ReceiptLineOut"][];
+            /** Method */
+            method: string;
+            /**
+             * Paid On
+             * Format: date
+             */
+            paid_on: string;
+            /** Payment Id */
+            payment_id: number;
+            /** Phones */
+            phones: string[];
+            /** Reference */
+            reference: string | null;
+            /** Text */
+            text: string;
+        };
+        /** ReceiptLineOut */
+        ReceiptLineOut: {
+            /** Description */
+            description: string;
+            /** Interest Paid */
+            interest_paid: number;
+            /** Mortgage Id */
+            mortgage_id: number;
+            /** Owed After */
+            owed_after: number;
+            /** Paid */
+            paid: number;
+            /** Principal Paid */
+            principal_paid: number;
         };
         /** RedeemIn */
         RedeemIn: {
@@ -2885,6 +3097,130 @@ export interface operations {
             };
         };
     };
+    read_notices_api_notices_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["NoticeStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notice"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_notice_api_notices__notice_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notice_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notice"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_notice_sent_api_notices__notice_id__sent_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notice_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notice"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    skip_notice_api_notices__notice_id__skip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notice_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notice"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_payments_api_payments_get: {
         parameters: {
             query?: {
@@ -3004,6 +3340,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Payment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_receipt_api_payments__payment_id__receipt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
                 };
             };
             /** @description Validation Error */
@@ -3386,6 +3753,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GoldRate"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_message_settings_api_settings_messages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageSettings"];
+                };
+            };
+        };
+    };
+    update_message_settings_api_settings_messages_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageSettings"];
                 };
             };
             /** @description Validation Error */

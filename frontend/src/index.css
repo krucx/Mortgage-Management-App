@@ -1,5 +1,10 @@
 :root {
   --text: #1f2328;
+  /* WhatsApp's own chat colours, for message previews */
+  --wa-chat: #efeae2;
+  --wa-bubble: #d9fdd3;
+  --wa-text: #111b21;
+  --wa-green: #1a7f4b;
   --muted: #59636e;
   --bg: #f6f7f9;
   --surface: #ffffff;
@@ -28,6 +33,10 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #e6edf3;
+    --wa-chat: #0b141a;
+    --wa-bubble: #005c4b;
+    --wa-text: #e9edef;
+    --wa-green: #1f8f55;
     --muted: #9198a1;
     --bg: #0d1117;
     --surface: #161b22;
@@ -1016,4 +1025,101 @@ figure.chart.payments-by-month .tooltip {
 
 .chart-table table {
   margin-top: 0.5rem;
+}
+
+/* A WhatsApp message as the Customer will see it */
+.whatsapp {
+  background: var(--wa-chat);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.whatsapp .bubble {
+  background: var(--wa-bubble);
+  color: var(--wa-text);
+  border-radius: 0.5rem 0 0.5rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-left: auto;
+  max-width: 22rem;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.12);
+}
+
+.whatsapp pre {
+  font-size: 0.8rem;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+button.whatsapp-send {
+  background: var(--wa-green);
+  border-color: var(--wa-green);
+  color: #fff;
+}
+
+/* Printing a Receipt: only the receipt, in black on white */
+@media print {
+  /* Paper is white whatever the screen's colour scheme */
+  :root {
+    --text: #000;
+    --muted: #444;
+    --bg: #fff;
+    --surface: #fff;
+    --border: #bbb;
+  }
+
+  header,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .card.receipt {
+    border: none;
+    box-shadow: none;
+    margin: 0;
+    max-width: none;
+  }
+}
+
+.receipt-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 640px) {
+  .receipt-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Notices */
+article.notice {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.notice-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* A template's text and help read as text, not as part of its bold label */
+label textarea,
+label .hint {
+  font-weight: normal;
 }
