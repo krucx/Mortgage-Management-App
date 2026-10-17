@@ -197,6 +197,17 @@ def test_how_many_backups_to_keep_is_a_setting(client, clock, backup_dir):
     assert len(backups_in(backup_dir)) == 2
 
 
+def test_keeping_fewer_backups_removes_the_oldest_at_once(client, clock, backup_dir):
+    for _ in range(3):
+        clock.days_later(7)
+        finished(client)
+
+    client.put("/api/settings/backups", json={"keep": 1})
+
+    # Not a week later at the next Backup: straight away.
+    assert backups_in(backup_dir) == ["mortgage-backup-2026-05-11-1030.zip"]
+
+
 def test_other_files_in_the_backup_folder_are_left_alone(client, clock, backup_dir):
     backup_dir.mkdir()
     (backup_dir / "notes.txt").write_text("mine")

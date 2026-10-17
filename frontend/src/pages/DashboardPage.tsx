@@ -184,11 +184,36 @@ export function DashboardPage() {
             value={figures.loan_to_value === null ? '—' : formatPercent(figures.loan_to_value)}
             note="Outstanding ÷ Collateral Value, where valued"
           />
+        </div>
+      </div>
+
+      <div className="group collateral">
+        <h3>Follow-up</h3>
+        <div className="tiles">
           <Figure
             to="/call-list"
             label="On today's Call List"
             value={toCall}
             note={toCall > 0 ? <span className="flag warn">To phone today</span> : 'Nobody to call'}
+          />
+          <Figure
+            to={
+              figures.notices_to_send === 0 && figures.notices_to_approve > 0
+                ? '/notices?status=awaiting_approval'
+                : '/notices?status=queued'
+            }
+            label="Notices to send"
+            value={figures.notices_to_send}
+            note={
+              <>
+                {figures.notices_to_send > 0 ? (
+                  <span className="flag warn">To send on WhatsApp</span>
+                ) : (
+                  'Nothing to send'
+                )}
+                {figures.notices_to_approve > 0 && ` · ${figures.notices_to_approve} to approve`}
+              </>
+            }
           />
         </div>
       </div>

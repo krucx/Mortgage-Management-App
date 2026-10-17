@@ -1231,6 +1231,10 @@ export interface components {
             interest_collected_this_year: number;
             /** Loan To Value */
             loan_to_value: number | null;
+            /** Notices To Approve */
+            notices_to_approve: number;
+            /** Notices To Send */
+            notices_to_send: number;
             /** Payments By Month */
             payments_by_month: components["schemas"]["MonthlyPayments"][];
             /** Principal Outstanding */

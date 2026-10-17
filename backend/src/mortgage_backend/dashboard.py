@@ -20,6 +20,7 @@ from mortgage_backend.collateral import collateral_of, gold_rates
 from mortgage_backend.db import EngineDep, mortgage_table, payment_table
 from mortgage_backend.ledger import accrual_date
 from mortgage_backend.money import RUPEE
+from mortgage_backend.notices import NoticeStatus, list_notices, queue_notices
 from mortgage_backend.replay import MortgageReplay, MortgageStatus, replays
 
 MONTHS_OF_PAYMENTS = 12
@@ -61,6 +62,8 @@ class Dashboard(BaseModel):
     # Their Outstanding ÷ their Collateral Value; None if none has a value
     loan_to_value: float | None
     call_list_count: int  # Mortgages on today's Call List
+    notices_to_send: int  # queued, with something to send
+    notices_to_approve: int  # waiting for the Lender's approval
     redeemed_this_month: int
     forfeited_this_month: int
     forfeiture_profit_loss_this_month: int  # Recovered Amount − Redemption Amount
@@ -177,6 +180,12 @@ def _payments_by_month(conn: Connection, today: date) -> list[MonthlyPayments]:
     ]
 
 
+def _with_a_message(conn: Connection, status: NoticeStatus) -> int:
+    """Notices in `status` that still have something to say (an unsent Notice whose
+    Mortgages no longer accrue that day has not)."""
+    return sum(1 for notice in list_notices(conn, status) if notice.message)
+
+
 def dashboard(conn: Connection, today: date) -> Dashboard:
     rows = conn.execute(select(mortgage_table)).mappings().all()
     replayed = replays(conn, rows)
@@ -227,6 +236,8 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
         collateral_value=valued,
         loan_to_value=valued_owed / valued if valued else None,
         call_list_count=sum(len(group.rows) for group in call_list(conn, today)),
+        notices_to_send=_with_a_message(conn, NoticeStatus.QUEUED),
+        notices_to_approve=_with_a_message(conn, NoticeStatus.AWAITING_APPROVAL),
         redeemed_this_month=redeemed,
         forfeited_this_month=forfeited,
         forfeiture_profit_loss_this_month=profit_loss,
@@ -242,5 +253,7 @@ router = APIRouter(prefix="/api")
 
 @router.get("/dashboard")
 def read_dashboard(engine: EngineDep, today: TodayDep) -> Dashboard:
-    with engine.connect() as conn:
+    with engine.begin() as conn:
+        # As the Notices page does, so the two always agree.
+        queue_notices(conn, today)
         return dashboard(conn, today)

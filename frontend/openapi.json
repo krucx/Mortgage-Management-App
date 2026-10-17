@@ -911,6 +911,14 @@
             ],
             "title": "Loan To Value"
           },
+          "notices_to_approve": {
+            "title": "Notices To Approve",
+            "type": "integer"
+          },
+          "notices_to_send": {
+            "title": "Notices To Send",
+            "type": "integer"
+          },
           "payments_by_month": {
             "items": {
               "$ref": "#/components/schemas/MonthlyPayments"
@@ -956,6 +964,8 @@
           "collateral_value",
           "loan_to_value",
           "call_list_count",
+          "notices_to_send",
+          "notices_to_approve",
           "redeemed_this_month",
           "forfeited_this_month",
           "forfeiture_profit_loss_this_month",

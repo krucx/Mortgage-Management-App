@@ -299,3 +299,67 @@ def test_the_notices_page_queues_what_is_due_without_waiting_a_day(
         "2026-05-14",
         "2026-05-25",
     ]
+
+
+def test_the_dashboard_counts_the_notices_to_send_and_approve(app_client, clock) -> None:
+    clock.today = date(2026, 5, 12)
+    owner = app_client.post(
+        "/api/customers",
+        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
+    ).json()
+    for start in ("2026-01-13", "2026-01-14"):  # one Notice for 13 May, one for 14 May
+        app_client.post(
+            "/api/mortgages",
+            json={
+                "customer_id": owner["id"],
+                "start_date": start,
+                "amount_lent": LAKH,
+                "description": "Gold chain",
+                "gross_weight_mg": 20_000,
+                "net_weight_mg": 19_000,
+                "purity_karat": 22,
+                "terms": {
+                    "monthly_rate_bps": 300,
+                    "interest_mode": "simple",
+                    "part_month_rule": "full_month",
+                },
+            },
+        )
+
+    def counts():
+        figures = app_client.get("/api/dashboard").json()
+        return figures["notices_to_send"], figures["notices_to_approve"]
+
+    # Due already, though the day's run came before these Mortgages.
+    assert counts() == (2, 0)
+
+    first = app_client.get("/api/notices").json()[0]
+    app_client.post(f"/api/notices/{first['id']}/sent")
+    assert counts() == (1, 0)
+
+    settings_now = app_client.get("/api/settings/messages").json()
+    app_client.put(
+        "/api/settings/messages", json={**settings_now, "notice_approve_first": True}
+    )
+    suresh = app_client.post(
+        "/api/customers",
+        json={"name": "Suresh Jain", "address": "", "phone_1": "9829054321"},
+    ).json()
+    app_client.post(
+        "/api/mortgages",
+        json={
+            "customer_id": suresh["id"],
+            "start_date": "2026-01-14",
+            "amount_lent": LAKH,
+            "description": "Ring",
+            "gross_weight_mg": 5_000,
+            "net_weight_mg": 5_000,
+            "purity_karat": 22,
+            "terms": {
+                "monthly_rate_bps": 300,
+                "interest_mode": "simple",
+                "part_month_rule": "full_month",
+            },
+        },
+    )
+    assert counts() == (1, 1)  # Suresh's is new, so it waits for approval

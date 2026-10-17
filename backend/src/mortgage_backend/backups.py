@@ -92,7 +92,12 @@ class Backups:
         return self.status().keep
 
     def set_keep(self, keep: int) -> None:
+        """Keep the last `keep` Backups; any older ones go now, not at the next Backup."""
         self._record(keep=str(keep))
+        # A running Backup prunes when it finishes; pruning now could count its
+        # unfinished file as the newest.
+        if self.backup_dir is not None and not self.running:
+            self._prune()
 
     def status(self) -> BackupStatus:
         config = self._config()
