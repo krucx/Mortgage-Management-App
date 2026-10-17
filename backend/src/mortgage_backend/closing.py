@@ -57,8 +57,8 @@ def ready_to_redeem(
             .mappings()
             .all()
         )
-        listed = mortgage_rows(conn, rows, today)
         replayed = replays(conn, rows)
+        listed = mortgage_rows(conn, rows, today, replayed)
         ready = [
             ReadyToRedeem(
                 mortgage=mortgage, redemption=replayed[mortgage.id].redemption(today)

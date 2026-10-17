@@ -14,6 +14,7 @@ sends by click-to-send WhatsApp (ADR 0002), which marks the Notice sent.
 """
 
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timedelta
 from enum import StrEnum
 
@@ -157,29 +158,59 @@ def _notice_line(mortgage: MortgageReplay, description: str, on: date) -> Notice
     )
 
 
-def _as_it_stands(
-    conn: Connection, row: RowMapping, template: str
-) -> tuple[list[RowMapping], str]:
-    """An unsent Notice's Mortgages (the Customer's Active ones accruing that day) and
-    its message, worked out now."""
-    on = row["accrues_on"]
-    mortgages = [
-        m
-        for m in conn.execute(
-            select(mortgage_table)
-            .where(
-                mortgage_table.c.customer_id == row["customer_id"],
-                mortgage_table.c.status == MortgageStatus.ACTIVE,
-            )
-            .order_by(mortgage_table.c.name)
-        ).mappings()
-        if is_accrual_date(m["start_date"], on)
-    ]
+def _accruing(
+    conn: Connection, unsent: Sequence[RowMapping]
+) -> dict[int, list[RowMapping]]:
+    """Each unsent Notice's Mortgages, by Notice id: its Customer's Active ones accruing
+    that day, by name; loaded in one query."""
+    by_customer: dict[int, list[RowMapping]] = defaultdict(list)
+    for mortgage in conn.execute(
+        select(mortgage_table)
+        .where(
+            mortgage_table.c.customer_id.in_([row["customer_id"] for row in unsent]),
+            mortgage_table.c.status == MortgageStatus.ACTIVE,
+        )
+        .order_by(mortgage_table.c.name)
+    ).mappings():
+        by_customer[mortgage["customer_id"]].append(mortgage)
+    return {
+        row["id"]: [
+            m
+            for m in by_customer[row["customer_id"]]
+            if is_accrual_date(m["start_date"], row["accrues_on"])
+        ]
+        for row in unsent
+    }
+
+
+def unsent_counts(conn: Connection) -> dict[NoticeStatus, int]:
+    """Unsent Notices that still have something to say, by status (one whose Mortgages
+    no longer accrue that day has not); nothing is replayed or worded."""
+    unsent = (
+        conn.execute(select(notice_table).where(notice_table.c.status.in_(_UNSENT)))
+        .mappings()
+        .all()
+    )
+    by_status = dict.fromkeys(_UNSENT, 0)
+    accruing = _accruing(conn, unsent)
+    for row in unsent:
+        if accruing[row["id"]]:
+            by_status[row["status"]] += 1
+    return by_status
+
+
+def _message(
+    row: RowMapping,
+    mortgages: Sequence[RowMapping],
+    replayed: Mapping[int, MortgageReplay],
+    template: str,
+) -> str:
+    """An unsent Notice's message, worked out now; empty without Mortgages."""
     if not mortgages:
-        return [], ""
-    replayed = replays(conn, mortgages)
+        return ""
+    on = row["accrues_on"]
     described = descriptions(mortgages)
-    message = notice_text(
+    return notice_text(
         template,
         NoticeMessage(
             customer_name=row["name"],
@@ -190,7 +221,6 @@ def _as_it_stands(
             ],
         ),
     )
-    return mortgages, message
 
 
 def list_notices(
@@ -229,10 +259,14 @@ def list_notices(
         .order_by(mortgage_table.c.name)
     ):
         kept[link.notice_id].append(MortgageLink(id=link.id, name=link.name))
+    accruing = _accruing(conn, [row for row in rows if row["status"] in _UNSENT])
+    involved = {m["id"]: m for mortgages in accruing.values() for m in mortgages}
+    replayed = replays(conn, list(involved.values()))
     notices = []
     for row in rows:
-        if row["status"] in _UNSENT:
-            mortgages, message = _as_it_stands(conn, row, template)
+        if row["id"] in accruing:
+            mortgages = accruing[row["id"]]
+            message = _message(row, mortgages, replayed, template)
             links = [MortgageLink(id=m["id"], name=m["name"]) for m in mortgages]
         else:
             message, links = row["message"], kept[row["id"]]

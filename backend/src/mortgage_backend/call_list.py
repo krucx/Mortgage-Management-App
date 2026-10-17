@@ -1,5 +1,6 @@
 """The Call List and Call Notes (see GLOSSARY.md), calculated whenever it is asked for."""
 
+from collections.abc import Mapping
 from datetime import date, datetime
 from typing import Literal
 
@@ -23,7 +24,7 @@ from mortgage_backend.db import (
 from mortgage_backend.ledger import months_unpaid
 from mortgage_backend.mortgages import select_with_customer
 from mortgage_backend.paging import PAGE_SIZE, PageNumber, page_of
-from mortgage_backend.replay import MortgageStatus, replays
+from mortgage_backend.replay import MortgageReplay, MortgageStatus, replays
 
 Reason = Literal["months_unpaid", "loan_to_value", "accrues_today"]
 
@@ -96,7 +97,13 @@ def _todays_notes(conn: Connection, today: date) -> dict[int, CallNote]:
     return {note["mortgage_id"]: CallNote.model_validate(note) for note in notes}
 
 
-def call_list(conn: Connection, today: date) -> list[CallListGroup]:
+def call_list(
+    conn: Connection,
+    today: date,
+    replayed: Mapping[int, MortgageReplay] | None = None,
+) -> list[CallListGroup]:
+    """Today's Call List, from `replayed` (covering every Active Mortgage) when the
+    caller has replayed them already."""
     settings = get_settings(conn)
     rows = (
         conn.execute(
@@ -107,7 +114,8 @@ def call_list(conn: Connection, today: date) -> list[CallListGroup]:
         .mappings()
         .all()
     )
-    replayed = replays(conn, rows)
+    if replayed is None:
+        replayed = replays(conn, rows)
     rates = gold_rates(conn)
     called = _todays_notes(conn, today)
 

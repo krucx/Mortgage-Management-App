@@ -180,12 +180,6 @@ def _payments_by_month(conn: Connection, today: date) -> list[MonthlyPayments]:
     ]
 
 
-def _with_a_message(conn: Connection, status: notices.NoticeStatus) -> int:
-    """Notices in `status` that still have something to say (an unsent Notice whose
-    Mortgages no longer accrue that day has not)."""
-    return sum(1 for notice in notices.list_notices(conn, status) if notice.message)
-
-
 def dashboard(conn: Connection, today: date) -> Dashboard:
     rows = conn.execute(select(mortgage_table)).mappings().all()
     replayed = replays(conn, rows)
@@ -225,6 +219,7 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
                 profit_loss += row["recovered_amount"] - owed_then
 
     projections, trend_months, coming_months = _projections(conn, active, today)
+    to_send = notices.unsent_counts(conn)
     return Dashboard(
         as_of=today,
         active_mortgages=len(active),
@@ -235,11 +230,11 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
         interest_collected_this_year=collected_year,
         collateral_value=valued,
         loan_to_value=valued_owed / valued if valued else None,
-        call_list_count=sum(len(group.rows) for group in call_list(conn, today)),
-        notices_to_send=_with_a_message(conn, notices.NoticeStatus.QUEUED),
-        notices_to_approve=_with_a_message(
-            conn, notices.NoticeStatus.AWAITING_APPROVAL
+        call_list_count=sum(
+            len(group.rows) for group in call_list(conn, today, replayed)
         ),
+        notices_to_send=to_send[notices.NoticeStatus.QUEUED],
+        notices_to_approve=to_send[notices.NoticeStatus.AWAITING_APPROVAL],
         redeemed_this_month=redeemed,
         forfeited_this_month=forfeited,
         forfeiture_profit_loss_this_month=profit_loss,

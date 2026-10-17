@@ -1,7 +1,7 @@
 """Mortgages: one loan against one pledged packet of jewellery (see GLOSSARY.md)."""
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date
 from typing import Annotated, Any, Literal
 
@@ -190,10 +190,15 @@ def _closure(mortgage: MortgageReplay) -> Closure | None:
 
 
 def mortgage_rows(
-    conn: Connection, rows: Sequence[RowMapping], as_of: date
+    conn: Connection,
+    rows: Sequence[RowMapping],
+    as_of: date,
+    replayed: Mapping[int, MortgageReplay] | None = None,
 ) -> list[MortgageRow]:
-    """Rows from select_with_customer() as listed in tables, Outstanding as of `as_of`."""
-    found = replays(conn, rows)
+    """Rows from select_with_customer() as listed in tables, Outstanding as of `as_of`;
+    from `replayed` when the caller has replayed them already."""
+    if replayed is None:
+        replayed = replays(conn, rows)
     return [
         MortgageRow(
             id=row["id"],
@@ -202,7 +207,7 @@ def mortgage_rows(
             start_date=row["start_date"],
             amount_lent=row["amount_lent"],
             status=row["status"],
-            outstanding_total=found[row["id"]].outstanding(as_of).total,
+            outstanding_total=replayed[row["id"]].outstanding(as_of).total,
         )
         for row in rows
     ]
