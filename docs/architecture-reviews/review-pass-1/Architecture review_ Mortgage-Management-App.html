@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<!-- saved from url=(0104)file:///private/var/folders/3s/96nphybs21qcyy1ppqbzm3x80000gn/T/architecture-review-20261017-200612.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture review: Mortgage-Management-App</title>
+<script src="./Architecture review_ Mortgage-Management-App_files/saved_resource"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose", flowchart: { curve: "basis" } });
+</script>
+<style>
+  .seam { border-style: dashed; }
+  .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #e2e8f0; }
+  .schem { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
+  .diagram { min-height: 320px; }
+  .mermaid { display:flex; justify-content:center; }
+</style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.absolute{position:absolute}.relative{position:relative}.-top-3{top:-0.75rem}.right-0{right:0px}.mx-auto{margin-left:auto;margin-right:auto}.mb-2{margin-bottom:0.5rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mt-4{margin-top:1rem}.mt-auto{margin-top:auto}.inline-block{display:inline-block}.flex{display:flex}.grid{display:grid}.h-3{height:0.75rem}.h-4{height:1rem}.w-3{width:0.75rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-full{width:100%}.max-w-3xl{max-width:48rem}.max-w-5xl{max-width:64rem}.flex-1{flex:1 1 0%}.list-disc{list-style-type:disc}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.grid-cols-\[6\.5rem_repeat\(4\2c 1fr\)\]{grid-template-columns:6.5rem repeat(4,1fr)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.items-stretch{align-items:stretch}.justify-center{justify-content:center}.gap-1{gap:0.25rem}.gap-1\.5{gap:0.375rem}.gap-2{gap:0.5rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.gap-5{gap:1.25rem}.gap-6{gap:1.5rem}.gap-x-6{column-gap:1.5rem}.gap-y-3{row-gap:0.75rem}.space-y-1 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.25rem * var(--tw-space-y-reverse))}.space-y-1\.5 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.375rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.375rem * var(--tw-space-y-reverse))}.space-y-12 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(3rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(3rem * var(--tw-space-y-reverse))}.space-y-14 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(3.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(3.5rem * var(--tw-space-y-reverse))}.space-y-3 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.75rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.space-y-6 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.5rem * var(--tw-space-y-reverse))}.rounded{border-radius:0.25rem}.rounded-lg{border-radius:0.5rem}.rounded-xl{border-radius:0.75rem}.border{border-width:1px}.border-4{border-width:4px}.border-t-2{border-top-width:2px}.border-dashed{border-style:dashed}.border-amber-300{--tw-border-opacity:1;border-color:rgb(252 211 77 / var(--tw-border-opacity, 1))}.border-red-400{--tw-border-opacity:1;border-color:rgb(248 113 113 / var(--tw-border-opacity, 1))}.border-red-600{--tw-border-opacity:1;border-color:rgb(220 38 38 / var(--tw-border-opacity, 1))}.border-slate-200{--tw-border-opacity:1;border-color:rgb(226 232 240 / var(--tw-border-opacity, 1))}.border-slate-400{--tw-border-opacity:1;border-color:rgb(148 163 184 / var(--tw-border-opacity, 1))}.border-slate-500{--tw-border-opacity:1;border-color:rgb(100 116 139 / var(--tw-border-opacity, 1))}.border-slate-600{--tw-border-opacity:1;border-color:rgb(71 85 105 / var(--tw-border-opacity, 1))}.border-slate-900{--tw-border-opacity:1;border-color:rgb(15 23 42 / var(--tw-border-opacity, 1))}.bg-amber-100{--tw-bg-opacity:1;background-color:rgb(254 243 199 / var(--tw-bg-opacity, 1))}.bg-amber-200{--tw-bg-opacity:1;background-color:rgb(253 230 138 / var(--tw-bg-opacity, 1))}.bg-amber-50{--tw-bg-opacity:1;background-color:rgb(255 251 235 / var(--tw-bg-opacity, 1))}.bg-emerald-100{--tw-bg-opacity:1;background-color:rgb(209 250 229 / var(--tw-bg-opacity, 1))}.bg-emerald-200{--tw-bg-opacity:1;background-color:rgb(167 243 208 / var(--tw-bg-opacity, 1))}.bg-red-300{--tw-bg-opacity:1;background-color:rgb(252 165 165 / var(--tw-bg-opacity, 1))}.bg-sky-200{--tw-bg-opacity:1;background-color:rgb(186 230 253 / var(--tw-bg-opacity, 1))}.bg-slate-100{--tw-bg-opacity:1;background-color:rgb(241 245 249 / var(--tw-bg-opacity, 1))}.bg-slate-200{--tw-bg-opacity:1;background-color:rgb(226 232 240 / var(--tw-bg-opacity, 1))}.bg-stone-50{--tw-bg-opacity:1;background-color:rgb(250 250 249 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.p-2{padding:0.5rem}.p-3{padding:0.75rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-8{padding:2rem}.px-1{padding-left:0.25rem;padding-right:0.25rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.px-4{padding-left:1rem;padding-right:1rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.py-1{padding-top:0.25rem;padding-bottom:0.25rem}.py-12{padding-top:3rem;padding-bottom:3rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.pl-5{padding-left:1.25rem}.pt-0\.5{padding-top:0.125rem}.pt-2{padding-top:0.5rem}.pt-3{padding-top:0.75rem}.text-center{text-align:center}.align-middle{vertical-align:middle}.font-mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}.font-sans{font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"}.font-serif{font-family:ui-serif, Georgia, Cambria, "Times New Roman", Times, serif}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-\[11px\]{font-size:11px}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-semibold{font-weight:600}.text-amber-800{--tw-text-opacity:1;color:rgb(146 64 14 / var(--tw-text-opacity, 1))}.text-amber-900{--tw-text-opacity:1;color:rgb(120 53 15 / var(--tw-text-opacity, 1))}.text-emerald-300{--tw-text-opacity:1;color:rgb(110 231 183 / var(--tw-text-opacity, 1))}.text-emerald-700{--tw-text-opacity:1;color:rgb(4 120 87 / var(--tw-text-opacity, 1))}.text-emerald-800{--tw-text-opacity:1;color:rgb(6 95 70 / var(--tw-text-opacity, 1))}.text-red-600{--tw-text-opacity:1;color:rgb(220 38 38 / var(--tw-text-opacity, 1))}.text-red-700{--tw-text-opacity:1;color:rgb(185 28 28 / var(--tw-text-opacity, 1))}.text-slate-300{--tw-text-opacity:1;color:rgb(203 213 225 / var(--tw-text-opacity, 1))}.text-slate-400{--tw-text-opacity:1;color:rgb(148 163 184 / var(--tw-text-opacity, 1))}.text-slate-500{--tw-text-opacity:1;color:rgb(100 116 139 / var(--tw-text-opacity, 1))}.text-slate-600{--tw-text-opacity:1;color:rgb(71 85 105 / var(--tw-text-opacity, 1))}.text-slate-700{--tw-text-opacity:1;color:rgb(51 65 85 / var(--tw-text-opacity, 1))}.text-slate-900{--tw-text-opacity:1;color:rgb(15 23 42 / var(--tw-text-opacity, 1))}.underline{-webkit-text-decoration-line:underline;text-decoration-line:underline}.decoration-emerald-400{-webkit-text-decoration-color:#34d399;text-decoration-color:#34d399}.underline-offset-4{text-underline-offset:4px}.shadow-sm{--tw-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}@media (min-width: 640px){.sm\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}}@media (min-width: 768px){.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-\[8rem_1fr\]{grid-template-columns:8rem 1fr}}</style></head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-6 py-12 space-y-14">
+
+<header class="space-y-4">
+  <p class="schem text-slate-500">Architecture review · 17 Oct 2026 · scope: last 20 commits (Ledger, Payments, Term Changes, Previews, Projections, Closure)</p>
+  <h1 class="font-serif text-4xl">Mortgage-Management-App</h1>
+  <div class="flex flex-wrap gap-5 text-xs text-slate-600">
+    <span class="flex items-center gap-2"><span class="inline-block w-5 h-4 border border-slate-500 bg-white"></span>module</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-6 border-t-2 border-dashed border-slate-500"></span>seam</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-6 border-t-2 border-red-600"></span>leakage</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-5 h-4 deep"></span>deep module</span>
+  </div>
+</header>
+
+<section id="candidates" class="space-y-12">
+
+<!-- 1 -->
+<article id="c1" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+  <div class="flex flex-wrap items-center gap-3">
+    <span class="font-mono text-slate-400">01</span>
+    <h2 class="font-serif text-2xl">Deepen the Mortgage replay: one module from stored facts to Ledger, Outstanding and Redemption Amount</h2>
+  </div>
+  <div class="flex gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-semibold">Strong</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 grid sm:grid-cols-2 gap-x-6">
+    <li>backend/…/mortgages.py <span class="text-slate-400">terms_of, allocations_to, term_changes_of, ledgers_of, quote_redemption, redemption_on, outstanding_of</span></li>
+    <li>backend/…/projections.py <span class="text-slate-400">_series, _inputs</span></li>
+    <li>backend/…/closing.py <span class="text-slate-400">_closable, ready_to_redeem</span></li>
+    <li>backend/…/payments.py <span class="text-slate-400">_load_payment, check_no_overpayment</span></li>
+    <li>backend/…/previews.py, call_list.py</li>
+    <li>backend/…/ledger.py <span class="text-slate-400">compute_ledger (9 params)</span></li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-red-600 mb-2">Before: every caller rebuilds the replay</p>
+      <pre class="mermaid" data-processed="true"><div id="dmermaid-1792247869824" style="font-family: &quot;trebuchet ms&quot;, verdana, arial, sans-serif;"><svg id="mermaid-1792247869824" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 2412 512" style="max-width: 512px;" role="graphics-document document" aria-roledescription="error"><style>#mermaid-1792247869824{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#mermaid-1792247869824 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#mermaid-1792247869824 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#mermaid-1792247869824 .error-icon{fill:#552222;}#mermaid-1792247869824 .error-text{fill:#552222;stroke:#552222;}#mermaid-1792247869824 .edge-thickness-normal{stroke-width:1px;}#mermaid-1792247869824 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-1792247869824 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-1792247869824 .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-1792247869824 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-1792247869824 .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-1792247869824 .marker{fill:#666;stroke:#666;}#mermaid-1792247869824 .marker.cross{stroke:#666;}#mermaid-1792247869824 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-1792247869824 p{margin:0;}#mermaid-1792247869824 .node .neo-node{stroke:#999;}#mermaid-1792247869824 [data-look="neo"].node rect,#mermaid-1792247869824 [data-look="neo"].cluster rect,#mermaid-1792247869824 [data-look="neo"].node polygon{stroke:url(#mermaid-1792247869824-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247869824 [data-look="neo"].swimlane.cluster rect{filter:none;}#mermaid-1792247869824 [data-look="neo"].node path{stroke:url(#mermaid-1792247869824-gradient);stroke-width:1px;}#mermaid-1792247869824 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247869824 [data-look="neo"].node .neo-line path{stroke:#999;filter:none;}#mermaid-1792247869824 [data-look="neo"].node circle{stroke:url(#mermaid-1792247869824-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247869824 [data-look="neo"].node circle .state-start{fill:#000000;}#mermaid-1792247869824 [data-look="neo"].icon-shape .icon{fill:url(#mermaid-1792247869824-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247869824 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#mermaid-1792247869824-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247869824 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g></g><g><path class="error-icon" d="m411.313,123.313c6.25-6.25 6.25-16.375 0-22.625s-16.375-6.25-22.625,0l-32,32-9.375,9.375-20.688-20.688c-12.484-12.5-32.766-12.5-45.25,0l-16,16c-1.261,1.261-2.304,2.648-3.31,4.051-21.739-8.561-45.324-13.426-70.065-13.426-105.867,0-192,86.133-192,192s86.133,192 192,192 192-86.133 192-192c0-24.741-4.864-48.327-13.426-70.065 1.402-1.007 2.79-2.049 4.051-3.31l16-16c12.5-12.492 12.5-32.758 0-45.25l-20.688-20.688 9.375-9.375 32.001-31.999zm-219.313,100.687c-52.938,0-96,43.063-96,96 0,8.836-7.164,16-16,16s-16-7.164-16-16c0-70.578 57.422-128 128-128 8.836,0 16,7.164 16,16s-7.164,16-16,16z"></path><path class="error-icon" d="m459.02,148.98c-6.25-6.25-16.375-6.25-22.625,0s-6.25,16.375 0,22.625l16,16c3.125,3.125 7.219,4.688 11.313,4.688 4.094,0 8.188-1.563 11.313-4.688 6.25-6.25 6.25-16.375 0-22.625l-16.001-16z"></path><path class="error-icon" d="m340.395,75.605c3.125,3.125 7.219,4.688 11.313,4.688 4.094,0 8.188-1.563 11.313-4.688 6.25-6.25 6.25-16.375 0-22.625l-16-16c-6.25-6.25-16.375-6.25-22.625,0s-6.25,16.375 0,22.625l15.999,16z"></path><path class="error-icon" d="m400,64c8.844,0 16-7.164 16-16v-32c0-8.836-7.156-16-16-16-8.844,0-16,7.164-16,16v32c0,8.836 7.156,16 16,16z"></path><path class="error-icon" d="m496,96.586h-32c-8.844,0-16,7.164-16,16 0,8.836 7.156,16 16,16h32c8.844,0 16-7.164 16-16 0-8.836-7.156-16-16-16z"></path><path class="error-icon" d="m436.98,75.605c3.125,3.125 7.219,4.688 11.313,4.688 4.094,0 8.188-1.563 11.313-4.688l32-32c6.25-6.25 6.25-16.375 0-22.625s-16.375-6.25-22.625,0l-32,32c-6.251,6.25-6.251,16.375-0.001,22.625z"></path><text class="error-text" x="1440" y="250" font-size="150px" style="text-anchor: middle;">Syntax error in text</text><text class="error-text" x="1250" y="400" font-size="100px" style="text-anchor: middle;">mermaid version 11.17.2</text></g></svg></div></pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram flex flex-col">
+      <p class="schem text-emerald-700 mb-2">After: one seam, loaded once</p>
+      <div class="flex-1 flex flex-col justify-center gap-3">
+        <div class="flex flex-wrap gap-2 justify-center text-xs">
+          <span class="px-2 py-1 border rounded">Mortgage page</span><span class="px-2 py-1 border rounded">Payment</span><span class="px-2 py-1 border rounded">Closure</span><span class="px-2 py-1 border rounded">Projection</span><span class="px-2 py-1 border rounded">Call List</span><span class="px-2 py-1 border rounded">Preview</span>
+        </div>
+        <div class="border-t-2 border-dashed border-slate-500 relative"><span class="schem absolute -top-3 right-0 bg-white px-1 text-slate-500">seam</span></div>
+        <div class="deep rounded-lg p-5 space-y-3 border-4 border-slate-900">
+          <p class="schem text-emerald-300">Mortgage replay</p>
+          <p class="font-mono text-sm">replays(conn, ids) → .ledger(as_of) · .outstanding(on) · .redemption(on) · .project(…)</p>
+          <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+            <span class="border border-slate-600 rounded px-2 py-1">row → Terms</span>
+            <span class="border border-slate-600 rounded px-2 py-1">non-Voided Allocations</span>
+            <span class="border border-slate-600 rounded px-2 py-1">Term Changes</span>
+            <span class="border border-slate-600 rounded px-2 py-1">closed_on / Forfeited</span>
+            <span class="border border-slate-600 rounded px-2 py-1">exclude Redemption's final Payment</span>
+            <span class="border border-slate-600 rounded px-2 py-1">compute_ledger</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-y-3 text-sm">
+    <dt class="schem text-slate-500 pt-0.5">Problem</dt>
+    <dd>The pure ledger engine is deep and well tested, but turning a Mortgage's stored facts into a replay is spelled out by ~8 callers, each passing a different subset of <code>compute_ledger</code>'s 9 parameters; the rules ("a Voided Payment is in no Ledger", "ignore the Redemption's own final Payment", "Forfeited settles the debt") live in whichever caller remembered them.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Solution</dt>
+    <dd>One Mortgage replay module that loads a set of Mortgages' facts once and answers Ledger, Outstanding, Redemption Amount and Projection questions; <code>compute_ledger</code> becomes its internal seam.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Wins</dt>
+    <dd><ul class="list-disc pl-5 space-y-1">
+      <li>locality: replay rules live once</li>
+      <li>leverage: one interface, ~8 call sites</li>
+      <li>tests hit the replay without HTTP</li>
+      <li>delete terms_of, outstanding_of wrappers</li>
+      <li>no triple queries in load_mortgage</li>
+      <li>no N+1 in ready_to_redeem</li>
+    </ul></dd>
+  </dl>
+  <div class="rounded border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">Consistent with ADR-0001: the Ledger stays derived; this deepens how it is derived, it does not store anything.</div>
+</article>
+
+<!-- 2 -->
+<article id="c2" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+  <div class="flex flex-wrap items-center gap-3">
+    <span class="font-mono text-slate-400">02</span>
+    <h2 class="font-serif text-2xl">Every change to a Mortgage goes through one change module: check, write, replay, History; Preview for free</h2>
+  </div>
+  <div class="flex gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-semibold">Strong</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 grid sm:grid-cols-2 gap-x-6">
+    <li>backend/…/payments.py <span class="text-slate-400">record_payment, insert_payment, void_payment, apply_void, check_no_overpayment</span></li>
+    <li>backend/…/closing.py <span class="text-slate-400">redeem, forfeit, reopen</span></li>
+    <li>backend/…/term_changes.py <span class="text-slate-400">apply_term_change, remove_term_change</span></li>
+    <li>backend/…/mortgages.py <span class="text-slate-400">apply_edit</span></li>
+    <li>backend/…/previews.py <span class="text-slate-400">_preview</span></li>
+    <li>backend/…/audit.py <span class="text-slate-400">13 direct record() calls</span></li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-red-600 mb-3">Before: invariants are the caller's job</p>
+      <div class="space-y-1.5 text-xs">
+        <div class="grid grid-cols-[6.5rem_repeat(4,1fr)] gap-1 schem text-slate-400"><span></span><span>Active?</span><span>replay ok?</span><span>History</span><span>preview</span></div>
+        <!-- rows -->
+        <div class="grid grid-cols-[6.5rem_repeat(4,1fr)] gap-1 items-center"><span class="font-mono">edit</span><span class="bg-emerald-200 h-4 rounded"></span><span class="bg-emerald-200 h-4 rounded" title="inline try/except"></span><span class="bg-emerald-200 h-4 rounded"></span><span class="bg-emerald-200 h-4 rounded"></span></div>
+        <div class="grid grid-cols-[6.5rem_repeat(4,1fr)] gap-1 items-center"><span class="font-mono">term change</span><span class="bg-emerald-200 h-4 rounded"></span><span class="bg-amber-200 h-4 rounded" title="implicit"></span><span class="bg-emerald-200 h-4 rounded"></span><span class="bg-emerald-200 h-4 rounded"></span></div>
+        <div class="grid grid-cols-[6.5rem_repeat(4,1fr)] gap-1 items-center"><span class="font-mono">void</span><span class="bg-emerald-200 h-4 rounded"></span><span class="bg-amber-200 h-4 rounded"></span><span class="bg-emerald-200 h-4 rounded"></span><span class="bg-emerald-200 h-4 rounded"></span></div>
+        <div class="grid grid-cols-[6.5rem_repeat(4,1fr)] gap-1 items-center"><span class="font-mono">payment</span><span class="bg-sky-200 h-4 rounded" title="in handler, 422"></span><span class="bg-sky-200 h-4 rounded" title="check_no_overpayment"></span><span class="bg-emerald-200 h-4 rounded"></span><span class="bg-red-300 h-4 rounded"></span></div>
+        <div class="grid grid-cols-[6.5rem_repeat(4,1fr)] gap-1 items-center"><span class="font-mono">redeem</span><span class="bg-sky-200 h-4 rounded"></span><span class="bg-sky-200 h-4 rounded"></span><span class="bg-sky-200 h-4 rounded" title="two entries, two modules"></span><span class="bg-red-300 h-4 rounded"></span></div>
+        <div class="grid grid-cols-[6.5rem_repeat(4,1fr)] gap-1 items-center"><span class="font-mono">forfeit</span><span class="bg-sky-200 h-4 rounded"></span><span class="bg-red-300 h-4 rounded"></span><span class="bg-emerald-200 h-4 rounded"></span><span class="bg-red-300 h-4 rounded"></span></div>
+        <div class="grid grid-cols-[6.5rem_repeat(4,1fr)] gap-1 items-center"><span class="font-mono">reopen</span><span class="bg-sky-200 h-4 rounded"></span><span class="bg-red-300 h-4 rounded"></span><span class="bg-sky-200 h-4 rounded" title="bypasses apply_void"></span><span class="bg-red-300 h-4 rounded"></span></div>
+        <div class="grid grid-cols-[6.5rem_repeat(4,1fr)] gap-1 items-center"><span class="font-mono">remove change</span><span class="bg-sky-200 h-4 rounded"></span><span class="bg-red-300 h-4 rounded"></span><span class="bg-emerald-200 h-4 rounded"></span><span class="bg-red-300 h-4 rounded"></span></div>
+        <div class="flex flex-wrap gap-3 pt-3 text-[11px] text-slate-500">
+          <span><span class="inline-block w-3 h-3 bg-emerald-200 rounded align-middle"></span> inside apply_*</span>
+          <span><span class="inline-block w-3 h-3 bg-sky-200 rounded align-middle"></span> inline in route handler</span>
+          <span><span class="inline-block w-3 h-3 bg-amber-200 rounded align-middle"></span> safe by implicit date reasoning</span>
+          <span><span class="inline-block w-3 h-3 bg-red-300 rounded align-middle"></span> missing</span>
+        </div>
+        <p class="text-[11px] text-red-700 pt-2"><code>insert_payment</code> / <code>void_payment</code>: "Callers check it first"</p>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram flex flex-col">
+      <p class="schem text-emerald-700 mb-2">After: the change is the unit</p>
+      <div class="flex-1 flex flex-col justify-center gap-3">
+        <div class="flex gap-2 justify-center text-xs">
+          <span class="px-2 py-1 border rounded">POST …/redeem</span>
+          <span class="px-2 py-1 border rounded">POST …/redeem/preview</span>
+        </div>
+        <div class="border-t-2 border-dashed border-slate-500 relative"><span class="schem absolute -top-3 right-0 bg-white px-1 text-slate-500">seam</span></div>
+        <div class="deep rounded-lg p-5 space-y-3 border-4 border-slate-900">
+          <p class="schem text-emerald-300">Mortgage changes</p>
+          <p class="font-mono text-sm">apply(conn, change, today, now)</p>
+          <div class="flex flex-col gap-1.5 text-[11px] text-slate-400">
+            <span class="border border-slate-600 rounded px-2 py-1">1 · refuse: status, dates, ownership</span>
+            <span class="border border-slate-600 rounded px-2 py-1">2 · write rows</span>
+            <span class="border border-slate-600 rounded px-2 py-1">3 · replay every touched Mortgage (Overpayment → refusal)</span>
+            <span class="border border-slate-600 rounded px-2 py-1">4 · History entries, worded in one place</span>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 text-center">Preview = apply, snapshot, roll back, for all 8 changes</p>
+      </div>
+    </div>
+  </div>
+
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-y-3 text-sm">
+    <dt class="schem text-slate-500 pt-0.5">Problem</dt>
+    <dd>Three changes (edit, Term Change, Void) have an <code>apply_*</code> function that Preview can run; the other five keep their checks inline in route handlers. So the "is it Active", "does the replay still hold" and History steps are re-assembled per change, with different status codes and wording, and Payment, Redeem, Forfeit, Reopen can't be previewed.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Solution</dt>
+    <dd>Each change becomes one function in a Mortgage changes module that checks, writes, re-replays the Mortgages it touches and records History; route handlers and Preview both call it.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Wins</dt>
+    <dd><ul class="list-disc pl-5 space-y-1">
+      <li>locality: invariants enforced once</li>
+      <li>Preview covers every change</li>
+      <li>"Callers check it first" disappears</li>
+      <li>History wording in one module</li>
+      <li>tests: one change, one interface</li>
+    </ul></dd>
+  </dl>
+</article>
+
+<!-- 3 -->
+<article id="c3" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+  <div class="flex flex-wrap items-center gap-3">
+    <span class="font-mono text-slate-400">03</span>
+    <h2 class="font-serif text-2xl">Projection as one replay that reports at chosen dates</h2>
+  </div>
+  <div class="flex gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-amber-100 text-amber-800 font-semibold">Worth exploring</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600">
+    <li>backend/…/projections.py <span class="text-slate-400">_series, baseline, project</span></li>
+    <li>backend/…/ledger.py <span class="text-slate-400">compute_ledger, HypotheticalPayments</span></li>
+    <li>backend/…/mortgages.py <span class="text-slate-400">quote_redemption</span></li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-red-600 mb-3">Before: 13 points × 2 replays + 2 more, per series</p>
+      <svg viewBox="0 0 300 250" class="w-full">
+        <g font-size="9" fill="#64748b">
+          <text x="0" y="12">replays from start date</text>
+        </g>
+        <g>
+        </g>
+        <!-- static bars -->
+        <g fill="#fecaca" stroke="#dc2626" stroke-width=".5">
+          <rect x="0" y="20" width="130" height="5"></rect><rect x="0" y="27" width="130" height="5"></rect>
+          <rect x="0" y="37" width="140" height="5"></rect><rect x="0" y="44" width="140" height="5"></rect>
+          <rect x="0" y="54" width="150" height="5"></rect><rect x="0" y="61" width="150" height="5"></rect>
+          <rect x="0" y="71" width="160" height="5"></rect><rect x="0" y="78" width="160" height="5"></rect>
+          <rect x="0" y="88" width="170" height="5"></rect><rect x="0" y="95" width="170" height="5"></rect>
+          <rect x="0" y="105" width="180" height="5"></rect><rect x="0" y="112" width="180" height="5"></rect>
+          <rect x="0" y="122" width="190" height="5"></rect><rect x="0" y="129" width="190" height="5"></rect>
+          <rect x="0" y="139" width="200" height="5"></rect><rect x="0" y="146" width="200" height="5"></rect>
+          <rect x="0" y="156" width="210" height="5"></rect><rect x="0" y="163" width="210" height="5"></rect>
+          <rect x="0" y="173" width="220" height="5"></rect><rect x="0" y="180" width="220" height="5"></rect>
+          <rect x="0" y="190" width="230" height="5"></rect><rect x="0" y="197" width="230" height="5"></rect>
+          <rect x="0" y="207" width="240" height="5"></rect><rect x="0" y="214" width="240" height="5"></rect>
+        </g>
+        <g fill="#fde68a" stroke="#d97706" stroke-width=".5">
+          <rect x="0" y="226" width="250" height="5"></rect><rect x="0" y="236" width="300" height="5"></rect>
+        </g>
+        <g font-size="8" fill="#94a3b8"><text x="255" y="231">term changes</text></g>
+      </svg>
+      <p class="text-[11px] text-slate-500">paid_off_on found by scanning for <code>payment_id is None</code>: couples Projection to how the Ledger marks hypothetical Payments</p>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram flex flex-col">
+      <p class="schem text-emerald-700 mb-3">After: one pass, snapshots on the way</p>
+      <svg viewBox="0 0 300 160" class="w-full">
+        <rect x="0" y="70" width="300" height="14" fill="#0f172a" rx="3"></rect>
+        <g fill="#34d399">
+          <circle cx="130" cy="77" r="4"></circle><circle cx="144" cy="77" r="4"></circle><circle cx="158" cy="77" r="4"></circle><circle cx="172" cy="77" r="4"></circle><circle cx="186" cy="77" r="4"></circle><circle cx="200" cy="77" r="4"></circle><circle cx="214" cy="77" r="4"></circle><circle cx="228" cy="77" r="4"></circle><circle cx="242" cy="77" r="4"></circle><circle cx="256" cy="77" r="4"></circle><circle cx="270" cy="77" r="4"></circle><circle cx="284" cy="77" r="4"></circle>
+        </g>
+        <g font-size="9" fill="#475569">
+          <text x="0" y="60">start</text><text x="120" y="60">today</text><text x="250" y="60">+12 months</text>
+          <text x="0" y="110">each snapshot: Principal, unpaid interest,</text>
+          <text x="0" y="122">Redemption Amount, Term Change, paid off?</text>
+        </g>
+      </svg>
+      <p class="font-mono text-xs text-slate-600 mt-auto">replay.project(dates, hypothetical) → snapshots</p>
+    </div>
+  </div>
+
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-y-3 text-sm">
+    <dt class="schem text-slate-500 pt-0.5">Problem</dt>
+    <dd>A Projection series replays the Mortgage from its start once per point, again per point for the Redemption Amount, then twice more; "paid off" and "coming Term Changes" are re-derived by scanning Ledger steps outside the engine.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Solution</dt>
+    <dd>The replay yields a snapshot (including the Redemption Amount if closed that day) at each requested date in one pass; Projection reads snapshots instead of re-running the engine.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Wins</dt>
+    <dd><ul class="list-disc pl-5 space-y-1">
+      <li>Projection maths stays in the engine</li>
+      <li>no test_projections.py today: gains one interface</li>
+      <li>~28 replays become 1</li>
+    </ul></dd>
+  </dl>
+  <p class="text-xs text-slate-500">Natural follow-on to 01: the snapshot method lives on the Mortgage replay interface.</p>
+</article>
+
+<!-- 4 -->
+<article id="c4" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+  <div class="flex flex-wrap items-center gap-3">
+    <span class="font-mono text-slate-400">04</span>
+    <h2 class="font-serif text-2xl">Generate the frontend's types from the backend's OpenAPI</h2>
+  </div>
+  <div class="flex gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-amber-100 text-amber-800 font-semibold">Worth exploring</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">local-substitutable</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600">
+    <li>frontend/src/api.ts <span class="text-slate-400">552 lines, hand-mirrored Pydantic models</span></li>
+    <li>backend/…/*.py <span class="text-slate-400">Pydantic response models</span></li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <div class="rounded-lg border border-slate-200 p-4 diagram flex flex-col justify-center">
+      <p class="schem text-red-600 mb-4">Before: two copies of every shape</p>
+      <div class="flex items-stretch gap-4">
+        <div class="flex-1 border border-slate-400 rounded p-3 space-y-1 text-[11px] font-mono">
+          <p class="schem text-slate-500">Python</p>
+          <p>Mortgage</p><p>LedgerStep</p><p>Redemption</p><p>Projection</p><p>MortgagePreview</p><p>Payment</p><p class="text-slate-400">… ~40 more</p>
+        </div>
+        <div class="flex flex-col justify-center text-red-600 text-xs text-center">
+          <span>copied</span><span>by hand</span><span class="text-2xl">⇢</span><span>drift?</span>
+        </div>
+        <div class="flex-1 border border-red-400 rounded p-3 space-y-1 text-[11px] font-mono">
+          <p class="schem text-slate-500">TypeScript</p>
+          <p>Mortgage</p><p>LedgerStep</p><p>Redemption</p><p>Projection</p><p>MortgagePreview</p><p>Payment</p><p class="text-slate-400">… ~40 more</p>
+        </div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram flex flex-col justify-center">
+      <p class="schem text-emerald-700 mb-4">After: one source, generated mirror</p>
+      <div class="flex items-center gap-3 text-xs">
+        <div class="deep rounded p-3 font-mono text-[11px]">Pydantic models</div>
+        <span>→</span>
+        <div class="border rounded p-2 font-mono text-[11px]">openapi.json</div>
+        <span>→</span>
+        <div class="border border-dashed rounded p-2 font-mono text-[11px] text-slate-500">api.gen.ts</div>
+      </div>
+      <p class="text-xs text-slate-600 mt-4">api.ts keeps only the fetch functions; a CI check fails when the generated file is stale.</p>
+    </div>
+  </div>
+
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-y-3 text-sm">
+    <dt class="schem text-slate-500 pt-0.5">Problem</dt>
+    <dd>Every backend shape change (e.g. the Preview and Projection fields added in the last three commits) must be hand-copied into <code>api.ts</code>; nothing catches a missed field.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Solution</dt>
+    <dd>Generate TypeScript types from FastAPI's OpenAPI schema; <code>api.ts</code> shrinks to fetch calls over generated types.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Wins</dt>
+    <dd><ul class="list-disc pl-5 space-y-1">
+      <li>drift caught by the type checker</li>
+      <li>api.ts interface shrinks by ~350 lines</li>
+    </ul></dd>
+  </dl>
+</article>
+
+<!-- 5 -->
+<article id="c5" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+  <div class="flex flex-wrap items-center gap-3">
+    <span class="font-mono text-slate-400">05</span>
+    <h2 class="font-serif text-2xl">Payment Allocation rules live on one side of the seam</h2>
+  </div>
+  <div class="flex gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-slate-200 text-slate-700 font-semibold">Speculative</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600">
+    <li>frontend/src/allocate.ts, frontend/src/pages/NewPaymentPage.tsx</li>
+    <li>backend/…/payments.py <span class="text-slate-400">PaymentIn.allocations_add_up, check_no_overpayment</span></li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-red-600 mb-2">Before: two "too much?" rules</p>
+      <pre class="mermaid" data-processed="true"><div id="dmermaid-1792247870493" style="font-family: &quot;trebuchet ms&quot;, verdana, arial, sans-serif;"><svg id="mermaid-1792247870493" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 2412 512" style="max-width: 512px;" role="graphics-document document" aria-roledescription="error"><style>#mermaid-1792247870493{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#mermaid-1792247870493 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#mermaid-1792247870493 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#mermaid-1792247870493 .error-icon{fill:#552222;}#mermaid-1792247870493 .error-text{fill:#552222;stroke:#552222;}#mermaid-1792247870493 .edge-thickness-normal{stroke-width:1px;}#mermaid-1792247870493 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-1792247870493 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-1792247870493 .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-1792247870493 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-1792247870493 .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-1792247870493 .marker{fill:#666;stroke:#666;}#mermaid-1792247870493 .marker.cross{stroke:#666;}#mermaid-1792247870493 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-1792247870493 p{margin:0;}#mermaid-1792247870493 .node .neo-node{stroke:#999;}#mermaid-1792247870493 [data-look="neo"].node rect,#mermaid-1792247870493 [data-look="neo"].cluster rect,#mermaid-1792247870493 [data-look="neo"].node polygon{stroke:url(#mermaid-1792247870493-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870493 [data-look="neo"].swimlane.cluster rect{filter:none;}#mermaid-1792247870493 [data-look="neo"].node path{stroke:url(#mermaid-1792247870493-gradient);stroke-width:1px;}#mermaid-1792247870493 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870493 [data-look="neo"].node .neo-line path{stroke:#999;filter:none;}#mermaid-1792247870493 [data-look="neo"].node circle{stroke:url(#mermaid-1792247870493-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870493 [data-look="neo"].node circle .state-start{fill:#000000;}#mermaid-1792247870493 [data-look="neo"].icon-shape .icon{fill:url(#mermaid-1792247870493-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870493 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#mermaid-1792247870493-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870493 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g></g><g><path class="error-icon" d="m411.313,123.313c6.25-6.25 6.25-16.375 0-22.625s-16.375-6.25-22.625,0l-32,32-9.375,9.375-20.688-20.688c-12.484-12.5-32.766-12.5-45.25,0l-16,16c-1.261,1.261-2.304,2.648-3.31,4.051-21.739-8.561-45.324-13.426-70.065-13.426-105.867,0-192,86.133-192,192s86.133,192 192,192 192-86.133 192-192c0-24.741-4.864-48.327-13.426-70.065 1.402-1.007 2.79-2.049 4.051-3.31l16-16c12.5-12.492 12.5-32.758 0-45.25l-20.688-20.688 9.375-9.375 32.001-31.999zm-219.313,100.687c-52.938,0-96,43.063-96,96 0,8.836-7.164,16-16,16s-16-7.164-16-16c0-70.578 57.422-128 128-128 8.836,0 16,7.164 16,16s-7.164,16-16,16z"></path><path class="error-icon" d="m459.02,148.98c-6.25-6.25-16.375-6.25-22.625,0s-6.25,16.375 0,22.625l16,16c3.125,3.125 7.219,4.688 11.313,4.688 4.094,0 8.188-1.563 11.313-4.688 6.25-6.25 6.25-16.375 0-22.625l-16.001-16z"></path><path class="error-icon" d="m340.395,75.605c3.125,3.125 7.219,4.688 11.313,4.688 4.094,0 8.188-1.563 11.313-4.688 6.25-6.25 6.25-16.375 0-22.625l-16-16c-6.25-6.25-16.375-6.25-22.625,0s-6.25,16.375 0,22.625l15.999,16z"></path><path class="error-icon" d="m400,64c8.844,0 16-7.164 16-16v-32c0-8.836-7.156-16-16-16-8.844,0-16,7.164-16,16v32c0,8.836 7.156,16 16,16z"></path><path class="error-icon" d="m496,96.586h-32c-8.844,0-16,7.164-16,16 0,8.836 7.156,16 16,16h32c8.844,0 16-7.164 16-16 0-8.836-7.156-16-16-16z"></path><path class="error-icon" d="m436.98,75.605c3.125,3.125 7.219,4.688 11.313,4.688 4.094,0 8.188-1.563 11.313-4.688l32-32c6.25-6.25 6.25-16.375 0-22.625s-16.375-6.25-22.625,0l-32,32c-6.251,6.25-6.251,16.375-0.001,22.625z"></path><text class="error-text" x="1440" y="250" font-size="150px" style="text-anchor: middle;">Syntax error in text</text><text class="error-text" x="1250" y="400" font-size="100px" style="text-anchor: middle;">mermaid version 11.17.2</text></g></svg></div></pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-emerald-700 mb-2">After: the Payment preview answers it</p>
+      <pre class="mermaid" data-processed="true"><svg id="mermaid-1792247870504" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 743.375px;" viewBox="0 0 743.375 287" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#mermaid-1792247870504{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#mermaid-1792247870504 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#mermaid-1792247870504 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#mermaid-1792247870504 .error-icon{fill:#552222;}#mermaid-1792247870504 .error-text{fill:#552222;stroke:#552222;}#mermaid-1792247870504 .edge-thickness-normal{stroke-width:1px;}#mermaid-1792247870504 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-1792247870504 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-1792247870504 .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-1792247870504 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-1792247870504 .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-1792247870504 .marker{fill:#666;stroke:#666;}#mermaid-1792247870504 .marker.cross{stroke:#666;}#mermaid-1792247870504 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-1792247870504 p{margin:0;}#mermaid-1792247870504 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#000000;}#mermaid-1792247870504 .cluster-label text{fill:#333;}#mermaid-1792247870504 .cluster-label span{color:#333;}#mermaid-1792247870504 .cluster-label span p{background-color:transparent;}#mermaid-1792247870504 .label text,#mermaid-1792247870504 span{fill:#000000;color:#000000;}#mermaid-1792247870504 .node rect,#mermaid-1792247870504 .node circle,#mermaid-1792247870504 .node ellipse,#mermaid-1792247870504 .node polygon,#mermaid-1792247870504 .node path{fill:#eee;stroke:#999;stroke-width:1px;}#mermaid-1792247870504 .rough-node .label text,#mermaid-1792247870504 .node .label text,#mermaid-1792247870504 .image-shape .label,#mermaid-1792247870504 .icon-shape .label{text-anchor:middle;}#mermaid-1792247870504 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mermaid-1792247870504 .rough-node .label,#mermaid-1792247870504 .node .label,#mermaid-1792247870504 .image-shape .label,#mermaid-1792247870504 .icon-shape .label{text-align:center;}#mermaid-1792247870504 .node.clickable{cursor:pointer;}#mermaid-1792247870504 .root .anchor path{fill:#666!important;stroke-width:0;stroke:#666;}#mermaid-1792247870504 .arrowheadPath{fill:#333333;}#mermaid-1792247870504 .edgePaths .path{stroke:#666;stroke-width:1px;}#mermaid-1792247870504 .flowchart-link{stroke:#666;fill:none;}#mermaid-1792247870504 .edgeLabel{background-color:white;text-align:center;}#mermaid-1792247870504 .edgeLabel p{background-color:white;}#mermaid-1792247870504 .edgeLabel rect{opacity:0.5;background-color:white;fill:white;}#mermaid-1792247870504 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#mermaid-1792247870504 .cluster rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;stroke-width:1px;}#mermaid-1792247870504 .cluster text{fill:#333;}#mermaid-1792247870504 .cluster span{color:#333;}#mermaid-1792247870504 .node .collapsed-indicator{fill:#707070;stroke:none;opacity:0.6;}#mermaid-1792247870504 .node .collapsed-separator{stroke:#707070;stroke-width:0.75px;}#mermaid-1792247870504 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(-160, 0%, 93.3333333333%);border:1px solid #707070;border-radius:2px;pointer-events:none;z-index:100;}#mermaid-1792247870504 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#000000;}#mermaid-1792247870504 rect.text{fill:none;stroke-width:0;}#mermaid-1792247870504 .icon-shape,#mermaid-1792247870504 .image-shape{background-color:white;text-align:center;}#mermaid-1792247870504 .icon-shape p,#mermaid-1792247870504 .image-shape p{background-color:white;padding:2px;}#mermaid-1792247870504 .icon-shape .label rect,#mermaid-1792247870504 .image-shape .label rect{opacity:0.5;background-color:white;fill:white;}#mermaid-1792247870504 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#mermaid-1792247870504 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#mermaid-1792247870504 .node .neo-node{stroke:#999;}#mermaid-1792247870504 [data-look="neo"].node rect,#mermaid-1792247870504 [data-look="neo"].cluster rect,#mermaid-1792247870504 [data-look="neo"].node polygon{stroke:url(#mermaid-1792247870504-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870504 [data-look="neo"].swimlane.cluster rect{filter:none;}#mermaid-1792247870504 [data-look="neo"].node path{stroke:url(#mermaid-1792247870504-gradient);stroke-width:1px;}#mermaid-1792247870504 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870504 [data-look="neo"].node .neo-line path{stroke:#999;filter:none;}#mermaid-1792247870504 [data-look="neo"].node circle{stroke:url(#mermaid-1792247870504-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870504 [data-look="neo"].node circle .state-start{fill:#000000;}#mermaid-1792247870504 [data-look="neo"].icon-shape .icon{fill:url(#mermaid-1792247870504-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870504 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#mermaid-1792247870504-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1792247870504 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="mermaid-1792247870504_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1792247870504_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1792247870504_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1792247870504_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="mermaid-1792247870504_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mermaid-1792247870504_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mermaid-1792247870504_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mermaid-1792247870504_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mermaid-1792247870504_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1792247870504_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1792247870504_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="mermaid-1792247870504_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M292.273,52.594L262.004,58.329C231.734,64.063,171.195,75.531,140.926,84.766C110.656,94,110.656,101,110.656,104.5L110.656,108" id="mermaid-1792247870504-L_NP_A_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_NP_A_0" data-points="W3sieCI6MjkyLjI3MzQzNzUsInkiOjUyLjU5NDMwNzY3MDQxNDEyfSx7IngiOjExMC42NTYyNSwieSI6ODd9LHsieCI6MTEwLjY1NjI1LCJ5IjoxMTJ9XQ==" data-look="classic" marker-end="url(#mermaid-1792247870504_flowchart-v2-pointEnd)"></path><path d="M385.148,62L385.148,66.167C385.148,70.333,385.148,78.667,385.148,88.333C385.148,98,385.148,109,385.148,114.5L385.148,120" id="mermaid-1792247870504-L_NP_PV_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_NP_PV_0" data-points="W3sieCI6Mzg1LjE0ODQzNzUsInkiOjYyfSx7IngiOjM4NS4xNDg0Mzc1LCJ5Ijo4N30seyJ4IjozODUuMTQ4NDM3NSwieSI6MTI0fV0=" data-look="classic" marker-end="url(#mermaid-1792247870504_flowchart-v2-pointEnd)"></path><path d="M385.148,178L385.148,184.167C385.148,190.333,385.148,202.667,396.822,212.866C408.496,223.065,431.843,231.129,443.517,235.162L455.191,239.194" id="mermaid-1792247870504-L_PV_M_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_PV_M_0" data-points="W3sieCI6Mzg1LjE0ODQzNzUsInkiOjE3OH0seyJ4IjozODUuMTQ4NDM3NSwieSI6MjE1fSx7IngiOjQ1OC45NzE4MjIzMzE0NjA2NiwieSI6MjQwLjV9XQ==" data-look="classic" marker-end="url(#mermaid-1792247870504_flowchart-v2-pointEnd)"></path><path d="M478.023,53.502L506.049,59.085C534.076,64.668,590.128,75.834,618.154,86.917C646.18,98,646.18,109,646.18,114.5L646.18,120" id="mermaid-1792247870504-L_NP_S_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_NP_S_0" data-points="W3sieCI6NDc4LjAyMzQzNzUsInkiOjUzLjUwMTYxNjE4NTgwMTUxfSx7IngiOjY0Ni4xNzk2ODc1LCJ5Ijo4N30seyJ4Ijo2NDYuMTc5Njg3NSwieSI6MTI0fV0=" data-look="classic" marker-end="url(#mermaid-1792247870504_flowchart-v2-pointEnd)"></path><path d="M646.18,178L646.18,184.167C646.18,190.333,646.18,202.667,634.672,212.863C623.164,223.059,600.148,231.119,588.64,235.148L577.132,239.178" id="mermaid-1792247870504-L_S_M_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_S_M_0" data-points="W3sieCI6NjQ2LjE3OTY4NzUsInkiOjE3OH0seyJ4Ijo2NDYuMTc5Njg3NSwieSI6MjE1fSx7IngiOjU3My4zNTYzMDI2Njg1MzkzLCJ5IjoyNDAuNX1d" data-look="classic" marker-end="url(#mermaid-1792247870504_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_NP_A_0" transform="translate(0, 0)"><foreignobject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignobject></g></g><g class="edgeLabel"><g class="label" data-id="L_NP_PV_0" transform="translate(0, 0)"><foreignobject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignobject></g></g><g class="edgeLabel"><g class="label" data-id="L_PV_M_0" transform="translate(0, 0)"><foreignobject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignobject></g></g><g class="edgeLabel"><g class="label" data-id="L_NP_S_0" transform="translate(0, 0)"><foreignobject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignobject></g></g><g class="edgeLabel"><g class="label" data-id="L_S_M_0" transform="translate(0, 0)"><foreignobject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignobject></g></g></g><g class="nodes"><g class="node default  " id="mermaid-1792247870504-flowchart-NP-0" data-look="classic" transform="translate(385.1484375, 35)"><rect class="basic label-container" style="" x="-92.875" y="-27" width="185.75" height="54"></rect><g class="label" style="" transform="translate(-62.875, -12)"><rect></rect><foreignobject width="125.75" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>NewPaymentPage</p></span></div></foreignobject></g></g><g class="node default" id="mermaid-1792247870504-flowchart-A-1" data-look="classic" transform="translate(110.65625, 151)"><rect class="basic label-container" style="" x="-102.65625" y="-39" width="205.3125" height="78"></rect><g class="label" style="" transform="translate(-72.65625, -24)"><rect></rect><foreignobject width="145.3125" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>allocate.ts<br>split suggestion only</p></span></div></foreignobject></g></g><g class="node default  " id="mermaid-1792247870504-flowchart-PV-3" data-look="classic" transform="translate(385.1484375, 151)"><rect class="basic label-container" style="" x="-121.8359375" y="-27" width="243.671875" height="54"></rect><g class="label" style="" transform="translate(-91.8359375, -12)"><rect></rect><foreignobject width="183.671875" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>POST /payments/preview</p></span></div></foreignobject></g></g><g class="node default  " id="mermaid-1792247870504-flowchart-M-5" data-look="classic" transform="translate(515.6640625, 259.5)"><polygon points="0,0 142.5625,0 142.5625,-39 0,-39 0,0 -8,0 150.5625,0 150.5625,-39 -8,-39 -8,0" class="label-container" transform="translate(-71.28125,19.5)" style="fill:#0f172a !important;stroke:#0f172a !important"></polygon><g class="label" style="color:#e2e8f0 !important" transform="translate(-63.78125, -12)"><rect></rect><foreignobject width="127.5625" height="24"><div style="color: rgb(226, 232, 240) !important; display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span style="color:#e2e8f0 !important" class="nodeLabel "><p>Mortgage changes</p></span></div></foreignobject></g></g><g class="node default  " id="mermaid-1792247870504-flowchart-S-7" data-look="classic" transform="translate(646.1796875, 151)"><rect class="basic label-container" style="" x="-89.1953125" y="-27" width="178.390625" height="54"></rect><g class="label" style="" transform="translate(-59.1953125, -12)"><rect></rect><foreignobject width="118.390625" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>POST /payments</p></span></div></foreignobject></g></g></g></g></g><defs><filter id="mermaid-1792247870504-drop-shadow" height="130%" width="130%"><fedropshadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></fedropshadow></filter></defs><defs><filter id="mermaid-1792247870504-drop-shadow-small" height="150%" width="150%"><fedropshadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></fedropshadow></filter></defs><lineargradient id="mermaid-1792247870504-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(0, 0%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(0, 0%, 88.9215686275%)" stop-opacity="1"></stop></lineargradient></svg></pre>
+    </div>
+  </div>
+
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-y-3 text-sm">
+    <dt class="schem text-slate-500 pt-0.5">Problem</dt>
+    <dd>NewPaymentPage refuses amounts above Outstanding on the Payment date, but the backend's replay also refuses a back-dated Payment that makes a <em>later</em> Payment an overpayment; the client and server disagree on edge cases.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Solution</dt>
+    <dd>Once 02 exists, the Payment preview returns the refusal (or before/after); the page drops its own copy of the rule and keeps <code>allocate.ts</code> as a pure split suggestion.</dd>
+    <dt class="schem text-slate-500 pt-0.5">Wins</dt>
+    <dd><ul class="list-disc pl-5 space-y-1">
+      <li>one overpayment rule</li>
+      <li>Payment gets a before/after preview</li>
+    </ul></dd>
+  </dl>
+  <p class="text-xs text-slate-500">Depends on 02; not worth doing alone.</p>
+</article>
+
+</section>
+
+<section id="top-recommendation" class="rounded-xl deep p-8 space-y-3">
+  <p class="schem text-emerald-300">Top recommendation</p>
+  <h2 class="font-serif text-3xl"><a href="file:///private/var/folders/3s/96nphybs21qcyy1ppqbzm3x80000gn/T/architecture-review-20261017-200612.html#c1" class="underline decoration-emerald-400 underline-offset-4">01 · Deepen the Mortgage replay</a></h2>
+  <p class="text-slate-300 max-w-3xl">Every recent feature (Payments, Voids, Term Changes, Closure, Previews, Projections, Call List) re-assembled the same replay by hand, and the rules that make it correct are scattered across those callers; one interface concentrates them, gives tests a seam below HTTP, and is the base that 02, 03 and 05 build on.</p>
+</section>
+
+</main>
+
+
+<div class="mermaidTooltip" style="opacity: 0; position: absolute; text-align: center; max-width: 200px; padding: 2px; font-size: 12px; background: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px; pointer-events: none; z-index: 100;"></div></body></html>
