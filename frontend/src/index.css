@@ -740,13 +740,13 @@ figure.chart .series {
   stroke-width: 2.5;
 }
 
-.series.baseline,
+.baseline .series,
 .key.baseline::before {
   stroke: var(--error);
   background: var(--error);
 }
 
-.series.what-if,
+.what-if .series,
 .key.what-if::before {
   stroke: var(--accent);
   background: var(--accent);
@@ -802,4 +802,27 @@ dialog.wide-dialog {
 .refreshing {
   opacity: 0.55;
   transition: opacity 0.2s;
+}
+
+figure.chart .series.principal {
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+/* Coming Term Changes and capitalisations on a Projection chart */
+figure.chart .marker line {
+  stroke: var(--muted);
+  stroke-dasharray: 2 3;
+}
+
+figure.chart .marker.term_change line {
+  stroke: var(--accent);
+}
+
+figure.chart .marker text {
+  font-weight: 600;
+}
+
+figure.chart .marker.term_change text {
+  fill: var(--accent);
 }

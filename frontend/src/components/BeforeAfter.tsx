@@ -2,6 +2,7 @@ import type { LedgerChange, LedgerStep, MortgagePreview } from '../api'
 import type { usePreview } from './usePreview'
 import { formatDate } from '../format'
 import { formatChange, formatINR } from '../money'
+import { ProjectionChart } from './ProjectionChart'
 
 const HORIZONS = [3, 6, 12]
 
@@ -105,6 +106,14 @@ function MortgageBeforeAfter({
           </table>
         </div>
       )}
+
+      <ProjectionChart
+        series={[
+          { label: 'Now', className: 'baseline', points: before.points },
+          { label: 'After the change', className: 'what-if', points: after.points },
+        ]}
+        events={[...after.events, ...before.events]}
+      />
 
       <LedgerChanges changes={preview.ledger_changes} />
     </div>

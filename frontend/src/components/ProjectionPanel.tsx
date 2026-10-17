@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, type Mortgage, type ProjectedPoint, type Projection } from '../api'
 import { formatDate, formatPercent } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
+import { ProjectionChart } from './ProjectionChart'
 import { useDebounced } from './useDebounced'
 
 const HORIZONS = [3, 6, 12]
@@ -83,7 +84,15 @@ export function ProjectionPanel({ mortgage }: { mortgage: Mortgage }) {
       {projection.collateral_value === null && (
         <p className="hint">Loan-to-Value appears once there is a Collateral Value.</p>
       )}
-      <Chart baseline={baseline.points} whatIf={whatIf?.points ?? null} />
+      <ProjectionChart
+        series={[
+          { label: 'No more Payments', className: 'baseline', points: baseline.points },
+          ...(whatIf
+            ? [{ label: 'Paying every month', className: 'what-if', points: whatIf.points }]
+            : []),
+        ]}
+        events={[...baseline.events, ...(whatIf?.events ?? [])]}
+      />
     </div>
   )
 }
@@ -120,61 +129,5 @@ function Rows({ label, points }: { label: string; points: ProjectedPoint[] }) {
         {cells((p) => (p.loan_to_value === null ? '—' : formatPercent(p.loan_to_value)))}
       </tr>
     </>
-  )
-}
-
-/** The Redemption Amount month by month, as lines. */
-function Chart({
-  baseline,
-  whatIf,
-}: {
-  baseline: ProjectedPoint[]
-  whatIf: ProjectedPoint[] | null
-}) {
-  const width = 640
-  const height = 220
-  const pad = { left: 70, right: 24, top: 12, bottom: 28 }
-  const all = [...baseline, ...(whatIf ?? [])].map((p) => p.redemption_amount)
-  const max = Math.max(...all, 1)
-  const x = (months: number) => pad.left + (months / 12) * (width - pad.left - pad.right)
-  const y = (paise: number) => pad.top + (1 - paise / max) * (height - pad.top - pad.bottom)
-  const line = (points: ProjectedPoint[]) =>
-    points.map((p) => `${x(p.months)},${y(p.redemption_amount)}`).join(' ')
-  const ticks = [0, 0.5, 1].map((share) => Math.round(max * share))
-
-  return (
-    <figure className="chart">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label="Redemption Amount over the next 12 months"
-      >
-        {ticks.map((tick) => (
-          <g key={tick}>
-            <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="grid" />
-            <text x={pad.left - 6} y={y(tick) + 4} textAnchor="end">
-              {formatINR(tick)}
-            </text>
-          </g>
-        ))}
-        {[0, 3, 6, 9, 12].map((months) => (
-          <text
-            key={months}
-            x={x(months)}
-            y={height - 8}
-            textAnchor={months === 12 ? 'end' : 'middle'}
-          >
-            {months === 0 ? 'Today' : `+${months}m`}
-          </text>
-        ))}
-        <polyline points={line(baseline)} className="series baseline" />
-        {whatIf && <polyline points={line(whatIf)} className="series what-if" />}
-      </svg>
-      <figcaption className="row">
-        <span className="key baseline">No more Payments</span>
-        {whatIf && <span className="key what-if">Paying every month</span>}
-        <span className="hint">Redemption Amount by month</span>
-      </figcaption>
-    </figure>
   )
 }

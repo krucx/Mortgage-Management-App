@@ -24,13 +24,15 @@ from mortgage_backend.mortgages import (
     outstanding_of,
 )
 from mortgage_backend.payments import apply_void, mortgages_of
-from mortgage_backend.projections import ProjectedPoint, baseline
+from mortgage_backend.projections import ProjectedEvent, ProjectedPoint, baseline
 from mortgage_backend.term_changes import TermChangeIn, apply_term_change
 
 
 class PreviewSide(BaseModel):
     outstanding: int  # today
-    points: list[ProjectedPoint]  # the Projection with no further Payments
+    # The Projection with no further Payments (empty for a closed Mortgage)
+    points: list[ProjectedPoint]
+    events: list[ProjectedEvent]
 
 
 class LedgerChange(BaseModel):
@@ -91,17 +93,16 @@ def _snapshot(
     for mortgage_id in mortgage_ids:
         row = mortgage_row(conn, mortgage_id)
         ledger = ledgers_of(conn, [row], today)[mortgage_id]
+        # Only an Active Mortgage has a Projection.
+        active = row["status"] == MortgageStatus.ACTIVE
+        projection = baseline(conn, row, today) if active else None
         found[mortgage_id] = _Snapshot(
             row["name"],
             ledger,
             PreviewSide(
                 outstanding=outstanding_of(ledger).total,
-                # Only an Active Mortgage has a Projection.
-                points=(
-                    baseline(conn, row, today).points
-                    if row["status"] == MortgageStatus.ACTIVE
-                    else []
-                ),
+                points=projection.points if projection else [],
+                events=projection.events if projection else [],
             ),
         )
     return found

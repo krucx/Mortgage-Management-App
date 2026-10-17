@@ -5,7 +5,7 @@ for "what if", hypothetical Payments; there is no separate maths.
 """
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
@@ -32,6 +32,7 @@ from mortgage_backend.mortgages import (
     term_changes_of,
     terms_of,
 )
+from mortgage_backend.terms import Terms
 
 MONTHS_AHEAD = 12
 PAID_OFF_SEARCH_MONTHS = 120  # how far to look for when it would be paid off
@@ -46,8 +47,18 @@ class ProjectedPoint(BaseModel):
     loan_to_value: float | None  # against today's Collateral Value
 
 
+class ProjectedEvent(BaseModel):
+    """Something in the coming year that changes how the Mortgage grows."""
+
+    on: date
+    kind: Literal["term_change", "capitalised"]
+    amount: int  # capitalised: the interest added to the Principal
+    terms: Terms | None  # term_change: the Terms from then on
+
+
 class ProjectedSeries(BaseModel):
     points: list[ProjectedPoint]  # today, then each month for a year
+    events: list[ProjectedEvent]  # Term Changes and capitalisations, after today
     paid_off_on: date | None  # within ten years, if ever
 
 
@@ -95,6 +106,16 @@ def _series(
                 loan_to_value=owed / collateral_value if collateral_value else None,
             )
         )
+    events = [
+        ProjectedEvent(
+            on=step.on,
+            kind="term_change" if step.event == "term_changed" else "capitalised",
+            amount=step.amount,
+            terms=step.terms,
+        )
+        for step in ledger(points[-1].on)
+        if step.on > today and step.event in ("term_changed", "capitalised")
+    ]
     paid_off_on = None
     if hypothetical is not None:
         far = ledger(accrual_date(today, PAID_OFF_SEARCH_MONTHS))
@@ -108,7 +129,7 @@ def _series(
             ),
             None,
         )
-    return ProjectedSeries(points=points, paid_off_on=paid_off_on)
+    return ProjectedSeries(points=points, events=events, paid_off_on=paid_off_on)
 
 
 def _inputs(
