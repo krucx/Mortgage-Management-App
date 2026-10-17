@@ -1,7 +1,11 @@
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 
 from mortgage_backend.main import create_app
+
+TODAY = date(2026, 4, 20)
 
 
 @pytest.fixture
@@ -11,5 +15,5 @@ def database_url(tmp_path):
 
 @pytest.fixture
 def client(database_url):
-    with TestClient(create_app(database_url)) as client:
+    with TestClient(create_app(database_url, today=lambda: TODAY)) as client:
         yield client

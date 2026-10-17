@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { api, type Customer } from '../api'
+import { api, type Customer, type MortgageRow } from '../api'
+import { MortgageTable } from '../components/MortgageTable'
 import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 
 export function CustomerPage() {
   const id = Number(useParams().id)
   const [customer, setCustomer] = useState<Customer | null>(null)
+  const [mortgages, setMortgages] = useState<MortgageRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -14,6 +16,10 @@ export function CustomerPage() {
       .getCustomer(id)
       .then(setCustomer)
       .catch((err: Error) => setError(err.message))
+    api
+      .listMortgages(1, '', { customerId: id })
+      .then((page) => setMortgages(page.items))
+      .catch(() => setMortgages([]))
   }, [id])
 
   if (error) return <p className="status error">{error}</p>
@@ -48,6 +54,20 @@ export function CustomerPage() {
           <dd>{customer.referrer ? <PersonLink person={customer.referrer} /> : '—'}</dd>
         </dl>
       </div>
+
+      <div className="row spread">
+        <h3>Mortgages</h3>
+        <Link className="button small" to={`/mortgages/new?customer=${customer.id}`}>
+          New Mortgage
+        </Link>
+      </div>
+      {mortgages === null ? (
+        <p>Loading…</p>
+      ) : mortgages.length === 0 ? (
+        <p className="hint">No Mortgages yet.</p>
+      ) : (
+        <MortgageTable rows={mortgages} showCustomer={false} />
+      )}
 
       <h3>Customers they referred</h3>
       <PersonList people={customer.referred} empty="Nobody yet." />

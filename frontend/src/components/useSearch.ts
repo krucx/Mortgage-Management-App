@@ -1,24 +1,23 @@
 import { useEffect, useState } from 'react'
 import { api, type SearchHit } from '../api'
+import { useDebounced } from './useDebounced'
 
 /** Live search of Customers and Referrers, debounced while typing. */
 export function useSearch(query: string): SearchHit[] {
-  const [hits, setHits] = useState<SearchHit[]>([])
+  const settled = useDebounced(query.trim())
+  const [found, setFound] = useState<{ query: string; hits: SearchHit[] } | null>(null)
 
   useEffect(() => {
-    if (!query.trim()) return
+    if (!settled) return
     let cancelled = false
-    const timer = setTimeout(() => {
-      api
-        .search(query)
-        .then((found) => !cancelled && setHits(found))
-        .catch(() => !cancelled && setHits([]))
-    }, 200)
+    api
+      .search(settled)
+      .then((hits) => !cancelled && setFound({ query: settled, hits }))
+      .catch(() => !cancelled && setFound({ query: settled, hits: [] }))
     return () => {
       cancelled = true
-      clearTimeout(timer)
     }
-  }, [query])
+  }, [settled])
 
-  return query.trim() ? hits : []
+  return query.trim() && found ? found.hits : []
 }

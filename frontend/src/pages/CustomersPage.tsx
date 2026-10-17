@@ -1,25 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api, type CustomerPage, type CustomerRow } from '../api'
+import { Pager } from '../components/Pager'
+import { useDebounced } from '../components/useDebounced'
 import { PersonLink, PersonList } from '../components/PersonLink'
 import { useSearch } from '../components/useSearch'
 
 /** All Customers in a paginated table, filterable by name or phone. */
 export function CustomersPage() {
   const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const debouncedQuery = useDebounced(query)
   const [page, setPage] = useState(1)
   const [result, setResult] = useState<CustomerPage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const referrers = useSearch(debouncedQuery).filter((hit) => hit.kind === 'referrer')
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query)
-      setPage(1)
-    }, 200)
-    return () => clearTimeout(timer)
-  }, [query])
 
   const load = useCallback(
     () =>
@@ -54,10 +49,6 @@ export function CustomersPage() {
     }
   }
 
-  const pages = result ? Math.max(1, Math.ceil(result.total / result.page_size)) : 1
-  const first = result && result.total > 0 ? (result.page - 1) * result.page_size + 1 : 0
-  const last = result ? first + result.items.length - 1 : 0
-
   return (
     <section className="card wide">
       <div className="row spread">
@@ -71,7 +62,10 @@ export function CustomersPage() {
         type="search"
         placeholder="Filter by name or phone"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => {
+          setQuery(event.target.value)
+          setPage(1)
+        }}
       />
       {error && <p className="status error">{error}</p>}
 
@@ -135,33 +129,14 @@ export function CustomersPage() {
         </div>
       )}
 
-      {result && result.total > 0 && (
-        <div className="row spread">
-          <span className="hint">
-            Showing {first}–{last} of {result.total}
-          </span>
-          <div className="row">
-            <button
-              type="button"
-              className="secondary small"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Previous
-            </button>
-            <span>
-              Page {page} of {pages}
-            </span>
-            <button
-              type="button"
-              className="secondary small"
-              disabled={page >= pages}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </button>
-          </div>
-        </div>
+      {result && (
+        <Pager
+          page={result.page}
+          pageSize={result.page_size}
+          total={result.total}
+          shown={result.items.length}
+          onPage={setPage}
+        />
       )}
 
       {referrers.length > 0 && (

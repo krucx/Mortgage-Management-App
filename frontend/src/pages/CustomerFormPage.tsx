@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { api, type Customer, type PersonSummary } from '../api'
 import { PeopleInline, PersonLink } from '../components/PersonLink'
 import { PhotoPicker } from '../components/PhotoPicker'
@@ -17,6 +17,8 @@ export function CustomerFormPage() {
   const [createdId, setCreatedId] = useState<number>()
   const customerId = id ? Number(id) : createdId
   const navigate = useNavigate()
+  // ?next=mortgage: after saving a new Customer, carry on to their new Mortgage.
+  const next = useSearchParams()[0].get('next')
 
   const [existing, setExisting] = useState<Customer | null>(null)
   const [fields, setFields] = useState(EMPTY)
@@ -76,7 +78,9 @@ export function CustomerFormPage() {
           : await api.updateCustomer(customerId, customer)
       setCreatedId(saved.id)
       if (photo) saved = await api.replaceCustomerPhoto(saved.id, photo)
-      navigate(`/customers/${saved.id}`)
+      navigate(
+        next === 'mortgage' ? `/mortgages/new?customer=${saved.id}` : `/customers/${saved.id}`,
+      )
     } catch (err) {
       setError((err as Error).message)
       setSaving(false)

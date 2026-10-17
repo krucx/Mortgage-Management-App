@@ -70,6 +70,10 @@ _Avoid_: Statement, MortgageLedger
 The Ledger continued into the future under stated assumptions, used to compare outcomes before a decision.
 _Avoid_: Forecast, estimate
 
+**Outstanding**:
+What a Mortgage owes on a date: Principal plus unpaid interest, before any Part-Month Rule charge.
+_Avoid_: Balance, dues
+
 **Redemption Amount**:
 What a Customer must pay on a given date to redeem a Mortgage: outstanding interest and Principal plus any Part-Month Rule charge.
 _Avoid_: Payoff, closing balance

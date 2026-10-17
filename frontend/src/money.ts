@@ -13,3 +13,6 @@ export function formatINR(paise: number): string {
   const formatter = absolute % 100 === 0 ? rupees : rupeesAndPaise
   return `${sign}₹${formatter.format(absolute / 100)}`
 }
+
+/** What the Lender types in rupees (e.g. "1234.5") → paise. */
+export const rupeesToPaise = (rupees: string) => Math.round(Number(rupees) * 100)

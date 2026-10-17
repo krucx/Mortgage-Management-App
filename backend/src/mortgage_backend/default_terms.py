@@ -1,33 +1,11 @@
 """The default Terms copied into every new Mortgage (see GLOSSARY.md)."""
 
-from enum import StrEnum
-
-from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.db import config_table
-
-
-class InterestMode(StrEnum):
-    SIMPLE = "simple"
-    COMPOUNDED_YEARLY = "compounded_yearly"
-    COMPOUNDED_MONTHLY = "compounded_monthly"
-
-
-class PartMonthRule(StrEnum):
-    PRO_RATA = "pro_rata"
-    FULL_MONTH = "full_month"
-    NOTHING = "nothing"
-
-
-class DefaultTerms(BaseModel):
-    # Basis points per month: 300 = 3% a month. Integers avoid float drift.
-    monthly_rate_bps: int = Field(gt=0, le=10_000)
-    interest_mode: InterestMode
-    part_month_rule: PartMonthRule
-
+from mortgage_backend.terms import Terms
 
 _CONFIG_KEY_BY_FIELD = {
     "monthly_rate_bps": "default_monthly_rate_bps",
@@ -36,19 +14,17 @@ _CONFIG_KEY_BY_FIELD = {
 }
 
 
-def get_default_terms(conn: Connection) -> DefaultTerms:
+def get_default_terms(conn: Connection) -> Terms:
     rows = conn.execute(
         select(config_table.c.key, config_table.c.value).where(
             config_table.c.key.in_(_CONFIG_KEY_BY_FIELD.values())
         )
     )
     values = {key: value for key, value in rows}
-    return DefaultTerms(
-        **{field: values[key] for field, key in _CONFIG_KEY_BY_FIELD.items()}
-    )
+    return Terms(**{field: values[key] for field, key in _CONFIG_KEY_BY_FIELD.items()})
 
 
-def set_default_terms(conn: Connection, terms: DefaultTerms) -> None:
+def set_default_terms(conn: Connection, terms: Terms) -> None:
     for field, key in _CONFIG_KEY_BY_FIELD.items():
         value = str(getattr(terms, field))
         conn.execute(

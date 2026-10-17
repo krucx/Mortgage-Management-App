@@ -1,7 +1,8 @@
 export type InterestMode = 'simple' | 'compounded_yearly' | 'compounded_monthly'
 export type PartMonthRule = 'pro_rata' | 'full_month' | 'nothing'
 
-export interface DefaultTerms {
+/** A Mortgage's rate, Interest Mode and Part-Month Rule; also the Default Terms in Settings. */
+export interface Terms {
   /** Basis points per month: 300 = 3% a month. */
   monthly_rate_bps: number
   interest_mode: InterestMode
@@ -63,6 +64,73 @@ export interface StandaloneReferrer {
   referred: PersonSummary[]
 }
 
+export type Purity = 24 | 22 | 20 | 18 | 14
+export const PURITIES: Purity[] = [24, 22, 20, 18, 14]
+
+export interface MortgageIn {
+  customer_id: number
+  name: string | null
+  start_date: string // YYYY-MM-DD
+  amount_lent: number // paise; the starting Principal
+  description: string
+  gross_weight_mg: number
+  net_weight_mg: number
+  purity_karat: Purity
+  terms: Terms | null
+}
+
+export interface LedgerStep {
+  on: string
+  event: 'started' | 'interest' | 'capitalised'
+  amount: number // paise
+  principal: number // running, paise
+  unpaid_interest: number // running, paise
+}
+
+export type MortgageStatus = 'active' | 'redeemed' | 'forfeited'
+
+/** Principal plus unpaid interest on a date, before any Part-Month Rule charge. */
+export interface Outstanding {
+  principal: number
+  unpaid_interest: number
+  total: number
+}
+
+export interface Mortgage {
+  id: number
+  name: string
+  customer: PersonSummary
+  start_date: string
+  amount_lent: number
+  description: string
+  gross_weight_mg: number
+  net_weight_mg: number
+  purity_karat: Purity
+  terms: Terms
+  status: MortgageStatus
+  photos: { id: number; url: string }[]
+  as_of: string
+  ledger: LedgerStep[]
+  outstanding: Outstanding
+}
+
+export interface MortgageRow {
+  id: number
+  name: string
+  customer: PersonSummary
+  start_date: string
+  amount_lent: number
+  status: MortgageStatus
+  outstanding_total: number
+}
+
+export interface MortgagePage {
+  items: MortgageRow[]
+  total: number
+  page: number
+  page_size: number
+}
+
 /** Turns a FastAPI error body into one readable line. */
 function errorMessage(status: number, body: unknown): string {
   const detail = (body as { detail?: unknown } | null)?.detail
@@ -94,9 +162,9 @@ const sendJson = (method: string, data: unknown): RequestInit => ({
 })
 
 export const api = {
-  getDefaultTerms: () => request<DefaultTerms>('/settings/default-terms'),
-  updateDefaultTerms: (terms: DefaultTerms) =>
-    request<DefaultTerms>('/settings/default-terms', sendJson('PUT', terms)),
+  getDefaultTerms: () => request<Terms>('/settings/default-terms'),
+  updateDefaultTerms: (terms: Terms) =>
+    request<Terms>('/settings/default-terms', sendJson('PUT', terms)),
 
   search: (query: string) => request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}`),
 
@@ -115,6 +183,32 @@ export const api = {
   },
 
   getReferrer: (id: number) => request<StandaloneReferrer>(`/referrers/${id}`),
+  listMortgages: (
+    page: number,
+    query: string,
+    filters: { customerId?: number; status?: MortgageStatus } = {},
+  ) =>
+    request<MortgagePage>(
+      `/mortgages?page=${page}&q=${encodeURIComponent(query)}` +
+        (filters.customerId ? `&customer_id=${filters.customerId}` : '') +
+        (filters.status ? `&status=${filters.status}` : ''),
+    ),
+  getMortgage: (id: number) => request<Mortgage>(`/mortgages/${id}`),
+  createMortgage: (mortgage: MortgageIn) =>
+    request<Mortgage>('/mortgages', sendJson('POST', mortgage)),
+  suggestMortgageName: (customerId: number, startDate: string, description: string) =>
+    request<{ name: string }>(
+      `/mortgages/suggested-name?customer_id=${customerId}&start_date=${startDate}` +
+        `&description=${encodeURIComponent(description)}`,
+    ),
+  addMortgagePhoto: (id: number, photo: Blob) => {
+    const form = new FormData()
+    form.append('photo', photo, 'photo.jpg')
+    return request<Mortgage>(`/mortgages/${id}/photos`, { method: 'POST', body: form })
+  },
+  deleteMortgagePhoto: (id: number, photoId: number) =>
+    request<Mortgage>(`/mortgages/${id}/photos/${photoId}`, { method: 'DELETE' }),
+
   personByPhone: (phone: string) =>
     request<PersonSummary | null>(`/people/by-phone?phone=${encodeURIComponent(phone)}`),
 }

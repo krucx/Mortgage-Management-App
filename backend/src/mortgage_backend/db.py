@@ -7,8 +7,10 @@ from alembic.config import Config
 from fastapi import Depends, Request
 from sqlalchemy import (
     Column,
+    Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     MetaData,
     String,
@@ -17,8 +19,9 @@ from sqlalchemy import (
     event,
     func,
     make_url,
+    select,
 )
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
@@ -60,6 +63,47 @@ customer_table = Table(
     ),
     Column("created_at", DateTime, nullable=False, server_default=func.now()),
 )
+
+
+mortgage_table = Table(
+    "mortgage",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "customer_id", Integer, ForeignKey("customer.id"), nullable=False, index=True
+    ),
+    Column("name", String, nullable=False),  # Mortgage Name, unique ignoring case
+    Column("start_date", Date, nullable=False),
+    Column("amount_lent", Integer, nullable=False),  # paise; the starting Principal
+    Column("description", String, nullable=False),
+    Column("gross_weight_mg", Integer, nullable=False),
+    Column("net_weight_mg", Integer, nullable=False),
+    Column("purity_karat", Integer, nullable=False),
+    # Terms, copied from the Default Terms when the Mortgage is created.
+    Column("monthly_rate_bps", Integer, nullable=False),
+    Column("interest_mode", String, nullable=False),
+    Column("part_month_rule", String, nullable=False),
+    Column("status", String, nullable=False, server_default="active"),
+    Column("created_at", DateTime, nullable=False, server_default=func.now()),
+)
+
+Index("uq_mortgage_name", func.lower(mortgage_table.c.name), unique=True)
+
+mortgage_photo_table = Table(
+    "mortgage_photo",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "mortgage_id", Integer, ForeignKey("mortgage.id"), nullable=False, index=True
+    ),
+    Column("file", String, nullable=False),  # file name under the photos folder
+)
+
+
+def exists(conn: Connection, table: Table, row_id: int) -> bool:
+    return (
+        conn.execute(select(table.c.id).where(table.c.id == row_id)).first() is not None
+    )
 
 
 def data_dir() -> Path:

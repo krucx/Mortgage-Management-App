@@ -8,7 +8,6 @@ from pydantic import AfterValidator, BaseModel, Field
 from sqlalchemy import (
     Column,
     ColumnElement,
-    Table,
     delete,
     func,
     insert,
@@ -19,7 +18,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.db import EngineDep, customer_table, standalone_referrer_table
+from mortgage_backend.db import (
+    EngineDep,
+    customer_table,
+    exists,
+    mortgage_table,
+    standalone_referrer_table,
+)
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 
 
@@ -138,12 +143,6 @@ def _unprocessable(message: str) -> HTTPException:
     return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, message)
 
 
-def _exists(conn: Connection, table: Table, row_id: int) -> bool:
-    return (
-        conn.execute(select(table.c.id).where(table.c.id == row_id)).first() is not None
-    )
-
-
 def _owner_of(conn: Connection, phone: str) -> PersonSummary | None:
     """The person whose Primary Number this is, if anyone's."""
     customer = conn.execute(
@@ -195,14 +194,14 @@ def _referrer_columns(
         case None:
             return _link_to(None)
         case ExistingCustomerReferrer(id=customer_id):
-            if not _exists(conn, customer_table, customer_id):
+            if not exists(conn, customer_table, customer_id):
                 raise _unprocessable("Referrer Customer not found")
             return {
                 "referred_by_customer_id": customer_id,
                 "referred_by_standalone_referrer_id": None,
             }
         case ExistingStandaloneReferrer(id=referrer_id):
-            if not _exists(conn, standalone_referrer_table, referrer_id):
+            if not exists(conn, standalone_referrer_table, referrer_id):
                 raise _unprocessable("Referrer not found")
             return {
                 "referred_by_customer_id": None,
@@ -356,7 +355,7 @@ def update_customer(
     ):
         raise _unprocessable("A Customer cannot be their own Referrer")
     with engine.begin() as conn:
-        if not _exists(conn, customer_table, customer_id):
+        if not exists(conn, customer_table, customer_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
         owner = _owner_of(conn, customer.phone_1)
         if owner is not None and owner != PersonSummary(
@@ -379,7 +378,7 @@ async def replace_customer_photo(
     customer_id: int, photo: UploadFile, engine: EngineDep, photos_dir: PhotosDirDep
 ) -> Customer:
     with engine.connect() as conn:
-        if not _exists(conn, customer_table, customer_id):
+        if not exists(conn, customer_table, customer_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
     file_name = save_photo(photos_dir, "customer", customer_id, await photo.read())
     with engine.begin() as conn:
@@ -542,6 +541,14 @@ def delete_customer(
         ).first()
         if photo is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+        if conn.execute(
+            select(mortgage_table.c.id).where(
+                mortgage_table.c.customer_id == customer_id
+            )
+        ).first():
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "A Customer with Mortgages cannot be deleted"
+            )
         conn.execute(
             update(customer_table)
             .where(customer_table.c.referred_by_customer_id == customer_id)
