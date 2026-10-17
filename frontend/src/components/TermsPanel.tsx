@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { api, type Mortgage } from '../api'
 import { formatDate } from '../format'
 import { describeTerms } from '../terms'
+import { ChangePreview } from './BeforeAfter'
 import { useConfirm } from './useConfirm'
 
 /** The Terms in force, and Term Changes past and coming. */
@@ -18,6 +19,10 @@ export function TermsPanel({
   async function remove(changeId: number, from: string) {
     const confirmed = await confirm({
       title: `Remove the Term Change from ${formatDate(from)}?`,
+      body: (
+        <ChangePreview load={() => api.previewTermChangeRemoval(mortgage.id, changeId)} />
+      ),
+      wide: true,
       confirmLabel: 'Remove',
       cancelLabel: 'Cancel',
       danger: true,

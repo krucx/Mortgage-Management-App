@@ -1,5 +1,6 @@
 import type { LedgerChange, LedgerStep, MortgagePreview } from '../api'
-import type { usePreview } from './usePreview'
+import { useState } from 'react'
+import { usePreview } from './usePreview'
 import { formatDate } from '../format'
 import { formatChange, formatINR } from '../money'
 import { ProjectionChart } from './ProjectionChart'
@@ -180,5 +181,17 @@ export function PreviewSection({ preview }: { preview: ReturnType<typeof usePrev
     <div className={preview.loading ? 'refreshing' : undefined}>
       <BeforeAfter previews={preview.previews} />
     </div>
+  )
+}
+
+/** What a change would do, worked out once when shown (e.g. in a confirmation). */
+export function ChangePreview({ load }: { load: () => Promise<MortgagePreview[]> }) {
+  const [once] = useState(() => load)
+  const preview = usePreview(once, 0)
+  return (
+    <>
+      <h3>What changes</h3>
+      <PreviewSection preview={preview} />
+    </>
   )
 }

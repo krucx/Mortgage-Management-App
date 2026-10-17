@@ -3,14 +3,15 @@
 from collections.abc import Sequence
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import exists as sql_exists
-from sqlalchemy import func, or_, select, true
+from sqlalchemy import Select, func, or_, select, true
 from sqlalchemy.engine import Connection, RowMapping
 
+from mortgage_backend.clock import MonthQuery, TodayDep, month_span
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
     EngineDep,
@@ -72,6 +73,8 @@ class PaymentPage(BaseModel):
     total: int
     page: int
     page_size: int
+    # With a month or year: the interest all the listed Payments paid (every page)
+    interest_paid: int | None = None
 
 
 def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
@@ -138,6 +141,31 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
     )
 
 
+def _interest_paid(conn: Connection, payment_ids: Select[Any], today: date) -> int:
+    """The interest the Payments paid, Voided ones counting for nothing, from replaying
+    each Mortgage they went to."""
+    wanted = set(conn.execute(payment_ids).scalars())
+    rows = (
+        conn.execute(
+            select(mortgage_table).where(
+                mortgage_table.c.id.in_(
+                    select(allocation_table.c.mortgage_id).where(
+                        allocation_table.c.payment_id.in_(wanted)
+                    )
+                )
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return sum(
+        step.interest_paid
+        for mortgage in replays(conn, rows).values()
+        for step in mortgage.ledger(today)
+        if step.payment_id in wanted
+    )
+
+
 router = APIRouter(prefix="/api")
 
 
@@ -152,9 +180,16 @@ PAGE_SIZE = 20
 
 @router.get("/payments")
 def list_payments(
-    engine: EngineDep, page: Annotated[int, Query(ge=1)] = 1, q: str = ""
+    engine: EngineDep,
+    today: TodayDep,
+    page: Annotated[int, Query(ge=1)] = 1,
+    q: str = "",
+    month: MonthQuery = None,
+    year: Annotated[int | None, Query(ge=1900, le=9999)] = None,
+    include_voided: bool = True,
 ) -> PaymentPage:
-    """Payments, newest first, filtered by Customer, Mortgage Name or reference."""
+    """Payments, newest first, filtered by Customer, Mortgage Name or reference, and
+    to a month (YYYY-MM) or year. With a month or year, the interest they paid too."""
     query = q.strip()
     match = (
         or_(
@@ -169,6 +204,14 @@ def list_payments(
         if query
         else true()
     )
+    if month is not None:
+        match = match & payment_table.c.paid_on.between(*month_span(month))
+    if year is not None:
+        match = match & payment_table.c.paid_on.between(
+            date(year, 1, 1), date(year, 12, 31)
+        )
+    if not include_voided:
+        match = match & payment_table.c.voided_at.is_(None)
     with_customer = payment_table.join(
         customer_table, customer_table.c.id == payment_table.c.customer_id
     )
@@ -176,6 +219,13 @@ def list_payments(
         total = conn.execute(
             select(func.count()).select_from(with_customer).where(match)
         ).scalar_one()
+        interest = None
+        if month is not None or year is not None:
+            interest = _interest_paid(
+                conn,
+                select(payment_table.c.id).select_from(with_customer).where(match),
+                today,
+            )
         payments = conn.execute(
             select(payment_table, customer_table.c.name.label("customer_name"))
             .select_from(with_customer)
@@ -211,4 +261,10 @@ def list_payments(
         )
         for payment in payments
     ]
-    return PaymentPage(items=items, total=total, page=page, page_size=PAGE_SIZE)
+    return PaymentPage(
+        items=items,
+        total=total,
+        page=page,
+        page_size=PAGE_SIZE,
+        interest_paid=interest,
+    )

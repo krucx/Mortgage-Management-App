@@ -575,6 +575,29 @@
         "title": "CollateralIn",
         "type": "object"
       },
+      "ComingMonth": {
+        "properties": {
+          "interest_charged": {
+            "title": "Interest Charged",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "payments_estimate": {
+            "title": "Payments Estimate",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "month",
+          "interest_charged",
+          "payments_estimate"
+        ],
+        "title": "ComingMonth",
+        "type": "object"
+      },
       "ComingTermChange": {
         "properties": {
           "on": {
@@ -850,6 +873,13 @@
             "title": "Collateral Value",
             "type": "integer"
           },
+          "coming_months": {
+            "items": {
+              "$ref": "#/components/schemas/ComingMonth"
+            },
+            "title": "Coming Months",
+            "type": "array"
+          },
           "customers_with_active_mortgages": {
             "title": "Customers With Active Mortgages",
             "type": "integer"
@@ -892,9 +922,23 @@
             "title": "Principal Outstanding",
             "type": "integer"
           },
+          "projections": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectionHorizon"
+            },
+            "title": "Projections",
+            "type": "array"
+          },
           "redeemed_this_month": {
             "title": "Redeemed This Month",
             "type": "integer"
+          },
+          "trend_months": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Trend Months",
+            "type": "array"
           },
           "unpaid_interest": {
             "title": "Unpaid Interest",
@@ -915,7 +959,10 @@
           "redeemed_this_month",
           "forfeited_this_month",
           "forfeiture_profit_loss_this_month",
-          "payments_by_month"
+          "payments_by_month",
+          "projections",
+          "trend_months",
+          "coming_months"
         ],
         "title": "Dashboard",
         "type": "object"
@@ -1844,6 +1891,17 @@
       },
       "PaymentPage": {
         "properties": {
+          "interest_paid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest Paid"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/PaymentRow"
@@ -2122,6 +2180,45 @@
           "what_if"
         ],
         "title": "Projection",
+        "type": "object"
+      },
+      "ProjectionHorizon": {
+        "properties": {
+          "interest_accrued": {
+            "title": "Interest Accrued",
+            "type": "integer"
+          },
+          "months": {
+            "title": "Months",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "payments_estimate": {
+            "title": "Payments Estimate",
+            "type": "integer"
+          },
+          "principal_lent_estimate": {
+            "title": "Principal Lent Estimate",
+            "type": "integer"
+          },
+          "redemptions_estimate": {
+            "title": "Redemptions Estimate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "months",
+          "on",
+          "interest_accrued",
+          "payments_estimate",
+          "principal_lent_estimate",
+          "redemptions_estimate"
+        ],
+        "title": "ProjectionHorizon",
         "type": "object"
       },
       "ReadyToRedeem": {
@@ -2537,7 +2634,7 @@
     },
     "/api/customers": {
       "get": {
-        "description": "All Customers by name, a page at a time, optionally filtered by name or phone.",
+        "description": "All Customers by name, a page at a time, optionally filtered by name or phone,\nor to those with an Active Mortgage.",
         "operationId": "list_customers_api_customers_get",
         "parameters": [
           {
@@ -2559,6 +2656,16 @@
               "default": "",
               "title": "Q",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "has_active_mortgage",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Has Active Mortgage",
+              "type": "boolean"
             }
           }
         ],
@@ -2852,7 +2959,7 @@
     },
     "/api/mortgages": {
       "get": {
-        "description": "Mortgages, newest first, filtered by Mortgage Name or Customer name.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).",
+        "description": "Mortgages, newest first, filtered by Mortgage Name or Customer name.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).\nWith `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month.",
         "operationId": "list_mortgages_api_mortgages_get",
         "parameters": [
           {
@@ -2933,6 +3040,23 @@
               "default": false,
               "title": "Owing",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "closed_in",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Closed In"
             }
           }
         ],
@@ -3344,7 +3468,7 @@
     "/api/mortgages/{mortgage_id}/forfeit": {
       "post": {
         "description": "Mark the Mortgage Forfeited, recording what the jewellery recovered.",
-        "operationId": "forfeit_api_mortgages__mortgage_id__forfeit_post",
+        "operationId": "post_forfeit_api_mortgages__mortgage_id__forfeit_post",
         "parameters": [
           {
             "in": "path",
@@ -3388,7 +3512,60 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Forfeit"
+        "summary": "Post Forfeit"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/forfeit-preview": {
+      "post": {
+        "operationId": "preview_forfeit_api_mortgages__mortgage_id__forfeit_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForfeitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Forfeit Api Mortgages  Mortgage Id  Forfeit Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Forfeit"
       }
     },
     "/api/mortgages/{mortgage_id}/history": {
@@ -3591,7 +3768,7 @@
     "/api/mortgages/{mortgage_id}/redeem": {
       "post": {
         "description": "Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed.",
-        "operationId": "redeem_api_mortgages__mortgage_id__redeem_post",
+        "operationId": "post_redeem_api_mortgages__mortgage_id__redeem_post",
         "parameters": [
           {
             "in": "path",
@@ -3635,7 +3812,60 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Redeem"
+        "summary": "Post Redeem"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/redeem-preview": {
+      "post": {
+        "operationId": "preview_redeem_api_mortgages__mortgage_id__redeem_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Redeem Api Mortgages  Mortgage Id  Redeem Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Redeem"
       }
     },
     "/api/mortgages/{mortgage_id}/redemption": {
@@ -3691,7 +3921,7 @@
     "/api/mortgages/{mortgage_id}/reopen": {
       "post": {
         "description": "Undo a Redemption or Forfeiture; a Redemption's final Payment is Voided.",
-        "operationId": "reopen_api_mortgages__mortgage_id__reopen_post",
+        "operationId": "post_reopen_api_mortgages__mortgage_id__reopen_post",
         "parameters": [
           {
             "in": "path",
@@ -3735,7 +3965,51 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Reopen"
+        "summary": "Post Reopen"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/reopen-preview": {
+      "post": {
+        "description": "The Mortgage Active again; a Redemption's final Payment Voided.",
+        "operationId": "preview_reopen_api_mortgages__mortgage_id__reopen_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Reopen Api Mortgages  Mortgage Id  Reopen Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Reopen"
       }
     },
     "/api/mortgages/{mortgage_id}/term-changes": {
@@ -3843,7 +4117,7 @@
     "/api/mortgages/{mortgage_id}/term-changes/{change_id}": {
       "delete": {
         "description": "Remove a Term Change that has not taken effect yet.",
-        "operationId": "remove_term_change_api_mortgages__mortgage_id__term_changes__change_id__delete",
+        "operationId": "delete_term_change_api_mortgages__mortgage_id__term_changes__change_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -3886,12 +4160,64 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Remove Term Change"
+        "summary": "Delete Term Change"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview": {
+      "post": {
+        "operationId": "preview_term_change_removal_api_mortgages__mortgage_id__term_changes__change_id__remove_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "change_id",
+            "required": true,
+            "schema": {
+              "title": "Change Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Term Change Removal Api Mortgages  Mortgage Id  Term Changes  Change Id  Remove Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Term Change Removal"
       }
     },
     "/api/payments": {
       "get": {
-        "description": "Payments, newest first, filtered by Customer, Mortgage Name or reference.",
+        "description": "Payments, newest first, filtered by Customer, Mortgage Name or reference, and\nto a month (YYYY-MM) or year. With a month or year, the interest they paid too.",
         "operationId": "list_payments_api_payments_get",
         "parameters": [
           {
@@ -3913,6 +4239,51 @@
               "default": "",
               "title": "Q",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9999,
+                  "minimum": 1900,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_voided",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Voided",
+              "type": "boolean"
             }
           }
         ],
@@ -3975,6 +4346,49 @@
           }
         },
         "summary": "Post Payment"
+      }
+    },
+    "/api/payments/preview": {
+      "post": {
+        "description": "Every Mortgage the Payment is allocated to, before and after recording it.",
+        "operationId": "preview_payment_api_payments_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Payment Api Payments Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Payment"
       }
     },
     "/api/payments/{payment_id}": {

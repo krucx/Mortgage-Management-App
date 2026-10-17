@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { api, PAYMENT_METHODS, type Payment } from '../api'
 import { PersonLink } from '../components/PersonLink'
-import { PreviewSection } from '../components/BeforeAfter'
+import { ChangePreview } from '../components/BeforeAfter'
 import { ReasonDialog } from '../components/ReasonDialog'
-import { usePreview } from '../components/usePreview'
 import { formatDate, formatDateTime } from '../format'
 import { formatINR } from '../money'
 
@@ -97,7 +96,7 @@ export function PaymentPage() {
                 It stays on record but is taken out of every Ledger. Enter a corrected Payment
                 afterwards if needed.
               </p>
-              <VoidPreview paymentId={payment.id} />
+              <ChangePreview load={() => api.previewVoid(payment.id)} />
             </>
           }
           confirmLabel="Void Payment"
@@ -106,17 +105,5 @@ export function PaymentPage() {
         />
       )}
     </section>
-  )
-}
-
-/** What Voiding would do to each Mortgage the Payment went to. */
-function VoidPreview({ paymentId }: { paymentId: number }) {
-  const load = useCallback(() => api.previewVoid(paymentId), [paymentId])
-  const preview = usePreview(load, 0)
-  return (
-    <>
-      <h3>What changes</h3>
-      <PreviewSection preview={preview} />
-    </>
   )
 }

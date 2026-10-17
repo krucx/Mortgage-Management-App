@@ -4,10 +4,12 @@ import { api, type CustomerPage, type CustomerRow } from '../api'
 import { Pager } from '../components/Pager'
 import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
+import { useUrlFilters } from '../components/useUrlFilters'
 import { PersonLink, PersonList } from '../components/PersonLink'
 import { useSearch } from '../components/useSearch'
 
-/** All Customers in a paginated table, filterable by name or phone. */
+/** All Customers in a paginated table, filterable by name or phone, or to those with an
+ * Active Mortgage. */
 export function CustomersPage() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounced(query)
@@ -16,19 +18,22 @@ export function CustomersPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirm, confirmDialog] = useConfirm()
   const referrers = useSearch(debouncedQuery).filter((hit) => hit.kind === 'referrer')
+  // In the URL, so the narrowed list can be shared (e.g. from the Dashboard).
+  const [searchParams, setFilters] = useUrlFilters()
+  const activeOnly = searchParams.get('active') === 'true'
 
 
   const load = useCallback(
     () =>
       api
-        .listCustomers(page, debouncedQuery)
+        .listCustomers(page, debouncedQuery, { hasActiveMortgage: activeOnly })
         .then((loaded) => {
           // Deleting the last row of a page leaves it empty; step back a page.
           if (loaded.items.length === 0 && page > 1) setPage(page - 1)
           else setResult(loaded)
         })
         .catch((err: Error) => setError(err.message)),
-    [page, debouncedQuery],
+    [page, debouncedQuery, activeOnly],
   )
 
   useEffect(() => {
@@ -82,10 +87,23 @@ export function CustomersPage() {
           setPage(1)
         }}
       />
+      <label className="inline">
+        <input
+          type="checkbox"
+          checked={activeOnly}
+          onChange={(event) => {
+            setFilters({ active: event.target.checked ? 'true' : null })
+            setPage(1)
+          }}
+        />
+        Only Customers with an Active Mortgage
+      </label>
       {error && <p className="status error">{error}</p>}
 
       {result && result.total === 0 ? (
-        <p className="hint">{debouncedQuery ? 'No Customers match.' : 'No Customers yet.'}</p>
+        <p className="hint">
+          {debouncedQuery || activeOnly ? 'No Customers match.' : 'No Customers yet.'}
+        </p>
       ) : (
         <div className="table-scroll">
           <table>

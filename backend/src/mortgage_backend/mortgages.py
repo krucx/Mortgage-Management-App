@@ -11,7 +11,7 @@ from sqlalchemy import Select, delete, func, insert, or_, select, true
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend import audit
-from mortgage_backend.clock import NowDep, TodayDep
+from mortgage_backend.clock import MonthQuery, NowDep, TodayDep, month_span
 from mortgage_backend.collateral import Collateral, Purity, collateral_of, gold_rates
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
@@ -383,12 +383,14 @@ def list_mortgages(
     mortgage_status: Annotated[MortgageStatus | None, Query(alias="status")] = None,
     as_of: date | None = None,
     owing: bool = False,
+    closed_in: MonthQuery = None,
 ) -> MortgagePage:
     """Mortgages, newest first, filtered by Mortgage Name or Customer name.
 
     With `as_of`, only Mortgages started by then, with what they owed on that date
     (used when recording a back-dated Payment). With `owing`, only those with something
     Outstanding (Outstanding is computed, so that filter is applied after the replay).
+    With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month.
     """
     if as_of is not None and as_of > today:
         raise unprocessable("The date cannot be in the future")
@@ -407,6 +409,8 @@ def list_mortgages(
         match = match & (mortgage_table.c.start_date <= as_of)
     if mortgage_status is not None:
         match = match & (mortgage_table.c.status == mortgage_status)
+    if closed_in is not None:
+        match = match & mortgage_table.c.closed_on.between(*month_span(closed_in))
     newest_first = (
         select_with_customer()
         .where(match)

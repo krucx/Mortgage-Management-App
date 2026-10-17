@@ -149,3 +149,127 @@ def test_an_empty_book(client):
     assert figures["collateral_value"] == 0
     assert figures["loan_to_value"] is None
     assert all(c["amount"] == 0 for c in figures["payments_by_month"])
+
+
+def listed(client, path, **params):
+    response = client.get(f"/api/{path}", params=params)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_customers_with_active_mortgages_are_listed_as_counted(client, book):
+    shown = listed(client, "customers", has_active_mortgage=True)
+
+    assert shown["total"] == dashboard(client)["customers_with_active_mortgages"]
+    assert [c["name"] for c in shown["items"]] == ["Ramesh Kumar"]
+    assert listed(client, "customers")["total"] == 2
+
+
+def test_payments_in_a_month_or_year_add_up_to_the_interest_collected(client, book):
+    figures = dashboard(client)
+
+    month = listed(client, "payments", month="2026-04", include_voided=False)
+    year = listed(client, "payments", year=2026, include_voided=False)
+
+    # April: Ramesh's ₹5,000 and the ₹53,000 Redemption; the Voided ₹1,000 left out.
+    assert [p["amount"] for p in month["items"]] == [5_000 * RUPEE, 53_000 * RUPEE]
+    assert month["interest_paid"] == figures["interest_collected_this_month"]
+    assert year["total"] == 3
+    assert year["interest_paid"] == figures["interest_collected_this_year"]
+    assert listed(client, "payments", month="2026-04")["total"] == 3
+    assert listed(client, "payments")["interest_paid"] is None
+
+
+def test_mortgages_closed_in_a_month_are_listed_as_counted(client, book):
+    owner = person(client, "Mahesh Jain", "9829099999")
+    earlier = lend(client, owner, "2026-01-05", 10_000, "Anklet")
+    client.post(
+        f"/api/mortgages/{earlier['id']}/forfeit",
+        json={"forfeited_on": "2026-03-05", "recovered_amount": 0, "note": ""},
+    )
+    figures = dashboard(client)
+
+    redeemed = listed(client, "mortgages", status="redeemed", closed_in="2026-04")
+    forfeited = listed(client, "mortgages", status="forfeited", closed_in="2026-04")
+
+    assert redeemed["total"] == figures["redeemed_this_month"] == 1
+    assert forfeited["total"] == figures["forfeited_this_month"] == 1
+    assert [m["name"] for m in forfeited["items"]] != [earlier["name"]]
+    assert listed(client, "mortgages", status="forfeited")["total"] == 2
+
+
+def test_a_voided_payment_is_listed_but_paid_no_interest(client):
+    owner = person(client, "Mahesh Jain", "9829099999")
+    anklet = lend(client, owner, "2026-01-05", 10_000, "Anklet")
+    mistake = pay(client, owner, anklet, "2026-04-06", 300)
+    client.post(f"/api/payments/{mistake['id']}/void", json={"reason": "typo"})
+
+    shown = listed(client, "payments", month="2026-04")
+
+    assert (shown["total"], shown["interest_paid"]) == (1, 0)
+
+
+@pytest.fixture
+def march_redemption(client, book):
+    """Mahesh: ₹10,000 from 1 Feb, Redeemed 1 Mar for ₹10,300 (one month at 3%)."""
+    owner = person(client, "Mahesh Jain", "9829099999")
+    anklet = lend(client, owner, "2026-02-01", 10_000, "Anklet")
+    response = client.post(
+        f"/api/mortgages/{anklet['id']}/redeem",
+        json={"redeemed_on": "2026-03-01", "method": "cash"},
+    )
+    assert response.status_code == 200, response.text
+
+
+def test_contractual_projections_are_the_interest_the_active_mortgages_will_accrue(
+    client, march_redemption
+):
+    projections = dashboard(client)["projections"]
+
+    # Only Ramesh's ₹1,00,000 is Active: ₹3,000 on each 14th, nothing else changing.
+    assert [(p["months"], p["on"], p["interest_accrued"]) for p in projections] == [
+        (3, "2026-07-20", 9_000 * RUPEE),
+        (6, "2026-10-20", 18_000 * RUPEE),
+        (12, "2027-04-20", 36_000 * RUPEE),
+    ]
+
+
+def test_trend_projections_carry_the_last_three_full_months_forward(
+    client, march_redemption
+):
+    figures = dashboard(client)
+
+    # January to March (April is not over): Payments ₹2,000 (20 Feb) + ₹10,300
+    # (1 Mar); ₹1,00,000 + ₹30,000 + ₹50,000 + ₹10,000 lent; 1 Redemption.
+    assert figures["trend_months"] == ["2026-01", "2026-02", "2026-03"]
+    assert [
+        (
+            p["months"],
+            p["payments_estimate"],
+            p["principal_lent_estimate"],
+            p["redemptions_estimate"],
+        )
+        for p in figures["projections"]
+    ] == [
+        (3, 12_300 * RUPEE, 1_90_000 * RUPEE, 1),
+        (6, 24_600 * RUPEE, 3_80_000 * RUPEE, 2),
+        (12, 49_200 * RUPEE, 7_60_000 * RUPEE, 4),
+    ]
+
+
+def test_the_coming_months_continue_the_payments_history(client, march_redemption):
+    coming = dashboard(client)["coming_months"]
+
+    assert [m["month"] for m in coming][:2] == ["2026-05", "2026-06"]
+    assert coming[-1]["month"] == "2027-04"
+    assert len(coming) == 12
+    assert {m["interest_charged"] for m in coming} == {3_000 * RUPEE}
+    assert {m["payments_estimate"] for m in coming} == {4_100 * RUPEE}
+
+
+def test_estimates_are_to_the_whole_rupee(client, book):
+    figures = dashboard(client)
+
+    # ₹2,000 received January to March: ₹666.67 a month, shown as about ₹667.
+    assert {m["payments_estimate"] for m in figures["coming_months"]} == {667 * RUPEE}
+    assert figures["projections"][0]["payments_estimate"] == 2_000 * RUPEE

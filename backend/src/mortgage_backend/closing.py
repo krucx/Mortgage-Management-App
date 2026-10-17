@@ -1,47 +1,18 @@
-"""Closing a Mortgage: Redemption (paid in full, jewellery returned) or Forfeiture."""
+"""Closing a Mortgage: what Redemption would take, and what is waiting to be Redeemed.
+
+Redeeming, Forfeiting and Reopening are changes, made in the changes module.
+"""
 
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
-from sqlalchemy import update
-from sqlalchemy.engine import Connection
+from fastapi import APIRouter
+from pydantic import BaseModel
 
-from mortgage_backend import audit
-from mortgage_backend.clock import NowDep, TodayDep
+from mortgage_backend.changes import closable
+from mortgage_backend.clock import TodayDep
 from mortgage_backend.db import EngineDep, mortgage_table
-from mortgage_backend.errors import unprocessable
-from mortgage_backend.money import format_inr
-from mortgage_backend.mortgages import (
-    Mortgage,
-    MortgageRow,
-    load_mortgage,
-    mortgage_rows,
-    select_with_customer,
-)
-from mortgage_backend.changes import (
-    AllocationIn,
-    PaymentIn,
-    VoidIn,
-    check_replays,
-    record_payment_unchecked,
-    void_unchecked,
-)
-from mortgage_backend.payments import PaymentMethod
-from mortgage_backend.replay import (
-    MortgageReplay,
-    MortgageStatus,
-    Redemption,
-    mortgage_row,
-    replay,
-    replays,
-)
-
-
-class RedeemIn(BaseModel):
-    redeemed_on: date
-    method: PaymentMethod  # how the final Payment was made
-    reference: str | None = None
+from mortgage_backend.mortgages import MortgageRow, mortgage_rows, select_with_customer
+from mortgage_backend.replay import MortgageStatus, Redemption, replays
 
 
 class ReadyToRedeem(BaseModel):
@@ -49,43 +20,6 @@ class ReadyToRedeem(BaseModel):
 
     mortgage: MortgageRow
     redemption: Redemption  # redeeming today; may include a Part-Month Rule charge
-
-
-class ForfeitIn(BaseModel):
-    forfeited_on: date
-    recovered_amount: int = Field(ge=0)  # paise: sale price, or value if kept
-    note: str = ""
-
-
-def _closable(
-    conn: Connection, mortgage_id: int, on: date, today: date, quote_only: bool = False
-) -> MortgageReplay:
-    """The Mortgage, if it can be closed on `on` (or, for a quote, could be then)."""
-    mortgage = replay(conn, mortgage_id)
-    row = mortgage.row
-    if row["status"] != MortgageStatus.ACTIVE:
-        raise unprocessable(f"{row['name']} is already {row['status']}")
-    if on > today and not quote_only:
-        raise unprocessable(
-            "A Redemption or Forfeiture cannot be recorded for a future date"
-        )
-    if on < row["start_date"]:
-        raise unprocessable(f"{row['name']} had not started on that date")
-    later = max((a.on for a in mortgage.allocations if a.on > on), default=None)
-    if later is not None:
-        raise unprocessable(
-            f"There are Payments after that date (latest {later:%d %b %Y}); "
-            "close it on or after then"
-        )
-    return mortgage
-
-
-def _close(conn: Connection, mortgage_id: int, **values: object) -> None:
-    conn.execute(
-        update(mortgage_table)
-        .where(mortgage_table.c.id == mortgage_id)
-        .values(**values)
-    )
 
 
 router = APIRouter(prefix="/api")
@@ -97,115 +31,7 @@ def redemption_amount(
 ) -> Redemption:
     """What it takes to redeem the Mortgage on `on`."""
     with engine.connect() as conn:
-        return _closable(conn, mortgage_id, on, today, quote_only=True).redemption(on)
-
-
-@router.post("/mortgages/{mortgage_id}/redeem")
-def redeem(
-    mortgage_id: int, redeem: RedeemIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> Mortgage:
-    """Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed."""
-    with engine.begin() as conn:
-        mortgage = _closable(conn, mortgage_id, redeem.redeemed_on, today)
-        row = mortgage.row
-        owed = mortgage.redemption(redeem.redeemed_on).total
-        payment_id = None
-        if owed > 0:
-            payment_id = record_payment_unchecked(
-                conn,
-                PaymentIn(
-                    customer_id=row["customer_id"],
-                    paid_on=redeem.redeemed_on,
-                    amount=owed,
-                    method=redeem.method,
-                    reference=redeem.reference,
-                    allocations=[AllocationIn(mortgage_id=mortgage_id, amount=owed)],
-                ),
-                now,
-            )
-        _close(
-            conn,
-            mortgage_id,
-            status=MortgageStatus.REDEEMED,
-            closed_on=redeem.redeemed_on,
-            redemption_payment_id=payment_id,
-        )
-        if payment_id is not None:
-            check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
-        audit.record(
-            conn,
-            now,
-            "mortgage",
-            mortgage_id,
-            "redeemed",
-            note=f"on {redeem.redeemed_on:%d %b %Y} for {format_inr(owed)}",
-        )
-        return load_mortgage(conn, mortgage_id, today)
-
-
-@router.post("/mortgages/{mortgage_id}/forfeit")
-def forfeit(
-    mortgage_id: int,
-    forfeit: ForfeitIn,
-    engine: EngineDep,
-    today: TodayDep,
-    now: NowDep,
-) -> Mortgage:
-    """Mark the Mortgage Forfeited, recording what the jewellery recovered."""
-    with engine.begin() as conn:
-        _closable(conn, mortgage_id, forfeit.forfeited_on, today)
-        _close(
-            conn,
-            mortgage_id,
-            status=MortgageStatus.FORFEITED,
-            closed_on=forfeit.forfeited_on,
-            recovered_amount=forfeit.recovered_amount,
-            closure_note=forfeit.note.strip() or None,
-        )
-        audit.record(
-            conn,
-            now,
-            "mortgage",
-            mortgage_id,
-            "forfeited",
-            note=(
-                f"on {forfeit.forfeited_on:%d %b %Y}, recovered "
-                f"{format_inr(forfeit.recovered_amount)}"
-            ),
-        )
-        return load_mortgage(conn, mortgage_id, today)
-
-
-@router.post("/mortgages/{mortgage_id}/reopen")
-def reopen(
-    mortgage_id: int, body: VoidIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> Mortgage:
-    """Undo a Redemption or Forfeiture; a Redemption's final Payment is Voided."""
-    with engine.begin() as conn:
-        row = mortgage_row(conn, mortgage_id)
-        if row["status"] == MortgageStatus.ACTIVE:
-            raise HTTPException(status.HTTP_409_CONFLICT, f"{row['name']} is Active")
-        if row["redemption_payment_id"] is not None:
-            void_unchecked(conn, row["redemption_payment_id"], body.reason, now)
-        _close(
-            conn,
-            mortgage_id,
-            status=MortgageStatus.ACTIVE,
-            closed_on=None,
-            redemption_payment_id=None,
-            recovered_amount=None,
-            closure_note=None,
-        )
-        audit.record(
-            conn,
-            now,
-            "mortgage",
-            mortgage_id,
-            "reopened",
-            [audit.Change("status", row["status"], MortgageStatus.ACTIVE)],
-            note=body.reason,
-        )
-        return load_mortgage(conn, mortgage_id, today)
+        return closable(conn, mortgage_id, on, today, quote_only=True).redemption(on)
 
 
 @router.get("/closures/ready-to-redeem")

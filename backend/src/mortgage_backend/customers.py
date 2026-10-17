@@ -16,6 +16,7 @@ from sqlalchemy import (
     true,
     update,
 )
+from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend import audit
@@ -28,6 +29,7 @@ from mortgage_backend.db import (
     standalone_referrer_table,
 )
 from mortgage_backend.errors import unprocessable
+from mortgage_backend.replay import MortgageStatus
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 
 
@@ -537,11 +539,20 @@ PAGE_SIZE = 20
 
 @router.get("/customers")
 def list_customers(
-    engine: EngineDep, page: Annotated[int, Query(ge=1)] = 1, q: str = ""
+    engine: EngineDep,
+    page: Annotated[int, Query(ge=1)] = 1,
+    q: str = "",
+    has_active_mortgage: bool = False,
 ) -> CustomerPage:
-    """All Customers by name, a page at a time, optionally filtered by name or phone."""
+    """All Customers by name, a page at a time, optionally filtered by name or phone,
+    or to those with an Active Mortgage."""
     query = q.strip()
     match = _customer_matches(query) if query else true()
+    if has_active_mortgage:
+        match = match & sql_exists().where(
+            mortgage_table.c.customer_id == customer_table.c.id,
+            mortgage_table.c.status == MortgageStatus.ACTIVE,
+        )
     with engine.connect() as conn:
         total = conn.execute(
             select(func.count()).select_from(customer_table).where(match)

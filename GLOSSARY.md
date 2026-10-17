@@ -74,6 +74,10 @@ _Avoid_: Recalculation, recompute, refresh
 The Ledger continued into the future under stated assumptions, used to compare outcomes before a decision.
 _Avoid_: Forecast, estimate
 
+**Trend**:
+The monthly average of the last 3 full months (Payments received, Principal lent, Redemptions) carried forward as an estimate; nothing is replayed, so unlike a Projection it is never exact.
+_Avoid_: Forecast, prediction
+
 **Outstanding**:
 What a Mortgage owes on a date: Principal plus unpaid interest, before any Part-Month Rule charge; nothing once Redeemed or Forfeited.
 _Avoid_: Balance, dues

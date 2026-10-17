@@ -1,4 +1,4 @@
-"""Before/after previews: what an edit, Term Change or Void would do, without saving
+"""Before/after previews: what a change would do, without saving
 anything (today is 20 Apr 2026, see conftest)."""
 
 import pytest
@@ -204,3 +204,180 @@ def test_a_void_preview_covers_every_mortgage_the_payment_went_to(
         (mortgage["name"], 3_000 * RUPEE),
         (second["name"], 1_000 * RUPEE),
     ]
+
+
+def amount(step):
+    return step and step["amount"]
+
+
+def changed_steps(shown):
+    """(date, kind, amount before, amount after) of each Ledger step that changes."""
+    return [
+        (c["on"], c["event"], amount(c["before"]), amount(c["after"]))
+        for c in shown["ledger_changes"]
+    ]
+
+
+def test_a_redeem_preview_shows_the_final_payment_closing_the_mortgage(
+    client, mortgage
+):
+    shown = preview(
+        client,
+        f"mortgages/{mortgage['id']}/redeem-preview",
+        {"redeemed_on": "2026-04-20", "method": "cash"},
+    )
+
+    assert (shown["before"]["outstanding"], shown["after"]["outstanding"]) == (
+        1_09_000 * RUPEE,
+        0,
+    )
+    # The Full-month charge for the 6 days since 14 Apr, then the Redemption Amount.
+    assert changed_steps(shown) == [
+        ("2026-04-20", "part_month", None, 3_000 * RUPEE),
+        ("2026-04-20", "payment", None, 1_12_000 * RUPEE),
+    ]
+    assert shown["after"]["points"] == []  # a closed Mortgage has no Projection
+    assert nothing_saved(client, mortgage)
+    assert client.get("/api/payments").json()["total"] == 0
+
+
+def test_a_redeem_preview_is_refused_like_the_redemption(client, mortgage):
+    response = client.post(
+        f"/api/mortgages/{mortgage['id']}/redeem-preview",
+        json={"redeemed_on": "2026-04-21", "method": "cash"},
+    )
+
+    assert response.status_code == 422
+    assert "future date" in response.json()["detail"]
+
+
+def test_a_forfeit_preview_shows_the_jewellery_settling_the_debt(client, mortgage):
+    shown = preview(
+        client,
+        f"mortgages/{mortgage['id']}/forfeit-preview",
+        {"forfeited_on": "2026-04-20", "recovered_amount": 1_00_000 * RUPEE},
+    )
+
+    assert shown["after"]["outstanding"] == 0
+    assert [(on, event) for on, event, *_ in changed_steps(shown)] == [
+        ("2026-04-20", "part_month"),
+        ("2026-04-20", "forfeited"),
+    ]
+    assert nothing_saved(client, mortgage)
+
+
+def test_a_reopen_preview_shows_the_final_payment_voided(client, mortgage):
+    client.post(
+        f"/api/mortgages/{mortgage['id']}/redeem",
+        json={"redeemed_on": "2026-04-20", "method": "cash"},
+    )
+
+    shown = preview(client, f"mortgages/{mortgage['id']}/reopen-preview")
+
+    assert (shown["before"]["outstanding"], shown["after"]["outstanding"]) == (
+        0,
+        1_09_000 * RUPEE,
+    )
+    assert changed_steps(shown) == [
+        ("2026-04-20", "part_month", 3_000 * RUPEE, None),
+        ("2026-04-20", "payment", 1_12_000 * RUPEE, None),
+    ]
+    assert at(shown["after"], 3)["redemption_amount"] == 1_21_000 * RUPEE
+    assert client.get(f"/api/mortgages/{mortgage['id']}").json()["status"] == "redeemed"
+
+
+def test_a_reopen_preview_is_refused_like_reopening(client, mortgage):
+    response = client.post(f"/api/mortgages/{mortgage['id']}/reopen-preview", json={})
+
+    assert response.status_code == 409
+
+
+def test_a_term_change_removal_preview_shows_the_projection_without_it(
+    client, mortgage
+):
+    [change] = client.post(
+        f"/api/mortgages/{mortgage['id']}/term-changes",
+        json={"monthly_rate_bps": 200},
+    ).json()["term_changes"]
+
+    shown = preview(
+        client,
+        f"mortgages/{mortgage['id']}/term-changes/{change['id']}/remove-preview",
+    )
+
+    assert at(shown["before"], 3)["unpaid_interest"] == 16_000 * RUPEE
+    assert at(shown["after"], 3)["unpaid_interest"] == 18_000 * RUPEE
+    assert [
+        c["id"]
+        for c in client.get(f"/api/mortgages/{mortgage['id']}").json()["term_changes"]
+    ] == [change["id"]]
+
+
+def payment_of(customer, on, *allocations):
+    """A Payment body: `allocations` are (Mortgage, paise) pairs."""
+    return {
+        "customer_id": customer["id"],
+        "paid_on": on,
+        "amount": sum(amount for _, amount in allocations),
+        "method": "cash",
+        "allocations": [{"mortgage_id": m["id"], "amount": a} for m, a in allocations],
+    }
+
+
+def test_a_payment_preview_covers_every_mortgage_it_is_allocated_to(
+    client, ramesh, mortgage
+):
+    second = client.post(
+        "/api/mortgages",
+        json={"customer_id": ramesh["id"], **details(name="2026-Ramesh-Bangles")},
+    ).json()
+
+    response = client.post(
+        "/api/payments/preview",
+        json=payment_of(
+            ramesh,
+            "2026-04-15",
+            (mortgage, 9_000 * RUPEE),
+            (second, 10_000 * RUPEE),
+        ),
+    )
+
+    assert response.status_code == 200, response.text
+    # Each owed ₹1,09,000; ₹9,000 pays interest, ₹10,000 also ₹1,000 of Principal.
+    assert [
+        (p["mortgage_name"], p["before"]["outstanding"], p["after"]["outstanding"])
+        for p in response.json()
+    ] == [
+        (mortgage["name"], 1_09_000 * RUPEE, 1_00_000 * RUPEE),
+        ("2026-Ramesh-Bangles", 1_09_000 * RUPEE, 99_000 * RUPEE),
+    ]
+    assert client.get("/api/payments").json()["total"] == 0
+
+
+def test_a_payment_preview_refuses_what_saving_refuses(client, ramesh, mortgage):
+    # ₹1,06,000 on 15 Mar pays off everything owed then. ₹5,000 back-dated to 20 Feb
+    # would leave less owed on 15 Mar, so the later Payment would be too large.
+    client.post(
+        "/api/payments",
+        json=payment_of(ramesh, "2026-03-15", (mortgage, 1_06_000 * RUPEE)),
+    )
+    back_dated = payment_of(ramesh, "2026-02-20", (mortgage, 5_000 * RUPEE))
+
+    previewed = client.post("/api/payments/preview", json=back_dated)
+    saved = client.post("/api/payments", json=back_dated)
+
+    assert (previewed.status_code, saved.status_code) == (422, 422)
+    assert previewed.json()["detail"] == saved.json()["detail"]
+    assert "the Payment on 15 Mar 2026 would be more than" in saved.json()["detail"]
+
+
+def test_a_payment_preview_refuses_more_than_is_owed(client, ramesh, mortgage):
+    too_much = payment_of(ramesh, "2026-04-15", (mortgage, 1_10_000 * RUPEE))
+
+    response = client.post("/api/payments/preview", json=too_much)
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "2026-Ramesh-GoldChain: the Payment on 15 Apr 2026 would be more than the "
+        "₹1,09,000 owed then"
+    )

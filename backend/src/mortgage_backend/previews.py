@@ -16,9 +16,17 @@ from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.db import EngineDep
 from mortgage_backend.ledger import LedgerEvent, LedgerStep
 from mortgage_backend.changes import (
+    ForfeitIn,
+    PaymentIn,
+    RedeemIn,
     TermChangeIn,
     add_term_change,
     edit_mortgage,
+    forfeit,
+    record_payment,
+    redeem,
+    remove_term_change,
+    reopen,
     void_payment,
 )
 from mortgage_backend.mortgages import MortgageEdit
@@ -110,7 +118,7 @@ def _preview(
     conn: Connection,
     mortgage_ids: Sequence[int],
     today: date,
-    change: Callable[[], None],
+    change: Callable[[], object],
 ) -> list[MortgagePreview]:
     """Each Mortgage before and after `change`, which is then undone."""
     try:
@@ -182,4 +190,71 @@ def preview_void(
             mortgage_ids,
             today,
             lambda: void_payment(conn, payment_id, "preview", today, now),
+        )
+
+
+@router.post("/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview")
+def preview_term_change_removal(
+    mortgage_id: int, change_id: int, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[MortgagePreview]:
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [mortgage_id],
+            today,
+            lambda: remove_term_change(conn, mortgage_id, change_id, today, now),
+        )
+
+
+@router.post("/mortgages/{mortgage_id}/redeem-preview")
+def preview_redeem(
+    mortgage_id: int, body: RedeemIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[MortgagePreview]:
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [mortgage_id],
+            today,
+            lambda: redeem(conn, mortgage_id, body, today, now),
+        )
+
+
+@router.post("/mortgages/{mortgage_id}/forfeit-preview")
+def preview_forfeit(
+    mortgage_id: int, body: ForfeitIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[MortgagePreview]:
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [mortgage_id],
+            today,
+            lambda: forfeit(conn, mortgage_id, body, today, now),
+        )
+
+
+@router.post("/mortgages/{mortgage_id}/reopen-preview")
+def preview_reopen(
+    mortgage_id: int, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[MortgagePreview]:
+    """The Mortgage Active again; a Redemption's final Payment Voided."""
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [mortgage_id],
+            today,
+            lambda: reopen(conn, mortgage_id, "preview", today, now),
+        )
+
+
+@router.post("/payments/preview")
+def preview_payment(
+    payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[MortgagePreview]:
+    """Every Mortgage the Payment is allocated to, before and after recording it."""
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [allocation.mortgage_id for allocation in payment.allocations],
+            today,
+            lambda: record_payment(conn, payment, today, now),
         )

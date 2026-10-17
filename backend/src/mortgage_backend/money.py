@@ -1,10 +1,12 @@
 """Money is held as integer paise; this formats it for messages the Lender reads."""
 
+RUPEE = 100  # paise
+
 
 def format_inr(paise: int) -> str:
     """Indian digit grouping, e.g. 10900000 → "₹1,09,000"; paise shown only when present."""
     sign = "-" if paise < 0 else ""
-    rupees, rest = divmod(abs(paise), 100)
+    rupees, rest = divmod(abs(paise), RUPEE)
     digits = str(rupees)
     head, tail = digits[:-3], digits[-3:]
     groups: list[str] = []

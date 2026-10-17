@@ -4,6 +4,7 @@ import { api, type LedgerStep, type Mortgage } from '../api'
 import { CallNotes } from '../components/CallNotes'
 import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
 import { CollateralPanel } from '../components/CollateralPanel'
+import { ChangePreview } from '../components/BeforeAfter'
 import { History } from '../components/History'
 import { PersonLink } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
@@ -201,13 +202,17 @@ export function MortgagePage() {
       {reopening && (
         <ReasonDialog
           title={`Reopen ${mortgage.name}?`}
+          wide
           body={
-            <p>
-              It becomes Active again as if it had never been closed: interest is charged for
-              the whole time, up to today.
-              {mortgage.closure?.payment_id &&
-                ' Its final Payment is voided, so it is no longer counted.'}
-            </p>
+            <>
+              <p>
+                It becomes Active again as if it had never been closed: interest is charged for
+                the whole time, up to today.
+                {mortgage.closure?.payment_id &&
+                  ' Its final Payment is voided, so it is no longer counted.'}
+              </p>
+              <ChangePreview load={() => api.previewReopen(mortgage.id)} />
+            </>
           }
           confirmLabel="Reopen"
           onConfirm={async (reason) => setMortgage(await api.reopenMortgage(mortgage.id, reason))}

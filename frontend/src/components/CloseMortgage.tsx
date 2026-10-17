@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import {
   api,
@@ -10,7 +10,9 @@ import {
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { PART_MONTH_RULES } from '../terms'
+import { PreviewSection } from './BeforeAfter'
 import { Summary } from './ConfirmDialog'
+import { usePreview } from './usePreview'
 import { useConfirm } from './useConfirm'
 
 type Action = 'redeem' | 'forfeit'
@@ -66,6 +68,20 @@ export function CloseMortgage({
   const recoveredPaise = rupeesToPaise(recovered || '0')
   const profitLoss = redemption && recovered ? recoveredPaise - redemption.total : null
   const future = on > todayIso() // a quote only: nothing can be recorded for a future date
+
+  // Re-previewed whenever what would be saved changes.
+  const proposed =
+    action === 'redeem'
+      ? JSON.stringify({ redeemed_on: on, method, reference: reference.trim() || null })
+      : JSON.stringify({ forfeited_on: on, recovered_amount: recoveredPaise, note })
+  const load = useCallback(
+    () =>
+      action === 'redeem'
+        ? api.previewRedeem(mortgage.id, JSON.parse(proposed))
+        : api.previewForfeit(mortgage.id, JSON.parse(proposed)),
+    [action, mortgage.id, proposed],
+  )
+  const preview = usePreview(action && redemption && !future ? load : null)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -229,11 +245,18 @@ export function CloseMortgage({
         </>
       )}
 
+      {redemption && !future && (
+        <>
+          <h3>What changes</h3>
+          <PreviewSection preview={preview} />
+        </>
+      )}
+
       <div className="row">
         <button
           type="submit"
           className={action === 'forfeit' ? 'danger-solid' : ''}
-          disabled={saving || !redemption || future}
+          disabled={saving || !redemption || future || !!preview.error}
         >
           {action === 'redeem'
             ? `Redeem${redemption ? ` for ${formatINR(redemption.total)}` : ''}`

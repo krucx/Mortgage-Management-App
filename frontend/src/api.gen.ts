@@ -71,7 +71,8 @@ export interface paths {
         };
         /**
          * List Customers
-         * @description All Customers by name, a page at a time, optionally filtered by name or phone.
+         * @description All Customers by name, a page at a time, optionally filtered by name or phone,
+         *     or to those with an Active Mortgage.
          */
         get: operations["list_customers_api_customers_get"];
         put?: never;
@@ -170,6 +171,7 @@ export interface paths {
          *     With `as_of`, only Mortgages started by then, with what they owed on that date
          *     (used when recording a back-dated Payment). With `owing`, only those with something
          *     Outstanding (Outstanding is computed, so that filter is applied after the replay).
+         *     With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month.
          */
         get: operations["list_mortgages_api_mortgages_get"];
         put?: never;
@@ -290,10 +292,27 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Forfeit
+         * Post Forfeit
          * @description Mark the Mortgage Forfeited, recording what the jewellery recovered.
          */
-        post: operations["forfeit_api_mortgages__mortgage_id__forfeit_post"];
+        post: operations["post_forfeit_api_mortgages__mortgage_id__forfeit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/{mortgage_id}/forfeit-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Forfeit */
+        post: operations["preview_forfeit_api_mortgages__mortgage_id__forfeit_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -382,10 +401,27 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Redeem
+         * Post Redeem
          * @description Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed.
          */
-        post: operations["redeem_api_mortgages__mortgage_id__redeem_post"];
+        post: operations["post_redeem_api_mortgages__mortgage_id__redeem_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/{mortgage_id}/redeem-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Redeem */
+        post: operations["preview_redeem_api_mortgages__mortgage_id__redeem_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -422,10 +458,30 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Reopen
+         * Post Reopen
          * @description Undo a Redemption or Forfeiture; a Redemption's final Payment is Voided.
          */
-        post: operations["reopen_api_mortgages__mortgage_id__reopen_post"];
+        post: operations["post_reopen_api_mortgages__mortgage_id__reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/{mortgage_id}/reopen-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Reopen
+         * @description The Mortgage Active again; a Redemption's final Payment Voided.
+         */
+        post: operations["preview_reopen_api_mortgages__mortgage_id__reopen_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -477,10 +533,27 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Remove Term Change
+         * Delete Term Change
          * @description Remove a Term Change that has not taken effect yet.
          */
-        delete: operations["remove_term_change_api_mortgages__mortgage_id__term_changes__change_id__delete"];
+        delete: operations["delete_term_change_api_mortgages__mortgage_id__term_changes__change_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Term Change Removal */
+        post: operations["preview_term_change_removal_api_mortgages__mortgage_id__term_changes__change_id__remove_preview_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -495,12 +568,33 @@ export interface paths {
         };
         /**
          * List Payments
-         * @description Payments, newest first, filtered by Customer, Mortgage Name or reference.
+         * @description Payments, newest first, filtered by Customer, Mortgage Name or reference, and
+         *     to a month (YYYY-MM) or year. With a month or year, the interest they paid too.
          */
         get: operations["list_payments_api_payments_get"];
         put?: never;
         /** Post Payment */
         post: operations["post_payment_api_payments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payments/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Payment
+         * @description Every Mortgage the Payment is allocated to, before and after recording it.
+         */
+        post: operations["preview_payment_api_payments_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -915,6 +1009,15 @@ export interface components {
             /** Value */
             value?: number | null;
         };
+        /** ComingMonth */
+        ComingMonth: {
+            /** Interest Charged */
+            interest_charged: number;
+            /** Month */
+            month: string;
+            /** Payments Estimate */
+            payments_estimate: number;
+        };
         /** ComingTermChange */
         ComingTermChange: {
             /**
@@ -1003,6 +1106,8 @@ export interface components {
             call_list_count: number;
             /** Collateral Value */
             collateral_value: number;
+            /** Coming Months */
+            coming_months: components["schemas"]["ComingMonth"][];
             /** Customers With Active Mortgages */
             customers_with_active_mortgages: number;
             /** Forfeited This Month */
@@ -1019,8 +1124,12 @@ export interface components {
             payments_by_month: components["schemas"]["MonthlyPayments"][];
             /** Principal Outstanding */
             principal_outstanding: number;
+            /** Projections */
+            projections: components["schemas"]["ProjectionHorizon"][];
             /** Redeemed This Month */
             redeemed_this_month: number;
+            /** Trend Months */
+            trend_months: string[];
             /** Unpaid Interest */
             unpaid_interest: number;
         };
@@ -1393,6 +1502,8 @@ export interface components {
         PaymentMethod: "cash" | "upi" | "bank_transfer";
         /** PaymentPage */
         PaymentPage: {
+            /** Interest Paid */
+            interest_paid?: number | null;
             /** Items */
             items: components["schemas"]["PaymentRow"][];
             /** Page */
@@ -1489,6 +1600,24 @@ export interface components {
             /** Monthly Payment */
             monthly_payment: number | null;
             what_if: components["schemas"]["ProjectedSeries"] | null;
+        };
+        /** ProjectionHorizon */
+        ProjectionHorizon: {
+            /** Interest Accrued */
+            interest_accrued: number;
+            /** Months */
+            months: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Payments Estimate */
+            payments_estimate: number;
+            /** Principal Lent Estimate */
+            principal_lent_estimate: number;
+            /** Redemptions Estimate */
+            redemptions_estimate: number;
         };
         /**
          * ReadyToRedeem
@@ -1703,6 +1832,7 @@ export interface operations {
             query?: {
                 page?: number;
                 q?: string;
+                has_active_mortgage?: boolean;
             };
             header?: never;
             path?: never;
@@ -1953,6 +2083,7 @@ export interface operations {
                 status?: components["schemas"]["MortgageStatus"] | null;
                 as_of?: string | null;
                 owing?: boolean;
+                closed_in?: string | null;
             };
             header?: never;
             path?: never;
@@ -2250,7 +2381,7 @@ export interface operations {
             };
         };
     };
-    forfeit_api_mortgages__mortgage_id__forfeit_post: {
+    post_forfeit_api_mortgages__mortgage_id__forfeit_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2272,6 +2403,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Mortgage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_forfeit_api_mortgages__mortgage_id__forfeit_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mortgage_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForfeitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MortgagePreview"][];
                 };
             };
             /** @description Validation Error */
@@ -2416,7 +2582,7 @@ export interface operations {
             };
         };
     };
-    redeem_api_mortgages__mortgage_id__redeem_post: {
+    post_redeem_api_mortgages__mortgage_id__redeem_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2438,6 +2604,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Mortgage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_redeem_api_mortgages__mortgage_id__redeem_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mortgage_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedeemIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MortgagePreview"][];
                 };
             };
             /** @description Validation Error */
@@ -2484,7 +2685,7 @@ export interface operations {
             };
         };
     };
-    reopen_api_mortgages__mortgage_id__reopen_post: {
+    post_reopen_api_mortgages__mortgage_id__reopen_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2506,6 +2707,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Mortgage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_reopen_api_mortgages__mortgage_id__reopen_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mortgage_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MortgagePreview"][];
                 };
             };
             /** @description Validation Error */
@@ -2589,7 +2821,7 @@ export interface operations {
             };
         };
     };
-    remove_term_change_api_mortgages__mortgage_id__term_changes__change_id__delete: {
+    delete_term_change_api_mortgages__mortgage_id__term_changes__change_id__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -2621,11 +2853,46 @@ export interface operations {
             };
         };
     };
+    preview_term_change_removal_api_mortgages__mortgage_id__term_changes__change_id__remove_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mortgage_id: number;
+                change_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MortgagePreview"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_payments_api_payments_get: {
         parameters: {
             query?: {
                 page?: number;
                 q?: string;
+                month?: string | null;
+                year?: number | null;
+                include_voided?: boolean;
             };
             header?: never;
             path?: never;
@@ -2673,6 +2940,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Payment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_payment_api_payments_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MortgagePreview"][];
                 };
             };
             /** @description Validation Error */

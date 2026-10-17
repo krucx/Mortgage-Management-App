@@ -1,4 +1,6 @@
-"""Changes to Mortgages and Payments, each made in one place.
+"""Changes to Mortgages and Payments, each made in one place: recording and Voiding
+Payments, edits, adding and removing Term Changes, and Redeeming, Forfeiting and
+Reopening.
 
 Every change is refused if it isn't allowed, written, then checked by replaying each
 Mortgage it touches (no Payment may end up larger than what was owed on its date), and
@@ -11,7 +13,7 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend import audit
@@ -35,7 +37,13 @@ from mortgage_backend.mortgages import (
     upcoming_accrual_dates,
 )
 from mortgage_backend.payments import Payment, PaymentMethod, load_payment, mortgages_of
-from mortgage_backend.replay import MortgageStatus, mortgage_row, replay, replays
+from mortgage_backend.replay import (
+    MortgageReplay,
+    MortgageStatus,
+    mortgage_row,
+    replay,
+    replays,
+)
 from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
 
 
@@ -80,6 +88,18 @@ class TermChangeIn(BaseModel):
     monthly_rate_bps: int | None = Field(default=None, gt=0, le=10_000)
     interest_mode: InterestMode | None = None
     part_month_rule: PartMonthRule | None = None
+
+
+class RedeemIn(BaseModel):
+    redeemed_on: date
+    method: PaymentMethod  # how the final Payment was made
+    reference: str | None = None
+
+
+class ForfeitIn(BaseModel):
+    forfeited_on: date
+    recovered_amount: int = Field(ge=0)  # paise: sale price, or value if kept
+    note: str = ""
 
 
 # Changing these on a closed Mortgage would contradict how it was closed.
@@ -166,29 +186,10 @@ def _record_void_history(
     )
 
 
-def record_payment_unchecked(
-    conn: Connection, payment: PaymentIn, now: datetime
-) -> int:
-    """Record a Payment without record_payment's checks; returns its id. Only a
-    Redemption's final Payment is recorded this way, checked by Closure itself."""
-    payment_id = _write_payment(conn, payment)
-    _record_payment_history(conn, payment_id, payment, now)
-    return payment_id
-
-
-def void_unchecked(
-    conn: Connection, payment_id: int, reason: str, now: datetime
-) -> None:
-    """Void a Payment without void_payment's checks. Only Reopening voids this way: it
-    voids a Redemption's final Payment, which void_payment refuses."""
-    _write_void(conn, payment_id, reason, now)
-    _record_void_history(conn, payment_id, reason, now)
-
-
-def record_payment(
-    conn: Connection, payment: PaymentIn, today: date, now: datetime
-) -> int:
-    """Record a Payment (or refuse); returns its id."""
+def _refuse_payment(
+    conn: Connection, payment: PaymentIn, today: date
+) -> list[RowMapping]:
+    """The Mortgages the Payment is allocated to, unless it cannot be made at all."""
     if payment.paid_on > today:
         raise unprocessable("The Payment date cannot be in the future")
     if not exists(conn, customer_table, payment.customer_id):
@@ -210,6 +211,14 @@ def record_payment(
         if payment.paid_on < row["start_date"]:
             raise unprocessable(f"{row['name']} had not started on that date")
         rows.append(row)
+    return rows
+
+
+def record_payment(
+    conn: Connection, payment: PaymentIn, today: date, now: datetime
+) -> int:
+    """Record a Payment (or refuse); returns its id."""
+    rows = _refuse_payment(conn, payment, today)
     payment_id = _write_payment(conn, payment)
     check_replays(conn, rows, today)
     _record_payment_history(conn, payment_id, payment, now)
@@ -221,7 +230,14 @@ def void_payment(
 ) -> None:
     """Void a Payment (or refuse): a Redemption's final Payment, or one to a closed
     Mortgage, is Voided by reopening instead."""
-    if load_payment(conn, payment_id).voided_at is not None:
+    # Read straight from the table: loading the Payment would replay its Mortgages,
+    # which Reopening has just made Active with its final Payment still in place.
+    found = conn.execute(
+        select(payment_table.c.voided_at).where(payment_table.c.id == payment_id)
+    ).one_or_none()
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
+    if found.voided_at is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Already voided")
     rows = mortgages_of(conn, payment_id)
     for row in rows:
@@ -340,6 +356,169 @@ def edit_mortgage(
         audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
 
 
+def closable(
+    conn: Connection, mortgage_id: int, on: date, today: date, quote_only: bool = False
+) -> MortgageReplay:
+    """The Mortgage, if it can be closed on `on` (or, for a quote, could be then)."""
+    mortgage = replay(conn, mortgage_id)
+    row = mortgage.row
+    if row["status"] != MortgageStatus.ACTIVE:
+        raise unprocessable(f"{row['name']} is already {row['status']}")
+    if on > today and not quote_only:
+        raise unprocessable(
+            "A Redemption or Forfeiture cannot be recorded for a future date"
+        )
+    if on < row["start_date"]:
+        raise unprocessable(f"{row['name']} had not started on that date")
+    later = max((a.on for a in mortgage.allocations if a.on > on), default=None)
+    if later is not None:
+        raise unprocessable(
+            f"There are Payments after that date (latest {later:%d %b %Y}); "
+            "close it on or after then"
+        )
+    return mortgage
+
+
+def _set_closure(conn: Connection, mortgage_id: int, **values: object) -> None:
+    conn.execute(
+        update(mortgage_table)
+        .where(mortgage_table.c.id == mortgage_id)
+        .values(**values)
+    )
+
+
+def redeem(
+    conn: Connection, mortgage_id: int, redeem: RedeemIn, today: date, now: datetime
+) -> None:
+    """Record the final Payment of the Redemption Amount (unless nothing is owed) and
+    mark the Mortgage Redeemed (or refuse)."""
+    mortgage = closable(conn, mortgage_id, redeem.redeemed_on, today)
+    row = mortgage.row
+    owed = mortgage.redemption(redeem.redeemed_on).total
+    # The final Payment includes the part-month charge, owed only once the Mortgage
+    # closes, so it is replayed after closing rather than as an ordinary Payment.
+    final = None
+    payment_id = None
+    if owed > 0:
+        final = PaymentIn(
+            customer_id=row["customer_id"],
+            paid_on=redeem.redeemed_on,
+            amount=owed,
+            method=redeem.method,
+            reference=redeem.reference,
+            allocations=[AllocationIn(mortgage_id=mortgage_id, amount=owed)],
+        )
+        _refuse_payment(conn, final, today)
+        payment_id = _write_payment(conn, final)
+    _set_closure(
+        conn,
+        mortgage_id,
+        status=MortgageStatus.REDEEMED,
+        closed_on=redeem.redeemed_on,
+        redemption_payment_id=payment_id,
+    )
+    check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
+    if final is not None and payment_id is not None:
+        _record_payment_history(conn, payment_id, final, now)
+    audit.record(
+        conn,
+        now,
+        "mortgage",
+        mortgage_id,
+        "redeemed",
+        note=f"on {redeem.redeemed_on:%d %b %Y} for {format_inr(owed)}",
+    )
+
+
+def forfeit(
+    conn: Connection, mortgage_id: int, forfeit: ForfeitIn, today: date, now: datetime
+) -> None:
+    """Mark the Mortgage Forfeited, recording what the jewellery recovered (or refuse)."""
+    closable(conn, mortgage_id, forfeit.forfeited_on, today)
+    _set_closure(
+        conn,
+        mortgage_id,
+        status=MortgageStatus.FORFEITED,
+        closed_on=forfeit.forfeited_on,
+        recovered_amount=forfeit.recovered_amount,
+        closure_note=forfeit.note.strip() or None,
+    )
+    check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
+    audit.record(
+        conn,
+        now,
+        "mortgage",
+        mortgage_id,
+        "forfeited",
+        note=(
+            f"on {forfeit.forfeited_on:%d %b %Y}, recovered "
+            f"{format_inr(forfeit.recovered_amount)}"
+        ),
+    )
+
+
+def reopen(
+    conn: Connection, mortgage_id: int, reason: str, today: date, now: datetime
+) -> None:
+    """Undo a Redemption or Forfeiture (or refuse); a Redemption's final Payment is
+    Voided once the Mortgage is Active again."""
+    row = mortgage_row(conn, mortgage_id)
+    if row["status"] == MortgageStatus.ACTIVE:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"{row['name']} is Active")
+    _set_closure(
+        conn,
+        mortgage_id,
+        status=MortgageStatus.ACTIVE,
+        closed_on=None,
+        redemption_payment_id=None,
+        recovered_amount=None,
+        closure_note=None,
+    )
+    if row["redemption_payment_id"] is not None:
+        void_payment(conn, row["redemption_payment_id"], reason, today, now)
+    check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
+    audit.record(
+        conn,
+        now,
+        "mortgage",
+        mortgage_id,
+        "reopened",
+        [audit.Change("status", row["status"], MortgageStatus.ACTIVE)],
+        note=reason,
+    )
+
+
+def remove_term_change(
+    conn: Connection, mortgage_id: int, change_id: int, today: date, now: datetime
+) -> None:
+    """Remove a Term Change that has not taken effect yet (or refuse)."""
+    row = mortgage_row(conn, mortgage_id)
+    _refuse_unless_active(row)
+    effective_on = conn.execute(
+        select(term_change_table.c.effective_on).where(
+            term_change_table.c.id == change_id,
+            term_change_table.c.mortgage_id == mortgage_id,
+        )
+    ).scalar()
+    if effective_on is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Term Change not found")
+    if effective_on <= today:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This Term Change has taken effect; add another to change the Terms",
+        )
+    conn.execute(delete(term_change_table).where(term_change_table.c.id == change_id))
+    check_replays(conn, [row], today)
+    audit.record(
+        conn,
+        now,
+        "mortgage",
+        mortgage_id,
+        "term_change_removed",
+        note=f"from {effective_on:%d %b %Y}",
+    )
+
+
 router = APIRouter(prefix="/api")
 
 
@@ -387,4 +566,48 @@ def put_mortgage(
     """Correct a Mortgage's details; its Ledger is replayed from them."""
     with engine.begin() as conn:
         edit_mortgage(conn, mortgage_id, edit, today, now)
+        return load_mortgage(conn, mortgage_id, today)
+
+
+@router.delete("/mortgages/{mortgage_id}/term-changes/{change_id}")
+def delete_term_change(
+    mortgage_id: int,
+    change_id: int,
+    engine: EngineDep,
+    today: TodayDep,
+    now: NowDep,
+) -> Mortgage:
+    """Remove a Term Change that has not taken effect yet."""
+    with engine.begin() as conn:
+        remove_term_change(conn, mortgage_id, change_id, today, now)
+        return load_mortgage(conn, mortgage_id, today)
+
+
+@router.post("/mortgages/{mortgage_id}/redeem")
+def post_redeem(
+    mortgage_id: int, body: RedeemIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> Mortgage:
+    """Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed."""
+    with engine.begin() as conn:
+        redeem(conn, mortgage_id, body, today, now)
+        return load_mortgage(conn, mortgage_id, today)
+
+
+@router.post("/mortgages/{mortgage_id}/forfeit")
+def post_forfeit(
+    mortgage_id: int, body: ForfeitIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> Mortgage:
+    """Mark the Mortgage Forfeited, recording what the jewellery recovered."""
+    with engine.begin() as conn:
+        forfeit(conn, mortgage_id, body, today, now)
+        return load_mortgage(conn, mortgage_id, today)
+
+
+@router.post("/mortgages/{mortgage_id}/reopen")
+def post_reopen(
+    mortgage_id: int, body: VoidIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> Mortgage:
+    """Undo a Redemption or Forfeiture; a Redemption's final Payment is Voided."""
+    with engine.begin() as conn:
+        reopen(conn, mortgage_id, body.reason, today, now)
         return load_mortgage(conn, mortgage_id, today)

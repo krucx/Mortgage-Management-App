@@ -7,6 +7,8 @@ export interface ConfirmOptions {
   confirmLabel?: string
   cancelLabel?: string
   danger?: boolean
+  /** Room for a larger body, such as a before/after preview. */
+  wide?: boolean
 }
 
 export function ConfirmDialog({
@@ -15,6 +17,7 @@ export function ConfirmDialog({
   confirmLabel = 'Confirm and save',
   cancelLabel = 'Keep editing',
   danger = false,
+  wide = false,
   onClose,
 }: ConfirmOptions & { onClose: (confirmed: boolean) => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -26,7 +29,7 @@ export function ConfirmDialog({
   return (
     <dialog
       ref={dialog}
-      className="confirm"
+      className={`confirm${wide ? ' wide-dialog' : ''}`}
       aria-labelledby="confirm-title"
       onCancel={(event) => {
         event.preventDefault() // Esc

@@ -839,6 +839,7 @@ figure.chart .marker text {
 .dashboard .group.money-in { --tone: var(--tone-money-in); }
 .dashboard .group.collateral { --tone: var(--tone-collateral); }
 .dashboard .group.closed { --tone: var(--tone-closed); }
+.dashboard .group.ahead { --tone: var(--tone-owed); }
 
 .dashboard .group {
   display: grid;
@@ -917,12 +918,83 @@ a.tile.figure:focus-visible,
   color: var(--error);
 }
 
+/* Exact versus estimate: a word, never colour alone. */
+.dashboard .flag.exact,
+.dashboard .flag.estimate {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 0.35rem;
+  border-radius: 0.25rem;
+  border: 1px solid currentColor;
+}
+
+.dashboard .flag.exact {
+  color: var(--text);
+}
+
+.dashboard .flag.estimate {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.dashboard table.projections th[scope='row'] {
+  font-weight: normal;
+}
+
 .dashboard .flag.warn {
   color: var(--warning);
 }
 
 figure.chart.payments-by-month .mark {
   fill: var(--tone-money-in);
+}
+
+/* A coming month's estimate: the same hue, hatched and outlined, so it never reads as
+   money already received. */
+figure.chart.payments-by-month .coming .mark {
+  fill: url(#estimate-hatch);
+  stroke: var(--tone-money-in);
+  stroke-width: 1;
+}
+
+figure.chart.payments-by-month .hatch {
+  stroke: var(--tone-money-in);
+  stroke-width: 2;
+}
+
+figure.chart.payments-by-month .charged {
+  fill: var(--tone-owed);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+figure.chart.payments-by-month .today line {
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+}
+
+.key.received::before {
+  background: var(--tone-money-in);
+  height: 0.7rem;
+}
+
+.key.estimate::before {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--tone-money-in) 0 2px,
+    transparent 2px 4px
+  );
+  outline: 1px solid var(--tone-money-in);
+  height: 0.7rem;
+}
+
+.key.charged::before {
+  background: var(--tone-owed);
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
 }
 
 figure.chart.payments-by-month .hit {

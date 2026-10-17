@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   api,
@@ -8,15 +8,31 @@ import {
   type Payment,
   type PaymentMethod,
 } from '../api'
+import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { CustomerChooser } from '../components/CustomerChooser'
 import { RedeemPaidOff } from '../components/RedeemPaidOff'
 import { useConfirm } from '../components/useConfirm'
+import { usePreview } from '../components/usePreview'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
 
 type AllocationMode = 'equal' | 'amount' | 'percent'
+
+/**
+ * Equal shares as a suggestion only. More than is Outstanding is still split equally:
+ * whether a Payment is too large is for the preview to say, as saving would.
+ */
+function suggestEqually(total: number, outstanding: number[]): number[] | null {
+  return (
+    allocateEqually(total, outstanding) ??
+    allocateEqually(
+      total,
+      outstanding.map(() => Infinity),
+    )
+  )
+}
 
 /**
  * Record a lump-sum Payment: pick the Customer, choose their Mortgages, enter the total,
@@ -101,7 +117,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 
   const amounts: number[] | null =
     mode === 'equal'
-      ? allocateEqually(total, outstanding)
+      ? suggestEqually(total, outstanding)
       : mode === 'amount'
         ? chosen.map((m) => rupeesToPaise(amountText[m.id] || '0'))
         : amountsFromPercentages(
@@ -114,25 +130,32 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const problems: string[] = []
   if (chosen.length === 0) problems.push('Choose at least one Mortgage.')
   if (total <= 0) problems.push('Enter the amount received.')
-  if (total > totalOutstanding && chosen.length)
-    problems.push(
-      `The amount is more than the ${formatINR(totalOutstanding)} Outstanding on these ` +
-        `Mortgages on ${formatDate(paidOn)}.`,
-    )
   if (mode === 'percent' && chosen.some((m) => Number(percentText[m.id] || '0') < 0))
     problems.push('Percentages cannot be negative.')
   if (amounts?.some((amount) => amount < 0)) problems.push('Allocations cannot be negative.')
   if (mode === 'percent' && amounts === null) problems.push('The percentages must add up to 100.')
   if (amounts && total > 0 && allocated !== total)
     problems.push(`The Allocations add up to ${formatINR(allocated)}, not ${formatINR(total)}.`)
-  amounts?.forEach((amount, i) => {
-    if (amount > outstanding[i])
-      problems.push(`${chosen[i].name}: more than its ${formatINR(outstanding[i])} Outstanding.`)
-  })
+
+  // What saving would send; previewed (and refused, if it would be) by the backend.
+  const proposed =
+    problems.length || !amounts
+      ? null
+      : JSON.stringify({
+          customer_id: customer.id,
+          paid_on: paidOn,
+          amount: total,
+          method,
+          reference: reference.trim() || null,
+          allocations: chosen
+            .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i] }))
+            .filter((allocation) => allocation.amount > 0),
+        })
+  const [refusal, setRefusal] = useState<string | null>(null)
 
   /** Switching to a manual mode starts from the current equal Allocations. */
   function switchMode(next: AllocationMode) {
-    const equal = allocateEqually(total, outstanding)
+    const equal = suggestEqually(total, outstanding)
     if (next === 'amount' && equal)
       setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, String(equal[i] / 100)])))
     if (next === 'percent' && total > 0 && equal)
@@ -151,7 +174,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (problems.length || !amounts) return
+    if (!proposed || !amounts || refusal) return
     const confirmed = await confirm({
       title: `Record a Payment of ${formatINR(total)}?`,
       body: (
@@ -171,16 +194,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     setSaving(true)
     setError(null)
     try {
-      const payment = await api.recordPayment({
-        customer_id: customer.id,
-        paid_on: paidOn,
-        amount: total,
-        method,
-        reference: reference.trim() || null,
-        allocations: chosen
-          .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i] }))
-          .filter((allocation) => allocation.amount > 0),
-      })
+      const payment = await api.recordPayment(JSON.parse(proposed))
       const allocated = new Set(payment.allocations.map((a) => a.mortgage_id))
       const cleared = (await api.readyToRedeem().catch(() => []))
         .map((item) => item.mortgage)
@@ -366,8 +380,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           ))}
         </ul>
       )}
+      {proposed && <PaymentPreview proposed={proposed} onRefusal={setRefusal} />}
       <div className="row">
-        <button type="submit" disabled={saving || problems.length > 0}>
+        <button type="submit" disabled={saving || !proposed || !!refusal}>
           {saving ? 'Saving…' : `Record Payment${total > 0 ? ` of ${formatINR(total)}` : ''}`}
         </button>
       </div>
@@ -381,5 +396,25 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         />
       )}
     </form>
+  )
+}
+
+/** What recording the Payment would do to each Mortgage, or why it would be refused. */
+function PaymentPreview({
+  proposed,
+  onRefusal,
+}: {
+  proposed: string // the PaymentIn as JSON, so a new object for the same Payment re-uses it
+  onRefusal: (refusal: string | null) => void
+}) {
+  const load = useCallback(() => api.previewPayment(JSON.parse(proposed)), [proposed])
+  const preview = usePreview(load)
+  useEffect(() => onRefusal(preview.error), [preview.error, onRefusal])
+  useEffect(() => () => onRefusal(null), [onRefusal])
+  return (
+    <>
+      <h3>What changes</h3>
+      <PreviewSection preview={preview} />
+    </>
   )
 }

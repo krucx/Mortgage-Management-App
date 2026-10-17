@@ -90,6 +90,8 @@ export type Closure = Schemas['Closure']
 /** The whole lending book at a glance. */
 export type Dashboard = Schemas['Dashboard']
 export type MonthlyPayments = Schemas['MonthlyPayments']
+export type ProjectionHorizon = Schemas['ProjectionHorizon']
+export type ComingMonth = Schemas['ComingMonth']
 
 /** Turns a FastAPI error body into one readable line. */
 function errorMessage(status: number, body: unknown): string {
@@ -156,8 +158,11 @@ export const api = {
 
   search: (query: string) => request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}`),
 
-  listCustomers: (page: number, query: string) =>
-    request<CustomerPage>(`/customers?page=${page}&q=${encodeURIComponent(query)}`),
+  listCustomers: (page: number, query: string, filters: { hasActiveMortgage?: boolean } = {}) =>
+    request<CustomerPage>(
+      `/customers?page=${page}&q=${encodeURIComponent(query)}` +
+        (filters.hasActiveMortgage ? '&has_active_mortgage=true' : ''),
+    ),
   getCustomer: (id: number) => request<Customer>(`/customers/${id}`),
   deleteCustomer: (id: number) => request<null>(`/customers/${id}`, { method: 'DELETE' }),
   createCustomer: (customer: CustomerIn) =>
@@ -174,14 +179,21 @@ export const api = {
   listMortgages: (
     page: number,
     query: string,
-    filters: { customerId?: number; status?: MortgageStatus; asOf?: string; owing?: boolean } = {},
+    filters: {
+      customerId?: number
+      status?: MortgageStatus
+      asOf?: string
+      owing?: boolean
+      closedIn?: string // YYYY-MM
+    } = {},
   ) =>
     request<MortgagePage>(
       `/mortgages?page=${page}&q=${encodeURIComponent(query)}` +
         (filters.customerId ? `&customer_id=${filters.customerId}` : '') +
         (filters.status ? `&status=${filters.status}` : '') +
         (filters.asOf ? `&as_of=${filters.asOf}` : '') +
-        (filters.owing ? '&owing=true' : ''),
+        (filters.owing ? '&owing=true' : '') +
+        (filters.closedIn ? `&closed_in=${filters.closedIn}` : ''),
     ),
   getMortgage: (id: number) => request<Mortgage>(`/mortgages/${id}`),
   readyToRedeem: () => request<ReadyToRedeem[]>('/closures/ready-to-redeem'),
@@ -217,6 +229,18 @@ export const api = {
     request<MortgagePreview[]>(`/mortgages/${id}/term-changes/preview`, sendJson('POST', change)),
   previewVoid: (paymentId: number) =>
     request<MortgagePreview[]>(`/payments/${paymentId}/void-preview`, { method: 'POST' }),
+  previewPayment: (payment: PaymentIn) =>
+    request<MortgagePreview[]>('/payments/preview', sendJson('POST', payment)),
+  previewRedeem: (id: number, body: RedeemIn) =>
+    request<MortgagePreview[]>(`/mortgages/${id}/redeem-preview`, sendJson('POST', body)),
+  previewForfeit: (id: number, body: ForfeitIn) =>
+    request<MortgagePreview[]>(`/mortgages/${id}/forfeit-preview`, sendJson('POST', body)),
+  previewReopen: (id: number) =>
+    request<MortgagePreview[]>(`/mortgages/${id}/reopen-preview`, { method: 'POST' }),
+  previewTermChangeRemoval: (id: number, changeId: number) =>
+    request<MortgagePreview[]>(`/mortgages/${id}/term-changes/${changeId}/remove-preview`, {
+      method: 'POST',
+    }),
   addTermChange: (id: number, change: TermChangeIn) =>
     changesLedger(request<Mortgage>(`/mortgages/${id}/term-changes`, sendJson('POST', change))),
   removeTermChange: (id: number, changeId: number) =>
@@ -235,8 +259,17 @@ export const api = {
   getPayment: (id: number) => request<Payment>(`/payments/${id}`),
   voidPayment: (id: number, reason: string) =>
     changesLedger(request<Payment>(`/payments/${id}/void`, sendJson('POST', { reason }))),
-  listPayments: (page: number, query: string) =>
-    request<PaymentPage>(`/payments?page=${page}&q=${encodeURIComponent(query)}`),
+  listPayments: (
+    page: number,
+    query: string,
+    filters: { month?: string; year?: string; includeVoided?: boolean } = {},
+  ) =>
+    request<PaymentPage>(
+      `/payments?page=${page}&q=${encodeURIComponent(query)}` +
+        (filters.month ? `&month=${filters.month}` : '') +
+        (filters.year ? `&year=${filters.year}` : '') +
+        (filters.includeVoided === false ? '&include_voided=false' : ''),
+    ),
 
   personByPhone: (phone: string) =>
     request<PersonSummary | null>(`/people/by-phone?phone=${encodeURIComponent(phone)}`),

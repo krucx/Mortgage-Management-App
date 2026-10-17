@@ -29,6 +29,9 @@ export const formatPercent = (ratio: number) =>
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** "2026-04" → "Apr 2026" (or just "Apr" when `short`). */
+/** Whether `text` is a calendar month, YYYY-MM. */
+export const isMonth = (text: string | null) => /^\d{4}-(0[1-9]|1[0-2])$/.test(text ?? '')
+
 export function monthName(month: string, short = false): string {
   const [year, number] = month.split('-')
   const name = MONTHS[Number(number) - 1]

@@ -328,3 +328,131 @@ def test_a_refused_change_records_no_history(conn: Connection) -> None:
 
     # History is written only once the replay holds (the caller rolls back the rest).
     assert [e for e in mortgage_history(conn, chain) if e.action == "edited"] == []
+
+
+def redeem_in(on: str = "2026-04-20") -> changes.RedeemIn:
+    return changes.RedeemIn(
+        redeemed_on=date.fromisoformat(on), method="cash", reference="UTR1"
+    )
+
+
+def test_redeeming_records_the_final_payment_closes_and_is_recorded(
+    conn: Connection,
+) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+
+    changes.redeem(conn, chain, redeem_in(), TODAY, NOW)
+
+    mortgage = replay(conn, chain)
+    final = mortgage.row["redemption_payment_id"]
+    assert (mortgage.row["status"], mortgage.row["closed_on"]) == ("redeemed", TODAY)
+    # ₹1,09,000 owed plus a Full-month charge of ₹3,000 for the part-month.
+    assert [(a.payment_id, a.amount) for a in mortgage.allocations] == [
+        (final, 1_12_000 * RUPEE)
+    ]
+    assert mortgage.outstanding(TODAY).total == 0
+    history = {(e.entity, e.entity_id, e.action) for e in mortgage_history(conn, chain)}
+    assert {("payment", final, "created"), ("mortgage", chain, "redeemed")} <= history
+
+
+@pytest.mark.parametrize(
+    ("on", "detail"),
+    [
+        ("2026-04-21", "cannot be recorded for a future date"),
+        ("2026-01-13", "had not started on that date"),
+        ("2026-03-01", "There are Payments after that date (latest 15 Mar 2026)"),
+    ],
+)
+def test_a_redemption_is_refused_on_a_date_it_cannot_close(
+    conn: Connection, on: str, detail: str
+) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_000 * RUPEE})
+
+    with pytest.raises(HTTPException) as error:
+        changes.redeem(conn, chain, redeem_in(on), TODAY, NOW)
+
+    assert detail in str(error.value.detail)
+    assert replay(conn, chain).row["status"] == "active"
+
+
+def test_a_closed_mortgage_cannot_be_closed_again(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    close(conn, chain, status="forfeited", closed_on=date(2026, 4, 14))
+
+    with pytest.raises(HTTPException) as error:
+        changes.redeem(conn, chain, redeem_in(), TODAY, NOW)
+
+    assert refusal(error) == (422, "2026-Ramesh-Chain is already forfeited")
+
+
+def test_forfeiting_records_what_was_recovered(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+
+    changes.forfeit(
+        conn,
+        chain,
+        changes.ForfeitIn(
+            forfeited_on=TODAY, recovered_amount=1_20_000 * RUPEE, note=" Sold "
+        ),
+        TODAY,
+        NOW,
+    )
+
+    row = replay(conn, chain).row
+    assert (row["status"], row["recovered_amount"], row["closure_note"]) == (
+        "forfeited",
+        1_20_000 * RUPEE,
+        "Sold",
+    )
+    assert [e.action for e in mortgage_history(conn, chain)] == ["forfeited"]
+
+
+def test_reopening_a_redemption_voids_its_final_payment(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    changes.redeem(conn, chain, redeem_in(), TODAY, NOW)
+    final = replay(conn, chain).row["redemption_payment_id"]
+
+    changes.reopen(conn, chain, "Paid by mistake", TODAY, NOW)
+
+    mortgage = replay(conn, chain)
+    assert (mortgage.row["status"], mortgage.row["redemption_payment_id"]) == (
+        "active",
+        None,
+    )
+    assert mortgage.outstanding(TODAY).total == 1_09_000 * RUPEE
+    newest = [(e.entity, e.entity_id, e.action) for e in mortgage_history(conn, chain)]
+    assert newest[:2] == [("mortgage", chain, "reopened"), ("payment", final, "voided")]
+
+
+def test_only_a_closed_mortgage_can_be_reopened(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+
+    with pytest.raises(HTTPException) as error:
+        changes.reopen(conn, chain, "why", TODAY, NOW)
+
+    assert refusal(error) == (409, "2026-Ramesh-Chain is Active")
+
+
+def test_a_coming_term_change_is_removed_and_recorded(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    changes.add_term_change(conn, chain, TermChangeIn(monthly_rate_bps=200), TODAY, NOW)
+    [coming] = replay(conn, chain).term_changes
+
+    changes.remove_term_change(conn, chain, coming.id, TODAY, NOW)
+
+    assert replay(conn, chain).term_changes == []
+    assert mortgage_history(conn, chain)[0].action == "term_change_removed"
+
+
+def test_a_term_change_on_a_closed_mortgage_stays(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    changes.add_term_change(conn, chain, TermChangeIn(monthly_rate_bps=200), TODAY, NOW)
+    [coming] = replay(conn, chain).term_changes
+    close(conn, chain, status="forfeited", closed_on=date(2026, 4, 14))
+
+    with pytest.raises(HTTPException) as error:
+        changes.remove_term_change(conn, chain, coming.id, TODAY, NOW)
+
+    assert refusal(error) == (409, "2026-Ramesh-Chain is forfeited: reopen it first")
