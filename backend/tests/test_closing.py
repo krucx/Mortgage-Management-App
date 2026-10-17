@@ -300,7 +300,7 @@ def pay_all(client, customer, mortgage, amount, on):
 def ready(client):
     response = client.get("/api/closures/ready-to-redeem")
     assert response.status_code == 200
-    return response.json()
+    return response.json()["items"]
 
 
 def test_nothing_is_ready_to_redeem_while_something_is_outstanding(client, mortgage):

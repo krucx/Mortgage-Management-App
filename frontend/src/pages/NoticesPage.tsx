@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { api, type Notice, type NoticeStatus } from '../api'
+import { api, type Notice, type NoticePage, type NoticeStatus } from '../api'
+import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
+import { showOrStepBack } from '../paging'
 
 const SHOWN: [NoticeStatus | 'all', string][] = [
   ['awaiting_approval', 'To approve'],
@@ -25,15 +27,24 @@ const STATUS_NAMES: Record<NoticeStatus, string> = {
 export function NoticesPage() {
   const [params, setFilters] = useUrlFilters()
   const shown = SHOWN.find(([value]) => value === params.get('status'))?.[0] ?? 'queued'
-  const [notices, setNotices] = useState<Notice[] | null>(null)
+  const [listed, setListed] = useState<NoticePage | null>(null)
+  // The page, for the tab it was chosen on: any change of tab (a click, Back, a link)
+  // starts again at page 1.
+  const [pageOf, setPageOf] = useState({ tab: shown, page: 1 })
+  const page = pageOf.tab === shown ? pageOf.page : 1
+  const setPage = useCallback((next: number) => setPageOf({ tab: shown, page: next }), [shown])
+  const notices = listed?.items ?? null
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(
     () =>
       api
-        .listNotices(shown === 'all' ? undefined : shown)
-        .then(setNotices, (err: Error) => setError(err.message)),
-    [shown],
+        .listNotices(page, shown === 'all' ? undefined : shown)
+        .then(
+          (result) => showOrStepBack(result, setListed, setPage),
+          (err: Error) => setError(err.message),
+        ),
+    [page, shown, setPage],
   )
 
   useEffect(() => {
@@ -72,7 +83,7 @@ export function NoticesPage() {
         ))}
       </div>
       {error && <p className="status error">{error}</p>}
-      {notices?.length === 0 && <p className="hint">No Notices here.</p>}
+      {listed?.total === 0 && <p className="hint">No Notices here.</p>}
       <div className="stack">
         {notices?.map((notice) => (
           <article key={notice.id} className="notice">
@@ -130,6 +141,15 @@ export function NoticesPage() {
           </article>
         ))}
       </div>
+      {listed && (
+        <Pager
+          page={listed.page}
+          pageSize={listed.page_size}
+          total={listed.total}
+          shown={listed.items.length}
+          onPage={setPage}
+        />
+      )}
     </section>
   )
 }

@@ -27,6 +27,7 @@ from mortgage_backend.ledger import (
     LedgerStep,
     accrual_date,
 )
+from mortgage_backend.paging import PAGE_SIZE, PageNumber, page_of
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 from mortgage_backend.replay import (
     MortgageReplay,
@@ -370,27 +371,27 @@ def read_mortgage(mortgage_id: int, engine: EngineDep, today: TodayDep) -> Mortg
         return load_mortgage(conn, mortgage_id, today)
 
 
-PAGE_SIZE = 20
-
-
 @router.get("/mortgages")
 def list_mortgages(
     engine: EngineDep,
     today: TodayDep,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: PageNumber = 1,
     q: str = "",
     customer_id: int | None = None,
     mortgage_status: Annotated[MortgageStatus | None, Query(alias="status")] = None,
     as_of: date | None = None,
     owing: bool = False,
     closed_in: MonthQuery = None,
+    paged: bool = True,
 ) -> MortgagePage:
     """Mortgages, newest first, filtered by Mortgage Name or Customer name.
 
     With `as_of`, only Mortgages started by then, with what they owed on that date
     (used when recording a back-dated Payment). With `owing`, only those with something
     Outstanding (Outstanding is computed, so that filter is applied after the replay).
-    With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month.
+    With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month. With
+    `paged` false, every match on one page: for pickers, such as a Payment's
+    Allocations, which must never leave a Mortgage out.
     """
     if as_of is not None and as_of > today:
         raise unprocessable("The date cannot be in the future")
@@ -416,20 +417,20 @@ def list_mortgages(
         .where(match)
         .order_by(mortgage_table.c.start_date.desc(), mortgage_table.c.name)
     )
-    start = (page - 1) * PAGE_SIZE
     with engine.connect() as conn:
-        if owing:
+        if owing or not paged:
+            # Outstanding is computed, so these are listed after the replay.
             rows = conn.execute(newest_first).mappings().all()
-            owed = [
+            listed = [
                 row
                 for row in mortgage_rows(conn, rows, as_of or today)
-                if row.outstanding_total > 0
+                if row.outstanding_total > 0 or not owing
             ]
             return MortgagePage(
-                items=owed[start : start + PAGE_SIZE],
-                total=len(owed),
-                page=page,
-                page_size=PAGE_SIZE,
+                items=page_of(listed, page) if paged else listed,
+                total=len(listed),
+                page=page if paged else 1,
+                page_size=PAGE_SIZE if paged else max(1, len(listed)),
             )
         total = conn.execute(
             select(func.count())
@@ -437,7 +438,9 @@ def list_mortgages(
             .where(match)
         ).scalar_one()
         rows = (
-            conn.execute(newest_first.limit(PAGE_SIZE).offset(start)).mappings().all()
+            conn.execute(newest_first.limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE))
+            .mappings()
+            .all()
         )
         items = mortgage_rows(conn, rows, as_of or today)
     return MortgagePage(items=items, total=total, page=page, page_size=PAGE_SIZE)

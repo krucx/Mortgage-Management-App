@@ -38,6 +38,7 @@ from mortgage_backend.messages import (
     descriptions,
     notice_text,
 )
+from mortgage_backend.paging import PAGE_SIZE, PageNumber, page_of
 from mortgage_backend.payments import MortgageLink
 from mortgage_backend.replay import MortgageReplay, MortgageStatus, replays
 
@@ -225,6 +226,13 @@ def list_notices(
     return notices
 
 
+class NoticePage(BaseModel):
+    items: list[Notice]
+    total: int
+    page: int
+    page_size: int
+
+
 class NoticeAction(StrEnum):
     APPROVE = "approve"
     SKIP = "skip"
@@ -312,14 +320,23 @@ def update_message_settings(
 
 @router.get("/notices")
 def read_notices(
-    engine: EngineDep, today: TodayDep, status: NoticeStatus | None = None
-) -> list[Notice]:
+    engine: EngineDep,
+    today: TodayDep,
+    status: NoticeStatus | None = None,
+    page: PageNumber = 1,
+) -> NoticePage:
     """Notices, after queueing any now due: a Mortgage added today, a longer
     `notice_days_before` or a reopened Mortgage shows at once, not after the next
     daily run. Queueing twice adds nothing."""
     with engine.begin() as conn:
         queue_notices(conn, today)
-        return list_notices(conn, status)
+        notices = list_notices(conn, status)
+    return NoticePage(
+        items=page_of(notices, page),
+        total=len(notices),
+        page=page,
+        page_size=PAGE_SIZE,
+    )
 
 
 @router.post("/notices/{notice_id}/approve")

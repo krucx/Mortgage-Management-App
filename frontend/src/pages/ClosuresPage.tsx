@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import { api, type MortgagePage, type ReadyToRedeem, type Redemption } from '../api'
+import { api, type MortgagePage, type ReadyToRedeemPage, type Redemption } from '../api'
 import { Summary } from '../components/ConfirmDialog'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
+import { showOrStepBack } from '../paging'
 import { formatINR, rupeesToPaise } from '../money'
 
 /**
@@ -13,18 +14,28 @@ import { formatINR, rupeesToPaise } from '../money'
  * Mortgages the Lender may choose to Forfeit.
  */
 export function ClosuresPage() {
-  const [ready, setReady] = useState<ReadyToRedeem[] | null>(null)
+  const [readyList, setReadyList] = useState<ReadyToRedeemPage | null>(null)
+  const [readyPage, setReadyPage] = useState(1)
+  const ready = readyList?.items ?? null
   const [active, setActive] = useState<MortgagePage | null>(null)
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(() => {
-    api.readyToRedeem().then(setReady, (err: Error) => setError(err.message))
+    api
+      .readyToRedeem(readyPage)
+      .then(
+        (result) => showOrStepBack(result, setReadyList, setReadyPage),
+        (err: Error) => setError(err.message),
+      )
     api
       .listMortgages(page, '', { status: 'active', owing: true })
-      .then(setActive, (err: Error) => setError(err.message))
-  }, [page])
+      .then(
+        (result) => showOrStepBack(result, setActive, setPage),
+        (err: Error) => setError(err.message),
+      )
+  }, [page, readyPage])
 
   useEffect(load, [load])
 
@@ -46,12 +57,14 @@ export function ClosuresPage() {
 
       <h3>
         Ready to Redeem{' '}
-        {ready && ready.length > 0 && <span className="badge count">{ready.length}</span>}
+        {readyList && readyList.total > 0 && (
+          <span className="badge count">{readyList.total}</span>
+        )}
       </h3>
       <p className="hint">Paid off with nothing Outstanding: hand the jewellery back and Redeem.</p>
       {ready === null ? (
         <p>Loading…</p>
-      ) : ready.length === 0 ? (
+      ) : readyList?.total === 0 ? (
         <p className="hint">None waiting.</p>
       ) : (
         <div className="table-scroll">
@@ -89,6 +102,15 @@ export function ClosuresPage() {
             </tbody>
           </table>
         </div>
+      )}
+      {readyList && (
+        <Pager
+          page={readyList.page}
+          pageSize={readyList.page_size}
+          total={readyList.total}
+          shown={readyList.items.length}
+          onPage={setReadyPage}
+        />
       )}
 
       <h3>Forfeit</h3>

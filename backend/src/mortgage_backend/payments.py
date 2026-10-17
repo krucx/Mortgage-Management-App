@@ -7,8 +7,8 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import exists as sql_exists
 from sqlalchemy import Select, func, or_, select, true
+from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.clock import MonthQuery, TodayDep, month_span
@@ -20,6 +20,7 @@ from mortgage_backend.db import (
     mortgage_table,
     payment_table,
 )
+from mortgage_backend.paging import PAGE_SIZE, PageNumber
 from mortgage_backend.replay import replays
 
 
@@ -175,14 +176,11 @@ def read_payment(payment_id: int, engine: EngineDep) -> Payment:
         return load_payment(conn, payment_id)
 
 
-PAGE_SIZE = 20
-
-
 @router.get("/payments")
 def list_payments(
     engine: EngineDep,
     today: TodayDep,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: PageNumber = 1,
     q: str = "",
     month: MonthQuery = None,
     year: Annotated[int | None, Query(ge=1900, le=9999)] = None,

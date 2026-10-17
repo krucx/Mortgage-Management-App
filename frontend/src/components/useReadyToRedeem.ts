@@ -14,8 +14,8 @@ export function useReadyToRedeemCount(): number {
     let cancelled = false
     const refresh = () =>
       api
-        .readyToRedeem()
-        .then((items) => !cancelled && setCount(items.length))
+        .readyToRedeem(1)
+        .then((ready) => !cancelled && setCount(ready.total))
         .catch(() => {})
     refresh()
     window.addEventListener(LEDGER_CHANGED, refresh)

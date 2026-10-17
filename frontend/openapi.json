@@ -324,6 +324,43 @@
         "title": "CallListGroup",
         "type": "object"
       },
+      "CallListPage": {
+        "description": "A page of the Call List: whole Customer groups, never one split across pages.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CallListGroup"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "mortgages": {
+            "title": "Mortgages",
+            "type": "integer"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "mortgages",
+          "page",
+          "page_size"
+        ],
+        "title": "CallListPage",
+        "type": "object"
+      },
       "CallListRow": {
         "properties": {
           "called": {
@@ -1828,6 +1865,37 @@
         "title": "Notice",
         "type": "object"
       },
+      "NoticePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Notice"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "NoticePage",
+        "type": "object"
+      },
       "NoticeStatus": {
         "enum": [
           "awaiting_approval",
@@ -2355,6 +2423,37 @@
         "title": "ReadyToRedeem",
         "type": "object"
       },
+      "ReadyToRedeemPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReadyToRedeem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "ReadyToRedeemPage",
+        "type": "object"
+      },
       "Receipt": {
         "properties": {
           "amount": {
@@ -2811,20 +2910,39 @@
     "/api/call-list": {
       "get": {
         "operationId": "read_call_list_api_call_list_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/CallListGroup"
-                  },
-                  "title": "Response Read Call List Api Call List Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/CallListPage"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Read Call List"
@@ -2834,20 +2952,39 @@
       "get": {
         "description": "Active Mortgages paid down to nothing Outstanding, oldest first.",
         "operationId": "ready_to_redeem_api_closures_ready_to_redeem_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ReadyToRedeem"
-                  },
-                  "title": "Response Ready To Redeem Api Closures Ready To Redeem Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/ReadyToRedeemPage"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Ready To Redeem"
@@ -3180,7 +3317,7 @@
     },
     "/api/mortgages": {
       "get": {
-        "description": "Mortgages, newest first, filtered by Mortgage Name or Customer name.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).\nWith `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month.",
+        "description": "Mortgages, newest first, filtered by Mortgage Name or Customer name.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).\nWith `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month. With\n`paged` false, every match on one page: for pickers, such as a Payment's\nAllocations, which must never leave a Mortgage out.",
         "operationId": "list_mortgages_api_mortgages_get",
         "parameters": [
           {
@@ -3278,6 +3415,16 @@
                 }
               ],
               "title": "Closed In"
+            }
+          },
+          {
+            "in": "query",
+            "name": "paged",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Paged",
+              "type": "boolean"
             }
           }
         ],
@@ -4456,6 +4603,17 @@
               ],
               "title": "Status"
             }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -4463,11 +4621,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Notice"
-                  },
-                  "title": "Response Read Notices Api Notices Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/NoticePage"
                 }
               }
             },

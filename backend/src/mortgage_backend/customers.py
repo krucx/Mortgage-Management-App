@@ -3,7 +3,7 @@
 import re
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, HTTPException, Response, UploadFile, status
 from pydantic import AfterValidator, BaseModel, Field
 from sqlalchemy import (
     Column,
@@ -29,8 +29,9 @@ from mortgage_backend.db import (
     standalone_referrer_table,
 )
 from mortgage_backend.errors import unprocessable
-from mortgage_backend.replay import MortgageStatus
+from mortgage_backend.paging import PAGE_SIZE, PageNumber
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
+from mortgage_backend.replay import MortgageStatus
 
 
 def normalise_phone(raw: str) -> str:
@@ -539,13 +540,10 @@ def search(q: str, engine: EngineDep) -> list[SearchHit]:
     return sorted(hits, key=lambda hit: hit.name.lower())[:SEARCH_LIMIT]
 
 
-PAGE_SIZE = 20
-
-
 @router.get("/customers")
 def list_customers(
     engine: EngineDep,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: PageNumber = 1,
     q: str = "",
     has_active_mortgage: bool = False,
 ) -> CustomerPage:

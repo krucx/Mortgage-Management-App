@@ -53,7 +53,7 @@ def pay(client, owner, mortgage, amount, on="2026-04-20"):
 def call_list(client):
     response = client.get("/api/call-list")
     assert response.status_code == 200, response.text
-    return response.json()
+    return response.json()["items"]
 
 
 def listed(client):

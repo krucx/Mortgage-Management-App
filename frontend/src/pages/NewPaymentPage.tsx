@@ -96,7 +96,12 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   useEffect(() => {
     if (!paidOn) return
     api
-      .listMortgages(1, '', { customerId: customer.id, status: 'active', asOf: paidOn })
+      .listMortgages(1, '', {
+        customerId: customer.id,
+        status: 'active',
+        asOf: paidOn,
+        paged: false,
+      })
       .then((page) => {
         setMortgages(page.items)
         setSelected((current) => {
@@ -196,9 +201,12 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     try {
       const payment = await api.recordPayment(JSON.parse(proposed))
       const allocated = new Set(payment.allocations.map((a) => a.mortgage_id))
-      const cleared = (await api.readyToRedeem().catch(() => []))
-        .map((item) => item.mortgage)
-        .filter((m) => allocated.has(m.id))
+      // Any it left with nothing Outstanding, to offer for Redemption.
+      const cleared = (
+        await api
+          .listMortgages(1, '', { customerId: customer.id, status: 'active', paged: false })
+          .then((all) => all.items, () => [])
+      ).filter((m) => allocated.has(m.id) && m.outstanding_total === 0)
       if (cleared.length) setPaidOff({ payment, mortgages: cleared })
       else navigate(`/payments/${payment.id}`)
     } catch (err) {

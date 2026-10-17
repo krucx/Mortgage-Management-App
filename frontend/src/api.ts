@@ -78,6 +78,7 @@ export type CallListRow = Schemas['CallListRow']
 export type CallReason = CallListRow['reasons'][number]
 /** One Customer's Mortgages on the Call List. */
 export type CallListGroup = Schemas['CallListGroup']
+export type CallListPage = Schemas['CallListPage']
 
 /** What it takes to close a Mortgage on a date. */
 export type Redemption = Schemas['Redemption']
@@ -85,6 +86,7 @@ export type RedeemIn = Schemas['RedeemIn']
 export type ForfeitIn = Schemas['ForfeitIn']
 /** An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back. */
 export type ReadyToRedeem = Schemas['ReadyToRedeem']
+export type ReadyToRedeemPage = Schemas['ReadyToRedeemPage']
 export type Closure = Schemas['Closure']
 
 /** The whole lending book at a glance. */
@@ -94,6 +96,7 @@ export type ProjectionHorizon = Schemas['ProjectionHorizon']
 export type ComingMonth = Schemas['ComingMonth']
 export type Receipt = Schemas['Receipt']
 export type Notice = Schemas['Notice']
+export type NoticePage = Schemas['NoticePage']
 export type NoticeStatus = Notice['status']
 export type MessageSettings = Schemas['MessageSettings']
 
@@ -159,13 +162,13 @@ export const api = {
   getMessageSettings: () => request<MessageSettings>('/settings/messages'),
   updateMessageSettings: (settings: MessageSettings) =>
     request<MessageSettings>('/settings/messages', sendJson('PUT', settings)),
-  listNotices: (status?: NoticeStatus) =>
-    request<Notice[]>(`/notices${status ? `?status=${status}` : ''}`),
+  listNotices: (page: number, status?: NoticeStatus) =>
+    request<NoticePage>(`/notices?page=${page}${status ? `&status=${status}` : ''}`),
   approveNotice: (id: number) => request<Notice>(`/notices/${id}/approve`, { method: 'POST' }),
   skipNotice: (id: number) => request<Notice>(`/notices/${id}/skip`, { method: 'POST' }),
   markNoticeSent: (id: number) => request<Notice>(`/notices/${id}/sent`, { method: 'POST' }),
 
-  getCallList: () => request<CallListGroup[]>('/call-list'),
+  getCallList: (page: number) => request<CallListPage>(`/call-list?page=${page}`),
   listCallNotes: (mortgageId: number) => request<CallNote[]>(`/mortgages/${mortgageId}/call-notes`),
   addCallNote: (mortgageId: number, note: string) =>
     request<CallNote>(`/mortgages/${mortgageId}/call-notes`, sendJson('POST', { note })),
@@ -198,6 +201,8 @@ export const api = {
       status?: MortgageStatus
       asOf?: string
       owing?: boolean
+      /** False: every match on one page, for pickers, which must never leave one out. */
+      paged?: boolean
       closedIn?: string // YYYY-MM
     } = {},
   ) =>
@@ -207,10 +212,12 @@ export const api = {
         (filters.status ? `&status=${filters.status}` : '') +
         (filters.asOf ? `&as_of=${filters.asOf}` : '') +
         (filters.owing ? '&owing=true' : '') +
+        (filters.paged === false ? '&paged=false' : '') +
         (filters.closedIn ? `&closed_in=${filters.closedIn}` : ''),
     ),
   getMortgage: (id: number) => request<Mortgage>(`/mortgages/${id}`),
-  readyToRedeem: () => request<ReadyToRedeem[]>('/closures/ready-to-redeem'),
+  readyToRedeem: (page: number) =>
+    request<ReadyToRedeemPage>(`/closures/ready-to-redeem?page=${page}`),
   getRedemption: (id: number, on: string) =>
     request<Redemption>(`/mortgages/${id}/redemption?on=${on}`),
   redeem: (id: number, body: RedeemIn) =>

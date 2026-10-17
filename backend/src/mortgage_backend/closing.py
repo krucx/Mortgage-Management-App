@@ -12,6 +12,7 @@ from mortgage_backend.changes import closable
 from mortgage_backend.clock import TodayDep
 from mortgage_backend.db import EngineDep, mortgage_table
 from mortgage_backend.mortgages import MortgageRow, mortgage_rows, select_with_customer
+from mortgage_backend.paging import PAGE_SIZE, PageNumber, page_of
 from mortgage_backend.replay import MortgageStatus, Redemption, replays
 
 
@@ -20,6 +21,13 @@ class ReadyToRedeem(BaseModel):
 
     mortgage: MortgageRow
     redemption: Redemption  # redeeming today; may include a Part-Month Rule charge
+
+
+class ReadyToRedeemPage(BaseModel):
+    items: list[ReadyToRedeem]
+    total: int
+    page: int
+    page_size: int
 
 
 router = APIRouter(prefix="/api")
@@ -35,7 +43,9 @@ def redemption_amount(
 
 
 @router.get("/closures/ready-to-redeem")
-def ready_to_redeem(engine: EngineDep, today: TodayDep) -> list[ReadyToRedeem]:
+def ready_to_redeem(
+    engine: EngineDep, today: TodayDep, page: PageNumber = 1
+) -> ReadyToRedeemPage:
     """Active Mortgages paid down to nothing Outstanding, oldest first."""
     with engine.connect() as conn:
         rows = (
@@ -49,10 +59,13 @@ def ready_to_redeem(engine: EngineDep, today: TodayDep) -> list[ReadyToRedeem]:
         )
         listed = mortgage_rows(conn, rows, today)
         replayed = replays(conn, rows)
-        return [
+        ready = [
             ReadyToRedeem(
                 mortgage=mortgage, redemption=replayed[mortgage.id].redemption(today)
             )
             for mortgage in listed
             if mortgage.outstanding_total == 0
         ]
+    return ReadyToRedeemPage(
+        items=page_of(ready, page), total=len(ready), page=page, page_size=PAGE_SIZE
+    )

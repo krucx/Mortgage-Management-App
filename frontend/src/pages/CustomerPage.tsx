@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { api, type Customer, type MortgageRow } from '../api'
+import { api, type Customer, type MortgagePage } from '../api'
 import { History } from '../components/History'
 import { MortgageTable } from '../components/MortgageTable'
+import { Pager } from '../components/Pager'
 import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 
 export function CustomerPage() {
   const id = Number(useParams().id)
   const [customer, setCustomer] = useState<Customer | null>(null)
-  const [mortgages, setMortgages] = useState<MortgageRow[] | null>(null)
+  const [mortgages, setMortgages] = useState<MortgagePage | null>(null)
+  const [page, setPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -17,11 +19,14 @@ export function CustomerPage() {
       .getCustomer(id)
       .then(setCustomer)
       .catch((err: Error) => setError(err.message))
-    api
-      .listMortgages(1, '', { customerId: id })
-      .then((page) => setMortgages(page.items))
-      .catch(() => setMortgages([]))
   }, [id])
+
+  useEffect(() => {
+    api
+      .listMortgages(page, '', { customerId: id })
+      .then(setMortgages)
+      .catch((err: Error) => setError(err.message))
+  }, [id, page])
 
   const loadHistory = useCallback(() => api.customerHistory(id), [id])
 
@@ -66,10 +71,19 @@ export function CustomerPage() {
       </div>
       {mortgages === null ? (
         <p>Loading…</p>
-      ) : mortgages.length === 0 ? (
+      ) : mortgages.total === 0 ? (
         <p className="hint">No Mortgages yet.</p>
       ) : (
-        <MortgageTable rows={mortgages} showCustomer={false} />
+        <>
+          <MortgageTable rows={mortgages.items} showCustomer={false} />
+          <Pager
+            page={mortgages.page}
+            pageSize={mortgages.page_size}
+            total={mortgages.total}
+            shown={mortgages.items.length}
+            onPage={setPage}
+          />
+        </>
       )}
 
       <h3>Customers they referred</h3>

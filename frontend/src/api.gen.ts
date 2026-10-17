@@ -171,7 +171,9 @@ export interface paths {
          *     With `as_of`, only Mortgages started by then, with what they owed on that date
          *     (used when recording a back-dated Payment). With `owing`, only those with something
          *     Outstanding (Outstanding is computed, so that filter is applied after the replay).
-         *     With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month.
+         *     With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month. With
+         *     `paged` false, every match on one page: for pickers, such as a Payment's
+         *     Allocations, which must never leave a Mortgage out.
          */
         get: operations["list_mortgages_api_mortgages_get"];
         put?: never;
@@ -1018,6 +1020,22 @@ export interface components {
             /** Rows */
             rows: components["schemas"]["CallListRow"][];
         };
+        /**
+         * CallListPage
+         * @description A page of the Call List: whole Customer groups, never one split across pages.
+         */
+        CallListPage: {
+            /** Items */
+            items: components["schemas"]["CallListGroup"][];
+            /** Mortgages */
+            mortgages: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
         /** CallListRow */
         CallListRow: {
             called: components["schemas"]["CallNote"] | null;
@@ -1617,6 +1635,17 @@ export interface components {
             sent_at: string | null;
             status: components["schemas"]["NoticeStatus"];
         };
+        /** NoticePage */
+        NoticePage: {
+            /** Items */
+            items: components["schemas"]["Notice"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
         /**
          * NoticeStatus
          * @enum {string}
@@ -1809,6 +1838,17 @@ export interface components {
         ReadyToRedeem: {
             mortgage: components["schemas"]["MortgageRow"];
             redemption: components["schemas"]["Redemption"];
+        };
+        /** ReadyToRedeemPage */
+        ReadyToRedeemPage: {
+            /** Items */
+            items: components["schemas"]["ReadyToRedeem"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
         };
         /** Receipt */
         Receipt: {
@@ -2010,7 +2050,9 @@ export interface operations {
     };
     read_call_list_api_call_list_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2023,14 +2065,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CallListGroup"][];
+                    "application/json": components["schemas"]["CallListPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
     };
     ready_to_redeem_api_closures_ready_to_redeem_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2043,7 +2096,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReadyToRedeem"][];
+                    "application/json": components["schemas"]["ReadyToRedeemPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2305,6 +2367,7 @@ export interface operations {
                 as_of?: string | null;
                 owing?: boolean;
                 closed_in?: string | null;
+                paged?: boolean;
             };
             header?: never;
             path?: never;
@@ -3110,6 +3173,7 @@ export interface operations {
         parameters: {
             query?: {
                 status?: components["schemas"]["NoticeStatus"] | null;
+                page?: number;
             };
             header?: never;
             path?: never;
@@ -3123,7 +3187,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Notice"][];
+                    "application/json": components["schemas"]["NoticePage"];
                 };
             };
             /** @description Validation Error */

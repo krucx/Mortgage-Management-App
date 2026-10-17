@@ -22,6 +22,7 @@ from mortgage_backend.db import (
 )
 from mortgage_backend.ledger import months_unpaid
 from mortgage_backend.mortgages import select_with_customer
+from mortgage_backend.paging import PAGE_SIZE, PageNumber, page_of
 from mortgage_backend.replay import MortgageStatus, replays
 
 Reason = Literal["months_unpaid", "loan_to_value", "accrues_today"]
@@ -60,6 +61,16 @@ class CallListGroup(BaseModel):
     phone_1: str
     phone_2: str | None
     rows: list[CallListRow]
+
+
+class CallListPage(BaseModel):
+    """A page of the Call List: whole Customer groups, never one split across pages."""
+
+    items: list[CallListGroup]
+    total: int  # Customers listed
+    mortgages: int  # Mortgages listed, across every page (as on the Dashboard)
+    page: int
+    page_size: int
 
 
 _CONFIG_KEY_BY_FIELD = {
@@ -163,9 +174,18 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/call-list")
-def read_call_list(engine: EngineDep, today: TodayDep) -> list[CallListGroup]:
+def read_call_list(
+    engine: EngineDep, today: TodayDep, page: PageNumber = 1
+) -> CallListPage:
     with engine.connect() as conn:
-        return call_list(conn, today)
+        groups = call_list(conn, today)
+    return CallListPage(
+        items=page_of(groups, page),
+        total=len(groups),
+        mortgages=sum(len(group.rows) for group in groups),
+        page=page,
+        page_size=PAGE_SIZE,
+    )
 
 
 @router.get("/settings/call-list")

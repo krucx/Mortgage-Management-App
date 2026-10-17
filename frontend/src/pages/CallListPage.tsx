@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { api, type CallListGroup, type CallListRow } from '../api'
+import { api, type CallListPage, type CallListRow } from '../api'
 import { MarkCalled } from '../components/CallNotes'
+import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
 import { formatPercent } from '../format'
+import { showOrStepBack } from '../paging'
 import { formatINR } from '../money'
 
 /** Why a Mortgage is on the Call List, in words. */
@@ -33,13 +35,17 @@ function ContactLinks({ phone }: { phone: string }) {
 
 /** Today's Mortgages to phone about, worked out whenever the page opens. */
 export function CallListPage() {
-  const [groups, setGroups] = useState<CallListGroup[] | null>(null)
+  const [listed, setListed] = useState<CallListPage | null>(null)
+  const [page, setPage] = useState(1)
+  const groups = listed?.items ?? null
   const [error, setError] = useState<string | null>(null)
   const [noting, setNoting] = useState<number | null>(null) // the Mortgage being marked called
 
   const load = useCallback(() => {
-    api.getCallList().then(setGroups, (err: Error) => setError(err.message))
-  }, [])
+    api
+      .getCallList(page)
+      .then((result) => showOrStepBack(result, setListed, setPage), (err: Error) => setError(err.message))
+  }, [page])
 
   useEffect(load, [load])
 
@@ -51,9 +57,15 @@ export function CallListPage() {
         The thresholds are in <Link to="/settings">Settings</Link>.
       </p>
       {error && <p className="status error">{error}</p>}
+      {listed && listed.total > 0 && (
+        <p>
+          {listed.mortgages} Mortgage{listed.mortgages === 1 ? '' : 's'} for {listed.total}{' '}
+          Customer{listed.total === 1 ? '' : 's'}
+        </p>
+      )}
       {groups === null ? (
         !error && <p>Loading…</p>
-      ) : groups.length === 0 ? (
+      ) : listed?.total === 0 ? (
         <p className="hint">Nobody to call today.</p>
       ) : (
         groups.map((group) => (
@@ -125,6 +137,15 @@ export function CallListPage() {
             </div>
           </div>
         ))
+      )}
+      {listed && (
+        <Pager
+          page={listed.page}
+          pageSize={listed.page_size}
+          total={listed.total}
+          shown={listed.items.length}
+          onPage={setPage}
+        />
       )}
     </section>
   )

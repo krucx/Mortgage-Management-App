@@ -55,7 +55,7 @@ function CustomerSummary({ customer, onChange }: { customer: Customer; onChange:
 
   useEffect(() => {
     api
-      .listMortgages(1, '', { customerId: customer.id, status: 'active' })
+      .listMortgages(1, '', { customerId: customer.id, status: 'active', paged: false })
       .then((page) => {
         setActive(page.items)
         setActiveTotal(page.total)

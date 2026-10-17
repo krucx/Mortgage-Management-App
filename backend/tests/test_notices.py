@@ -156,10 +156,10 @@ def test_the_daily_run_queues_notices_the_lender_sends(app_client, clock) -> Non
             },
         },
     )
-    assert app_client.get("/api/notices").json() == []  # 14 May is 3 days away
+    assert app_client.get("/api/notices").json()["items"] == []  # 14 May is 3 days away
 
     clock.today = date(2026, 5, 12)  # the first request today starts the daily run
-    [notice] = app_client.get("/api/notices").json()
+    [notice] = app_client.get("/api/notices").json()["items"]
     assert (notice["status"], notice["phones"]) == ("queued", ["9829012345"])
 
     sent = app_client.post(f"/api/notices/{notice['id']}/sent")
@@ -196,14 +196,14 @@ def test_an_awaiting_notice_is_approved_or_skipped(app_client, clock) -> None:
             },
         )
     clock.today = date(2026, 5, 12)
-    ring, anklet = app_client.get("/api/notices").json()
+    ring, anklet = app_client.get("/api/notices").json()["items"]
 
     assert app_client.post(f"/api/notices/{ring['id']}/sent").status_code == 409
     approved = app_client.post(f"/api/notices/{ring['id']}/approve").json()
     skipped = app_client.post(f"/api/notices/{anklet['id']}/skip").json()
 
     assert (approved["status"], skipped["status"]) == ("queued", "skipped")
-    assert [n["id"] for n in app_client.get("/api/notices?status=queued").json()] == [
+    assert [n["id"] for n in app_client.get("/api/notices?status=queued").json()["items"]] == [
         ring["id"]
     ]
 
@@ -261,7 +261,7 @@ def test_the_notices_page_queues_what_is_due_without_waiting_a_day(
     app_client, clock
 ) -> None:
     clock.today = date(2026, 5, 12)
-    assert app_client.get("/api/notices").json() == []  # today's daily run is done
+    assert app_client.get("/api/notices").json()["items"] == []  # today's daily run is done
     owner = app_client.post(
         "/api/customers",
         json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
@@ -286,7 +286,7 @@ def test_the_notices_page_queues_what_is_due_without_waiting_a_day(
         )
 
     # Added today: its Notice shows at once, not tomorrow.
-    assert [n["accrues_on"] for n in app_client.get("/api/notices").json()] == [
+    assert [n["accrues_on"] for n in app_client.get("/api/notices").json()["items"]] == [
         "2026-05-14"
     ]
 
@@ -295,7 +295,7 @@ def test_the_notices_page_queues_what_is_due_without_waiting_a_day(
     app_client.put(
         "/api/settings/messages", json={**settings_now, "notice_days_before": 15}
     )
-    assert [n["accrues_on"] for n in app_client.get("/api/notices").json()] == [
+    assert [n["accrues_on"] for n in app_client.get("/api/notices").json()["items"]] == [
         "2026-05-14",
         "2026-05-25",
     ]
@@ -333,7 +333,7 @@ def test_the_dashboard_counts_the_notices_to_send_and_approve(app_client, clock)
     # Due already, though the day's run came before these Mortgages.
     assert counts() == (2, 0)
 
-    first = app_client.get("/api/notices").json()[0]
+    first = app_client.get("/api/notices").json()["items"][0]
     app_client.post(f"/api/notices/{first['id']}/sent")
     assert counts() == (1, 0)
 
