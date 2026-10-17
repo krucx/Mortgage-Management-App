@@ -71,9 +71,7 @@ export function PaymentsPage() {
                     title="Open this Payment"
                     onClick={(event) => openRow(event, payment.id)}
                   >
-                    <td>
-                      <Link to={`/payments/${payment.id}`}>{formatDate(payment.paid_on)}</Link>
-                    </td>
+                    <td>{formatDate(payment.paid_on)}</td>
                     <td>
                       <PersonLink person={payment.customer} />
                     </td>
