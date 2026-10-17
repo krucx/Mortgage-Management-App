@@ -329,3 +329,90 @@ def test_editing_a_customer_into_a_duplicate_is_rejected(client):
 
 def test_names_are_saved_without_stray_spaces(client):
     assert create_customer(client, name="  Ramesh   Kumar ")["name"] == "Ramesh Kumar"
+
+
+def list_customers(client, **params):
+    response = client.get("/api/customers", params=params)
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_customers_are_listed_by_name_a_page_at_a_time(client):
+    for n in range(25):
+        create_customer(client, name=f"Customer {n:02}", phone_1=f"90000000{n:02}")
+
+    first = list_customers(client, page=1)
+    second = list_customers(client, page=2)
+
+    assert first["total"] == 25
+    assert first["page_size"] == 20
+    assert [row["name"] for row in first["items"]][:3] == [
+        "Customer 00",
+        "Customer 01",
+        "Customer 02",
+    ]
+    assert len(first["items"]) == 20
+    assert [row["name"] for row in second["items"]] == [
+        f"Customer {n}" for n in range(20, 25)
+    ]
+
+
+def test_listed_rows_carry_what_the_table_shows(client):
+    mohan = create_customer(client, name="Mohan", phone_1="9000000009")
+    create_customer(
+        client, phone_2="9000000001", referrer={"kind": "customer", "id": mohan["id"]}
+    )
+
+    row = list_customers(client, q="ramesh")["items"][0]
+
+    assert row == {
+        "id": row["id"],
+        "name": "Ramesh Kumar",
+        "address": "12 MG Road, Jaipur",
+        "phone_1": "9829012345",
+        "phone_2": "9000000001",
+        "photo_url": None,
+        "referrer": {"kind": "customer", "id": mohan["id"], "name": "Mohan"},
+    }
+
+
+def test_the_list_can_be_filtered_by_name_or_phone(client):
+    create_customer(client, name="Ramesh Kumar", phone_1="9829012345")
+    create_customer(client, name="Geeta", phone_1="9000000003", phone_2="9829055555")
+    create_customer(client, name="Sita", phone_1="9000000005")
+
+    assert [r["name"] for r in list_customers(client, q="98290")["items"]] == [
+        "Geeta",
+        "Ramesh Kumar",
+    ]
+    assert list_customers(client, q="sit")["total"] == 1
+
+
+def test_lender_can_delete_a_customer(client):
+    ramesh = create_customer(client)
+
+    response = client.delete(f"/api/customers/{ramesh['id']}")
+
+    assert response.status_code == 204
+    assert client.get(f"/api/customers/{ramesh['id']}").status_code == 404
+    assert list_customers(client)["total"] == 0
+
+
+def test_deleting_a_customer_clears_them_as_referrer_of_others(client):
+    ramesh = create_customer(client)
+    sita = create_customer(
+        client,
+        name="Sita",
+        phone_1="9000000005",
+        referrer={"kind": "customer", "id": ramesh["id"]},
+    )
+
+    client.delete(f"/api/customers/{ramesh['id']}")
+
+    page = client.get(f"/api/customers/{sita['id']}").json()
+    assert page["referrer"] is None
+    assert page["name"] == "Sita"
+
+
+def test_deleting_a_customer_that_does_not_exist_is_404(client):
+    assert client.delete("/api/customers/999").status_code == 404

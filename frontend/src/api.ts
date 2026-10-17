@@ -32,7 +32,8 @@ export interface CustomerIn {
   referrer: ReferrerChoice | null
 }
 
-export interface Customer {
+/** A Customer as listed in the Customers table. */
+export interface CustomerRow {
   id: number
   name: string
   address: string
@@ -40,6 +41,16 @@ export interface Customer {
   phone_2: string | null
   photo_url: string | null
   referrer: PersonSummary | null
+}
+
+export interface CustomerPage {
+  items: CustomerRow[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface Customer extends CustomerRow {
   referred: PersonSummary[]
   shares_phone_with: PersonSummary[]
 }
@@ -89,7 +100,10 @@ export const api = {
 
   search: (query: string) => request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}`),
 
+  listCustomers: (page: number, query: string) =>
+    request<CustomerPage>(`/customers?page=${page}&q=${encodeURIComponent(query)}`),
   getCustomer: (id: number) => request<Customer>(`/customers/${id}`),
+  deleteCustomer: (id: number) => request<null>(`/customers/${id}`, { method: 'DELETE' }),
   createCustomer: (customer: CustomerIn) =>
     request<Customer>('/customers', sendJson('POST', customer)),
   updateCustomer: (id: number, customer: CustomerIn) =>

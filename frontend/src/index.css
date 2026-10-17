@@ -78,7 +78,7 @@ main {
   padding: 1.5rem;
 }
 
-.card h2 {
+.card.wide h2 {
   margin-top: 0;
 }
 
@@ -332,4 +332,61 @@ dt {
 
 dd {
   margin: 0;
+}
+
+.card.wide {
+  display: grid;
+  gap: 1rem;
+}
+
+main:has(.card.wide) {
+  max-width: 1100px;
+}
+
+.card.wide h2 {
+  margin: 0;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+tbody tr:hover {
+  background: var(--bg);
+}
+
+.row.nowrap {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+button.small,
+.button.small {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+button.danger {
+  background: transparent;
+  color: var(--error);
+  border: 1px solid var(--error);
 }

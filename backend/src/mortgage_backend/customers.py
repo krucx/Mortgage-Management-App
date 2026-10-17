@@ -3,10 +3,21 @@
 import re
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, Query, Response, UploadFile, status
 from pydantic import AfterValidator, BaseModel, Field
-from sqlalchemy import Column, Table, func, insert, or_, select, update
-from sqlalchemy.engine import Connection
+from sqlalchemy import (
+    Column,
+    ColumnElement,
+    Table,
+    delete,
+    func,
+    insert,
+    or_,
+    select,
+    true,
+    update,
+)
+from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.db import EngineDep, customer_table, standalone_referrer_table
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
@@ -80,7 +91,9 @@ class PersonSummary(BaseModel):
     name: str
 
 
-class Customer(BaseModel):
+class CustomerRow(BaseModel):
+    """A Customer as listed in the Customers table."""
+
     id: int
     name: str
     address: str
@@ -88,6 +101,18 @@ class Customer(BaseModel):
     phone_2: str | None
     photo_url: str | None
     referrer: PersonSummary | None
+
+
+class CustomerPage(BaseModel):
+    items: list[CustomerRow]
+    total: int
+    page: int
+    page_size: int
+
+
+class Customer(CustomerRow):
+    """A Customer's own page."""
+
     referred: list[PersonSummary]
     # Other Customers using either of this Customer's numbers: a warning, never a block.
     shares_phone_with: list[PersonSummary]
@@ -210,7 +235,20 @@ def _load_customer(conn: Connection, customer_id: int) -> Customer:
     )
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+    return Customer(
+        **_customer_row(conn, row).model_dump(),
+        referred=_customers_referred_by(
+            conn, customer_table.c.referred_by_customer_id, customer_id
+        ),
+        shares_phone_with=_customers_sharing_a_phone(
+            conn,
+            customer_id,
+            [phone for phone in (row["phone_1"], row["phone_2"]) if phone],
+        ),
+    )
 
+
+def _customer_row(conn: Connection, row: RowMapping) -> CustomerRow:
     referrer = None
     if row["referred_by_customer_id"] is not None:
         name = conn.execute(
@@ -230,7 +268,7 @@ def _load_customer(conn: Connection, customer_id: int) -> Customer:
         ).scalar_one()
         referrer = PersonSummary(kind="referrer", id=referrer_id, name=name)
 
-    return Customer(
+    return CustomerRow(
         id=row["id"],
         name=row["name"],
         address=row["address"],
@@ -238,14 +276,6 @@ def _load_customer(conn: Connection, customer_id: int) -> Customer:
         phone_2=row["phone_2"],
         photo_url=photo_url(row["photo"]),
         referrer=referrer,
-        referred=_customers_referred_by(
-            conn, customer_table.c.referred_by_customer_id, customer_id
-        ),
-        shares_phone_with=_customers_sharing_a_phone(
-            conn,
-            customer_id,
-            [phone for phone in (row["phone_1"], row["phone_2"]) if phone],
-        ),
     )
 
 
@@ -356,6 +386,17 @@ def _phone_fragment(query: str) -> str | None:
         return digits
 
 
+def _customer_matches(query: str) -> ColumnElement[bool]:
+    """Customers whose name, or either contact number, matches the query."""
+    phone = _phone_fragment(query)
+    if phone:
+        return or_(
+            customer_table.c.phone_1.contains(phone),
+            customer_table.c.phone_2.contains(phone),
+        )
+    return customer_table.c.name.icontains(query)
+
+
 @router.get("/search")
 def search(q: str, engine: EngineDep) -> list[SearchHit]:
     """Customers and standalone Referrers whose name or phone number matches."""
@@ -363,14 +404,7 @@ def search(q: str, engine: EngineDep) -> list[SearchHit]:
     if not query:
         return []
     phone = _phone_fragment(query)
-    customer_match = (
-        or_(
-            customer_table.c.phone_1.contains(phone),
-            customer_table.c.phone_2.contains(phone),
-        )
-        if phone
-        else customer_table.c.name.icontains(query)
-    )
+    customer_match = _customer_matches(query)
     referrer_match = (
         standalone_referrer_table.c.phone.contains(phone)
         if phone
@@ -417,3 +451,49 @@ def search(q: str, engine: EngineDep) -> list[SearchHit]:
             for row in referrers
         ]
     return sorted(hits, key=lambda hit: hit.name.lower())[:SEARCH_LIMIT]
+
+
+PAGE_SIZE = 20
+
+
+@router.get("/customers")
+def list_customers(
+    engine: EngineDep, page: Annotated[int, Query(ge=1)] = 1, q: str = ""
+) -> CustomerPage:
+    """All Customers by name, a page at a time, optionally filtered by name or phone."""
+    query = q.strip()
+    match = _customer_matches(query) if query else true()
+    with engine.connect() as conn:
+        total = conn.execute(
+            select(func.count()).select_from(customer_table).where(match)
+        ).scalar_one()
+        rows = conn.execute(
+            select(customer_table)
+            .where(match)
+            .order_by(func.lower(customer_table.c.name), customer_table.c.id)
+            .limit(PAGE_SIZE)
+            .offset((page - 1) * PAGE_SIZE)
+        ).mappings()
+        items = [_customer_row(conn, row) for row in rows]
+    return CustomerPage(items=items, total=total, page=page, page_size=PAGE_SIZE)
+
+
+@router.delete("/customers/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_customer(
+    customer_id: int, engine: EngineDep, photos_dir: PhotosDirDep
+) -> Response:
+    """Delete a Customer; anyone they referred keeps their record but loses the link."""
+    with engine.begin() as conn:
+        photo = conn.execute(
+            select(customer_table.c.photo).where(customer_table.c.id == customer_id)
+        ).first()
+        if photo is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+        conn.execute(
+            update(customer_table)
+            .where(customer_table.c.referred_by_customer_id == customer_id)
+            .values(referred_by_customer_id=None)
+        )
+        conn.execute(delete(customer_table).where(customer_table.c.id == customer_id))
+    delete_photo(photos_dir, photo.photo)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

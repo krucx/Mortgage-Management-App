@@ -1,15 +1,65 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { ReferrerBadge } from '../components/PersonLink'
+import { api, type CustomerPage, type CustomerRow } from '../api'
+import { PersonLink, PersonList } from '../components/PersonLink'
 import { useSearch } from '../components/useSearch'
-import { personPath } from '../paths'
 
+/** All Customers in a paginated table, filterable by name or phone. */
 export function CustomersPage() {
   const [query, setQuery] = useState('')
-  const hits = useSearch(query)
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [page, setPage] = useState(1)
+  const [result, setResult] = useState<CustomerPage | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const referrers = useSearch(debouncedQuery).filter((hit) => hit.kind === 'referrer')
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query)
+      setPage(1)
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  const load = useCallback(
+    () =>
+      api
+        .listCustomers(page, debouncedQuery)
+        .then((loaded) => {
+          // Deleting the last row of a page leaves it empty; step back a page.
+          if (loaded.items.length === 0 && page > 1) setPage(page - 1)
+          else setResult(loaded)
+        })
+        .catch((err: Error) => setError(err.message)),
+    [page, debouncedQuery],
+  )
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function remove(row: CustomerRow) {
+    setError(null)
+    try {
+      const { referred } = await api.getCustomer(row.id)
+      const warning = referred.length
+        ? `\n\n${row.name} referred ${referred.map((person) => person.name).join(', ')}. ` +
+          'Their Referrer will be cleared.'
+        : ''
+      if (!window.confirm(`Delete ${row.name}? This cannot be undone.${warning}`)) return
+      await api.deleteCustomer(row.id)
+      await load()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  const pages = result ? Math.max(1, Math.ceil(result.total / result.page_size)) : 1
+  const first = result && result.total > 0 ? (result.page - 1) * result.page_size + 1 : 0
+  const last = result ? first + result.items.length - 1 : 0
 
   return (
-    <section className="card">
+    <section className="card wide">
       <div className="row spread">
         <h2>Customers</h2>
         <Link className="button" to="/customers/new">
@@ -19,30 +69,107 @@ export function CustomersPage() {
       <input
         autoFocus
         type="search"
-        placeholder="Search by name or phone"
+        placeholder="Filter by name or phone"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />
-      {query.trim() && hits.length === 0 && <p className="hint">No matches.</p>}
-      <ul className="plain results">
-        {hits.map((hit) => (
-          <li key={`${hit.kind}-${hit.id}`}>
-            <Link to={personPath(hit)} className="result">
-              {hit.photo_url ? (
-                <img src={hit.photo_url} alt="" className="thumb" />
-              ) : (
-                <span className="thumb placeholder" />
-              )}
-              <span>
-                <strong>{hit.name}</strong>
-                <ReferrerBadge person={hit} />
-                <br />
-                <span className="hint">{hit.phone}</span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {error && <p className="status error">{error}</p>}
+
+      {result && result.total === 0 ? (
+        <p className="hint">{debouncedQuery ? 'No Customers match.' : 'No Customers yet.'}</p>
+      ) : (
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th aria-label="Photo" />
+                <th>Name</th>
+                <th>Contact numbers</th>
+                <th>Address</th>
+                <th>Referred by</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {result?.items.map((row) => (
+                <tr key={row.id}>
+                  <td>
+                    {row.photo_url ? (
+                      <img src={row.photo_url} alt="" className="thumb" />
+                    ) : (
+                      <span className="thumb placeholder" />
+                    )}
+                  </td>
+                  <td>
+                    <Link to={`/customers/${row.id}`}>{row.name}</Link>
+                  </td>
+                  <td>
+                    {row.phone_1}
+                    {row.phone_2 && (
+                      <>
+                        <br />
+                        {row.phone_2}
+                      </>
+                    )}
+                  </td>
+                  <td>{row.address || '—'}</td>
+                  <td>{row.referrer ? <PersonLink person={row.referrer} /> : '—'}</td>
+                  <td>
+                    <div className="row nowrap">
+                      <Link className="button secondary small" to={`/customers/${row.id}/edit`}>
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        className="danger small"
+                        onClick={() => remove(row)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {result && result.total > 0 && (
+        <div className="row spread">
+          <span className="hint">
+            Showing {first}–{last} of {result.total}
+          </span>
+          <div className="row">
+            <button
+              type="button"
+              className="secondary small"
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+            >
+              Previous
+            </button>
+            <span>
+              Page {page} of {pages}
+            </span>
+            <button
+              type="button"
+              className="secondary small"
+              disabled={page >= pages}
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {referrers.length > 0 && (
+        <>
+          <h3>Matching Referrers</h3>
+          <PersonList people={referrers} empty="" />
+        </>
+      )}
     </section>
   )
 }
