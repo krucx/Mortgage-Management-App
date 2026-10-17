@@ -9,6 +9,9 @@
   --ok: #1a7f37;
   --error: #cf222e;
   --warning: #9a6700;
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  --accent-edge: color-mix(in srgb, var(--accent) 45%, var(--surface));
+  --error-soft: color-mix(in srgb, var(--error) 10%, var(--surface));
 
   font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
@@ -196,11 +199,17 @@ input[type='search'] {
   cursor: pointer;
 }
 
+/* Secondary actions: tinted with the accent so they stand out from the page. */
 button.secondary,
 .button.secondary {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-edge);
+}
+
+button:not(:disabled):hover,
+.button:hover {
+  filter: brightness(0.94);
 }
 
 button.link {
@@ -392,7 +401,7 @@ button.small,
 }
 
 button.danger {
-  background: transparent;
+  background: var(--error-soft);
   color: var(--error);
   border: 1px solid var(--error);
 }
@@ -750,4 +759,13 @@ figure.chart .series {
   height: 3px;
   margin-right: 0.4rem;
   vertical-align: middle;
+}
+
+/* A table row that opens something when clicked anywhere. */
+tr.clickable {
+  cursor: pointer;
+}
+
+tr.clickable:hover td {
+  background: var(--accent-soft);
 }

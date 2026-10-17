@@ -125,7 +125,7 @@ export interface PaymentRow {
   amount: number
   method: PaymentMethod
   reference: string | null
-  mortgage_names: string[]
+  mortgages: { id: number; name: string }[] // in the order the Allocations were made
   voided: boolean
 }
 

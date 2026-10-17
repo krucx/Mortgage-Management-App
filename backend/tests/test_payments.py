@@ -320,7 +320,10 @@ def test_payments_are_listed_newest_first_with_their_mortgages(
     assert newest["customer"]["name"] == "Ramesh Kumar"
     assert newest["amount"] == 3_000_00
     assert newest["reference"] == "UTR9"
-    assert newest["mortgage_names"] == [mortgage["name"], second_mortgage["name"]]
+    assert newest["mortgages"] == [
+        {"id": mortgage["id"], "name": mortgage["name"]},
+        {"id": second_mortgage["id"], "name": second_mortgage["name"]},
+    ]
     assert page["items"][1]["paid_on"] == "2026-03-01"
 
 

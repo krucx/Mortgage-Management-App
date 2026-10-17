@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Fragment, useEffect, useState, type MouseEvent } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { api, PAYMENT_METHODS, type PaymentPage } from '../api'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
@@ -14,6 +14,13 @@ export function PaymentsPage() {
   const [page, setPage] = useState(1)
   const [result, setResult] = useState<PaymentPage | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate()
+
+  /** A click anywhere on a row opens the Payment, except on its own links. */
+  function openRow(event: MouseEvent, paymentId: number) {
+    if ((event.target as HTMLElement).closest('a, button')) return
+    navigate(`/payments/${paymentId}`)
+  }
 
   useEffect(() => {
     api
@@ -54,17 +61,30 @@ export function PaymentsPage() {
                   <th>Mortgages</th>
                   <th>Method</th>
                   <th className="num">Amount</th>
-                  <th aria-label="Open" />
                 </tr>
               </thead>
               <tbody>
                 {result.items.map((payment) => (
-                  <tr key={payment.id} className={payment.voided ? 'voided' : undefined}>
-                    <td>{formatDate(payment.paid_on)}</td>
+                  <tr
+                    key={payment.id}
+                    className={`clickable${payment.voided ? ' voided' : ''}`}
+                    title="Open this Payment"
+                    onClick={(event) => openRow(event, payment.id)}
+                  >
+                    <td>
+                      <Link to={`/payments/${payment.id}`}>{formatDate(payment.paid_on)}</Link>
+                    </td>
                     <td>
                       <PersonLink person={payment.customer} />
                     </td>
-                    <td>{payment.mortgage_names.join(', ')}</td>
+                    <td>
+                      {payment.mortgages.map((mortgage, index) => (
+                        <Fragment key={mortgage.id}>
+                          {index > 0 && ', '}
+                          <Link to={`/mortgages/${mortgage.id}`}>{mortgage.name}</Link>
+                        </Fragment>
+                      ))}
+                    </td>
                     <td>
                       {PAYMENT_METHODS[payment.method]}
                       {payment.reference && <span className="hint"> · {payment.reference}</span>}
@@ -72,11 +92,6 @@ export function PaymentsPage() {
                     <td className="num">
                       {payment.voided && <span className="badge status-forfeited">voided</span>}{' '}
                       {formatINR(payment.amount)}
-                    </td>
-                    <td>
-                      <Link className="button secondary small" to={`/payments/${payment.id}`}>
-                        Open
-                      </Link>
                     </td>
                   </tr>
                 ))}

@@ -78,6 +78,11 @@ class Payment(BaseModel):
     void_reason: str | None
 
 
+class MortgageLink(BaseModel):
+    id: int
+    name: str
+
+
 class PaymentRow(BaseModel):
     """A Payment as listed on the Payments page."""
 
@@ -87,7 +92,7 @@ class PaymentRow(BaseModel):
     amount: int
     method: PaymentMethod
     reference: str | None
-    mortgage_names: list[str]
+    mortgages: list[MortgageLink]  # in the order the Allocations were made
     voided: bool
 
 
@@ -327,14 +332,18 @@ def list_payments(
             .limit(PAGE_SIZE)
             .offset((page - 1) * PAGE_SIZE)
         ).all()
-        names: dict[int, list[str]] = {payment.id: [] for payment in payments}
+        allocated: dict[int, list[MortgageLink]] = {p.id: [] for p in payments}
         for row in conn.execute(
-            select(allocation_table.c.payment_id, mortgage_table.c.name)
+            select(
+                allocation_table.c.payment_id,
+                mortgage_table.c.id,
+                mortgage_table.c.name,
+            )
             .join(mortgage_table, mortgage_table.c.id == allocation_table.c.mortgage_id)
-            .where(allocation_table.c.payment_id.in_(names))
+            .where(allocation_table.c.payment_id.in_(allocated))
             .order_by(allocation_table.c.id)
         ):
-            names[row.payment_id].append(row.name)
+            allocated[row.payment_id].append(MortgageLink(id=row.id, name=row.name))
     items = [
         PaymentRow(
             id=payment.id,
@@ -345,7 +354,7 @@ def list_payments(
             amount=payment.amount,
             method=payment.method,
             reference=payment.reference,
-            mortgage_names=names[payment.id],
+            mortgages=allocated[payment.id],
             voided=payment.voided_at is not None,
         )
         for payment in payments
