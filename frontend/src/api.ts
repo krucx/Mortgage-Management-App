@@ -202,17 +202,15 @@ export interface ProjectedPoint {
   loan_to_value: number | null
 }
 
-/** Something in the coming year that changes how a Mortgage grows. */
-export interface ProjectedEvent {
+/** A Term Change in the coming year. */
+export interface ComingTermChange {
   on: string
-  kind: 'term_change' | 'capitalised'
-  amount: number // capitalised: interest added to the Principal
-  terms: Terms | null // term_change: the Terms from then on
+  terms: Terms // from then on
 }
 
 export interface ProjectedSeries {
   points: ProjectedPoint[] // today, then each month for a year
-  events: ProjectedEvent[] // Term Changes and capitalisations after today
+  term_changes: ComingTermChange[] // in the coming year
   paid_off_on: string | null
 }
 
@@ -235,7 +233,7 @@ export interface LedgerChange {
 export interface PreviewSide {
   outstanding: number // today
   points: ProjectedPoint[] // with no further Payments; empty for a closed Mortgage
-  events: ProjectedEvent[]
+  term_changes: ComingTermChange[]
 }
 
 /** One Mortgage before and after a change that has not been saved. */

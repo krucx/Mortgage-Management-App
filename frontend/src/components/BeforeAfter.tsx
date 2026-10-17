@@ -112,7 +112,7 @@ function MortgageBeforeAfter({
           { label: 'Now', className: 'baseline', points: before.points },
           { label: 'After the change', className: 'what-if', points: after.points },
         ]}
-        events={[...after.events, ...before.events]}
+        termChanges={[...after.term_changes, ...before.term_changes]}
       />
 
       <LedgerChanges changes={preview.ledger_changes} />

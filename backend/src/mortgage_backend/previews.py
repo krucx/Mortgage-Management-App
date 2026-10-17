@@ -24,7 +24,7 @@ from mortgage_backend.mortgages import (
     outstanding_of,
 )
 from mortgage_backend.payments import apply_void, mortgages_of
-from mortgage_backend.projections import ProjectedEvent, ProjectedPoint, baseline
+from mortgage_backend.projections import ComingTermChange, ProjectedPoint, baseline
 from mortgage_backend.term_changes import TermChangeIn, apply_term_change
 
 
@@ -32,7 +32,7 @@ class PreviewSide(BaseModel):
     outstanding: int  # today
     # The Projection with no further Payments (empty for a closed Mortgage)
     points: list[ProjectedPoint]
-    events: list[ProjectedEvent]
+    term_changes: list[ComingTermChange]
 
 
 class LedgerChange(BaseModel):
@@ -102,7 +102,7 @@ def _snapshot(
             PreviewSide(
                 outstanding=outstanding_of(ledger).total,
                 points=projection.points if projection else [],
-                events=projection.events if projection else [],
+                term_changes=projection.term_changes if projection else [],
             ),
         )
     return found

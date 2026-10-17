@@ -91,7 +91,7 @@ export function ProjectionPanel({ mortgage }: { mortgage: Mortgage }) {
             ? [{ label: 'Paying every month', className: 'what-if', points: whatIf.points }]
             : []),
         ]}
-        events={[...baseline.events, ...(whatIf?.events ?? [])]}
+        termChanges={baseline.term_changes}
       />
     </div>
   )

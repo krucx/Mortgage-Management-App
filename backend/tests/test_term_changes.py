@@ -271,31 +271,8 @@ def test_a_new_start_date_must_keep_term_changes_on_accrual_dates(client, mortga
 def test_a_projection_lists_its_coming_term_changes(client, mortgage):
     change_terms(client, mortgage, monthly_rate_bps=200)  # from 14 May
 
-    events = projection(client, mortgage)["baseline"]["events"]
+    coming = projection(client, mortgage)["baseline"]["term_changes"]
 
-    assert [(e["on"], e["kind"]) for e in events] == [("2026-05-14", "term_change")]
-    assert events[0]["terms"]["monthly_rate_bps"] == 200
-
-
-def test_a_projection_lists_when_interest_is_capitalised(client, ramesh):
-    response = client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": ramesh["id"],
-            "start_date": "2026-01-14",
-            "amount_lent": LAKH,
-            "description": "Bangles",
-            "gross_weight_mg": 20_000,
-            "net_weight_mg": 19_000,
-            "purity_karat": 22,
-            "terms": {**SIMPLE_3, "interest_mode": "compounded_yearly"},
-        },
-    )
-    yearly = response.json()
-
-    events = projection(client, yearly)["baseline"]["events"]
-
-    # A year's unpaid interest (12 × ₹3,000) is added to the Principal on 14 Jan 2027.
-    assert [(e["on"], e["kind"], e["amount"]) for e in events] == [
-        ("2027-01-14", "capitalised", 36_000 * RUPEE)
+    assert [(c["on"], c["terms"]["monthly_rate_bps"]) for c in coming] == [
+        ("2026-05-14", 200)
     ]
