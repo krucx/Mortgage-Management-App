@@ -9,10 +9,14 @@ import { PersonLink } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
 import { ReasonDialog } from '../components/ReasonDialog'
+import { ScrollPopup } from '../components/ScrollPopup'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, formatGrams } from '../format'
 import { formatINR } from '../money'
 import { formatRate, INTEREST_MODES, PART_MONTH_RULES } from '../terms'
+
+/** Ledger steps shown on the page; the rest are in the complete Ledger popup. */
+const LEDGER_SHOWN = 8
 
 export function MortgagePage() {
   const id = Number(useParams().id)
@@ -20,6 +24,7 @@ export function MortgagePage() {
   const [error, setError] = useState<string | null>(null)
   const [confirm, confirmDialog] = useConfirm()
   const [reopening, setReopening] = useState(false)
+  const [fullLedger, setFullLedger] = useState(false)
   const loadHistory = useCallback(() => api.mortgageHistory(id), [id])
 
   useEffect(() => {
@@ -162,39 +167,30 @@ export function MortgagePage() {
       <p className="hint">
         Calculated from the Terms up to {formatDate(mortgage.as_of)}; nothing here is stored.
       </p>
-      <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Step</th>
-              <th className="num">Amount</th>
-              <th className="num">Principal</th>
-              <th className="num">Unpaid interest</th>
-            </tr>
-          </thead>
-          <tbody>
-            {mortgage.ledger.map((step, index) => (
-              <tr key={index} className={`ledger-${step.event}`}>
-                <td>{formatDate(step.on)}</td>
-                <td>
-                  {step.payment_id ? (
-                    <Link to={`/payments/${step.payment_id}`}>{describe(step, mortgage)}</Link>
-                  ) : (
-                    describe(step, mortgage)
-                  )}
-                </td>
-                <td className="num">{formatINR(step.amount)}</td>
-                <td className="num">{formatINR(step.principal)}</td>
-                <td className="num">{formatINR(step.unpaid_interest)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <LedgerTable steps={mortgage.ledger.slice(-LEDGER_SHOWN)} mortgage={mortgage} />
+      {mortgage.ledger.length > LEDGER_SHOWN && (
+        <div className="row">
+          <span className="hint">
+            Showing the latest {LEDGER_SHOWN} of {mortgage.ledger.length} steps.
+          </span>
+          <button type="button" className="secondary small" onClick={() => setFullLedger(true)}>
+            Show complete Ledger
+          </button>
+        </div>
+      )}
+      {fullLedger && (
+        <ScrollPopup
+          title={`Ledger of ${mortgage.name}`}
+          start="bottom"
+          onClose={() => setFullLedger(false)}
+        >
+          <LedgerTable steps={mortgage.ledger} mortgage={mortgage} />
+        </ScrollPopup>
+      )}
+
       <h3>History</h3>
       {/* Reloaded whenever the Mortgage changes, so new entries show up. */}
-      <History load={loadHistory} refresh={mortgage} />
+      <History load={loadHistory} refresh={mortgage} title={`History of ${mortgage.name}`} />
       {reopening && (
         <ReasonDialog
           title={`Reopen ${mortgage.name}?`}
@@ -213,6 +209,42 @@ export function MortgagePage() {
       )}
       {confirmDialog}
     </section>
+  )
+}
+
+/** Ledger steps as a table, oldest first. */
+function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortgage }) {
+  return (
+    <div className="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Step</th>
+            <th className="num">Amount</th>
+            <th className="num">Principal</th>
+            <th className="num">Unpaid interest</th>
+          </tr>
+        </thead>
+        <tbody>
+          {steps.map((step, index) => (
+            <tr key={index} className={`ledger-${step.event}`}>
+              <td>{formatDate(step.on)}</td>
+              <td>
+                {step.payment_id ? (
+                  <Link to={`/payments/${step.payment_id}`}>{describe(step, mortgage)}</Link>
+                ) : (
+                  describe(step, mortgage)
+                )}
+              </td>
+              <td className="num">{formatINR(step.amount)}</td>
+              <td className="num">{formatINR(step.principal)}</td>
+              <td className="num">{formatINR(step.unpaid_interest)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

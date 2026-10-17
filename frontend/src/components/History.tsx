@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { PAYMENT_METHODS, type AuditEntry, type PaymentMethod } from '../api'
 import { formatDate, formatDateTime, formatGrams } from '../format'
 import { formatINR } from '../money'
+import { ScrollPopup } from './ScrollPopup'
 
 const FIELD_LABELS: Record<string, string> = {
   name: 'Name',
@@ -130,16 +131,22 @@ function describe(change: Change, showMortgage: boolean) {
   )
 }
 
+/** Changes shown on the page; the rest are in the complete-history popup. */
+const HISTORY_SHOWN = 5
+
 /** A Customer's or Mortgage's change history, newest first; reloads when `refresh` changes. */
 export function History({
   load,
   refresh,
   showMortgage = false,
+  title,
 }: {
   load: () => Promise<AuditEntry[]>
   refresh?: unknown
   /** Name the Mortgage in its entries (on a Customer's page, which has several). */
   showMortgage?: boolean
+  /** Heading of the complete-history popup. */
+  title: string
 }) {
   const [entries, setEntries] = useState<AuditEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -152,23 +159,33 @@ export function History({
   if (error) return <p className="status error">{error}</p>
   if (entries === null) return null
   const changes = groupChanges(entries)
-  const shown = open ? changes : changes.slice(0, 5)
+  const list = (shown: Change[]) => (
+    <ul className="history">
+      {shown.map((change) => (
+        <li key={change[0].id}>
+          <span className="hint">{formatDateTime(change[0].at)}</span>{' '}
+          {describe(change, showMortgage)}
+        </li>
+      ))}
+    </ul>
+  )
   return (
     <div className="stack">
-      <ul className="history">
-        {shown.map((change) => (
-          <li key={change[0].id}>
-            <span className="hint">{formatDateTime(change[0].at)}</span>{' '}
-            {describe(change, showMortgage)}
-          </li>
-        ))}
-      </ul>
-      {changes.length > shown.length && (
-        <div>
+      {changes.length === 0 ? <p className="hint">No changes yet.</p> : list(changes.slice(0, HISTORY_SHOWN))}
+      {changes.length > HISTORY_SHOWN && (
+        <div className="row">
+          <span className="hint">
+            Showing the latest {HISTORY_SHOWN} of {changes.length} changes.
+          </span>
           <button type="button" className="secondary small" onClick={() => setOpen(true)}>
-            Show all {changes.length}
+            Show complete history
           </button>
         </div>
+      )}
+      {open && (
+        <ScrollPopup title={title} onClose={() => setOpen(false)}>
+          {list(changes)}
+        </ScrollPopup>
       )}
     </div>
   )

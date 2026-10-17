@@ -76,7 +76,7 @@ export function CustomerPage() {
       <PersonList people={customer.referred} empty="Nobody yet." />
 
       <h3>History</h3>
-      <History load={loadHistory} showMortgage />
+      <History load={loadHistory} showMortgage title={`History of ${customer.name}`} />
     </section>
   )
 }

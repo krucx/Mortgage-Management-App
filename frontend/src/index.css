@@ -668,3 +668,28 @@ ul.history {
   display: grid;
   gap: 0.3rem;
 }
+
+/* A long list in a popup: the popup stays on screen and the list scrolls. */
+dialog.scroll-popup {
+  width: min(960px, calc(100vw - 2rem));
+}
+
+dialog.scroll-popup h2 {
+  margin: 0;
+}
+
+.scroll-popup-body {
+  max-height: 70vh;
+  overflow: auto;
+  margin-top: 1rem;
+}
+
+.scroll-popup-body thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+.scroll-popup-body .table-scroll {
+  overflow: visible;
+}
