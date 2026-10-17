@@ -9,6 +9,15 @@ const PAD = { left: 74, right: 8, top: 28, bottom: 28 }
 const GAP = 2 // surface between neighbouring bars
 const RADIUS = 4 // rounded data end; the baseline end stays square
 
+/** The scale's top: the amount rounded up to 1, 2 or 5 times a power of ten rupees, so
+ *  the gridlines fall on round amounts. */
+function roundUp(paise: number): number {
+  const rupees = Math.max(1, paise / 100)
+  const power = 10 ** Math.floor(Math.log10(rupees))
+  const step = [1, 2, 5, 10].find((m) => m * power >= rupees) ?? 10
+  return step * power * 100
+}
+
 /** A bar from the baseline up to `top`, rounded only at the top. */
 function barPath(x: number, width: number, top: number, base: number): string {
   const r = Math.min(RADIUS, width / 2, base - top)
@@ -22,7 +31,7 @@ function barPath(x: number, width: number, top: number, base: number): string {
 export function PaymentsByMonthChart({ months }: { months: MonthlyPayments[] }) {
   const [hovered, setHovered] = useState<number | null>(null)
   if (months.length === 0) return null
-  const max = Math.max(1, ...months.map((m) => m.amount))
+  const max = roundUp(Math.max(...months.map((m) => m.amount)))
   const slot = (WIDTH - PAD.left - PAD.right) / months.length
   const base = HEIGHT - PAD.bottom
   const y = (paise: number) => PAD.top + (1 - paise / max) * (base - PAD.top)

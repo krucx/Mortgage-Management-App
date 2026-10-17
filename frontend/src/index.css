@@ -12,6 +12,12 @@
   --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--surface));
   --accent-edge: color-mix(in srgb, var(--accent) 45%, var(--surface));
   --error-soft: color-mix(in srgb, var(--error) 10%, var(--surface));
+  /* The Dashboard's figure groups, in this order (checked for colour-blind
+     separation and contrast with the dataviz palette validator, both modes). */
+  --tone-owed: #8a5a00;
+  --tone-money-in: #008ba8;
+  --tone-collateral: #5a4fcf;
+  --tone-closed: #b3368c;
 
   font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
@@ -31,6 +37,10 @@
     --ok: #3fb950;
     --error: #f85149;
     --warning: #d29922;
+    --tone-owed: #b98c1c;
+    --tone-money-in: #1fa3c0;
+    --tone-collateral: #8b7cf2;
+    --tone-closed: #d466a7;
   }
 }
 
@@ -821,26 +831,98 @@ figure.chart .marker text {
   text-decoration: none;
 }
 
+.dashboard .as-of {
+  margin: -0.75rem 0 0;
+}
+
+.dashboard .group.owed { --tone: var(--tone-owed); }
+.dashboard .group.money-in { --tone: var(--tone-money-in); }
+.dashboard .group.collateral { --tone: var(--tone-collateral); }
+.dashboard .group.closed { --tone: var(--tone-closed); }
+
+.dashboard .group {
+  display: grid;
+  gap: 0.6rem;
+}
+
 .dashboard h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0.5rem 0 0;
   font-size: 0.95rem;
-  color: var(--muted);
+  color: var(--text);
   font-weight: 600;
+}
+
+.dashboard h3::before {
+  content: '';
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--tone);
+}
+
+/* The headline: everything the Active Mortgages owe, in one number. */
+.dashboard .headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--tone) 35%, var(--surface));
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--tone) 16%, var(--surface)),
+    color-mix(in srgb, var(--tone) 4%, var(--surface))
+  );
+  color: var(--text);
+  text-decoration: none;
+}
+
+.dashboard .headline strong {
+  font-size: 2.2rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 a.tile.figure {
   color: var(--text);
   text-decoration: none;
+  border-left: 4px solid var(--tone, var(--border));
+  background: color-mix(in srgb, var(--tone, var(--border)) 7%, var(--surface));
+  align-content: start;
+  transition: background 120ms, border-color 120ms;
 }
 
 a.tile.figure:hover,
-a.tile.figure:focus-visible {
-  border-color: var(--accent-edge);
-  background: var(--accent-soft);
+a.tile.figure:focus-visible,
+.dashboard a.headline:hover,
+.dashboard a.headline:focus-visible {
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 15%, var(--surface));
+}
+
+/* A figure's note asking for action or showing a result: status colour plus words. */
+.dashboard .flag {
+  font-weight: 600;
+}
+
+.dashboard .flag.good {
+  color: var(--ok);
+}
+
+.dashboard .flag.bad {
+  color: var(--error);
+}
+
+.dashboard .flag.warn {
+  color: var(--warning);
 }
 
 figure.chart.payments-by-month .mark {
-  fill: var(--accent);
+  fill: var(--tone-money-in);
 }
 
 figure.chart.payments-by-month .hit {
@@ -852,7 +934,7 @@ figure.chart.payments-by-month .bar:focus {
 }
 
 figure.chart.payments-by-month .bar.hovered .hit {
-  fill: var(--accent-soft);
+  fill: color-mix(in srgb, var(--tone-money-in) 10%, var(--surface));
 }
 
 figure.chart.payments-by-month .tooltip {
