@@ -10,9 +10,11 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Literal
 
-from mortgage_backend.terms import InterestMode, Terms
+from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
 
-LedgerEvent = Literal["started", "interest", "payment", "capitalised"]
+LedgerEvent = Literal[
+    "started", "interest", "part_month", "payment", "capitalised", "forfeited"
+]
 
 
 @dataclass(frozen=True)
@@ -31,9 +33,9 @@ class LedgerStep:
     amount: int  # paise moved by this step
     principal: int  # running Principal after the step, in paise
     unpaid_interest: int  # running unpaid interest after the step, in paise
-    charged_on: int = (
-        0  # interest steps: the Principal the month's interest was charged on
-    )
+    # interest / part_month steps: the Principal at the start of that month
+    charged_on: int = 0
+    part_month_days: int = 0  # part_month steps: days since the last Accrual Date
     interest_paid: int = 0  # payment steps: the part that paid interest
     principal_paid: int = 0  # payment steps: the part that paid Principal
     payment_id: int | None = None
@@ -59,12 +61,38 @@ def accrual_date(start: date, n: int) -> date:
     return date(year, month, min(start.day, calendar.monthrange(year, month)[1]))
 
 
-def monthly_interest(principal: int, terms: Terms) -> int:
-    """One month's interest in paise, rounded half-up to the nearest rupee."""
+DAYS_IN_A_MONTH = 30  # the pro-rata Part-Month Rule counts days out of 30
+
+
+def monthly_interest(principal: int, terms: Terms, days: int = DAYS_IN_A_MONTH) -> int:
+    """Interest for a month (or `days` of 30) in paise, rounded half-up to the rupee."""
     paise_per_rupee = 100
-    denominator = 10_000 * paise_per_rupee  # basis points, then paise → rupees
-    rupees = (2 * principal * terms.monthly_rate_bps + denominator) // (2 * denominator)
+    # basis points, then days of 30, then paise → rupees
+    denominator = 10_000 * DAYS_IN_A_MONTH * paise_per_rupee
+    numerator = principal * terms.monthly_rate_bps * days
+    rupees = (2 * numerator + denominator) // (2 * denominator)
     return rupees * paise_per_rupee
+
+
+def days_since_accrual(start: date, on: date) -> int:
+    """Days from the last Accrual Date (or the start, before any) up to `on`."""
+    n = 0
+    while accrual_date(start, n + 1) <= on:
+        n += 1
+    return (on - accrual_date(start, n)).days
+
+
+def part_month_charge(principal: int, terms: Terms, days: int) -> int:
+    """The Part-Month Rule charge for closing `days` after the last Accrual Date."""
+    if days <= 0:
+        return 0
+    match terms.part_month_rule:
+        case PartMonthRule.FULL_MONTH:
+            return monthly_interest(principal, terms)
+        case PartMonthRule.PRO_RATA:
+            return monthly_interest(principal, terms, min(days, DAYS_IN_A_MONTH))
+        case PartMonthRule.NOTHING:
+            return 0
 
 
 def _capitalises(terms: Terms, n: int) -> bool:
@@ -83,8 +111,15 @@ def compute_ledger(
     terms: Terms,
     as_of: date,
     allocations: Iterable[Allocation] = (),
+    closed_on: date | None = None,
+    forfeited: bool = False,
 ) -> list[LedgerStep]:
     """Replay a Mortgage from its start up to and including `as_of`.
+
+    A Mortgage closed (Redeemed or Forfeited) on `closed_on` accrues nothing after it; on
+    that date the Part-Month Rule charge for the days since the last Accrual Date is added
+    before that day's Payments, so a final Payment can include it. A Forfeited Mortgage's
+    remaining debt is then settled by the jewellery, leaving nothing Outstanding.
 
     Each month's interest is charged on the Principal as it stood at the start of that
     month (the previous Accrual Date), so paying Principal mid-month lowers interest only
@@ -93,6 +128,8 @@ def compute_ledger(
     interest before it compounds and counts for the month that starts then.
     Raises Overpayment if an Allocation exceeds what is owed on its date.
     """
+    if closed_on is not None:
+        as_of = min(as_of, closed_on)
     principal, unpaid = amount_lent, 0
     steps = [LedgerStep(start, "started", amount_lent, principal, unpaid)]
     pending = sorted(
@@ -144,5 +181,25 @@ def compute_ledger(
             steps.append(LedgerStep(on, "capitalised", capitalised, principal, unpaid))
         month_start_principal = principal  # the next month starts now
         n += 1
+
+    if closed_on is not None and closed_on == as_of:
+        pay_through(closed_on - timedelta(days=1))
+        days = days_since_accrual(start, closed_on)
+        charge = part_month_charge(month_start_principal, terms, days)
+        if charge:
+            unpaid += charge
+            steps.append(
+                LedgerStep(
+                    closed_on,
+                    "part_month",
+                    charge,
+                    principal,
+                    unpaid,
+                    charged_on=month_start_principal,
+                    part_month_days=days,
+                )
+            )
     pay_through(as_of)
+    if forfeited and closed_on == as_of:
+        steps.append(LedgerStep(closed_on, "forfeited", principal + unpaid, 0, 0))
     return steps

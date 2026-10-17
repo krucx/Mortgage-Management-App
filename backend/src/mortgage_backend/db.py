@@ -84,6 +84,11 @@ mortgage_table = Table(
     Column("interest_mode", String, nullable=False),
     Column("part_month_rule", String, nullable=False),
     Column("status", String, nullable=False, server_default="active"),
+    # Closing (Redeemed or Forfeited):
+    Column("closed_on", Date),
+    Column("redemption_payment_id", Integer, ForeignKey("payment.id")),
+    Column("recovered_amount", Integer),  # paise; Forfeited only
+    Column("closure_note", String),
     Column("created_at", DateTime, nullable=False, server_default=func.now()),
 )
 

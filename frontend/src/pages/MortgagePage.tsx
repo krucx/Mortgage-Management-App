@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { api, type LedgerStep, type Mortgage } from '../api'
+import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
 import { PersonLink } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
@@ -128,6 +129,13 @@ export function MortgagePage() {
       )}
       <PhotoSource multiple onPhotos={addPhotos} />
 
+      <h3>{mortgage.status === 'active' ? 'Redeem or Forfeit' : 'Closure'}</h3>
+      {mortgage.status === 'active' ? (
+        <CloseMortgage mortgage={mortgage} onClosed={setMortgage} />
+      ) : (
+        <ClosureSummary mortgage={mortgage} />
+      )}
+
       <h3>Ledger</h3>
       <p className="hint">
         Calculated from the Terms up to {formatDate(mortgage.as_of)}; nothing here is stored.
@@ -179,6 +187,13 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
         `Payment: ${formatINR(step.interest_paid)} to interest, ` +
         `${formatINR(step.principal_paid)} to Principal`
       )
+    case 'part_month':
+      return (
+        `Part-month interest: ${step.part_month_days} days since the last Accrual Date ` +
+        `(${PART_MONTH_RULES[mortgage.terms.part_month_rule]}) on ${formatINR(step.charged_on)}`
+      )
+    case 'forfeited':
+      return 'Forfeited: the jewellery settles what was owed'
     case 'capitalised':
       return 'Unpaid interest capitalised into Principal'
   }

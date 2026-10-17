@@ -71,7 +71,7 @@ The Ledger continued into the future under stated assumptions, used to compare o
 _Avoid_: Forecast, estimate
 
 **Outstanding**:
-What a Mortgage owes on a date: Principal plus unpaid interest, before any Part-Month Rule charge.
+What a Mortgage owes on a date: Principal plus unpaid interest, before any Part-Month Rule charge; nothing once Redeemed or Forfeited.
 _Avoid_: Balance, dues
 
 **Redemption Amount**:
@@ -115,8 +115,16 @@ A Mortgage still accruing interest with jewellery held.
 
 **Redeemed**:
 A Mortgage fully repaid with its jewellery returned to the Customer.
-_Avoid_: Closed, settled
+_Avoid_: Settled, paid off
+
+**Closure**:
+The end of a Mortgage, by Redemption or Forfeiture; after it no interest accrues and no Payments are taken.
+_Avoid_: Closing out, termination
 
 **Forfeited**:
 A Mortgage on which the Customer defaulted and the Lender kept or sold the jewellery.
 _Avoid_: Defaulted, auctioned
+
+**Recovered Amount**:
+What a Forfeited Mortgage's jewellery fetched (or is worth, if kept); its difference from the Redemption Amount is the Lender's profit or loss.
+_Avoid_: Sale value, realisation

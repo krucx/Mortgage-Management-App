@@ -267,3 +267,131 @@ def test_paying_off_everything_leaves_nothing_owed():
     )
 
     assert ledger[-1] == (date(2026, 3, 1), "payment", 103_000, 0, 0, 3_000, 100_000)
+
+
+# --- Closing a Mortgage (Redemption / Forfeiture): the Part-Month Rule, then no more interest.
+
+
+def closed(start, closed_on, rule, allocations=(), as_of=None, principal=LAKH):
+    rule_terms = Terms(
+        monthly_rate_bps=300, interest_mode=InterestMode.SIMPLE, part_month_rule=rule
+    )
+    return compute_ledger(
+        start,
+        principal,
+        rule_terms,
+        as_of or closed_on,
+        list(allocations),
+        closed_on=closed_on,
+    )
+
+
+@pytest.mark.parametrize(
+    ("rule", "charge"),
+    [
+        (PartMonthRule.FULL_MONTH, 3_000_00),
+        (PartMonthRule.PRO_RATA, 1_000_00),  # 10 days of 30
+        (PartMonthRule.NOTHING, None),
+    ],
+)
+def test_closing_between_accrual_dates_adds_the_part_month_rule_charge(rule, charge):
+    # Last Accrual Date 14 Feb, closed 24 Feb: 10 days into the month.
+    ledger = closed(date(2026, 1, 14), date(2026, 2, 24), rule)
+
+    last = ledger[-1]
+    if charge is None:
+        assert last.event == "interest"
+        assert last.unpaid_interest == 3_000_00
+    else:
+        assert (last.on, last.event, last.amount, last.part_month_days) == (
+            date(2026, 2, 24),
+            "part_month",
+            charge,
+            10,
+        )
+        assert last.unpaid_interest == 3_000_00 + charge
+
+
+@pytest.mark.parametrize("rule", list(PartMonthRule))
+def test_closing_on_an_accrual_date_adds_no_part_month_charge(rule):
+    ledger = closed(date(2026, 1, 14), date(2026, 3, 14), rule)
+
+    assert [s.event for s in ledger] == ["started", "interest", "interest"]
+
+
+@pytest.mark.parametrize(
+    ("rule", "charge"),
+    [(PartMonthRule.FULL_MONTH, 3_000_00), (PartMonthRule.PRO_RATA, 1_000_00)],
+)
+def test_closing_in_the_first_month_still_follows_the_rule(rule, charge):
+    ledger = closed(date(2026, 1, 14), date(2026, 1, 24), rule)
+
+    assert (ledger[-1].event, ledger[-1].amount) == ("part_month", charge)
+
+
+def test_no_interest_accrues_after_closing():
+    ledger = closed(
+        date(2026, 1, 14),
+        date(2026, 2, 24),
+        PartMonthRule.FULL_MONTH,
+        as_of=date(2026, 9, 1),
+    )
+
+    assert ledger[-1].on == date(2026, 2, 24)
+
+
+def test_the_part_month_charge_is_on_the_principal_at_the_start_of_that_month():
+    # 13,000 paid 20 Feb clears 3,000 interest and 10,000 Principal; the month began on 1,00,000.
+    ledger = closed(
+        date(2026, 1, 14),
+        date(2026, 2, 24),
+        PartMonthRule.FULL_MONTH,
+        [Allocation(on=date(2026, 2, 20), amount=13_000_00, payment_id=1)],
+    )
+
+    assert (ledger[-1].event, ledger[-1].amount, ledger[-1].charged_on) == (
+        "part_month",
+        3_000_00,
+        LAKH,
+    )
+
+
+def test_a_final_payment_on_the_closing_date_can_include_the_part_month_charge():
+    ledger = closed(
+        date(2026, 1, 14),
+        date(2026, 2, 24),
+        PartMonthRule.FULL_MONTH,
+        [Allocation(on=date(2026, 2, 24), amount=106_000_00, payment_id=1)],
+    )
+
+    assert [s.event for s in ledger[-2:]] == ["part_month", "payment"]
+    assert (ledger[-1].principal, ledger[-1].unpaid_interest) == (0, 0)
+
+
+def test_forfeiting_settles_what_was_owed_so_nothing_stays_outstanding():
+    rule_terms = Terms(
+        monthly_rate_bps=300,
+        interest_mode=InterestMode.SIMPLE,
+        part_month_rule=PartMonthRule.FULL_MONTH,
+    )
+
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        rule_terms,
+        date(2026, 9, 1),
+        closed_on=date(2026, 2, 24),
+        forfeited=True,
+    )
+
+    assert [
+        (s.event, s.amount, s.principal, s.unpaid_interest) for s in ledger[-2:]
+    ] == [
+        ("part_month", 3_000_00, LAKH, 6_000_00),
+        (
+            "forfeited",
+            106_000_00,
+            0,
+            0,
+        ),  # the Redemption Amount, settled by the jewellery
+    ]

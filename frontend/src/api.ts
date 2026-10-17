@@ -81,11 +81,12 @@ export interface MortgageIn {
 
 export interface LedgerStep {
   on: string
-  event: 'started' | 'interest' | 'payment' | 'capitalised'
+  event: 'started' | 'interest' | 'part_month' | 'payment' | 'capitalised' | 'forfeited'
   amount: number // paise
   principal: number // running, paise
   unpaid_interest: number // running, paise
-  charged_on: number // interest steps: the Principal at the start of that month
+  charged_on: number // interest / part_month steps: the Principal at the start of that month
+  part_month_days: number // part_month steps: days since the last Accrual Date
   interest_paid: number // payment steps only
   principal_paid: number // payment steps only
   payment_id: number | null
@@ -167,6 +168,39 @@ export interface Mortgage {
   as_of: string
   ledger: LedgerStep[]
   outstanding: Outstanding
+  closure: Closure | null
+}
+
+/** What it takes to close a Mortgage on a date. */
+export interface Redemption {
+  on: string
+  principal: number
+  unpaid_interest: number
+  part_month_days: number
+  part_month_charge: number
+  total: number // the Redemption Amount
+}
+
+export interface RedeemIn {
+  redeemed_on: string
+  method: PaymentMethod // of the final Payment
+  reference: string | null
+}
+
+export interface ForfeitIn {
+  forfeited_on: string
+  recovered_amount: number // paise
+  note: string
+}
+
+export interface Closure {
+  kind: 'redeemed' | 'forfeited'
+  on: string
+  redemption_amount: number
+  payment_id: number | null
+  recovered_amount: number | null
+  profit_loss: number | null
+  note: string | null
 }
 
 export interface MortgageRow {
@@ -250,6 +284,12 @@ export const api = {
         (filters.asOf ? `&as_of=${filters.asOf}` : ''),
     ),
   getMortgage: (id: number) => request<Mortgage>(`/mortgages/${id}`),
+  getRedemption: (id: number, on: string) =>
+    request<Redemption>(`/mortgages/${id}/redemption?on=${on}`),
+  redeem: (id: number, body: RedeemIn) =>
+    request<Mortgage>(`/mortgages/${id}/redeem`, sendJson('POST', body)),
+  forfeit: (id: number, body: ForfeitIn) =>
+    request<Mortgage>(`/mortgages/${id}/forfeit`, sendJson('POST', body)),
   createMortgage: (mortgage: MortgageIn) =>
     request<Mortgage>('/mortgages', sendJson('POST', mortgage)),
   suggestMortgageName: (customerId: number, startDate: string, description: string) =>

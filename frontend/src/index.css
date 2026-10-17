@@ -544,3 +544,23 @@ button.danger-solid {
   background: var(--error);
   color: #fff;
 }
+
+.badge.status-redeemed {
+  color: var(--muted);
+}
+
+.badge.status-forfeited {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.close-panel {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+tr.ledger-part_month td {
+  font-style: italic;
+}

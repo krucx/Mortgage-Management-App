@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { api, type MortgagePage } from '../api'
+import { api, type MortgagePage, type MortgageStatus } from '../api'
 import { MortgageTable } from '../components/MortgageTable'
 import { Pager } from '../components/Pager'
 import { useDebounced } from '../components/useDebounced'
@@ -10,16 +10,17 @@ export function MortgagesPage() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounced(query)
   const [page, setPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState<MortgageStatus | ''>('active')
   const [result, setResult] = useState<MortgagePage | null>(null)
   const [error, setError] = useState<string | null>(null)
 
 
   useEffect(() => {
     api
-      .listMortgages(page, debouncedQuery)
+      .listMortgages(page, debouncedQuery, { status: statusFilter || undefined })
       .then(setResult)
       .catch((err: Error) => setError(err.message))
-  }, [page, debouncedQuery])
+  }, [page, debouncedQuery, statusFilter])
 
   return (
     <section className="card wide">
@@ -28,6 +29,29 @@ export function MortgagesPage() {
         <Link className="button" to="/mortgages/new">
           New Mortgage
         </Link>
+      </div>
+      <div className="row">
+        {(
+          [
+            ['active', 'Active'],
+            ['redeemed', 'Redeemed'],
+            ['forfeited', 'Forfeited'],
+            ['', 'All'],
+          ] as const
+        ).map(([value, label]) => (
+          <label key={label} className="inline">
+            <input
+              type="radio"
+              name="status-filter"
+              checked={statusFilter === value}
+              onChange={() => {
+                setStatusFilter(value)
+                setPage(1)
+              }}
+            />
+            {label}
+          </label>
+        ))}
       </div>
       <input
         autoFocus

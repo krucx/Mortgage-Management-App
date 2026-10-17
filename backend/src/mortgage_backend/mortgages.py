@@ -23,7 +23,13 @@ from mortgage_backend.db import (
     payment_table,
 )
 from mortgage_backend.default_terms import get_default_terms
-from mortgage_backend.ledger import Allocation, LedgerStep, compute_ledger
+from mortgage_backend.errors import unprocessable
+from mortgage_backend.ledger import (
+    Allocation,
+    LedgerStep,
+    compute_ledger,
+    days_since_accrual,
+)
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 from mortgage_backend.terms import Terms
 
@@ -92,6 +98,29 @@ class MortgagePage(BaseModel):
     page_size: int
 
 
+class Redemption(BaseModel):
+    """What it takes to close a Mortgage on a date (see Redemption Amount in GLOSSARY.md)."""
+
+    on: date
+    principal: int
+    unpaid_interest: int
+    part_month_days: int  # since the last Accrual Date
+    part_month_charge: int  # per the Part-Month Rule
+    total: int  # the Redemption Amount
+
+
+class Closure(BaseModel):
+    """How and when a Mortgage was closed."""
+
+    kind: Literal["redeemed", "forfeited"]
+    on: date
+    redemption_amount: int  # owed on that date, Part-Month Rule charge included
+    payment_id: int | None  # Redeemed: the final Payment, if anything was owed
+    recovered_amount: int | None  # Forfeited: what the jewellery fetched (or is worth)
+    profit_loss: int | None  # Forfeited: recovered − Redemption Amount
+    note: str | None
+
+
 class Mortgage(BaseModel):
     """A Mortgage's own page, with its Ledger computed up to `as_of`."""
 
@@ -110,6 +139,7 @@ class Mortgage(BaseModel):
     as_of: date
     ledger: list[LedgerStep]
     outstanding: Outstanding
+    closure: Closure | None
 
 
 def _terms(row: RowMapping) -> Terms:
@@ -159,9 +189,62 @@ def ledgers_of(
             _terms(row),
             as_of,
             allocations[row["id"]],
+            closed_on=row["closed_on"],
+            forfeited=row["status"] == MortgageStatus.FORFEITED,
         )
         for row in rows
     }
+
+
+def quote_redemption(
+    row: RowMapping, on: date, allocations: Sequence[Allocation]
+) -> Redemption:
+    """The Redemption Amount on `on`, after the given Allocations."""
+    ledger = compute_ledger(
+        row["start_date"],
+        row["amount_lent"],
+        _terms(row),
+        on,
+        allocations,
+        closed_on=on,
+    )
+    last = ledger[-1]
+    part_month = next((s for s in ledger if s.event == "part_month"), None)
+    charge = part_month.amount if part_month else 0
+    return Redemption(
+        on=on,
+        principal=last.principal,
+        unpaid_interest=last.unpaid_interest - charge,
+        part_month_days=days_since_accrual(row["start_date"], on),
+        part_month_charge=charge,
+        total=last.principal + last.unpaid_interest,
+    )
+
+
+def redemption_on(conn: Connection, row: RowMapping, on: date) -> Redemption:
+    """The Redemption Amount for a Mortgage row on `on`, ignoring its own final Payment."""
+    allocations = [
+        allocation
+        for allocation in _allocations_to(conn, [row["id"]])[row["id"]]
+        if allocation.payment_id != row["redemption_payment_id"]
+    ]
+    return quote_redemption(row, on, allocations)
+
+
+def _closure(conn: Connection, row: RowMapping) -> Closure | None:
+    if row["status"] == MortgageStatus.ACTIVE:
+        return None
+    redemption_amount = redemption_on(conn, row, row["closed_on"]).total
+    forfeited = row["status"] == MortgageStatus.FORFEITED
+    return Closure(
+        kind=row["status"],
+        on=row["closed_on"],
+        redemption_amount=redemption_amount,
+        payment_id=row["redemption_payment_id"],
+        recovered_amount=row["recovered_amount"],
+        profit_loss=row["recovered_amount"] - redemption_amount if forfeited else None,
+        note=row["closure_note"],
+    )
 
 
 def _outstanding_of(ledger: list[LedgerStep]) -> Outstanding:
@@ -186,7 +269,7 @@ def _customer_of(row: RowMapping) -> PersonSummary:
     )
 
 
-def _load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
+def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
     row = (
         conn.execute(_select_with_customer().where(mortgage_table.c.id == mortgage_id))
         .mappings()
@@ -216,6 +299,7 @@ def _load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         as_of=today,
         ledger=ledger,
         outstanding=_outstanding_of(ledger),
+        closure=_closure(conn, row),
     )
 
 
@@ -265,7 +349,7 @@ def _customer_name(conn: Connection, customer_id: int) -> str:
         select(customer_table.c.name).where(customer_table.c.id == customer_id)
     ).scalar()
     if name is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Customer not found")
+        raise unprocessable("Customer not found")
     return name
 
 
@@ -289,9 +373,7 @@ def create_mortgage(
     mortgage: MortgageIn, engine: EngineDep, today: TodayDep
 ) -> Mortgage:
     if mortgage.start_date > today:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, "Start date cannot be in the future"
-        )
+        raise unprocessable("Start date cannot be in the future")
     with engine.begin() as conn:
         customer_name = _customer_name(conn, mortgage.customer_id)
         if mortgage.name is None:
@@ -315,13 +397,13 @@ def create_mortgage(
             )
             .returning(mortgage_table.c.id)
         ).scalar_one()
-        return _load_mortgage(conn, mortgage_id, today)
+        return load_mortgage(conn, mortgage_id, today)
 
 
 @router.get("/mortgages/{mortgage_id}")
 def read_mortgage(mortgage_id: int, engine: EngineDep, today: TodayDep) -> Mortgage:
     with engine.connect() as conn:
-        return _load_mortgage(conn, mortgage_id, today)
+        return load_mortgage(conn, mortgage_id, today)
 
 
 PAGE_SIZE = 20
@@ -343,9 +425,7 @@ def list_mortgages(
     (used when recording a back-dated Payment).
     """
     if as_of is not None and as_of > today:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, "The date cannot be in the future"
-        )
+        raise unprocessable("The date cannot be in the future")
     query = q.strip()
     match = (
         or_(
@@ -410,7 +490,7 @@ async def add_mortgage_photo(
         conn.execute(
             insert(mortgage_photo_table).values(mortgage_id=mortgage_id, file=file_name)
         )
-        return _load_mortgage(conn, mortgage_id, today)
+        return load_mortgage(conn, mortgage_id, today)
 
 
 @router.delete("/mortgages/{mortgage_id}/photos/{photo_id}")
@@ -433,6 +513,6 @@ def delete_mortgage_photo(
         conn.execute(
             delete(mortgage_photo_table).where(mortgage_photo_table.c.id == photo_id)
         )
-        mortgage = _load_mortgage(conn, mortgage_id, today)
+        mortgage = load_mortgage(conn, mortgage_id, today)
     delete_photo(photos_dir, file_name)
     return mortgage

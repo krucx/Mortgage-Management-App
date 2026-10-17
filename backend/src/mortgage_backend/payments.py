@@ -21,6 +21,7 @@ from mortgage_backend.db import (
     mortgage_table,
     payment_table,
 )
+from mortgage_backend.errors import unprocessable
 from mortgage_backend.ledger import Overpayment
 from mortgage_backend.money import format_inr
 from mortgage_backend.mortgages import MortgageStatus, ledgers_of
@@ -92,10 +93,6 @@ class PaymentPage(BaseModel):
     page_size: int
 
 
-def _unprocessable(message: str) -> HTTPException:
-    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, message)
-
-
 def _mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
     """The Mortgages a Payment is allocated to, in the order the Allocations were made."""
     return (
@@ -149,18 +146,32 @@ def _load_payment(conn: Connection, payment_id: int) -> Payment:
     )
 
 
-def _check_no_overpayment(conn: Connection, payment_id: int, today: date) -> None:
+def insert_payment(conn: Connection, payment: PaymentIn) -> int:
+    """Store a Payment and its Allocations; returns its id. Callers check it first."""
+    payment_id: int = conn.execute(
+        insert(payment_table)
+        .values(**payment.model_dump(exclude={"allocations"}))
+        .returning(payment_table.c.id)
+    ).scalar_one()
+    conn.execute(
+        insert(allocation_table),
+        [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
+    )
+    return payment_id
+
+
+def check_no_overpayment(conn: Connection, payment_id: int, today: date) -> None:
     """Replay each Mortgage the Payment touches; no Allocation may pay more than is owed."""
     for mortgage in _mortgages_of(conn, payment_id):
         try:
             ledgers_of(conn, [mortgage], today)
         except Overpayment as over:
             if over.payment_id == payment_id:
-                raise _unprocessable(
+                raise unprocessable(
                     f"{mortgage['name']}: only {format_inr(over.outstanding)} was owed on "
                     f"{over.on:%d %b %Y}, less than this Payment"
                 )
-            raise _unprocessable(
+            raise unprocessable(
                 f"{mortgage['name']}: this Payment would leave a later Payment on "
                 f"{over.on:%d %b %Y} larger than the {format_inr(over.outstanding)} owed then"
             )
@@ -172,10 +183,10 @@ router = APIRouter(prefix="/api")
 @router.post("/payments", status_code=status.HTTP_201_CREATED)
 def record_payment(payment: PaymentIn, engine: EngineDep, today: TodayDep) -> Payment:
     if payment.paid_on > today:
-        raise _unprocessable("The Payment date cannot be in the future")
+        raise unprocessable("The Payment date cannot be in the future")
     with engine.begin() as conn:
         if not exists(conn, customer_table, payment.customer_id):
-            raise _unprocessable("Customer not found")
+            raise unprocessable("Customer not found")
         for allocation in payment.allocations:
             mortgage = conn.execute(
                 select(mortgage_table).where(
@@ -183,23 +194,15 @@ def record_payment(payment: PaymentIn, engine: EngineDep, today: TodayDep) -> Pa
                 )
             ).first()
             if mortgage is None or mortgage.customer_id != payment.customer_id:
-                raise _unprocessable("Each Mortgage must belong to the paying Customer")
+                raise unprocessable("Each Mortgage must belong to the paying Customer")
             if mortgage.status != MortgageStatus.ACTIVE:
-                raise _unprocessable(f"{mortgage.name} is not Active")
+                raise unprocessable(f"{mortgage.name} is not Active")
             if payment.paid_on < mortgage.start_date:
-                raise _unprocessable(f"{mortgage.name} had not started on that date")
+                raise unprocessable(f"{mortgage.name} had not started on that date")
 
-        payment_id = conn.execute(
-            insert(payment_table)
-            .values(**payment.model_dump(exclude={"allocations"}))
-            .returning(payment_table.c.id)
-        ).scalar_one()
-        conn.execute(
-            insert(allocation_table),
-            [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
-        )
+        payment_id = insert_payment(conn, payment)
         # Raising here rolls the whole Payment back.
-        _check_no_overpayment(conn, payment_id, today)
+        check_no_overpayment(conn, payment_id, today)
         return _load_payment(conn, payment_id)
 
 

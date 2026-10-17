@@ -10,6 +10,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from mortgage_backend.errors import unprocessable
+
 MAX_EDGE_PX = 1600
 _FILE_NAME = re.compile(r"^[a-z]+-\d+-[0-9a-f]{32}\.jpg$")
 
@@ -33,7 +35,7 @@ def save_photo(photos_dir: Path, owner: str, owner_id: int, data: bytes) -> str:
         # Phone photos carry their rotation in EXIF; bake it in.
         image = ImageOps.exif_transpose(Image.open(BytesIO(data))).convert("RGB")
     except (UnidentifiedImageError, OSError):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Not an image file")
+        raise unprocessable("Not an image file")
     image.thumbnail((MAX_EDGE_PX, MAX_EDGE_PX))
 
     file_name = f"{owner}-{owner_id}-{uuid.uuid4().hex}.jpg"

@@ -25,6 +25,7 @@ from mortgage_backend.db import (
     mortgage_table,
     standalone_referrer_table,
 )
+from mortgage_backend.errors import unprocessable
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 
 
@@ -139,10 +140,6 @@ class StandaloneReferrer(BaseModel):
     referred: list[PersonSummary]
 
 
-def _unprocessable(message: str) -> HTTPException:
-    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, message)
-
-
 def _owner_of(conn: Connection, phone: str) -> PersonSummary | None:
     """The person whose Primary Number this is, if anyone's."""
     customer = conn.execute(
@@ -195,21 +192,21 @@ def _referrer_columns(
             return _link_to(None)
         case ExistingCustomerReferrer(id=customer_id):
             if not exists(conn, customer_table, customer_id):
-                raise _unprocessable("Referrer Customer not found")
+                raise unprocessable("Referrer Customer not found")
             return {
                 "referred_by_customer_id": customer_id,
                 "referred_by_standalone_referrer_id": None,
             }
         case ExistingStandaloneReferrer(id=referrer_id):
             if not exists(conn, standalone_referrer_table, referrer_id):
-                raise _unprocessable("Referrer not found")
+                raise unprocessable("Referrer not found")
             return {
                 "referred_by_customer_id": None,
                 "referred_by_standalone_referrer_id": referrer_id,
             }
         case NewStandaloneReferrer():
             if choice.phone == own_phone:
-                raise _unprocessable("A Customer cannot be their own Referrer")
+                raise unprocessable("A Customer cannot be their own Referrer")
             existing = _owner_of(conn, choice.phone)
             if existing is not None:
                 return _link_to(existing)
@@ -331,7 +328,7 @@ def create_customer(customer: CustomerIn, engine: EngineDep) -> Customer:
         if promoted is not None and customer.referrer == ExistingStandaloneReferrer(
             kind="referrer", id=promoted
         ):
-            raise _unprocessable("A Customer cannot be their own Referrer")
+            raise unprocessable("A Customer cannot be their own Referrer")
         customer_id = conn.execute(
             insert(customer_table)
             .values(
@@ -353,7 +350,7 @@ def update_customer(
         isinstance(customer.referrer, ExistingCustomerReferrer)
         and customer.referrer.id == customer_id
     ):
-        raise _unprocessable("A Customer cannot be their own Referrer")
+        raise unprocessable("A Customer cannot be their own Referrer")
     with engine.begin() as conn:
         if not exists(conn, customer_table, customer_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
