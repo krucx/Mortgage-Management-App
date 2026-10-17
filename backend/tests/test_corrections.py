@@ -167,7 +167,7 @@ def test_a_voided_payment_does_not_stop_an_earlier_closing_date(
 # Editing a Mortgage
 
 
-def test_editing_the_principal_recalculates_the_ledger(client, mortgage):
+def test_editing_the_principal_replays_the_ledger(client, mortgage):
     response = edit(client, mortgage, amount_lent=50_000 * RUPEE)
 
     assert response.status_code == 200, response.text

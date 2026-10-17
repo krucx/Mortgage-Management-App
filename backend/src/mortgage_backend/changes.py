@@ -2,7 +2,7 @@
 
 Every change is refused if it isn't allowed, written, then checked by replaying each
 Mortgage it touches (no Payment may end up larger than what was owed on its date), and
-recorded in History. The request handlers only parse, call and answer; Previews make the
+then recorded in History. The request handlers only parse, call and answer; Previews make the
 same change and roll it back.
 """
 
@@ -116,9 +116,7 @@ def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -> 
             ) from None
 
 
-def insert_payment(conn: Connection, payment: PaymentIn, now: datetime) -> int:
-    """Write a Payment and its Allocations, with no checks; returns its id. Only a
-    Redemption's final Payment is written this way, checked by Closure itself."""
+def _write_payment(conn: Connection, payment: PaymentIn) -> int:
     payment_id: int = conn.execute(
         insert(payment_table)
         .values(**payment.model_dump(exclude={"allocations"}))
@@ -128,6 +126,12 @@ def insert_payment(conn: Connection, payment: PaymentIn, now: datetime) -> int:
         insert(allocation_table),
         [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
     )
+    return payment_id
+
+
+def _record_payment_history(
+    conn: Connection, payment_id: int, payment: PaymentIn, now: datetime
+) -> None:
     audit.record(
         conn,
         now,
@@ -139,17 +143,19 @@ def insert_payment(conn: Connection, payment: PaymentIn, now: datetime) -> int:
             ["paid_on", "amount", "method", "reference"],
         ),
     )
-    return payment_id
 
 
-def insert_void(conn: Connection, payment_id: int, reason: str, now: datetime) -> None:
-    """Void a Payment with no checks. Only Reopening voids this way: it voids a
-    Redemption's final Payment, which void_payment refuses."""
+def _write_void(conn: Connection, payment_id: int, reason: str, now: datetime) -> None:
     conn.execute(
         update(payment_table)
         .where(payment_table.c.id == payment_id)
         .values(voided_at=now, void_reason=reason)
     )
+
+
+def _record_void_history(
+    conn: Connection, payment_id: int, reason: str, now: datetime
+) -> None:
     audit.record(
         conn,
         now,
@@ -158,6 +164,25 @@ def insert_void(conn: Connection, payment_id: int, reason: str, now: datetime) -
         "voided",
         [audit.Change("void_reason", None, reason)],
     )
+
+
+def record_payment_unchecked(
+    conn: Connection, payment: PaymentIn, now: datetime
+) -> int:
+    """Record a Payment without record_payment's checks; returns its id. Only a
+    Redemption's final Payment is recorded this way, checked by Closure itself."""
+    payment_id = _write_payment(conn, payment)
+    _record_payment_history(conn, payment_id, payment, now)
+    return payment_id
+
+
+def void_unchecked(
+    conn: Connection, payment_id: int, reason: str, now: datetime
+) -> None:
+    """Void a Payment without void_payment's checks. Only Reopening voids this way: it
+    voids a Redemption's final Payment, which void_payment refuses."""
+    _write_void(conn, payment_id, reason, now)
+    _record_void_history(conn, payment_id, reason, now)
 
 
 def record_payment(
@@ -185,8 +210,9 @@ def record_payment(
         if payment.paid_on < row["start_date"]:
             raise unprocessable(f"{row['name']} had not started on that date")
         rows.append(row)
-    payment_id = insert_payment(conn, payment, now)
+    payment_id = _write_payment(conn, payment)
     check_replays(conn, rows, today)
+    _record_payment_history(conn, payment_id, payment, now)
     return payment_id
 
 
@@ -206,8 +232,9 @@ def void_payment(
                 "reopen the Mortgage instead, which voids it",
             )
         _refuse_unless_active(row)
-    insert_void(conn, payment_id, reason, now)
+    _write_void(conn, payment_id, reason, now)
     check_replays(conn, rows, today)
+    _record_void_history(conn, payment_id, reason, now)
 
 
 def add_term_change(
@@ -247,6 +274,7 @@ def add_term_change(
             **{c.field: getattr(change, c.field) for c in changed},
         )
     )
+    check_replays(conn, [row], today)
     audit.record(
         conn,
         now,
@@ -258,7 +286,6 @@ def add_term_change(
             *changed,
         ],
     )
-    check_replays(conn, [row], today)
 
 
 def edit_mortgage(
@@ -308,9 +335,9 @@ def edit_mortgage(
     conn.execute(
         update(mortgage_table).where(mortgage_table.c.id == mortgage_id).values(**after)
     )
+    check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
     if changed:
         audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
-    check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
 
 
 router = APIRouter(prefix="/api")
@@ -357,7 +384,7 @@ def put_mortgage(
     today: TodayDep,
     now: NowDep,
 ) -> Mortgage:
-    """Correct a Mortgage's details; its Ledger is recalculated from them."""
+    """Correct a Mortgage's details; its Ledger is replayed from them."""
     with engine.begin() as conn:
         edit_mortgage(conn, mortgage_id, edit, today, now)
         return load_mortgage(conn, mortgage_id, today)

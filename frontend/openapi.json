@@ -881,11 +881,11 @@
             ],
             "title": "Loan To Value"
           },
-          "monthly_collections": {
+          "payments_by_month": {
             "items": {
-              "$ref": "#/components/schemas/MonthlyCollection"
+              "$ref": "#/components/schemas/MonthlyPayments"
             },
-            "title": "Monthly Collections",
+            "title": "Payments By Month",
             "type": "array"
           },
           "principal_outstanding": {
@@ -915,7 +915,7 @@
           "redeemed_this_month",
           "forfeited_this_month",
           "forfeiture_profit_loss_this_month",
-          "monthly_collections"
+          "payments_by_month"
         ],
         "title": "Dashboard",
         "type": "object"
@@ -1211,7 +1211,7 @@
         "title": "LedgerStep",
         "type": "object"
       },
-      "MonthlyCollection": {
+      "MonthlyPayments": {
         "properties": {
           "amount": {
             "title": "Amount",
@@ -1226,7 +1226,7 @@
           "month",
           "amount"
         ],
-        "title": "MonthlyCollection",
+        "title": "MonthlyPayments",
         "type": "object"
       },
       "Mortgage": {
@@ -3098,7 +3098,7 @@
         "summary": "Read Mortgage"
       },
       "put": {
-        "description": "Correct a Mortgage's details; its Ledger is recalculated from them.",
+        "description": "Correct a Mortgage's details; its Ledger is replayed from them.",
         "operationId": "put_mortgage_api_mortgages__mortgage_id__put",
         "parameters": [
           {

@@ -209,7 +209,7 @@ export interface paths {
         get: operations["read_mortgage_api_mortgages__mortgage_id__get"];
         /**
          * Put Mortgage
-         * @description Correct a Mortgage's details; its Ledger is recalculated from them.
+         * @description Correct a Mortgage's details; its Ledger is replayed from them.
          */
         put: operations["put_mortgage_api_mortgages__mortgage_id__put"];
         post?: never;
@@ -1015,8 +1015,8 @@ export interface components {
             interest_collected_this_year: number;
             /** Loan To Value */
             loan_to_value: number | null;
-            /** Monthly Collections */
-            monthly_collections: components["schemas"]["MonthlyCollection"][];
+            /** Payments By Month */
+            payments_by_month: components["schemas"]["MonthlyPayments"][];
             /** Principal Outstanding */
             principal_outstanding: number;
             /** Redeemed This Month */
@@ -1151,8 +1151,8 @@ export interface components {
             /** Unpaid Interest */
             unpaid_interest: number;
         };
-        /** MonthlyCollection */
-        MonthlyCollection: {
+        /** MonthlyPayments */
+        MonthlyPayments: {
             /** Amount */
             amount: number;
             /** Month */

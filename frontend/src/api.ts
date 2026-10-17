@@ -89,7 +89,7 @@ export type Closure = Schemas['Closure']
 
 /** The whole lending book at a glance. */
 export type Dashboard = Schemas['Dashboard']
-export type MonthlyCollection = Schemas['MonthlyCollection']
+export type MonthlyPayments = Schemas['MonthlyPayments']
 
 /** Turns a FastAPI error body into one readable line. */
 function errorMessage(status: number, body: unknown): string {

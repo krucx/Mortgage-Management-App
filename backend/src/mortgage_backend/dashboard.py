@@ -17,10 +17,10 @@ from mortgage_backend.collateral import collateral_of, gold_rates
 from mortgage_backend.db import EngineDep, mortgage_table, payment_table
 from mortgage_backend.replay import MortgageStatus, replays
 
-MONTHS_OF_COLLECTIONS = 12
+MONTHS_OF_PAYMENTS = 12
 
 
-class MonthlyCollection(BaseModel):
+class MonthlyPayments(BaseModel):
     month: str  # YYYY-MM
     amount: int  # paise: the Payments received that month, Voided ones left out
 
@@ -40,7 +40,7 @@ class Dashboard(BaseModel):
     redeemed_this_month: int
     forfeited_this_month: int
     forfeiture_profit_loss_this_month: int  # Recovered Amount − Redemption Amount
-    monthly_collections: list[MonthlyCollection]  # oldest first, this month last
+    payments_by_month: list[MonthlyPayments]  # oldest first, this month last
 
 
 def _months_back(today: date, count: int) -> list[tuple[int, int]]:
@@ -49,8 +49,8 @@ def _months_back(today: date, count: int) -> list[tuple[int, int]]:
     return [(i // 12, i % 12 + 1) for i in range(index - count + 1, index + 1)]
 
 
-def _collections(conn: Connection, today: date) -> list[MonthlyCollection]:
-    months = _months_back(today, MONTHS_OF_COLLECTIONS)
+def _payments_by_month(conn: Connection, today: date) -> list[MonthlyPayments]:
+    months = _months_back(today, MONTHS_OF_PAYMENTS)
     first_year, first_month = months[0]
     totals = dict.fromkeys(months, 0)
     for paid_on, amount in conn.execute(
@@ -62,7 +62,7 @@ def _collections(conn: Connection, today: date) -> list[MonthlyCollection]:
     ):
         totals[(paid_on.year, paid_on.month)] += amount
     return [
-        MonthlyCollection(month=f"{year}-{month:02d}", amount=amount)
+        MonthlyPayments(month=f"{year}-{month:02d}", amount=amount)
         for (year, month), amount in totals.items()
     ]
 
@@ -117,7 +117,7 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
         redeemed_this_month=redeemed,
         forfeited_this_month=forfeited,
         forfeiture_profit_loss_this_month=profit_loss,
-        monthly_collections=_collections(conn, today),
+        payments_by_month=_payments_by_month(conn, today),
     )
 
 

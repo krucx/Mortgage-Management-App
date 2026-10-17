@@ -230,3 +230,101 @@ def test_an_edit_is_written_and_recorded(conn: Connection) -> None:
     assert [(e.field, e.old_value, e.new_value) for e in edited] == [
         ("amount_lent", str(LAKH), str(90_000 * RUPEE))
     ]
+
+
+@pytest.mark.parametrize(
+    ("change", "code", "why"),
+    [
+        (
+            TermChangeIn(effective_on=date(2026, 5, 15), monthly_rate_bps=200),
+            422,
+            "not an Accrual Date",
+        ),
+        (
+            TermChangeIn(effective_on=date(2026, 4, 14), monthly_rate_bps=200),
+            422,
+            "in the past",
+        ),
+        (TermChangeIn(monthly_rate_bps=300), 422, "changes nothing"),
+    ],
+)
+def test_a_term_change_is_refused_when_it_cannot_apply(
+    conn: Connection, change: TermChangeIn, code: int, why: str
+) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+
+    with pytest.raises(HTTPException) as error:
+        changes.add_term_change(conn, chain, change, TODAY, NOW)
+
+    assert error.value.status_code == code, why
+
+
+def test_only_one_term_change_starts_on_a_date(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    changes.add_term_change(conn, chain, TermChangeIn(monthly_rate_bps=200), TODAY, NOW)
+
+    with pytest.raises(HTTPException) as error:
+        changes.add_term_change(
+            conn, chain, TermChangeIn(monthly_rate_bps=250), TODAY, NOW
+        )
+
+    assert refusal(error) == (409, "There is already a Term Change on 14 May 2026")
+
+
+def test_an_edit_is_refused_when_its_details_cannot_stand(conn: Connection) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    add_mortgage(conn, ramesh, suffix="Bangle")
+    add_payment(conn, ramesh, date(2026, 2, 20), {chain: 1_000 * RUPEE})
+
+    def refused(**overrides: object) -> tuple[int, str]:
+        with pytest.raises(HTTPException) as error:
+            changes.edit_mortgage(conn, chain, edit(**overrides), TODAY, NOW)
+        return refusal(error)
+
+    assert refused(start_date=date(2026, 5, 1))[0] == 422  # in the future
+    assert refused(name="2026-ramesh-bangle") == (
+        409,
+        "The Mortgage Name 2026-ramesh-bangle is already used",
+    )
+    assert refused(start_date=date(2026, 2, 21)) == (
+        422,
+        "There is a Payment on 20 Feb 2026, before that start date",
+    )
+
+
+def test_an_edit_cannot_strand_a_term_change(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    changes.add_term_change(conn, chain, TermChangeIn(monthly_rate_bps=200), TODAY, NOW)
+
+    with pytest.raises(HTTPException) as error:
+        changes.edit_mortgage(
+            conn, chain, edit(start_date=date(2026, 1, 15)), TODAY, NOW
+        )
+
+    assert error.value.status_code == 422
+    assert "Term Change from 14 May 2026" in str(error.value.detail)
+
+
+def test_a_closed_mortgages_start_and_principal_are_locked(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    close(conn, chain, status="forfeited", closed_on=date(2026, 4, 14))
+
+    with pytest.raises(HTTPException) as error:
+        changes.edit_mortgage(conn, chain, edit(amount_lent=90_000 * RUPEE), TODAY, NOW)
+    changes.edit_mortgage(conn, chain, edit(description="Two gold chains"), TODAY, NOW)
+
+    assert error.value.status_code == 409
+    assert replay(conn, chain).row["description"] == "Two gold chains"
+
+
+def test_a_refused_change_records_no_history(conn: Connection) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    add_payment(conn, ramesh, date(2026, 3, 14), {chain: 1_06_000 * RUPEE})
+
+    with pytest.raises(HTTPException):
+        changes.edit_mortgage(conn, chain, edit(amount_lent=50_000 * RUPEE), TODAY, NOW)
+
+    # History is written only once the replay holds (the caller rolls back the rest).
+    assert [e for e in mortgage_history(conn, chain) if e.action == "edited"] == []

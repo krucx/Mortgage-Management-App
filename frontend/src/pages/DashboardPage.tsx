@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { api, LEDGER_CHANGED, type Dashboard } from '../api'
-import { CollectionsChart } from '../components/CollectionsChart'
+import { PaymentsByMonthChart } from '../components/PaymentsByMonthChart'
 import { formatPercent, monthName } from '../format'
 import { formatINR } from '../money'
 
@@ -82,7 +82,7 @@ export function DashboardPage() {
         />
       </div>
 
-      <h3>Security</h3>
+      <h3>Collateral</h3>
       <div className="tiles">
         <Figure
           to="/mortgages"
@@ -119,7 +119,7 @@ export function DashboardPage() {
       </div>
 
       <h3>Payments received each month</h3>
-      <CollectionsChart months={figures.monthly_collections} />
+      <PaymentsByMonthChart months={figures.payments_by_month} />
     </section>
   )
 }

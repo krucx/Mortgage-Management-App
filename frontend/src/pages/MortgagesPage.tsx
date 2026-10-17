@@ -5,6 +5,8 @@ import { MortgageTable } from '../components/MortgageTable'
 import { Pager } from '../components/Pager'
 import { useDebounced } from '../components/useDebounced'
 
+const STATUSES: MortgageStatus[] = ['active', 'redeemed', 'forfeited']
+
 /** All Mortgages, newest first, filterable by Mortgage Name or Customer. */
 export function MortgagesPage() {
   const [query, setQuery] = useState('')
@@ -12,9 +14,8 @@ export function MortgagesPage() {
   const [page, setPage] = useState(1)
   const [searchParams] = useSearchParams()
   // A link may open a status (e.g. the Dashboard's Redeemed this month); else Active.
-  const [statusFilter, setStatusFilter] = useState<MortgageStatus | ''>(
-    (searchParams.get('status') as MortgageStatus | null) ?? 'active',
-  )
+  const linked = STATUSES.find((s) => s === searchParams.get('status'))
+  const [statusFilter, setStatusFilter] = useState<MortgageStatus | ''>(linked ?? 'active')
   const [result, setResult] = useState<MortgagePage | null>(null)
   const [error, setError] = useState<string | null>(null)
 

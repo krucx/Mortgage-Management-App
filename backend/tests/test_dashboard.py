@@ -128,14 +128,14 @@ def test_closures_this_month(client, book):
     assert figures["forfeiture_profit_loss_this_month"] == 8_200 * RUPEE
 
 
-def test_monthly_collections_for_the_last_twelve_months(client, book):
-    collections = dashboard(client)["monthly_collections"]
+def test_payments_by_month_for_the_last_twelve_months(client, book):
+    months = dashboard(client)["payments_by_month"]
 
-    assert [c["month"] for c in collections][:2] == ["2025-05", "2025-06"]
-    assert collections[-1]["month"] == "2026-04"
-    assert len(collections) == 12
+    assert [c["month"] for c in months][:2] == ["2025-05", "2025-06"]
+    assert months[-1]["month"] == "2026-04"
+    assert len(months) == 12
     # The Voided ₹1,000 is left out; the Forfeiture brought in no Payment.
-    by_month = {c["month"]: c["amount"] for c in collections}
+    by_month = {c["month"]: c["amount"] for c in months}
     assert by_month["2026-02"] == 2_000 * RUPEE
     assert by_month["2026-04"] == (5_000 + 53_000) * RUPEE
     assert sum(by_month.values()) == 60_000 * RUPEE
@@ -148,4 +148,4 @@ def test_an_empty_book(client):
     assert figures["principal_outstanding"] == 0
     assert figures["collateral_value"] == 0
     assert figures["loan_to_value"] is None
-    assert all(c["amount"] == 0 for c in figures["monthly_collections"])
+    assert all(c["amount"] == 0 for c in figures["payments_by_month"])

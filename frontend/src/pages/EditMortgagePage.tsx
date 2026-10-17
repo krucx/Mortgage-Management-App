@@ -11,7 +11,7 @@ import { formatINR, rupeesToPaise } from '../money'
 const gramsToMg = (grams: string) => Math.round(Number(grams) * 1000)
 const mgToGrams = (mg: number) => String(mg / 1000)
 
-/** Correct a Mortgage's details; the Ledger is recalculated from them. */
+/** Correct a Mortgage's details; the Ledger is replayed from them. */
 export function EditMortgagePage() {
   const id = Number(useParams().id)
   const navigate = useNavigate()
@@ -103,7 +103,7 @@ export function EditMortgagePage() {
         <>
           <Summary rows={changes} />
           {changes.some(([label]) => label === 'Start date' || label === 'Principal lent') && (
-            <p className="hint">The Ledger and what is owed are recalculated.</p>
+            <p className="hint">The Ledger and what is owed are replayed from these details.</p>
           )}
         </>
       ),

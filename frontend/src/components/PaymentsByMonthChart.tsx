@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { MonthlyCollection } from '../api'
+import type { MonthlyPayments } from '../api'
 import { monthName } from '../format'
 import { formatINR } from '../money'
 
@@ -19,7 +19,7 @@ function barPath(x: number, width: number, top: number, base: number): string {
 }
 
 /** The Payments received each month, oldest first. */
-export function CollectionsChart({ months }: { months: MonthlyCollection[] }) {
+export function PaymentsByMonthChart({ months }: { months: MonthlyPayments[] }) {
   const [hovered, setHovered] = useState<number | null>(null)
   if (months.length === 0) return null
   const max = Math.max(1, ...months.map((m) => m.amount))
@@ -30,7 +30,7 @@ export function CollectionsChart({ months }: { months: MonthlyCollection[] }) {
   const shown = hovered === null ? null : months[hovered]
 
   return (
-    <figure className="chart collections">
+    <figure className="chart payments-by-month">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"

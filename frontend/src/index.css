@@ -839,23 +839,23 @@ a.tile.figure:focus-visible {
   background: var(--accent-soft);
 }
 
-figure.chart.collections .mark {
+figure.chart.payments-by-month .mark {
   fill: var(--accent);
 }
 
-figure.chart.collections .hit {
+figure.chart.payments-by-month .hit {
   fill: transparent;
 }
 
-figure.chart.collections .bar:focus {
+figure.chart.payments-by-month .bar:focus {
   outline: none;
 }
 
-figure.chart.collections .bar.hovered .hit {
+figure.chart.payments-by-month .bar.hovered .hit {
   fill: var(--accent-soft);
 }
 
-figure.chart.collections .tooltip {
+figure.chart.payments-by-month .tooltip {
   fill: var(--text);
   font-weight: 600;
 }
