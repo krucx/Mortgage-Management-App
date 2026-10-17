@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Architecture Review Pass 2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose", flowchart: { curve: "basis" } });
+</script>
+<style>
+  .seam { border-style: dashed !important; }
+  .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #e2e8f0; }
+  .schem { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
+  .diagram { min-height: 320px; }
+  .mermaid { display: flex; justify-content: center; }
+  .leakline { color: #dc2626; }
+</style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-14">
+
+<header class="space-y-4">
+  <p class="schem text-slate-500">Architecture review · pass 2 · 18 Oct 2026 · scope: the 12 commits since pass 1 (Notices, Dashboard, lists, WhatsApp cards)</p>
+  <h1 class="font-serif text-4xl">Mortgage-Management-App</h1>
+  <div class="flex flex-wrap gap-5 text-xs text-slate-600 items-center">
+    <span class="flex items-center gap-2"><span class="inline-block w-5 h-4 border border-slate-500 bg-white"></span>module</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-6 border-t-2 border-slate-500 seam"></span>seam</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-6 border-t-2 border-red-600"></span>leakage</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-5 h-4 deep rounded-sm"></span>deep module</span>
+  </div>
+  <p class="text-sm text-slate-600">Pass 1's candidates (Mortgage replay, Mortgage changes module, single-replay Projections, generated types) have all landed. They are not repeated here, except where callers now bypass them.</p>
+</header>
+
+<section id="candidates" class="space-y-12">
+
+<!-- 01 -->
+<article id="c1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex items-baseline gap-3"><span class="font-mono text-slate-400">01</span>
+    <h2 class="font-serif text-2xl">One Notice queue module owns "the Notices as they should be now"</h2></div>
+  <div class="flex gap-2 text-xs"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">Strong</span><span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">local-substitutable (SQLite)</span></div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/notices.py: queue_notices, _act, _ACTIONS, change_message_settings, read_notices</li>
+    <li>backend/…/main.py: queue_todays_notices (daily run)</li>
+    <li>backend/…/dashboard.py: read_dashboard, _with_a_message</li>
+    <li>backend/…/message_settings.py</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-slate-500 mb-2">Before: four places write Notice status</p>
+      <pre class="mermaid">
+flowchart TB
+  D[daily run] --> Q[queue_notices]
+  N[GET /notices] --> Q
+  B[GET /dashboard] --> Q
+  S[PUT settings] --> C[change_message_settings<br/>diffs old vs new approve-first]
+  A[POST approve / skip / sent] --> X[_act<br/>raises HTTPException]
+  Q --> T[(notice rows)]
+  C --> T
+  X --> T
+  S -. days-before lowered:<br/>fixed only on next queue .-> T
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  class C,X leak
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-slate-500 mb-2">After: one state machine behind a small interface</p>
+      <div class="flex flex-col gap-2 text-xs">
+        <div class="flex justify-between gap-2">
+          <span class="border border-slate-400 rounded px-2 py-1">daily run</span>
+          <span class="border border-slate-400 rounded px-2 py-1">GET reads</span>
+          <span class="border border-slate-400 rounded px-2 py-1">settings saved</span>
+          <span class="border border-slate-400 rounded px-2 py-1">Lender acts</span>
+        </div>
+        <div class="border-t-2 border-slate-500 seam my-2"></div>
+        <div class="deep rounded-lg p-4 space-y-2">
+          <p class="schem text-slate-300">Notice queue</p>
+          <p class="font-mono">sync(conn, today)</p>
+          <p class="font-mono">act(conn, id, approve|skip|sent, now)</p>
+          <div class="mt-3 grid grid-cols-2 gap-1 opacity-60">
+            <span class="border border-slate-500 rounded px-1">queue what's due</span>
+            <span class="border border-slate-500 rounded px-1">withdraw out-of-window</span>
+            <span class="border border-slate-500 rounded px-1">status from approve-first</span>
+            <span class="border border-slate-500 rounded px-1">snapshot on send/skip</span>
+          </div>
+        </div>
+        <p class="text-slate-500 mt-2">Settings save = write + <span class="font-mono">sync</span>. No old-vs-new diff.</p>
+      </div>
+    </div>
+  </div>
+  <p><b>Problem.</b> Notice status rules sit in four places across three triggers. Each of the last three commits patched one edge (queue-on-read, days-before lowered, approve-first turned on).</p>
+  <p><b>Solution.</b> A Notice queue module whose <span class="font-mono text-sm">sync</span> makes the unsent Notices match today and the current settings. Every trigger calls it. Transitions raise domain errors, not HTTP ones.</p>
+  <ul class="list-disc pl-5 text-sm space-y-0.5">
+    <li>locality: Notice lifecycle in one module</li>
+    <li>settings changes stop needing special cases</li>
+    <li>approve/skip testable without HTTP</li>
+    <li>leverage: four triggers, one interface</li>
+  </ul>
+</article>
+
+<!-- 02 -->
+<article id="c2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex items-baseline gap-3"><span class="font-mono text-slate-400">02</span>
+    <h2 class="font-serif text-2xl">One list module: sort and page every list on the server, the same way</h2></div>
+  <div class="flex gap-2 text-xs"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">Strong</span><span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">in-process + local-substitutable</span></div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/paging.py (23 lines: page_of, ordered)</li>
+    <li>customers.py, mortgages.py, payments.py: limit/offset + COUNT, _SORT_COLUMNS ×3</li>
+    <li>notices.py, call_list.py, closing.py, mortgages.py: in-memory page_of</li>
+    <li>6 Page models: CustomerPage, MortgagePage, PaymentPage, NoticePage, CallListPage, ReadyToRedeemPage</li>
+    <li>frontend: sort.ts, Pager.tsx, SortHeading.tsx, api.ts *_SORTS, 8 pages wiring Pager by hand</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-slate-500 mb-3">Before: shallow paging.py, two regimes per tier</p>
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div class="space-y-1">
+          <p class="schem text-slate-400">Sorted across pages (server)</p>
+          <div class="border border-slate-400 rounded px-2 py-1">Customers</div>
+          <div class="border border-slate-400 rounded px-2 py-1">Mortgages*</div>
+          <div class="border border-slate-400 rounded px-2 py-1">Payments</div>
+        </div>
+        <div class="space-y-1">
+          <p class="schem text-red-500">Sorted one page only (browser)</p>
+          <div class="border-2 border-red-500 rounded px-2 py-1">Notices</div>
+          <div class="border-2 border-red-500 rounded px-2 py-1">Call List</div>
+          <div class="border-2 border-red-500 rounded px-2 py-1">Ready to Redeem</div>
+        </div>
+      </div>
+      <div class="mt-5 flex items-end gap-6 text-xs">
+        <div class="text-center"><div class="w-16 bg-slate-300 h-14"></div><div class="w-16 bg-slate-500 h-4"></div><p class="mt-1">paging.py<br/>interface ≈ impl</p></div>
+        <p class="text-slate-500">* Mortgages switches to in-memory when sorting by Outstanding or owing-only, with <span class="font-mono">page_size=max(1,len)</span>.</p>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-slate-500 mb-3">After: one list module per tier</p>
+      <div class="space-y-3 text-xs">
+        <div class="flex gap-1 flex-wrap"><span class="border border-slate-400 rounded px-2 py-1">Customers</span><span class="border border-slate-400 rounded px-2 py-1">Mortgages</span><span class="border border-slate-400 rounded px-2 py-1">Payments</span><span class="border border-slate-400 rounded px-2 py-1">Notices</span><span class="border border-slate-400 rounded px-2 py-1">Call List</span><span class="border border-slate-400 rounded px-2 py-1">Ready to Redeem</span></div>
+        <div class="border-t-2 border-slate-500 seam"></div>
+        <div class="deep rounded-lg p-3">
+          <p class="schem text-slate-300">List (backend)</p>
+          <p class="font-mono">listed(source, sorts, sort, page) → Page[T]</p>
+          <p class="opacity-60 mt-1">source = SQL Select or computed rows; sort keys declared once; COUNT, offset, tie-break inside</p>
+        </div>
+        <div class="deep rounded-lg p-3">
+          <p class="schem text-slate-300">List page (frontend)</p>
+          <p class="font-mono">useListPage(fetch) → rows, sortHeading, pager</p>
+          <p class="opacity-60 mt-1">URL sort + page, step back on empty page</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p><b>Problem.</b> paging.py fails the deletion test. Each list re-writes count/offset/sort maps, and half the lists sort only the 20 rows on screen. Sorting Notices by Customer reorders one page, not the list.</p>
+  <p><b>Solution.</b> A deep list module that takes a SQL or computed source plus declared sort keys and returns a generic <span class="font-mono text-sm">Page[T]</span>. A matching frontend hook replaces the eight hand-wired Pager/SortHeading set-ups.</p>
+  <ul class="list-disc pl-5 text-sm space-y-0.5">
+    <li>every list sorts across pages</li>
+    <li>6 Page models become one generic</li>
+    <li>leverage: one interface, 6+ lists</li>
+    <li>test_sorting/test_long_lists hit one module</li>
+  </ul>
+</article>
+
+<!-- 03 -->
+<article id="c3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex items-baseline gap-3"><span class="font-mono text-slate-400">03</span>
+    <h2 class="font-serif text-2xl">Replay once per request: the Dashboard, Notices and Call List share replays</h2></div>
+  <div class="flex gap-2 text-xs"><span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">Worth exploring</span><span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">in-process</span></div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/dashboard.py: dashboard, _with_a_message ×2</li>
+    <li>backend/…/notices.py: list_notices → _as_it_stands (replays per Notice row)</li>
+    <li>backend/…/call_list.py: call_list (replays every Active Mortgage)</li>
+    <li>backend/…/closing.py: ready_to_redeem (mortgage_rows replays, then replays again)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-slate-500 mb-2">Before: one GET /dashboard</p>
+      <pre class="mermaid">
+flowchart LR
+  G[GET /dashboard] --> R1[replays: every Mortgage]
+  G --> CL[call_list] --> R2[replays: every Active]
+  G --> W1[_with_a_message QUEUED] --> LN1[list_notices] --> R3[replays × each Notice]
+  G --> W2[_with_a_message AWAITING] --> LN2[list_notices] --> R4[replays × each Notice]
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  class R2,R3,R4 leak
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-slate-500 mb-2">After: replays passed in, not re-derived</p>
+      <pre class="mermaid">
+flowchart LR
+  G[GET /dashboard] --> R[replays: every Mortgage, once]
+  R --> D[Dashboard figures]
+  R --> CL[call_list]
+  R --> NQ[Notice queue: count with a message]
+  classDef deep fill:#0f172a,color:#e2e8f0,stroke:#0f172a;
+  class R deep
+      </pre>
+    </div>
+  </div>
+  <p><b>Problem.</b> The Mortgage replay is deep, but callers fan out around it. Counting Notices builds the full message text and replays each Notice's Mortgages, twice over.</p>
+  <p><b>Solution.</b> <span class="font-mono text-sm">call_list</span>, the Notice builder and <span class="font-mono text-sm">ready_to_redeem</span> accept replays already built. Counting "Notices with something to send" is a Notice queue question that needs no message text.</p>
+  <ul class="list-disc pl-5 text-sm space-y-0.5">
+    <li>~4 replays per Mortgage become 1</li>
+    <li>Dashboard and Notices agree by construction</li>
+    <li>tests pass replays, skip HTTP</li>
+  </ul>
+  <p class="rounded bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm">Consistent with ADR-0001: nothing is stored. Only how often the replay runs changes. Pairs naturally with 01.</p>
+</article>
+
+<!-- 04 -->
+<article id="c4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex items-baseline gap-3"><span class="font-mono text-slate-400">04</span>
+    <h2 class="font-serif text-2xl">Close the bypasses: new Mortgages, Collateral Value, photos and Customers go through a change module</h2></div>
+  <div class="flex gap-2 text-xs"><span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">Worth exploring</span><span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">local-substitutable (SQLite)</span></div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/mortgages.py: create_mortgage, set_collateral, photo add/remove (direct writes + audit.record in routes)</li>
+    <li>backend/…/customers.py: create/update/delete handlers (Primary Number, promote Referrer, self-referral ×2, audit)</li>
+    <li>backend/…/changes.py</li>
+    <li>backend/tests/seed.py (raw SQL Payments, Allocations, Closures)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4 diagram text-xs">
+      <p class="schem text-slate-500 mb-3">Before: two paths to the database</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-1">
+          <div class="border border-slate-400 rounded px-2 py-1">edit · Term Change · Void</div>
+          <div class="border border-slate-400 rounded px-2 py-1">Payment · Redeem · Forfeit · Reopen</div>
+          <div class="text-center text-slate-400">↓</div>
+          <div class="deep rounded px-2 py-2">changes.py<br/><span class="opacity-60">refuse → write → replay → History</span></div>
+        </div>
+        <div class="space-y-1">
+          <div class="border-2 border-red-500 rounded px-2 py-1">create Mortgage</div>
+          <div class="border-2 border-red-500 rounded px-2 py-1">set Collateral Value</div>
+          <div class="border-2 border-red-500 rounded px-2 py-1">photos</div>
+          <div class="border-2 border-red-500 rounded px-2 py-1">Customer save / delete</div>
+          <div class="text-center leakline">↓ route handler writes + audit.record</div>
+        </div>
+      </div>
+      <div class="mt-3 border border-slate-400 rounded px-2 py-1 text-center">(database)</div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram text-xs">
+      <p class="schem text-slate-500 mb-3">After: every write crosses one seam per aggregate</p>
+      <div class="border-t-2 border-slate-500 seam mb-3"></div>
+      <div class="deep rounded-lg p-3 mb-3">
+        <p class="schem text-slate-300">Mortgage changes</p>
+        <p class="opacity-70">+ create · set Collateral Value · photo</p>
+      </div>
+      <div class="deep rounded-lg p-3">
+        <p class="schem text-slate-300">Customer changes</p>
+        <p class="font-mono">save(conn, CustomerIn, id?, now)</p>
+        <p class="font-mono">delete(conn, id, now)</p>
+        <p class="opacity-70 mt-1">Primary Number owner, promote Referrer, self-referral, History</p>
+      </div>
+      <p class="mt-3 text-slate-500">seed.py builds through the same interfaces.</p>
+    </div>
+  </div>
+  <p><b>Problem.</b> changes.py says every change goes through it, but four kinds of write don't. Customer rules (ADR-0005) live only in route handlers, so they are tested only over HTTP.</p>
+  <p><b>Solution.</b> Move the remaining Mortgage writes into the Mortgage changes module, and give Customers their own change module with a <span class="font-mono text-sm">save</span>/<span class="font-mono text-sm">delete</span> interface.</p>
+  <ul class="list-disc pl-5 text-sm space-y-0.5">
+    <li>History wording in one place</li>
+    <li>ADR-0005 rules tested without HTTP</li>
+    <li>locality: self-referral rule once</li>
+    <li>test seeds respect invariants</li>
+  </ul>
+</article>
+
+<!-- 05 -->
+<article id="c5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex items-baseline gap-3"><span class="font-mono text-slate-400">05</span>
+    <h2 class="font-serif text-2xl">One settings module: each settings group declared once, with a hook on change</h2></div>
+  <div class="flex gap-2 text-xs"><span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">Worth exploring</span><span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">local-substitutable (SQLite)</span></div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>message_settings.py, call_list.py, default_terms.py, collateral.py, backups.py: _CONFIG_KEY_BY_FIELD + get/set ×5</li>
+    <li>routes in main.py, notices.py, call_list.py, collateral.py, backups.py</li>
+    <li>default_terms.py reads config_table directly; booleans as "true"/"false" only in message_settings.py</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4 diagram">
+      <p class="schem text-slate-500 mb-2">Before: five copies of the config pattern</p>
+      <pre class="mermaid">
+flowchart TB
+  M[message settings] --> CT[(config table)]
+  C[Call List settings<br/>PUT writes inline] --> CT
+  T[Default Terms<br/>queries table directly] --> CT
+  G[Gold Rates<br/>LIKE gold_rate_%] --> CT
+  B[Backups] --> CT
+  M -. change_message_settings<br/>lives in notices.py .-> N[Notices]
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  class C,T leak
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram text-xs">
+      <p class="schem text-slate-500 mb-3">After</p>
+      <div class="deep rounded-lg p-4 space-y-2">
+        <p class="schem text-slate-300">Settings</p>
+        <p class="font-mono">group(prefix, Model, on_change?)</p>
+        <p class="font-mono">.get(conn) · .set(conn, model)</p>
+        <p class="opacity-60">coercion, defaults, missing keys inside</p>
+      </div>
+      <div class="grid grid-cols-5 gap-1 mt-4 text-center">
+        <span class="border border-slate-400 rounded py-1">messages</span><span class="border border-slate-400 rounded py-1">Call List</span><span class="border border-slate-400 rounded py-1">Default Terms</span><span class="border border-slate-400 rounded py-1">Gold Rates</span><span class="border border-slate-400 rounded py-1">Backups</span>
+      </div>
+      <p class="mt-3 text-slate-500">messages.on_change = Notice queue <span class="font-mono">sync</span> (see 01)</p>
+    </div>
+  </div>
+  <p><b>Problem.</b> Each settings group re-implements key mapping, type coercion and its route, in a different module. The one cross-cutting reaction (messages → Notices) is wired by hand.</p>
+  <p><b>Solution.</b> A settings module where a group is declared as a prefix plus a model, with an optional change hook.</p>
+  <ul class="list-disc pl-5 text-sm space-y-0.5">
+    <li>five get/set pairs become declarations</li>
+    <li>coercion bugs fixed once</li>
+    <li>settings reactions declared, not remembered</li>
+  </ul>
+</article>
+
+<!-- 06 -->
+<article id="c6" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex items-baseline gap-3"><span class="font-mono text-slate-400">06</span>
+    <h2 class="font-serif text-2xl">Customer messages own their own facts: placeholders, method names, total owed, the wa.me link</h2></div>
+  <div class="flex gap-2 text-xs"><span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">Speculative</span><span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">in-process</span></div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>messages.py fill dicts ↔ SettingsPage.tsx placeholder list</li>
+    <li>receipts.py METHOD_NAMES ↔ api.ts PAYMENT_METHODS</li>
+    <li>ReceiptPage.tsx total owed ↔ messages.py</li>
+    <li>CallListPage.tsx hand-built wa.me ↔ messaging.ts sender seam (ADR-0002)</li>
+    <li>receipts.py + payments.py: "the Ledger step for this Payment" lookup ×2 (+2 variants)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4 diagram text-xs">
+      <p class="schem text-slate-500 mb-3">Before: each fact on both sides of the HTTP seam</p>
+      <div class="grid grid-cols-[1fr_auto_1fr] gap-x-2 gap-y-2 items-center">
+        <span class="border border-slate-400 rounded px-2 py-1">placeholders</span><span class="leakline">⇄</span><span class="border border-slate-400 rounded px-2 py-1">placeholders</span>
+        <span class="border border-slate-400 rounded px-2 py-1">METHOD_NAMES</span><span class="leakline">⇄</span><span class="border border-slate-400 rounded px-2 py-1">PAYMENT_METHODS</span>
+        <span class="border border-slate-400 rounded px-2 py-1">total owed</span><span class="leakline">⇄</span><span class="border border-slate-400 rounded px-2 py-1">reduce(owed_after)</span>
+        <span class="border border-slate-400 rounded px-2 py-1">sender seam</span><span class="leakline">⇄</span><span class="border-2 border-red-500 rounded px-2 py-1">wa.me/91… inline</span>
+        <span class="schem text-slate-400 text-center">backend</span><span></span><span class="schem text-slate-400 text-center">frontend</span>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 diagram text-xs">
+      <p class="schem text-slate-500 mb-3">After: backend is the source; frontend renders</p>
+      <div class="deep rounded-lg p-3 mb-3">
+        <p class="schem text-slate-300">Messages</p>
+        <p class="opacity-70">placeholders + validation · method names · total owed in Receipt</p>
+      </div>
+      <div class="deep rounded-lg p-3 mb-3">
+        <p class="schem text-slate-300">Mortgage replay</p>
+        <p class="font-mono">.applied(payment_id) → Ledger step</p>
+      </div>
+      <div class="border-t-2 border-slate-500 seam my-2"></div>
+      <div class="border border-slate-400 rounded px-2 py-1">frontend: every WhatsApp link through <span class="font-mono">sender</span></div>
+    </div>
+  </div>
+  <p><b>Problem.</b> Small facts about Receipts and Notices are written twice, once per tier, and the Call List skips the WhatsApp seam that ADR-0002 set up.</p>
+  <p><b>Solution.</b> The backend messages module publishes placeholders, method names and total owed. The replay answers "how was this Payment applied", and the frontend routes every wa.me link through <span class="font-mono text-sm">sender</span>.</p>
+  <ul class="list-disc pl-5 text-sm space-y-0.5">
+    <li>templates validated against one list</li>
+    <li>ADR-0002 seam actually holds</li>
+    <li>Payment-step lookup once</li>
+  </ul>
+</article>
+
+</section>
+
+<section id="top-recommendation" class="rounded-2xl deep p-8 space-y-3">
+  <p class="schem text-slate-400">Top recommendation</p>
+  <h2 class="font-serif text-3xl"><a href="#c1" class="underline decoration-emerald-400 underline-offset-4">01 · One Notice queue module</a></h2>
+  <p class="text-slate-300">It is the hottest code in the repo: the last three commits each patched one edge of the Notice lifecycle in a different place. A single <span class="font-mono">sync</span> turns those special cases into derived state, and it sets up 03 (shared replays) and 05 (settings change hooks).</p>
+</section>
+
+</main>
+</body>
+</html>
