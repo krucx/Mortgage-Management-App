@@ -18,6 +18,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Connection, RowMapping
 
+from mortgage_backend import audit
+from mortgage_backend.clock import NowDep
 from mortgage_backend.db import (
     EngineDep,
     customer_table,
@@ -318,7 +320,7 @@ router = APIRouter(prefix="/api")
 
 
 @router.post("/customers", status_code=status.HTTP_201_CREATED)
-def create_customer(customer: CustomerIn, engine: EngineDep) -> Customer:
+def create_customer(customer: CustomerIn, engine: EngineDep, now: NowDep) -> Customer:
     with engine.begin() as conn:
         owner = _owner_of(conn, customer.phone_1)
         if owner is not None and owner.kind == "customer":
@@ -339,12 +341,21 @@ def create_customer(customer: CustomerIn, engine: EngineDep) -> Customer:
         ).scalar_one()
         if promoted is not None:
             _promote_referrer(conn, promoted, customer_id)
-        return _load_customer(conn, customer_id)
+        new = _load_customer(conn, customer_id)
+        audit.record(
+            conn,
+            now,
+            "customer",
+            customer_id,
+            "created",
+            audit.created(_audited(new), _AUDITED),
+        )
+        return new
 
 
 @router.put("/customers/{customer_id}")
 def update_customer(
-    customer_id: int, customer: CustomerIn, engine: EngineDep
+    customer_id: int, customer: CustomerIn, engine: EngineDep, now: NowDep
 ) -> Customer:
     if (
         isinstance(customer.referrer, ExistingCustomerReferrer)
@@ -352,8 +363,7 @@ def update_customer(
     ):
         raise unprocessable("A Customer cannot be their own Referrer")
     with engine.begin() as conn:
-        if not exists(conn, customer_table, customer_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+        before = _load_customer(conn, customer_id)
         owner = _owner_of(conn, customer.phone_1)
         if owner is not None and owner != PersonSummary(
             kind="customer", id=customer_id, name=owner.name
@@ -367,12 +377,31 @@ def update_customer(
                 **_referrer_columns(conn, customer.referrer, customer.phone_1),
             )
         )
-        return _load_customer(conn, customer_id)
+        after = _load_customer(conn, customer_id)
+        changed = audit.changes(_audited(before), _audited(after), _AUDITED)
+        if changed:
+            audit.record(conn, now, "customer", customer_id, "edited", changed)
+        return after
+
+
+_AUDITED = ["name", "address", "phone_1", "phone_2", "referrer"]
+
+
+def _audited(customer: Customer) -> dict[str, object]:
+    """The Customer's details as the audit log records them."""
+    return {
+        **customer.model_dump(include=set(_AUDITED) - {"referrer"}),
+        "referrer": customer.referrer.name if customer.referrer else None,
+    }
 
 
 @router.put("/customers/{customer_id}/photo")
 async def replace_customer_photo(
-    customer_id: int, photo: UploadFile, engine: EngineDep, photos_dir: PhotosDirDep
+    customer_id: int,
+    photo: UploadFile,
+    engine: EngineDep,
+    photos_dir: PhotosDirDep,
+    now: NowDep,
 ) -> Customer:
     with engine.connect() as conn:
         if not exists(conn, customer_table, customer_id):
@@ -387,6 +416,7 @@ async def replace_customer_photo(
             .where(customer_table.c.id == customer_id)
             .values(photo=file_name)
         )
+        audit.record(conn, now, "customer", customer_id, "photo_added")
         customer = _load_customer(conn, customer_id)
     delete_photo(photos_dir, old)
     return customer
@@ -529,7 +559,7 @@ def list_customers(
 
 @router.delete("/customers/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_customer(
-    customer_id: int, engine: EngineDep, photos_dir: PhotosDirDep
+    customer_id: int, engine: EngineDep, photos_dir: PhotosDirDep, now: NowDep
 ) -> Response:
     """Delete a Customer; anyone they referred keeps their record but loses the link."""
     with engine.begin() as conn:
@@ -551,7 +581,9 @@ def delete_customer(
             .where(customer_table.c.referred_by_customer_id == customer_id)
             .values(referred_by_customer_id=None)
         )
+        name = _load_customer(conn, customer_id).name
         conn.execute(delete(customer_table).where(customer_table.c.id == customer_id))
+        audit.record(conn, now, "customer", customer_id, "deleted", note=name)
     delete_photo(photos_dir, photo.photo)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

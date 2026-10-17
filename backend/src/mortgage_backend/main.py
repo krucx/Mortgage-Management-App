@@ -9,6 +9,7 @@ from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from mortgage_backend import (
+    audit,
     backups,
     call_list,
     closing,
@@ -81,6 +82,7 @@ def create_app(
     app.state.engine = engine
     app.state.photos_dir = photos_dir(database_url)
     app.state.today = today
+    app.state.now = now
     app.state.backups = backup
     app.state.daily_run = daily_run
 
@@ -101,6 +103,7 @@ def create_app(
     app.include_router(collateral.router)
     app.include_router(call_list.router)
     app.include_router(backups.router)
+    app.include_router(audit.router)
     return app
 
 

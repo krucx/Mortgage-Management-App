@@ -118,6 +118,7 @@ export interface PaymentRow {
   method: PaymentMethod
   reference: string | null
   mortgage_names: string[]
+  voided: boolean
 }
 
 export interface PaymentPage {
@@ -138,9 +139,11 @@ export interface Payment {
     mortgage_id: number
     mortgage_name: string
     amount: number
-    interest_paid: number
-    principal_paid: number
+    interest_paid: number | null // null once Voided
+    principal_paid: number | null
   }[]
+  voided_at: string | null
+  void_reason: string | null
 }
 
 export type MortgageStatus = 'active' | 'redeemed' | 'forfeited'
@@ -194,6 +197,42 @@ export interface BackupStatus {
   last_backup_file: string | null
   last_error: string | null
   keep: number
+}
+
+/** The details of a Mortgage that can be corrected (not its Customer or Terms). */
+export interface MortgageEdit {
+  name: string
+  start_date: string
+  amount_lent: number // paise
+  description: string
+  gross_weight_mg: number
+  net_weight_mg: number
+  purity_karat: Purity
+}
+
+export type AuditAction =
+  | 'created'
+  | 'edited'
+  | 'deleted'
+  | 'voided'
+  | 'redeemed'
+  | 'forfeited'
+  | 'reopened'
+  | 'photo_added'
+  | 'photo_removed'
+
+/** One change in the audit log; edits have one entry per changed field. */
+export interface AuditEntry {
+  id: number
+  at: string
+  entity: 'customer' | 'mortgage' | 'payment'
+  entity_id: number
+  action: AuditAction
+  field: string | null
+  old_value: string | null
+  new_value: string | null
+  note: string | null
+  mortgage_name: string | null // for a Mortgage's entries
 }
 
 export interface CallListSettings {
@@ -308,7 +347,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 
-/** Fired after anything that can change what Mortgages owe (Payments, Redemption, Forfeiture). */
+/** Fired after anything that can change what Mortgages owe (Payments, Voids, edits, closing). */
 export const LEDGER_CHANGED = 'ledger-changed'
 
 async function changesLedger<T>(result: Promise<T>): Promise<T> {
@@ -395,12 +434,20 @@ export const api = {
   },
   deleteMortgagePhoto: (id: number, photoId: number) =>
     request<Mortgage>(`/mortgages/${id}/photos/${photoId}`, { method: 'DELETE' }),
+  editMortgage: (id: number, mortgage: MortgageEdit) =>
+    changesLedger(request<Mortgage>(`/mortgages/${id}`, sendJson('PUT', mortgage))),
+  reopenMortgage: (id: number, reason: string) =>
+    changesLedger(request<Mortgage>(`/mortgages/${id}/reopen`, sendJson('POST', { reason }))),
+  mortgageHistory: (id: number) => request<AuditEntry[]>(`/mortgages/${id}/history`),
+  customerHistory: (id: number) => request<AuditEntry[]>(`/customers/${id}/history`),
   setCollateral: (id: number, value: number | null) =>
     request<Mortgage>(`/mortgages/${id}/collateral`, sendJson('PUT', { value })),
 
   recordPayment: (payment: PaymentIn) =>
     changesLedger(request<Payment>('/payments', sendJson('POST', payment))),
   getPayment: (id: number) => request<Payment>(`/payments/${id}`),
+  voidPayment: (id: number, reason: string) =>
+    changesLedger(request<Payment>(`/payments/${id}/void`, sendJson('POST', { reason }))),
   listPayments: (page: number, query: string) =>
     request<PaymentPage>(`/payments?page=${page}&q=${encodeURIComponent(query)}`),
 

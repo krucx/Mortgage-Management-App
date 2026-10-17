@@ -126,6 +126,10 @@ _Avoid_: Follow-up, contact log
 
 ## Safekeeping
 
+**History**:
+The record of every change to a Customer, Mortgage or Payment — when, what, and the old and new values — which is never edited or removed.
+_Avoid_: Log, changelog, activity
+
 **Backup**:
 A copy of all the Lender's data — the database and photos — kept in a folder outside the app, from which everything can be restored.
 _Avoid_: Export, snapshot, archive
@@ -140,12 +144,16 @@ A Mortgage fully repaid with its jewellery returned to the Customer.
 _Avoid_: Settled, paid off
 
 **Closure**:
-The end of a Mortgage, by Redemption or Forfeiture; after it no interest accrues and no Payments are taken.
+The end of a Mortgage, by Redemption or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened.
 _Avoid_: Closing out, termination
 
 **Forfeited**:
 A Mortgage on which the Customer defaulted and the Lender kept or sold the jewellery.
 _Avoid_: Defaulted, auctioned
+
+**Reopen**:
+Undoing a Closure made by mistake, with a reason: the Mortgage is Active again as if it had never been closed, and a Redemption's final Payment is Voided.
+_Avoid_: Undo, unclose, revive
 
 **Recovered Amount**:
 What a Forfeited Mortgage's jewellery fetched (or is worth, if kept); its difference from the Redemption Amount is the Lender's profit or loss.

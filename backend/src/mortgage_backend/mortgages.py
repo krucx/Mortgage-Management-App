@@ -8,10 +8,11 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import Select, delete, func, insert, or_, select, true
+from sqlalchemy import Select, delete, func, insert, or_, select, true, update
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.clock import TodayDep
+from mortgage_backend import audit
+from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.collateral import Collateral, Purity, collateral_of, gold_rates
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
@@ -28,9 +29,11 @@ from mortgage_backend.errors import unprocessable
 from mortgage_backend.ledger import (
     Allocation,
     LedgerStep,
+    Overpayment,
     compute_ledger,
     days_since_accrual,
 )
+from mortgage_backend.money import format_inr
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
 from mortgage_backend.terms import Terms
 
@@ -41,8 +44,9 @@ class MortgageStatus(StrEnum):
     FORFEITED = "forfeited"
 
 
-class MortgageIn(BaseModel):
-    customer_id: int
+class MortgageDetails(BaseModel):
+    """What the Lender records about a Mortgage, apart from its Customer and Terms."""
+
     name: str | None = None  # Mortgage Name; suggested when left out
     start_date: date
     amount_lent: int = Field(gt=0)  # paise; the starting Principal
@@ -50,10 +54,9 @@ class MortgageIn(BaseModel):
     gross_weight_mg: int = Field(gt=0)
     net_weight_mg: int = Field(gt=0)  # gold only, after stones
     purity_karat: Purity
-    terms: Terms | None = None  # None: copy the Default Terms
 
     @model_validator(mode="after")
-    def check(self) -> "MortgageIn":
+    def check(self) -> "MortgageDetails":
         if self.net_weight_mg > self.gross_weight_mg:
             raise ValueError("net weight cannot exceed gross weight")
         if self.name is not None:
@@ -63,6 +66,35 @@ class MortgageIn(BaseModel):
                     f"Mortgage Name must start with {self.start_date.year}-"
                 )
         return self
+
+
+class MortgageIn(MortgageDetails):
+    customer_id: int
+    terms: Terms | None = None  # None: copy the Default Terms
+
+
+class MortgageEdit(MortgageDetails):
+    name: str
+
+
+# Changing these on a closed Mortgage would contradict how it was closed.
+_LOCKED_WHEN_CLOSED = ["start_date", "amount_lent"]
+_AUDITED = [
+    "name",
+    "start_date",
+    "amount_lent",
+    "description",
+    "gross_weight_mg",
+    "net_weight_mg",
+    "purity_karat",
+]
+_AUDITED_ON_CREATE = [
+    "customer_id",
+    *_AUDITED,
+    "monthly_rate_bps",
+    "interest_mode",
+    "part_month_rule",
+]
 
 
 class MortgagePhoto(BaseModel):
@@ -162,7 +194,10 @@ def _allocations_to(
             payment_table.c.paid_on,
         )
         .join(payment_table, payment_table.c.id == allocation_table.c.payment_id)
-        .where(allocation_table.c.mortgage_id.in_(mortgage_ids))
+        .where(
+            allocation_table.c.mortgage_id.in_(mortgage_ids),
+            payment_table.c.voided_at.is_(None),  # a Voided Payment is in no Ledger
+        )
     )
     found: dict[int, list[Allocation]] = {
         mortgage_id: [] for mortgage_id in mortgage_ids
@@ -391,7 +426,7 @@ def suggested_name(
 
 @router.post("/mortgages", status_code=status.HTTP_201_CREATED)
 def create_mortgage(
-    mortgage: MortgageIn, engine: EngineDep, today: TodayDep
+    mortgage: MortgageIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Mortgage:
     if mortgage.start_date > today:
         raise unprocessable("Start date cannot be in the future")
@@ -418,6 +453,14 @@ def create_mortgage(
             )
             .returning(mortgage_table.c.id)
         ).scalar_one()
+        audit.record(
+            conn,
+            now,
+            "mortgage",
+            mortgage_id,
+            "created",
+            audit.created(mortgage_row(conn, mortgage_id), _AUDITED_ON_CREATE),
+        )
         return load_mortgage(conn, mortgage_id, today)
 
 
@@ -503,6 +546,7 @@ async def add_mortgage_photo(
     engine: EngineDep,
     photos_dir: PhotosDirDep,
     today: TodayDep,
+    now: NowDep,
 ) -> Mortgage:
     with engine.connect() as conn:
         if not exists(conn, mortgage_table, mortgage_id):
@@ -512,6 +556,7 @@ async def add_mortgage_photo(
         conn.execute(
             insert(mortgage_photo_table).values(mortgage_id=mortgage_id, file=file_name)
         )
+        audit.record(conn, now, "mortgage", mortgage_id, "photo_added")
         return load_mortgage(conn, mortgage_id, today)
 
 
@@ -522,6 +567,7 @@ def delete_mortgage_photo(
     engine: EngineDep,
     photos_dir: PhotosDirDep,
     today: TodayDep,
+    now: NowDep,
 ) -> Mortgage:
     with engine.begin() as conn:
         file_name = conn.execute(
@@ -535,6 +581,7 @@ def delete_mortgage_photo(
         conn.execute(
             delete(mortgage_photo_table).where(mortgage_photo_table.c.id == photo_id)
         )
+        audit.record(conn, now, "mortgage", mortgage_id, "photo_removed")
         mortgage = load_mortgage(conn, mortgage_id, today)
     delete_photo(photos_dir, file_name)
     return mortgage
@@ -546,12 +593,15 @@ class CollateralIn(BaseModel):
 
 @router.put("/mortgages/{mortgage_id}/collateral")
 def set_collateral(
-    mortgage_id: int, collateral: CollateralIn, engine: EngineDep, today: TodayDep
+    mortgage_id: int,
+    collateral: CollateralIn,
+    engine: EngineDep,
+    today: TodayDep,
+    now: NowDep,
 ) -> Mortgage:
     """Set the Collateral Value by hand, or clear it to value at the Gold Rate again."""
     with engine.begin() as conn:
-        if not exists(conn, mortgage_table, mortgage_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
+        before = mortgage_row(conn, mortgage_id)
         conn.execute(
             mortgage_table.update()
             .where(mortgage_table.c.id == mortgage_id)
@@ -560,4 +610,79 @@ def set_collateral(
                 collateral_override_on=today if collateral.value else None,
             )
         )
+        changed = audit.changes(
+            before, {"collateral_override": collateral.value}, ["collateral_override"]
+        )
+        if changed:
+            audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
+        return load_mortgage(conn, mortgage_id, today)
+
+
+def mortgage_row(conn: Connection, mortgage_id: int) -> RowMapping:
+    row = (
+        conn.execute(select(mortgage_table).where(mortgage_table.c.id == mortgage_id))
+        .mappings()
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
+    return row
+
+
+@router.put("/mortgages/{mortgage_id}")
+def edit_mortgage(
+    mortgage_id: int,
+    edit: MortgageEdit,
+    engine: EngineDep,
+    today: TodayDep,
+    now: NowDep,
+) -> Mortgage:
+    """Correct a Mortgage's details; its Ledger is recalculated from them."""
+    if edit.start_date > today:
+        raise unprocessable("Start date cannot be in the future")
+    with engine.begin() as conn:
+        before = mortgage_row(conn, mortgage_id)
+        after = edit.model_dump()
+        changed = audit.changes(before, after, _AUDITED)
+        if before["status"] != MortgageStatus.ACTIVE and any(
+            c.field in _LOCKED_WHEN_CLOSED for c in changed
+        ):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"{before['name']} is {before['status']}: reopen it to change its "
+                "start date or Principal",
+            )
+        taken = conn.execute(
+            select(mortgage_table.c.id).where(
+                func.lower(mortgage_table.c.name) == edit.name.lower(),
+                mortgage_table.c.id != mortgage_id,
+            )
+        ).first()
+        if taken:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"The Mortgage Name {edit.name} is already used",
+            )
+        first_payment = min(
+            (a.on for a in _allocations_to(conn, [mortgage_id])[mortgage_id]),
+            default=None,
+        )
+        if first_payment is not None and edit.start_date > first_payment:
+            raise unprocessable(
+                f"There is a Payment on {first_payment:%d %b %Y}, before that start date"
+            )
+        conn.execute(
+            update(mortgage_table)
+            .where(mortgage_table.c.id == mortgage_id)
+            .values(**after)
+        )
+        try:
+            ledgers_of(conn, [mortgage_row(conn, mortgage_id)], today)
+        except Overpayment as over:
+            raise unprocessable(
+                f"The Payment on {over.on:%d %b %Y} would then be more than the "
+                f"{format_inr(over.outstanding)} owed"
+            ) from None
+        if changed:
+            audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
         return load_mortgage(conn, mortgage_id, today)

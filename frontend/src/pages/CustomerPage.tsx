@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { api, type Customer, type MortgageRow } from '../api'
+import { History } from '../components/History'
 import { MortgageTable } from '../components/MortgageTable'
 import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
@@ -21,6 +22,8 @@ export function CustomerPage() {
       .then((page) => setMortgages(page.items))
       .catch(() => setMortgages([]))
   }, [id])
+
+  const loadHistory = useCallback(() => api.customerHistory(id), [id])
 
   if (error) return <p className="status error">{error}</p>
   if (!customer) return <p>Loading…</p>
@@ -71,6 +74,9 @@ export function CustomerPage() {
 
       <h3>Customers they referred</h3>
       <PersonList people={customer.referred} empty="Nobody yet." />
+
+      <h3>History</h3>
+      <History load={loadHistory} showMortgage />
     </section>
   )
 }

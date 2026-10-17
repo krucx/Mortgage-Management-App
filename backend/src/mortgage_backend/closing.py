@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.clock import TodayDep
+from mortgage_backend import audit
+from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.db import (
     EngineDep,
     allocation_table,
@@ -15,12 +16,14 @@ from mortgage_backend.db import (
     payment_table,
 )
 from mortgage_backend.errors import unprocessable
+from mortgage_backend.money import format_inr
 from mortgage_backend.mortgages import (
     Mortgage,
     MortgageRow,
     MortgageStatus,
     Redemption,
     load_mortgage,
+    mortgage_row,
     mortgage_rows,
     redemption_on,
     select_with_customer,
@@ -29,8 +32,10 @@ from mortgage_backend.payments import (
     AllocationIn,
     PaymentIn,
     PaymentMethod,
+    VoidIn,
     check_no_overpayment,
     insert_payment,
+    void_payment,
 )
 
 
@@ -76,7 +81,9 @@ def _closable(
         select(payment_table.c.paid_on)
         .join(allocation_table, allocation_table.c.payment_id == payment_table.c.id)
         .where(
-            allocation_table.c.mortgage_id == mortgage_id, payment_table.c.paid_on > on
+            allocation_table.c.mortgage_id == mortgage_id,
+            payment_table.c.paid_on > on,
+            payment_table.c.voided_at.is_(None),
         )
         .order_by(payment_table.c.paid_on.desc())
     ).first()
@@ -111,7 +118,7 @@ def redemption_amount(
 
 @router.post("/mortgages/{mortgage_id}/redeem")
 def redeem(
-    mortgage_id: int, redeem: RedeemIn, engine: EngineDep, today: TodayDep
+    mortgage_id: int, redeem: RedeemIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Mortgage:
     """Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed."""
     with engine.begin() as conn:
@@ -129,6 +136,7 @@ def redeem(
                     reference=redeem.reference,
                     allocations=[AllocationIn(mortgage_id=mortgage_id, amount=owed)],
                 ),
+                now,
             )
         _close(
             conn,
@@ -139,12 +147,24 @@ def redeem(
         )
         if payment_id is not None:
             check_no_overpayment(conn, payment_id, today)
+        audit.record(
+            conn,
+            now,
+            "mortgage",
+            mortgage_id,
+            "redeemed",
+            note=f"on {redeem.redeemed_on:%d %b %Y} for {format_inr(owed)}",
+        )
         return load_mortgage(conn, mortgage_id, today)
 
 
 @router.post("/mortgages/{mortgage_id}/forfeit")
 def forfeit(
-    mortgage_id: int, forfeit: ForfeitIn, engine: EngineDep, today: TodayDep
+    mortgage_id: int,
+    forfeit: ForfeitIn,
+    engine: EngineDep,
+    today: TodayDep,
+    now: NowDep,
 ) -> Mortgage:
     """Mark the Mortgage Forfeited, recording what the jewellery recovered."""
     with engine.begin() as conn:
@@ -156,6 +176,49 @@ def forfeit(
             closed_on=forfeit.forfeited_on,
             recovered_amount=forfeit.recovered_amount,
             closure_note=forfeit.note.strip() or None,
+        )
+        audit.record(
+            conn,
+            now,
+            "mortgage",
+            mortgage_id,
+            "forfeited",
+            note=(
+                f"on {forfeit.forfeited_on:%d %b %Y}, recovered "
+                f"{format_inr(forfeit.recovered_amount)}"
+            ),
+        )
+        return load_mortgage(conn, mortgage_id, today)
+
+
+@router.post("/mortgages/{mortgage_id}/reopen")
+def reopen(
+    mortgage_id: int, body: VoidIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> Mortgage:
+    """Undo a Redemption or Forfeiture; a Redemption's final Payment is Voided."""
+    with engine.begin() as conn:
+        row = mortgage_row(conn, mortgage_id)
+        if row["status"] == MortgageStatus.ACTIVE:
+            raise HTTPException(status.HTTP_409_CONFLICT, f"{row['name']} is Active")
+        if row["redemption_payment_id"] is not None:
+            void_payment(conn, row["redemption_payment_id"], body.reason, now)
+        _close(
+            conn,
+            mortgage_id,
+            status=MortgageStatus.ACTIVE,
+            closed_on=None,
+            redemption_payment_id=None,
+            recovered_amount=None,
+            closure_note=None,
+        )
+        audit.record(
+            conn,
+            now,
+            "mortgage",
+            mortgage_id,
+            "reopened",
+            [audit.Change("status", row["status"], MortgageStatus.ACTIVE)],
+            note=body.reason,
         )
         return load_mortgage(conn, mortgage_id, today)
 

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { api, PAYMENT_METHODS, type Payment } from '../api'
 import { PersonLink } from '../components/PersonLink'
-import { formatDate } from '../format'
+import { ReasonDialog } from '../components/ReasonDialog'
+import { formatDate, formatDateTime } from '../format'
 import { formatINR } from '../money'
 
 /** One Payment and how it was allocated across Mortgages. */
@@ -10,6 +11,7 @@ export function PaymentPage() {
   const id = Number(useParams().id)
   const [payment, setPayment] = useState<Payment | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [voiding, setVoiding] = useState(false)
 
   useEffect(() => {
     api
@@ -22,7 +24,23 @@ export function PaymentPage() {
 
   return (
     <section className="card wide">
-      <h2>Payment of {formatINR(payment.amount)}</h2>
+      <div className="row spread">
+        <h2>
+          Payment of {formatINR(payment.amount)}{' '}
+          {payment.voided_at && <span className="badge status-forfeited">voided</span>}
+        </h2>
+        {!payment.voided_at && (
+          <button type="button" className="danger small" onClick={() => setVoiding(true)}>
+            Void…
+          </button>
+        )}
+      </div>
+      {payment.voided_at && (
+        <p className="status error">
+          Voided {formatDateTime(payment.voided_at)}: {payment.void_reason}. It is kept on
+          record but counts towards no Mortgage.
+        </p>
+      )}
       <dl>
         <dt>From</dt>
         <dd>
@@ -56,13 +74,31 @@ export function PaymentPage() {
                   </Link>
                 </td>
                 <td className="num">{formatINR(allocation.amount)}</td>
-                <td className="num">{formatINR(allocation.interest_paid)}</td>
-                <td className="num">{formatINR(allocation.principal_paid)}</td>
+                <td className="num">
+                  {allocation.interest_paid === null ? '—' : formatINR(allocation.interest_paid)}
+                </td>
+                <td className="num">
+                  {allocation.principal_paid === null ? '—' : formatINR(allocation.principal_paid)}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {voiding && (
+        <ReasonDialog
+          title={`Void this Payment of ${formatINR(payment.amount)}?`}
+          body={
+            <p>
+              It stays on record but is taken out of every Ledger. Enter a corrected Payment
+              afterwards if needed.
+            </p>
+          }
+          confirmLabel="Void Payment"
+          onConfirm={async (reason) => setPayment(await api.voidPayment(payment.id, reason))}
+          onClose={() => setVoiding(false)}
+        />
+      )}
     </section>
   )
 }

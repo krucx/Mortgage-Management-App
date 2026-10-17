@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { api, type LedgerStep, type Mortgage } from '../api'
 import { CallNotes } from '../components/CallNotes'
 import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
 import { CollateralPanel } from '../components/CollateralPanel'
+import { History } from '../components/History'
 import { PersonLink } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
+import { ReasonDialog } from '../components/ReasonDialog'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, formatGrams } from '../format'
 import { formatINR } from '../money'
@@ -17,6 +19,8 @@ export function MortgagePage() {
   const [mortgage, setMortgage] = useState<Mortgage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirm, confirmDialog] = useConfirm()
+  const [reopening, setReopening] = useState(false)
+  const loadHistory = useCallback(() => api.mortgageHistory(id), [id])
 
   useEffect(() => {
     api
@@ -62,6 +66,9 @@ export function MortgagePage() {
           <span>
             Customer: <PersonLink person={mortgage.customer} />
           </span>
+          <Link className="button secondary small" to={`/mortgages/${mortgage.id}/edit`}>
+            Edit
+          </Link>
           {mortgage.status === 'active' && (
             <Link
               className="button small"
@@ -141,7 +148,14 @@ export function MortgagePage() {
       {mortgage.status === 'active' ? (
         <CloseMortgage mortgage={mortgage} onClosed={setMortgage} />
       ) : (
-        <ClosureSummary mortgage={mortgage} />
+        <div className="stack">
+          <ClosureSummary mortgage={mortgage} />
+          <div>
+            <button type="button" className="secondary small" onClick={() => setReopening(true)}>
+              Reopen…
+            </button>
+          </div>
+        </div>
       )}
 
       <h3>Ledger</h3>
@@ -178,6 +192,25 @@ export function MortgagePage() {
           </tbody>
         </table>
       </div>
+      <h3>History</h3>
+      {/* Reloaded whenever the Mortgage changes, so new entries show up. */}
+      <History load={loadHistory} refresh={mortgage} />
+      {reopening && (
+        <ReasonDialog
+          title={`Reopen ${mortgage.name}?`}
+          body={
+            <p>
+              It becomes Active again as if it had never been closed: interest is charged for
+              the whole time, up to today.
+              {mortgage.closure?.payment_id &&
+                ' Its final Payment is voided, so it is no longer counted.'}
+            </p>
+          }
+          confirmLabel="Reopen"
+          onConfirm={async (reason) => setMortgage(await api.reopenMortgage(mortgage.id, reason))}
+          onClose={() => setReopening(false)}
+        />
+      )}
       {confirmDialog}
     </section>
   )

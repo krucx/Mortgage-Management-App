@@ -5,6 +5,7 @@ import { ClosuresPage } from './pages/ClosuresPage'
 import { CustomerFormPage } from './pages/CustomerFormPage'
 import { CustomerPage } from './pages/CustomerPage'
 import { CustomersPage } from './pages/CustomersPage'
+import { EditMortgagePage } from './pages/EditMortgagePage'
 import { MortgagePage } from './pages/MortgagePage'
 import { MortgagesPage } from './pages/MortgagesPage'
 import { NewMortgagePage } from './pages/NewMortgagePage'
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="/mortgages/new" element={<NewMortgagePage />} />
             <Route path="/mortgages/:id" element={<MortgagePage />} />
             <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
+            <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
             <Route path="/call-list" element={<CallListPage />} />
             <Route path="/closures" element={<ClosuresPage />} />
             <Route path="/referrers/:id" element={<ReferrerPage />} />

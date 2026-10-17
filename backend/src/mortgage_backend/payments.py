@@ -1,17 +1,18 @@
 """Payments from a Customer, each split into Allocations to their Mortgages (see GLOSSARY.md)."""
 
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import exists as sql_exists
-from sqlalchemy import func, insert, or_, select, true
+from sqlalchemy import func, insert, or_, select, true, update
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.clock import TodayDep
+from mortgage_backend import audit
+from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
     EngineDep,
@@ -60,8 +61,9 @@ class AllocationOut(BaseModel):
     mortgage_id: int
     mortgage_name: str
     amount: int
-    interest_paid: int  # paid interest first…
-    principal_paid: int  # …then Principal
+    # How it was applied: interest first, then Principal (None once Voided)
+    interest_paid: int | None
+    principal_paid: int | None
 
 
 class Payment(BaseModel):
@@ -72,6 +74,8 @@ class Payment(BaseModel):
     method: PaymentMethod
     reference: str | None
     allocations: list[AllocationOut]
+    voided_at: datetime | None
+    void_reason: str | None
 
 
 class PaymentRow(BaseModel):
@@ -84,6 +88,7 @@ class PaymentRow(BaseModel):
     method: PaymentMethod
     reference: str | None
     mortgage_names: list[str]
+    voided: bool
 
 
 class PaymentPage(BaseModel):
@@ -94,10 +99,11 @@ class PaymentPage(BaseModel):
 
 
 def _mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
-    """The Mortgages a Payment is allocated to, in the order the Allocations were made."""
+    """The Mortgages a Payment is allocated to (with the amount, as `allocated`), in the
+    order the Allocations were made."""
     return (
         conn.execute(
-            select(mortgage_table)
+            select(mortgage_table, allocation_table.c.amount.label("allocated"))
             .join(
                 allocation_table, allocation_table.c.mortgage_id == mortgage_table.c.id
             )
@@ -119,18 +125,24 @@ def _load_payment(conn: Connection, payment_id: int) -> Payment:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
 
     mortgages = _mortgages_of(conn, payment_id)
-    ledgers = ledgers_of(conn, mortgages, payment.paid_on)
+    voided = payment.voided_at is not None
+    # How it was applied comes from the replay, so it reflects every earlier Payment; a
+    # Voided Payment is in no Ledger, so only its amounts remain.
+    ledgers = {} if voided else ledgers_of(conn, mortgages, payment.paid_on)
     allocations = []
     for mortgage in mortgages:
-        # How it split comes from the replay, so it reflects every earlier Payment.
-        step = next(s for s in ledgers[mortgage["id"]] if s.payment_id == payment_id)
+        step = None
+        if not voided:
+            step = next(
+                s for s in ledgers[mortgage["id"]] if s.payment_id == payment_id
+            )
         allocations.append(
             AllocationOut(
                 mortgage_id=mortgage["id"],
                 mortgage_name=mortgage["name"],
-                amount=step.amount,
-                interest_paid=step.interest_paid,
-                principal_paid=step.principal_paid,
+                amount=mortgage["allocated"],
+                interest_paid=step.interest_paid if step else None,
+                principal_paid=step.principal_paid if step else None,
             )
         )
     return Payment(
@@ -143,10 +155,12 @@ def _load_payment(conn: Connection, payment_id: int) -> Payment:
         method=payment.method,
         reference=payment.reference,
         allocations=allocations,
+        voided_at=payment.voided_at,
+        void_reason=payment.void_reason,
     )
 
 
-def insert_payment(conn: Connection, payment: PaymentIn) -> int:
+def insert_payment(conn: Connection, payment: PaymentIn, at: datetime) -> int:
     """Store a Payment and its Allocations; returns its id. Callers check it first."""
     payment_id: int = conn.execute(
         insert(payment_table)
@@ -157,7 +171,35 @@ def insert_payment(conn: Connection, payment: PaymentIn) -> int:
         insert(allocation_table),
         [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
     )
+    audit.record(
+        conn,
+        at,
+        "payment",
+        payment_id,
+        "created",
+        audit.created(
+            {**payment.model_dump(), "method": payment.method.value},
+            ["paid_on", "amount", "method", "reference"],
+        ),
+    )
     return payment_id
+
+
+def void_payment(conn: Connection, payment_id: int, reason: str, at: datetime) -> None:
+    """Void a Payment: kept on record, left out of every Ledger. Callers check it first."""
+    conn.execute(
+        update(payment_table)
+        .where(payment_table.c.id == payment_id)
+        .values(voided_at=at, void_reason=reason)
+    )
+    audit.record(
+        conn,
+        at,
+        "payment",
+        payment_id,
+        "voided",
+        [audit.Change("void_reason", None, reason)],
+    )
 
 
 def check_no_overpayment(conn: Connection, payment_id: int, today: date) -> None:
@@ -181,7 +223,9 @@ router = APIRouter(prefix="/api")
 
 
 @router.post("/payments", status_code=status.HTTP_201_CREATED)
-def record_payment(payment: PaymentIn, engine: EngineDep, today: TodayDep) -> Payment:
+def record_payment(
+    payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> Payment:
     if payment.paid_on > today:
         raise unprocessable("The Payment date cannot be in the future")
     with engine.begin() as conn:
@@ -200,9 +244,43 @@ def record_payment(payment: PaymentIn, engine: EngineDep, today: TodayDep) -> Pa
             if payment.paid_on < mortgage.start_date:
                 raise unprocessable(f"{mortgage.name} had not started on that date")
 
-        payment_id = insert_payment(conn, payment)
+        payment_id = insert_payment(conn, payment, now)
         # Raising here rolls the whole Payment back.
         check_no_overpayment(conn, payment_id, today)
+        return _load_payment(conn, payment_id)
+
+
+class VoidIn(BaseModel):
+    reason: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def tidy(self) -> "VoidIn":
+        self.reason = self.reason.strip()
+        if not self.reason:
+            raise ValueError("A reason is needed")
+        return self
+
+
+@router.post("/payments/{payment_id}/void")
+def void(payment_id: int, body: VoidIn, engine: EngineDep, now: NowDep) -> Payment:
+    """Void a Payment entered by mistake; a corrected one is entered as a new Payment."""
+    with engine.begin() as conn:
+        payment = _load_payment(conn, payment_id)
+        if payment.voided_at is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Already voided")
+        for mortgage in _mortgages_of(conn, payment_id):
+            if mortgage["redemption_payment_id"] == payment_id:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    f"This is the final Payment of the Redemption of {mortgage['name']}: "
+                    "reopen the Mortgage instead, which voids it",
+                )
+            if mortgage["status"] != MortgageStatus.ACTIVE:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    f"{mortgage['name']} is {mortgage['status']}: reopen it first",
+                )
+        void_payment(conn, payment_id, body.reason, now)
         return _load_payment(conn, payment_id)
 
 
@@ -268,6 +346,7 @@ def list_payments(
             method=payment.method,
             reference=payment.reference,
             mortgage_names=names[payment.id],
+            voided=payment.voided_at is not None,
         )
         for payment in payments
     ]

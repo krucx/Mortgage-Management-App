@@ -59,7 +59,7 @@ export function PaymentsPage() {
               </thead>
               <tbody>
                 {result.items.map((payment) => (
-                  <tr key={payment.id}>
+                  <tr key={payment.id} className={payment.voided ? 'voided' : undefined}>
                     <td>{formatDate(payment.paid_on)}</td>
                     <td>
                       <PersonLink person={payment.customer} />
@@ -69,7 +69,10 @@ export function PaymentsPage() {
                       {PAYMENT_METHODS[payment.method]}
                       {payment.reference && <span className="hint"> · {payment.reference}</span>}
                     </td>
-                    <td className="num">{formatINR(payment.amount)}</td>
+                    <td className="num">
+                      {payment.voided && <span className="badge status-forfeited">voided</span>}{' '}
+                      {formatINR(payment.amount)}
+                    </td>
                     <td>
                       <Link className="button secondary small" to={`/payments/${payment.id}`}>
                         Open

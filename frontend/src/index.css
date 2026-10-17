@@ -651,3 +651,20 @@ form.call-form input {
 .row.align-end {
   align-items: flex-end;
 }
+
+tr.voided td {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+tr.voided td .badge {
+  text-decoration: none;
+  display: inline-block;
+}
+
+ul.history {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.3rem;
+}

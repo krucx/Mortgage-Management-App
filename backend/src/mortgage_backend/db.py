@@ -122,6 +122,24 @@ payment_table = Table(
     Column("method", String, nullable=False),
     Column("reference", String),
     Column("created_at", DateTime, nullable=False, server_default=func.now()),
+    Column("voided_at", DateTime),  # a Void keeps the Payment but out of every Ledger
+    Column("void_reason", String),
+)
+
+# One change to a Customer, Mortgage or Payment (one row per changed field).
+audit_entry_table = Table(
+    "audit_entry",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("at", DateTime, nullable=False),
+    Column("entity", String, nullable=False),
+    Column("entity_id", Integer, nullable=False),
+    Column("action", String, nullable=False),
+    Column("field", String),
+    Column("old_value", String),
+    Column("new_value", String),
+    Column("note", String),  # e.g. the reason for a Void
+    Index("ix_audit_entry_entity", "entity", "entity_id"),
 )
 
 # The Lender phoning a Customer about a Mortgage (see GLOSSARY.md: Call Note).
