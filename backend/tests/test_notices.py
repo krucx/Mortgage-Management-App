@@ -295,6 +295,57 @@ def test_turning_approval_off_queues_the_notices_waiting_for_it(
     assert [n.status for n in list_notices(conn)] == ["queued"]
 
 
+def test_turning_approval_on_holds_the_notices_already_queued(
+    conn: Connection,
+) -> None:
+    add_mortgage(conn, add_customer(conn))
+    queue_notices(conn, date(2026, 5, 12))
+
+    settings(conn, notice_approve_first=True)
+
+    assert [n.status for n in list_notices(conn)] == ["awaiting_approval"]
+
+
+def test_saving_settings_with_approval_on_keeps_approved_notices_approved(
+    app_client, clock
+) -> None:
+    def save(**changes: object) -> None:
+        now = app_client.get("/api/settings/messages").json()
+        assert app_client.put("/api/settings/messages", json={**now, **changes}).is_success
+
+    save(notice_approve_first=True)
+    owner = app_client.post(
+        "/api/customers",
+        json={"name": "Suresh Jain", "address": "", "phone_1": "9829054321"},
+    ).json()
+    app_client.post(
+        "/api/mortgages",
+        json={
+            "customer_id": owner["id"],
+            "start_date": "2026-01-13",
+            "amount_lent": 10_000 * RUPEE,
+            "description": "Ring",
+            "gross_weight_mg": 5_000,
+            "net_weight_mg": 5_000,
+            "purity_karat": 22,
+            "terms": {
+                "monthly_rate_bps": 300,
+                "interest_mode": "simple",
+                "part_month_rule": "full_month",
+            },
+        },
+    )
+    clock.today = date(2026, 5, 12)
+    (notice,) = app_client.get("/api/notices").json()["items"]
+    app_client.post(f"/api/notices/{notice['id']}/approve")
+
+    save(notice_template="Namaste {customer_name}, {mortgages}")  # approval still on
+
+    assert [n["status"] for n in app_client.get("/api/notices").json()["items"]] == [
+        "queued"
+    ]
+
+
 def test_the_notices_page_queues_what_is_due_without_waiting_a_day(
     app_client, clock
 ) -> None:
@@ -400,4 +451,5 @@ def test_the_dashboard_counts_the_notices_to_send_and_approve(app_client, clock)
             },
         },
     )
-    assert counts() == (1, 1)  # Suresh's is new, so it waits for approval
+    # Turning approval on holds Ramesh's unsent one too; Suresh's is new, so it waits.
+    assert counts() == (0, 2)

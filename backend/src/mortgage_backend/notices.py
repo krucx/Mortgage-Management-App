@@ -297,13 +297,25 @@ def mark_sent(conn: Connection, notice_id: int, now: datetime) -> Notice:
 
 
 def change_message_settings(conn: Connection, settings: MessageSettings) -> None:
-    """Save the settings; Notices waiting for approval are queued once it is off."""
+    """Save the settings. Turning approval off queues the Notices waiting for it;
+    turning it on holds those already queued for approval too (only when it is turned
+    on, so saving other settings never undoes an approval)."""
+    turned_on = (
+        settings.notice_approve_first
+        and not get_message_settings(conn).notice_approve_first
+    )
     set_message_settings(conn, settings)
     if not settings.notice_approve_first:
         conn.execute(
             update(notice_table)
             .where(notice_table.c.status == NoticeStatus.AWAITING_APPROVAL)
             .values(status=NoticeStatus.QUEUED)
+        )
+    elif turned_on:
+        conn.execute(
+            update(notice_table)
+            .where(notice_table.c.status == NoticeStatus.QUEUED)
+            .values(status=NoticeStatus.AWAITING_APPROVAL)
         )
 
 
