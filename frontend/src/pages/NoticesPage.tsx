@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api, type Notice, type NoticePage, type NoticeStatus } from '../api'
+import { Modal } from '../components/Modal'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
 import { useUrlFilters } from '../components/useUrlFilters'
@@ -23,6 +24,10 @@ const STATUS_NAMES: Record<NoticeStatus, string> = {
   skipped: 'skipped',
 }
 
+const NOTHING_TO_SEND =
+  'Nothing to send: none of their Active Mortgages accrues on this date any more ' +
+  '(Redeemed, Forfeited or edited since).'
+
 /** Notices the daily run queued ahead of Accrual Dates, to approve, send or skip. */
 export function NoticesPage() {
   const [params, setFilters] = useUrlFilters()
@@ -35,6 +40,8 @@ export function NoticesPage() {
   const setPage = useCallback((next: number) => setPageOf({ tab: shown, page: next }), [shown])
   const notices = listed?.items ?? null
   const [error, setError] = useState<string | null>(null)
+  // The Notice whose message is open, to read before approving or sending it.
+  const [reviewing, setReviewing] = useState<Notice | null>(null)
 
   const load = useCallback(
     () =>
@@ -55,6 +62,7 @@ export function NoticesPage() {
     setError(null)
     try {
       await action(id)
+      setReviewing(null)
       await load()
     } catch (err) {
       setError((err as Error).message)
@@ -84,63 +92,93 @@ export function NoticesPage() {
       </div>
       {error && <p className="status error">{error}</p>}
       {listed?.total === 0 && <p className="hint">No Notices here.</p>}
-      <div className="stack">
+      <div className="stack tight">
         {notices?.map((notice) => (
           <article key={notice.id} className="notice">
-            <div className="notice-head">
-              <div>
-                <PersonLink person={notice.customer} />{' '}
-                <span className="hint">
-                  for {formatDate(notice.accrues_on)} ·{' '}
-                  {notice.mortgages.map((m, i) => (
-                    <span key={m.id}>
-                      {i > 0 && ', '}
-                      <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
-                    </span>
-                  ))}
-                </span>
-              </div>
+            <div>
+              <PersonLink person={notice.customer} />{' '}
+              <span className="hint">
+                for {formatDate(notice.accrues_on)} ·{' '}
+                {notice.mortgages.map((m, i) => (
+                  <span key={m.id}>
+                    {i > 0 && ', '}
+                    <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
+                  </span>
+                ))}
+              </span>
+            </div>
+            <div className="row">
               <span className={`badge notice-${notice.status}`}>
                 {STATUS_NAMES[notice.status]}
                 {notice.sent_at && ` ${formatDateTime(notice.sent_at)}`}
               </span>
-            </div>
-            <div className="receipt-panel">
-              {notice.message ? (
-                <WhatsAppPreview text={notice.message} />
+              {!notice.message ? (
+                <span className="hint">{NOTHING_TO_SEND}</span>
+              ) : notice.status === 'awaiting_approval' ? (
+                <button type="button" className="small" onClick={() => setReviewing(notice)}>
+                  Review and approve
+                </button>
+              ) : notice.status === 'queued' ? (
+                <button
+                  type="button"
+                  className="small whatsapp-send"
+                  onClick={() => setReviewing(notice)}
+                >
+                  Send on WhatsApp
+                </button>
               ) : (
-                <p className="hint">
-                  None of their Active Mortgages accrues on this date any more (Redeemed,
-                  Forfeited or edited since): nothing to send.
-                </p>
+                <button
+                  type="button"
+                  className="small secondary"
+                  onClick={() => setReviewing(notice)}
+                >
+                  Message
+                </button>
               )}
-              <div className="stack">
-                {notice.status === 'awaiting_approval' && (
-                  <button type="button" onClick={() => act(api.approveNotice, notice.id)}>
-                    Approve
-                  </button>
-                )}
-                {notice.status === 'queued' && notice.message && (
-                  <SendOnWhatsApp
-                    phones={notice.phones}
-                    text={notice.message}
-                    onSent={() => act(api.markNoticeSent, notice.id)}
-                  />
-                )}
-                {(notice.status === 'awaiting_approval' || notice.status === 'queued') && (
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => act(api.skipNotice, notice.id)}
-                  >
-                    Skip
-                  </button>
-                )}
-              </div>
+              {(notice.status === 'awaiting_approval' || notice.status === 'queued') && (
+                <button
+                  type="button"
+                  className="small secondary"
+                  onClick={() => act(api.skipNotice, notice.id)}
+                >
+                  Skip
+                </button>
+              )}
             </div>
           </article>
         ))}
       </div>
+      {reviewing?.message && (
+        <Modal onClose={() => setReviewing(null)}>
+          <h2>Notice to {reviewing.customer.name}</h2>
+          <div className="stack">
+            <span className="hint">For {formatDate(reviewing.accrues_on)}</span>
+            <WhatsAppPreview text={reviewing.message} />
+            <div className="row end">
+              <button
+                type="button"
+                className="secondary"
+                autoFocus
+                onClick={() => setReviewing(null)}
+              >
+                Close
+              </button>
+              {reviewing.status === 'awaiting_approval' && (
+                <button type="button" onClick={() => act(api.approveNotice, reviewing.id)}>
+                  Approve
+                </button>
+              )}
+              {reviewing.status === 'queued' && (
+                <SendOnWhatsApp
+                  phones={reviewing.phones}
+                  text={reviewing.message}
+                  onSent={() => act(api.markNoticeSent, reviewing.id)}
+                />
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
       {listed && (
         <Pager
           page={listed.page}

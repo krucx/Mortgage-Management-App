@@ -20,6 +20,10 @@ import { allocateEqually, amountsFromPercentages, percentagesOf } from '../alloc
 
 type AllocationMode = 'equal' | 'amount' | 'percent'
 
+/** A Mortgage with nothing Outstanding (paid off, awaiting Redemption) can't take a
+ *  Payment: it is offered for Redemption instead. */
+const canTakePayment = (m: MortgageRow) => m.outstanding_total > 0
+
 /**
  * Equal shares as a suggestion only. More than is Outstanding is still split equally:
  * whether a Payment is too large is for the preview to say, as saving would.
@@ -105,8 +109,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       .then((page) => {
         setMortgages(page.items)
         setSelected((current) => {
-          // A Mortgage with nothing Outstanding (paid off, awaiting Redemption) can't take a Payment.
-          const ids = page.items.filter((m) => m.outstanding_total > 0).map((m) => m.id)
+          const ids = page.items.filter(canTakePayment).map((m) => m.id)
           if (selectionStarted.current) return new Set(ids.filter((id) => current.has(id)))
           selectionStarted.current = true
           return new Set(preselected && ids.includes(preselected) ? [preselected] : ids)
@@ -115,7 +118,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       .catch((err: Error) => setError(err.message))
   }, [customer.id, paidOn, preselected])
 
-  const chosen = (mortgages ?? []).filter((m) => selected.has(m.id))
+  const payable = (mortgages ?? []).filter(canTakePayment)
+  const awaitingRedemption = (mortgages ?? []).filter((m) => !canTakePayment(m))
+  const chosen = payable.filter((m) => selected.has(m.id))
   const outstanding = chosen.map((m) => m.outstanding_total)
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
   const total = rupeesToPaise(totalText || '0')
@@ -289,6 +294,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           <p>Loading…</p>
         ) : mortgages.length === 0 ? (
           <p className="hint">No Active Mortgages on {formatDate(paidOn)}.</p>
+        ) : payable.length === 0 ? (
+          <p className="hint">Nothing Outstanding on {formatDate(paidOn)}.</p>
         ) : (
           <div className="table-scroll">
             <table>
@@ -302,7 +309,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                 </tr>
               </thead>
               <tbody>
-                {mortgages.map((m) => {
+                {payable.map((m) => {
                   const index = chosen.findIndex((c) => c.id === m.id)
                   const amount = index >= 0 && amounts ? amounts[index] : null
                   return (
@@ -312,13 +319,11 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                           type="checkbox"
                           aria-label={`Include ${m.name}`}
                           checked={selected.has(m.id)}
-                          disabled={m.outstanding_total === 0}
                           onChange={() => toggle(m.id)}
                         />
                       </td>
                       <td>
                         <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
-                        {m.outstanding_total === 0 && <span className="badge">Paid off</span>}
                       </td>
                       <td className="num">{formatINR(m.outstanding_total)}</td>
                       {mode === 'percent' && (
@@ -370,6 +375,21 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         <p className="hint">
           Within each Mortgage the Allocation pays unpaid interest first, then Principal.
         </p>
+        {awaitingRedemption.length > 0 && (
+          <details className="tucked">
+            <summary>Paid off, waiting for Redemption ({awaitingRedemption.length})</summary>
+            <ul className="plain stack">
+              {awaitingRedemption.map((m) => (
+                <li key={m.id} className="row spread">
+                  <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
+                  <Link className="button small secondary" to={`/mortgages/${m.id}/redeem`}>
+                    Redeem
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </fieldset>
 
       <label>

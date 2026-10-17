@@ -382,6 +382,7 @@ def list_mortgages(
     as_of: date | None = None,
     owing: bool = False,
     closed_in: MonthQuery = None,
+    closed: bool = False,
     paged: bool = True,
 ) -> MortgagePage:
     """Mortgages, newest first, filtered by Mortgage Name or Customer name.
@@ -389,9 +390,10 @@ def list_mortgages(
     With `as_of`, only Mortgages started by then, with what they owed on that date
     (used when recording a back-dated Payment). With `owing`, only those with something
     Outstanding (Outstanding is computed, so that filter is applied after the replay).
-    With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month. With
-    `paged` false, every match on one page: for pickers, such as a Payment's
-    Allocations, which must never leave a Mortgage out.
+    With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month; with
+    `closed`, only those Redeemed or Forfeited. With `paged` false, every match on one
+    page: for pickers, such as a Payment's Allocations, which must never leave a
+    Mortgage out.
     """
     if as_of is not None and as_of > today:
         raise unprocessable("The date cannot be in the future")
@@ -410,6 +412,8 @@ def list_mortgages(
         match = match & (mortgage_table.c.start_date <= as_of)
     if mortgage_status is not None:
         match = match & (mortgage_table.c.status == mortgage_status)
+    if closed:
+        match = match & (mortgage_table.c.status != MortgageStatus.ACTIVE)
     if closed_in is not None:
         match = match & mortgage_table.c.closed_on.between(*month_span(closed_in))
     newest_first = (

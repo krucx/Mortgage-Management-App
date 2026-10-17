@@ -17,28 +17,32 @@ const STEP_LABELS: Record<LedgerStep['event'], string> = {
   term_changed: 'Terms changed',
 }
 
-/** Each Mortgage's Projection and Ledger before and after an unsaved change. */
+/**
+ * Each Mortgage's Projection and Ledger before and after an unsaved change. With
+ * several, each is a collapsible section whose summary (the Mortgage and what it owes
+ * today, before → after) stays visible; the first starts open.
+ */
 export function BeforeAfter({ previews }: { previews: MortgagePreview[] }) {
+  if (previews.length === 1) return <MortgageBeforeAfter preview={previews[0]} />
   return (
     <div className="stack">
-      {previews.map((preview) => (
-        <MortgageBeforeAfter
-          key={preview.mortgage_id}
-          preview={preview}
-          showName={previews.length > 1}
-        />
+      {previews.map((preview, i) => (
+        <details key={preview.mortgage_id} className="tucked" open={i === 0}>
+          <summary>
+            <strong>{preview.mortgage_name}</strong>{' '}
+            <span className="hint">
+              Owed today {formatINR(preview.before.outstanding)} →{' '}
+              {formatINR(preview.after.outstanding)}
+            </span>
+          </summary>
+          <MortgageBeforeAfter preview={preview} />
+        </details>
       ))}
     </div>
   )
 }
 
-function MortgageBeforeAfter({
-  preview,
-  showName,
-}: {
-  preview: MortgagePreview
-  showName: boolean
-}) {
+function MortgageBeforeAfter({ preview }: { preview: MortgagePreview }) {
   const { before, after } = preview
   const at = (points: typeof before.points, months: number) =>
     points.find((p) => p.months === months)
@@ -57,7 +61,6 @@ function MortgageBeforeAfter({
 
   return (
     <div className="stack before-after">
-      {showName && <strong>{preview.mortgage_name}</strong>}
       <div className="change-summary">
         <Headline
           label="Owed today"

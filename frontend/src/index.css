@@ -23,6 +23,10 @@
   --tone-money-in: #008ba8;
   --tone-collateral: #5a4fcf;
   --tone-closed: #b3368c;
+  /* Exact (Projections) versus estimate (Trend) labels: validated as a pair with the
+     dataviz palette validator, and as text (>= 4.5:1) on the surface, both modes. */
+  --exact: #00806a;
+  --estimate: #945c00;
 
   font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
@@ -50,6 +54,8 @@
     --tone-money-in: #1fa3c0;
     --tone-collateral: #8b7cf2;
     --tone-closed: #d466a7;
+    --exact: #1a9d8f;
+    --estimate: #c4851d;
   }
 }
 
@@ -191,6 +197,10 @@ a {
 .stack {
   display: grid;
   gap: 1rem;
+}
+
+.stack.tight {
+  gap: 0.5rem;
 }
 
 textarea {
@@ -940,11 +950,11 @@ a.tile.figure:focus-visible,
 }
 
 .dashboard .flag.exact {
-  color: var(--text);
+  color: var(--exact);
 }
 
 .dashboard .flag.estimate {
-  color: var(--muted);
+  color: var(--estimate);
   border-style: dashed;
 }
 
@@ -1103,19 +1113,38 @@ button.whatsapp-send {
   }
 }
 
-/* Notices */
-article.notice {
+/* A section tucked away until opened: its summary line is always visible. */
+details.tucked {
   border: 1px solid var(--border);
   border-radius: 0.5rem;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0.75rem 0;
 }
 
-.notice-head {
+details.tucked > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+details.tucked > summary .hint {
+  font-weight: normal;
+}
+
+details.tucked[open] > summary {
+  margin-bottom: 0.75rem;
+}
+
+/* Notices */
+/* One compact line each; the message itself opens in a dialog. */
+article.notice {
   display: flex;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
   flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
 }
 
 /* A template's text and help read as text, not as part of its bold label */

@@ -171,9 +171,10 @@ export interface paths {
          *     With `as_of`, only Mortgages started by then, with what they owed on that date
          *     (used when recording a back-dated Payment). With `owing`, only those with something
          *     Outstanding (Outstanding is computed, so that filter is applied after the replay).
-         *     With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month. With
-         *     `paged` false, every match on one page: for pickers, such as a Payment's
-         *     Allocations, which must never leave a Mortgage out.
+         *     With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month; with
+         *     `closed`, only those Redeemed or Forfeited. With `paged` false, every match on one
+         *     page: for pickers, such as a Payment's Allocations, which must never leave a
+         *     Mortgage out.
          */
         get: operations["list_mortgages_api_mortgages_get"];
         put?: never;
@@ -2367,6 +2368,7 @@ export interface operations {
                 as_of?: string | null;
                 owing?: boolean;
                 closed_in?: string | null;
+                closed?: boolean;
                 paged?: boolean;
             };
             header?: never;

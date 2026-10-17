@@ -10,8 +10,10 @@ import { Photo } from '../components/Photo'
 export function CustomerPage() {
   const id = Number(useParams().id)
   const [customer, setCustomer] = useState<Customer | null>(null)
-  const [mortgages, setMortgages] = useState<MortgagePage | null>(null)
-  const [page, setPage] = useState(1)
+  const [active, setActive] = useState<MortgagePage | null>(null)
+  const [activePage, setActivePage] = useState(1)
+  const [closed, setClosed] = useState<MortgagePage | null>(null)
+  const [closedPage, setClosedPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -23,10 +25,18 @@ export function CustomerPage() {
 
   useEffect(() => {
     api
-      .listMortgages(page, '', { customerId: id })
-      .then(setMortgages)
+      .listMortgages(activePage, '', { customerId: id, status: 'active' })
+      .then(setActive)
       .catch((err: Error) => setError(err.message))
-  }, [id, page])
+  }, [id, activePage])
+
+  // Redeemed and Forfeited, tucked away below the Active ones.
+  useEffect(() => {
+    api
+      .listMortgages(closedPage, '', { customerId: id, closed: true })
+      .then(setClosed)
+      .catch((err: Error) => setError(err.message))
+  }, [id, closedPage])
 
   const loadHistory = useCallback(() => api.customerHistory(id), [id])
 
@@ -69,20 +79,23 @@ export function CustomerPage() {
           New Mortgage
         </Link>
       </div>
-      {mortgages === null ? (
+      {active === null || closed === null ? (
         <p>Loading…</p>
-      ) : mortgages.total === 0 ? (
+      ) : active.total + closed.total === 0 ? (
         <p className="hint">No Mortgages yet.</p>
       ) : (
         <>
-          <MortgageTable rows={mortgages.items} showCustomer={false} />
-          <Pager
-            page={mortgages.page}
-            pageSize={mortgages.page_size}
-            total={mortgages.total}
-            shown={mortgages.items.length}
-            onPage={setPage}
-          />
+          {active.total === 0 ? (
+            <p className="hint">No Active Mortgages.</p>
+          ) : (
+            <PagedMortgages listed={active} onPage={setActivePage} />
+          )}
+          {closed.total > 0 && (
+            <details className="tucked">
+              <summary>Closed ({closed.total})</summary>
+              <PagedMortgages listed={closed} onPage={setClosedPage} />
+            </details>
+          )}
         </>
       )}
 
@@ -92,5 +105,26 @@ export function CustomerPage() {
       <h3>History</h3>
       <History load={loadHistory} showMortgage title={`History of ${customer.name}`} />
     </section>
+  )
+}
+
+function PagedMortgages({
+  listed,
+  onPage,
+}: {
+  listed: MortgagePage
+  onPage: (page: number) => void
+}) {
+  return (
+    <>
+      <MortgageTable rows={listed.items} showCustomer={false} />
+      <Pager
+        page={listed.page}
+        pageSize={listed.page_size}
+        total={listed.total}
+        shown={listed.items.length}
+        onPage={onPage}
+      />
+    </>
   )
 }

@@ -69,6 +69,24 @@ def test_a_customers_mortgages_come_a_page_at_a_time(client):
     assert not {m["id"] for m in first["items"]} & {m["id"] for m in second["items"]}
 
 
+def test_a_customers_closed_mortgages_are_listed_apart_from_the_active_ones(client):
+    owner = person(client, 1)
+    active, redeemed, forfeited = (lend(client, owner) for _ in range(3))
+    assert client.post(
+        f"/api/mortgages/{redeemed['id']}/redeem",
+        json={"redeemed_on": "2026-04-20", "method": "cash"},
+    ).is_success
+    assert client.post(
+        f"/api/mortgages/{forfeited['id']}/forfeit",
+        json={"forfeited_on": "2026-04-20", "recovered_amount": 0, "note": ""},
+    ).is_success
+
+    closed = get(client, "mortgages", customer_id=owner["id"], closed=True)
+
+    assert {m["id"] for m in closed["items"]} == {redeemed["id"], forfeited["id"]}
+    assert closed["total"] == 2
+
+
 @pytest.fixture
 def accruing_customers(client):
     """21 Customers whose Mortgages accrue today (20th) or in 2 days (22nd); the first

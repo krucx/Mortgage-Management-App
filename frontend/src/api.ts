@@ -204,6 +204,8 @@ export const api = {
       /** False: every match on one page, for pickers, which must never leave one out. */
       paged?: boolean
       closedIn?: string // YYYY-MM
+      /** Only the Redeemed and Forfeited. */
+      closed?: boolean
     } = {},
   ) =>
     request<MortgagePage>(
@@ -213,7 +215,8 @@ export const api = {
         (filters.asOf ? `&as_of=${filters.asOf}` : '') +
         (filters.owing ? '&owing=true' : '') +
         (filters.paged === false ? '&paged=false' : '') +
-        (filters.closedIn ? `&closed_in=${filters.closedIn}` : ''),
+        (filters.closedIn ? `&closed_in=${filters.closedIn}` : '') +
+        (filters.closed ? '&closed=true' : ''),
     ),
   getMortgage: (id: number) => request<Mortgage>(`/mortgages/${id}`),
   readyToRedeem: (page: number) =>

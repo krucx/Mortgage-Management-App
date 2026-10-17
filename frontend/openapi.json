@@ -3317,7 +3317,7 @@
     },
     "/api/mortgages": {
       "get": {
-        "description": "Mortgages, newest first, filtered by Mortgage Name or Customer name.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).\nWith `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month. With\n`paged` false, every match on one page: for pickers, such as a Payment's\nAllocations, which must never leave a Mortgage out.",
+        "description": "Mortgages, newest first, filtered by Mortgage Name or Customer name.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).\nWith `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month; with\n`closed`, only those Redeemed or Forfeited. With `paged` false, every match on one\npage: for pickers, such as a Payment's Allocations, which must never leave a\nMortgage out.",
         "operationId": "list_mortgages_api_mortgages_get",
         "parameters": [
           {
@@ -3415,6 +3415,16 @@
                 }
               ],
               "title": "Closed In"
+            }
+          },
+          {
+            "in": "query",
+            "name": "closed",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Closed",
+              "type": "boolean"
             }
           },
           {
