@@ -15,16 +15,10 @@ from sqlalchemy.engine import Connection
 from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.db import EngineDep
 from mortgage_backend.ledger import LedgerEvent, LedgerStep
-from mortgage_backend.mortgages import (
-    MortgageEdit,
-    MortgageStatus,
-    apply_edit,
-    ledgers_of,
-    mortgage_row,
-    outstanding_of,
-)
+from mortgage_backend.mortgages import MortgageEdit, apply_edit
 from mortgage_backend.payments import apply_void, mortgages_of
 from mortgage_backend.projections import ComingTermChange, ProjectedPoint, baseline
+from mortgage_backend.replay import MortgageStatus, replay
 from mortgage_backend.term_changes import TermChangeIn, apply_term_change
 
 
@@ -91,16 +85,15 @@ def _snapshot(
     """Each Mortgage's Ledger and Projection as the database stands."""
     found = {}
     for mortgage_id in mortgage_ids:
-        row = mortgage_row(conn, mortgage_id)
-        ledger = ledgers_of(conn, [row], today)[mortgage_id]
+        mortgage = replay(conn, mortgage_id)
         # Only an Active Mortgage has a Projection.
-        active = row["status"] == MortgageStatus.ACTIVE
-        projection = baseline(conn, row, today) if active else None
+        active = mortgage.row["status"] == MortgageStatus.ACTIVE
+        projection = baseline(conn, mortgage, today) if active else None
         found[mortgage_id] = _Snapshot(
-            row["name"],
-            ledger,
+            mortgage.row["name"],
+            mortgage.ledger(today),
             PreviewSide(
-                outstanding=outstanding_of(ledger).total,
+                outstanding=mortgage.outstanding(today).total,
                 points=projection.points if projection else [],
                 term_changes=projection.term_changes if projection else [],
             ),

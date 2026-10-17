@@ -3,7 +3,6 @@
 import re
 from collections.abc import Sequence
 from datetime import date, datetime
-from enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
@@ -17,37 +16,30 @@ from mortgage_backend.collateral import Collateral, Purity, collateral_of, gold_
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
     EngineDep,
-    allocation_table,
     customer_table,
     exists,
     mortgage_photo_table,
     mortgage_table,
-    payment_table,
-    term_change_table,
 )
 from mortgage_backend.default_terms import get_default_terms
 from mortgage_backend.errors import unprocessable
 from mortgage_backend.ledger import (
-    Allocation,
-    HypotheticalPayments,
     LedgerStep,
     Overpayment,
-    TermChange,
     accrual_date,
-    compute_ledger,
-    days_since_accrual,
     is_accrual_date,
-    terms_on,
 )
 from mortgage_backend.money import format_inr
 from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
+from mortgage_backend.replay import (
+    MortgageReplay,
+    MortgageStatus,
+    Outstanding,
+    mortgage_row,
+    replay,
+    replays,
+)
 from mortgage_backend.terms import Terms
-
-
-class MortgageStatus(StrEnum):
-    ACTIVE = "active"
-    REDEEMED = "redeemed"
-    FORFEITED = "forfeited"
 
 
 class MortgageDetails(BaseModel):
@@ -108,14 +100,6 @@ class MortgagePhoto(BaseModel):
     url: str
 
 
-class Outstanding(BaseModel):
-    """Principal plus unpaid interest on a date, before any Part-Month Rule charge."""
-
-    principal: int
-    unpaid_interest: int
-    total: int
-
-
 class MortgageRow(BaseModel):
     """A Mortgage as listed in tables."""
 
@@ -133,17 +117,6 @@ class MortgagePage(BaseModel):
     total: int
     page: int
     page_size: int
-
-
-class Redemption(BaseModel):
-    """What it takes to close a Mortgage on a date (see Redemption Amount in GLOSSARY.md)."""
-
-    on: date
-    principal: int
-    unpaid_interest: int
-    part_month_days: int  # since the last Accrual Date
-    part_month_charge: int  # per the Part-Month Rule
-    total: int  # the Redemption Amount
 
 
 class Closure(BaseModel):
@@ -197,138 +170,11 @@ class Mortgage(BaseModel):
     closure: Closure | None
 
 
-def terms_of(row: RowMapping) -> Terms:
-    """A Mortgage row's Terms as it started."""
-    return Terms(
-        monthly_rate_bps=row["monthly_rate_bps"],
-        interest_mode=row["interest_mode"],
-        part_month_rule=row["part_month_rule"],
-    )
-
-
-def allocations_to(
-    conn: Connection, mortgage_ids: list[int]
-) -> dict[int, list[Allocation]]:
-    """Every Payment Allocation to each of these Mortgages, as ledger events."""
-    rows = conn.execute(
-        select(
-            allocation_table.c.mortgage_id,
-            allocation_table.c.amount,
-            allocation_table.c.payment_id,
-            payment_table.c.paid_on,
-        )
-        .join(payment_table, payment_table.c.id == allocation_table.c.payment_id)
-        .where(
-            allocation_table.c.mortgage_id.in_(mortgage_ids),
-            payment_table.c.voided_at.is_(None),  # a Voided Payment is in no Ledger
-        )
-    )
-    found: dict[int, list[Allocation]] = {
-        mortgage_id: [] for mortgage_id in mortgage_ids
-    }
-    for row in rows:
-        found[row.mortgage_id].append(
-            Allocation(on=row.paid_on, amount=row.amount, payment_id=row.payment_id)
-        )
-    return found
-
-
-def term_changes_of(
-    conn: Connection, mortgage_ids: list[int]
-) -> dict[int, list[TermChange]]:
-    """Each Mortgage's Term Changes (with their ids), in date order."""
-    found: dict[int, list[TermChange]] = {id_: [] for id_ in mortgage_ids}
-    for row in conn.execute(
-        select(term_change_table)
-        .where(term_change_table.c.mortgage_id.in_(mortgage_ids))
-        .order_by(term_change_table.c.effective_on)
-    ).mappings():
-        found[row["mortgage_id"]].append(
-            TermChange(
-                row["effective_on"],
-                row["monthly_rate_bps"],
-                row["interest_mode"],
-                row["part_month_rule"],
-                id=row["id"],
-            )
-        )
-    return found
-
-
-def ledgers_of(
-    conn: Connection, rows: Sequence[RowMapping], as_of: date
-) -> dict[int, list[LedgerStep]]:
-    """Each Mortgage row's Ledger up to `as_of`, replaying its Payment Allocations
-    and Term Changes.
-
-    Raises Overpayment if any Allocation is larger than what was owed on its date.
-    """
-    ids = [row["id"] for row in rows]
-    allocations = allocations_to(conn, ids)
-    changes = term_changes_of(conn, ids)
-    return {
-        row["id"]: compute_ledger(
-            row["start_date"],
-            row["amount_lent"],
-            terms_of(row),
-            as_of,
-            allocations[row["id"]],
-            closed_on=row["closed_on"],
-            forfeited=row["status"] == MortgageStatus.FORFEITED,
-            term_changes=changes[row["id"]],
-        )
-        for row in rows
-    }
-
-
-def quote_redemption(
-    row: RowMapping,
-    on: date,
-    allocations: Sequence[Allocation],
-    changes: Sequence[TermChange] = (),
-    hypothetical: HypotheticalPayments | None = None,
-) -> Redemption:
-    """The Redemption Amount on `on`, after the given Allocations (and hypothetical
-    Payments, for a Projection)."""
-    ledger = compute_ledger(
-        row["start_date"],
-        row["amount_lent"],
-        terms_of(row),
-        on,
-        allocations,
-        closed_on=on,
-        term_changes=changes,
-        hypothetical=hypothetical,
-    )
-    last = ledger[-1]
-    part_month = next((s for s in ledger if s.event == "part_month"), None)
-    charge = part_month.amount if part_month else 0
-    return Redemption(
-        on=on,
-        principal=last.principal,
-        unpaid_interest=last.unpaid_interest - charge,
-        part_month_days=days_since_accrual(row["start_date"], on),
-        part_month_charge=charge,
-        total=last.principal + last.unpaid_interest,
-    )
-
-
-def redemption_on(conn: Connection, row: RowMapping, on: date) -> Redemption:
-    """The Redemption Amount for a Mortgage row on `on`, ignoring its own final Payment."""
-    allocations = [
-        allocation
-        for allocation in allocations_to(conn, [row["id"]])[row["id"]]
-        if allocation.payment_id != row["redemption_payment_id"]
-    ]
-    return quote_redemption(
-        row, on, allocations, term_changes_of(conn, [row["id"]])[row["id"]]
-    )
-
-
-def _closure(conn: Connection, row: RowMapping) -> Closure | None:
+def _closure(mortgage: MortgageReplay) -> Closure | None:
+    row = mortgage.row
     if row["status"] == MortgageStatus.ACTIVE:
         return None
-    redemption_amount = redemption_on(conn, row, row["closed_on"]).total
+    redemption_amount = mortgage.redemption(row["closed_on"]).total
     forfeited = row["status"] == MortgageStatus.FORFEITED
     return Closure(
         kind=row["status"],
@@ -341,20 +187,11 @@ def _closure(conn: Connection, row: RowMapping) -> Closure | None:
     )
 
 
-def outstanding_of(ledger: list[LedgerStep]) -> Outstanding:
-    last = ledger[-1]
-    return Outstanding(
-        principal=last.principal,
-        unpaid_interest=last.unpaid_interest,
-        total=last.principal + last.unpaid_interest,
-    )
-
-
 def mortgage_rows(
     conn: Connection, rows: Sequence[RowMapping], as_of: date
 ) -> list[MortgageRow]:
     """Rows from select_with_customer() as listed in tables, Outstanding as of `as_of`."""
-    ledgers = ledgers_of(conn, rows, as_of)
+    found = replays(conn, rows)
     return [
         MortgageRow(
             id=row["id"],
@@ -363,7 +200,7 @@ def mortgage_rows(
             start_date=row["start_date"],
             amount_lent=row["amount_lent"],
             status=row["status"],
-            outstanding_total=outstanding_of(ledgers[row["id"]]).total,
+            outstanding_total=found[row["id"]].outstanding(as_of).total,
         )
         for row in rows
     ]
@@ -395,9 +232,8 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         .where(mortgage_photo_table.c.mortgage_id == mortgage_id)
         .order_by(mortgage_photo_table.c.id)
     )
-    ledger = ledgers_of(conn, [row], today)[mortgage_id]
-    outstanding = outstanding_of(ledger)
-    changes = term_changes_of(conn, [mortgage_id])[mortgage_id]
+    mortgage = replays(conn, [row])[mortgage_id]
+    outstanding = mortgage.outstanding(today)
     active = row["status"] == MortgageStatus.ACTIVE
     return Mortgage(
         id=row["id"],
@@ -409,15 +245,15 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         gross_weight_mg=row["gross_weight_mg"],
         net_weight_mg=row["net_weight_mg"],
         purity_karat=row["purity_karat"],
-        terms=terms_on(terms_of(row), changes, today),
+        terms=mortgage.terms_on(today),
         term_changes=[
             TermChangeOut(
                 id=change.id or 0,
                 effective_on=change.on,
-                terms=terms_on(terms_of(row), changes, change.on),
+                terms=mortgage.terms_on(change.on),
                 removable=active and change.on > today,
             )
-            for change in changes
+            for change in mortgage.term_changes
         ],
         upcoming_accrual_dates=(
             upcoming_accrual_dates(row["start_date"], today) if active else []
@@ -425,10 +261,10 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         status=row["status"],
         photos=[MortgagePhoto(id=p.id, url=photo_url(p.file) or "") for p in photos],
         as_of=today,
-        ledger=ledger,
+        ledger=mortgage.ledger(today),
         outstanding=outstanding,
         collateral=collateral_of(row, gold_rates(conn), outstanding.total),
-        closure=_closure(conn, row),
+        closure=_closure(mortgage),
     )
 
 
@@ -691,17 +527,6 @@ def set_collateral(
         return load_mortgage(conn, mortgage_id, today)
 
 
-def mortgage_row(conn: Connection, mortgage_id: int) -> RowMapping:
-    row = (
-        conn.execute(select(mortgage_table).where(mortgage_table.c.id == mortgage_id))
-        .mappings()
-        .first()
-    )
-    if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
-    return row
-
-
 def apply_edit(
     conn: Connection, mortgage_id: int, edit: MortgageEdit, today: date, now: datetime
 ) -> None:
@@ -730,13 +555,11 @@ def apply_edit(
             status.HTTP_409_CONFLICT,
             f"The Mortgage Name {edit.name} is already used",
         )
-    first_payment = min(
-        (a.on for a in allocations_to(conn, [mortgage_id])[mortgage_id]),
-        default=None,
-    )
+    mortgage = replay(conn, mortgage_id)
+    first_payment = min((a.on for a in mortgage.allocations), default=None)
     stranded = [
         c.on
-        for c in term_changes_of(conn, [mortgage_id])[mortgage_id]
+        for c in mortgage.term_changes
         if not is_accrual_date(edit.start_date, c.on)
     ]
     if stranded:
@@ -752,7 +575,7 @@ def apply_edit(
         update(mortgage_table).where(mortgage_table.c.id == mortgage_id).values(**after)
     )
     try:
-        ledgers_of(conn, [mortgage_row(conn, mortgage_id)], today)
+        replay(conn, mortgage_id).ledger(today)
     except Overpayment as over:
         raise unprocessable(
             f"The Payment on {over.on:%d %b %Y} would then be more than the "

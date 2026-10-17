@@ -21,12 +21,8 @@ from mortgage_backend.db import (
     set_config,
 )
 from mortgage_backend.ledger import months_unpaid
-from mortgage_backend.mortgages import (
-    MortgageStatus,
-    ledgers_of,
-    outstanding_of,
-    select_with_customer,
-)
+from mortgage_backend.mortgages import select_with_customer
+from mortgage_backend.replay import MortgageStatus, replays
 
 Reason = Literal["months_unpaid", "loan_to_value", "accrues_today"]
 
@@ -100,14 +96,14 @@ def call_list(conn: Connection, today: date) -> list[CallListGroup]:
         .mappings()
         .all()
     )
-    ledgers = ledgers_of(conn, rows, today)
+    replayed = replays(conn, rows)
     rates = gold_rates(conn)
     called = _todays_notes(conn, today)
 
     listed = []
     for row in rows:
-        ledger = ledgers[row["id"]]
-        outstanding = outstanding_of(ledger).total
+        ledger = replayed[row["id"]].ledger(today)
+        outstanding = replayed[row["id"]].outstanding(today).total
         months = months_unpaid(ledger)
         collateral = collateral_of(row, rates, outstanding)
         loan_to_value = collateral.loan_to_value if collateral else None

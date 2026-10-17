@@ -15,16 +15,9 @@ from mortgage_backend import audit
 from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.db import EngineDep, term_change_table
 from mortgage_backend.errors import unprocessable
-from mortgage_backend.ledger import is_accrual_date, terms_on
-from mortgage_backend.mortgages import (
-    Mortgage,
-    MortgageStatus,
-    load_mortgage,
-    mortgage_row,
-    term_changes_of,
-    terms_of,
-    upcoming_accrual_dates,
-)
+from mortgage_backend.ledger import is_accrual_date
+from mortgage_backend.mortgages import Mortgage, load_mortgage, upcoming_accrual_dates
+from mortgage_backend.replay import MortgageStatus, mortgage_row, replay
 from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
 
 
@@ -44,7 +37,8 @@ def apply_term_change(
     conn: Connection, mortgage_id: int, change: TermChangeIn, today: date, now: datetime
 ) -> None:
     """Add a Term Change (or refuse)."""
-    row = mortgage_row(conn, mortgage_id)
+    mortgage = replay(conn, mortgage_id)
+    row = mortgage.row
     if row["status"] != MortgageStatus.ACTIVE:
         raise HTTPException(
             status.HTTP_409_CONFLICT, f"{row['name']} is {row['status']}"
@@ -58,13 +52,12 @@ def apply_term_change(
             "A Term Change starts on an Accrual Date, today or later "
             f"(the next is {next_one:%d %b %Y})"
         )
-    changes = term_changes_of(conn, [mortgage_id])[mortgage_id]
-    if any(c.on == effective_on for c in changes):
+    if any(c.on == effective_on for c in mortgage.term_changes):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             f"There is already a Term Change on {effective_on:%d %b %Y}",
         )
-    before = terms_on(terms_of(row), changes, effective_on)
+    before = mortgage.terms_on(effective_on)
     # Only what differs is stored, so a later Term Change keeps its own effect.
     changed = audit.changes(
         before.model_dump(),

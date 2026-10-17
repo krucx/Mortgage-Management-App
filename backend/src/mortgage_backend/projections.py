@@ -9,29 +9,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.engine import Connection
 
 from mortgage_backend.clock import TodayDep
 from mortgage_backend.collateral import collateral_of, gold_rates
 from mortgage_backend.db import EngineDep
-from mortgage_backend.ledger import (
-    Allocation,
-    HypotheticalPayments,
-    LedgerStep,
-    TermChange,
-    accrual_date,
-    compute_ledger,
-)
-from mortgage_backend.mortgages import (
-    MortgageStatus,
-    allocations_to,
-    ledgers_of,
-    mortgage_row,
-    outstanding_of,
-    quote_redemption,
-    term_changes_of,
-    terms_of,
-)
+from mortgage_backend.ledger import HypotheticalPayments, LedgerStep, accrual_date
+from mortgage_backend.replay import MortgageReplay, MortgageStatus, replay
 from mortgage_backend.terms import Terms
 
 MONTHS_AHEAD = 12
@@ -67,23 +51,13 @@ class Projection(BaseModel):
 
 
 def _series(
-    row: RowMapping,
-    allocations: list[Allocation],
-    changes: list[TermChange],
+    mortgage: MortgageReplay,
     today: date,
     collateral_value: int | None,
     hypothetical: HypotheticalPayments | None,
 ) -> ProjectedSeries:
     def ledger(until: date) -> list[LedgerStep]:
-        return compute_ledger(
-            row["start_date"],
-            row["amount_lent"],
-            terms_of(row),
-            until,
-            allocations,
-            term_changes=changes,
-            hypothetical=hypothetical,
-        )
+        return mortgage.ledger(until, hypothetical)
 
     points = []
     for months in range(MONTHS_AHEAD + 1):
@@ -96,9 +70,7 @@ def _series(
                 on=on,
                 principal=last.principal,
                 unpaid_interest=last.unpaid_interest,
-                redemption_amount=quote_redemption(
-                    row, on, allocations, changes, hypothetical
-                ).total,
+                redemption_amount=mortgage.redemption(on, hypothetical).total,
                 loan_to_value=owed / collateral_value if collateral_value else None,
             )
         )
@@ -125,21 +97,20 @@ def _series(
     )
 
 
-def _inputs(
-    conn: Connection, row: RowMapping, today: date
-) -> tuple[list[Allocation], list[TermChange], int | None]:
-    """What a Projection replays: Allocations, Term Changes, today's Collateral Value."""
-    allocations = allocations_to(conn, [row["id"]])[row["id"]]
-    changes = term_changes_of(conn, [row["id"]])[row["id"]]
-    today_owed = outstanding_of(ledgers_of(conn, [row], today)[row["id"]]).total
-    collateral = collateral_of(row, gold_rates(conn), today_owed)
-    return allocations, changes, collateral.value if collateral else None
+def _collateral_value(
+    conn: Connection, mortgage: MortgageReplay, today: date
+) -> int | None:
+    """Today's Collateral Value, which a Projection's Loan-to-Value is measured against."""
+    owed = mortgage.outstanding(today).total
+    collateral = collateral_of(mortgage.row, gold_rates(conn), owed)
+    return collateral.value if collateral else None
 
 
-def baseline(conn: Connection, row: RowMapping, today: date) -> ProjectedSeries:
+def baseline(
+    conn: Connection, mortgage: MortgageReplay, today: date
+) -> ProjectedSeries:
     """The Projection with no further Payments."""
-    allocations, changes, value = _inputs(conn, row, today)
-    return _series(row, allocations, changes, today, value, None)
+    return _series(mortgage, today, _collateral_value(conn, mortgage, today), None)
 
 
 router = APIRouter(prefix="/api")
@@ -155,12 +126,13 @@ def project(
     """Where the Mortgage is heading: with no more Payments, and with `monthly_payment`
     (paise) paid on every Accrual Date."""
     with engine.connect() as conn:
-        row = mortgage_row(conn, mortgage_id)
+        mortgage = replay(conn, mortgage_id)
+        row = mortgage.row
         if row["status"] != MortgageStatus.ACTIVE:
             raise HTTPException(
                 status.HTTP_409_CONFLICT, f"{row['name']} is {row['status']}"
             )
-        allocations, changes, value = _inputs(conn, row, today)
+        value = _collateral_value(conn, mortgage, today)
     hypothetical = (
         HypotheticalPayments(after=today, amount=monthly_payment)
         if monthly_payment
@@ -170,10 +142,8 @@ def project(
         as_of=today,
         collateral_value=value,
         monthly_payment=monthly_payment,
-        baseline=_series(row, allocations, changes, today, value, None),
+        baseline=_series(mortgage, today, value, None),
         what_if=(
-            _series(row, allocations, changes, today, value, hypothetical)
-            if hypothetical
-            else None
+            _series(mortgage, today, value, hypothetical) if hypothetical else None
         ),
     )

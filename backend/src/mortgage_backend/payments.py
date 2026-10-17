@@ -25,7 +25,7 @@ from mortgage_backend.db import (
 from mortgage_backend.errors import unprocessable
 from mortgage_backend.ledger import Overpayment
 from mortgage_backend.money import format_inr
-from mortgage_backend.mortgages import MortgageStatus, ledgers_of
+from mortgage_backend.replay import MortgageStatus, replays
 
 
 class PaymentMethod(StrEnum):
@@ -133,13 +133,15 @@ def _load_payment(conn: Connection, payment_id: int) -> Payment:
     voided = payment.voided_at is not None
     # How it was applied comes from the replay, so it reflects every earlier Payment; a
     # Voided Payment is in no Ledger, so only its amounts remain.
-    ledgers = {} if voided else ledgers_of(conn, mortgages, payment.paid_on)
+    replayed = {} if voided else replays(conn, mortgages)
     allocations = []
     for mortgage in mortgages:
         step = None
         if not voided:
             step = next(
-                s for s in ledgers[mortgage["id"]] if s.payment_id == payment_id
+                s
+                for s in replayed[mortgage["id"]].ledger(payment.paid_on)
+                if s.payment_id == payment_id
             )
         allocations.append(
             AllocationOut(
@@ -209,9 +211,11 @@ def void_payment(conn: Connection, payment_id: int, reason: str, at: datetime) -
 
 def check_no_overpayment(conn: Connection, payment_id: int, today: date) -> None:
     """Replay each Mortgage the Payment touches; no Allocation may pay more than is owed."""
-    for mortgage in mortgages_of(conn, payment_id):
+    mortgages = mortgages_of(conn, payment_id)
+    replayed = replays(conn, mortgages)
+    for mortgage in mortgages:
         try:
-            ledgers_of(conn, [mortgage], today)
+            replayed[mortgage["id"]].ledger(today)
         except Overpayment as over:
             if over.payment_id == payment_id:
                 raise unprocessable(

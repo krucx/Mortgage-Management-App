@@ -4,28 +4,19 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update
-from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy import update
+from sqlalchemy.engine import Connection
 
 from mortgage_backend import audit
 from mortgage_backend.clock import NowDep, TodayDep
-from mortgage_backend.db import (
-    EngineDep,
-    allocation_table,
-    mortgage_table,
-    payment_table,
-)
+from mortgage_backend.db import EngineDep, mortgage_table
 from mortgage_backend.errors import unprocessable
 from mortgage_backend.money import format_inr
 from mortgage_backend.mortgages import (
     Mortgage,
     MortgageRow,
-    MortgageStatus,
-    Redemption,
     load_mortgage,
-    mortgage_row,
     mortgage_rows,
-    redemption_on,
     select_with_customer,
 )
 from mortgage_backend.payments import (
@@ -36,6 +27,14 @@ from mortgage_backend.payments import (
     check_no_overpayment,
     insert_payment,
     void_payment,
+)
+from mortgage_backend.replay import (
+    MortgageReplay,
+    MortgageStatus,
+    Redemption,
+    mortgage_row,
+    replay,
+    replays,
 )
 
 
@@ -60,15 +59,10 @@ class ForfeitIn(BaseModel):
 
 def _closable(
     conn: Connection, mortgage_id: int, on: date, today: date, quote_only: bool = False
-) -> RowMapping:
-    """The Mortgage row, if it can be closed on `on` (or, for a quote, could be then)."""
-    row = (
-        conn.execute(select(mortgage_table).where(mortgage_table.c.id == mortgage_id))
-        .mappings()
-        .first()
-    )
-    if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
+) -> MortgageReplay:
+    """The Mortgage, if it can be closed on `on` (or, for a quote, could be then)."""
+    mortgage = replay(conn, mortgage_id)
+    row = mortgage.row
     if row["status"] != MortgageStatus.ACTIVE:
         raise unprocessable(f"{row['name']} is already {row['status']}")
     if on > today and not quote_only:
@@ -77,22 +71,13 @@ def _closable(
         )
     if on < row["start_date"]:
         raise unprocessable(f"{row['name']} had not started on that date")
-    later = conn.execute(
-        select(payment_table.c.paid_on)
-        .join(allocation_table, allocation_table.c.payment_id == payment_table.c.id)
-        .where(
-            allocation_table.c.mortgage_id == mortgage_id,
-            payment_table.c.paid_on > on,
-            payment_table.c.voided_at.is_(None),
-        )
-        .order_by(payment_table.c.paid_on.desc())
-    ).first()
+    later = max((a.on for a in mortgage.allocations if a.on > on), default=None)
     if later is not None:
         raise unprocessable(
-            f"There are Payments after that date (latest {later.paid_on:%d %b %Y}); "
+            f"There are Payments after that date (latest {later:%d %b %Y}); "
             "close it on or after then"
         )
-    return row
+    return mortgage
 
 
 def _close(conn: Connection, mortgage_id: int, **values: object) -> None:
@@ -112,8 +97,7 @@ def redemption_amount(
 ) -> Redemption:
     """What it takes to redeem the Mortgage on `on`."""
     with engine.connect() as conn:
-        row = _closable(conn, mortgage_id, on, today, quote_only=True)
-        return redemption_on(conn, row, on)
+        return _closable(conn, mortgage_id, on, today, quote_only=True).redemption(on)
 
 
 @router.post("/mortgages/{mortgage_id}/redeem")
@@ -122,8 +106,9 @@ def redeem(
 ) -> Mortgage:
     """Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed."""
     with engine.begin() as conn:
-        row = _closable(conn, mortgage_id, redeem.redeemed_on, today)
-        owed = redemption_on(conn, row, redeem.redeemed_on).total
+        mortgage = _closable(conn, mortgage_id, redeem.redeemed_on, today)
+        row = mortgage.row
+        owed = mortgage.redemption(redeem.redeemed_on).total
         payment_id = None
         if owed > 0:
             payment_id = insert_payment(
@@ -237,8 +222,11 @@ def ready_to_redeem(engine: EngineDep, today: TodayDep) -> list[ReadyToRedeem]:
             .all()
         )
         listed = mortgage_rows(conn, rows, today)
+        replayed = replays(conn, rows)
         return [
-            ReadyToRedeem(mortgage=mortgage, redemption=redemption_on(conn, row, today))
-            for row, mortgage in zip(rows, listed, strict=True)
+            ReadyToRedeem(
+                mortgage=mortgage, redemption=replayed[mortgage.id].redemption(today)
+            )
+            for mortgage in listed
             if mortgage.outstanding_total == 0
         ]
