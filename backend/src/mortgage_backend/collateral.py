@@ -5,11 +5,11 @@ from typing import Literal, get_args
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.clock import TodayDep
-from mortgage_backend.db import EngineDep, config_table, set_config
+from mortgage_backend.db import EngineDep
+from mortgage_backend.settings import ConfigGroup
 
 Purity = Literal[24, 22, 20, 18, 14]
 PURITIES: tuple[int, ...] = get_args(Purity)
@@ -33,28 +33,28 @@ class Collateral(BaseModel):
     loan_to_value: float  # Outstanding ÷ Collateral Value
 
 
-def _rate_key(purity: int) -> str:
-    return f"gold_rate_{purity}"
+class _StoredGoldRate(BaseModel):
+    rate_per_gram: int | None = None  # paise
+    updated_on: date | None = None
 
 
-def _date_key(purity: int) -> str:
-    return f"gold_rate_{purity}_updated_on"
+# One group per purity, unset until the Lender sets it.
+_GOLD_RATES = {
+    purity: ConfigGroup(
+        _StoredGoldRate,
+        {
+            "rate_per_gram": f"gold_rate_{purity}",
+            "updated_on": f"gold_rate_{purity}_updated_on",
+        },
+    )
+    for purity in PURITIES
+}
 
 
 def gold_rates(conn: Connection) -> dict[int, GoldRate]:
-    rows = conn.execute(
-        select(config_table.c.key, config_table.c.value).where(
-            config_table.c.key.like("gold_rate_%")
-        )
-    )
-    values = {key: value for key, value in rows}
     return {
-        purity: GoldRate(
-            purity_karat=purity,
-            rate_per_gram=values.get(_rate_key(purity)),
-            updated_on=values.get(_date_key(purity)),
-        )
-        for purity in PURITIES
+        purity: GoldRate(purity_karat=purity, **dict(group.get(conn)))
+        for purity, group in _GOLD_RATES.items()
     }
 
 
@@ -104,6 +104,9 @@ def update_gold_rates(
         current = gold_rates(conn)
         for rate in rates:
             if current[rate.purity_karat].rate_per_gram != rate.rate_per_gram:
-                set_config(conn, _rate_key(rate.purity_karat), str(rate.rate_per_gram))
-                set_config(conn, _date_key(rate.purity_karat), today.isoformat())
+                _GOLD_RATES[rate.purity_karat].set(
+                    conn,
+                    _StoredGoldRate(rate_per_gram=rate.rate_per_gram, updated_on=today),
+                    today,
+                )
         return list(gold_rates(conn).values())

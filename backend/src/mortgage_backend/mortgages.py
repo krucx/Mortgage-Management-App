@@ -30,7 +30,7 @@ from mortgage_backend.db import (
     mortgage_photo_table,
     mortgage_table,
 )
-from mortgage_backend.default_terms import get_default_terms
+from mortgage_backend.default_terms import DEFAULT_TERMS
 from mortgage_backend.errors import unprocessable
 from mortgage_backend.ledger import (
     LedgerStep,
@@ -351,7 +351,7 @@ def create_mortgage(
             )
         else:
             name = mortgage.name
-        terms = mortgage.terms or get_default_terms(conn)
+        terms = mortgage.terms or DEFAULT_TERMS.get(conn)
         mortgage_id = conn.execute(
             insert(mortgage_table)
             .values(

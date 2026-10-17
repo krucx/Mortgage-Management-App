@@ -13,13 +13,12 @@ from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, close
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.main import create_app
-from mortgage_backend.message_settings import get_message_settings
+from mortgage_backend.message_settings import MESSAGE_SETTINGS, MessageSettings
 from mortgage_backend.notices import (
     NoticeAction,
     NoticeNotFound,
     NoticeRefused,
     act,
-    change_message_settings,
     list_notices,
     sync,
 )
@@ -29,8 +28,8 @@ NOW = datetime(2026, 5, 12, 10, 0)
 
 
 def settings(conn: Connection, today: date = TODAY, **changes: object) -> None:
-    change_message_settings(
-        conn, get_message_settings(conn).model_copy(update=changes), today
+    MESSAGE_SETTINGS.set(
+        conn, MESSAGE_SETTINGS.get(conn).model_copy(update=changes), today
     )
 
 
@@ -524,3 +523,11 @@ def test_a_notice_with_nothing_to_say_can_only_be_skipped(conn: Connection) -> N
 def test_acting_on_a_missing_notice_is_refused(conn: Connection) -> None:
     with pytest.raises(NoticeNotFound):
         act(conn, 404, NoticeAction.SKIP, NOW)
+
+
+def test_saving_message_settings_syncs_the_notices_at_once(conn: Connection) -> None:
+    add_mortgage(conn, add_customer(conn), start_date=date(2026, 1, 25))
+
+    MESSAGE_SETTINGS.set(conn, MessageSettings(notice_days_before=15), TODAY)
+
+    assert [n.accrues_on for n in list_notices(conn)] == [date(2026, 5, 25)]

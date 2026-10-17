@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from mortgage_backend import (
@@ -17,6 +17,7 @@ from mortgage_backend import (
     collateral,
     customers,
     dashboard,
+    default_terms,
     mortgages,
     notices,
     payments,
@@ -32,29 +33,11 @@ from mortgage_backend.backups import (
 )
 from mortgage_backend.daily_run import DailyRun
 from mortgage_backend.db import (
-    EngineDep,
     database_url_from_env,
     make_engine,
     migrate,
     photos_dir,
 )
-from mortgage_backend.default_terms import get_default_terms, set_default_terms
-from mortgage_backend.terms import Terms
-
-router = APIRouter(prefix="/api")
-
-
-@router.get("/settings/default-terms")
-def read_default_terms(engine: EngineDep) -> Terms:
-    with engine.connect() as conn:
-        return get_default_terms(conn)
-
-
-@router.put("/settings/default-terms")
-def update_default_terms(terms: Terms, engine: EngineDep) -> Terms:
-    with engine.begin() as conn:
-        set_default_terms(conn, terms)
-        return get_default_terms(conn)
 
 
 def create_app(
@@ -107,7 +90,7 @@ def create_app(
             await run_in_threadpool(daily_run.run_if_due)
         return await call_next(request)
 
-    app.include_router(router)
+    app.include_router(default_terms.router)
     app.include_router(customers.router)
     app.include_router(mortgages.router)
     app.include_router(payments.router)

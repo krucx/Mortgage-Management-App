@@ -10,13 +10,19 @@ import threading
 from collections.abc import Callable
 from datetime import date
 
+from pydantic import BaseModel
 from sqlalchemy.engine import Engine
 
-from mortgage_backend.db import get_config, set_config
+from mortgage_backend.settings import ConfigGroup
 
 log = logging.getLogger(__name__)
 
-_LAST_RUN_KEY = "last_daily_run"
+
+class _LastRun(BaseModel):
+    ran_on: date | None = None
+
+
+_LAST_RUN = ConfigGroup(_LastRun, {"ran_on": "last_daily_run"})
 
 DailyJob = Callable[[date], None]
 
@@ -35,10 +41,9 @@ class DailyRun:
         """Run every job once if they have not run today. Jobs must return quickly."""
         today = self.today()
         with self._lock, self.engine.begin() as conn:
-            last = get_config(conn, [_LAST_RUN_KEY]).get(_LAST_RUN_KEY)
-            if last == today.isoformat():
+            if _LAST_RUN.get(conn).ran_on == today:
                 return
-            set_config(conn, _LAST_RUN_KEY, today.isoformat())
+            _LAST_RUN.set(conn, _LastRun(ran_on=today), today)
             self.count += 1
         for job in self.jobs:
             try:

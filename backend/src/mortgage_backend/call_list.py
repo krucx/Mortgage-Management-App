@@ -17,14 +17,13 @@ from mortgage_backend.db import (
     call_note_table,
     customer_table,
     exists,
-    get_config,
     mortgage_table,
-    set_config,
 )
 from mortgage_backend.ledger import months_unpaid
 from mortgage_backend.mortgages import select_with_customer
 from mortgage_backend.paging import PAGE_SIZE, PageNumber, page_of
 from mortgage_backend.replay import MortgageReplay, MortgageStatus, replays
+from mortgage_backend.settings import ConfigGroup
 
 Reason = Literal["months_unpaid", "loan_to_value", "accrues_today"]
 
@@ -74,17 +73,7 @@ class CallListPage(BaseModel):
     page_size: int
 
 
-_CONFIG_KEY_BY_FIELD = {
-    "months_unpaid": "call_list_months_unpaid",
-    "loan_to_value_pct": "call_list_loan_to_value_pct",
-}
-
-
-def get_settings(conn: Connection) -> CallListSettings:
-    values = get_config(conn, _CONFIG_KEY_BY_FIELD.values())
-    return CallListSettings.model_validate(
-        {f: values[k] for f, k in _CONFIG_KEY_BY_FIELD.items() if k in values}
-    )
+CALL_LIST_SETTINGS = ConfigGroup.prefixed("call_list_", CallListSettings)
 
 
 def _todays_notes(conn: Connection, today: date) -> dict[int, CallNote]:
@@ -104,7 +93,7 @@ def call_list(
 ) -> list[CallListGroup]:
     """Today's Call List, from `replayed` (covering every Active Mortgage) when the
     caller has replayed them already."""
-    settings = get_settings(conn)
+    settings = CALL_LIST_SETTINGS.get(conn)
     rows = (
         conn.execute(
             select_with_customer()
@@ -199,17 +188,16 @@ def read_call_list(
 @router.get("/settings/call-list")
 def read_call_list_settings(engine: EngineDep) -> CallListSettings:
     with engine.connect() as conn:
-        return get_settings(conn)
+        return CALL_LIST_SETTINGS.get(conn)
 
 
 @router.put("/settings/call-list")
 def update_call_list_settings(
-    settings: CallListSettings, engine: EngineDep
+    settings: CallListSettings, engine: EngineDep, today: TodayDep
 ) -> CallListSettings:
     with engine.begin() as conn:
-        for field, key in _CONFIG_KEY_BY_FIELD.items():
-            set_config(conn, key, str(getattr(settings, field)))
-        return get_settings(conn)
+        CALL_LIST_SETTINGS.set(conn, settings, today)
+        return CALL_LIST_SETTINGS.get(conn)
 
 
 def _not_found_unless_exists(conn: Connection, mortgage_id: int) -> None:

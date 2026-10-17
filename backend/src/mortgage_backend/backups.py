@@ -18,10 +18,11 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.engine import Engine
 
-from mortgage_backend.db import database_file, get_config, photos_dir, set_config
+from mortgage_backend.db import database_file, photos_dir
+from mortgage_backend.settings import ConfigGroup
 
 log = logging.getLogger(__name__)
 
@@ -30,12 +31,6 @@ DEFAULT_KEEP = 4
 _BACKUP_NAME = re.compile(
     r"^mortgage-backup-\d{4}-\d{2}-\d{2}-\d{4}(-[a-z0-9-]+)?\.zip$"
 )
-_KEYS = {
-    "keep": "backup_keep",
-    "last_at": "backup_last_at",
-    "last_file": "backup_last_file",
-    "last_error": "backup_last_error",
-}
 
 
 def backup_dir_from_env() -> Path:
@@ -60,6 +55,24 @@ class BackupSettings(BaseModel):
     keep: int = Field(ge=1)  # how many Backups to keep
 
 
+class _StoredBackupSettings(BackupSettings):
+    keep: int = Field(default=DEFAULT_KEEP, ge=1)
+
+
+class _LastBackup(BaseModel):
+    """The latest Backup and attempt, as the app records them for itself."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    last_at: datetime | None = None
+    last_file: str | None = None
+    last_error: str = ""  # from the latest attempt, if it failed
+
+
+_SETTINGS = ConfigGroup.prefixed("backup_", _StoredBackupSettings)
+_LAST_BACKUP = ConfigGroup.prefixed("backup_", _LastBackup)
+
+
 class Backups:
     def __init__(
         self,
@@ -79,37 +92,36 @@ class Backups:
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
 
-    def _config(self) -> dict[str, str]:
-        with self.engine.connect() as conn:
-            return get_config(conn, _KEYS.values())
-
-    def _record(self, **values: str) -> None:
+    def _record(self, **values: object) -> None:
         with self.engine.begin() as conn:
-            for field, value in values.items():
-                set_config(conn, _KEYS[field], value)
+            last = _LAST_BACKUP.get(conn).model_dump()
+            _LAST_BACKUP.set(
+                conn, _LastBackup.model_validate(last | values), self.now().date()
+            )
 
     def keep(self) -> int:
         return self.status().keep
 
     def set_keep(self, keep: int) -> None:
         """Keep the last `keep` Backups; any older ones go now, not at the next Backup."""
-        self._record(keep=str(keep))
+        with self.engine.begin() as conn:
+            _SETTINGS.set(conn, _StoredBackupSettings(keep=keep), self.now().date())
         # A running Backup prunes when it finishes; pruning now could count its
         # unfinished file as the newest.
         if self.backup_dir is not None and not self.running:
             self._prune()
 
     def status(self) -> BackupStatus:
-        config = self._config()
-        last_at = config.get(_KEYS["last_at"])
+        with self.engine.connect() as conn:
+            last, settings = _LAST_BACKUP.get(conn), _SETTINGS.get(conn)
         return BackupStatus(
             enabled=self.backup_dir is not None,
             encrypted=bool(self.password),
             running=self.running,
-            last_backup_at=datetime.fromisoformat(last_at) if last_at else None,
-            last_backup_file=config.get(_KEYS["last_file"]),
-            last_error=config.get(_KEYS["last_error"]) or None,
-            keep=int(config.get(_KEYS["keep"], DEFAULT_KEEP)),
+            last_backup_at=last.last_at,
+            last_backup_file=last.last_file,
+            last_error=last.last_error or None,
+            keep=settings.keep,
         )
 
     @property
@@ -143,7 +155,7 @@ class Backups:
             os.replace(partial, self.backup_dir / name)
         finally:
             self.clean_leftovers()
-        self._record(last_at=taken_at.isoformat(), last_file=name, last_error="")
+        self._record(last_at=taken_at, last_file=name, last_error="")
         self._prune()
         return self.backup_dir / name
 

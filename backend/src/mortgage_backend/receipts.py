@@ -13,7 +13,7 @@ from sqlalchemy.engine import Connection
 
 from mortgage_backend.customers import PersonSummary, phones_of
 from mortgage_backend.db import EngineDep, customer_table, payment_table
-from mortgage_backend.message_settings import get_message_settings
+from mortgage_backend.message_settings import MESSAGE_SETTINGS
 from mortgage_backend.messages import (
     ReceiptLine,
     ReceiptMessage,
@@ -89,7 +89,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         )
     method = METHOD_NAMES[PaymentMethod(payment["method"])]
     text = receipt_text(
-        get_message_settings(conn).receipt_template,
+        MESSAGE_SETTINGS.get(conn).receipt_template,
         ReceiptMessage(
             customer_name=payment["name"],
             paid_on=payment["paid_on"],

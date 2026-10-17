@@ -1,10 +1,12 @@
 """The Lender's settings for messages to Customers: the Receipt and Notice templates,
 how many days ahead Notices are queued, and whether they need approving first."""
 
+from datetime import date
+
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.db import get_config, set_config
+from mortgage_backend.settings import ConfigGroup
 
 RECEIPT_TEMPLATE = (
     "*Payment received* ✅\n"
@@ -38,25 +40,14 @@ class MessageSettings(BaseModel):
     notice_approve_first: bool = False
 
 
-_CONFIG_KEY_BY_FIELD = {
-    field: f"message_{field}" for field in MessageSettings.model_fields
-}
+def _sync_notices(conn: Connection, today: date) -> None:
+    """Saving these syncs the Notices to them at once."""
+    # Imported here: the Notice queue reads these settings itself.
+    from mortgage_backend import notices
+
+    notices.sync(conn, today)
 
 
-def get_message_settings(conn: Connection) -> MessageSettings:
-    stored = get_config(conn, _CONFIG_KEY_BY_FIELD.values())
-    return MessageSettings.model_validate(
-        {
-            field: stored[key]
-            for field, key in _CONFIG_KEY_BY_FIELD.items()
-            if key in stored
-        }
-    )
-
-
-def set_message_settings(conn: Connection, settings: MessageSettings) -> None:
-    for field, key in _CONFIG_KEY_BY_FIELD.items():
-        value = getattr(settings, field)
-        set_config(
-            conn, key, str(value).lower() if isinstance(value, bool) else str(value)
-        )
+MESSAGE_SETTINGS = ConfigGroup.prefixed(
+    "message_", MessageSettings, after_set=[_sync_notices]
+)

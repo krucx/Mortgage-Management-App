@@ -33,11 +33,7 @@ from mortgage_backend.db import (
     notice_table,
 )
 from mortgage_backend.ledger import accrual_date, is_accrual_date
-from mortgage_backend.message_settings import (
-    MessageSettings,
-    get_message_settings,
-    set_message_settings,
-)
+from mortgage_backend.message_settings import MESSAGE_SETTINGS, MessageSettings
 from mortgage_backend.messages import (
     NoticeLine,
     NoticeMessage,
@@ -95,7 +91,7 @@ def sync(conn: Connection, today: date) -> None:
     Notice then awaits approval if "approve first" is on and the Lender has not approved
     it, and is queued otherwise; while it is off, approvals are forgotten, so turning it
     on again holds every unsent Notice. Syncing twice changes nothing."""
-    settings = get_message_settings(conn)
+    settings = MESSAGE_SETTINGS.get(conn)
     until = today + timedelta(days=settings.notice_days_before)
     conn.execute(
         delete(notice_table).where(
@@ -244,7 +240,7 @@ def list_notices(
     if notice_id is not None:
         query = query.where(notice_table.c.id == notice_id)
     rows = conn.execute(query).mappings().all()
-    template = get_message_settings(conn).notice_template
+    template = MESSAGE_SETTINGS.get(conn).notice_template
     kept: dict[int, list[MortgageLink]] = defaultdict(list)
     for link in conn.execute(
         select(
@@ -356,13 +352,6 @@ def act(
     return list_notices(conn, notice_id=notice_id)[0]
 
 
-def change_message_settings(
-    conn: Connection, settings: MessageSettings, today: date
-) -> None:
-    """Save the settings, and sync the Notices to them at once."""
-    set_message_settings(conn, settings)
-    sync(conn, today)
-
 
 router = APIRouter(prefix="/api")
 
@@ -370,7 +359,7 @@ router = APIRouter(prefix="/api")
 @router.get("/settings/messages")
 def read_message_settings(engine: EngineDep) -> MessageSettings:
     with engine.connect() as conn:
-        return get_message_settings(conn)
+        return MESSAGE_SETTINGS.get(conn)
 
 
 @router.put("/settings/messages")
@@ -378,8 +367,8 @@ def update_message_settings(
     settings: MessageSettings, engine: EngineDep, today: TodayDep
 ) -> MessageSettings:
     with engine.begin() as conn:
-        change_message_settings(conn, settings, today)
-        return get_message_settings(conn)
+        MESSAGE_SETTINGS.set(conn, settings, today)
+        return MESSAGE_SETTINGS.get(conn)
 
 
 @router.get("/notices")
