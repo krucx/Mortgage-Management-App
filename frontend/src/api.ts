@@ -87,6 +87,10 @@ export type ForfeitIn = Schemas['ForfeitIn']
 export type ReadyToRedeem = Schemas['ReadyToRedeem']
 export type Closure = Schemas['Closure']
 
+/** The whole lending book at a glance. */
+export type Dashboard = Schemas['Dashboard']
+export type MonthlyCollection = Schemas['MonthlyCollection']
+
 /** Turns a FastAPI error body into one readable line. */
 function errorMessage(status: number, body: unknown): string {
   const detail = (body as { detail?: unknown } | null)?.detail
@@ -142,6 +146,8 @@ export const api = {
   backUpNow: () => request<BackupStatus>('/backups', { method: 'POST' }),
   updateBackupSettings: (keep: number) =>
     request<BackupStatus>('/settings/backups', sendJson('PUT', { keep })),
+
+  getDashboard: () => request<Dashboard>('/dashboard'),
 
   getCallList: () => request<CallListGroup[]>('/call-list'),
   listCallNotes: (mortgageId: number) => request<CallNote[]>(`/mortgages/${mortgageId}/call-notes`),

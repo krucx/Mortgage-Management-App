@@ -25,3 +25,12 @@ export function todayIso(): string {
 /** A ratio as a percentage with one decimal, e.g. 0.9561 → "95.6%". */
 export const formatPercent = (ratio: number) =>
   `${(ratio * 100).toLocaleString('en-IN', { maximumFractionDigits: 1 })}%`
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "2026-04" → "Apr 2026" (or just "Apr" when `short`). */
+export function monthName(month: string, short = false): string {
+  const [year, number] = month.split('-')
+  const name = MONTHS[Number(number) - 1]
+  return short ? name : `${name} ${year}`
+}

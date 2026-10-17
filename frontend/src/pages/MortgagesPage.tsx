@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { api, type MortgagePage, type MortgageStatus } from '../api'
 import { MortgageTable } from '../components/MortgageTable'
 import { Pager } from '../components/Pager'
@@ -10,7 +10,11 @@ export function MortgagesPage() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounced(query)
   const [page, setPage] = useState(1)
-  const [statusFilter, setStatusFilter] = useState<MortgageStatus | ''>('active')
+  const [searchParams] = useSearchParams()
+  // A link may open a status (e.g. the Dashboard's Redeemed this month); else Active.
+  const [statusFilter, setStatusFilter] = useState<MortgageStatus | ''>(
+    (searchParams.get('status') as MortgageStatus | null) ?? 'active',
+  )
   const [result, setResult] = useState<MortgagePage | null>(null)
   const [error, setError] = useState<string | null>(null)
 

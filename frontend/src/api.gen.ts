@@ -139,6 +139,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Dashboard */
+        get: operations["read_dashboard_api_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mortgages": {
         parameters: {
             query?: never;
@@ -973,6 +990,40 @@ export interface components {
             photo_url: string | null;
             referrer: components["schemas"]["PersonSummary"] | null;
         };
+        /** Dashboard */
+        Dashboard: {
+            /** Active Mortgages */
+            active_mortgages: number;
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Call List Count */
+            call_list_count: number;
+            /** Collateral Value */
+            collateral_value: number;
+            /** Customers With Active Mortgages */
+            customers_with_active_mortgages: number;
+            /** Forfeited This Month */
+            forfeited_this_month: number;
+            /** Forfeiture Profit Loss This Month */
+            forfeiture_profit_loss_this_month: number;
+            /** Interest Collected This Month */
+            interest_collected_this_month: number;
+            /** Interest Collected This Year */
+            interest_collected_this_year: number;
+            /** Loan To Value */
+            loan_to_value: number | null;
+            /** Monthly Collections */
+            monthly_collections: components["schemas"]["MonthlyCollection"][];
+            /** Principal Outstanding */
+            principal_outstanding: number;
+            /** Redeemed This Month */
+            redeemed_this_month: number;
+            /** Unpaid Interest */
+            unpaid_interest: number;
+        };
         /** ExistingCustomerReferrer */
         ExistingCustomerReferrer: {
             /** Id */
@@ -1099,6 +1150,13 @@ export interface components {
             terms?: components["schemas"]["Terms"] | null;
             /** Unpaid Interest */
             unpaid_interest: number;
+        };
+        /** MonthlyCollection */
+        MonthlyCollection: {
+            /** Amount */
+            amount: number;
+            /** Month */
+            month: string;
         };
         /**
          * Mortgage
@@ -1862,6 +1920,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_dashboard_api_dashboard_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
                 };
             };
         };

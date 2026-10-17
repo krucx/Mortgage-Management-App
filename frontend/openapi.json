@@ -831,6 +831,95 @@
         "title": "CustomerRow",
         "type": "object"
       },
+      "Dashboard": {
+        "properties": {
+          "active_mortgages": {
+            "title": "Active Mortgages",
+            "type": "integer"
+          },
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "call_list_count": {
+            "title": "Call List Count",
+            "type": "integer"
+          },
+          "collateral_value": {
+            "title": "Collateral Value",
+            "type": "integer"
+          },
+          "customers_with_active_mortgages": {
+            "title": "Customers With Active Mortgages",
+            "type": "integer"
+          },
+          "forfeited_this_month": {
+            "title": "Forfeited This Month",
+            "type": "integer"
+          },
+          "forfeiture_profit_loss_this_month": {
+            "title": "Forfeiture Profit Loss This Month",
+            "type": "integer"
+          },
+          "interest_collected_this_month": {
+            "title": "Interest Collected This Month",
+            "type": "integer"
+          },
+          "interest_collected_this_year": {
+            "title": "Interest Collected This Year",
+            "type": "integer"
+          },
+          "loan_to_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loan To Value"
+          },
+          "monthly_collections": {
+            "items": {
+              "$ref": "#/components/schemas/MonthlyCollection"
+            },
+            "title": "Monthly Collections",
+            "type": "array"
+          },
+          "principal_outstanding": {
+            "title": "Principal Outstanding",
+            "type": "integer"
+          },
+          "redeemed_this_month": {
+            "title": "Redeemed This Month",
+            "type": "integer"
+          },
+          "unpaid_interest": {
+            "title": "Unpaid Interest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "as_of",
+          "active_mortgages",
+          "customers_with_active_mortgages",
+          "principal_outstanding",
+          "unpaid_interest",
+          "interest_collected_this_month",
+          "interest_collected_this_year",
+          "collateral_value",
+          "loan_to_value",
+          "call_list_count",
+          "redeemed_this_month",
+          "forfeited_this_month",
+          "forfeiture_profit_loss_this_month",
+          "monthly_collections"
+        ],
+        "title": "Dashboard",
+        "type": "object"
+      },
       "ExistingCustomerReferrer": {
         "properties": {
           "id": {
@@ -1120,6 +1209,24 @@
           "unpaid_interest"
         ],
         "title": "LedgerStep",
+        "type": "object"
+      },
+      "MonthlyCollection": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "amount"
+        ],
+        "title": "MonthlyCollection",
         "type": "object"
       },
       "Mortgage": {
@@ -2723,6 +2830,24 @@
           }
         },
         "summary": "Replace Customer Photo"
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "operationId": "read_dashboard_api_dashboard_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Dashboard"
       }
     },
     "/api/mortgages": {
