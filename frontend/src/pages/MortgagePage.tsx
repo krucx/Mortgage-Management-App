@@ -23,8 +23,9 @@ import {
   mortgageHistoryQuery,
   mortgageQuery,
   previews,
+  removeMortgagePhoto,
 } from '../requests'
-import { dataOrThrow, keys, useMortgageChange, useServerState } from '../serverState'
+import { keys, useMortgageChange, useServerState } from '../serverState'
 import { describeTerms, formatRate, PART_MONTH_RULES } from '../terms'
 
 /** Ledger steps shown on the page; the rest are in the complete Ledger popup. */
@@ -46,8 +47,6 @@ export function MortgagePage() {
   const [reopening, setReopening] = useState(false)
   const [fullLedger, setFullLedger] = useState(false)
 
-  const pathParams = { mortgage_id: id }
-
   async function addPhotos(blobs: Blob[]) {
     setError(null)
     try {
@@ -66,13 +65,7 @@ export function MortgagePage() {
     })
     if (!confirmed) return
     try {
-      setMortgage(
-        await dataOrThrow(
-          client.DELETE('/api/mortgages/{mortgage_id}/photos/{photo_id}', {
-            params: { path: { ...pathParams, photo_id: photoId } },
-          }),
-        ),
-      )
+      setMortgage(await removeMortgagePhoto(client, id, photoId))
     } catch (err) {
       setError((err as Error).message)
     }

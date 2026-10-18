@@ -12,6 +12,26 @@
       {
         "allowConstantExport": true
       }
+    ],
+    "no-restricted-globals": [
+      "error",
+      {
+        "name": "fetch",
+        "message": "Ask the backend through the typed client (src/serverState.ts, src/requests.ts), never with fetch directly."
+      }
+    ],
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "window",
+        "property": "fetch",
+        "message": "Ask the backend through the typed client (src/serverState.ts, src/requests.ts), never with fetch directly."
+      },
+      {
+        "object": "globalThis",
+        "property": "fetch",
+        "message": "Ask the backend through the typed client (src/serverState.ts, src/requests.ts), never with fetch directly."
+      }
     ]
   },
   "overrides": [
@@ -21,6 +41,14 @@
       ],
       "rules": {
         "react/only-export-components": "off"
+      }
+    },
+    {
+      "files": [
+        "src/serverState.ts"
+      ],
+      "rules": {
+        "no-restricted-properties": "off"
       }
     }
   ]

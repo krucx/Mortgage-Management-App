@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { dataOrThrow, keys, useServerState } from '../serverState'
+import { readyToRedeemCountQuery } from '../requests'
+import { useServerState } from '../serverState'
 
 /**
  * How many Mortgages are paid off and waiting to be Redeemed; asked for again whenever
@@ -7,11 +8,5 @@ import { dataOrThrow, keys, useServerState } from '../serverState'
  */
 export function useReadyToRedeemCount(): number {
   const { client } = useServerState()
-  const { data } = useQuery({
-    queryKey: keys.readyToRedeem,
-    queryFn: () =>
-      dataOrThrow(client.GET('/api/closures/ready-to-redeem', { params: { query: { page: 1 } } })),
-    select: (ready) => ready.total,
-  })
-  return data ?? 0
+  return useQuery(readyToRedeemCountQuery(client)).data ?? 0
 }

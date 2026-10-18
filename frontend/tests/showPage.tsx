@@ -1,5 +1,6 @@
 // Renders a page the way the app does (inside the server state and a router) against a
-// fake backend. Requests from code still on the old fetch functions go to it too.
+// fake backend. A request made with fetch directly, not through the typed client, fails
+// the test.
 import { render } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
@@ -16,9 +17,9 @@ function Elsewhere() {
 
 /** Shows `at`, with each of `routes` (path → page) reachable; anywhere else is Elsewhere. */
 export function showPage(server: FakeServer, at: string, routes: Record<string, ReactElement>) {
-  vi.stubGlobal('fetch', (input: string, init?: RequestInit) =>
-    server.fetch(new Request(new URL(input, window.location.origin), init)),
-  )
+  vi.stubGlobal('fetch', (input: unknown) => {
+    throw new Error(`fetch called outside the typed client: ${String(input)}`)
+  })
   const state = createServerState({ fetch: server.fetch, retry: false })
   render(
     <ServerStateProvider state={state}>

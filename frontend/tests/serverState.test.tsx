@@ -1,20 +1,15 @@
 // @vitest-environment jsdom
-import { cleanup, render } from '@testing-library/react'
 import { QueryObserver } from '@tanstack/react-query'
-import { afterEach, expect, test } from 'vitest'
-import { ServerStateProvider } from '../src/components/ServerStateProvider'
+import { expect, test } from 'vitest'
 import {
   createServerState,
   dataOrThrow,
   keys,
-  LEDGER_CHANGED,
   ledgerChanged,
   markStale,
   STALE_AFTER,
 } from '../src/serverState'
 import { fakeServer } from './fakeServer'
-
-afterEach(cleanup)
 
 test('a Ledger change makes every Mortgage, list, the Dashboard and the Ready to Redeem count stale', () => {
   const { queryClient } = createServerState()
@@ -34,16 +29,6 @@ test('a Ledger change makes every Mortgage, list, the Dashboard and the Ready to
     .filter(([, key]) => queryClient.getQueryState(key)?.isInvalidated)
     .map(([name]) => name)
   expect(stale).toEqual(['mortgage', 'mortgageList', 'paymentList', 'dashboard', 'readyToRedeem'])
-})
-
-test('a Ledger change saved through the old fetch functions makes the cache stale too', () => {
-  const state = createServerState()
-  render(<ServerStateProvider state={state}>{null}</ServerStateProvider>)
-  state.queryClient.setQueryData(keys.mortgage(7), {})
-
-  window.dispatchEvent(new Event(LEDGER_CHANGED))
-
-  expect(state.queryClient.getQueryState(keys.mortgage(7))?.isInvalidated).toBe(true)
 })
 
 /** How many times the backend is asked for the Dashboard when it answers `status`. */

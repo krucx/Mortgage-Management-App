@@ -83,9 +83,6 @@ export const keys = {
   backups: ['backups'] as const,
 }
 
-/** Fired by the old fetch functions after anything that can change what Mortgages owe. */
-export const LEDGER_CHANGED = 'ledger-changed'
-
 /** What a change to what Mortgages owe makes stale, asked for again at once if shown. */
 const REFRESHED_AFTER_LEDGER_CHANGE = [
   keys.allMortgages,
@@ -101,7 +98,7 @@ const REFRESHED_AFTER_LEDGER_CHANGE = [
  *  Preview or quote of the very change just made, which the backend would now refuse. */
 const OUTDATED_BY_LEDGER_CHANGE = [keys.previews, keys.redemptions]
 
-export function markLedgerStale(queryClient: QueryClient): void {
+function markLedgerStale(queryClient: QueryClient): void {
   for (const queryKey of REFRESHED_AFTER_LEDGER_CHANGE) {
     void queryClient.invalidateQueries({ queryKey })
   }
@@ -135,9 +132,6 @@ export function markStale(queryClient: QueryClient, stale: readonly (readonly un
   for (const queryKey of stale) void queryClient.invalidateQueries({ queryKey })
 }
 
-/** Marks the event this module fires, so its own listener doesn't act on it twice. */
-export const FIRED_BY_CACHE = 'cache'
-
 /**
  * Anything that can change what Mortgages owe (Payments, Voids, edits, Term Changes,
  * closing and reopening) makes every Mortgage, list, the Dashboard, the Ready to
@@ -145,8 +139,6 @@ export const FIRED_BY_CACHE = 'cache'
  */
 export function ledgerChanged(queryClient: QueryClient): void {
   markLedgerStale(queryClient)
-  // Pages still on the old fetch functions listen for this.
-  window.dispatchEvent(new CustomEvent(LEDGER_CHANGED, { detail: FIRED_BY_CACHE }))
 }
 
 export interface ServerState {

@@ -71,6 +71,24 @@ export function addMortgagePhoto(client: ApiClient, id: number, photo: Blob) {
   )
 }
 
+/** Stop keeping one of a Mortgage's photos; the Mortgage without it. */
+export const removeMortgagePhoto = (client: ApiClient, id: number, photoId: number) =>
+  dataOrThrow(
+    client.DELETE('/api/mortgages/{mortgage_id}/photos/{photo_id}', {
+      params: { path: { mortgage_id: id, photo_id: photoId } },
+    }),
+  )
+
+/** How many Mortgages are paid off and waiting to be Redeemed. */
+export function readyToRedeemCountQuery(client: ApiClient) {
+  return queryOptions({
+    queryKey: keys.readyToRedeem,
+    queryFn: () =>
+      dataOrThrow(client.GET('/api/closures/ready-to-redeem', { params: { query: { page: 1 } } })),
+    select: (ready) => ready.total,
+  })
+}
+
 /** A Preview of an unsaved change: which change it is, and how to ask for it. */
 export interface PreviewRequest<T = MortgagePreview[]> {
   key: readonly unknown[]
