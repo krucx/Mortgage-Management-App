@@ -1,4 +1,4 @@
-"""The Call List and Call Notes (see GLOSSARY.md), calculated whenever it is asked for."""
+"""The Call List (see GLOSSARY.md), calculated whenever it is asked for."""
 
 from collections.abc import Callable, Mapping
 from datetime import date

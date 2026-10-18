@@ -10,7 +10,7 @@ import type { paths } from './api.gen'
 export type ApiClient = Client<paths>
 
 /** Turns a FastAPI error body into one readable line. */
-export function errorMessage(status: number, body: unknown): string {
+function errorMessage(status: number, body: unknown): string {
   const detail = (body as { detail?: unknown } | null)?.detail
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) {
@@ -98,14 +98,6 @@ const REFRESHED_AFTER_LEDGER_CHANGE = [
  *  Preview or quote of the very change just made, which the backend would now refuse. */
 const OUTDATED_BY_LEDGER_CHANGE = [keys.previews, keys.redemptions]
 
-function markLedgerStale(queryClient: QueryClient): void {
-  for (const queryKey of REFRESHED_AFTER_LEDGER_CHANGE) {
-    void queryClient.invalidateQueries({ queryKey })
-  }
-  for (const queryKey of OUTDATED_BY_LEDGER_CHANGE) {
-    void queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
-  }
-}
 
 /** A change to what Collateral is worth: Loan-to-Value, so the Call List, everywhere. */
 const STALE_AFTER_REVALUING = [keys.allMortgages, keys.lists, keys.dashboard]
@@ -138,7 +130,12 @@ export function markStale(queryClient: QueryClient, stale: readonly (readonly un
  * Redeem count, every Preview and every Redemption Amount quote stale.
  */
 export function ledgerChanged(queryClient: QueryClient): void {
-  markLedgerStale(queryClient)
+  for (const queryKey of REFRESHED_AFTER_LEDGER_CHANGE) {
+    void queryClient.invalidateQueries({ queryKey })
+  }
+  for (const queryKey of OUTDATED_BY_LEDGER_CHANGE) {
+    void queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
+  }
 }
 
 export interface ServerState {
@@ -148,6 +145,8 @@ export interface ServerState {
 
 /** A typed client and an empty cache; tests pass a fake `fetch` and no retries. */
 export function createServerState({
+  // The one place fetch itself is used: everything else goes through this client.
+  // oxlint-disable-next-line no-restricted-properties
   fetch = (request: Request) => globalThis.fetch(request),
   retry = true,
 }: { fetch?: (request: Request) => Promise<Response>; retry?: boolean } = {}): ServerState {

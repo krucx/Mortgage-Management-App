@@ -90,8 +90,6 @@ export type MortgageStatus = Schemas['MortgageStatus']
 /** Principal plus unpaid interest on a date, before any Part-Month Rule charge. */
 export type Outstanding = Schemas['Outstanding']
 export type Mortgage = Schemas['Mortgage']
-/** New Terms from an Accrual Date on. */
-export type TermChange = Schemas['TermChangeOut']
 export type MortgageRow = Schemas['MortgageRow']
 export type MortgagePage = Schemas['Page_MortgageRow_']
 
@@ -120,12 +118,10 @@ export type BackupStatus = Schemas['BackupStatus']
 
 /** One change in the History; edits have one entry per changed field. */
 export type AuditEntry = Schemas['AuditEntry']
-export type AuditAction = AuditEntry['action']
 
 export type CallListSettings = Schemas['CallListSettings']
 export type CallNote = Schemas['CallNote']
 export type CallListRow = Schemas['CallListRow']
-export type CallReason = CallListRow['reasons'][number]
 /** One Customer's Mortgages on the Call List. */
 export type CallListGroup = Schemas['CallListGroup']
 export type CallListPage = Schemas['CallListPage']
@@ -136,7 +132,6 @@ export type RedeemIn = Schemas['RedeemIn']
 export type ForfeitIn = Schemas['ForfeitIn']
 /** An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back. */
 export type ReadyToRedeem = Schemas['ReadyToRedeem']
-export type ReadyToRedeemPage = Schemas['Page_ReadyToRedeem_']
 export type Closure = Schemas['Closure']
 
 /** The whole lending book at a glance. */
@@ -146,7 +141,6 @@ export type ProjectionHorizon = Schemas['ProjectionHorizon']
 export type ComingMonth = Schemas['ComingMonth']
 export type Receipt = Schemas['Receipt']
 export type Notice = Schemas['Notice']
-export type NoticePage = Schemas['Page_Notice_']
 export type NoticeStatus = Notice['status']
 export type MessageSettings = Schemas['MessageSettings']
 export type MessagePlaceholders = Schemas['MessagePlaceholders']
