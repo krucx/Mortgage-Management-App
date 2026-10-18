@@ -2,45 +2,18 @@
 
 import pytest
 
-RUPEE = 100  # paise
-LAKH = 1_00_000 * RUPEE
-SIMPLE_3 = {
-    "monthly_rate_bps": 300,
-    "interest_mode": "simple",
-    "part_month_rule": "full_month",
-}
+from api_seed import SIMPLE_3, lend, person
+from seed import LAKH, RUPEE
 
 
 @pytest.fixture
 def ramesh(client):
-    return client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
-
-
-def open_mortgage(client, owner, start="2026-01-14"):
-    # ₹1,00,000 at 3% Simple: ₹3,000 a month; from 14 Jan it owes ₹1,09,000 today.
-    response = client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": owner["id"],
-            "start_date": start,
-            "amount_lent": LAKH,
-            "description": f"Gold chain {start}",
-            "gross_weight_mg": 20_000,
-            "net_weight_mg": 19_000,
-            "purity_karat": 22,
-            "terms": SIMPLE_3,
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+    return person(client)
 
 
 @pytest.fixture
 def mortgage(client, ramesh):
-    return open_mortgage(client, ramesh)
+    return lend(client, ramesh)
 
 
 def change_terms(client, mortgage, **change):
@@ -65,7 +38,7 @@ def test_a_term_change_starts_on_the_next_accrual_date_by_default(client, mortga
 
 
 def test_a_term_change_starting_today_shows_in_the_ledger(client, ramesh):
-    mortgage = open_mortgage(client, ramesh, start="2026-03-20")  # accrues today
+    mortgage = lend(client, ramesh, "2026-03-20")  # accrues today
 
     response = change_terms(
         client, mortgage, effective_on="2026-04-20", interest_mode="compounded_monthly"
@@ -123,7 +96,7 @@ def test_a_term_change_can_be_removed_until_it_takes_effect(client, ramesh, mort
 
     assert response.status_code == 200, response.text
     assert response.json()["term_changes"] == []
-    today = open_mortgage(client, ramesh, start="2026-03-20")
+    today = lend(client, ramesh, "2026-03-20")
     started = change_terms(
         client, today, effective_on="2026-04-20", monthly_rate_bps=200
     ).json()["term_changes"][0]

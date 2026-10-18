@@ -18,8 +18,8 @@ from mortgage_backend.messages import (
     receipt_text,
     unknown_placeholders,
 )
+from seed import RUPEE
 
-RUPEE = 100  # paise
 
 RECEIPT = (
     "*Payment received*\n"

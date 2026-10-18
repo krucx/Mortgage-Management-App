@@ -8,14 +8,21 @@ The Mortgage throughout: ₹1,00,000 at 3% a month, Simple, Full-month rule, fro
 
 from datetime import date
 
-from sqlalchemy import insert
 from sqlalchemy.engine import Connection
 
 from conftest import TODAY
-from mortgage_backend.db import term_change_table
 from mortgage_backend.ledger import HypotheticalPayments
 from mortgage_backend.replay import replay, replays
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, close
+from seed import (
+    LAKH,
+    RUPEE,
+    add_customer,
+    add_mortgage,
+    add_payment,
+    add_term_change,
+    forfeit,
+    redeem,
+)
 
 
 def test_a_voided_payment_is_in_no_ledger(conn: Connection) -> None:
@@ -51,14 +58,7 @@ def test_a_redeemed_mortgage_owes_nothing_and_accrues_nothing_after(
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
     # Redeemed on the 14 Mar Accrual Date: two months' interest, no part-month charge.
-    final = add_payment(conn, ramesh, date(2026, 3, 14), {chain: 1_06_000 * RUPEE})
-    close(
-        conn,
-        chain,
-        status="redeemed",
-        closed_on=date(2026, 3, 14),
-        redemption_payment_id=final,
-    )
+    redeem(conn, chain, date(2026, 3, 14))
 
     mortgage = replay(conn, chain)
 
@@ -72,14 +72,9 @@ def test_a_redemption_amount_leaves_out_the_redemptions_own_final_payment(
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
     add_payment(conn, ramesh, date(2026, 2, 20), {chain: 1_000 * RUPEE})
-    final = add_payment(conn, ramesh, date(2026, 3, 14), {chain: 1_05_000 * RUPEE})
-    close(
-        conn,
-        chain,
-        status="redeemed",
-        closed_on=date(2026, 3, 14),
-        redemption_payment_id=final,
-    )
+    final = redeem(conn, chain, date(2026, 3, 14))
+    assert final is not None
+    assert replay(conn, chain).steps_by_payment()[final].amount == 1_05_000 * RUPEE
 
     # Owed on 14 Mar before the final Payment: ₹1,06,000 less the earlier ₹1,000.
     assert replay(conn, chain).redemption(date(2026, 3, 14)).total == 1_05_000 * RUPEE
@@ -91,13 +86,7 @@ def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
     chain = add_mortgage(conn, add_customer(conn))
     # Forfeited 6 days after the 14 Mar Accrual Date: ₹6,000 of interest plus a full
     # month's ₹3,000 under the Full-month rule, and nothing on 14 Apr.
-    close(
-        conn,
-        chain,
-        status="forfeited",
-        closed_on=date(2026, 3, 20),
-        recovered_amount=90_000 * RUPEE,
-    )
+    forfeit(conn, chain, date(2026, 3, 20), recovered=90_000 * RUPEE)
 
     mortgage = replay(conn, chain)
 
@@ -112,11 +101,7 @@ def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
 
 def test_term_changes_apply_from_their_accrual_date(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
-    conn.execute(
-        insert(term_change_table).values(
-            mortgage_id=chain, effective_on=date(2026, 3, 14), monthly_rate_bps=200
-        )
-    )
+    add_term_change(conn, chain, date(2026, 3, 14), monthly_rate_bps=200)
 
     mortgage = replay(conn, chain)
 
@@ -146,11 +131,7 @@ def test_mortgages_are_replayed_together_each_with_only_its_own_facts(
 
 def test_a_projection_reports_each_chosen_date_in_one_replay(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
-    conn.execute(
-        insert(term_change_table).values(
-            mortgage_id=chain, effective_on=date(2026, 6, 14), monthly_rate_bps=200
-        )
-    )
+    add_term_change(conn, chain, date(2026, 6, 14), monthly_rate_bps=200)
 
     projected = replay(conn, chain).projection([TODAY, date(2026, 7, 20)])
 
@@ -239,11 +220,12 @@ def test_a_redemptions_final_payment_is_applied_after_the_part_month_charge(
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
     # Redeemed on 20 Apr: ₹1,09,000 owed plus a full month's ₹3,000 (Full-month rule).
-    final = add_payment(conn, ramesh, TODAY, {chain: 1_12_000 * RUPEE})
-    close(conn, chain, status="redeemed", closed_on=TODAY, redemption_payment_id=final)
+    final = redeem(conn, chain, TODAY)
+    assert final is not None
 
     step = replay(conn, chain).steps_by_payment()[final]
 
+    assert step.amount == 1_12_000 * RUPEE
     assert step.interest_paid == 12_000 * RUPEE
     assert step.principal + step.unpaid_interest == 0
 

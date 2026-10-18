@@ -4,12 +4,12 @@ key the list declares once. Pages hold 20."""
 from collections.abc import Sequence
 from typing import Any
 
-from seed import add_customer
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.db import customer_table
 from mortgage_backend.paging import PAGE_SIZE, Page, Sorting, query_page, rows_page
+from seed import add_customer
 
 # Customers by name, then newest first: the id breaks ties whichever way it is sorted.
 SORTING = Sorting(
@@ -23,13 +23,8 @@ SORTING = Sorting(
 
 def add_people(conn: Connection, count: int) -> None:
     for n in range(1, count + 1):
-        person = add_customer(conn, phone=f"98290{n:05d}")
-        conn.execute(
-            update(customer_table)
-            .where(customer_table.c.id == person)
-            # Two of each name, so ties are broken by the id
-            .values(name=f"Person {(n + 1) // 2:02d}")
-        )
+        # Two of each name, so ties are broken by the id
+        add_customer(conn, phone=f"98290{n:05d}", name=f"Person {(n + 1) // 2:02d}")
 
 
 def phones(rows: list[dict[str, Any]]) -> list[str]:

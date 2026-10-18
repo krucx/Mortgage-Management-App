@@ -3,16 +3,13 @@ audit log of every change (today is 20 Apr 2026, see conftest)."""
 
 import pytest
 
-RUPEE = 100  # paise
-LAKH = 1_00_000 * RUPEE
+from api_seed import lend, pay, person
+from seed import LAKH, RUPEE
 
 
 @pytest.fixture
 def ramesh(client):
-    return client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
+    return person(client)
 
 
 def details(**overrides):
@@ -31,35 +28,7 @@ def details(**overrides):
 
 @pytest.fixture
 def mortgage(client, ramesh):
-    response = client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": ramesh["id"],
-            **details(),
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": "full_month",
-            },
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
-def pay(client, ramesh, mortgage, amount, on="2026-04-15"):
-    response = client.post(
-        "/api/payments",
-        json={
-            "customer_id": ramesh["id"],
-            "paid_on": on,
-            "amount": amount,
-            "method": "cash",
-            "allocations": [{"mortgage_id": mortgage["id"], "amount": amount}],
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+    return lend(client, ramesh, name="2026-Ramesh-GoldChain")
 
 
 def void(client, payment, reason="Entered twice"):
@@ -96,7 +65,7 @@ def history(client, kind, id_):
 def test_a_voided_payment_stays_on_record_but_leaves_the_ledger(
     client, ramesh, mortgage
 ):
-    payment = pay(client, ramesh, mortgage, 5_000 * RUPEE)
+    payment = pay(client, ramesh, {mortgage["id"]: 5_000 * RUPEE})
     assert outstanding(client, mortgage) == 1_04_000 * RUPEE
 
     response = void(client, payment)
@@ -117,13 +86,13 @@ def test_a_voided_payment_stays_on_record_but_leaves_the_ledger(
 
 
 def test_voiding_needs_a_reason(client, ramesh, mortgage):
-    payment = pay(client, ramesh, mortgage, 5_000 * RUPEE)
+    payment = pay(client, ramesh, {mortgage["id"]: 5_000 * RUPEE})
 
     assert void(client, payment, reason="  ").status_code == 422
 
 
 def test_a_payment_can_be_voided_only_once(client, ramesh, mortgage):
-    payment = pay(client, ramesh, mortgage, 5_000 * RUPEE)
+    payment = pay(client, ramesh, {mortgage["id"]: 5_000 * RUPEE})
     void(client, payment)
 
     assert void(client, payment).status_code == 409
@@ -142,7 +111,7 @@ def test_the_final_payment_of_a_redemption_is_voided_by_reopening(client, mortga
 
 
 def test_payments_to_a_closed_mortgage_cannot_be_voided(client, ramesh, mortgage):
-    payment = pay(client, ramesh, mortgage, 5_000 * RUPEE)
+    payment = pay(client, ramesh, {mortgage["id"]: 5_000 * RUPEE})
     client.post(
         f"/api/mortgages/{mortgage['id']}/forfeit",
         json={"forfeited_on": "2026-04-20", "recovered_amount": LAKH, "note": ""},
@@ -154,7 +123,7 @@ def test_payments_to_a_closed_mortgage_cannot_be_voided(client, ramesh, mortgage
 def test_a_voided_payment_does_not_stop_an_earlier_closing_date(
     client, ramesh, mortgage
 ):
-    void(client, pay(client, ramesh, mortgage, 5_000 * RUPEE, on="2026-04-15"))
+    void(client, pay(client, ramesh, {mortgage["id"]: 5_000 * RUPEE}, on="2026-04-15"))
 
     response = client.post(
         f"/api/mortgages/{mortgage['id']}/redeem",
@@ -177,7 +146,7 @@ def test_editing_the_principal_replays_the_ledger(client, mortgage):
 def test_an_edit_that_would_leave_a_payment_too_large_is_refused(
     client, ramesh, mortgage
 ):
-    pay(client, ramesh, mortgage, 50_000 * RUPEE)
+    pay(client, ramesh, {mortgage["id"]: 50_000 * RUPEE})
 
     response = edit(client, mortgage, amount_lent=40_000 * RUPEE)
 
@@ -186,7 +155,7 @@ def test_an_edit_that_would_leave_a_payment_too_large_is_refused(
 
 
 def test_the_start_date_cannot_move_past_a_payment(client, ramesh, mortgage):
-    pay(client, ramesh, mortgage, 5_000 * RUPEE, on="2026-02-01")
+    pay(client, ramesh, {mortgage["id"]: 5_000 * RUPEE}, on="2026-02-01")
 
     assert edit(client, mortgage, start_date="2026-02-05").status_code == 422
 
@@ -196,10 +165,7 @@ def test_the_start_date_cannot_be_in_the_future(client, mortgage):
 
 
 def test_an_edited_name_must_stay_unique(client, ramesh, mortgage):
-    client.post(
-        "/api/mortgages",
-        json={"customer_id": ramesh["id"], **details(name="2026-Ramesh-Bangles")},
-    )
+    lend(client, ramesh, name="2026-Ramesh-Bangles", terms=None)
 
     assert edit(client, mortgage, name="2026-ramesh-bangles").status_code == 409
     assert edit(client, mortgage, name="2026-Ramesh-goldchain").status_code == 200
@@ -273,7 +239,7 @@ def test_only_a_closed_mortgage_can_be_reopened_and_only_with_a_reason(
 
 def test_a_mortgages_history_shows_every_change_newest_first(client, ramesh, mortgage):
     edit(client, mortgage, description="Gold chain with locket")
-    payment = pay(client, ramesh, mortgage, 5_000 * RUPEE)
+    payment = pay(client, ramesh, {mortgage["id"]: 5_000 * RUPEE})
     void(client, payment)
 
     entries = history(client, "mortgages", mortgage["id"])

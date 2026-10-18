@@ -3,45 +3,18 @@ see conftest)."""
 
 import pytest
 
-RUPEE = 100  # paise
-LAKH = 1_00_000 * RUPEE
-SIMPLE_3 = {
-    "monthly_rate_bps": 300,
-    "interest_mode": "simple",
-    "part_month_rule": "full_month",
-}
+from api_seed import SIMPLE_3, lend, person
+from seed import LAKH, RUPEE
 
 
 @pytest.fixture
 def ramesh(client):
-    return client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
-
-
-def open_mortgage(client, owner, terms=SIMPLE_3):
-    # ₹1,00,000 at 3% from 14 Jan: ₹3,000 a month; it owes ₹1,09,000 today.
-    response = client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": owner["id"],
-            "start_date": "2026-01-14",
-            "amount_lent": LAKH,
-            "description": "Gold chain",
-            "gross_weight_mg": 20_000,
-            "net_weight_mg": 19_000,
-            "purity_karat": 22,
-            "terms": terms,
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+    return person(client)
 
 
 @pytest.fixture
 def mortgage(client, ramesh):
-    return open_mortgage(client, ramesh)
+    return lend(client, ramesh)
 
 
 def change_terms(client, mortgage, **change):
@@ -133,8 +106,8 @@ def test_a_projection_lists_its_coming_term_changes(client, mortgage):
 
 
 def test_compounding_capitalises_unpaid_interest_in_the_projection(client, ramesh):
-    mortgage = open_mortgage(
-        client, ramesh, {**SIMPLE_3, "interest_mode": "compounded_yearly"}
+    mortgage = lend(
+        client, ramesh, terms={**SIMPLE_3, "interest_mode": "compounded_yearly"}
     )
 
     baseline = projection(client, mortgage)["baseline"]

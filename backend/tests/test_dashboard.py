@@ -3,51 +3,8 @@ conftest). Every figure comes from replaying the Mortgages and from stored Payme
 
 import pytest
 
-RUPEE = 100  # paise
-SIMPLE_3 = {
-    "monthly_rate_bps": 300,
-    "interest_mode": "simple",
-    "part_month_rule": "full_month",
-}
-
-
-def person(client, name, phone):
-    return client.post(
-        "/api/customers", json={"name": name, "address": "", "phone_1": phone}
-    ).json()
-
-
-def lend(client, owner, start, rupees, description):
-    response = client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": owner["id"],
-            "start_date": start,
-            "amount_lent": rupees * RUPEE,
-            "description": description,
-            "gross_weight_mg": 20_000,
-            "net_weight_mg": 19_000,
-            "purity_karat": 22,
-            "terms": SIMPLE_3,
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
-def pay(client, owner, mortgage, on, rupees):
-    response = client.post(
-        "/api/payments",
-        json={
-            "customer_id": owner["id"],
-            "paid_on": on,
-            "amount": rupees * RUPEE,
-            "method": "cash",
-            "allocations": [{"mortgage_id": mortgage["id"], "amount": rupees * RUPEE}],
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+from api_seed import lend, pay, person
+from seed import RUPEE
 
 
 def dashboard(client):
@@ -67,19 +24,19 @@ def book(client):
       fetched ₹40,000, a ₹8,200 profit.
     22K gold at ₹6,000 a gram: Ramesh's 19 g is worth ₹1,14,000.
     """
-    ramesh = person(client, "Ramesh Kumar", "9829012345")
+    ramesh = person(client)
     suresh = person(client, "Suresh Jain", "9829054321")
-    chain = lend(client, ramesh, "2026-01-14", 1_00_000, "Gold chain")
-    pay(client, ramesh, chain, "2026-02-20", 2_000)
-    pay(client, ramesh, chain, "2026-04-15", 5_000)
-    mistake = pay(client, ramesh, chain, "2026-04-16", 1_000)
+    chain = lend(client, ramesh, "2026-01-14", 1_00_000 * RUPEE, "Gold chain")
+    pay(client, ramesh, {chain["id"]: 2_000 * RUPEE}, on="2026-02-20")
+    pay(client, ramesh, {chain["id"]: 5_000 * RUPEE}, on="2026-04-15")
+    mistake = pay(client, ramesh, {chain["id"]: 1_000 * RUPEE}, on="2026-04-16")
     client.post(f"/api/payments/{mistake['id']}/void", json={"reason": "typo"})
-    ring = lend(client, suresh, "2026-03-10", 50_000, "Ring")
+    ring = lend(client, suresh, "2026-03-10", 50_000 * RUPEE, "Ring")
     client.post(
         f"/api/mortgages/{ring['id']}/redeem",
         json={"redeemed_on": "2026-04-12", "method": "cash"},
     )
-    bangle = lend(client, suresh, "2026-02-05", 30_000, "Bangle")
+    bangle = lend(client, suresh, "2026-02-05", 30_000 * RUPEE, "Bangle")
     client.post(
         f"/api/mortgages/{bangle['id']}/forfeit",
         json={
@@ -182,7 +139,7 @@ def test_payments_in_a_month_or_year_add_up_to_the_interest_collected(client, bo
 
 def test_mortgages_closed_in_a_month_are_listed_as_counted(client, book):
     owner = person(client, "Mahesh Jain", "9829099999")
-    earlier = lend(client, owner, "2026-01-05", 10_000, "Anklet")
+    earlier = lend(client, owner, "2026-01-05", 10_000 * RUPEE, "Anklet")
     client.post(
         f"/api/mortgages/{earlier['id']}/forfeit",
         json={"forfeited_on": "2026-03-05", "recovered_amount": 0, "note": ""},
@@ -200,8 +157,8 @@ def test_mortgages_closed_in_a_month_are_listed_as_counted(client, book):
 
 def test_a_voided_payment_is_listed_but_paid_no_interest(client):
     owner = person(client, "Mahesh Jain", "9829099999")
-    anklet = lend(client, owner, "2026-01-05", 10_000, "Anklet")
-    mistake = pay(client, owner, anklet, "2026-04-06", 300)
+    anklet = lend(client, owner, "2026-01-05", 10_000 * RUPEE, "Anklet")
+    mistake = pay(client, owner, {anklet["id"]: 300 * RUPEE}, on="2026-04-06")
     client.post(f"/api/payments/{mistake['id']}/void", json={"reason": "typo"})
 
     shown = listed(client, "payments", month="2026-04")
@@ -213,7 +170,7 @@ def test_a_voided_payment_is_listed_but_paid_no_interest(client):
 def march_redemption(client, book):
     """Mahesh: ₹10,000 from 1 Feb, Redeemed 1 Mar for ₹10,300 (one month at 3%)."""
     owner = person(client, "Mahesh Jain", "9829099999")
-    anklet = lend(client, owner, "2026-02-01", 10_000, "Anklet")
+    anklet = lend(client, owner, "2026-02-01", 10_000 * RUPEE, "Anklet")
     response = client.post(
         f"/api/mortgages/{anklet['id']}/redeem",
         json={"redeemed_on": "2026-03-01", "method": "cash"},

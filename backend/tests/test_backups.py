@@ -11,6 +11,7 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from api_seed import person
 from mortgage_backend.db import MIGRATIONS_DIR
 from mortgage_backend.main import create_app
 
@@ -68,10 +69,7 @@ def backups_in(backup_dir):
 def add_customer_with_photo(client):
     jpeg = io.BytesIO()
     Image.new("RGB", (20, 20), "gold").save(jpeg, "JPEG")
-    customer = client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
+    customer = person(client)
     client.put(
         f"/api/customers/{customer['id']}/photo",
         files={"photo": ("photo.jpg", jpeg.getvalue(), "image/jpeg")},

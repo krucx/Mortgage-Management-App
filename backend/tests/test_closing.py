@@ -2,41 +2,18 @@
 
 import pytest
 
-LAKH = 100_000_00  # ₹1,00,000 in paise
+from api_seed import SIMPLE_3, lend, pay, person
+from seed import LAKH
 
 
 @pytest.fixture
 def ramesh(client):
-    return client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
-
-
-def open_mortgage(client, customer, part_month_rule="full_month"):
-    # ₹1,00,000 at 3% Simple from 14 Jan; today (conftest) is 20 Apr 2026.
-    return client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": customer["id"],
-            "start_date": "2026-01-14",
-            "amount_lent": LAKH,
-            "description": "Gold chain",
-            "gross_weight_mg": 20_000,
-            "net_weight_mg": 19_000,
-            "purity_karat": 22,
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": part_month_rule,
-            },
-        },
-    ).json()
+    return person(client)
 
 
 @pytest.fixture
 def mortgage(client, ramesh):
-    return open_mortgage(client, ramesh)
+    return lend(client, ramesh)
 
 
 def redemption(client, mortgage, on="2026-04-20"):
@@ -65,7 +42,7 @@ def redeem(client, mortgage, on="2026-04-20", **extra):
 def test_the_redemption_amount_includes_the_part_month_rule_charge(
     client, ramesh, rule, charge
 ):
-    mortgage = open_mortgage(client, ramesh, part_month_rule=rule)
+    mortgage = lend(client, ramesh, terms={**SIMPLE_3, "part_month_rule": rule})
 
     # Accrued 14 Feb, 14 Mar, 14 Apr (₹9,000); 20 Apr is 6 days into the next month.
     assert redemption(client, mortgage) == {
@@ -127,16 +104,7 @@ def test_a_closed_mortgage_takes_no_more_payments(client, ramesh, mortgage):
 def test_a_paid_off_mortgage_redeemed_on_an_accrual_date_needs_no_final_payment(
     client, ramesh, mortgage
 ):
-    client.post(
-        "/api/payments",
-        json={
-            "customer_id": ramesh["id"],
-            "paid_on": "2026-04-14",
-            "amount": 109_000_00,
-            "method": "cash",
-            "allocations": [{"mortgage_id": mortgage["id"], "amount": 109_000_00}],
-        },
-    )
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
     assert redemption(client, mortgage, on="2026-04-14")["total"] == 0
 
     page = redeem(client, mortgage, on="2026-04-14").json()
@@ -158,16 +126,7 @@ def test_redeeming_on_an_impossible_date_is_refused(client, mortgage, on):
 
 
 def test_redeeming_before_an_existing_payment_is_refused(client, ramesh, mortgage):
-    client.post(
-        "/api/payments",
-        json={
-            "customer_id": ramesh["id"],
-            "paid_on": "2026-04-01",
-            "amount": 1_000_00,
-            "method": "cash",
-            "allocations": [{"mortgage_id": mortgage["id"], "amount": 1_000_00}],
-        },
-    )
+    pay(client, ramesh, {mortgage["id"]: 1_000_00}, on="2026-04-01")
 
     response = redeem(client, mortgage, on="2026-03-20")
 
@@ -242,7 +201,7 @@ def test_a_forfeited_mortgage_takes_no_more_payments(client, ramesh, mortgage):
 
 def test_closed_mortgages_can_be_listed_by_status(client, ramesh, mortgage):
     redeem(client, mortgage)
-    open_mortgage(client, ramesh)
+    lend(client, ramesh)
 
     def statuses(**params):
         return [
@@ -255,16 +214,7 @@ def test_closed_mortgages_can_be_listed_by_status(client, ramesh, mortgage):
 
 
 def test_paying_a_mortgage_down_to_nothing_does_not_redeem_it(client, ramesh, mortgage):
-    client.post(
-        "/api/payments",
-        json={
-            "customer_id": ramesh["id"],
-            "paid_on": "2026-04-14",
-            "amount": 109_000_00,
-            "method": "cash",
-            "allocations": [{"mortgage_id": mortgage["id"], "amount": 109_000_00}],
-        },
-    )
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
 
     page = client.get(f"/api/mortgages/{mortgage['id']}").json()
 
@@ -283,20 +233,6 @@ def test_the_redemption_amount_can_be_quoted_for_a_future_date(client, mortgage)
 # --- Mortgages ready to Redeem: Active, with nothing Outstanding.
 
 
-def pay_all(client, customer, mortgage, amount, on):
-    response = client.post(
-        "/api/payments",
-        json={
-            "customer_id": customer["id"],
-            "paid_on": on,
-            "amount": amount,
-            "method": "cash",
-            "allocations": [{"mortgage_id": mortgage["id"], "amount": amount}],
-        },
-    )
-    assert response.status_code == 201, response.text
-
-
 def ready(client):
     response = client.get("/api/closures/ready-to-redeem")
     assert response.status_code == 200
@@ -310,11 +246,11 @@ def test_nothing_is_ready_to_redeem_while_something_is_outstanding(client, mortg
 def test_a_paid_off_mortgage_is_ready_to_redeem_with_todays_redemption_amount(
     client, ramesh, mortgage
 ):
-    other = open_mortgage(client, ramesh)
+    other = lend(client, ramesh)
     # Paid off on an Accrual Date: the new month starts with no Principal, so no charge.
-    pay_all(client, ramesh, mortgage, 109_000_00, "2026-04-14")
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
     # Paid off mid-month (today, 6 days in): redeeming adds a full month on ₹1,00,000.
-    pay_all(client, ramesh, other, 109_000_00, "2026-04-20")
+    pay(client, ramesh, {other["id"]: 109_000_00}, on="2026-04-20")
 
     items = ready(client)
 
@@ -327,7 +263,7 @@ def test_a_paid_off_mortgage_is_ready_to_redeem_with_todays_redemption_amount(
 
 
 def test_a_redeemed_mortgage_is_no_longer_waiting(client, ramesh, mortgage):
-    pay_all(client, ramesh, mortgage, 109_000_00, "2026-04-14")
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
 
     redeem(client, mortgage)
 
@@ -337,8 +273,8 @@ def test_a_redeemed_mortgage_is_no_longer_waiting(client, ramesh, mortgage):
 def test_mortgages_can_be_listed_by_whether_anything_is_outstanding(
     client, ramesh, mortgage
 ):
-    other = open_mortgage(client, ramesh)
-    pay_all(client, ramesh, mortgage, 109_000_00, "2026-04-14")
+    other = lend(client, ramesh)
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
 
     page = client.get(
         "/api/mortgages", params={"status": "active", "owing": True}

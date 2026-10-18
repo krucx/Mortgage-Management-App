@@ -10,68 +10,22 @@ from datetime import date
 import pytest
 from sqlalchemy.engine import Connection
 
+from api_seed import lend, pay, person
 from mortgage_backend.receipts import load_receipt
 from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment
 
 
 @pytest.fixture
 def ramesh(client):
-    return client.post(
-        "/api/customers",
-        json={
-            "name": "Ramesh Kumar",
-            "address": "",
-            "phone_1": "9829012345",
-            "phone_2": "9414012345",
-        },
-    ).json()
-
-
-def lend(client, owner, rupees, description, start="2026-01-14"):
-    response = client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": owner["id"],
-            "start_date": start,
-            "amount_lent": rupees * RUPEE,
-            "description": description,
-            "gross_weight_mg": 20_000,
-            "net_weight_mg": 19_000,
-            "purity_karat": 22,
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": "full_month",
-            },
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
-def pay(client, owner, **allocations):
-    response = client.post(
-        "/api/payments",
-        json={
-            "customer_id": owner["id"],
-            "paid_on": "2026-04-15",
-            "amount": sum(allocations.values()) * RUPEE,
-            "method": "upi",
-            "allocations": [
-                {"mortgage_id": int(m), "amount": a * RUPEE}
-                for m, a in allocations.items()
-            ],
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+    return person(client, phone_2="9414012345")
 
 
 @pytest.fixture
 def payment(client, ramesh):
-    chain = lend(client, ramesh, 1_00_000, "Gold chain")
-    bangles = lend(client, ramesh, 50_000, "Two bangles")
-    return pay(client, ramesh, **{str(chain["id"]): 5_000, str(bangles["id"]): 2_000})
+    chain = lend(client, ramesh)
+    bangles = lend(client, ramesh, amount=LAKH // 2, description="Two bangles")
+    paid = {chain["id"]: 5_000 * RUPEE, bangles["id"]: 2_000 * RUPEE}
+    return pay(client, ramesh, paid, method="upi")
 
 
 def receipt(client, payment):
@@ -120,9 +74,10 @@ def test_the_receipt_follows_the_lenders_template(client, payment):
 
 
 def test_two_pieces_described_alike_are_told_apart_by_start_date(client, ramesh):
-    first = lend(client, ramesh, 1_00_000, "Gold chain")
-    second = lend(client, ramesh, 50_000, "Gold chain", start="2026-02-10")
-    paid = pay(client, ramesh, **{str(first["id"]): 1_000, str(second["id"]): 1_000})
+    first = lend(client, ramesh)
+    second = lend(client, ramesh, "2026-02-10", amount=LAKH // 2)
+    allocated = {first["id"]: 1_000 * RUPEE, second["id"]: 1_000 * RUPEE}
+    paid = pay(client, ramesh, allocated, method="upi")
 
     assert [r["description"] for r in receipt(client, paid)["lines"]] == [
         "Gold chain (from 14 Jan 2026)",

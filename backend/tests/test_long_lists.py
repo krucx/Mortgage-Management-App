@@ -4,39 +4,8 @@
 
 import pytest
 
-RUPEE = 100  # paise
-SIMPLE_3 = {
-    "monthly_rate_bps": 300,
-    "interest_mode": "simple",
-    "part_month_rule": "full_month",
-}
-
-
-def person(client, n):
-    response = client.post(
-        "/api/customers",
-        json={"name": f"Customer {n:02d}", "address": "", "phone_1": f"98290{n:05d}"},
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
-def lend(client, owner, start="2026-01-14", rupees=10_000):
-    response = client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": owner["id"],
-            "start_date": start,
-            "amount_lent": rupees * RUPEE,
-            "description": "Gold ring",
-            "gross_weight_mg": 5_000,
-            "net_weight_mg": 5_000,
-            "purity_karat": 22,
-            "terms": SIMPLE_3,
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+from api_seed import RING, lend, nth_person, pay
+from seed import RUPEE
 
 
 def get(client, path, **params):
@@ -46,9 +15,9 @@ def get(client, path, **params):
 
 
 def test_a_picker_gets_every_one_of_a_customers_mortgages(client):
-    owner = person(client, 1)
+    owner = nth_person(client, 1)
     for _ in range(25):
-        lend(client, owner)
+        lend(client, owner, **RING)
 
     picked = get(
         client, "mortgages", customer_id=owner["id"], status="active", paged=False
@@ -58,9 +27,9 @@ def test_a_picker_gets_every_one_of_a_customers_mortgages(client):
 
 
 def test_a_customers_mortgages_come_a_page_at_a_time(client):
-    owner = person(client, 1)
+    owner = nth_person(client, 1)
     for _ in range(25):
-        lend(client, owner)
+        lend(client, owner, **RING)
 
     first = get(client, "mortgages", customer_id=owner["id"])
     second = get(client, "mortgages", customer_id=owner["id"], page=2)
@@ -70,8 +39,8 @@ def test_a_customers_mortgages_come_a_page_at_a_time(client):
 
 
 def test_a_customers_closed_mortgages_are_listed_apart_from_the_active_ones(client):
-    owner = person(client, 1)
-    active, redeemed, forfeited = (lend(client, owner) for _ in range(3))
+    owner = nth_person(client, 1)
+    active, redeemed, forfeited = (lend(client, owner, **RING) for _ in range(3))
     assert client.post(
         f"/api/mortgages/{redeemed['id']}/redeem",
         json={"redeemed_on": "2026-04-20", "method": "cash"},
@@ -91,11 +60,11 @@ def test_a_customers_closed_mortgages_are_listed_apart_from_the_active_ones(clie
 def accruing_customers(client):
     """21 Customers whose Mortgages accrue today (20th) or in 2 days (22nd); the first
     has 3 of each, so a group bigger than one row."""
-    owners = [person(client, n) for n in range(1, 22)]
+    owners = [nth_person(client, n) for n in range(1, 22)]
     for owner in owners:
         for _ in range(3 if owner is owners[0] else 1):
-            lend(client, owner, start="2026-01-20")
-            lend(client, owner, start="2026-01-22")
+            lend(client, owner, "2026-01-20", **RING)
+            lend(client, owner, "2026-01-22", **RING)
     return owners
 
 
@@ -120,23 +89,11 @@ def test_notices_come_a_page_at_a_time(client, accruing_customers):
 
 
 def test_ready_to_redeem_comes_a_page_at_a_time(client):
-    owner = person(client, 1)
+    owner = nth_person(client, 1)
     for _ in range(21):
-        mortgage = lend(client, owner)
+        mortgage = lend(client, owner, **RING)
         # ₹10,000 at 3% from 14 Jan: ₹900 of interest by 20 Apr, ₹10,900 in all.
-        paid = client.post(
-            "/api/payments",
-            json={
-                "customer_id": owner["id"],
-                "paid_on": "2026-04-20",
-                "amount": 10_900 * RUPEE,
-                "method": "cash",
-                "allocations": [
-                    {"mortgage_id": mortgage["id"], "amount": 10_900 * RUPEE}
-                ],
-            },
-        )
-        assert paid.status_code == 201, paid.text
+        pay(client, owner, {mortgage["id"]: 10_900 * RUPEE}, on="2026-04-20")
 
     first = get(client, "closures/ready-to-redeem")
     second = get(client, "closures/ready-to-redeem", page=2)

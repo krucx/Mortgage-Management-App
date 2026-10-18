@@ -2,33 +2,15 @@
 
 import pytest
 
-RUPEE = 100  # paise
+from api_seed import lend, person
+from seed import RUPEE
 
 
 @pytest.fixture
 def mortgage(client):
     # ₹1,00,000 at 3% Simple from 14 Jan, 19 g net of 22K; on 20 Apr it owes ₹1,09,000.
-    ramesh = client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
-    return client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": ramesh["id"],
-            "start_date": "2026-01-14",
-            "amount_lent": 1_00_000 * RUPEE,
-            "description": "Gold chain",
-            "gross_weight_mg": 20_000,
-            "net_weight_mg": 19_000,
-            "purity_karat": 22,
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": "full_month",
-            },
-        },
-    ).json()
+    ramesh = person(client)
+    return lend(client, ramesh)
 
 
 def set_rates(client, **rates):

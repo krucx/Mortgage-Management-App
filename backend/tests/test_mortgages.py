@@ -1,15 +1,12 @@
 import pytest
 
-LAKH = 100_000_00  # ₹1,00,000 in paise
+from api_seed import person
+from seed import LAKH
 
 
 @pytest.fixture
 def ramesh(client):
-    response = client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "Jaipur", "phone_1": "9829012345"},
-    )
-    return response.json()
+    return person(client, address="Jaipur")
 
 
 def mortgage_fields(customer, **overrides):

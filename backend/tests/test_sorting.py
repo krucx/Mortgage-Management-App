@@ -4,25 +4,9 @@ conftest). Pages hold 20, so 25 rows make two pages.
 
 from datetime import date
 
-from seed import LAKH, add_customer, add_mortgage, add_payment
-
+from api_seed import lend, nth_person, pay
 from mortgage_backend.db import make_engine
-
-RUPEE = 100  # paise
-
-
-def person(client, n, address="", referrer=None, name=None):
-    response = client.post(
-        "/api/customers",
-        json={
-            "name": name or f"Customer {n:02d}",
-            "address": address,
-            "phone_1": f"98290{n:05d}",
-            "referrer": referrer,
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment
 
 
 def get(client, path, **params):
@@ -42,7 +26,7 @@ def every_page(client, path, **params):
 
 def test_customers_sort_by_name_either_way_across_pages(client):
     for n in range(1, 26):
-        person(client, n)
+        nth_person(client, n)
 
     names = [
         c["name"] for c in every_page(client, "customers", sort="name", descending=True)
@@ -52,9 +36,9 @@ def test_customers_sort_by_name_either_way_across_pages(client):
 
 
 def test_customers_sort_by_address_and_phone(client):
-    person(client, 3, address="Bapu Bazaar", name="Asha")
-    person(client, 1, address="Chandpole", name="Bina")
-    person(client, 2, address="amer Road", name="Chetan")
+    nth_person(client, 3, "Asha", address="Bapu Bazaar")
+    nth_person(client, 1, "Bina", address="Chandpole")
+    nth_person(client, 2, "Chetan", address="amer Road")
 
     def names(**sort):
         return [c["name"] for c in get(client, "customers", **sort)["items"]]
@@ -64,12 +48,13 @@ def test_customers_sort_by_address_and_phone(client):
 
 
 def test_customers_sort_by_referrer_customers_and_standalone_alike(client):
-    zoya = person(client, 1, name="Zoya")
-    person(client, 2, name="By Zoya", referrer={"kind": "customer", "id": zoya["id"]})
-    person(
+    zoya = nth_person(client, 1, "Zoya")
+    by_zoya = {"kind": "customer", "id": zoya["id"]}
+    nth_person(client, 2, "By Zoya", referrer=by_zoya)
+    nth_person(
         client,
         3,
-        name="By Mohan",
+        "By Mohan",
         referrer={
             "kind": "new",
             "name": "Mohan Lal",
@@ -83,36 +68,12 @@ def test_customers_sort_by_referrer_customers_and_standalone_alike(client):
     assert listed == ["Zoya", "By Mohan", "By Zoya"]  # no Referrer first
 
 
-SIMPLE_3 = {
-    "monthly_rate_bps": 300,
-    "interest_mode": "simple",
-    "part_month_rule": "full_month",
-}
-
-
-def lend(client, owner, rupees, start="2026-01-14"):
-    response = client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": owner["id"],
-            "start_date": start,
-            "amount_lent": rupees * RUPEE,
-            "description": "Gold ring",
-            "gross_weight_mg": 5_000,
-            "net_weight_mg": 5_000,
-            "purity_karat": 22,
-            "terms": SIMPLE_3,
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
 def test_mortgages_sort_by_outstanding_across_pages(client):
-    owner = person(client, 1)
+    owner = nth_person(client, 1)
     # Outstanding is computed, not stored: the older ones have more interest added.
     lent = [
-        lend(client, owner, 10_000, start=f"2026-01-{day:02d}") for day in range(1, 26)
+        lend(client, owner, f"2026-01-{day:02d}", amount=10_000 * RUPEE)
+        for day in range(1, 26)
     ]
 
     listed = every_page(client, "mortgages", sort="outstanding", descending=True)
@@ -123,9 +84,9 @@ def test_mortgages_sort_by_outstanding_across_pages(client):
 
 
 def test_mortgages_sort_by_principal_lent_across_pages(client):
-    owner = person(client, 1)
+    owner = nth_person(client, 1)
     for rupees in range(25, 0, -1):
-        lend(client, owner, rupees * 1_000)
+        lend(client, owner, amount=rupees * 1_000 * RUPEE)
 
     listed = every_page(client, "mortgages", sort="lent")
 
@@ -135,10 +96,10 @@ def test_mortgages_sort_by_principal_lent_across_pages(client):
 
 
 def test_mortgages_sort_by_name_and_customer(client):
-    asha = person(client, 1, name="Asha")
-    bina = person(client, 2, name="Bina")
-    first = lend(client, bina, 1_000)
-    second = lend(client, asha, 1_000)
+    asha = nth_person(client, 1, "Asha")
+    bina = nth_person(client, 2, "Bina")
+    first = lend(client, bina, amount=1_000 * RUPEE)
+    second = lend(client, asha, amount=1_000 * RUPEE)
 
     def ids(**sort):
         return [m["id"] for m in get(client, "mortgages", **sort)["items"]]
@@ -150,9 +111,9 @@ def test_mortgages_sort_by_name_and_customer(client):
 
 
 def test_mortgages_keep_newest_first_by_default(client):
-    owner = person(client, 1)
-    older = lend(client, owner, 1_000, start="2026-01-01")
-    newer = lend(client, owner, 1_000, start="2026-02-01")
+    owner = nth_person(client, 1)
+    older = lend(client, owner, "2026-01-01", amount=1_000 * RUPEE)
+    newer = lend(client, owner, "2026-02-01", amount=1_000 * RUPEE)
 
     assert [m["id"] for m in get(client, "mortgages")["items"]] == [
         newer["id"],
@@ -160,25 +121,11 @@ def test_mortgages_keep_newest_first_by_default(client):
     ]
 
 
-def pay(client, mortgage, rupees, on="2026-04-01", method="cash"):
-    response = client.post(
-        "/api/payments",
-        json={
-            "customer_id": mortgage["customer"]["id"],
-            "paid_on": on,
-            "amount": rupees * RUPEE,
-            "method": method,
-            "allocations": [{"mortgage_id": mortgage["id"], "amount": rupees * RUPEE}],
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
 def test_payments_sort_by_amount_across_pages(client):
-    mortgage = lend(client, person(client, 1), 100_000)
+    mortgage = lend(client, nth_person(client, 1), amount=100_000 * RUPEE)
     for n in range(25):
-        pay(client, mortgage, (n * 7 % 25 + 1) * 10)  # 10, 80, 150, … shuffled
+        rupees = (n * 7 % 25 + 1) * 10  # 10, 80, 150, … shuffled
+        pay(client, mortgage["customer"], {mortgage["id"]: rupees * RUPEE}, on="2026-04-01")
 
     listed = every_page(client, "payments", sort="amount")
 
@@ -186,10 +133,11 @@ def test_payments_sort_by_amount_across_pages(client):
 
 
 def test_payments_sort_by_customer_mortgage_method_and_date(client):
-    bina_ring = lend(client, person(client, 1, name="Bina"), 10_000)
-    asha_ring = lend(client, person(client, 2, name="Asha"), 10_000)
-    first = pay(client, bina_ring, 100, on="2026-03-01", method="upi")
-    second = pay(client, asha_ring, 100, on="2026-04-01", method="cash")
+    bina, asha = nth_person(client, 1, "Bina"), nth_person(client, 2, "Asha")
+    bina_ring = lend(client, bina, amount=10_000 * RUPEE)
+    asha_ring = lend(client, asha, amount=10_000 * RUPEE)
+    first = pay(client, bina, {bina_ring["id"]: 100 * RUPEE}, "2026-03-01", "upi")
+    second = pay(client, asha, {asha_ring["id"]: 100 * RUPEE}, "2026-04-01", "cash")
 
     def ids(**sort):
         return [p["id"] for p in get(client, "payments", **sort)["items"]]
@@ -205,10 +153,10 @@ def test_payments_sort_by_customer_mortgage_method_and_date(client):
 
 
 def test_mortgages_sort_by_started_and_by_status_in_their_lifecycle_order(client):
-    owner = person(client, 1)
-    redeemed = lend(client, owner, 1_000, start="2026-01-01")
-    forfeited = lend(client, owner, 1_000, start="2026-03-01")
-    active = lend(client, owner, 1_000, start="2026-02-01")
+    owner = nth_person(client, 1)
+    redeemed = lend(client, owner, "2026-01-01", amount=1_000 * RUPEE)
+    forfeited = lend(client, owner, "2026-03-01", amount=1_000 * RUPEE)
+    active = lend(client, owner, "2026-02-01", amount=1_000 * RUPEE)
     assert client.post(
         f"/api/mortgages/{redeemed['id']}/redeem",
         json={"redeemed_on": "2026-04-20", "method": "cash"},
@@ -226,12 +174,12 @@ def test_mortgages_sort_by_started_and_by_status_in_their_lifecycle_order(client
 
 
 def test_mortgages_owing_something_sort_too(client):
-    owner = person(client, 1)
-    small = lend(client, owner, 1_000, start="2026-01-01")
-    large = lend(client, owner, 9_000, start="2026-02-01")
-    paid_off = lend(client, owner, 5_000, start="2026-03-01")
+    owner = nth_person(client, 1)
+    small = lend(client, owner, "2026-01-01", amount=1_000 * RUPEE)
+    large = lend(client, owner, "2026-02-01", amount=9_000 * RUPEE)
+    paid_off = lend(client, owner, "2026-03-01", amount=5_000 * RUPEE)
     owed = get(client, f"mortgages/{paid_off['id']}")["outstanding"]["total"]
-    pay(client, paid_off, owed // RUPEE, on="2026-04-01")
+    pay(client, owner, {paid_off["id"]: owed}, on="2026-04-01")
 
     listed = get(client, "mortgages", owing=True, sort="lent")["items"]
 

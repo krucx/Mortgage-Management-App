@@ -17,7 +17,7 @@ from mortgage_backend.audit import mortgage_history
 from mortgage_backend.changes import AllocationIn, PaymentIn, TermChangeIn
 from mortgage_backend.mortgages import MortgageEdit, MortgageIn
 from mortgage_backend.replay import replay
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, close
+from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, forfeit, redeem
 
 NOW = datetime(2026, 4, 20, 11, 0)
 
@@ -56,7 +56,7 @@ def test_a_payment_is_written_replayed_and_recorded(conn: Connection) -> None:
 def test_a_payment_to_a_closed_mortgage_is_refused(conn: Connection) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    close(conn, chain, status="forfeited", closed_on=date(2026, 4, 14))
+    forfeit(conn, chain, date(2026, 4, 14))
 
     with pytest.raises(HTTPException) as error:
         changes.record_payment(
@@ -130,14 +130,10 @@ def test_a_redemptions_final_payment_is_voided_only_by_reopening(
 ) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    final = add_payment(conn, ramesh, date(2026, 3, 14), {chain: 1_06_000 * RUPEE})
-    close(
-        conn,
-        chain,
-        status="redeemed",
-        closed_on=date(2026, 3, 14),
-        redemption_payment_id=final,
-    )
+    # Redeemed on the 14 Mar Accrual Date: its final Payment is ₹1,06,000.
+    final = redeem(conn, chain, date(2026, 3, 14))
+    assert final is not None
+    assert replay(conn, chain).steps_by_payment()[final].amount == 1_06_000 * RUPEE
 
     with pytest.raises(HTTPException) as error:
         changes.void_payment(conn, final, "mistake", TODAY, NOW)
@@ -152,7 +148,7 @@ def test_a_payment_to_a_closed_mortgage_is_voided_only_after_reopening(
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
     paid = add_payment(conn, ramesh, date(2026, 2, 20), {chain: 1_000 * RUPEE})
-    close(conn, chain, status="forfeited", closed_on=date(2026, 4, 14))
+    forfeit(conn, chain, date(2026, 4, 14))
 
     with pytest.raises(HTTPException) as error:
         changes.void_payment(conn, paid, "mistake", TODAY, NOW)
@@ -162,7 +158,7 @@ def test_a_payment_to_a_closed_mortgage_is_voided_only_after_reopening(
 
 def test_a_term_change_on_a_closed_mortgage_is_refused(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
-    close(conn, chain, status="forfeited", closed_on=date(2026, 4, 14))
+    forfeit(conn, chain, date(2026, 4, 14))
 
     with pytest.raises(HTTPException) as error:
         changes.add_term_change(
@@ -308,7 +304,7 @@ def test_an_edit_cannot_strand_a_term_change(conn: Connection) -> None:
 
 def test_a_closed_mortgages_start_and_principal_are_locked(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
-    close(conn, chain, status="forfeited", closed_on=date(2026, 4, 14))
+    forfeit(conn, chain, date(2026, 4, 14))
 
     with pytest.raises(HTTPException) as error:
         changes.edit_mortgage(conn, chain, edit(amount_lent=90_000 * RUPEE), TODAY, NOW)
@@ -379,7 +375,7 @@ def test_a_redemption_is_refused_on_a_date_it_cannot_close(
 
 def test_a_closed_mortgage_cannot_be_closed_again(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
-    close(conn, chain, status="forfeited", closed_on=date(2026, 4, 14))
+    forfeit(conn, chain, date(2026, 4, 14))
 
     with pytest.raises(HTTPException) as error:
         changes.redeem(conn, chain, redeem_in(), TODAY, NOW)
@@ -406,7 +402,9 @@ def test_forfeiting_records_what_was_recovered(conn: Connection) -> None:
         1_20_000 * RUPEE,
         "Sold",
     )
-    assert [e.action for e in mortgage_history(conn, chain)] == ["forfeited"]
+    # Nothing but the Forfeiture since the Mortgage was lent
+    made = [e.action for e in mortgage_history(conn, chain) if e.action != "created"]
+    assert made == ["forfeited"]
 
 
 def test_reopening_a_redemption_voids_its_final_payment(conn: Connection) -> None:
@@ -450,7 +448,7 @@ def test_a_term_change_on_a_closed_mortgage_stays(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
     changes.add_term_change(conn, chain, TermChangeIn(monthly_rate_bps=200), TODAY, NOW)
     [coming] = replay(conn, chain).term_changes
-    close(conn, chain, status="forfeited", closed_on=date(2026, 4, 14))
+    forfeit(conn, chain, date(2026, 4, 14))
 
     with pytest.raises(HTTPException) as error:
         changes.remove_term_change(conn, chain, coming.id, TODAY, NOW)
@@ -536,7 +534,7 @@ def test_a_collateral_value_is_refused_when_it_cannot_stand(conn: Connection) ->
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
     ring = add_mortgage(conn, ramesh, suffix="Ring")
-    close(conn, ring, status="redeemed", closed_on=TODAY)
+    redeem(conn, ring, TODAY)
 
     def refused(mortgage_id: int, value: int) -> tuple[int, str]:
         with pytest.raises(HTTPException) as refused:
@@ -558,10 +556,8 @@ def test_a_photo_is_added_and_removed_and_recorded(conn: Connection) -> None:
     removed = changes.remove_photo(conn, chain, photo, NOW)
 
     assert removed == "mortgage-1-a.jpg"
-    assert [e.action for e in mortgage_history(conn, chain)] == [
-        "photo_removed",
-        "photo_added",
-    ]
+    made = [e.action for e in mortgage_history(conn, chain) if e.action != "created"]
+    assert made == ["photo_removed", "photo_added"]
 
 
 def test_a_photo_is_refused_for_no_mortgage_or_removed_from_the_wrong_one(

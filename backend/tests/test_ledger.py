@@ -15,8 +15,7 @@ from mortgage_backend.ledger import (
     terms_on,
 )
 from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
-
-LAKH = 100_000_00  # ₹1,00,000 in paise
+from seed import LAKH
 
 
 def terms(mode=InterestMode.SIMPLE, bps=300):

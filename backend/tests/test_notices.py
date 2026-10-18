@@ -9,9 +9,9 @@ from datetime import date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, close
 from sqlalchemy.engine import Connection
 
+from api_seed import lend, person
 from mortgage_backend.main import create_app
 from mortgage_backend.message_settings import MESSAGE_SETTINGS, MessageSettings
 from mortgage_backend.notices import (
@@ -22,6 +22,7 @@ from mortgage_backend.notices import (
     list_notices,
     sync,
 )
+from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, redeem
 
 TODAY = date(2026, 5, 12)
 NOW = datetime(2026, 5, 12, 10, 0)
@@ -147,7 +148,7 @@ def test_approve_first_holds_notices_for_the_lender(conn: Connection) -> None:
 
 def test_closed_mortgages_get_no_notices(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
-    close(conn, chain, status="redeemed", closed_on=date(2026, 5, 1))
+    redeem(conn, chain, date(2026, 5, 1))
 
     sync(conn, date(2026, 5, 12))
 
@@ -180,27 +181,8 @@ def app_client(database_url: str, clock: Clock) -> Iterator[TestClient]:
 
 
 def test_the_daily_run_queues_notices_the_lender_sends(app_client, clock) -> None:
-    ramesh = app_client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
-    app_client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": ramesh["id"],
-            "start_date": "2026-01-14",
-            "amount_lent": LAKH,
-            "description": "Gold chain",
-            "gross_weight_mg": 20_000,
-            "net_weight_mg": 19_000,
-            "purity_karat": 22,
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": "full_month",
-            },
-        },
-    )
+    ramesh = person(app_client)
+    lend(app_client, ramesh)
     assert app_client.get("/api/notices").json()["items"] == []  # 14 May is 3 days away
 
     clock.today = date(2026, 5, 12)  # the first request today starts the daily run
@@ -218,27 +200,15 @@ def test_an_awaiting_notice_is_approved_or_skipped(app_client, clock) -> None:
     app_client.put(
         "/api/settings/messages", json={**settings_now, "notice_approve_first": True}
     )
-    owner = app_client.post(
-        "/api/customers",
-        json={"name": "Suresh Jain", "address": "", "phone_1": "9829054321"},
-    ).json()
+    owner = person(app_client, "Suresh Jain", "9829054321")
     for description in ("Ring", "Anklet"):
-        app_client.post(
-            "/api/mortgages",
-            json={
-                "customer_id": owner["id"],
-                "start_date": "2026-01-13" if description == "Ring" else "2026-01-14",
-                "amount_lent": 10_000 * RUPEE,
-                "description": description,
-                "gross_weight_mg": 5_000,
-                "net_weight_mg": 5_000,
-                "purity_karat": 22,
-                "terms": {
-                    "monthly_rate_bps": 300,
-                    "interest_mode": "simple",
-                    "part_month_rule": "full_month",
-                },
-            },
+        lend(
+            app_client,
+            owner,
+            "2026-01-13" if description == "Ring" else "2026-01-14",
+            amount=10_000 * RUPEE,
+            description=description,
+            net_weight_mg=5_000,
         )
     clock.today = date(2026, 5, 12)
     ring, anklet = app_client.get("/api/notices").json()["items"]
@@ -321,26 +291,14 @@ def test_saving_settings_with_approval_on_keeps_approved_notices_approved(
         assert app_client.put("/api/settings/messages", json={**now, **changes}).is_success
 
     save(notice_approve_first=True)
-    owner = app_client.post(
-        "/api/customers",
-        json={"name": "Suresh Jain", "address": "", "phone_1": "9829054321"},
-    ).json()
-    app_client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": owner["id"],
-            "start_date": "2026-01-13",
-            "amount_lent": 10_000 * RUPEE,
-            "description": "Ring",
-            "gross_weight_mg": 5_000,
-            "net_weight_mg": 5_000,
-            "purity_karat": 22,
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": "full_month",
-            },
-        },
+    owner = person(app_client, "Suresh Jain", "9829054321")
+    lend(
+        app_client,
+        owner,
+        "2026-01-13",
+        amount=10_000 * RUPEE,
+        description="Ring",
+        net_weight_mg=5_000,
     )
     clock.today = date(2026, 5, 12)
     (notice,) = app_client.get("/api/notices").json()["items"]
@@ -358,28 +316,9 @@ def test_the_notices_page_queues_what_is_due_without_waiting_a_day(
 ) -> None:
     clock.today = date(2026, 5, 12)
     assert app_client.get("/api/notices").json()["items"] == []  # today's daily run is done
-    owner = app_client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
+    owner = person(app_client)
     for start in ("2026-01-14", "2026-01-25"):  # accrue on 14 May and 25 May
-        app_client.post(
-            "/api/mortgages",
-            json={
-                "customer_id": owner["id"],
-                "start_date": start,
-                "amount_lent": LAKH,
-                "description": "Gold chain",
-                "gross_weight_mg": 20_000,
-                "net_weight_mg": 19_000,
-                "purity_karat": 22,
-                "terms": {
-                    "monthly_rate_bps": 300,
-                    "interest_mode": "simple",
-                    "part_month_rule": "full_month",
-                },
-            },
-        )
+        lend(app_client, owner, start)
 
     # Added today: its Notice shows at once, not tomorrow.
     assert [n["accrues_on"] for n in app_client.get("/api/notices").json()["items"]] == [
@@ -399,28 +338,9 @@ def test_the_notices_page_queues_what_is_due_without_waiting_a_day(
 
 def test_the_dashboard_counts_the_notices_to_send_and_approve(app_client, clock) -> None:
     clock.today = date(2026, 5, 12)
-    owner = app_client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
+    owner = person(app_client)
     for start in ("2026-01-13", "2026-01-14"):  # one Notice for 13 May, one for 14 May
-        app_client.post(
-            "/api/mortgages",
-            json={
-                "customer_id": owner["id"],
-                "start_date": start,
-                "amount_lent": LAKH,
-                "description": "Gold chain",
-                "gross_weight_mg": 20_000,
-                "net_weight_mg": 19_000,
-                "purity_karat": 22,
-                "terms": {
-                    "monthly_rate_bps": 300,
-                    "interest_mode": "simple",
-                    "part_month_rule": "full_month",
-                },
-            },
-        )
+        lend(app_client, owner, start)
 
     def counts():
         figures = app_client.get("/api/dashboard").json()
@@ -437,27 +357,8 @@ def test_the_dashboard_counts_the_notices_to_send_and_approve(app_client, clock)
     app_client.put(
         "/api/settings/messages", json={**settings_now, "notice_approve_first": True}
     )
-    suresh = app_client.post(
-        "/api/customers",
-        json={"name": "Suresh Jain", "address": "", "phone_1": "9829054321"},
-    ).json()
-    app_client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": suresh["id"],
-            "start_date": "2026-01-14",
-            "amount_lent": LAKH,
-            "description": "Ring",
-            "gross_weight_mg": 5_000,
-            "net_weight_mg": 5_000,
-            "purity_karat": 22,
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": "full_month",
-            },
-        },
-    )
+    suresh = person(app_client, "Suresh Jain", "9829054321")
+    lend(app_client, suresh, description="Ring", net_weight_mg=5_000)
     # Turning approval on holds Ramesh's unsent one too; Suresh's is new, so it waits.
     assert counts() == (0, 2)
 
@@ -513,7 +414,7 @@ def test_a_notice_with_nothing_to_say_can_only_be_skipped(conn: Connection) -> N
     chain = add_mortgage(conn, ramesh)
     sync(conn, TODAY)
     [notice] = list_notices(conn)
-    close(conn, chain, status="redeemed", closed_on=TODAY)
+    redeem(conn, chain, TODAY)
 
     with pytest.raises(NoticeRefused, match="skip it"):
         act(conn, notice.id, NoticeAction.SEND, NOW)

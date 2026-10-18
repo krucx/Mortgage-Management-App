@@ -1,36 +1,17 @@
 import pytest
 
-LAKH = 100_000_00  # ₹1,00,000 in paise
+from api_seed import lend, pay, person
 
 
 @pytest.fixture
 def ramesh(client):
-    return client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
+    return person(client)
 
 
 @pytest.fixture
 def mortgage(client, ramesh):
     # ₹1,00,000 at 3% Simple from 14 Jan; today (conftest) is 20 Apr 2026.
-    return client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": ramesh["id"],
-            "start_date": "2026-01-14",
-            "amount_lent": LAKH,
-            "description": "Gold chain",
-            "gross_weight_mg": 20_000,
-            "net_weight_mg": 19_000,
-            "purity_karat": 22,
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": "full_month",
-            },
-        },
-    ).json()
+    return lend(client, ramesh)
 
 
 def payment_fields(ramesh, mortgage, amount, paid_on="2026-04-20", **overrides):
@@ -44,17 +25,16 @@ def payment_fields(ramesh, mortgage, amount, paid_on="2026-04-20", **overrides):
     }
 
 
-def pay(client, ramesh, mortgage, amount, **overrides):
-    response = client.post(
-        "/api/payments", json=payment_fields(ramesh, mortgage, amount, **overrides)
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
 def test_a_payment_pays_interest_first_then_principal(client, ramesh, mortgage):
     # Owed on 20 Apr: 3 months' interest (₹9,000) + ₹1,00,000.
-    payment = pay(client, ramesh, mortgage, 19_000_00, method="upi", reference="UTR123")
+    payment = pay(
+        client,
+        ramesh,
+        {mortgage["id"]: 19_000_00},
+        on="2026-04-20",
+        method="upi",
+        reference="UTR123",
+    )
 
     assert payment["customer"]["name"] == "Ramesh Kumar"
     assert payment["paid_on"] == "2026-04-20"
@@ -76,7 +56,7 @@ def test_a_payment_pays_interest_first_then_principal(client, ramesh, mortgage):
 def test_the_mortgage_ledger_shows_the_payment_and_what_is_left(
     client, ramesh, mortgage
 ):
-    payment = pay(client, ramesh, mortgage, 19_000_00)
+    payment = pay(client, ramesh, {mortgage["id"]: 19_000_00}, on="2026-04-20")
 
     page = client.get(f"/api/mortgages/{mortgage['id']}").json()
 
@@ -98,8 +78,8 @@ def test_the_mortgage_ledger_shows_the_payment_and_what_is_left(
 def test_a_back_dated_payment_is_slotted_into_the_ledger_by_date(
     client, ramesh, mortgage
 ):
-    pay(client, ramesh, mortgage, 1_000_00, paid_on="2026-04-01")
-    pay(client, ramesh, mortgage, 2_000_00, paid_on="2026-02-20")
+    pay(client, ramesh, {mortgage["id"]: 1_000_00}, on="2026-04-01")
+    pay(client, ramesh, {mortgage["id"]: 2_000_00}, on="2026-02-20")
 
     page = client.get(f"/api/mortgages/{mortgage['id']}").json()
 
@@ -130,7 +110,8 @@ def test_a_payment_larger_than_what_is_owed_is_refused(client, ramesh, mortgage)
 def test_a_back_dated_payment_that_would_overpay_a_later_one_is_refused(
     client, ramesh, mortgage
 ):
-    pay(client, ramesh, mortgage, 109_000_00)  # pays everything off on 20 Apr
+    # Pays everything off on 20 Apr.
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-20")
 
     response = client.post(
         "/api/payments",
@@ -169,9 +150,7 @@ def test_allocations_must_add_up_to_the_payment(client, ramesh, mortgage):
 
 
 def test_a_payment_cannot_go_to_another_customers_mortgage(client, ramesh, mortgage):
-    sita = client.post(
-        "/api/customers", json={"name": "Sita", "address": "", "phone_1": "9000000005"}
-    ).json()
+    sita = person(client, "Sita", "9000000005")
 
     response = client.post(
         "/api/payments",
@@ -200,23 +179,14 @@ def test_opening_a_payment_that_does_not_exist_is_404(client):
 @pytest.fixture
 def second_mortgage(client, ramesh):
     # ₹50,000 at 3% Simple from 1 Feb: owes ₹1,500/month.
-    return client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": ramesh["id"],
-            "start_date": "2026-02-01",
-            "amount_lent": 50_000_00,
-            "description": "Bangles",
-            "gross_weight_mg": 10_000,
-            "net_weight_mg": 9_000,
-            "purity_karat": 22,
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": "full_month",
-            },
-        },
-    ).json()
+    return lend(
+        client,
+        ramesh,
+        "2026-02-01",
+        amount=50_000_00,
+        description="Bangles",
+        net_weight_mg=9_000,
+    )
 
 
 def lump_sum(ramesh, allocations, paid_on="2026-04-20", **overrides):
@@ -302,15 +272,9 @@ def list_payments(client, **params):
 def test_payments_are_listed_newest_first_with_their_mortgages(
     client, ramesh, mortgage, second_mortgage
 ):
-    pay(client, ramesh, mortgage, 1_000_00, paid_on="2026-03-01")
-    client.post(
-        "/api/payments",
-        json=lump_sum(
-            ramesh,
-            [(mortgage, 2_000_00), (second_mortgage, 1_000_00)],
-            reference="UTR9",
-        ),
-    )
+    pay(client, ramesh, {mortgage["id"]: 1_000_00}, on="2026-03-01")
+    both = {mortgage["id"]: 2_000_00, second_mortgage["id"]: 1_000_00}
+    pay(client, ramesh, both, on="2026-04-20", reference="UTR9")
 
     page = list_payments(client)
 
@@ -330,11 +294,9 @@ def test_payments_are_listed_newest_first_with_their_mortgages(
 def test_payments_can_be_filtered_by_customer_mortgage_or_reference(
     client, ramesh, mortgage, second_mortgage
 ):
-    sita = client.post(
-        "/api/customers", json={"name": "Sita", "address": "", "phone_1": "9000000005"}
-    ).json()
-    pay(client, ramesh, mortgage, 1_000_00, reference="UTR9")
-    pay(client, ramesh, second_mortgage, 1_000_00)
+    sita = person(client, "Sita", "9000000005")
+    pay(client, ramesh, {mortgage["id"]: 1_000_00}, on="2026-04-20", reference="UTR9")
+    pay(client, ramesh, {second_mortgage["id"]: 1_000_00}, on="2026-04-20")
 
     def count(q):
         return list_payments(client, q=q)["total"]

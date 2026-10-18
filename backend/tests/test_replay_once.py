@@ -8,7 +8,6 @@ from datetime import date
 from typing import Any
 
 import pytest
-from seed import LAKH, add_customer, add_mortgage, add_payment, close
 from sqlalchemy import event, select
 from sqlalchemy.engine import Connection, Engine, RowMapping
 
@@ -16,6 +15,7 @@ from mortgage_backend import notices
 from mortgage_backend.call_list import call_list
 from mortgage_backend.db import make_engine, mortgage_table
 from mortgage_backend.replay import MortgageReplay, replays
+from seed import LAKH, add_customer, add_mortgage, add_payment, redeem
 
 TODAY = date(2026, 4, 20)
 
@@ -45,7 +45,7 @@ def seeded(client, database_url: str) -> Iterator[None]:
         paid = add_mortgage(conn, sita, suffix="Paid", start_date=date(2026, 4, 1))
         add_payment(conn, sita, date(2026, 4, 10), {paid: LAKH})  # ready to redeem
         old = add_mortgage(conn, sita, suffix="Old", start_date=date(2025, 6, 1))
-        close(conn, old, status="redeemed", closed_on=date(2026, 4, 5))
+        redeem(conn, old, date(2026, 4, 5))
     yield
 
 
@@ -124,8 +124,7 @@ def test_the_call_list_uses_the_replays_it_is_given(
         conn,
         ramesh,
         suffix="Three",
-        collateral_override=LAKH,
-        collateral_override_on=TODAY,
+        collateral=LAKH,
     )
     sita = add_customer(conn, phone="9829054321")
     add_mortgage(conn, sita, suffix="Four", start_date=date(2025, 12, 1))
@@ -139,7 +138,7 @@ def test_the_call_list_uses_the_replays_it_is_given(
     assert [
         (row.mortgage_name, row.reasons) for group in groups for row in group.rows
     ] == [
-        ("2026-Ramesh-Four", ["months_unpaid"]),
+        ("2025-Ramesh-Four", ["months_unpaid"]),
         ("2026-Ramesh-Today", ["accrues_today"]),
         ("2026-Ramesh-Three", ["months_unpaid", "loan_to_value"]),
     ]
@@ -154,7 +153,8 @@ def test_notices_with_something_to_send_are_counted_without_a_replay(
     sita = add_customer(conn, phone="9829054321")
     gone = add_mortgage(conn, sita, suffix="Gone", start_date=date(2026, 1, 22))
     notices.sync(conn, TODAY)
-    close(conn, gone, status="redeemed", closed_on=TODAY)  # nothing left to say
+    redeem(conn, gone, TODAY)  # nothing left to say
+    replayed_ids.clear()  # redeeming replays it; counting must not
 
     assert notices.unsent_counts(conn) == {
         notices.NoticeStatus.QUEUED: 1,

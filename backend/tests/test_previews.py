@@ -3,16 +3,13 @@ anything (today is 20 Apr 2026, see conftest)."""
 
 import pytest
 
-RUPEE = 100  # paise
-LAKH = 1_00_000 * RUPEE
+from api_seed import lend, pay, person
+from seed import LAKH, RUPEE
 
 
 @pytest.fixture
 def ramesh(client):
-    return client.post(
-        "/api/customers",
-        json={"name": "Ramesh Kumar", "address": "", "phone_1": "9829012345"},
-    ).json()
+    return person(client)
 
 
 def details(**overrides):
@@ -31,36 +28,12 @@ def details(**overrides):
 
 @pytest.fixture
 def mortgage(client, ramesh):
-    response = client.post(
-        "/api/mortgages",
-        json={
-            "customer_id": ramesh["id"],
-            **details(),
-            "terms": {
-                "monthly_rate_bps": 300,
-                "interest_mode": "simple",
-                "part_month_rule": "full_month",
-            },
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+    return lend(client, ramesh, name="2026-Ramesh-GoldChain")
 
 
 @pytest.fixture
 def payment(client, ramesh, mortgage):
-    response = client.post(
-        "/api/payments",
-        json={
-            "customer_id": ramesh["id"],
-            "paid_on": "2026-04-15",
-            "amount": 5_000 * RUPEE,
-            "method": "cash",
-            "allocations": [{"mortgage_id": mortgage["id"], "amount": 5_000 * RUPEE}],
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+    return pay(client, ramesh, {mortgage["id"]: 5_000 * RUPEE})
 
 
 def preview(client, path, body=None):
@@ -176,23 +149,11 @@ def test_a_void_preview_is_refused_like_the_void(client, mortgage):
 def test_a_void_preview_covers_every_mortgage_the_payment_went_to(
     client, ramesh, mortgage
 ):
-    second = client.post(
-        "/api/mortgages",
-        json={"customer_id": ramesh["id"], **details(name="2026-Ramesh-Bangles")},
-    ).json()
-    split = client.post(
-        "/api/payments",
-        json={
-            "customer_id": ramesh["id"],
-            "paid_on": "2026-04-15",
-            "amount": 4_000 * RUPEE,
-            "method": "cash",
-            "allocations": [
-                {"mortgage_id": mortgage["id"], "amount": 3_000 * RUPEE},
-                {"mortgage_id": second["id"], "amount": 1_000 * RUPEE},
-            ],
-        },
-    ).json()
+    # On the Default Terms
+    second = lend(client, ramesh, name="2026-Ramesh-Bangles", terms=None)
+    split = pay(
+        client, ramesh, {mortgage["id"]: 3_000 * RUPEE, second["id"]: 1_000 * RUPEE}
+    )
 
     response = client.post(f"/api/payments/{split['id']}/void-preview", json={})
 
@@ -327,10 +288,8 @@ def payment_of(customer, on, *allocations):
 def test_a_payment_preview_covers_every_mortgage_it_is_allocated_to(
     client, ramesh, mortgage
 ):
-    second = client.post(
-        "/api/mortgages",
-        json={"customer_id": ramesh["id"], **details(name="2026-Ramesh-Bangles")},
-    ).json()
+    # On the Default Terms
+    second = lend(client, ramesh, name="2026-Ramesh-Bangles", terms=None)
 
     response = client.post(
         "/api/payments/preview",
@@ -357,10 +316,7 @@ def test_a_payment_preview_covers_every_mortgage_it_is_allocated_to(
 def test_a_payment_preview_refuses_what_saving_refuses(client, ramesh, mortgage):
     # ₹1,06,000 on 15 Mar pays off everything owed then. ₹5,000 back-dated to 20 Feb
     # would leave less owed on 15 Mar, so the later Payment would be too large.
-    client.post(
-        "/api/payments",
-        json=payment_of(ramesh, "2026-03-15", (mortgage, 1_06_000 * RUPEE)),
-    )
+    pay(client, ramesh, {mortgage["id"]: 1_06_000 * RUPEE}, on="2026-03-15")
     back_dated = payment_of(ramesh, "2026-02-20", (mortgage, 5_000 * RUPEE))
 
     previewed = client.post("/api/payments/preview", json=back_dated)
