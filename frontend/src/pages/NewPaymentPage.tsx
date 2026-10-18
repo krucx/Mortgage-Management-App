@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
-  api,
   type Customer,
   type MortgageRow,
   type Payment,
@@ -19,8 +19,8 @@ import { usePreview } from '../components/usePreview'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
-import { changes, previews } from '../requests'
-import { useLedgerChange } from '../serverState'
+import { changes, customerQuery, everyMortgageQuery, previews } from '../requests'
+import { useLedgerChange, useServerState } from '../serverState'
 import { tickedFirst } from '../sort'
 
 type AllocationMode = 'equal' | 'amount' | 'percent'
@@ -51,11 +51,9 @@ export function NewPaymentPage() {
   const [params, setParams] = useSearchParams()
   const customerId = Number(params.get('customer')) || undefined
   const preselected = Number(params.get('mortgage')) || undefined
-  const [customer, setCustomer] = useState<Customer | null>(null)
-
-  useEffect(() => {
-    if (customerId) api.getCustomer(customerId).then(setCustomer, () => setCustomer(null))
-  }, [customerId])
+  const { client } = useServerState()
+  const customer = useQuery({ ...customerQuery(client, customerId ?? 0), enabled: !!customerId })
+    .data
 
   return (
     <section className="card wide">
@@ -86,8 +84,6 @@ export function NewPaymentPage() {
 function PaymentForm({ customer, preselected }: { customer: Customer; preselected?: number }) {
   const navigate = useNavigate()
   const [paidOn, setPaidOn] = useState(todayIso())
-  const [mortgages, setMortgages] = useState<MortgageRow[] | null>(null)
-  const [selected, setSelected] = useState<Set<number>>(new Set())
   const [totalText, setTotalText] = useState('')
   const [mode, setMode] = useState<AllocationMode>('equal')
   const [amountText, setAmountText] = useState<Record<number, string>>({})
@@ -97,33 +93,37 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const [reference, setReference] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const selectionStarted = useRef(false)
   const [confirm, confirmDialog] = useConfirm()
   const changeLedger = useLedgerChange()
   // After saving: Mortgages this Payment paid off, offered for Redemption.
   const [paidOff, setPaidOff] = useState<{ payment: Payment; mortgages: MortgageRow[] }>()
 
   // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
-  useEffect(() => {
-    if (!paidOn) return
-    api
-      .listMortgages(1, '', {
-        customerId: customer.id,
-        status: 'active',
-        asOf: paidOn,
-        paged: false,
-      })
-      .then((page) => {
-        setMortgages(page.items)
-        setSelected((current) => {
-          const ids = page.items.filter(canTakePayment).map((m) => m.id)
-          if (selectionStarted.current) return new Set(ids.filter((id) => current.has(id)))
-          selectionStarted.current = true
-          return new Set(preselected && ids.includes(preselected) ? [preselected] : ids)
-        })
-      })
-      .catch((err: Error) => setError(err.message))
-  }, [customer.id, paidOn, preselected])
+  const { client, queryClient } = useServerState()
+  const listed = useQuery({
+    ...everyMortgageQuery(client, { customerId: customer.id, status: 'active', asOf: paidOn }),
+    enabled: paidOn !== '',
+    placeholderData: (previous) => previous,
+  })
+  const mortgages = listed.data?.items ?? null
+  // The ticked Mortgages: at first the preselected one (or all that can take a Payment);
+  // when the list changes (another date), those still in it stay ticked.
+  const [selection, setSelection] = useState<{ of: MortgageRow[] | null; ids: Set<number> }>({
+    of: null,
+    ids: new Set(),
+  })
+  if (mortgages && selection.of !== mortgages) {
+    // (Set while rendering, as React allows for a component's own state.)
+    const ids = mortgages.filter(canTakePayment).map((m) => m.id)
+    setSelection({
+      of: mortgages,
+      ids: selection.of
+        ? new Set(ids.filter((id) => selection.ids.has(id)))
+        : new Set(preselected && ids.includes(preselected) ? [preselected] : ids),
+    })
+  }
+  const selected = selection.ids
+  const setSelected = (ids: Set<number>) => setSelection({ of: mortgages, ids })
 
   const payable = (mortgages ?? []).filter(canTakePayment)
   const awaitingRedemption = (mortgages ?? []).filter((m) => !canTakePayment(m))
@@ -213,10 +213,11 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     try {
       const payment = await changeLedger((client) => changes.recordPayment(client, proposed))
       const allocated = new Set(payment.allocations.map((a) => a.mortgage_id))
-      // Any it left with nothing Outstanding, to offer for Redemption.
+      // Any it left with nothing Outstanding, to offer for Redemption (asked for afresh:
+      // the Payment made what was cached stale).
       const cleared = (
-        await api
-          .listMortgages(1, '', { customerId: customer.id, status: 'active', paged: false })
+        await queryClient
+          .fetchQuery(everyMortgageQuery(client, { customerId: customer.id, status: 'active' }))
           .then((all) => all.items, () => [])
       ).filter((m) => allocated.has(m.id) && m.outstanding_total === 0)
       if (cleared.length) setPaidOff({ payment, mortgages: cleared })
@@ -413,7 +414,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           {saving ? 'Saving…' : `Record Payment${total > 0 ? ` of ${formatINR(total)}` : ''}`}
         </button>
       </div>
-      {error && <p className="status error">{error}</p>}
+      {(error ?? listed.error) && (
+        <p className="status error">{error ?? listed.error?.message}</p>
+      )}
       {confirmDialog}
       {paidOff && (
         <RedeemPaidOff

@@ -1,18 +1,20 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
-import { api, MORTGAGE_SORTS, type Customer, type MortgagePage, type MortgageSort } from '../api'
+import { MORTGAGE_SORTS, type MortgagePage, type MortgageSort } from '../api'
 import { History } from '../components/History'
 import { MortgageTable } from '../components/MortgageTable'
 import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { useListPage } from '../components/useListPage'
 import type { Sorting } from '../components/useUrlSort'
-import { lists } from '../requests'
+import { customerHistoryQuery, customerQuery, lists } from '../requests'
+import { useServerState } from '../serverState'
 
 export function CustomerPage() {
   const id = Number(useParams().id)
-  const [customer, setCustomer] = useState<Customer | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { client } = useServerState()
+  const { data: customer, error } = useQuery(customerQuery(client, id))
   const activeList = useListPage(
     MORTGAGE_SORTS,
     lists.mortgages({ customerId: id, status: 'active' }),
@@ -25,17 +27,7 @@ export function CustomerPage() {
   const closed = closedList.listed
   const listError = activeList.error ?? closedList.error
 
-  useEffect(() => {
-    api
-      .getCustomer(id)
-      .then(setCustomer)
-      .catch((err: Error) => setError(err.message))
-  }, [id])
-
-  const loadHistory = useCallback(() => api.customerHistory(id), [id])
-
-  if (error) return <p className="status error">{error}</p>
-  if (!customer) return <p>Loading…</p>
+  if (!customer) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
 
   return (
     <section className="card">
@@ -99,7 +91,7 @@ export function CustomerPage() {
       <PersonList people={customer.referred} empty="Nobody yet." />
 
       <h3>History</h3>
-      <History load={loadHistory} showMortgage title={`History of ${customer.name}`} />
+      <History query={customerHistoryQuery(client, id)} showMortgage title={`History of ${customer.name}`} />
     </section>
   )
 }

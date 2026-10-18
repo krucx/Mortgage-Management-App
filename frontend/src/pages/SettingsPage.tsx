@@ -1,19 +1,16 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import {
-  api,
-  type BackupStatus,
-  type CallListSettings,
-  type GoldRate,
-  type MessagePlaceholders,
-  type MessageSettings,
-} from '../api'
+import { useQuery } from '@tanstack/react-query'
+import { useState, type FormEvent } from 'react'
+import type { GoldRate } from '../api'
 import { Summary } from '../components/ConfirmDialog'
 import { TermsFields } from '../components/TermsFields'
 import { useConfirm } from '../components/useConfirm'
+import { useDraft } from '../components/useDraft'
 import { WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
-import { fromDraft, INTEREST_MODES, PART_MONTH_RULES, toDraft, type TermsDraft } from '../terms'
+import { backupsQuery, backUpNow as startBackup, settings } from '../requests'
+import { keys, STALE_AFTER, useChange, useServerState } from '../serverState'
+import { fromDraft, INTEREST_MODES, PART_MONTH_RULES, toDraft } from '../terms'
 
 export function SettingsPage() {
   return (
@@ -29,18 +26,18 @@ export function SettingsPage() {
 
 type Status = { kind: 'saved' | 'error'; text: string } | null
 
+/** What saving said, or else why the group could not be loaded. */
+const shownStatus = (status: Status, loadError: Error | null): Status =>
+  status ?? (loadError ? { kind: 'error', text: loadError.message } : null)
+
 function DefaultTermsSettings() {
-  const [draft, setDraft] = useState<TermsDraft | null>(null)
-  const [status, setStatus] = useState<Status>(null)
+  const { client, queryClient } = useServerState()
+  const saved = useQuery(settings.defaultTerms(client))
+  const [draft, setDraft] = useDraft(saved.data, toDraft)
+  const [savedStatus, setStatus] = useState<Status>(null)
+  const status = shownStatus(savedStatus, saved.error)
   const [saving, setSaving] = useState(false)
   const [confirm, confirmDialog] = useConfirm()
-
-  useEffect(() => {
-    api
-      .getDefaultTerms()
-      .then((loaded) => setDraft(toDraft(loaded)))
-      .catch((error: Error) => setStatus({ kind: 'error', text: error.message }))
-  }, [])
 
   async function save(event: FormEvent) {
     event.preventDefault()
@@ -64,7 +61,8 @@ function DefaultTermsSettings() {
     setSaving(true)
     setStatus(null)
     try {
-      setDraft(toDraft(await api.updateDefaultTerms(fromDraft(draft))))
+      const terms = await settings.saveDefaultTerms(client, fromDraft(draft))
+      queryClient.setQueryData(settings.defaultTerms(client).queryKey, terms)
       setStatus({ kind: 'saved', text: 'Saved. New Mortgages will start with these Terms.' })
     } catch (error) {
       setStatus({ kind: 'error', text: (error as Error).message })
@@ -99,25 +97,23 @@ function DefaultTermsSettings() {
 }
 
 /** The Lender's Gold Rate per gram for each purity, which values every Mortgage. */
+/** Each purity's rate in rupees, as typed; blank where none is set. */
+const rateDraft = (rates: GoldRate[]): Record<number, string> =>
+  Object.fromEntries(
+    rates.map((r) => [r.purity_karat, r.rate_per_gram === null ? '' : String(r.rate_per_gram / 100)]),
+  )
+
 function GoldRateSettings() {
-  const [rates, setRates] = useState<GoldRate[] | null>(null)
-  const [draft, setDraft] = useState<Record<number, string>>({})
-  const [status, setStatus] = useState<Status>(null)
+  const { client, queryClient } = useServerState()
+  const saved = useQuery(settings.goldRates(client))
+  const rates = saved.data ?? null
+  const [draftOrNull, setDraft] = useDraft(saved.data, rateDraft)
+  const draft = draftOrNull ?? {}
+  const [savedStatus, setStatus] = useState<Status>(null)
+  const status = shownStatus(savedStatus, saved.error)
   const [saving, setSaving] = useState(false)
   const [confirm, confirmDialog] = useConfirm()
-
-  function load(loaded: GoldRate[]) {
-    setRates(loaded)
-    setDraft(
-      Object.fromEntries(
-        loaded.map((r) => [r.purity_karat, r.rate_per_gram === null ? '' : String(r.rate_per_gram / 100)]),
-      ),
-    )
-  }
-
-  useEffect(() => {
-    api.getGoldRates().then(load, (error: Error) => setStatus({ kind: 'error', text: error.message }))
-  }, [])
+  const revalue = useChange(STALE_AFTER.goldRates)
 
   const filled = (rates ?? []).filter((r) => draft[r.purity_karat])
 
@@ -141,14 +137,16 @@ function GoldRateSettings() {
     setSaving(true)
     setStatus(null)
     try {
-      load(
-        await api.updateGoldRates(
+      const updated = await revalue((client) =>
+        settings.saveGoldRates(
+          client,
           filled.map((r) => ({
             purity_karat: r.purity_karat,
             rate_per_gram: rupeesToPaise(draft[r.purity_karat]),
           })),
         ),
       )
+      queryClient.setQueryData(settings.goldRates(client).queryKey, updated)
       setStatus({ kind: 'saved', text: 'Saved. Collateral Values now use these rates.' })
     } catch (error) {
       setStatus({ kind: 'error', text: (error as Error).message })
@@ -210,16 +208,14 @@ function GoldRateSettings() {
 
 /** When a Mortgage goes on the Call List. */
 function CallListThresholds() {
-  const [draft, setDraft] = useState<CallListSettings | null>(null)
-  const [status, setStatus] = useState<Status>(null)
+  const { client, queryClient } = useServerState()
+  const saved = useQuery(settings.callList(client))
+  const [draft, setDraft] = useDraft(saved.data, (thresholds) => thresholds)
+  const [savedStatus, setStatus] = useState<Status>(null)
+  const status = shownStatus(savedStatus, saved.error)
   const [saving, setSaving] = useState(false)
   const [confirm, confirmDialog] = useConfirm()
-
-  useEffect(() => {
-    api
-      .getCallListSettings()
-      .then(setDraft, (error: Error) => setStatus({ kind: 'error', text: error.message }))
-  }, [])
+  const relist = useChange(STALE_AFTER.callListThresholds)
 
   async function save(event: FormEvent) {
     event.preventDefault()
@@ -239,7 +235,8 @@ function CallListThresholds() {
     setSaving(true)
     setStatus(null)
     try {
-      setDraft(await api.updateCallListSettings(draft))
+      const thresholds = await relist((client) => settings.saveCallList(client, draft))
+      queryClient.setQueryData(settings.callList(client).queryKey, thresholds)
       setStatus({ kind: 'saved', text: 'Saved.' })
     } catch (error) {
       setStatus({ kind: 'error', text: (error as Error).message })
@@ -328,16 +325,14 @@ function TemplateField({
 
 /** The wording of Receipts and Notices, and when Notices are queued. */
 function MessageSettingsForm() {
-  const [draft, setDraft] = useState<MessageSettings | null>(null)
-  const [placeholders, setPlaceholders] = useState<MessagePlaceholders | null>(null)
-  const [status, setStatus] = useState<Status>(null)
+  const { client, queryClient } = useServerState()
+  const saved = useQuery(settings.messages(client))
+  const placeholders = useQuery(settings.placeholders(client)).data ?? null
+  const [draft, setDraft] = useDraft(saved.data, (messages) => messages)
+  const [savedStatus, setStatus] = useState<Status>(null)
+  const status = shownStatus(savedStatus, saved.error)
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    const failed = (error: Error) => setStatus({ kind: 'error', text: error.message })
-    api.getMessageSettings().then(setDraft, failed)
-    api.getMessagePlaceholders().then(setPlaceholders, failed)
-  }, [])
+  const requeue = useChange(STALE_AFTER.messageSettings)
 
   async function save(event: FormEvent) {
     event.preventDefault()
@@ -345,7 +340,8 @@ function MessageSettingsForm() {
     setSaving(true)
     setStatus(null)
     try {
-      setDraft(await api.updateMessageSettings(draft))
+      const messages = await requeue((client) => settings.saveMessages(client, draft))
+      queryClient.setQueryData(settings.messages(client).queryKey, messages)
       setStatus({ kind: 'saved', text: 'Saved.' })
     } catch (error) {
       setStatus({ kind: 'error', text: (error as Error).message })
@@ -414,30 +410,18 @@ function MessageSettingsForm() {
 
 /** Backups of the database and photos: when the last one was taken, and how many to keep. */
 function BackupSettings() {
-  const [backup, setBackup] = useState<BackupStatus | null>(null)
-  const [keep, setKeep] = useState('')
-  const [status, setStatus] = useState<Status>(null)
+  const { client, queryClient } = useServerState()
+  // Checked every second while a Backup runs in the background.
+  const loaded = useQuery(backupsQuery(client))
+  const backup = loaded.data ?? null
+  // How many to keep, as typed; starts again from what is saved only when that changes.
+  const [keepDraft, setKeep] = useDraft(backup?.keep, String)
+  const keep = keepDraft ?? ''
+  const [savedStatus, setStatus] = useState<Status>(null)
+  const status = shownStatus(savedStatus, loaded.error)
   const [confirm, confirmDialog] = useConfirm()
-
-  useEffect(() => {
-    api.getBackupStatus().then(
-      (loaded) => {
-        setBackup(loaded)
-        setKeep(String(loaded.keep))
-      },
-      (error: Error) => setStatus({ kind: 'error', text: error.message }),
-    )
-  }, [])
-
-  // While a Backup runs in the background, check on it every second.
-  const running = backup?.running ?? false
-  useEffect(() => {
-    if (!running) return
-    const timer = setInterval(() => {
-      api.getBackupStatus().then(setBackup, () => undefined)
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [running])
+  const setBackup = (changed: NonNullable<typeof backup>) =>
+    queryClient.setQueryData(keys.backups, changed)
 
   async function backUpNow() {
     if (!backup) return
@@ -455,7 +439,7 @@ function BackupSettings() {
     if (!confirmed) return
     setStatus(null)
     try {
-      setBackup(await api.backUpNow())
+      setBackup(await startBackup(client))
     } catch (error) {
       setStatus({ kind: 'error', text: (error as Error).message })
     }
@@ -475,7 +459,7 @@ function BackupSettings() {
     if (!confirmed) return
     setStatus(null)
     try {
-      setBackup(await api.updateBackupSettings(Number(keep)))
+      setBackup(await settings.saveBackups(client, Number(keep)))
       setStatus({ kind: 'saved', text: 'Saved.' })
     } catch (error) {
       setStatus({ kind: 'error', text: (error as Error).message })

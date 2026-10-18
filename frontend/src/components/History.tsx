@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useQuery, type QueryKey, type UseQueryOptions } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { usePaymentMethods, type PaymentMethodNames } from './usePaymentMethods'
 import {
@@ -153,38 +154,23 @@ function describe(change: Change, showMortgage: boolean, methods: PaymentMethodN
 /** Changes shown on the page; the rest are in the complete-history popup. */
 const HISTORY_SHOWN = 5
 
-/** A Customer's or Mortgage's change history, newest first; reloads when `refresh` changes. */
-export function History({
-  load,
-  refresh,
+/** A Customer's or Mortgage's change history, newest first. */
+export function History<Key extends QueryKey>({
+  query,
   showMortgage = false,
   title,
 }: {
-  load: () => Promise<AuditEntry[]>
-  refresh?: unknown
+  query: UseQueryOptions<AuditEntry[], Error, AuditEntry[], Key>
   /** Name the Mortgage in its entries (on a Customer's page, which has several). */
   showMortgage?: boolean
   /** Heading of the complete-history popup. */
   title: string
 }) {
-  const [entries, setEntries] = useState<AuditEntry[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { data: entries, error } = useQuery(query)
   const [open, setOpen] = useState(false)
   const methods = usePaymentMethods()
 
-  useEffect(() => {
-    let replaced = false // by a newer reload, whose answer must win
-    load().then(
-      (loaded) => !replaced && setEntries(loaded),
-      (err: Error) => !replaced && setError(err.message),
-    )
-    return () => {
-      replaced = true
-    }
-  }, [load, refresh])
-
-  if (error) return <p className="status error">{error}</p>
-  if (entries === null) return null
+  if (!entries) return error ? <p className="status error">{error.message}</p> : null
   const changes = groupChanges(entries)
   const list = (shown: Change[]) => (
     <ul className="history">

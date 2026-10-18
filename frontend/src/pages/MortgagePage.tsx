@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { api, type LedgerStep, type Mortgage } from '../api'
+import type { LedgerStep, Mortgage } from '../api'
 import { CallNotes } from '../components/CallNotes'
 import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
 import { CollateralPanel } from '../components/CollateralPanel'
@@ -17,7 +17,13 @@ import { TermsPanel } from '../components/TermsPanel'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, formatGrams } from '../format'
 import { formatINR } from '../money'
-import { addMortgagePhoto, changes, mortgageQuery, previews } from '../requests'
+import {
+  addMortgagePhoto,
+  changes,
+  mortgageHistoryQuery,
+  mortgageQuery,
+  previews,
+} from '../requests'
 import { dataOrThrow, keys, useMortgageChange, useServerState } from '../serverState'
 import { describeTerms, formatRate, PART_MONTH_RULES } from '../terms'
 
@@ -30,12 +36,15 @@ export function MortgagePage() {
   const changeMortgage = useMortgageChange()
   const loaded = useQuery(mortgageQuery(client, id))
   const mortgage = loaded.data
-  const setMortgage = (changed: Mortgage) => queryClient.setQueryData(keys.mortgage(id), changed)
+  // A change that returns the Mortgage (photos, Collateral Value) is in its History too.
+  const setMortgage = (changed: Mortgage) => {
+    queryClient.setQueryData(keys.mortgage(id), changed)
+    void queryClient.invalidateQueries({ queryKey: keys.mortgageHistory(id) })
+  }
   const [error, setError] = useState<string | null>(null)
   const [confirm, confirmDialog] = useConfirm()
   const [reopening, setReopening] = useState(false)
   const [fullLedger, setFullLedger] = useState(false)
-  const loadHistory = useCallback(() => api.mortgageHistory(id), [id])
 
   const pathParams = { mortgage_id: id }
 
@@ -215,8 +224,7 @@ export function MortgagePage() {
       )}
 
       <h3>History</h3>
-      {/* Reloaded whenever the Mortgage changes, so new entries show up. */}
-      <History load={loadHistory} refresh={mortgage} title={`History of ${mortgage.name}`} />
+      <History query={mortgageHistoryQuery(client, id)} title={`History of ${mortgage.name}`} />
       {reopening && (
         <ReasonDialog
           title={`Reopen ${mortgage.name}?`}

@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import { api, type Customer, type PersonSummary } from '../api'
+import type { Customer, PersonSummary } from '../api'
 import { PeopleInline, PersonLink } from '../components/PersonLink'
 import { PhotoPicker } from '../components/PhotoPicker'
 import { ReferrerPicker, type ReferrerSelection } from '../components/ReferrerPicker'
@@ -8,47 +9,55 @@ import { useNumberOwner } from '../components/useNumberOwner'
 import { Summary } from '../components/ConfirmDialog'
 import { useConfirm } from '../components/useConfirm'
 import { normalisePhone } from '../phone'
+import { customerChanges, customerQuery, searchQuery } from '../requests'
+import { STALE_AFTER, useChange, useServerState } from '../serverState'
 
 const EMPTY = { name: '', address: '', phone_1: '', phone_2: '' }
 
 /** Create a new Customer, or edit one when the URL has an id. */
 export function CustomerFormPage() {
   const { id } = useParams()
+  const { client } = useServerState()
+  const loaded = useQuery({ ...customerQuery(client, Number(id)), enabled: id !== undefined })
+  if (id === undefined) return <CustomerForm existing={null} />
+  if (!loaded.data) {
+    return loaded.error ? <p className="status error">{loaded.error.message}</p> : <p>Loading…</p>
+  }
+  // Keyed so the form starts again from another Customer.
+  return <CustomerForm key={id} existing={loaded.data} />
+}
+
+function CustomerForm({ existing }: { existing: Customer | null }) {
+  const id = existing?.id
   // Set once a new Customer is created, so a retried Save (e.g. after a failed photo upload)
   // updates that Customer instead of creating a duplicate.
   const [createdId, setCreatedId] = useState<number>()
-  const customerId = id ? Number(id) : createdId
+  const customerId = id ?? createdId
   const navigate = useNavigate()
   // ?next=mortgage: after saving a new Customer, carry on to their new Mortgage.
   const next = useSearchParams()[0].get('next')
 
-  const [existing, setExisting] = useState<Customer | null>(null)
-  const [fields, setFields] = useState(EMPTY)
-  const [referrer, setReferrer] = useState<ReferrerSelection>(null)
-  const [referrerName, setReferrerName] = useState<string>()
+  const [fields, setFields] = useState(() =>
+    existing
+      ? {
+          name: existing.name,
+          address: existing.address,
+          phone_1: existing.phone_1,
+          phone_2: existing.phone_2 ?? '',
+        }
+      : EMPTY,
+  )
+  const [referrer, setReferrer] = useState<ReferrerSelection>(
+    existing?.referrer ? { kind: existing.referrer.kind, id: existing.referrer.id } : null,
+  )
+  const [referrerName, setReferrerName] = useState(existing?.referrer?.name)
   const [confirm, confirmDialog] = useConfirm()
   const [photo, setPhoto] = useState<Blob | null>(null)
   const [phone2Shared, setPhone2Shared] = useState<PersonSummary[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    if (!id) return
-    api
-      .getCustomer(Number(id))
-      .then((customer) => {
-        setExisting(customer)
-        setFields({
-          name: customer.name,
-          address: customer.address,
-          phone_1: customer.phone_1,
-          phone_2: customer.phone_2 ?? '',
-        })
-        setReferrer(customer.referrer && { kind: customer.referrer.kind, id: customer.referrer.id })
-        setReferrerName(customer.referrer?.name)
-      })
-      .catch((err: Error) => setError(err.message))
-  }, [id])
+  const { client, queryClient } = useServerState()
+  const changeCustomer = useChange(STALE_AFTER.customer)
 
   /** Warn (never block) when another Customer already uses this number. */
   // Contact number 1 is the Primary Number: it identifies the person.
@@ -60,7 +69,7 @@ export function CustomerFormPage() {
     // Stored numbers are exactly 10 digits, so searching a complete number is an exact match.
     const phone = normalisePhone(fields.phone_2)
     const others = phone
-      ? (await api.search(phone).catch(() => [])).filter(
+      ? (await queryClient.fetchQuery(searchQuery(client, phone)).catch(() => [])).filter(
           (hit) => hit.kind === 'customer' && hit.id !== customerId,
         )
       : []
@@ -99,12 +108,14 @@ export function CustomerFormPage() {
     setError(null)
     const customer = { ...fields, phone_2: fields.phone_2.trim() || null, referrer }
     try {
-      let saved =
-        customerId === undefined
-          ? await api.createCustomer(customer)
-          : await api.updateCustomer(customerId, customer)
+      let saved = await changeCustomer((client) =>
+        customerChanges.save(client, customer, customerId),
+      )
       setCreatedId(saved.id)
-      if (photo) saved = await api.replaceCustomerPhoto(saved.id, photo)
+      const savedId = saved.id
+      if (photo) {
+        saved = await changeCustomer((client) => customerChanges.replacePhoto(client, savedId, photo))
+      }
       navigate(
         next === 'mortgage' ? `/mortgages/new?customer=${saved.id}` : `/customers/${saved.id}`,
       )
@@ -115,7 +126,6 @@ export function CustomerFormPage() {
   }
 
   const editing = id !== undefined
-  if (editing && !existing && !error) return <p>Loading…</p>
 
   const phone1Field = (
     <label>

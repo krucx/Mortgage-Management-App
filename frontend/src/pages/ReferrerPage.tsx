@@ -1,22 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router'
-import { api, type StandaloneReferrer } from '../api'
 import { PersonList } from '../components/PersonLink'
+import { referrerQuery } from '../requests'
+import { useServerState } from '../serverState'
 
 export function ReferrerPage() {
   const id = Number(useParams().id)
-  const [referrer, setReferrer] = useState<StandaloneReferrer | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { client } = useServerState()
+  const { data: referrer, error } = useQuery(referrerQuery(client, id))
 
-  useEffect(() => {
-    api
-      .getReferrer(id)
-      .then(setReferrer)
-      .catch((err: Error) => setError(err.message))
-  }, [id])
-
-  if (error) return <p className="status error">{error}</p>
-  if (!referrer) return <p>Loading…</p>
+  if (!referrer) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
 
   return (
     <section className="card">

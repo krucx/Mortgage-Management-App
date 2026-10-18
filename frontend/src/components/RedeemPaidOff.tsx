@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
-import { api, type Payment, type Redemption } from '../api'
+import { useQueries } from '@tanstack/react-query'
+import { useState } from 'react'
+import type { Payment } from '../api'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
-import { changes } from '../requests'
-import { useLedgerChange } from '../serverState'
+import { changes, mortgageQuery, redemptionQuery } from '../requests'
+import { useLedgerChange, useServerState } from '../serverState'
 import { PART_MONTH_RULES } from '../terms'
 import { Modal } from './Modal'
 
@@ -20,26 +21,26 @@ export function RedeemPaidOff({
   mortgages: { id: number; name: string }[]
   onDone: () => void
 }) {
-  const [quotes, setQuotes] = useState<Record<number, Redemption | string>>({})
   const [chosen, setChosen] = useState<Set<number>>(new Set(mortgages.map((m) => m.id)))
-  const [rules, setRules] = useState<Record<number, string>>({})
   const [saving, setSaving] = useState(false)
   const [failures, setFailures] = useState<string[]>([])
-  const ids = mortgages.map((m) => m.id).join(',')
   const changeLedger = useLedgerChange()
-
-  useEffect(() => {
-    for (const id of ids.split(',').map(Number)) {
-      api
-        .getRedemption(id, payment.paid_on)
-        .then((quote) => setQuotes((q) => ({ ...q, [id]: quote })))
-        .catch((err: Error) => setQuotes((q) => ({ ...q, [id]: err.message })))
-      api
-        .getMortgage(id)
-        .then((m) => setRules((r) => ({ ...r, [id]: PART_MONTH_RULES[m.terms.part_month_rule] })))
-        .catch(() => {})
-    }
-  }, [ids, payment.paid_on])
+  const { client } = useServerState()
+  // Each one's Redemption Amount on the Payment date (or why there is none), and the
+  // Part-Month Rule behind any charge.
+  const quoted = useQueries({
+    queries: mortgages.map((m) => redemptionQuery(client, m.id, payment.paid_on)),
+  })
+  const terms = useQueries({ queries: mortgages.map((m) => mortgageQuery(client, m.id)) })
+  const quotes = Object.fromEntries(
+    mortgages.map((m, i) => [m.id, quoted[i].data ?? quoted[i].error?.message]),
+  )
+  const rules = Object.fromEntries(
+    mortgages.map((m, i) => {
+      const rule = terms[i].data?.terms.part_month_rule
+      return [m.id, rule && PART_MONTH_RULES[rule]]
+    }),
+  )
 
   function toggle(id: number) {
     const next = new Set(chosen)

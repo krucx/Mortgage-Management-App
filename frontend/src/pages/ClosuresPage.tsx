@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useQueries } from '@tanstack/react-query'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import { api, MORTGAGE_SORTS, READY_SORTS, type Redemption } from '../api'
+import { MORTGAGE_SORTS, READY_SORTS, type Redemption } from '../api'
 import { Summary } from '../components/ConfirmDialog'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
@@ -9,8 +10,8 @@ import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
 import { tickedFirst } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
-import { changes, lists } from '../requests'
-import { useLedgerChange } from '../serverState'
+import { changes, lists, redemptionQuery } from '../requests'
+import { useLedgerChange, useServerState } from '../serverState'
 
 /**
  * Closures in one place: Mortgages paid off and waiting to be Redeemed, and Active
@@ -187,32 +188,18 @@ function ForfeitChosen({
   onDone: () => void
 }) {
   const [on, setOn] = useState(todayIso())
-  // Keyed by `${date}:${id}`, so changing the date never shows a stale amount.
-  const [quotes, setQuotes] = useState<Record<string, Redemption | string>>({})
   const [recovered, setRecovered] = useState<Record<number, string>>({})
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [failures, setFailures] = useState<string[]>([])
   const [confirm, confirmDialog] = useConfirm()
   const changeLedger = useLedgerChange()
-  const ids = chosen.map((m) => m.id).join(',')
-
-  // The Redemption Amount of each chosen Mortgage on the Forfeiture date.
-  useEffect(() => {
-    let cancelled = false
-    for (const id of ids.split(',').map(Number)) {
-      api
-        .getRedemption(id, on)
-        .then((quote) => !cancelled && setQuotes((q) => ({ ...q, [`${on}:${id}`]: quote })))
-        .catch(
-          (err: Error) =>
-            !cancelled && setQuotes((q) => ({ ...q, [`${on}:${id}`]: err.message })),
-        )
-    }
-    return () => {
-      cancelled = true
-    }
-  }, [ids, on])
+  const { client } = useServerState()
+  // The Redemption Amount of each chosen Mortgage on the Forfeiture date, or why there is none.
+  const quoted = useQueries({ queries: chosen.map((m) => redemptionQuery(client, m.id, on)) })
+  const quotes: Record<string, Redemption | string | undefined> = Object.fromEntries(
+    chosen.map((m, i) => [`${on}:${m.id}`, quoted[i].data ?? quoted[i].error?.message]),
+  )
 
   const rows = chosen.map((m) => {
     const quote = quotes[`${on}:${m.id}`]

@@ -4,12 +4,15 @@
 // fails to compile.
 import { queryOptions } from '@tanstack/react-query'
 import type {
+  CallListSettings,
   CallListSort,
   CollateralPreview,
+  CustomerIn,
   CustomerSort,
   ForfeitIn,
   MortgageEdit,
   MortgageIn,
+  MessageSettings,
   MortgagePreview,
   MortgageSort,
   MortgageStatus,
@@ -20,7 +23,9 @@ import type {
   PaymentSort,
   ReadySort,
   RedeemIn,
+  Purity,
   TermChangeIn,
+  Terms,
 } from './api'
 import { dataOrThrow, keys, type ApiClient } from './serverState'
 import type { Sort } from './sort'
@@ -57,11 +62,7 @@ export function addMortgagePhoto(client: ApiClient, id: number, photo: Blob) {
       params: mortgagePath(id),
       // The schema types the file as a string; it is sent as multipart form data.
       body: { photo: '' },
-      bodySerializer: () => {
-        const form = new FormData()
-        form.append('photo', photo, 'photo.jpg')
-        return form
-      },
+      bodySerializer: () => photoForm(photo),
     }),
   )
 }
@@ -331,3 +332,258 @@ export const noticeActions = {
 /** Delete a Customer (refused while they have Mortgages). */
 export const deleteCustomer = (client: ApiClient, id: number) =>
   dataOrThrow(client.DELETE('/api/customers/{customer_id}', { params: { path: { customer_id: id } } }))
+
+/** A settings group: read once, then known from what saving it returns. */
+function settingsQuery<T>(name: string, load: () => Promise<T>) {
+  return queryOptions({ queryKey: [...keys.settings, name], queryFn: load, staleTime: Infinity })
+}
+
+/** Each settings group, and saving it. */
+export const settings = {
+  defaultTerms: (client: ApiClient) =>
+    settingsQuery('default-terms', () => dataOrThrow(client.GET('/api/settings/default-terms'))),
+  saveDefaultTerms: (client: ApiClient, terms: Terms) =>
+    dataOrThrow(client.PUT('/api/settings/default-terms', { body: terms })),
+  goldRates: (client: ApiClient) =>
+    settingsQuery('gold-rates', () => dataOrThrow(client.GET('/api/settings/gold-rates'))),
+  saveGoldRates: (
+    client: ApiClient,
+    rates: { purity_karat: Purity; rate_per_gram: number }[],
+  ) => dataOrThrow(client.PUT('/api/settings/gold-rates', { body: rates })),
+  callList: (client: ApiClient) =>
+    settingsQuery('call-list', () => dataOrThrow(client.GET('/api/settings/call-list'))),
+  saveCallList: (client: ApiClient, thresholds: CallListSettings) =>
+    dataOrThrow(client.PUT('/api/settings/call-list', { body: thresholds })),
+  messages: (client: ApiClient) =>
+    settingsQuery('messages', () => dataOrThrow(client.GET('/api/settings/messages'))),
+  saveMessages: (client: ApiClient, messages: MessageSettings) =>
+    dataOrThrow(client.PUT('/api/settings/messages', { body: messages })),
+  placeholders: (client: ApiClient) =>
+    settingsQuery('placeholders', () =>
+      dataOrThrow(client.GET('/api/settings/messages/placeholders')),
+    ),
+  saveBackups: (client: ApiClient, keep: number) =>
+    dataOrThrow(client.PUT('/api/settings/backups', { body: { keep } })),
+}
+
+/** The Backups: when the last was taken, whether one is running, how many are kept. */
+export function backupsQuery(client: ApiClient) {
+  return queryOptions({
+    queryKey: keys.backups,
+    queryFn: () => dataOrThrow(client.GET('/api/backups')),
+    // While a Backup runs in the background, check on it every second.
+    refetchInterval: (query) => (query.state.data?.running ? 1000 : false),
+  })
+}
+
+export const backUpNow = (client: ApiClient) => dataOrThrow(client.POST('/api/backups'))
+
+/** The whole lending book at a glance. */
+export function dashboardQuery(client: ApiClient) {
+  return queryOptions({
+    queryKey: keys.dashboard,
+    queryFn: () => dataOrThrow(client.GET('/api/dashboard')),
+  })
+}
+
+/** A Mortgage's History, newest first. */
+export function mortgageHistoryQuery(client: ApiClient, id: number) {
+  return queryOptions({
+    queryKey: keys.mortgageHistory(id),
+    queryFn: () =>
+      dataOrThrow(client.GET('/api/mortgages/{mortgage_id}/history', { params: mortgagePath(id) })),
+  })
+}
+
+/** A Customer's History (and their Mortgages'), newest first. */
+export function customerHistoryQuery(client: ApiClient, id: number) {
+  return queryOptions({
+    queryKey: [...keys.customer(id), 'history'],
+    queryFn: () =>
+      dataOrThrow(
+        client.GET('/api/customers/{customer_id}/history', {
+          params: { path: { customer_id: id } },
+        }),
+      ),
+  })
+}
+
+/** Where an Active Mortgage is heading with no more Payments, and with `monthlyPayment`. */
+export function projectionQuery(client: ApiClient, id: number, monthlyPayment: number | null) {
+  return queryOptions({
+    queryKey: [...keys.mortgage(id), 'projection', monthlyPayment],
+    queryFn: () =>
+      dataOrThrow(
+        client.GET('/api/mortgages/{mortgage_id}/projection', {
+          params: {
+            ...mortgagePath(id),
+            query: monthlyPayment ? { monthly_payment: monthlyPayment } : {},
+          },
+        }),
+      ),
+  })
+}
+
+/** A Mortgage's Call Notes, newest first. */
+export function callNotesQuery(client: ApiClient, mortgageId: number) {
+  return queryOptions({
+    queryKey: keys.callNotes(mortgageId),
+    queryFn: () =>
+      dataOrThrow(
+        client.GET('/api/mortgages/{mortgage_id}/call-notes', { params: mortgagePath(mortgageId) }),
+      ),
+  })
+}
+
+/** Note that the Customer was phoned about a Mortgage today. */
+export const addCallNote = (client: ApiClient, mortgageId: number, note: string) =>
+  dataOrThrow(
+    client.POST('/api/mortgages/{mortgage_id}/call-notes', {
+      params: mortgagePath(mortgageId),
+      body: { note },
+    }),
+  )
+
+/** A Customer, with whom they referred and who shares their numbers. */
+export function customerQuery(client: ApiClient, id: number) {
+  return queryOptions({
+    queryKey: keys.customer(id),
+    queryFn: () =>
+      dataOrThrow(client.GET('/api/customers/{customer_id}', { params: { path: { customer_id: id } } })),
+  })
+}
+
+/** A Standalone Referrer, with the Customers they referred. */
+export function referrerQuery(client: ApiClient, id: number) {
+  return queryOptions({
+    // Under the Customers, so saving a Customer they referred makes it stale.
+    queryKey: [...keys.allCustomers, 'referrer', id],
+    queryFn: () =>
+      dataOrThrow(client.GET('/api/referrers/{referrer_id}', { params: { path: { referrer_id: id } } })),
+  })
+}
+
+/** Customers and Referrers matching a name or phone. */
+export function searchQuery(client: ApiClient, query: string) {
+  return queryOptions({
+    queryKey: [...keys.allCustomers, 'search', query],
+    queryFn: () => dataOrThrow(client.GET('/api/search', { params: { query: { q: query } } })),
+  })
+}
+
+/** Who a Primary Number belongs to, if anyone. */
+export function numberOwnerQuery(client: ApiClient, phone: string) {
+  return queryOptions({
+    queryKey: [...keys.allCustomers, 'number-owner', phone],
+    queryFn: () =>
+      dataOrThrow(client.GET('/api/people/by-phone', { params: { query: { phone } } })),
+  })
+}
+
+/** Saving a Customer: new (no id) or edited; their photo is replaced separately. */
+export const customerChanges = {
+  save: (client: ApiClient, customer: CustomerIn, id?: number) =>
+    dataOrThrow(
+      id === undefined
+        ? client.POST('/api/customers', { body: customer })
+        : client.PUT('/api/customers/{customer_id}', {
+            params: { path: { customer_id: id } },
+            body: customer,
+          }),
+    ),
+  replacePhoto: (client: ApiClient, id: number, photo: Blob) =>
+    dataOrThrow(
+      client.PUT('/api/customers/{customer_id}/photo', {
+        params: { path: { customer_id: id } },
+        // The schema types the file as a string; it is sent as multipart form data.
+        body: { photo: '' },
+        bodySerializer: () => photoForm(photo),
+      }),
+    ),
+}
+
+/** A photo as the multipart form the backend takes. */
+function photoForm(photo: Blob): FormData {
+  const form = new FormData()
+  form.append('photo', photo, 'photo.jpg')
+  return form
+}
+
+/** Every one of a Customer's Mortgages that match, on one page, for choosing from: a
+ *  picker must never leave one out. With `asOf`, Outstanding is worked out on that date. */
+export function everyMortgageQuery(
+  client: ApiClient,
+  filters: { customerId: number; status?: MortgageStatus; asOf?: string },
+) {
+  return queryOptions({
+    queryKey: [...keys.list('mortgages'), 'every', filters],
+    queryFn: () =>
+      dataOrThrow(
+        client.GET('/api/mortgages', {
+          params: {
+            query: {
+              page: 1,
+              customer_id: filters.customerId,
+              status: filters.status,
+              as_of: filters.asOf,
+              paged: false,
+            },
+          },
+        }),
+      ),
+  })
+}
+
+/** The Mortgage Name the backend would give a new Mortgage. */
+export function suggestedNameQuery(
+  client: ApiClient,
+  asked: { customerId: number; startDate: string; description: string },
+) {
+  return queryOptions({
+    queryKey: ['suggested-name', asked],
+    queryFn: () =>
+      dataOrThrow(
+        client.GET('/api/mortgages/suggested-name', {
+          params: {
+            query: {
+              customer_id: asked.customerId,
+              start_date: asked.startDate,
+              description: asked.description,
+            },
+          },
+        }),
+      ),
+  })
+}
+
+/** Lend against a packet of jewellery; the new Mortgage. */
+export const createMortgage = (client: ApiClient, mortgage: MortgageIn) =>
+  dataOrThrow(client.POST('/api/mortgages', { body: mortgage }))
+
+/** A Payment and how it was applied to each Mortgage. */
+export function paymentQuery(client: ApiClient, id: number) {
+  return queryOptions({
+    queryKey: keys.payment(id),
+    queryFn: () => dataOrThrow(client.GET('/api/payments/{payment_id}', { params: paymentPath(id) })),
+  })
+}
+
+/** A Payment's Receipt for the Customer, worded from the Receipt template. */
+export function receiptQuery(client: ApiClient, paymentId: number) {
+  return queryOptions({
+    queryKey: [...keys.payment(paymentId), 'receipt'],
+    queryFn: () =>
+      dataOrThrow(
+        client.GET('/api/payments/{payment_id}/receipt', { params: paymentPath(paymentId) }),
+      ),
+  })
+}
+
+/** Each way a Payment can be made, by name: fixed while the app runs. */
+export function paymentMethodsQuery(client: ApiClient) {
+  return queryOptions({
+    queryKey: ['payment-methods'],
+    queryFn: () => dataOrThrow(client.GET('/api/payment-methods')),
+    staleTime: Infinity,
+  })
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { api, CUSTOMER_SORTS, type CustomerRow } from '../api'
+import { CUSTOMER_SORTS, type CustomerRow } from '../api'
 import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
 import { useConfirm } from '../components/useConfirm'
@@ -8,8 +8,8 @@ import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { PersonLink, PersonList } from '../components/PersonLink'
 import { useSearch } from '../components/useSearch'
-import { deleteCustomer, lists } from '../requests'
-import { STALE_AFTER, useChange } from '../serverState'
+import { customerQuery, deleteCustomer, lists } from '../requests'
+import { STALE_AFTER, useChange, useServerState } from '../serverState'
 
 /** All Customers in a paginated table, filterable by name or phone, or to those with an
  * Active Mortgage. */
@@ -33,12 +33,13 @@ export function CustomersPage() {
     lists.customers({ query: debouncedQuery, hasActiveMortgage: activeOnly }),
   )
   const changeCustomers = useChange(STALE_AFTER.customer)
+  const { client, queryClient } = useServerState()
   const error = actionError ?? listError
 
   async function remove(row: CustomerRow) {
     setActionError(null)
     try {
-      const { referred } = await api.getCustomer(row.id)
+      const { referred } = await queryClient.fetchQuery(customerQuery(client, row.id))
       const confirmed = await confirm({
         title: `Delete ${row.name}?`,
         body: (

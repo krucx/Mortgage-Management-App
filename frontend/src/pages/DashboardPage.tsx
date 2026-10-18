@@ -1,9 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { api, LEDGER_CHANGED, type Dashboard, type ProjectionHorizon } from '../api'
+import type { Dashboard, ProjectionHorizon } from '../api'
 import { PaymentsByMonthChart } from '../components/PaymentsByMonthChart'
 import { formatDate, formatPercent, monthName } from '../format'
 import { formatINR } from '../money'
+import { dashboardQuery } from '../requests'
+import { useServerState } from '../serverState'
 
 /** One figure, opening the list it was counted from. */
 function Figure({
@@ -98,18 +101,11 @@ function Projections({ figures }: { figures: Dashboard }) {
 
 /** The whole lending book at a glance, worked out whenever the page opens. */
 export function DashboardPage() {
-  const [figures, setFigures] = useState<Dashboard | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { client } = useServerState()
+  // Figures cached from an earlier visit show at once, dimmed until they are refreshed.
+  const { data: figures, error, isFetching } = useQuery(dashboardQuery(client))
 
-  useEffect(() => {
-    const load = () => api.getDashboard().then(setFigures, (err: Error) => setError(err.message))
-    load()
-    window.addEventListener(LEDGER_CHANGED, load)
-    return () => window.removeEventListener(LEDGER_CHANGED, load)
-  }, [])
-
-  if (error) return <p className="status error">{error}</p>
-  if (!figures) return <p>Loading…</p>
+  if (!figures) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
 
   const month = figures.as_of.slice(0, 7) // YYYY-MM
   const year = figures.as_of.slice(0, 4)
@@ -119,7 +115,7 @@ export function DashboardPage() {
   const toCall = figures.call_list_count
 
   return (
-    <section className="card wide dashboard">
+    <section className={`card wide dashboard${isFetching ? ' refreshing' : ''}`}>
       <h2>Dashboard</h2>
       <p className="hint as-of">As of {formatDate(figures.as_of)}</p>
 

@@ -1,21 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
-import { api, type Receipt } from '../api'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
+import { receiptQuery } from '../requests'
+import { useServerState } from '../serverState'
 
 /** A Receipt to print or save as PDF: the same content as the WhatsApp message. */
 export function ReceiptPage() {
   const id = Number(useParams().id)
-  const [receipt, setReceipt] = useState<Receipt | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { client } = useServerState()
+  const { data: receipt, error } = useQuery(receiptQuery(client, id))
 
-  useEffect(() => {
-    api.getReceipt(id).then(setReceipt, (err: Error) => setError(err.message))
-  }, [id])
-
-  if (error) return <p className="status error">{error}</p>
-  if (!receipt) return <p>Loading…</p>
+  if (!receipt) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
 
   return (
     <section className="card wide receipt">

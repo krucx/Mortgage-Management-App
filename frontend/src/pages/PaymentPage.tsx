@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { api, type Payment, type Receipt } from '../api'
+import type { Payment } from '../api'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { PersonLink } from '../components/PersonLink'
 import { ChangePreview } from '../components/BeforeAfter'
@@ -8,26 +9,20 @@ import { ReasonDialog } from '../components/ReasonDialog'
 import { SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
 import { formatINR } from '../money'
-import { changes, previews } from '../requests'
-import { useLedgerChange } from '../serverState'
+import { changes, paymentQuery, previews, receiptQuery } from '../requests'
+import { keys, useLedgerChange, useServerState } from '../serverState'
 
 /** One Payment and how it was allocated across Mortgages. */
 export function PaymentPage() {
   const id = Number(useParams().id)
-  const [payment, setPayment] = useState<Payment | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { client, queryClient } = useServerState()
+  const { data: payment, error } = useQuery(paymentQuery(client, id))
+  const setPayment = (voided: Payment) => queryClient.setQueryData(keys.payment(id), voided)
   const [voiding, setVoiding] = useState(false)
   const methods = usePaymentMethods()
   const changeLedger = useLedgerChange()
 
-  useEffect(() => {
-    api
-      .getPayment(id)
-      .then(setPayment)
-      .catch((err: Error) => setError(err.message))
-  }, [id])
-
-  if (!payment) return error ? <p className="status error">{error}</p> : <p>Loading…</p>
+  if (!payment) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
 
   return (
     <section className="card wide">
@@ -107,11 +102,11 @@ export function PaymentPage() {
             </>
           }
           confirmLabel="Void Payment"
-          onConfirm={async (reason) =>
+          onConfirm={async (reason) => {
             setPayment(
               await changeLedger((client) => changes.voidPayment(client, payment.id, reason)),
             )
-          }
+          }}
           onClose={() => setVoiding(false)}
         />
       )}
@@ -121,15 +116,11 @@ export function PaymentPage() {
 
 /** The Receipt for the Customer: sent on WhatsApp, or printed. Reopen it any time. */
 function ReceiptPanel({ paymentId }: { paymentId: number }) {
-  const [receipt, setReceipt] = useState<Receipt | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { client } = useServerState()
+  const { data: receipt, error } = useQuery(receiptQuery(client, paymentId))
   const [sent, setSent] = useState(false)
 
-  useEffect(() => {
-    api.getReceipt(paymentId).then(setReceipt, (err: Error) => setError(err.message))
-  }, [paymentId])
-
-  if (error) return <p className="status error">{error}</p>
+  if (error) return <p className="status error">{error.message}</p>
   if (!receipt) return null
   return (
     <>

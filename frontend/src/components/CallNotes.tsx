@@ -1,10 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { api, type CallNote } from '../api'
+import { useQuery } from '@tanstack/react-query'
+import { useState, type FormEvent } from 'react'
+import type { CallNote } from '../api'
 import { formatDate } from '../format'
+import { addCallNote, callNotesQuery } from '../requests'
+import { STALE_AFTER, useChange, useServerState } from '../serverState'
 import { Summary } from './ConfirmDialog'
 import { useConfirm } from './useConfirm'
 
-/** Mark a Mortgage as called today, with a note of what was said. */
+/** Mark a Mortgage as called today, with a note of what was said; the Call List and
+ *  Call Notes show it. */
 export function MarkCalled({
   mortgageId,
   mortgageName,
@@ -20,6 +24,7 @@ export function MarkCalled({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirm, confirmDialog] = useConfirm()
+  const markCalled = useChange(STALE_AFTER.callNote)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -32,7 +37,7 @@ export function MarkCalled({
     setSaving(true)
     setError(null)
     try {
-      onSaved(await api.addCallNote(mortgageId, note))
+      onSaved(await markCalled((client) => addCallNote(client, mortgageId, note)))
       setNote('')
     } catch (err) {
       setError((err as Error).message)
@@ -65,17 +70,13 @@ export function MarkCalled({
 
 /** A Mortgage's Call Notes, newest first, with a form to add one. */
 export function CallNotes({ mortgageId, mortgageName }: { mortgageId: number; mortgageName: string }) {
-  const [notes, setNotes] = useState<CallNote[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    api.listCallNotes(mortgageId).then(setNotes, (err: Error) => setError(err.message))
-  }, [mortgageId])
+  const { client } = useServerState()
+  const { data: notes, error } = useQuery(callNotesQuery(client, mortgageId))
 
   return (
     <div className="stack">
-      {error && <p className="status error">{error}</p>}
-      {notes === null ? null : notes.length === 0 ? (
+      {error && <p className="status error">{error.message}</p>}
+      {!notes ? null : notes.length === 0 ? (
         <p className="hint">Not called yet.</p>
       ) : (
         <ul className="call-notes">
@@ -89,7 +90,7 @@ export function CallNotes({ mortgageId, mortgageName }: { mortgageId: number; mo
       <MarkCalled
         mortgageId={mortgageId}
         mortgageName={mortgageName}
-        onSaved={(note) => setNotes([note, ...(notes ?? [])])}
+        onSaved={() => {}}
       />
     </div>
   )

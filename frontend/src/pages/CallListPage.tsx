@@ -9,7 +9,6 @@ import { formatPercent } from '../format'
 import { sender } from '../messaging'
 import { formatINR } from '../money'
 import { lists } from '../requests'
-import { markStale, STALE_AFTER, useServerState } from '../serverState'
 
 /** Why a Mortgage is on the Call List, in words. */
 function reasonsOf(row: CallListRow): string[] {
@@ -40,7 +39,6 @@ function ContactLinks({ phone }: { phone: string }) {
 export function CallListPage() {
   // Sorted on the server across every page: each Customer's rows, then the Customers.
   const { listed, sorting, error, pager } = useListPage(CALL_LIST_SORTS, lists.callList())
-  const { queryClient } = useServerState()
   const groups = listed?.items ?? null
   const [noting, setNoting] = useState<number | null>(null) // the Mortgage being marked called
 
@@ -114,8 +112,8 @@ export function CallListPage() {
                             mortgageId={row.mortgage_id}
                             mortgageName={row.mortgage_name}
                             onSaved={() => {
+                              // Marking called makes the Call List stale itself.
                               setNoting(null)
-                              markStale(queryClient, STALE_AFTER.callNote)
                             }}
                             onCancel={() => setNoting(null)}
                           />

@@ -1,23 +1,14 @@
-import { useEffect, useState } from 'react'
-import { api, type PersonSummary } from '../api'
+import { useQuery } from '@tanstack/react-query'
+import type { PersonSummary } from '../api'
 import { normalisePhone } from '../phone'
+import { numberOwnerQuery } from '../requests'
+import { useServerState } from '../serverState'
 
-/** Who a Primary Number belongs to, looked up once a complete number is typed. */
+/** Who a Primary Number belongs to, looked up once a complete number is typed; nobody
+ *  if it can't be looked up. */
 export function useNumberOwner(raw: string): PersonSummary | null {
+  const { client } = useServerState()
   const phone = normalisePhone(raw)
-  const [found, setFound] = useState<{ phone: string; owner: PersonSummary | null } | null>(null)
-
-  useEffect(() => {
-    if (!phone) return
-    let cancelled = false
-    api
-      .personByPhone(phone)
-      .then((owner) => !cancelled && setFound({ phone, owner }))
-      .catch(() => !cancelled && setFound({ phone, owner: null }))
-    return () => {
-      cancelled = true
-    }
-  }, [phone])
-
-  return phone && found?.phone === phone ? found.owner : null
+  const { data } = useQuery({ ...numberOwnerQuery(client, phone ?? ''), enabled: Boolean(phone) })
+  return phone ? (data ?? null) : null
 }

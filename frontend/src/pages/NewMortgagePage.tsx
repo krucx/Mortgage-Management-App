@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { api, PURITIES, type Customer, type MortgageIn, type MortgageRow, type Purity } from '../api'
+import { PURITIES, type Customer, type MortgageIn, type Purity } from '../api'
 import { NewMortgageForecast } from '../components/ChangeForecasts'
 import { CustomerChooser } from '../components/CustomerChooser'
 import { Summary } from '../components/ConfirmDialog'
@@ -10,9 +11,19 @@ import { PhotoSource } from '../components/PhotoSource'
 import { TermsFields } from '../components/TermsFields'
 import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
+import { useDraft } from '../components/useDraft'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
-import { formatRate, fromDraft, INTEREST_MODES, toDraft, type TermsDraft } from '../terms'
+import {
+  addMortgagePhoto,
+  createMortgage,
+  customerQuery,
+  everyMortgageQuery,
+  settings,
+  suggestedNameQuery,
+} from '../requests'
+import { useLedgerChange, useServerState } from '../serverState'
+import { formatRate, fromDraft, INTEREST_MODES, toDraft } from '../terms'
 
 /**
  * Create a Mortgage: pick (or create) the Customer, see their Active Mortgages,
@@ -21,11 +32,9 @@ import { formatRate, fromDraft, INTEREST_MODES, toDraft, type TermsDraft } from 
 export function NewMortgagePage() {
   const [params, setParams] = useSearchParams()
   const customerId = Number(params.get('customer')) || undefined
-  const [customer, setCustomer] = useState<Customer | null>(null)
-
-  useEffect(() => {
-    if (customerId) api.getCustomer(customerId).then(setCustomer, () => setCustomer(null))
-  }, [customerId])
+  const { client } = useServerState()
+  const customer = useQuery({ ...customerQuery(client, customerId ?? 0), enabled: !!customerId })
+    .data
 
   return (
     <section className="card wide">
@@ -51,18 +60,11 @@ export function NewMortgagePage() {
 }
 
 function CustomerSummary({ customer, onChange }: { customer: Customer; onChange: () => void }) {
-  const [active, setActive] = useState<MortgageRow[] | null>(null)
-  const [activeTotal, setActiveTotal] = useState(0)
-
-  useEffect(() => {
-    api
-      .listMortgages(1, '', { customerId: customer.id, status: 'active', paged: false })
-      .then((page) => {
-        setActive(page.items)
-        setActiveTotal(page.total)
-      })
-      .catch(() => setActive([]))
-  }, [customer.id])
+  const { client } = useServerState()
+  const listed = useQuery(everyMortgageQuery(client, { customerId: customer.id, status: 'active' }))
+  // None shown if they can't be had: they are only a reminder here.
+  const active = listed.data?.items ?? (listed.error ? [] : null)
+  const activeTotal = listed.data?.total ?? 0
 
   return (
     <div className="stack">
@@ -117,8 +119,10 @@ function MortgageForm({ customer }: { customer: Customer }) {
     net: '',
     purity: 22 as Purity,
   })
-  const [terms, setTerms] = useState<TermsDraft | null>(null)
-  const [name, setName] = useState('')
+  const { client } = useServerState()
+  const changeLedger = useLedgerChange()
+  const [terms, setTerms] = useDraft(useQuery(settings.defaultTerms(client)).data, toDraft)
+  const [typedName, setName] = useState('')
   const [nameEdited, setNameEdited] = useState(false)
   const [photos, setPhotos] = useState<{ blob: Blob; url: string }[]>([])
   // Set once created, so a retried Save (e.g. after a failed photo upload) doesn't duplicate it.
@@ -127,19 +131,18 @@ function MortgageForm({ customer }: { customer: Customer }) {
   const [saving, setSaving] = useState(false)
   const [confirm, confirmDialog] = useConfirm()
 
-  useEffect(() => {
-    api.getDefaultTerms().then((defaults) => setTerms(toDraft(defaults)))
-  }, [])
-
   // Suggest the Mortgage Name until the Lender types their own.
   const description = useDebounced(fields.description, 250)
-  useEffect(() => {
-    if (nameEdited || !fields.start_date) return
-    api
-      .suggestMortgageName(customer.id, fields.start_date, description)
-      .then((suggestion) => setName(suggestion.name))
-      .catch(() => {})
-  }, [customer.id, fields.start_date, description, nameEdited])
+  const suggested = useQuery({
+    ...suggestedNameQuery(client, {
+      customerId: customer.id,
+      startDate: fields.start_date,
+      description,
+    }),
+    enabled: !nameEdited && fields.start_date !== '',
+    placeholderData: (previous) => previous,
+  })
+  const name = nameEdited ? typedName : (suggested.data?.name ?? '')
 
   const set = (field: keyof typeof fields) => (value: string) =>
     setFields({ ...fields, [field]: value })
@@ -191,12 +194,13 @@ function MortgageForm({ customer }: { customer: Customer }) {
     try {
       let id = createdId
       if (id === undefined) {
-        const created = await api.createMortgage(asked)
+        // A new Mortgage changes what the lending book is owed.
+        const created = await changeLedger((client) => createMortgage(client, asked))
         id = created.id
         setCreatedId(id)
       }
       while (pending.length) {
-        await api.addMortgagePhoto(id, pending[0].blob)
+        await addMortgagePhoto(client, id, pending[0].blob)
         pending.shift()
       }
       navigate(`/mortgages/${id}`)

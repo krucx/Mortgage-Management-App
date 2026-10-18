@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import { api, type Mortgage } from '../api'
+import type { Mortgage } from '../api'
 import { formatDate, formatPercent } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
+import { changes } from '../requests'
+import { STALE_AFTER, useChange } from '../serverState'
 import { CollateralForecast } from './ChangeForecasts'
 import { useConfirm } from './useConfirm'
 
@@ -19,6 +21,7 @@ export function CollateralPanel({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirm, confirmDialog] = useConfirm()
+  const revalue = useChange(STALE_AFTER.collateral)
   const collateral = mortgage.collateral
 
   async function save(paise: number | null) {
@@ -50,7 +53,7 @@ export function CollateralPanel({
     setSaving(true)
     setError(null)
     try {
-      onChange(await api.setCollateral(mortgage.id, paise))
+      onChange(await revalue((client) => changes.setCollateral(client, mortgage.id, paise)))
       setEditing(false)
       setValue('')
     } catch (err) {

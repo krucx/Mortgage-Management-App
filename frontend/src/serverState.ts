@@ -49,6 +49,16 @@ const retryUnlessRefused = (failures: number, error: Error) =>
 /** Query keys, by what they hold; a prefix matches every key under it. */
 export const keys = {
   mortgage: (id: number) => ['mortgage', id] as const,
+  /** A Mortgage's History; under the Mortgage, so whatever makes it stale does this too. */
+  mortgageHistory: (id: number) => ['mortgage', id, 'history'] as const,
+  customer: (id: number) => ['customer', id] as const,
+  /** Every Customer, and everything under one (their History). */
+  allCustomers: ['customer'] as const,
+  payment: (id: number) => ['payment', id] as const,
+  /** Every Payment, and everything under one (its Receipt). */
+  allPayments: ['payment'] as const,
+  /** A Mortgage's Call Notes. */
+  callNotes: (mortgageId: number) => ['call-notes', mortgageId] as const,
   /** Every single-Mortgage key. */
   allMortgages: ['mortgage'] as const,
   lists: ['list'] as const,
@@ -60,6 +70,9 @@ export const keys = {
   previews: ['preview'] as const,
   /** Every Redemption Amount quoted for a date. */
   redemptions: ['redemption'] as const,
+  /** Every settings group. */
+  settings: ['settings'] as const,
+  backups: ['backups'] as const,
 }
 
 /** Fired by the old fetch functions after anything that can change what Mortgages owe. */
@@ -68,6 +81,8 @@ export const LEDGER_CHANGED = 'ledger-changed'
 /** What a change to what Mortgages owe makes stale, asked for again at once if shown. */
 const REFRESHED_AFTER_LEDGER_CHANGE = [
   keys.allMortgages,
+  // How each Payment was applied, and its Receipt, are replayed too.
+  keys.allPayments,
   keys.lists,
   keys.dashboard,
   keys.readyToRedeem,
@@ -89,10 +104,23 @@ export function markLedgerStale(queryClient: QueryClient): void {
 export const STALE_AFTER = {
   /** Approving, skipping or sending a Notice: the Notices, and the Dashboard's counts. */
   notice: [keys.list('notices'), keys.dashboard],
-  /** Marking a Mortgage called: the Call List. */
-  callNote: [keys.list('call-list')],
-  /** Saving or deleting a Customer: the lists that show Customers. */
-  customer: [keys.list('customers'), keys.list('mortgages'), keys.list('payments')],
+  /** Marking a Mortgage called: the Call List and the Call Notes. */
+  callNote: [keys.list('call-list'), ['call-notes']],
+  /** Saving or deleting a Customer: the Customer, and the lists that show Customers. */
+  customer: [
+    keys.allCustomers,
+    keys.list('customers'),
+    keys.list('mortgages'),
+    keys.list('payments'),
+  ],
+  /** A Collateral Value set by hand: that Mortgage's Loan-to-Value, so the Call List. */
+  collateral: [keys.allMortgages, keys.lists, keys.dashboard],
+  /** New Gold Rates: every Collateral Value, so Loan-to-Value and the Call List. */
+  goldRates: [keys.allMortgages, keys.lists, keys.dashboard],
+  /** New Call List thresholds: the Call List, and the Dashboard's count of it. */
+  callListThresholds: [keys.list('call-list'), keys.dashboard],
+  /** New message settings: Notices are queued again to match them. */
+  messageSettings: [keys.list('notices'), keys.dashboard],
 } satisfies Record<string, readonly (readonly unknown[])[]>
 
 export function markStale(queryClient: QueryClient, stale: readonly (readonly unknown[])[]) {

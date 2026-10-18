@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
-import { api, type Mortgage, type ProjectedPoint, type Projection } from '../api'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import type { Mortgage, ProjectedPoint } from '../api'
 import { formatDate, formatPercent } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
+import { projectionQuery } from '../requests'
+import { useServerState } from '../serverState'
 import { ProjectionChart } from './ProjectionChart'
 import { useDebounced } from './useDebounced'
 
@@ -10,29 +13,17 @@ const HORIZONS = [3, 6, 12]
 /** Where an Active Mortgage is heading: no more Payments, or ₹X every month. */
 export function ProjectionPanel({ mortgage }: { mortgage: Mortgage }) {
   const [monthly, setMonthly] = useState('')
-  const [projection, setProjection] = useState<Projection | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const typed = useDebounced(monthly, 400)
   const payment = Number(typed) > 0 ? rupeesToPaise(typed) : null
+  const { client } = useServerState()
+  // Stale whenever the Mortgage is (a Payment or Term Change); the last one stays while
+  // the next what-if loads.
+  const { data: projection, error } = useQuery({
+    ...projectionQuery(client, mortgage.id, payment),
+    placeholderData: keepPreviousData,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-    api.getProjection(mortgage.id, payment).then(
-      (loaded) => {
-        if (cancelled) return
-        setProjection(loaded)
-        setError(null)
-      },
-      (err: Error) => !cancelled && setError(err.message),
-    )
-    return () => {
-      cancelled = true
-    }
-    // Reload when the Mortgage changes too (a Payment or Term Change).
-  }, [mortgage, payment])
-
-  if (error) return <p className="status error">{error}</p>
-  if (!projection) return <p>Loading…</p>
+  if (!projection) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
   const { baseline, what_if: whatIf } = projection
   const at = (points: ProjectedPoint[], months: number) => points.find((p) => p.months === months)
 

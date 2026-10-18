@@ -1,23 +1,13 @@
-import { useEffect, useState } from 'react'
-import { api, type SearchHit } from '../api'
+import { useQuery } from '@tanstack/react-query'
+import type { SearchHit } from '../api'
+import { searchQuery } from '../requests'
+import { useServerState } from '../serverState'
 import { useDebounced } from './useDebounced'
 
-/** Live search of Customers and Referrers, debounced while typing. */
+/** Live search of Customers and Referrers, debounced while typing; nothing if it fails. */
 export function useSearch(query: string): SearchHit[] {
+  const { client } = useServerState()
   const settled = useDebounced(query.trim())
-  const [found, setFound] = useState<{ query: string; hits: SearchHit[] } | null>(null)
-
-  useEffect(() => {
-    if (!settled) return
-    let cancelled = false
-    api
-      .search(settled)
-      .then((hits) => !cancelled && setFound({ query: settled, hits }))
-      .catch(() => !cancelled && setFound({ query: settled, hits: [] }))
-    return () => {
-      cancelled = true
-    }
-  }, [settled])
-
-  return query.trim() && found ? found.hits : []
+  const { data } = useQuery({ ...searchQuery(client, settled), enabled: settled !== '' })
+  return query.trim() && settled ? (data ?? []) : []
 }
