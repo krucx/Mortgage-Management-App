@@ -6,7 +6,7 @@ import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
 import { useUrlFilters } from '../components/useUrlFilters'
-import { SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
+import { ChatIcon, SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
 import { lists, noticeActions } from '../requests'
 import { STALE_AFTER, useChange, type ApiClient } from '../serverState'
@@ -136,10 +136,13 @@ export function NoticesPage() {
                       ) : notice.status === 'queued' ? (
                         <button
                           type="button"
-                          className="small whatsapp-send"
+                          className="small whatsapp-send with-icon"
+                          aria-label="Send on WhatsApp"
+                          title="Send on WhatsApp"
                           onClick={() => setReviewing(notice)}
                         >
-                          Send on WhatsApp
+                          <ChatIcon />
+                          Send
                         </button>
                       ) : (
                         <button

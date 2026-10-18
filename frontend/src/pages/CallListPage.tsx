@@ -5,6 +5,7 @@ import { MarkCalled } from '../components/CallNotes'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
+import { ChatIcon } from '../components/WhatsApp'
 import { formatPercent } from '../format'
 import { sender } from '../messaging'
 import { formatINR } from '../money'
@@ -12,7 +13,7 @@ import { lists } from '../requests'
 
 type Reason = CallListRow['reasons'][number]
 
-/** Each reason a Mortgage is listed, as a status circle: its short label and full wording. */
+/** Each reason a Mortgage is listed, as a status marker: its short label and full wording. */
 function reasonsOf(row: CallListRow): { reason: Reason; short: string; full: string }[] {
   return row.reasons.map((reason) => {
     switch (reason) {
@@ -38,14 +39,6 @@ function PhoneIcon() {
   return (
     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
-    </svg>
-  )
-}
-
-function ChatIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
-      <path d="M4 20l1.4-4A8 8 0 1 1 8.4 19L4 20Z" />
     </svg>
   )
 }
@@ -93,11 +86,10 @@ export function CallListPage() {
             {listed.mortgages} Mortgage{listed.mortgages === 1 ? '' : 's'} for {listed.total}{' '}
             Customer{listed.total === 1 ? '' : 's'}
           </p>
-          <ul className="reason-legend" aria-label="What the circles mean">
+          <ul className="reason-legend" aria-label="What the markers mean">
             {REASON_NAMES.map(([reason, name]) => (
               <li key={reason}>
-                <span className={`reason-dot ${reason}`} aria-hidden="true" />
-                {name}
+                <span className={`reason ${reason}`}>{name}</span>
               </li>
             ))}
           </ul>
@@ -184,8 +176,7 @@ function CustomerRows({
         <td>
           <span className="reasons">
             {reasonsOf(row).map(({ reason, short, full }) => (
-              <span key={reason} className="reason" aria-label={full} title={full}>
-                <span className={`reason-dot ${reason}`} aria-hidden="true" />
+              <span key={reason} className={`reason ${reason}`} aria-label={full} title={full}>
                 <span aria-hidden="true">{short}</span>
               </span>
             ))}

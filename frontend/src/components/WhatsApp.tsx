@@ -32,6 +32,16 @@ export function WhatsAppPreview({ text }: { text: string }) {
   )
 }
 
+/** WhatsApp's chat bubble, for buttons too small for the word "WhatsApp"; give the
+ *  button an aria-label saying what it does. */
+export function ChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+      <path d="M4 20l1.4-4A8 8 0 1 1 8.4 19L4 20Z" />
+    </svg>
+  )
+}
+
 /** Opens WhatsApp with `text` ready for the Lender to send, choosing the number if
  *  the Customer has two. */
 export function SendOnWhatsApp({

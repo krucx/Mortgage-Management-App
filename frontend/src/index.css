@@ -765,52 +765,42 @@ textarea {
 .reasons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
+  gap: 0.3rem;
 }
 
+/* A reason a Mortgage is on the Call List, as an enclosed status marker in its colour. */
 .reason {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--reason);
+  color: var(--reason);
+  background: color-mix(in srgb, var(--reason) 10%, var(--surface));
+  font-size: 0.78rem;
+  font-weight: 600;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-.reason-dot {
-  display: inline-block;
-  flex: none;
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
+.reason.months_unpaid {
+  --reason: var(--warning);
 }
 
-.reason-dot.months_unpaid {
-  background: var(--warning);
+.reason.loan_to_value {
+  --reason: var(--error);
 }
 
-.reason-dot.loan_to_value {
-  background: var(--error);
-}
-
-.reason-dot.accrues_today {
-  background: var(--tone-money-in);
+.reason.accrues_today {
+  --reason: var(--tone-money-in);
 }
 
 .reason-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
+  gap: 0.3rem;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.reason-legend li {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
 }
 
 .called-cell {
@@ -1239,6 +1229,12 @@ figure.chart.payments-by-month .tooltip {
   margin: 0;
   white-space: pre;
   overflow-x: auto;
+}
+
+button.with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 button.whatsapp-send {
