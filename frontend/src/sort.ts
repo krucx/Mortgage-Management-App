@@ -38,28 +38,6 @@ export function sortFromParam<Column extends string>(
   return column ? { column, descending } : null
 }
 
-/**
- * `rows` sorted in the browser, for lists sorted a page at a time: text ignoring case,
- * numbers by size, ties in the list's own order. With no sort, the list's own order.
- */
-export function sortedBy<Row, Column extends string>(
-  rows: Row[],
-  sort: Sort<Column> | null,
-  valueOf: Record<Column, (row: Row) => string | number>,
-): Row[] {
-  if (!sort) return rows
-  const value = valueOf[sort.column]
-  const direction = sort.descending ? -1 : 1
-  return [...rows].sort((a, b) => {
-    const [x, y] = [value(a), value(b)]
-    const order =
-      typeof x === 'number' && typeof y === 'number'
-        ? x - y
-        : String(x).localeCompare(String(y), undefined, { sensitivity: 'base' })
-    return order * direction
-  })
-}
-
 /** The ticked rows first, so the ones being acted on are together (e.g. the Mortgages
  *  a Payment is split across, or those to Forfeit); each group keeps its order. */
 export function tickedFirst<Row extends { id: number }>(rows: Row[], ticked: Set<number>): Row[] {

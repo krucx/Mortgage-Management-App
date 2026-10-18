@@ -2,6 +2,12 @@
 conftest). Pages hold 20, so 25 rows make two pages.
 """
 
+from datetime import date
+
+from seed import LAKH, add_customer, add_mortgage, add_payment
+
+from mortgage_backend.db import make_engine
+
 RUPEE = 100  # paise
 
 
@@ -230,3 +236,84 @@ def test_mortgages_owing_something_sort_too(client):
     listed = get(client, "mortgages", owing=True, sort="lent")["items"]
 
     assert [m["id"] for m in listed] == [small["id"], large["id"]]
+
+
+def book(database_url, start, paid=False):
+    """25 Customers, "Customer 01" to "25", each with a Mortgage from `start`, lent
+    ₹1,000 more for each (and paid off on 10 Apr if `paid`)."""
+    with make_engine(database_url).begin() as conn:
+        for n in range(1, 26):
+            owner = add_customer(conn, phone=f"98290{n:05d}", name=f"Customer {n:02d}")
+            lent = LAKH + n * 1_000 * RUPEE
+            mortgage = add_mortgage(
+                conn, owner, suffix=f"{n:02d}", start_date=start, amount_lent=lent
+            )
+            if paid:
+                add_payment(conn, owner, date(2026, 4, 10), {mortgage: lent})
+
+
+def test_notices_sort_by_customer_across_pages(client, database_url):
+    book(database_url, date(2026, 1, 21))  # all accrue tomorrow
+
+    notices = every_page(client, "notices", sort="customer", descending=True)
+
+    assert [n["customer"]["name"] for n in notices] == [
+        f"Customer {n:02d}" for n in range(25, 0, -1)
+    ]
+
+
+def test_notices_keep_their_own_order_unsorted(client, database_url):
+    book(database_url, date(2026, 1, 21))
+
+    notices = every_page(client, "notices")
+
+    assert [n["customer"]["name"] for n in notices] == [
+        f"Customer {n:02d}" for n in range(1, 26)
+    ]
+
+
+def test_the_call_list_sorts_by_outstanding_across_pages(client, database_url):
+    book(database_url, date(2026, 1, 14))  # 3 Months Unpaid each
+
+    groups = every_page(client, "call-list", sort="outstanding", descending=True)
+
+    assert [g["customer"]["name"] for g in groups] == [
+        f"Customer {n:02d}" for n in range(25, 0, -1)
+    ]
+
+
+def test_the_call_list_sorts_by_customer_across_pages(client, database_url):
+    book(database_url, date(2026, 1, 14))
+
+    groups = every_page(client, "call-list", sort="customer")
+
+    assert [g["customer"]["name"] for g in groups] == [
+        f"Customer {n:02d}" for n in range(1, 26)
+    ]
+
+
+def test_ready_to_redeem_sorts_by_customer_across_pages(client, database_url):
+    book(database_url, date(2026, 4, 1), paid=True)
+
+    ready = every_page(
+        client, "closures/ready-to-redeem", sort="customer", descending=True
+    )
+
+    assert [r["mortgage"]["customer"]["name"] for r in ready] == [
+        f"Customer {n:02d}" for n in range(25, 0, -1)
+    ]
+
+
+def test_mortgages_by_outstanding_or_owing_come_twenty_a_page(client, database_url):
+    book(database_url, date(2026, 1, 14))
+
+    first = get(client, "mortgages", sort="outstanding", descending=True)
+    owing = get(client, "mortgages", owing="true", page=2)
+    by_outstanding = every_page(
+        client, "mortgages", sort="outstanding", descending=True
+    )
+
+    assert (first["page_size"], len(first["items"]), first["total"]) == (20, 20, 25)
+    assert (owing["page_size"], len(owing["items"])) == (20, 5)
+    owed = [m["outstanding_total"] for m in by_outstanding]
+    assert owed == sorted(owed, reverse=True) and len(set(owed)) == 25

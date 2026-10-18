@@ -325,7 +325,7 @@
         "type": "object"
       },
       "CallListPage": {
-        "description": "A page of the Call List: whole Customer groups, never one split across pages.",
+        "description": "A page of the Call List: whole Customer groups (counted in `total`), never one\nsplit across pages.",
         "properties": {
           "items": {
             "items": {
@@ -354,9 +354,9 @@
         "required": [
           "items",
           "total",
-          "mortgages",
           "page",
-          "page_size"
+          "page_size",
+          "mortgages"
         ],
         "title": "CallListPage",
         "type": "object"
@@ -1803,37 +1803,6 @@
         "title": "Notice",
         "type": "object"
       },
-      "NoticePage": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/Notice"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "page": {
-            "title": "Page",
-            "type": "integer"
-          },
-          "page_size": {
-            "title": "Page Size",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "page_size"
-        ],
-        "title": "NoticePage",
-        "type": "object"
-      },
       "NoticeStatus": {
         "enum": [
           "awaiting_approval",
@@ -1928,6 +1897,68 @@
           "page_size"
         ],
         "title": "Page[MortgageRow]",
+        "type": "object"
+      },
+      "Page_Notice_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Notice"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[Notice]",
+        "type": "object"
+      },
+      "Page_ReadyToRedeem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReadyToRedeem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[ReadyToRedeem]",
         "type": "object"
       },
       "PartMonthRule": {
@@ -2423,37 +2454,6 @@
         "title": "ReadyToRedeem",
         "type": "object"
       },
-      "ReadyToRedeemPage": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ReadyToRedeem"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "page": {
-            "title": "Page",
-            "type": "integer"
-          },
-          "page_size": {
-            "title": "Page Size",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "page_size"
-        ],
-        "title": "ReadyToRedeemPage",
-        "type": "object"
-      },
       "Receipt": {
         "properties": {
           "amount": {
@@ -2909,6 +2909,7 @@
     },
     "/api/call-list": {
       "get": {
+        "description": "Today's Call List, most urgent first (or by `sort`, reversed when\n`descending`).",
         "operationId": "read_call_list_api_call_list_get",
         "parameters": [
           {
@@ -2920,6 +2921,38 @@
               "minimum": 1,
               "title": "Page",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "customer",
+                    "mortgage",
+                    "why",
+                    "outstanding"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "descending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Descending",
+              "type": "boolean"
             }
           }
         ],
@@ -2950,7 +2983,7 @@
     },
     "/api/closures/ready-to-redeem": {
       "get": {
-        "description": "Active Mortgages paid down to nothing Outstanding, oldest first.",
+        "description": "Active Mortgages paid down to nothing Outstanding, oldest first (or by `sort`,\nreversed when `descending`).",
         "operationId": "ready_to_redeem_api_closures_ready_to_redeem_get",
         "parameters": [
           {
@@ -2963,6 +2996,37 @@
               "title": "Page",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "mortgage",
+                    "customer",
+                    "amount"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "descending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Descending",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -2970,7 +3034,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReadyToRedeemPage"
+                  "$ref": "#/components/schemas/Page_ReadyToRedeem_"
                 }
               }
             },
@@ -4655,7 +4719,7 @@
     },
     "/api/notices": {
       "get": {
-        "description": "Notices, synced first: a Mortgage added today or a reopened Mortgage shows at\nonce, not after the next daily run.",
+        "description": "Notices by Accrual Date, then Customer (or by `sort`, reversed when\n`descending`), synced first: a Mortgage added today or a reopened Mortgage shows at\nonce, not after the next daily run.",
         "operationId": "read_notices_api_notices_get",
         "parameters": [
           {
@@ -4684,6 +4748,38 @@
               "title": "Page",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "customer",
+                    "accrues",
+                    "mortgages",
+                    "status"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "descending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Descending",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -4691,7 +4787,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NoticePage"
+                  "$ref": "#/components/schemas/Page_Notice_"
                 }
               }
             },

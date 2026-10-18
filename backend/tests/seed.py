@@ -16,10 +16,12 @@ RUPEE = 100  # paise
 LAKH = 1_00_000 * RUPEE
 
 
-def add_customer(conn: Connection, phone: str = "9829012345") -> int:
+def add_customer(
+    conn: Connection, phone: str = "9829012345", name: str = "Ramesh Kumar"
+) -> int:
     customer_id: int = conn.execute(
         insert(customer_table)
-        .values(name="Ramesh Kumar", address="", phone_1=phone)
+        .values(name=name, address="", phone_1=phone)
         .returning(customer_table.c.id)
     ).scalar_one()
     return customer_id

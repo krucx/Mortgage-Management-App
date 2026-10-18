@@ -3,63 +3,54 @@ import { Link } from 'react-router'
 import {
   api,
   MORTGAGE_SORTS,
+  READY_SORTS,
   type MortgagePage,
-  type ReadyToRedeem,
-  type ReadyToRedeemPage,
   type Redemption,
 } from '../api'
 import { Summary } from '../components/ConfirmDialog'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
+import { useListPage } from '../components/useListPage'
 import { useUrlSort } from '../components/useUrlSort'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
 import { showOrStepBack } from '../paging'
-import { sortedBy, tickedFirst } from '../sort'
+import { tickedFirst } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
-
-// Ready to Redeem is sorted a page at a time, in the browser.
-const READY_SORTS = ['mortgage', 'customer', 'amount'] as const
-const READY_VALUES = {
-  mortgage: (row: ReadyToRedeem) => row.mortgage.name,
-  customer: (row: ReadyToRedeem) => row.mortgage.customer.name,
-  amount: (row: ReadyToRedeem) => row.redemption.total,
-}
 
 /**
  * Closures in one place: Mortgages paid off and waiting to be Redeemed, and Active
  * Mortgages the Lender may choose to Forfeit.
  */
 export function ClosuresPage() {
-  const [readyList, setReadyList] = useState<ReadyToRedeemPage | null>(null)
-  const [readyPage, setReadyPage] = useState(1)
-  const readySorting = useUrlSort(READY_SORTS, { param: 'ready_sort' })
-  const ready = readyList && sortedBy(readyList.items, readySorting.sort, READY_VALUES)
+  // Both lists are sorted on the server, across their pages.
+  const {
+    listed: readyList,
+    sorting: readySorting,
+    error: readyError,
+    reload: reloadReady,
+    pager: readyPager,
+  } = useListPage(READY_SORTS, api.readyToRedeem, { sortParam: 'ready_sort' })
+  const ready = readyList?.items ?? null
   const [active, setActive] = useState<MortgagePage | null>(null)
   const [page, setPage] = useState(1)
-  // The Forfeit list is sorted on the server, across its pages.
   const sorting = useUrlSort(MORTGAGE_SORTS, { param: 'forfeit_sort', onChange: () => setPage(1) })
   const { sort } = sorting
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [error, setError] = useState<string | null>(null)
+  const [forfeitError, setForfeitError] = useState<string | null>(null)
+  const error = forfeitError ?? readyError
 
-  const load = useCallback(() => {
-    api
-      .readyToRedeem(readyPage)
-      .then(
-        (result) => showOrStepBack(result, setReadyList, setReadyPage),
-        (err: Error) => setError(err.message),
-      )
+  const loadForfeitable = useCallback(() => {
     api
       .listMortgages(page, '', { status: 'active', owing: true, sort })
       .then(
         (result) => showOrStepBack(result, setActive, setPage),
-        (err: Error) => setError(err.message),
+        (err: Error) => setForfeitError(err.message),
       )
-  }, [page, readyPage, sort])
+  }, [page, sort])
 
-  useEffect(load, [load])
+  useEffect(loadForfeitable, [loadForfeitable])
 
   function toggle(id: number) {
     const next = new Set(selected)
@@ -131,15 +122,7 @@ export function ClosuresPage() {
           </table>
         </div>
       )}
-      {readyList && (
-        <Pager
-          page={readyList.page}
-          pageSize={readyList.page_size}
-          total={readyList.total}
-          shown={readyList.items.length}
-          onPage={setReadyPage}
-        />
-      )}
+      {readyPager}
 
       <h3>Forfeit</h3>
       <p className="hint">
@@ -209,7 +192,8 @@ export function ClosuresPage() {
           chosen={chosen.map((m) => ({ id: m.id, name: m.name }))}
           onDone={() => {
             setSelected(new Set())
-            load()
+            loadForfeitable()
+            reloadReady()
           }}
         />
       )}

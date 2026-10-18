@@ -32,7 +32,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Call List */
+        /**
+         * Read Call List
+         * @description Today's Call List, most urgent first (or by `sort`, reversed when
+         *     `descending`).
+         */
         get: operations["read_call_list_api_call_list_get"];
         put?: never;
         post?: never;
@@ -51,7 +55,8 @@ export interface paths {
         };
         /**
          * Ready To Redeem
-         * @description Active Mortgages paid down to nothing Outstanding, oldest first.
+         * @description Active Mortgages paid down to nothing Outstanding, oldest first (or by `sort`,
+         *     reversed when `descending`).
          */
         get: operations["ready_to_redeem_api_closures_ready_to_redeem_get"];
         put?: never;
@@ -572,7 +577,8 @@ export interface paths {
         };
         /**
          * Read Notices
-         * @description Notices, synced first: a Mortgage added today or a reopened Mortgage shows at
+         * @description Notices by Accrual Date, then Customer (or by `sort`, reversed when
+         *     `descending`), synced first: a Mortgage added today or a reopened Mortgage shows at
          *     once, not after the next daily run.
          */
         get: operations["read_notices_api_notices_get"];
@@ -1024,7 +1030,8 @@ export interface components {
         };
         /**
          * CallListPage
-         * @description A page of the Call List: whole Customer groups, never one split across pages.
+         * @description A page of the Call List: whole Customer groups (counted in `total`), never one
+         *     split across pages.
          */
         CallListPage: {
             /** Items */
@@ -1615,17 +1622,6 @@ export interface components {
             sent_at: string | null;
             status: components["schemas"]["NoticeStatus"];
         };
-        /** NoticePage */
-        NoticePage: {
-            /** Items */
-            items: components["schemas"]["Notice"][];
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total */
-            total: number;
-        };
         /**
          * NoticeStatus
          * @enum {string}
@@ -1658,6 +1654,28 @@ export interface components {
         Page_MortgageRow_: {
             /** Items */
             items: components["schemas"]["MortgageRow"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[Notice] */
+        Page_Notice_: {
+            /** Items */
+            items: components["schemas"]["Notice"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ReadyToRedeem] */
+        Page_ReadyToRedeem_: {
+            /** Items */
+            items: components["schemas"]["ReadyToRedeem"][];
             /** Page */
             page: number;
             /** Page Size */
@@ -1840,17 +1858,6 @@ export interface components {
         ReadyToRedeem: {
             mortgage: components["schemas"]["MortgageRow"];
             redemption: components["schemas"]["Redemption"];
-        };
-        /** ReadyToRedeemPage */
-        ReadyToRedeemPage: {
-            /** Items */
-            items: components["schemas"]["ReadyToRedeem"][];
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total */
-            total: number;
         };
         /** Receipt */
         Receipt: {
@@ -2054,6 +2061,8 @@ export interface operations {
         parameters: {
             query?: {
                 page?: number;
+                sort?: ("customer" | "mortgage" | "why" | "outstanding") | null;
+                descending?: boolean;
             };
             header?: never;
             path?: never;
@@ -2085,6 +2094,8 @@ export interface operations {
         parameters: {
             query?: {
                 page?: number;
+                sort?: ("mortgage" | "customer" | "amount") | null;
+                descending?: boolean;
             };
             header?: never;
             path?: never;
@@ -2098,7 +2109,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReadyToRedeemPage"];
+                    "application/json": components["schemas"]["Page_ReadyToRedeem_"];
                 };
             };
             /** @description Validation Error */
@@ -3181,6 +3192,8 @@ export interface operations {
             query?: {
                 status?: components["schemas"]["NoticeStatus"] | null;
                 page?: number;
+                sort?: ("customer" | "accrues" | "mortgages" | "status") | null;
+                descending?: boolean;
             };
             header?: never;
             path?: never;
@@ -3194,7 +3207,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NoticePage"];
+                    "application/json": components["schemas"]["Page_Notice_"];
                 };
             };
             /** @description Validation Error */

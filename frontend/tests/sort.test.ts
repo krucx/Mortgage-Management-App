@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextSort, sortedBy, sortFromParam, sortToParam, tickedFirst } from '../src/sort'
+import { nextSort, sortFromParam, sortToParam, tickedFirst } from '../src/sort'
 
 describe('nextSort', () => {
   it('sorts by a new column in its first direction', () => {
@@ -35,33 +35,6 @@ describe('the sort in the URL', () => {
   it('is ignored when missing or not one of the list’s columns', () => {
     expect(sortFromParam(null, ['name'])).toBeNull()
     expect(sortFromParam('-phone', ['name'])).toBeNull()
-  })
-})
-
-describe('sortedBy', () => {
-  const rows = [
-    { name: 'bina', owed: 300 },
-    { name: 'Asha', owed: 100 },
-    { name: 'chetan', owed: 200 },
-  ]
-  const valueOf = { name: (r: (typeof rows)[0]) => r.name, owed: (r: (typeof rows)[0]) => r.owed }
-
-  it('sorts text ignoring case, and numbers by size, either way', () => {
-    const names = (sorted: typeof rows) => sorted.map((r) => r.name)
-    expect(names(sortedBy(rows, { column: 'name', descending: false }, valueOf))).toEqual([
-      'Asha',
-      'bina',
-      'chetan',
-    ])
-    expect(names(sortedBy(rows, { column: 'owed', descending: true }, valueOf))).toEqual([
-      'bina',
-      'chetan',
-      'Asha',
-    ])
-  })
-
-  it('keeps the list’s own order with no sort', () => {
-    expect(sortedBy(rows, null, valueOf)).toEqual(rows)
   })
 })
 

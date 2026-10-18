@@ -1,8 +1,8 @@
 """The Call List and Call Notes (see GLOSSARY.md), calculated whenever it is asked for."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -21,7 +21,7 @@ from mortgage_backend.db import (
 )
 from mortgage_backend.ledger import months_unpaid
 from mortgage_backend.mortgages import select_with_customer
-from mortgage_backend.paging import PAGE_SIZE, PageNumber, page_of
+from mortgage_backend.paging import Page, PageNumber, rows_page
 from mortgage_backend.replay import MortgageReplay, MortgageStatus, replays
 from mortgage_backend.settings import ConfigGroup
 
@@ -63,14 +63,34 @@ class CallListGroup(BaseModel):
     rows: list[CallListRow]
 
 
-class CallListPage(BaseModel):
-    """A page of the Call List: whole Customer groups, never one split across pages."""
+class CallListPage(Page[CallListGroup]):
+    """A page of the Call List: whole Customer groups (counted in `total`), never one
+    split across pages."""
 
-    items: list[CallListGroup]
-    total: int  # Customers listed
     mortgages: int  # Mortgages listed, across every page (as on the Dashboard)
-    page: int
-    page_size: int
+
+
+# A column of the Call List to sort it by: each Customer's rows are sorted by it, and
+# the Customers by their first row (or by name).
+CallListSort = Literal["customer", "mortgage", "why", "outstanding"]
+
+_ROW_KEYS: dict[CallListSort, Callable[[CallListRow], Any]] = {
+    "mortgage": lambda row: row.mortgage_name.casefold(),
+    "why": lambda row: row.months_unpaid,
+    "outstanding": lambda row: row.outstanding,
+}
+
+
+def _by_first_row(
+    row_key: Callable[[CallListRow], Any],
+) -> Callable[[CallListGroup], Any]:
+    return lambda group: row_key(group.rows[0])
+
+
+_GROUP_KEYS: dict[CallListSort, Callable[[CallListGroup], Any]] = {
+    "customer": lambda group: group.customer.name.casefold(),
+    **{sort: _by_first_row(row_key) for sort, row_key in _ROW_KEYS.items()},
+}
 
 
 CALL_LIST_SETTINGS = ConfigGroup.prefixed("call_list_", CallListSettings)
@@ -172,16 +192,25 @@ router = APIRouter(prefix="/api")
 
 @router.get("/call-list")
 def read_call_list(
-    engine: EngineDep, today: TodayDep, page: PageNumber = 1
+    engine: EngineDep,
+    today: TodayDep,
+    page: PageNumber = 1,
+    sort: CallListSort | None = None,
+    descending: bool = False,
 ) -> CallListPage:
+    """Today's Call List, most urgent first (or by `sort`, reversed when
+    `descending`)."""
     with engine.connect() as conn:
         groups = call_list(conn, today)
+    row_key = _ROW_KEYS.get(sort) if sort else None
+    if row_key:
+        for group in groups:
+            group.rows.sort(key=row_key, reverse=descending)
+    listed: Page[CallListGroup] = rows_page(
+        groups, page, _GROUP_KEYS, sort=sort, descending=descending
+    )
     return CallListPage(
-        items=page_of(groups, page),
-        total=len(groups),
-        mortgages=sum(len(group.rows) for group in groups),
-        page=page,
-        page_size=PAGE_SIZE,
+        **dict(listed), mortgages=sum(len(group.rows) for group in groups)
     )
 
 

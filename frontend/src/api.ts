@@ -22,6 +22,12 @@ export const MORTGAGE_SORTS: MortgageSort[] = [
 ]
 export type PaymentSort = SortOf<'list_payments_api_payments_get'>
 export const PAYMENT_SORTS: PaymentSort[] = ['date', 'customer', 'mortgages', 'method', 'amount']
+export type NoticeSort = SortOf<'read_notices_api_notices_get'>
+export const NOTICE_SORTS: NoticeSort[] = ['customer', 'accrues', 'mortgages', 'status']
+export type CallListSort = SortOf<'read_call_list_api_call_list_get'>
+export const CALL_LIST_SORTS: CallListSort[] = ['customer', 'mortgage', 'why', 'outstanding']
+export type ReadySort = SortOf<'ready_to_redeem_api_closures_ready_to_redeem_get'>
+export const READY_SORTS: ReadySort[] = ['mortgage', 'customer', 'amount']
 
 /** A list's sort as query parameters; none for the list's own order. */
 function sortQuery(sort: Sort | null | undefined): string {
@@ -111,7 +117,7 @@ export type RedeemIn = Schemas['RedeemIn']
 export type ForfeitIn = Schemas['ForfeitIn']
 /** An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back. */
 export type ReadyToRedeem = Schemas['ReadyToRedeem']
-export type ReadyToRedeemPage = Schemas['ReadyToRedeemPage']
+export type ReadyToRedeemPage = Schemas['Page_ReadyToRedeem_']
 export type Closure = Schemas['Closure']
 
 /** The whole lending book at a glance. */
@@ -121,7 +127,7 @@ export type ProjectionHorizon = Schemas['ProjectionHorizon']
 export type ComingMonth = Schemas['ComingMonth']
 export type Receipt = Schemas['Receipt']
 export type Notice = Schemas['Notice']
-export type NoticePage = Schemas['NoticePage']
+export type NoticePage = Schemas['Page_Notice_']
 export type NoticeStatus = Notice['status']
 export type MessageSettings = Schemas['MessageSettings']
 
@@ -187,13 +193,16 @@ export const api = {
   getMessageSettings: () => request<MessageSettings>('/settings/messages'),
   updateMessageSettings: (settings: MessageSettings) =>
     request<MessageSettings>('/settings/messages', sendJson('PUT', settings)),
-  listNotices: (page: number, status?: NoticeStatus) =>
-    request<NoticePage>(`/notices?page=${page}${status ? `&status=${status}` : ''}`),
+  listNotices: (page: number, status?: NoticeStatus, sort?: Sort<NoticeSort> | null) =>
+    request<NoticePage>(
+      `/notices?page=${page}${status ? `&status=${status}` : ''}` + sortQuery(sort),
+    ),
   approveNotice: (id: number) => request<Notice>(`/notices/${id}/approve`, { method: 'POST' }),
   skipNotice: (id: number) => request<Notice>(`/notices/${id}/skip`, { method: 'POST' }),
   markNoticeSent: (id: number) => request<Notice>(`/notices/${id}/sent`, { method: 'POST' }),
 
-  getCallList: (page: number) => request<CallListPage>(`/call-list?page=${page}`),
+  getCallList: (page: number, sort?: Sort<CallListSort> | null) =>
+    request<CallListPage>(`/call-list?page=${page}` + sortQuery(sort)),
   listCallNotes: (mortgageId: number) => request<CallNote[]>(`/mortgages/${mortgageId}/call-notes`),
   addCallNote: (mortgageId: number, note: string) =>
     request<CallNote>(`/mortgages/${mortgageId}/call-notes`, sendJson('POST', { note })),
@@ -251,8 +260,8 @@ export const api = {
         sortQuery(filters.sort),
     ),
   getMortgage: (id: number) => request<Mortgage>(`/mortgages/${id}`),
-  readyToRedeem: (page: number) =>
-    request<ReadyToRedeemPage>(`/closures/ready-to-redeem?page=${page}`),
+  readyToRedeem: (page: number, sort?: Sort<ReadySort> | null) =>
+    request<ReadyToRedeemPage>(`/closures/ready-to-redeem?page=${page}` + sortQuery(sort)),
   getRedemption: (id: number, on: string) =>
     request<Redemption>(`/mortgages/${id}/redemption?on=${on}`),
   redeem: (id: number, body: RedeemIn) =>

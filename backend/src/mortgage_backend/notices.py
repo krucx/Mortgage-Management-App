@@ -14,9 +14,10 @@ sends by click-to-send WhatsApp (ADR 0002), which marks the Notice sent.
 """
 
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import date, datetime, timedelta
 from enum import StrEnum
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -40,7 +41,7 @@ from mortgage_backend.messages import (
     descriptions,
     notice_text,
 )
-from mortgage_backend.paging import PAGE_SIZE, PageNumber, page_of
+from mortgage_backend.paging import Page, PageNumber, rows_page
 from mortgage_backend.payments import MortgageLink
 from mortgage_backend.replay import MortgageReplay, MortgageStatus, replays
 
@@ -284,11 +285,25 @@ def list_notices(
     return notices
 
 
-class NoticePage(BaseModel):
-    items: list[Notice]
-    total: int
-    page: int
-    page_size: int
+# A column of the Notices list to sort it by.
+NoticeSort = Literal["customer", "accrues", "mortgages", "status"]
+
+# The order the Notices page shows the statuses in.
+_STATUS_ORDER = [
+    NoticeStatus.AWAITING_APPROVAL,
+    NoticeStatus.QUEUED,
+    NoticeStatus.SENT,
+    NoticeStatus.SKIPPED,
+]
+_SORT_KEYS: dict[NoticeSort, Callable[[Notice], Any]] = {
+    "customer": lambda notice: notice.customer.name.casefold(),
+    "accrues": lambda notice: notice.accrues_on,
+    # By the first of its Mortgages, by name; none sorts first.
+    "mortgages": lambda notice: (
+        notice.mortgages[0].name.casefold() if notice.mortgages else ""
+    ),
+    "status": lambda notice: _STATUS_ORDER.index(notice.status),
+}
 
 
 class NoticeAction(StrEnum):
@@ -377,18 +392,16 @@ def read_notices(
     today: TodayDep,
     status: NoticeStatus | None = None,
     page: PageNumber = 1,
-) -> NoticePage:
-    """Notices, synced first: a Mortgage added today or a reopened Mortgage shows at
+    sort: NoticeSort | None = None,
+    descending: bool = False,
+) -> Page[Notice]:
+    """Notices by Accrual Date, then Customer (or by `sort`, reversed when
+    `descending`), synced first: a Mortgage added today or a reopened Mortgage shows at
     once, not after the next daily run."""
     with engine.begin() as conn:
         sync(conn, today)
         notices = list_notices(conn, status)
-    return NoticePage(
-        items=page_of(notices, page),
-        total=len(notices),
-        page=page,
-        page_size=PAGE_SIZE,
-    )
+    return rows_page(notices, page, _SORT_KEYS, sort=sort, descending=descending)
 
 
 def _answer(
