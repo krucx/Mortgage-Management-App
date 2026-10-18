@@ -4,19 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mortgage Book Walkthrough</title>
-<meta name="description" content="A walk through the Mortgage Management app, told as the story of one gold chain, with live screenshots and small models to play with.">
 <style>
-/* Layout: a told story. A sticky chapter strip, then chapters; each holds prose, a live screenshot you step through with numbered markers, and now and then a small model to play with. Colours are the app's own. */
+/* Layout: a presenter's script — a sticky route map, then one stop per part of the app, in the order a pledge lives its life. Colours are the app's own. */
 :root {
   --bg: #f6f7f9;
   --surface: #ffffff;
-  --sunk: #eef1f4;
   --text: #1f2328;
   --muted: #59636e;
   --border: #d8dee4;
   --accent: #8a5a00;
   --accent-soft: #f5ecdc;
-  --on-accent: #ffffff;
   --owed: #8a5a00;
   --money-in: #00748c;
   --collateral: #5a4fcf;
@@ -34,738 +31,623 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d1117; --surface: #161b22; --sunk: #0f141a; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
-    --accent: #d4a72c; --accent-soft: #2a2312; --on-accent: #0d1117; --owed: #d4a72c; --money-in: #1fa3c0;
+    --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
+    --accent: #d4a72c; --accent-soft: #2a2312; --owed: #d4a72c; --money-in: #1fa3c0;
     --collateral: #8b7cf2; --closed: #d466a7; --ok: #3fb950; --warning: #d29922; --error: #f85149;
     --wa-chat: #0b141a; --wa-bubble: #005c4b; --wa-text: #e9edef;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0d1117; --surface: #161b22; --sunk: #0f141a; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
-  --accent: #d4a72c; --accent-soft: #2a2312; --on-accent: #0d1117; --owed: #d4a72c; --money-in: #1fa3c0;
+  --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
+  --accent: #d4a72c; --accent-soft: #2a2312; --owed: #d4a72c; --money-in: #1fa3c0;
   --collateral: #8b7cf2; --closed: #d466a7; --ok: #3fb950; --warning: #d29922; --error: #f85149;
   --wa-chat: #0b141a; --wa-bubble: #005c4b; --wa-text: #e9edef;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 4.5rem; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
-body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.65 var(--font-body); }
-.page { max-width: 64rem; margin: 0 auto; padding-inline: 1rem; padding-block: 2.5rem 5rem; }
-h1, h2 { font-family: var(--font-display); font-weight: 600; line-height: 1.15; text-wrap: balance; margin: 0; }
-h1 { font-size: clamp(2.1rem, 5vw, 3.2rem); letter-spacing: -0.01em; }
-h2 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); }
-h3 { font-size: 1.05rem; margin: 0; }
-p { margin: 0; max-width: 66ch; }
+html { scroll-behavior: smooth; scroll-padding-top: 5.5rem; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.6 var(--font-body);
+}
+.page { max-width: 62rem; margin: 0 auto; padding-inline: 1rem; padding-block: 2rem 4rem; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.1rem; font-family: var(--font-body); font-weight: 650; }
+p { margin: 0; max-width: 68ch; }
 a { color: var(--accent); }
-button { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-code { font-family: var(--font-mono); font-size: 0.86em; }
-.num { font-variant-numeric: tabular-nums; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+code, .path { font-family: var(--font-mono); font-size: 0.86em; }
 .muted { color: var(--muted); }
-.eyebrow { font-size: 0.76rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
+.num { font-variant-numeric: tabular-nums; }
 
 /* Opening */
-.opening { display: grid; gap: 1.1rem; padding-bottom: 1.5rem; }
-.lede { font-size: 1.2rem; max-width: 60ch; }
-.cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr)); gap: 0.6rem; margin-top: 0.5rem; }
-.person { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; display: grid; gap: 0.1rem; font-size: 0.9rem; }
-.person b { font-size: 0.98rem; }
-.person span { color: var(--muted); }
-.sample { font-size: 0.88rem; color: var(--muted); border-left: 3px solid var(--border); padding-left: 0.8rem; }
+.intro { display: grid; gap: 1rem; padding-block: 0.5rem 1.5rem; }
+.eyebrow { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
+.lede { font-size: 1.12rem; }
+.facts { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; font-size: 0.92rem; color: var(--muted); }
+.facts b { color: var(--text); font-weight: 600; }
 
-/* Chapter strip */
-.strip { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1px solid var(--border); margin-inline: -1rem; padding: 0.5rem 1rem; }
-.strip ol { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; }
-.strip a { display: block; white-space: nowrap; text-decoration: none; color: var(--muted); font-size: 0.84rem; padding: 0.25rem 0.65rem; border-radius: 999px; border: 1px solid transparent; }
-.strip a:hover { color: var(--text); border-color: var(--border); }
-.strip a[aria-current="true"] { color: var(--on-accent); background: var(--accent); }
+/* Before you start */
+.care { display: grid; gap: 0.5rem; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--warning); border-radius: 8px; padding: 1rem 1.25rem; }
+.care ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.3rem; }
 
-/* Chapter */
-.chapter { display: grid; gap: 1.3rem; padding-block: 3rem 1rem; }
-.chapter-head { display: grid; gap: 0.4rem; }
-.chapter p + p { margin-top: 0; }
-.prose { display: grid; gap: 0.9rem; }
+/* Route map */
+.route { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 0.6rem; margin-block: 1.5rem 0.5rem; border-bottom: 1px solid var(--border); }
+.route ol { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.35rem; overflow-x: auto; scrollbar-width: thin; }
+.route li { flex: 0 0 auto; }
+.route a { display: flex; align-items: center; gap: 0.4rem; text-decoration: none; color: var(--text); font-size: 0.85rem; padding: 0.3rem 0.65rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); white-space: nowrap; }
+.route a:hover { border-color: var(--accent); }
+.route .n { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); }
 
-/* A scene: a screenshot with numbered markers, and its beats */
-.scene { margin: 0; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 1fr); gap: 1rem; align-items: start; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem; }
-@media (max-width: 820px) { .scene { grid-template-columns: minmax(0, 1fr); } }
-.frame { border: 1px solid var(--border); border-radius: 6px; overflow: auto; max-height: 36rem; background: var(--sunk); }
-.frame.short { max-height: none; }
-.canvas { position: relative; }
-.canvas img { display: block; width: 100%; height: auto; }
-.mark { position: absolute; transform: translate(-45%, -45%); width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 2px solid var(--surface); background: var(--accent); color: var(--on-accent); font-size: 0.8rem; font-weight: 700; display: grid; place-items: center; cursor: pointer; box-shadow: 0 1px 4px rgb(0 0 0 / 0.3); font-variant-numeric: tabular-nums; padding: 0; }
-.mark[aria-pressed="true"] { transform: translate(-45%, -45%) scale(1.15); }
-.ring { position: absolute; border: 2px solid var(--accent); border-radius: 5px; box-shadow: 0 0 0 4000px rgb(0 0 0 / 0.18); pointer-events: none; transition: all 0.25s ease; opacity: 0; }
-.ring.on { opacity: 1; }
-.beats-wrap { display: grid; gap: 0.6rem; min-width: 0; }
-.beats { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; counter-reset: beat; }
-.beats li { counter-increment: beat; }
-.beat { width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 6px; padding: 0.45rem 0.55rem; display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 0.55rem; cursor: pointer; font-size: 0.93rem; line-height: 1.5; }
-.beat::before { content: counter(beat); width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); font-size: 0.78rem; font-weight: 700; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
-.beat:hover { background: var(--sunk); }
-.beat[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); }
-.beat[aria-current="true"]::before { background: var(--accent); color: var(--on-accent); }
-.beat b { font-weight: 650; }
-.nudge { display: flex; gap: 0.4rem; align-items: center; font-size: 0.82rem; color: var(--muted); }
-.nudge button { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; padding: 0.15rem 0.6rem; cursor: pointer; }
-.nudge button:hover { border-color: var(--accent); }
-.caption { font-size: 0.8rem; color: var(--muted); }
+/* Lifecycle diagram */
+.life { margin-block: 1.5rem; overflow-x: auto; }
+.life-track { display: grid; grid-template-columns: repeat(6, minmax(8.5rem, 1fr)); gap: 0; min-width: 52rem; }
+.life-step { position: relative; padding: 0.9rem 0.8rem 0.9rem 0.9rem; background: var(--surface); border: 1px solid var(--border); border-right: none; display: grid; gap: 0.2rem; align-content: start; }
+.life-step:first-child { border-radius: 8px 0 0 8px; }
+.life-step:last-child { border-right: 1px solid var(--border); border-radius: 0 8px 8px 0; }
+.life-step + .life-step::before { content: ""; position: absolute; left: -0.55rem; top: 50%; width: 1rem; height: 1rem; background: var(--surface); border-top: 1px solid var(--border); border-right: 1px solid var(--border); transform: translateY(-50%) rotate(45deg); }
+.life-step b { font-size: 0.95rem; }
+.life-step span { font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+.life-step i { font-style: normal; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
 
-/* A pair of small screenshots */
-.duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.8rem; }
-.still { margin: 0; display: grid; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem; }
-.still img { width: 100%; height: auto; display: block; border: 1px solid var(--border); border-radius: 6px; }
-.still figcaption { font-size: 0.86rem; color: var(--muted); }
+/* A stop */
+.stop { display: grid; gap: 1.1rem; padding-block: 2.25rem; border-bottom: 1px solid var(--border); }
+.stop-head { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; align-items: baseline; }
+.stop-no { grid-row: span 2; font-family: var(--font-display); font-size: 2.6rem; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.open { font-size: 0.88rem; color: var(--muted); }
+.open .path { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.4rem; color: var(--text); }
+.say { font-size: 1.05rem; border-left: 3px solid var(--accent); padding-left: 1rem; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+@media (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.block-title { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 650; margin-bottom: 0.5rem; }
 
-/* Rules worth saying out loud */
-.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.9rem; }
-.rule { border-top: 2px solid var(--accent); padding-top: 0.55rem; display: grid; gap: 0.2rem; font-size: 0.92rem; }
+/* Click path */
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 0.55rem; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 1.7rem minmax(0, 1fr); gap: 0.6rem; align-items: start; }
+.steps li::before { content: counter(s); width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); font-size: 0.82rem; font-weight: 700; display: grid; place-items: center; font-variant-numeric: tabular-nums; margin-top: 0.05rem; }
+.ui { font-weight: 600; background: var(--accent-soft); border-radius: 4px; padding: 0 0.3rem; white-space: nowrap; }
 
-/* Models */
-.model { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; display: grid; gap: 0.9rem; }
-.model-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.3rem 1rem; align-items: baseline; }
-.model-head .tag { font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
-.controls { display: flex; flex-wrap: wrap; gap: 0.8rem 1.4rem; align-items: end; }
-.controls label { display: grid; gap: 0.2rem; font-size: 0.84rem; color: var(--muted); }
-.controls label output { color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; }
-.controls input[type=number], .controls select { font: inherit; font-size: 0.95rem; padding: 0.3rem 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); width: 9rem; }
-.controls input[type=range] { width: 12rem; accent-color: var(--accent); }
-.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
-.seg button { border: none; background: var(--surface); padding: 0.35rem 0.75rem; cursor: pointer; font-size: 0.88rem; }
-.seg button + button { border-left: 1px solid var(--border); }
-.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
-.chart { width: 100%; height: auto; display: block; }
-.chart text { fill: var(--muted); font: 11px var(--font-body); }
-.chart .grid { stroke: var(--border); stroke-width: 1; }
-.readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.6rem; }
-.readout div { border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; display: grid; gap: 0.05rem; }
-.readout span { font-size: 0.8rem; color: var(--muted); display: flex; align-items: center; gap: 0.4rem; }
-.readout strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
-.readout i { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-.readout .picked { border-color: var(--accent); background: var(--accent-soft); }
-.alloc { display: grid; gap: 0.7rem; }
-.alloc-row { display: grid; grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr) 7rem; gap: 0.8rem; align-items: center; font-size: 0.9rem; }
-@media (max-width: 560px) { .alloc-row { grid-template-columns: minmax(0, 1fr) 6rem; } .alloc-row .track { grid-column: 1 / -1; } }
-.track { height: 1.1rem; background: var(--sunk); border: 1px solid var(--border); border-radius: 4px; position: relative; overflow: hidden; }
-.track .int { position: absolute; inset: 0 auto 0 0; background: var(--owed); }
-.track .pri { position: absolute; inset: 0 auto 0 0; background: var(--money-in); }
-.verdict { font-size: 0.95rem; border-radius: 8px; padding: 0.6rem 0.8rem; border: 1px solid var(--border); }
-.verdict.bad { border-color: var(--error); color: var(--error); }
-.verdict.good { border-color: var(--ok); color: var(--ok); }
-.gauge { position: relative; height: 1.5rem; background: linear-gradient(90deg, var(--ok) 0 var(--limit), var(--error) var(--limit) 100%); border-radius: 999px; opacity: 0.9; }
-.gauge .needle { position: absolute; top: -0.35rem; bottom: -0.35rem; width: 0.25rem; border-radius: 2px; background: var(--text); transform: translateX(-50%); transition: left 0.2s ease; }
-.gauge-scale { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.chip { display: inline-block; padding: 0.15rem 0.7rem; border-radius: 999px; font-weight: 650; font-size: 0.88rem; }
-.chip.on { background: var(--error); color: var(--surface); }
-.chip.off { background: var(--ok); color: var(--surface); }
-.states { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
-.states button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 0.3rem 0.8rem; cursor: pointer; font-size: 0.9rem; }
-.states button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
-.states .to { color: var(--muted); }
-.state-say { min-height: 3.2rem; font-size: 0.95rem; }
+/* Live figures */
+.live { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.1rem; display: grid; gap: 0.6rem; }
+.live dl { margin: 0; display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 1.4fr); gap: 0.35rem 1rem; font-size: 0.93rem; }
+.live dt { color: var(--muted); }
+.live dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.live .note { font-size: 0.82rem; color: var(--muted); }
 
-.wa-quote { background: var(--wa-chat); border-radius: 8px; padding: 0.8rem; }
-.wa-quote pre { margin: 0; background: var(--wa-bubble); color: var(--wa-text); border-radius: 8px; padding: 0.6rem 0.75rem; font: 0.82rem/1.45 var(--font-mono); white-space: pre-wrap; max-width: 22rem; }
+/* Nuances */
+.nuances { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.75rem; }
+.nuance { border-top: 2px solid var(--border); padding-top: 0.6rem; display: grid; gap: 0.25rem; font-size: 0.93rem; }
+.nuance b { font-size: 0.95rem; }
+.nuance.rule { border-top-color: var(--accent); }
 
-.ending { padding-block: 3rem 0; display: grid; gap: 1rem; }
-.ending ol { margin: 0; padding-left: 1.3rem; display: grid; gap: 0.4rem; max-width: 66ch; }
-footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: grid; gap: 0.3rem; }
+/* Dashboard sketch */
+.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.6rem; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--tone, var(--border)); border-radius: 6px; padding: 0.7rem 0.85rem; display: grid; gap: 0.1rem; }
+.tile span { font-size: 0.8rem; color: var(--muted); }
+.tile strong { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.tile small { font-size: 0.78rem; color: var(--muted); }
+
+/* Bars */
+.bars { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.3rem; align-items: end; height: 9rem; padding-top: 0.5rem; }
+.bar { display: grid; gap: 0.2rem; align-content: end; justify-items: center; height: 100%; }
+.bar div { width: 100%; max-width: 2rem; background: var(--money-in); border-radius: 3px 3px 0 0; min-height: 2px; }
+.bar span { font-size: 0.66rem; color: var(--muted); }
+.bar em { font-style: normal; font-size: 0.66rem; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Allocation sketch */
+.split { display: grid; gap: 0.35rem; font-size: 0.9rem; }
+.split-row { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) auto; gap: 0.6rem; align-items: center; }
+.split-bar { height: 0.7rem; border-radius: 3px; background: linear-gradient(90deg, var(--owed) var(--i), var(--money-in) var(--i)); }
+.legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -0.05rem; margin-right: 0.3rem; }
+
+/* WhatsApp preview */
+.wa { background: var(--wa-chat); border-radius: 8px; padding: 0.9rem; }
+.wa pre { margin: 0; background: var(--wa-bubble); color: var(--wa-text); border-radius: 8px; padding: 0.6rem 0.75rem; font: 0.82rem/1.45 var(--font-mono); white-space: pre-wrap; max-width: 21rem; }
+
+/* Notice lifecycle */
+.states { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.88rem; }
+.state { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 0.2rem 0.7rem; }
+.state.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.arrow { color: var(--muted); }
+
+.close { padding-block: 2.25rem 0; display: grid; gap: 0.9rem; }
+.close ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.35rem; max-width: 70ch; }
+footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
+
+/* The link to the other page about the app */
+.crosslink { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem 1.2rem; align-items: center; text-decoration: none; color: var(--text); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 10px; padding: 0.9rem 1.1rem; }
+.crosslink:hover { background: var(--surface); }
+.crosslink .label { font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
+.crosslink b { display: block; font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; }
+.crosslink span.what { color: var(--muted); font-size: 0.92rem; }
+.crosslink .go { font-weight: 650; color: var(--accent); white-space: nowrap; }
+@media (max-width: 560px) { .crosslink { grid-template-columns: minmax(0, 1fr); } }
 </style>
 </head>
 <body>
 <main class="page">
 
-<header class="opening">
-  <div class="eyebrow">Mortgage Management · a walkthrough</div>
-  <h1>A year in the life of a gold chain</h1>
-  <p class="lede">Meera Sharma pledges a gold chain with a pendant. Over the next year it gathers interest, takes Payments, comes up for a phone call and is nearly paid off. Follow it through the app, together with the other people the Lender lends to.</p>
-  <div class="cast" aria-label="The people in this story">
-    <div class="person"><b>Meera Sharma</b><span>a gold chain and a pair of bangles; pays most months</span></div>
-    <div class="person"><b>Arjun Patel</b><span>a ruby ring, 15 months unpaid; referred by Meera</span></div>
-    <div class="person"><b>Lakshmi Iyer</b><span>a temple necklace, paid in full this week</span></div>
-    <div class="person"><b>Kavita Joshi</b><span>a gold coin, Redeemed on 5 October</span></div>
-    <div class="person"><b>Imran Qureshi</b><span>a pair of earrings, Forfeited on 10 October</span></div>
-    <div class="person"><b>Sunita Rao</b><span>a mangalsutra, accruing in two days</span></div>
+<header class="intro">
+  <div class="eyebrow">Stakeholder demo · presenter's guide</div>
+  <h1>Mortgage Book Walkthrough</h1>
+  <p class="lede">One Lender, one laptop, a book of gold-jewellery pledges. This guide follows a pledge through its whole life in the app: the morning view of the book, setting the rules, meeting a Customer, lending against their jewellery, taking Payments, following up, and closing the Mortgage. Each stop says where to click, what to say, and the details worth pointing out.</p>
+  <div class="facts">
+    <span>App: <b>http://127.0.0.1:8080</b></span>
+    <span>Figures: <b>the live book on 18 Oct 2026</b></span>
+    <span>Money: <b>₹, Indian digit grouping</b></span>
   </div>
-  <p class="sample">Everyone here is invented. The screenshots come from the app running on sample data, so every figure is what the app itself works out. Click a numbered marker or a step to see where it is on the screen; ← and → step through a scene.</p>
+  <a class="crosslink" href="story.html">
+    <span><span class="label">Prefer to see it first?</span><b>The Gold Chain Story</b><span class="what">The same app told as one Customer's year, with live screenshots you step through and small models to try. Sample data, so it is safe to share.</span></span>
+    <span class="go">Read the story →</span>
+  </a>
 </header>
 
-<nav class="strip" aria-label="Chapters">
+<section class="care" aria-labelledby="care-title">
+  <h3 id="care-title">Before you start: this is the real book</h3>
+  <ul>
+    <li>Everything you open, search, sort or preview is safe. A Preview works out the change and throws it away.</li>
+    <li>Every save asks first. To show a save without making it, stop at the confirmation and press <span class="ui">Keep editing</span> or <span class="ui">Cancel</span>.</li>
+    <li>This guide points to Mortgages and Payments by their page address (for example <code>/mortgages/10</code>) rather than naming Customers, so it can be shared.</li>
+  </ul>
+</section>
+
+<nav class="route" aria-label="Demo route">
   <ol>
-    <li><a href="#morning">The morning</a></li>
-    <li><a href="#rules">House rules</a></li>
-    <li><a href="#meera">Meera</a></li>
-    <li><a href="#pledge">The pledge</a></li>
-    <li><a href="#ledger">The Ledger</a></li>
-    <li><a href="#second">Second thoughts</a></li>
-    <li><a href="#pays">Meera pays</a></li>
-    <li><a href="#arjun">Arjun</a></li>
-    <li><a href="#endings">Endings</a></li>
-    <li><a href="#safe">Safekeeping</a></li>
+    <li><a href="#s1"><span class="n">1</span>The book at a glance</a></li>
+    <li><a href="#s2"><span class="n">2</span>Settings</a></li>
+    <li><a href="#s3"><span class="n">3</span>Customers</a></li>
+    <li><a href="#s4"><span class="n">4</span>New Mortgage</a></li>
+    <li><a href="#s5"><span class="n">5</span>A Mortgage</a></li>
+    <li><a href="#s6"><span class="n">6</span>Changes and Previews</a></li>
+    <li><a href="#s7"><span class="n">7</span>Payments</a></li>
+    <li><a href="#s8"><span class="n">8</span>Follow-up</a></li>
+    <li><a href="#s9"><span class="n">9</span>Redeem / Forfeit</a></li>
+    <li><a href="#s10"><span class="n">10</span>Safekeeping</a></li>
   </ol>
 </nav>
 
-<!-- The morning -->
-<section class="chapter" id="morning" aria-labelledby="morning-h">
-  <div class="chapter-head"><div class="eyebrow">Prologue</div><h2 id="morning-h">The Lender's morning</h2></div>
-  <div class="prose">
-    <p>The Lender opens the app on their laptop. The first page is the whole lending book on one screen: what it is owed, what came in, what the gold behind it is worth, and what needs doing today. None of these figures was typed in. Each is replayed from the Mortgages' Terms and Payments every time the page opens.</p>
+<div class="life" role="img" aria-label="The life of a Mortgage: a Customer pledges jewellery, interest accrues on each Accrual Date, Notices and the Call List follow up, Payments are allocated, and the Mortgage is Redeemed or Forfeited.">
+  <div class="life-track">
+    <div class="life-step"><i>Stop 3</i><b>Customer</b><span>Known by their Primary Number, maybe introduced by a Referrer</span></div>
+    <div class="life-step"><i>Stop 4</i><b>Mortgage</b><span>One packet of jewellery, weighed and valued, on its Terms</span></div>
+    <div class="life-step"><i>Stop 5</i><b>Accrual Dates</b><span>Interest added monthly; capitalised by the Interest Mode</span></div>
+    <div class="life-step"><i>Stop 8</i><b>Follow-up</b><span>Notices before each Accrual Date; the Call List each day</span></div>
+    <div class="life-step"><i>Stop 7</i><b>Payments</b><span>One sum split across Mortgages, interest first</span></div>
+    <div class="life-step"><i>Stop 9</i><b>Closure</b><span>Redeemed and handed back, or Forfeited</span></div>
   </div>
-  <figure class="scene" data-shot="dashboard">
-    <div class="frame short"><div class="canvas"><img src="shots/dashboard.webp" width="1280" height="860" alt="The Dashboard: ₹3,98,431 owed across 6 Mortgages and 4 Customers, interest collected, Collateral Value and Loan-to-Value, and today's follow-up."></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="owed"><button class="beat"><span><b>₹3,98,431 is owed</b> on 6 Active Mortgages by 4 Customers. Click it and the Mortgages list opens.</span></button></li>
-        <li data-spot="ltv"><button class="beat"><span><b>Loan-to-Value 27.3%:</b> what is owed as a share of what the gold is worth (₹14,61,888). Lower is safer.</span></button></li>
-        <li data-spot="follow"><button class="beat"><span><b>2 on today's Call List.</b> We'll meet them with Arjun.</span></button></li>
-        <li data-spot="dot"><button class="beat"><span><b>A red dot on Redeem / Forfeit:</b> someone has paid in full and their jewellery is waiting to go back.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <div class="duo">
-    <figure class="still"><img src="shots/dashboard-chart.webp" width="1018" height="445" alt="Payments received each month for the last year, then interest charged and expected Payments for the coming year." loading="lazy"><figcaption>Payments received each month over the past year, then the coming year: interest charged (exact) against expected Payments (an estimate).</figcaption></figure>
-    <figure class="still"><img src="shots/dashboard-ahead.webp" width="1018" height="333" alt="Looking ahead: the book in 3, 6 and 12 months." loading="lazy"><figcaption>Looking ahead: the book in 3, 6 and 12 months. Exact figures are replayed; estimates are the last three months carried forward, and are labelled as such.</figcaption></figure>
-  </div>
-</section>
+</div>
 
-<!-- House rules -->
-<section class="chapter" id="rules" aria-labelledby="rules-h">
-  <div class="chapter-head"><div class="eyebrow">Chapter 1</div><h2 id="rules-h">House rules</h2></div>
-  <div class="prose"><p>Before lending anything, the Lender sets their rules once in Settings: the usual Terms, today's gold prices, when a Customer needs a phone call, the wording of WhatsApp messages, and Backups. Every save shows what will change and asks first.</p></div>
-  <figure class="scene" data-shot="settings-messages">
-    <div class="frame"><div class="canvas"><img src="shots/settings-messages.webp" width="1068" height="1117" alt="WhatsApp message settings: the Receipt and Notice templates with live previews, days before an Accrual Date, and approve-first." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="template"><button class="beat"><span><b>Templates with placeholders</b> such as <code>{customer_name}</code> and <code>{amount}</code>. One the app can't fill is refused when saving, so no Customer ever receives a typo in braces.</span></button></li>
-        <li data-spot="preview"><button class="beat"><span><b>A live preview</b> in WhatsApp's own colours, as the Customer will see it.</span></button></li>
-        <li data-spot="approve"><button class="beat"><span><b>Approve each Notice first:</b> on here, so every reminder waits for the Lender's OK.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <div class="duo">
-    <figure class="still"><img src="shots/settings-terms.webp" width="1068" height="462" alt="Default Terms: 2% a month, Compounded Yearly, pro-rata Part-Month Rule." loading="lazy"><figcaption>Default Terms: 2% a month, Compounded Yearly, pro-rata. Copied into every new Mortgage; existing ones never change.</figcaption></figure>
-    <figure class="still"><img src="shots/settings-gold.webp" width="1068" height="555" alt="Gold Rates per gram for 24K, 22K, 20K, 18K and 14K." loading="lazy"><figcaption>Gold Rates per gram, by purity. Saving revalues every Mortgage valued at the Gold Rate at once.</figcaption></figure>
-    <figure class="still"><img src="shots/settings-calls.webp" width="1068" height="294" alt="Call List thresholds: 3 Months Unpaid, Loan-to-Value above 85%." loading="lazy"><figcaption>When a Mortgage goes on the Call List: 3 Months Unpaid, or Loan-to-Value above 85%.</figcaption></figure>
-    <figure class="still"><img src="shots/settings-backups.webp" width="1068" height="367" alt="Backups: the last one taken, Back up now, and how many to keep." loading="lazy"><figcaption>Backups: a password-protected zip of everything, weekly and before every update, into a synced folder.</figcaption></figure>
+<!-- 1 · Dashboard -->
+<section class="stop" id="s1" aria-labelledby="s1-title">
+  <div class="stop-head">
+    <div class="stop-no">1</div>
+    <h2 id="s1-title">The book at a glance</h2>
+    <p class="open">Open <span class="path">/</span> (Dashboard, the home page)</p>
   </div>
-</section>
-
-<!-- Meera -->
-<section class="chapter" id="meera" aria-labelledby="meera-h">
-  <div class="chapter-head"><div class="eyebrow">Chapter 2</div><h2 id="meera-h">Meera walks in</h2></div>
-  <div class="prose">
-    <p>Meera was introduced by Ravi Verma, who isn't a Customer himself: a Standalone Referrer, known only by name and phone. The Lender adds her, and the app makes sure she is never entered twice. A person is known by their mobile number, their Primary Number.</p>
+  <p class="say">"This is the first thing the Lender sees each morning: what the whole lending book is owed, what came in, how safe it is against the gold, and what needs doing today. Every figure is worked out fresh from the Payments and Terms. Nothing here is typed in by hand."</p>
+  <div class="board" aria-label="Dashboard figures today">
+    <div class="tile" style="--tone: var(--owed)"><span>Owed on Active Mortgages</span><strong>₹7,73,872</strong><small>across 10 Mortgages and 4 Customers</small></div>
+    <div class="tile" style="--tone: var(--owed)"><span>Principal Outstanding</span><strong>₹7,28,591</strong><small>plus ₹45,281 unpaid interest</small></div>
+    <div class="tile" style="--tone: var(--money-in)"><span>Interest collected</span><strong>₹30,287</strong><small>this month · ₹59,087 this year</small></div>
+    <div class="tile" style="--tone: var(--collateral)"><span>Collateral Value</span><strong>₹39,19,279</strong><small>Loan-to-Value 19.7%</small></div>
+    <div class="tile" style="--tone: var(--accent)"><span>Follow-up</span><strong>4 · 2</strong><small>on today's Call List · Notices to send</small></div>
+    <div class="tile" style="--tone: var(--closed)"><span>Closed in October</span><strong>2 Redeemed</strong><small>0 Forfeited</small></div>
   </div>
-  <figure class="scene" data-shot="customer-new">
-    <div class="frame"><div class="canvas"><img src="shots/customer-new.webp" width="828" height="670" alt="New Customer form, warning that the number already belongs to Customer Meera Sharma." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="phone"><button class="beat"><span><b>Contact number 1 is the Primary Number.</b> No two people share one.</span></button></li>
-        <li data-spot="warning"><button class="beat"><span><b>Typed someone else's number?</b> The form says who owns it before you save. Here it is Meera's own: she is already a Customer.</span></button></li>
-        <li data-spot="referrer"><button class="beat"><span><b>Who introduced them:</b> nobody, an existing person, or a new Referrer.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <figure class="scene" data-shot="customer">
-    <div class="frame"><div class="canvas"><img src="shots/customer.webp" width="828" height="948" alt="Meera Sharma's page: photo, numbers, referred by Ravi Verma, her Mortgages, the Customers she referred, and History." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="photo"><button class="beat"><span><b>A photo</b>, from the webcam or a file.</span></button></li>
-        <li data-spot="shared"><button class="beat"><span><b>A shared number:</b> her second number is a family phone Sunita also uses. Allowed, but pointed out.</span></button></li>
-        <li data-spot="referrer"><button class="beat"><span><b>Referred by Ravi Verma.</b> She in turn referred Arjun and Sunita.</span></button></li>
-        <li data-spot="mortgages"><button class="beat"><span><b>Her Mortgages:</b> the chain and the bangles. Closed ones would be tucked away below.</span></button></li>
-        <li data-spot="history"><button class="beat"><span><b>Her History</b>, including every change to her Mortgages.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <div class="duo">
-    <figure class="still"><img src="shots/customers.webp" width="1068" height="693" alt="The Customers list with filter, Active-only checkbox and sortable columns." loading="lazy"><figcaption>All Customers: filter as you type, keep only those with an Active Mortgage, sort any column across every page.</figcaption></figure>
-    <figure class="still"><img src="shots/referrer.webp" width="828" height="243" alt="Ravi Verma's Referrer page, listing Meera Sharma." loading="lazy"><figcaption>Ravi's page. If he ever borrows, he becomes a Customer and keeps everyone he referred.</figcaption></figure>
-  </div>
-</section>
-
-<!-- The pledge -->
-<section class="chapter" id="pledge" aria-labelledby="pledge-h">
-  <div class="chapter-head"><div class="eyebrow">Chapter 3</div><h2 id="pledge-h">Weighing the gold</h2></div>
-  <div class="prose">
-    <p>In November 2025 Meera pledged a gold chain with a pendant: 21.5 g gross, 20 g of 22K gold, against ₹80,000. One packet of jewellery is one Mortgage. Here the Lender is entering her next one. The app suggests a Mortgage Name and shows what the loan will grow to before anything is saved.</p>
-  </div>
-  <figure class="scene" data-shot="mortgage-new">
-    <div class="frame"><div class="canvas"><img src="shots/mortgage-new.webp" width="1068" height="1279" alt="New Mortgage form for Meera: her Active Mortgages, the jewellery details, the suggested name and the Terms." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="active"><button class="beat"><span><b>What she already owes</b> comes first, as a reminder.</span></button></li>
-        <li data-spot="name"><button class="beat"><span><b>The suggested Mortgage Name:</b> year, first name, jewellery (<code>2026-Meera-GoldNosePin</code>). Type your own and it stops suggesting.</span></button></li>
-        <li data-spot="terms"><button class="beat"><span><b>Terms from Settings</b>, which can be changed for this one Mortgage.</span></button></li>
-        <li data-spot="photos"><button class="beat"><span><b>Photos of the jewellery</b>, from the camera or files.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <div class="duo">
-    <figure class="still"><img src="shots/mortgage-new-confirm.webp" width="520" height="768" alt="Confirmation before creating the Mortgage: details, owed today and a year from now with no Payments, and a chart." loading="lazy"><figcaption>Before it's saved: what it owes today, and in a year with no Payments.</figcaption></figure>
-    <div class="model" id="growth" aria-labelledby="growth-h">
-      <div class="model-head"><h3 id="growth-h">How the Interest Mode changes what is owed</h3><span class="tag">Try it</span></div>
-      <div class="controls">
-        <label for="g-amount">Lent (₹)<input id="g-amount" type="number" min="1000" step="1000" value="80000"></label>
-        <label for="g-rate">Monthly rate (%)<input id="g-rate" type="number" min="0.25" max="10" step="0.25" value="2"></label>
-        <label for="g-months"><span>After <output id="g-months-out">24</output> months</span><input id="g-months" type="range" min="1" max="48" value="24"></label>
-      </div>
-      <svg class="chart" id="g-chart" viewBox="0 0 520 220" role="img" aria-label="What is owed month by month under each Interest Mode, with no Payments"></svg>
-      <div class="readout" id="g-readout"></div>
-      <p class="caption">With no Payments. Simple: interest never earns interest. Compounded Yearly: interest is simple each month, then added to the Principal every twelve months. Compounded Monthly: added every month. The app's Ledger does the same, step by step, to the paisa.</p>
-    </div>
-  </div>
-  <div class="rules">
-    <div class="rule"><b>Accrual Dates follow the start date</b><span>Started on the 31st? Interest is added on the 31st, or on the month's last day when it is shorter.</span></div>
-    <div class="rule"><b>Collateral Value from the weight</b><span>Net weight at the Gold Rate for its purity: Meera's 20 g of 22K at ₹13,536 a gram is ₹2,70,720.</span></div>
-    <div class="rule"><b>Names never clash</b><span>A second chain the same year becomes <code>…-GoldChain-2</code> on its own.</span></div>
-  </div>
-</section>
-
-<!-- The Ledger -->
-<section class="chapter" id="ledger" aria-labelledby="ledger-h">
-  <div class="chapter-head"><div class="eyebrow">Chapter 4</div><h2 id="ledger-h">The life of a pledge</h2></div>
-  <div class="prose">
-    <p>Everything about Meera's chain is on one page. Each month on the 10th, 2% of ₹80,000 (₹1,600) is added. She has paid most months, but she missed April, and October's ₹1,600 was added on the 10th, so ₹2,800 of interest is unpaid today.</p>
-  </div>
-  <figure class="scene" data-shot="mortgage">
-    <div class="frame short"><div class="canvas"><img src="shots/mortgage.webp" width="1280" height="860" alt="Meera's gold chain: ₹82,800 outstanding, ₹80,000 Principal, ₹2,800 unpaid interest, Terms and Collateral Value." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="tiles"><button class="beat"><span><b>₹82,800 Outstanding:</b> ₹80,000 Principal plus ₹2,800 unpaid interest.</span></button></li>
-        <li data-spot="pay"><button class="beat"><span><b>Record a Payment</b> opens with Meera and this Mortgage already chosen.</span></button></li>
-        <li data-spot="edit"><button class="beat"><span><b>Edit</b> corrects its details; the Ledger is replayed from them.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <div class="duo">
-    <figure class="still"><img src="shots/mortgage-ledger.webp" width="1018" height="366" alt="The latest Ledger steps: interest of 2% of ₹80,000 each month, and Payments split into interest and Principal." loading="lazy"><figcaption>The Ledger: every step spelled out ("Interest: 2% of ₹80,000"). The latest eight show here; the complete Ledger opens in a popup.</figcaption></figure>
-    <figure class="still"><img src="shots/mortgage-collateral.webp" width="1018" height="106" alt="Collateral Value ₹2,70,720 at the 22K Gold Rate; Loan-to-Value 30.6%." loading="lazy"><figcaption>Collateral Value ₹2,70,720 at the 22K Gold Rate; Loan-to-Value 30.6%. <b>Set by hand…</b> overrides it when a valuer says otherwise.</figcaption></figure>
-    <figure class="still"><img src="shots/mortgage-terms.webp" width="1018" height="154" alt="Bangles: Terms in force, and a coming Term Change from 25 Oct 2026 to 1.5% a month, still removable." loading="lazy"><figcaption>On her bangles, a Term Change is <em>coming</em>: 1.5% a month from 25 Oct 2026. It never rewrites interest already charged, and it can be removed until it starts.</figcaption></figure>
-    <figure class="still"><img src="shots/mortgage-photos.webp" width="1018" height="206" alt="A photo of Arjun's ruby ring on its Mortgage." loading="lazy"><figcaption>Photos stay with the Mortgage: Arjun's ruby ring.</figcaption></figure>
-  </div>
-  <figure class="scene" data-shot="mortgage-projection">
-    <div class="frame"><div class="canvas"><img src="shots/mortgage-projection.webp" width="1018" height="1062" alt="Projection with a what-if of ₹3,000 every month: owed, Redemption Amount and Loan-to-Value in 3, 6 and 12 months, and when it would be paid off." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="whatif"><button class="beat"><span><b>"What if she pays ₹3,000 every month?"</b> The Projection shows owed, the Redemption Amount and Loan-to-Value in 3, 6 and 12 months, against paying nothing, and the date it would be paid off.</span></button></li>
-      </ol>
-      <p class="caption">A Projection is the Ledger carried forward under stated assumptions. It is exact for those assumptions, unlike the Dashboard's Trend.</p>
-    </div>
-  </figure>
-  <div class="rules">
-    <div class="rule"><b>Interest on start-of-month Principal</b><span>Each month is charged on the Principal at the previous Accrual Date, so paying Principal a day before an Accrual Date doesn't avoid a month's interest.</span></div>
-    <div class="rule"><b>Nothing owed is stored</b><span>Outstanding, the Ledger and Redemption Amounts are replayed from the facts, so a correction anywhere shows everywhere at once.</span></div>
-  </div>
-</section>
-
-<!-- Second thoughts -->
-<section class="chapter" id="second" aria-labelledby="second-h">
-  <div class="chapter-head"><div class="eyebrow">Chapter 5</div><h2 id="second-h">Second thoughts, with a Preview</h2></div>
-  <div class="prose">
-    <p>Suppose the chain's Principal was really ₹90,000. Any change that affects money shows its effect before it is saved: what is owed today, the Redemption Amount in 3, 6 and 12 months, and exactly which Ledger steps would change. The Preview is the real change, made by the backend with every check a save runs, then undone, so it can never disagree with saving.</p>
-  </div>
-  <figure class="scene" data-shot="edit-preview">
-    <div class="frame"><div class="canvas"><img src="shots/edit-preview.webp" width="1068" height="2302" alt="Editing the chain's Principal to ₹90,000: the Preview shows owed today, the Redemption Amount over the next year, a chart and the Ledger steps that change." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="principal"><button class="beat"><span><b>₹80,000 → ₹90,000.</b> The Preview appears as you type.</span></button></li>
-        <li data-spot="owed"><button class="beat"><span><b>Owed today, before → after</b>, with the difference.</span></button></li>
-        <li data-spot="ledger"><button class="beat"><span><b>Every Ledger step that changes</b>, old and new. Change the figure back and Save turns off: only real changes can be saved.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <figure class="scene" data-shot="terms-preview">
-    <div class="frame"><div class="canvas"><img src="shots/terms-preview.webp" width="1068" height="1494" alt="Change the Terms: from the next Accrual Date at 1.5% a month, with its Preview." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="from"><button class="beat"><span><b>A Term Change starts on an Accrual Date</b>, today or later. Dates that already have one aren't offered.</span></button></li>
-        <li data-spot="owed"><button class="beat"><span><b>The effect from then on only.</b> Interest already charged never changes.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-</section>
-
-<!-- Meera pays -->
-<section class="chapter" id="pays" aria-labelledby="pays-h">
-  <div class="chapter-head"><div class="eyebrow">Chapter 6</div><h2 id="pays-h">Meera pays</h2></div>
-  <div class="prose">
-    <p>Meera often hands over one sum for both her pledges. The Lender enters it once. The app suggests a split, shows what each Mortgage will owe afterwards, and refuses anything more than is owed.</p>
-  </div>
-  <figure class="scene" data-shot="payment-new">
-    <div class="frame"><div class="canvas"><img src="shots/payment-new.webp" width="1068" height="1772" alt="Recording ₹8,000 from Meera, split equally across her chain and bangles, with a Preview for each Mortgage." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="amount"><button class="beat"><span><b>₹8,000 received.</b> A back-dated Payment sees each Mortgage's Outstanding on that date.</span></button></li>
-        <li data-spot="modes"><button class="beat"><span><b>Split equally, by amount, or by percentage.</b></span></button></li>
-        <li data-spot="split"><button class="beat"><span><b>Ticked Mortgages stay together at the top.</b> Equal shares go in whole rupees.</span></button></li>
-        <li data-spot="preview"><button class="beat"><span><b>What changes on each Mortgage</b>, before it is recorded.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <div class="model" id="split" aria-labelledby="split-h">
-    <div class="model-head"><h3 id="split-h">Splitting a Payment across Meera's Mortgages</h3><span class="tag">Try it</span></div>
-    <div class="controls">
-      <label for="s-total">Received (₹)<input id="s-total" type="number" min="0" step="500" value="8000"></label>
-      <div class="seg" role="group" aria-label="How to split"><button type="button" data-mode="equal" aria-pressed="true">Equally</button><button type="button" data-mode="percent" aria-pressed="false">By percentage</button></div>
-      <label for="s-pct" id="s-pct-label" hidden><span>To the chain: <output id="s-pct-out">50</output>%</span><input id="s-pct" type="range" min="0" max="100" value="50"></label>
-    </div>
-    <div class="alloc" id="s-rows"></div>
-    <div class="readout" aria-hidden="true" style="grid-template-columns: repeat(auto-fit, minmax(10rem, max-content))"><div><span><i style="background: var(--owed)"></i>to unpaid interest</span></div><div><span><i style="background: var(--money-in)"></i>to Principal</span></div></div>
-    <p class="verdict" id="s-verdict" aria-live="polite"></p>
-  </div>
-  <div class="duo">
-    <figure class="still"><img src="shots/payment-refused.webp" width="1018" height="706" alt="A Payment of ₹9,00,000: the Preview says it would be more than the ₹1,49,000 owed, and Record Payment is disabled." loading="lazy"><figcaption>₹9,00,000 by mistake: the Preview gives the reason, "would be more than the ₹1,49,000 owed then", and Save stays off.</figcaption></figure>
-    <figure class="still"><img src="shots/paid-off.webp" width="640" height="250" alt="Fully paid: Redeem now? offering to Redeem the Mortgage the Payment just cleared." loading="lazy"><figcaption>A Payment that clears a Mortgage offers to Redeem it straight away.</figcaption></figure>
-  </div>
-  <figure class="scene" data-shot="payment">
-    <div class="frame"><div class="canvas"><img src="shots/payment.webp" width="1068" height="941" alt="Meera's ₹12,000 Payment of 10 Sept: Allocations to the chain and the bangles, split into interest and Principal, and the Receipt ready for WhatsApp." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="alloc"><button class="beat"><span><b>₹12,000 on 10 September</b>: ₹2,000 to the chain and ₹10,000 to the bangles, each split into interest and Principal.</span></button></li>
-        <li data-spot="receipt"><button class="beat"><span><b>The Receipt</b>, ready to send on WhatsApp or print. It names each Mortgage by its jewellery, never its Mortgage Name, and shows what is still owed.</span></button></li>
-        <li data-spot="void"><button class="beat"><span><b>Void…</b> for a Payment entered by mistake.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <div class="duo">
-    <figure class="still"><img src="shots/payment-void.webp" width="900" height="774" alt="Voiding a ₹6,000 Payment: it needs a reason, and the Preview shows what is owed before and after." loading="lazy"><figcaption>On 10 October the Lender typed ₹16,000 instead of ₹6,000 and Voided it, then recorded the ₹6,000. Here the Void dialog is open on that ₹6,000: it needs a reason and shows its effect. A Voided Payment stays on record but counts in no Ledger.</figcaption></figure>
-    <figure class="still"><img src="shots/receipt.webp" width="1068" height="546" alt="The printable Receipt for the 10 September Payment." loading="lazy"><figcaption>The printable Receipt: received from, date, amount, method, and each piece of jewellery with what is still owed.</figcaption></figure>
-    <figure class="still"><img src="shots/payments.webp" width="1068" height="1415" alt="The Payments list, newest first, with the voided Payment marked." loading="lazy"><figcaption>All Payments, by month or year, with Voided ones marked or hidden. A row opens its Payment.</figcaption></figure>
-  </div>
-</section>
-
-<!-- Arjun -->
-<section class="chapter" id="arjun" aria-labelledby="arjun-h">
-  <div class="chapter-head"><div class="eyebrow">Chapter 7</div><h2 id="arjun-h">Meanwhile, Arjun</h2></div>
-  <div class="prose">
-    <p>Arjun pledged a ruby ring in June 2025 at 2.5% a month, Compounded Monthly. He paid once, in August 2025. Fifteen months of compounding later he owes ₹84,831 against gold worth ₹81,216. The app never sends anything by itself: each morning it prepares a Call List and Notices, and the Lender decides.</p>
-  </div>
-  <figure class="scene" data-shot="call-list">
-    <div class="frame short"><div class="canvas"><img src="shots/call-list.webp" width="1068" height="488" alt="Today's Call List: Arjun's chain accrues today; his ruby ring is 15 months unpaid with Loan-to-Value 104.5%, already called today." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="why"><button class="beat"><span><b>Why each is listed:</b> 15 Months Unpaid, and a Loan-to-Value of 104.5%. The gold is now worth less than the debt.</span></button></li>
-        <li data-spot="called"><button class="beat"><span><b>Called today:</b> "Will pay after Diwali". Every Call Note stays on the Mortgage.</span></button></li>
-        <li data-spot="mark"><button class="beat"><span><b>His chain accrues today</b>, a good day to ring. <b>Mark called…</b> takes a note of what was said.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
-    </div>
-  </figure>
-  <div class="model" id="ltv" aria-labelledby="ltv-h">
-    <div class="model-head"><h3 id="ltv-h">When does a Mortgage go on the Call List?</h3><span class="tag">Try it</span></div>
-    <div class="controls">
-      <label for="l-rate"><span>22K Gold Rate: ₹<output id="l-rate-out">13,536</output> a gram</span><input id="l-rate" type="range" min="9000" max="18000" step="100" value="13536"></label>
-      <label for="l-owed"><span>Arjun owes: ₹<output id="l-owed-out">84,831</output></span><input id="l-owed" type="range" min="40000" max="120000" step="1" value="84831"></label>
-      <label for="l-limit"><span>Listed above <output id="l-limit-out">85</output>%</span><input id="l-limit" type="range" min="50" max="120" step="5" value="85"></label>
-      <label for="l-months"><span>Months Unpaid: <output id="l-months-out">15</output></span><input id="l-months" type="range" min="0" max="18" value="15"></label>
-    </div>
+  <div class="cols">
     <div>
-      <div class="gauge" id="l-gauge"><div class="needle" id="l-needle"></div></div>
-      <div class="gauge-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span><span>150%</span></div>
-    </div>
-    <p class="verdict" id="l-verdict" aria-live="polite"></p>
-    <p class="caption">His ring is 6 g of 22K gold. Loan-to-Value is what is owed ÷ the Collateral Value; Months Unpaid counts monthly interest not yet covered, oldest first. Either reason is enough (3 Months Unpaid or more, or above the Loan-to-Value limit), and so is accruing today.</p>
-  </div>
-  <div class="prose">
-    <p>Notices go out ahead of each Accrual Date: one per Customer, covering every Mortgage of theirs accruing that day. Because the Lender chose to approve them first, Sunita's waits for a look.</p>
-  </div>
-  <figure class="scene" data-shot="notices">
-    <div class="frame short"><div class="canvas"><img src="shots/notices.webp" width="1068" height="375" alt="Notices, To approve: Sunita Rao, accruing 21 Oct 2026." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="tabs"><button class="beat"><span><b>To approve, To send, Sent, Skipped, All.</b></span></button></li>
-        <li data-spot="row"><button class="beat"><span><b>Sunita's mangalsutra accrues on 21 October.</b> Open it to read the message.</span></button></li>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>Read the headline <span class="ui">Owed on Active Mortgages</span>. Click it: it opens the Mortgages list. Every tile is a link to the list behind it.</span></li>
+        <li><span>Point to <span class="ui">Loan-to-Value</span>: what is owed as a share of what the gold is worth. At 19.7% the book is well covered.</span></li>
+        <li><span>Scroll to <span class="ui">Payments received each month, and the year ahead</span>: the past twelve months as bars, the coming twelve as interest charged against expected Payments.</span></li>
+        <li><span>Show <span class="ui">Looking ahead</span>: the book in 3, 6 and 12 months. Projections are exact (replayed from today's Mortgages); estimates are a Trend from the last three months.</span></li>
       </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
     </div>
-  </figure>
-  <div class="duo">
-    <figure class="still"><img src="shots/notice.webp" width="640" height="434" alt="Notice to Sunita Rao: interest of ₹700 to be added on 21 Oct 2026, total owed ₹35,700." loading="lazy"><figcaption>The message as Sunita will see it: ₹700 of interest on 21 October, ₹35,700 owed. Approve, then Send on WhatsApp.</figcaption></figure>
-    <div class="model" id="notice-life" aria-labelledby="nl-h">
-      <div class="model-head"><h3 id="nl-h">A Notice's life</h3><span class="tag">Click a state</span></div>
-      <div class="states" role="group" aria-label="Notice states">
-        <button type="button" data-say="Each morning the daily run queues a Notice for every Customer with a Mortgage accruing within the next 5 days.">Queued</button><span class="to">→</span>
-        <button type="button" aria-pressed="true" data-say="With approve-first on, it waits here. The Lender reads it and approves it, or skips it.">To approve</button><span class="to">→</span>
-        <button type="button" data-say="Approved. Send on WhatsApp opens the chat with the message ready; the Lender presses Send there, then marks it sent.">To send</button><span class="to">→</span>
-        <button type="button" data-say="Sent, with the time, and the message as it was sent kept on record.">Sent</button>
-        <button type="button" data-say="Skipped by the Lender (Lakshmi has paid in full), or withdrawn on its own when its Mortgages were Redeemed or edited before it went.">Skipped</button>
+    <div class="live">
+      <div class="block-title">Payments received, last 12 months</div>
+      <div class="bars" aria-label="Payments received each month">
+        <div class="bar"><div style="height:0%"></div><span>N</span></div>
+        <div class="bar"><div style="height:0%"></div><span>D</span></div>
+        <div class="bar"><div style="height:0%"></div><span>J</span></div>
+        <div class="bar"><div style="height:0%"></div><span>F</span></div>
+        <div class="bar"><div style="height:0%"></div><span>M</span></div>
+        <div class="bar"><div style="height:0%"></div><span>A</span></div>
+        <div class="bar"><em>50k</em><div style="height:22.8%"></div><span>M</span></div>
+        <div class="bar"><div style="height:0%"></div><span>J</span></div>
+        <div class="bar"><div style="height:0%"></div><span>J</span></div>
+        <div class="bar"><div style="height:0%"></div><span>A</span></div>
+        <div class="bar"><em>50k</em><div style="height:22.8%"></div><span>S</span></div>
+        <div class="bar"><em>2.19L</em><div style="height:100%"></div><span>O</span></div>
       </div>
-      <p class="state-say" id="nl-say" aria-live="polite"></p>
+      <p class="note">Nov 2025 – Oct 2026 · ₹50,000 in May, ₹50,000 in September, ₹2,19,124 in October.</p>
+      <dl>
+        <dt>Interest accruing, next 3 months</dt><dd>₹74,564</dd>
+        <dt>next 6 months</dt><dd>₹1,55,822</dd>
+        <dt>next 12 months</dt><dd>₹3,32,418</dd>
+      </dl>
     </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Nothing owed is stored</b><span>Outstanding, the Ledger and Redemption Amounts are replayed from the Terms and Payments every time, so a correction anywhere shows everywhere at once.</span></div>
+    <div class="nuance"><b>Exact versus estimate</b><span>Projections (exact) and Trend (estimate) are labelled in different colours, so nobody mistakes a guess for a promise.</span></div>
+    <div class="nuance"><b>Back from another page</b><span>Figures you saw earlier show at once, dimmed, until the fresh ones arrive.</span></div>
   </div>
 </section>
 
-<!-- Endings -->
-<section class="chapter" id="endings" aria-labelledby="endings-h">
-  <div class="chapter-head"><div class="eyebrow">Chapter 8</div><h2 id="endings-h">How pledges end</h2></div>
-  <div class="prose">
-    <p>Every pledge ends one of two ways. Either it is paid in full and the jewellery goes home (Redeemed), or the Customer defaults and the Lender keeps or sells it (Forfeited). This month has one of each, and one more waiting.</p>
+<!-- 2 · Settings -->
+<section class="stop" id="s2" aria-labelledby="s2-title">
+  <div class="stop-head">
+    <div class="stop-no">2</div>
+    <h2 id="s2-title">Settings: the Lender's rules</h2>
+    <p class="open">Open <span class="path">/settings</span></p>
   </div>
-  <figure class="scene" data-shot="closures">
-    <div class="frame"><div class="canvas"><img src="shots/closures.webp" width="1068" height="795" alt="Redeem / Forfeit: Lakshmi's temple necklace Ready to Redeem with a ₹3,867 part-month charge; Active Mortgages that can be Forfeited." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="ready"><button class="beat"><span><b>Lakshmi paid in full this week.</b> Her necklace waits to go back; Redeeming today adds a ₹3,867 part-month charge as the final Payment. Below, Mortgages still owing can be ticked and Forfeited together.</span></button></li>
+  <p class="say">"Before any lending, the Lender sets their house rules once: the usual Terms, today's gold prices, when someone needs a phone call, the wording of WhatsApp messages, and Backups."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show, top to bottom</div>
+      <ol class="steps">
+        <li><span><span class="ui">Default Terms</span>: copied into every new Mortgage. Changing them never touches existing Mortgages.</span></li>
+        <li><span><span class="ui">Gold Rates</span>: price per gram for each purity, with the date last updated. Saving revalues every Mortgage that uses them.</span></li>
+        <li><span><span class="ui">Call List</span>: how many Months Unpaid, or how high a Loan-to-Value, puts a Mortgage on the day's Call List.</span></li>
+        <li><span><span class="ui">WhatsApp messages</span>: the Receipt and Notice templates with their placeholders, a live preview, how many days ahead Notices are queued, and whether each needs approving first.</span></li>
+        <li><span><span class="ui">Backups</span>: when the last one was taken, <span class="ui">Back up now</span>, and how many to keep.</span></li>
       </ol>
     </div>
-  </figure>
-  <figure class="scene" data-shot="redeem">
-    <div class="frame"><div class="canvas"><img src="shots/redeem.webp" width="1018" height="1251" alt="Redeeming the temple necklace: the date, the Redemption Amount broken down, the final Payment method and the Preview." loading="lazy"></div></div>
-    <div class="beats-wrap">
-      <ol class="beats">
-        <li data-spot="date"><button class="beat"><span><b>Pick a date.</b> A future date gives a quote only.</span></button></li>
-        <li data-spot="amount"><button class="beat"><span><b>The Redemption Amount:</b> Principal, unpaid interest and the part-month charge for the days since the last Accrual Date, under the Mortgage's Part-Month Rule.</span></button></li>
-      </ol>
-      <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
+    <div class="live">
+      <div class="block-title">The live settings</div>
+      <dl>
+        <dt>Default Terms</dt><dd>4% a month, Compounded Yearly, full month</dd>
+        <dt>Gold Rate 24K / 22K</dt><dd>₹14,766 / ₹13,536 a gram</dd>
+        <dt>Gold Rate 20K / 18K / 14K</dt><dd>₹12,332 / ₹11,075 / ₹8,601</dd>
+        <dt>Rates last updated</dt><dd>17 Oct 2026</dd>
+        <dt>Call List</dt><dd>1+ Months Unpaid, or Loan-to-Value above 85%</dd>
+        <dt>Notices</dt><dd>5 days before, sent without approval</dd>
+        <dt>Last Backup</dt><dd>18 Oct 2026, 05:27</dd>
+      </dl>
     </div>
-  </figure>
-  <div class="duo">
-    <figure class="still"><img src="shots/redeemed.webp" width="1018" height="108" alt="Kavita's gold coin, Redeemed on 5 Oct 2026 for ₹54,567, with a link to the final Payment's Receipt." loading="lazy"><figcaption>Kavita's coin: Redeemed on 5 October for ₹54,567, with the final Payment's Receipt.</figcaption></figure>
-    <figure class="still"><img src="shots/forfeited.webp" width="1018" height="246" alt="Imran's earrings, Forfeited on 10 Oct 2026: Redemption Amount ₹62,800, recovered ₹52,000, a loss of ₹10,800." loading="lazy"><figcaption>Imran's earrings: Forfeited on 10 October. Owed ₹62,800, sold for ₹52,000: a loss of ₹10,800, which the Dashboard counts for the month.</figcaption></figure>
   </div>
-  <div class="rules">
-    <div class="rule"><b>Reopen undoes completely</b><span>With a reason, the Mortgage is Active again as if never closed, and a Redemption's final Payment is Voided.</span></div>
-    <div class="rule"><b>No closing before a Payment</b><span>A Closure can't be dated before a Payment already recorded on that Mortgage.</span></div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Templates can't break</b><span>A template using a placeholder the app can't fill is refused on save, so a Customer never receives <code>{typo}</code>.</span></div>
+    <div class="nuance"><b>Every save is confirmed</b><span>Each group shows a summary of what changes, and Gold Rates says every valued Mortgage is revalued at once.</span></div>
+    <div class="nuance"><b>Backups leave the laptop</b><span>A password-protected zip of the database and photos, weekly and before every update, into a synced folder.</span></div>
   </div>
 </section>
 
-<!-- Safekeeping -->
-<section class="chapter" id="safe" aria-labelledby="safe-h">
-  <div class="chapter-head"><div class="eyebrow">Epilogue</div><h2 id="safe-h">Nothing is lost</h2></div>
-  <div class="prose">
-    <p>Every change is kept in the History, with when it happened and what it was before. Nobody can edit or remove it. The whole book is backed up to a folder that leaves the laptop, weekly and before every update.</p>
+<!-- 3 · Customers -->
+<section class="stop" id="s3" aria-labelledby="s3-title">
+  <div class="stop-head">
+    <div class="stop-no">3</div>
+    <h2 id="s3-title">Customers and Referrers</h2>
+    <p class="open">Open <span class="path">/customers</span>, then a Customer</p>
   </div>
-  <div class="duo">
-    <figure class="still"><img src="shots/mortgage-history.webp" width="1018" height="140" alt="History of Meera's chain: the description edited, and each Payment recorded." loading="lazy"><figcaption>The chain's History: its description corrected ("Gold chain with pendant" → "…with Lakshmi pendant") and each Payment recorded.</figcaption></figure>
-    <figure class="still"><img src="shots/settings-backups.webp" width="1068" height="367" alt="The last Backup taken, with its file name." loading="lazy"><figcaption>The last Backup, its file, and how many are kept. Runs on the Lender's laptop only, reachable from no one else's.</figcaption></figure>
+  <p class="say">"A Customer is a person, known by their mobile number. The app makes sure one person is never entered twice, and remembers who introduced them."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>The list: filter by name or phone as you type, tick <span class="ui">Only Customers with an Active Mortgage</span>, sort any column. Matching Referrers appear alongside.</span></li>
+        <li><span><span class="ui">New Customer</span>: type a contact number 1 that already belongs to someone. The form warns who owns it before you save.</span></li>
+        <li><span>The <span class="ui">Referrer</span> choice: None, an Existing person (search), or a New Referrer known only by name and phone.</span></li>
+        <li><span>Open a Customer: photo, numbers, who referred them, whom they referred, their Active Mortgages with closed ones tucked below, and their History.</span></li>
+        <li><span>Stop before saving: press <span class="ui">Keep editing</span>.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">In the book</div>
+      <dl>
+        <dt>Customers</dt><dd>5</dd>
+        <dt>with an Active Mortgage</dt><dd>4</dd>
+        <dt>with a photo</dt><dd>2</dd>
+      </dl>
+      <p class="note">Delete is offered only while a Customer has no Mortgages: lending history is never lost.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>The Primary Number</b><span>Contact number 1 identifies the person; no two people share it. Number 2 may be shared (a family phone): the app warns but allows it.</span></div>
+    <div class="nuance"><b>Referrers grow into Customers</b><span>A Standalone Referrer who later borrows becomes a Customer, keeping everyone they referred.</span></div>
+    <div class="nuance"><b>Nobody refers themselves</b><span>A Customer can't be picked as their own Referrer, whichever way it's entered.</span></div>
   </div>
 </section>
 
-<section class="ending" aria-labelledby="end-h">
-  <h2 id="end-h">The year, in six lines</h2>
-  <ol>
-    <li>The whole book on one screen, worked out fresh every morning.</li>
-    <li>The Lender's rules set once, applied to every new pledge.</li>
-    <li>Each person entered once, known by their number and who introduced them.</li>
+<!-- 4 · New Mortgage -->
+<section class="stop" id="s4" aria-labelledby="s4-title">
+  <div class="stop-head">
+    <div class="stop-no">4</div>
+    <h2 id="s4-title">Lending: a New Mortgage</h2>
+    <p class="open">Open <span class="path">/mortgages/new</span> (or <span class="ui">New Mortgage</span> on a Customer)</p>
+  </div>
+  <p class="say">"Lending is one Mortgage per packet of jewellery. The Lender picks the Customer, sees what they already owe, weighs the gold, and the app suggests a name and shows what this loan will grow to before anything is saved."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>Choose a Customer. Their <span class="ui">Active Mortgages</span> appear first, as a reminder of what they already owe.</span></li>
+        <li><span>Enter the start date (it may be back-dated), Principal lent, a description, gross and net weight, and purity.</span></li>
+        <li><span>Watch the <span class="ui">Mortgage Name</span> fill itself: year, the Customer's first name, and the jewellery (for example <code>2026-Name-GoldNecklace</code>). Type your own and it stops suggesting.</span></li>
+        <li><span>The Terms arrive from Settings and can be changed for this one Mortgage. Add photos from the camera or files.</span></li>
+        <li><span>Press <span class="ui">Create Mortgage</span>: the confirmation shows what it would owe today and over a year with no Payments. Press <span class="ui">Keep editing</span>.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">Terms, explained</div>
+      <dl>
+        <dt>Simple</dt><dd>interest never earns interest</dd>
+        <dt>Compounded Yearly</dt><dd>simple monthly, capitalised yearly</dd>
+        <dt>Compounded Monthly</dt><dd>capitalised every month</dd>
+        <dt>Part-Month Rule</dt><dd>pro-rata · full month · nothing</dd>
+      </dl>
+      <p class="note">The Part-Month Rule decides what is charged for the days since the last Accrual Date when a Mortgage is redeemed.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Accrual Dates follow the start date</b><span>Started on the 31st? Interest is added on the 31st, or the month's last day when it is shorter.</span></div>
+    <div class="nuance"><b>Names are unique</b><span>A second necklace the same year becomes <code>…-GoldNecklace-2</code> automatically.</span></div>
+    <div class="nuance"><b>Collateral Value from the weight</b><span>Net weight at the Gold Rate for its purity; the Lender can set a value by hand later.</span></div>
+  </div>
+</section>
+
+<!-- 5 · A Mortgage -->
+<section class="stop" id="s5" aria-labelledby="s5-title">
+  <div class="stop-head">
+    <div class="stop-no">5</div>
+    <h2 id="s5-title">One Mortgage, explained</h2>
+    <p class="open">Open <span class="path">/mortgages/10</span> (Compounded Monthly), then <span class="path">/mortgages/3</span> (a coming Term Change)</p>
+  </div>
+  <p class="say">"Everything about one pledge is on one page: what it owes now, the Terms and any coming changes, what the gold is worth, every call made, the photos, and the full step-by-step Ledger showing how the number was reached."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show, top to bottom</div>
+      <ol class="steps">
+        <li><span>The three tiles: <span class="ui">Outstanding</span>, <span class="ui">Principal</span>, <span class="ui">Unpaid interest</span>. Mortgage 10 lent ₹1,20,000 in April 2025 and owes ₹1,98,342 today.</span></li>
+        <li><span><span class="ui">Terms</span>: on Mortgage 3, a Term Change is <em>coming</em> from 1 Mar 2027 (10% a month) and can still be removed.</span></li>
+        <li><span><span class="ui">Collateral Value</span> and Loan-to-Value, with <span class="ui">Set by hand…</span>. The confirmation says whether that puts it on or off the Call List.</span></li>
+        <li><span><span class="ui">Ledger</span>: the latest 8 steps; <span class="ui">Show complete Ledger</span> opens all of them. Each line spells out its calculation ("Interest: 3% of ₹…").</span></li>
+        <li><span><span class="ui">Projection</span>: type a monthly amount in "What if they pay every month" to see when it would be paid off.</span></li>
+        <li><span><span class="ui">History</span>: every change, with old and new values.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">What compounding does</div>
+      <dl>
+        <dt>Mortgage 10 · Compounded Monthly</dt><dd>₹1,20,000 → ₹1,98,342</dd>
+        <dt>Mortgage 6 · Compounded Yearly</dt><dd>₹60,000 → ₹1,40,937</dd>
+        <dt>Mortgage 3 · Simple, 4%</dt><dd>₹40,000 → ₹27,044</dd>
+      </dl>
+      <p class="note">Mortgage 3 owes less than it lent: Payments have reduced its Principal. Mortgage 6 dates from January 2024.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Interest on start-of-month Principal</b><span>Each month is charged on the Principal at the previous Accrual Date, so paying Principal a day before an Accrual Date doesn't dodge a month (ADR-0006).</span></div>
+    <div class="nuance"><b>Term Changes never rewrite the past</b><span>They start on an Accrual Date and apply only from then on. One that has taken effect can't be removed; add another instead.</span></div>
+    <div class="nuance"><b>Closed Mortgages tuck away</b><span>Redeemed or Forfeited, the page shows how it ended and offers <span class="ui">Reopen…</span>.</span></div>
+  </div>
+</section>
+
+<!-- 6 · Changes and Previews -->
+<section class="stop" id="s6" aria-labelledby="s6-title">
+  <div class="stop-head">
+    <div class="stop-no">6</div>
+    <h2 id="s6-title">Changes, with a Preview first</h2>
+    <p class="open">From a Mortgage: <span class="ui">Edit</span> (<span class="path">/mortgages/10/edit</span>) and <span class="ui">Change Terms…</span> (<span class="path">/mortgages/10/terms</span>)</p>
+  </div>
+  <p class="say">"Any change that affects money shows its effect before it is saved: what is owed today, the Redemption Amount in 3, 6 and 12 months, and exactly which Ledger lines would change. If the change isn't allowed, the Preview says why and Save stays off."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>On <span class="ui">Edit</span>, change the Principal lent. <span class="ui">What changes</span> appears: Owed today before → after, interest over 12 months, a before/after chart, and the changed Ledger steps.</span></li>
+        <li><span>Change it back: the Preview disappears and Save turns off. Only real changes can be saved.</span></li>
+        <li><span>On <span class="ui">Change Terms</span>, pick an Accrual Date and a new rate. The Preview shows the effect from that date only.</span></li>
+        <li><span>Press Save to show the confirmation, then <span class="ui">Keep editing</span>.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">Every change that has a Preview</div>
+      <dl>
+        <dt>Edit details</dt><dd>start date, Principal</dd>
+        <dt>Term Change</dt><dd>add · remove</dd>
+        <dt>Payment</dt><dd>record · Void</dd>
+        <dt>Closure</dt><dd>Redeem · Forfeit · Reopen</dd>
+        <dt>Collateral Value</dt><dd>and the Call List</dd>
+        <dt>New Mortgage</dt><dd>what it will owe</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>The Preview is the real change, undone</b><span>The backend makes the change with every check a save would run, reads the result, then rolls it back. A Preview can't disagree with a save.</span></div>
+    <div class="nuance"><b>Closed Mortgages stay consistent</b><span>The start date and Principal of a Redeemed or Forfeited Mortgage are locked until it is reopened.</span></div>
+  </div>
+</section>
+
+<!-- 7 · Payments -->
+<section class="stop" id="s7" aria-labelledby="s7-title">
+  <div class="stop-head">
+    <div class="stop-no">7</div>
+    <h2 id="s7-title">Payments, Receipts and Voids</h2>
+    <p class="open">Open <span class="path">/payments/new</span>, then <span class="path">/payments</span> and a Payment (<span class="path">/payments/4</span> is split three ways)</p>
+  </div>
+  <p class="say">"A Customer often hands over one sum for several pledges. The Lender enters it once, the app suggests how to split it, shows what each Mortgage will owe afterwards, and sends the Customer a Receipt on WhatsApp."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>Choose the Customer. Their Active Mortgages are listed with what each owes on the Payment date, so a back-dated Payment sees back-dated figures.</span></li>
+        <li><span>Enter the amount, or click <span class="ui">The full Outstanding on the chosen Mortgages</span>. Split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>; ticked Mortgages stay together at the top.</span></li>
+        <li><span>Type more than is owed: the Preview gives the reason ("would be more than the ₹… owed then") and Save stays off.</span></li>
+        <li><span>Open an existing Payment: each Allocation split into interest and Principal, the <span class="ui">Receipt</span> as it appears in WhatsApp, and <span class="ui">Print or save as PDF</span>.</span></li>
+        <li><span>Show <span class="ui">Void…</span>: it needs a reason and previews the effect. Cancel.</span></li>
+        <li><span>The Payments list: filter by month or year, hide Voided ones; a row opens its Payment.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">In the book</div>
+      <dl>
+        <dt>Payments</dt><dd>12 (3 Voided)</dd>
+        <dt>Cash · UPI · bank transfer</dt><dd>6 · 5 · 1</dd>
+        <dt>Split across Mortgages</dt><dd>2 Payments (2 and 3 ways)</dd>
+      </dl>
+      <div class="split" aria-label="How an Allocation is applied">
+        <div class="legend"><span><i style="background: var(--owed)"></i>unpaid interest first</span><span><i style="background: var(--money-in)"></i>then Principal</span></div>
+        <div class="split-row"><span>Allocation A</span><div class="split-bar" style="--i: 100%"></div><span class="num muted">all interest</span></div>
+        <div class="split-row"><span>Allocation B</span><div class="split-bar" style="--i: 40%"></div><span class="num muted">part Principal</span></div>
+      </div>
+      <div class="wa" aria-label="Receipt as sent on WhatsApp">
+        <pre>*Payment received* ✅
+
+Namaste {customer name},
+We have received *₹…* by Cash on 18 Oct 2026. Thank you!
+…</pre>
+      </div>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Within a Mortgage: interest, then Principal</b><span>Each Allocation pays unpaid interest before it reduces Principal.</span></div>
+    <div class="nuance"><b>Voided, never deleted</b><span>A Voided Payment stays on record with its reason but counts in no Ledger. A correction is entered as a new Payment.</span></div>
+    <div class="nuance"><b>Receipts speak the Customer's language</b><span>They name each Mortgage by its jewellery ("Gold chain"), never its Mortgage Name, and show what is still owed.</span></div>
+    <div class="nuance"><b>Paid in full? Redeem now</b><span>If a Payment clears a Mortgage, the app offers to Redeem it on the spot, including any part-month charge as the final Payment.</span></div>
+  </div>
+</section>
+
+<!-- 8 · Follow-up -->
+<section class="stop" id="s8" aria-labelledby="s8-title">
+  <div class="stop-head">
+    <div class="stop-no">8</div>
+    <h2 id="s8-title">Follow-up: Notices and the Call List</h2>
+    <p class="open">Open <span class="path">/notices</span>, then <span class="path">/call-list</span></p>
+  </div>
+  <p class="say">"The app never sends anything by itself. It prepares reminders and a calling list each day; the Lender reviews them and presses Send in WhatsApp."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span><span class="ui">Notices</span>: one per Customer for each coming Accrual Date, covering all their Mortgages accruing that day. Tabs: To approve, To send, Sent, Skipped, All.</span></li>
+        <li><span>Open a Notice to read the message, then <span class="ui">Send on WhatsApp</span>, mark it sent, or <span class="ui">Skip</span>. (Show, don't send.)</span></li>
+        <li><span><span class="ui">Call List</span>: today's Mortgages grouped by Customer, each with why it is listed. Phone and WhatsApp links sit beside each name.</span></li>
+        <li><span><span class="ui">Mark called…</span> takes a note of what was said; the row then shows "Called" with the note. The Mortgage keeps every Call Note.</span></li>
+      </ol>
+      <div class="states" aria-label="A Notice's life">
+        <span class="state">Queued by the daily run</span><span class="arrow">→</span>
+        <span class="state">To approve</span><span class="arrow">→</span>
+        <span class="state on">To send</span><span class="arrow">→</span>
+        <span class="state">Sent</span><span class="muted">or</span><span class="state">Skipped</span>
+      </div>
+    </div>
+    <div class="live">
+      <div class="block-title">Today</div>
+      <dl>
+        <dt>Notices to send</dt><dd>2</dd>
+        <dt>Notices sent</dt><dd>1</dd>
+        <dt>On the Call List</dt><dd>4 Mortgages, 3 Customers</dd>
+        <dt>listed for Months Unpaid</dt><dd>4</dd>
+        <dt>also for Loan-to-Value</dt><dd>3</dd>
+        <dt>Call Notes so far</dt><dd>2</dd>
+      </dl>
+      <p class="note">The Call List threshold is set to 1 Month Unpaid, so it is busy. The usual setting is 3.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Notices always match today</b><span>A Notice whose Mortgages were Redeemed or edited meanwhile is withdrawn; turning on "approve first" holds those already queued.</span></div>
+    <div class="nuance"><b>Months Unpaid counts the oldest first</b><span>Payments clear the oldest interest first; capitalised interest still counts as unpaid.</span></div>
+    <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed.</span></div>
+  </div>
+</section>
+
+<!-- 9 · Redeem / Forfeit -->
+<section class="stop" id="s9" aria-labelledby="s9-title">
+  <div class="stop-head">
+    <div class="stop-no">9</div>
+    <h2 id="s9-title">Closing a Mortgage: Redeem or Forfeit</h2>
+    <p class="open">Open <span class="path">/closures</span> (Redeem / Forfeit), and the Redeem panel on <span class="path">/mortgages/4</span></p>
+  </div>
+  <p class="say">"Every pledge ends one of two ways: the Customer pays in full and takes the jewellery home, or they default and the Lender keeps or sells it. The app works out the exact Redemption Amount for any date and records the profit or loss on a Forfeiture."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>Point to the dot on <span class="ui">Redeem / Forfeit</span> in the menu: a Mortgage is paid off and waiting for its jewellery to go back.</span></li>
+        <li><span>On the page, <span class="ui">Ready to Redeem</span> lists it (Mortgage 4 owes ₹0). Below, Active Mortgages still owing can be ticked and Forfeited together.</span></li>
+        <li><span>On a Mortgage, press <span class="ui">Redeem…</span>: pick a date to see the Redemption Amount (Principal, unpaid interest, part-month charge). A future date gives a quote only.</span></li>
+        <li><span>Switch to <span class="ui">Forfeit…</span>: enter the Recovered Amount and the profit or loss appears. Cancel.</span></li>
+        <li><span>On a closed Mortgage, show <span class="ui">Reopen…</span>: it needs a reason, and its Preview shows interest charged for the whole time.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">In the book</div>
+      <dl>
+        <dt>Active</dt><dd>10</dd>
+        <dt>Ready to Redeem</dt><dd>1 (Mortgage 4)</dd>
+        <dt>Redeemed this month</dt><dd>2</dd>
+        <dt>Forfeited</dt><dd>0</dd>
+      </dl>
+      <p class="note">History shows two Reopens: closures made by mistake were undone, and every step is kept.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>The final Payment includes the part-month charge</b><span>Redeeming records it as a Payment, so the Receipt and the Ledger agree.</span></div>
+    <div class="nuance"><b>No closing before a later Payment</b><span>A Closure can't be dated before a Payment already recorded.</span></div>
+    <div class="nuance"><b>Reopen undoes completely</b><span>The Mortgage is Active as if never closed, and a Redemption's final Payment is Voided.</span></div>
+  </div>
+</section>
+
+<!-- 10 · Safekeeping -->
+<section class="stop" id="s10" aria-labelledby="s10-title">
+  <div class="stop-head">
+    <div class="stop-no">10</div>
+    <h2 id="s10-title">Safekeeping: History and Backups</h2>
+    <p class="open">The <span class="ui">History</span> on any Mortgage or Customer, and <span class="path">/settings</span> → Backups</p>
+  </div>
+  <p class="say">"Nothing is ever silently changed or lost. Every change is in the History with what it was before, and the whole book is backed up to a folder that leaves this laptop."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>On a Mortgage, the <span class="ui">History</span>: each edit with old → new values, Term Changes added and removed, photos, Voids and Reopens with their reasons.</span></li>
+        <li><span>On a Customer, the History also includes their Mortgages' changes.</span></li>
+        <li><span>In Settings, the last Backup's time and file, and the warning if Backups are not password-protected.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">History so far</div>
+      <dl>
+        <dt>Records created</dt><dd>71</dd>
+        <dt>Term Changes added · removed</dt><dd>11 · 3</dd>
+        <dt>Edits</dt><dd>7</dd>
+        <dt>Voids · Reopens</dt><dd>3 · 2</dd>
+        <dt>Photos added</dt><dd>3</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>History is never edited</b><span>Entries can't be changed or removed, by anyone.</span></div>
+    <div class="nuance"><b>Runs on the Lender's laptop</b><span>Docker Compose, reachable only from this machine; the data is a folder on disk (ADR-0004).</span></div>
+    <div class="nuance"><b>Before every update</b><span>Starting a new version backs up first, then brings the database up to date.</span></div>
+  </div>
+</section>
+
+<section class="close" aria-labelledby="close-title">
+  <h2 id="close-title">Closing the demo</h2>
+  <p>Return to the Dashboard and recap the story in one line per stop:</p>
+  <ul>
+    <li>The book at a glance, worked out fresh every time.</li>
+    <li>The Lender's rules set once, applied everywhere.</li>
+    <li>Each person entered once, known by their number.</li>
     <li>Every effect seen before it is saved, and every save confirmed.</li>
-    <li>Payments split fairly, Receipts on WhatsApp, follow-up prepared daily for the Lender to send.</li>
-    <li>Every pledge closed with an exact amount, and every change kept.</li>
-  </ol>
-  <footer>
-    <span>Sample data: every person and figure on this page is invented, and was worked out by the app itself on 19 Oct 2026.</span>
-    <span>Mortgage Management runs on the Lender's own laptop; this page only shows it.</span>
-  </footer>
+    <li>Payments split fairly, Receipts on WhatsApp, follow-up prepared daily.</li>
+    <li>Every pledge closed with an exact amount, and every change kept in History and Backups.</li>
+  </ul>
+  <a class="crosslink" href="story.html">
+    <span><span class="label">Next</span><b>The Gold Chain Story</b><span class="what">Every page above, on screen, as one Customer's year.</span></span>
+    <span class="go">Read the story →</span>
+  </a>
+  <footer>Figures were worked out from a read-only copy of the database on 18 Oct 2026; the live app shows today's. No Customer names or numbers appear in this guide.</footer>
 </section>
 
 </main>
-
-<script>
-const SPOTS = {"dashboard":{"w":1280,"h":860,"b":{"owed":[0.1023,0.2205,0.7953,0.0883],"ltv":[0.5062,0.7013,0.3914,0.1437],"follow":[0.1023,0.9106,0.3914,0.1437],"dot":[0.7229,0.0137,0.0063,0.0093]}},"dashboard-ahead":{"w":1018,"h":331,"b":{}},"dashboard-chart":{"w":1018,"h":444,"b":{}},"settings-terms":{"w":1068,"h":461,"b":{"rate":[0.0234,0.37,0.9532,0.0912]}},"settings-gold":{"w":1068,"h":554,"b":{"g22":[0.1864,0.4424,0.1837,0.0758],"updated":[0.7032,0.3206,0.2734,0.1065]}},"settings-calls":{"w":1068,"h":293,"b":{}},"settings-messages":{"w":1068,"h":1116,"b":{"template":[0.0234,0.16,0.4691,0.2312],"preview":[0.5075,0.1335,0.4691,0.1998],"approve":[0.5075,0.8633,0.4691,0.0215]}},"settings-backups":{"w":1068,"h":365,"b":{"last":[0.0234,0.4291,0.9532,0.0657]}},"customers":{"w":1068,"h":692,"b":{"filter":[0.0234,0.1171,0.9532,0.0607],"active":[0.0234,0.2009,0.9532,0.0347],"sort":[0.1087,0.2702,0.0455,0.0295],"new":[0.8341,0.0361,0.1425,0.0578]}},"customer-new":{"w":828,"h":669,"b":{"phone":[0.3249,0.4928,0.6449,0.0628],"referrer":[0.0326,0.7548,0.9348,0.1211],"warning":[0.3249,0.564,0.6449,0.0359]}},"customer":{"w":828,"h":947,"b":{"photo":[0.0302,0.1655,0.2657,0.2322],"shared":[0.0302,0.1233,0.9396,0.0253],"referrer":[0.5006,0.2331,0.4692,0.0253],"mortgages":[0.0302,0.4062,0.1171,0.0296],"history":[0.0302,0.6951,0.9396,0.0296]}},"referrer":{"w":828,"h":242,"b":{}},"mortgage-new":{"w":1068,"h":1278,"b":{"active":[0.0234,0.1166,0.9532,0.022],"name":[0.0234,0.5468,0.9532,0.0329],"terms":[0.0412,0.6697,0.9176,0.0329],"photos":[0.0412,0.8905,0.143,0.0329]}},"mortgage-new-confirm":{"w":520,"h":766,"b":{}},"mortgage":{"w":1280,"h":860,"b":{"tiles":[0.1023,0.1879,0.7953,0.1112],"pay":[0.7836,0.1306,0.1141,0.0356],"edit":[0.7333,0.1294,0.0409,0.0379]}},"mortgage-collateral":{"w":1018,"h":105,"b":{}},"mortgage-ledger":{"w":1018,"h":365,"b":{}},"mortgage-projection":{"w":1018,"h":1061,"b":{"whatif":[0,0.0279,0.22,0.0396]}},"mortgage-history":{"w":1018,"h":139,"b":{}},"mortgage-terms":{"w":1018,"h":153,"b":{"coming":[0.5816,0.5208,0.0588,0.1214]}},"mortgage-photos":{"w":1018,"h":205,"b":{}},"edit-preview":{"w":1068,"h":2301,"b":{"principal":[0.5075,0.1157,0.4691,0.0183],"owed":[0.0234,0.251,0.471,0.053],"ledger":[0.0234,0.5735,0.2953,0.016]}},"terms-preview":{"w":1068,"h":1493,"b":{"from":[0.0234,0.1197,0.9532,0.0255],"owed":[0.0234,0.4097,0.471,0.0817]}},"payment-new":{"w":1068,"h":1771,"b":{"amount":[0.3461,0.0876,0.3077,0.0237],"modes":[0.0412,0.1778,0.1608,0.0136],"split":[0.0412,0.2004,0.9176,0.0674],"preview":[0.0234,0.3811,0.9532,0.0159]}},"payment-refused":{"w":1018,"h":705,"b":{"refusal":[0,0.8639,1,0.034],"save":[0,0.9433,0.2623,0.0567]}},"payment":{"w":1068,"h":940,"b":{"alloc":[0.0234,0.282,0.9532,0.127],"receipt":[0.0234,0.4814,0.9532,0.492],"void":[0.9126,0.0284,0.064,0.0347]}},"receipt":{"w":1068,"h":545,"b":{}},"payment-void":{"w":900,"h":774,"b":{}},"payments":{"w":1068,"h":1413,"b":{"voided":[0.85,0.2721,0.0524,0.0153]}},"notices":{"w":1068,"h":374,"b":{"tabs":[0.0234,0.4631,0.1008,0.0642],"row":[0.0234,0.6689,0.9532,0.1328]}},"notice":{"w":640,"h":432,"b":{"approve":[0.799,0.8473,0.1619,0.0926]}},"call-list":{"w":1068,"h":487,"b":{"why":[0.239,0.6965,0.3243,0.1019],"called":[0.6895,0.7279,0.2589,0.037],"mark":[0.6895,0.6162,0.1072,0.0629]}},"closures":{"w":1068,"h":794,"b":{"ready":[0.0346,0.3203,0.2165,0.0227]}},"redeem":{"w":1018,"h":1250,"b":{"date":[0.0167,0.0761,0.9666,0.0352],"amount":[0.0167,0.211,0.1729,0.0192]}},"forfeited":{"w":1018,"h":245,"b":{}},"redeemed":{"w":1018,"h":107,"b":{}},"paid-off":{"w":640,"h":249,"b":{}}}
-
-// Scenes: numbered markers on each screenshot, stepped through by click or ← →.
-for (const scene of document.querySelectorAll('figure.scene')) {
-  const data = SPOTS[scene.dataset.shot]
-  const canvas = scene.querySelector('.canvas')
-  const frame = scene.querySelector('.frame')
-  const items = [...scene.querySelectorAll('.beats li')]
-  const ring = document.createElement('div')
-  ring.className = 'ring'
-  canvas.append(ring)
-  const marks = items.map((li, i) => {
-    const box = data && data.b[li.dataset.spot]
-    if (!box) return null
-    const mark = document.createElement('button')
-    mark.type = 'button'
-    mark.className = 'mark'
-    mark.textContent = String(i + 1)
-    mark.setAttribute('aria-label', `Step ${i + 1}`)
-    mark.style.left = `${box[0] * 100}%`
-    mark.style.top = `${box[1] * 100}%`
-    mark.addEventListener('click', () => show(i, true))
-    canvas.append(mark)
-    return { mark, box }
-  })
-  let current = -1
-  function show(i, scrollFrame) {
-    current = (i + items.length) % items.length
-    items.forEach((li, k) => li.querySelector('.beat').setAttribute('aria-current', String(k === current)))
-    marks.forEach((m, k) => m && m.mark.setAttribute('aria-pressed', String(k === current)))
-    const m = marks[current]
-    if (!m) { ring.classList.remove('on'); return }
-    const [x, y, w, h] = m.box
-    Object.assign(ring.style, { left: `calc(${x * 100}% - 6px)`, top: `calc(${y * 100}% - 6px)`, width: `calc(${w * 100}% + 12px)`, height: `calc(${h * 100}% + 12px)` })
-    ring.classList.add('on')
-    if (scrollFrame && frame.scrollHeight > frame.clientHeight) {
-      const top = y * canvas.offsetHeight - frame.clientHeight / 3
-      frame.scrollTo({ top: Math.max(0, top), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
-    }
-  }
-  items.forEach((li, i) => li.querySelector('.beat').addEventListener('click', () => show(i, true)))
-  scene.querySelector('[data-prev]')?.addEventListener('click', () => show(current - 1, true))
-  scene.querySelector('[data-next]')?.addEventListener('click', () => show(current + 1, true))
-  scene.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') { e.preventDefault(); show(current + 1, true); scene.querySelectorAll('.beat')[current]?.focus() }
-    if (e.key === 'ArrowLeft') { e.preventDefault(); show(current - 1, true); scene.querySelectorAll('.beat')[current]?.focus() }
-  })
-  if (items.length) show(0, false)
-}
-
-// The chapter strip follows the reader.
-const links = [...document.querySelectorAll('.strip a')]
-const chapters = links.map((a) => document.querySelector(a.getAttribute('href')))
-const onScroll = () => {
-  let at = 0
-  chapters.forEach((c, i) => { if (c.getBoundingClientRect().top < window.innerHeight * 0.35) at = i })
-  links.forEach((a, i) => a.setAttribute('aria-current', String(i === at)))
-}
-addEventListener('scroll', onScroll, { passive: true })
-onScroll()
-
-const rupees = (n) => '₹' + Math.round(n).toLocaleString('en-IN')
-
-// How the Interest Mode changes what is owed (no Payments).
-;(() => {
-  const amount = document.getElementById('g-amount'), rate = document.getElementById('g-rate'), months = document.getElementById('g-months')
-  const out = document.getElementById('g-months-out'), svg = document.getElementById('g-chart'), readout = document.getElementById('g-readout')
-  const modes = [
-    { key: 'simple', name: 'Simple', color: 'var(--money-in)' },
-    { key: 'yearly', name: 'Compounded Yearly', color: 'var(--owed)' },
-    { key: 'monthly', name: 'Compounded Monthly', color: 'var(--closed)' },
-  ]
-  function series(mode, P, r, n) {
-    let principal = P, unpaid = 0
-    const owed = [P]
-    for (let m = 1; m <= n; m++) {
-      unpaid += Math.round(principal * r)
-      if (mode === 'monthly' || (mode === 'yearly' && m % 12 === 0)) { principal += unpaid; unpaid = 0 }
-      owed.push(principal + unpaid)
-    }
-    return owed
-  }
-  function draw() {
-    const P = Math.max(0, Number(amount.value) || 0), r = Math.max(0, Number(rate.value) || 0) / 100, n = Number(months.value)
-    out.textContent = n
-    const all = modes.map((m) => ({ ...m, owed: series(m.key, P, r, n) }))
-    const top = Math.max(1, ...all.map((m) => m.owed[n])) * 1.08
-    const L = 58, R = 510, T = 12, B = 190
-    const x = (m) => L + (R - L) * (m / n), y = (v) => B - (B - T) * (v / top)
-    const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => top * f)
-    let html = ticks.map((v) => `<line class="grid" x1="${L}" x2="${R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v >= 100000 ? (v / 100000).toFixed(1) + 'L' : Math.round(v / 1000) + 'k'}</text>`).join('')
-    const step = n <= 12 ? 3 : n <= 24 ? 6 : 12
-    for (let m = 0; m <= n; m += step) html += `<text x="${x(m)}" y="${B + 16}" text-anchor="middle">${m}</text>`
-    html += `<text x="${R}" y="${B + 30}" text-anchor="end">months</text>`
-    for (const m of all) {
-      const pts = m.owed.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
-      html += `<polyline points="${pts}" fill="none" stroke="${m.color}" stroke-width="2.5" stroke-linejoin="round"/>`
-      html += `<circle cx="${x(n)}" cy="${y(m.owed[n])}" r="4" fill="${m.color}"/>`
-    }
-    svg.innerHTML = html
-    readout.innerHTML = all.map((m) => `<div><span><i style="background:${m.color}"></i>${m.name}</span><strong>${rupees(m.owed[n])}</strong><span>${rupees(m.owed[n] - P)} interest</span></div>`).join('')
-  }
-  for (const el of [amount, rate, months]) el.addEventListener('input', draw)
-  draw()
-})()
-
-// Splitting a Payment across Meera's Mortgages: unpaid interest first, then Principal.
-;(() => {
-  const mortgages = [
-    { name: 'Gold chain with pendant', principal: 80000, interest: 2800 },
-    { name: 'Pair of bangles', principal: 149000, interest: 0 },
-  ]
-  const total = document.getElementById('s-total'), pct = document.getElementById('s-pct'), pctOut = document.getElementById('s-pct-out')
-  const pctLabel = document.getElementById('s-pct-label'), rows = document.getElementById('s-rows'), verdict = document.getElementById('s-verdict')
-  const buttons = [...document.querySelectorAll('#split .seg button')]
-  let mode = 'equal'
-  const owed = (m) => m.principal + m.interest
-  function equal(sum) {
-    // Equal whole-rupee shares; one owing less than its share is paid off and the rest shared
-    // out. More than everything owed is still split equally, as the app does: whether a
-    // Payment is too large is for the Preview to say.
-    if (sum > mortgages.reduce((t, m) => t + owed(m), 0)) {
-      const share = Math.floor(sum / mortgages.length)
-      return mortgages.map((_, i) => share + (i < sum - share * mortgages.length ? 1 : 0))
-    }
-    const amounts = mortgages.map(() => 0)
-    let open = mortgages.map((_, i) => i), left = sum
-    while (open.length) {
-      const share = Math.floor(left / open.length)
-      const full = open.filter((i) => owed(mortgages[i]) <= share)
-      if (!full.length) { open.forEach((i, k) => { amounts[i] = share + (k < left - share * open.length ? 1 : 0) }); break }
-      full.forEach((i) => { amounts[i] = owed(mortgages[i]); left -= owed(mortgages[i]) })
-      open = open.filter((i) => !full.includes(i))
-    }
-    return amounts
-  }
-  function draw() {
-    const sum = Math.max(0, Math.round(Number(total.value) || 0))
-    pctOut.textContent = pct.value
-    pctLabel.hidden = mode !== 'percent'
-    const amounts = mode === 'equal' ? equal(sum) : [Math.round(sum * pct.value / 100), sum - Math.round(sum * pct.value / 100)]
-    const scale = Math.max(...mortgages.map(owed))
-    let over = null
-    rows.innerHTML = mortgages.map((m, i) => {
-      const a = amounts[i], toInt = Math.min(a, m.interest), toPri = Math.min(a - toInt, m.principal)
-      if (a > owed(m)) over = m
-      const iw = (toInt / scale) * 100, pw = ((toInt + toPri) / scale) * 100
-      return `<div class="alloc-row"><span><b>${m.name}</b><br><span class="muted">owes ${rupees(owed(m))}</span></span>
-        <div class="track" title="${rupees(toInt)} to interest, ${rupees(toPri)} to Principal"><div class="pri" style="width:${pw}%"></div><div class="int" style="width:${iw}%"></div></div>
-        <span class="num" style="text-align:right"><b>${rupees(a)}</b><br><span class="muted">${rupees(toInt)} + ${rupees(toPri)}</span></span></div>`
-    }).join('')
-    if (over) { verdict.className = 'verdict bad'; verdict.textContent = `The Preview would refuse this: more than the ${rupees(owed(over))} the ${over.name.toLowerCase()} owes. Record Payment stays off.` }
-    else if (!sum) { verdict.className = 'verdict'; verdict.textContent = 'Enter the amount received.' }
-    else { verdict.className = 'verdict good'; verdict.textContent = 'Fine to record. Within each Mortgage the Allocation pays unpaid interest first, then Principal.' }
-  }
-  buttons.forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode; buttons.forEach((x) => x.setAttribute('aria-pressed', String(x === b))); draw() }))
-  total.addEventListener('input', draw)
-  pct.addEventListener('input', draw)
-  draw()
-})()
-
-// When a Mortgage goes on the Call List.
-;(() => {
-  const NET_GRAMS = 6
-  const rate = document.getElementById('l-rate'), owedEl = document.getElementById('l-owed'), limit = document.getElementById('l-limit'), months = document.getElementById('l-months')
-  const needle = document.getElementById('l-needle'), gauge = document.getElementById('l-gauge'), verdict = document.getElementById('l-verdict')
-  function draw() {
-    const value = NET_GRAMS * Number(rate.value), owed = Number(owedEl.value), ltv = (owed / value) * 100
-    document.getElementById('l-rate-out').textContent = Number(rate.value).toLocaleString('en-IN')
-    document.getElementById('l-owed-out').textContent = owed.toLocaleString('en-IN')
-    document.getElementById('l-limit-out').textContent = limit.value
-    document.getElementById('l-months-out').textContent = months.value
-    gauge.style.setProperty('--limit', `${(Number(limit.value) / 150) * 100}%`)
-    needle.style.left = `${Math.min(100, (ltv / 150) * 100)}%`
-    const byValue = ltv > Number(limit.value), byMonths = Number(months.value) >= 3
-    const why = [byMonths && `${months.value} Months Unpaid`, byValue && `Loan-to-Value ${ltv.toFixed(1)}%`].filter(Boolean)
-    verdict.innerHTML = why.length
-      ? `<span class="chip on">On the Call List</span> ${why.join(' · ')} <span class="muted">(gold worth ${rupees(value)})</span>`
-      : `<span class="chip off">Not listed</span> Loan-to-Value ${ltv.toFixed(1)}% and ${months.value} Months Unpaid are within the limits.`
-    verdict.className = 'verdict'
-  }
-  for (const el of [rate, owedEl, limit, months]) el.addEventListener('input', draw)
-  draw()
-})()
-
-// A Notice's life.
-;(() => {
-  const buttons = [...document.querySelectorAll('#notice-life .states button')], say = document.getElementById('nl-say')
-  const pick = (b) => { buttons.forEach((x) => x.setAttribute('aria-pressed', String(x === b))); say.textContent = b.dataset.say }
-  buttons.forEach((b) => b.addEventListener('click', () => pick(b)))
-  pick(buttons.find((b) => b.getAttribute('aria-pressed') === 'true'))
-})()
-</script>
 </body>
 </html>
