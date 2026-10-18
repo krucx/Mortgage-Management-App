@@ -1,6 +1,6 @@
 [project]
 name = "mortgage-backend"
-version = "1.1.1"
+version = "1.1.2"
 description = "Backend API for the jewellery Mortgage management app"
 authors = [
     { name = "krucx", email = "kritarth.jain11@gmail.com" }

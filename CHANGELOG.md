@@ -5,6 +5,25 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [1.1.2] - 2026-10-19
+
+WhatsApp messages keep their emoji. No database changes: updating keeps all data and
+Backups.
+
+### Fixed
+
+- Emoji in Receipts and Notices (such as 🔔, 🙏 and ✅) arrived in WhatsApp as "�",
+  although the preview showed them correctly. Messages and Call List chats now open
+  WhatsApp's own send link (`api.whatsapp.com/send`) directly, instead of the `wa.me`
+  short link, whose redirect garbled them.
+
+### Upgrading
+
+```sh
+git pull
+docker compose up -d --build
+```
+
 ## [1.1.1] - 2026-10-19
 
 A cleaner Call List. No database changes: updating keeps all data and Backups.
@@ -139,6 +158,7 @@ The first complete release, running on the Lender's own laptop with Docker Compo
 - **Safekeeping:** History of every change, never edited; password-protected Backups
   weekly and before every database update, into a synced folder.
 
+[1.1.2]: https://github.com/krucx/Mortgage-Management-App/compare/1.1.1...1.1.2
 [1.1.1]: https://github.com/krucx/Mortgage-Management-App/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/krucx/Mortgage-Management-App/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/krucx/Mortgage-Management-App/releases/tag/1.0.0
