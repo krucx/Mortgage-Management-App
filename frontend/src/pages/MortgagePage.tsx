@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useCallback, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { api, type LedgerStep, type Mortgage } from '../api'
 import { CallNotes } from '../components/CallNotes'
@@ -16,6 +17,14 @@ import { TermsPanel } from '../components/TermsPanel'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, formatGrams } from '../format'
 import { formatINR } from '../money'
+import {
+  addMortgagePhoto,
+  dataOrThrow,
+  keys,
+  ledgerChanged,
+  mortgageQuery,
+  useServerState,
+} from '../serverState'
 import { describeTerms, formatRate, PART_MONTH_RULES } from '../terms'
 
 /** Ledger steps shown on the page; the rest are in the complete Ledger popup. */
@@ -23,24 +32,22 @@ const LEDGER_SHOWN = 8
 
 export function MortgagePage() {
   const id = Number(useParams().id)
-  const [mortgage, setMortgage] = useState<Mortgage | null>(null)
+  const { client, queryClient } = useServerState()
+  const loaded = useQuery(mortgageQuery(client, id))
+  const mortgage = loaded.data
+  const setMortgage = (changed: Mortgage) => queryClient.setQueryData(keys.mortgage(id), changed)
   const [error, setError] = useState<string | null>(null)
   const [confirm, confirmDialog] = useConfirm()
   const [reopening, setReopening] = useState(false)
   const [fullLedger, setFullLedger] = useState(false)
   const loadHistory = useCallback(() => api.mortgageHistory(id), [id])
 
-  useEffect(() => {
-    api
-      .getMortgage(id)
-      .then(setMortgage)
-      .catch((err: Error) => setError(err.message))
-  }, [id])
+  const pathParams = { mortgage_id: id }
 
   async function addPhotos(blobs: Blob[]) {
     setError(null)
     try {
-      for (const blob of blobs) setMortgage(await api.addMortgagePhoto(id, blob))
+      for (const blob of blobs) setMortgage(await addMortgagePhoto(client, id, blob))
     } catch (err) {
       setError((err as Error).message)
     }
@@ -55,13 +62,37 @@ export function MortgagePage() {
     })
     if (!confirmed) return
     try {
-      setMortgage(await api.deleteMortgagePhoto(id, photoId))
+      setMortgage(
+        await dataOrThrow(
+          client.DELETE('/api/mortgages/{mortgage_id}/photos/{photo_id}', {
+            params: { path: { ...pathParams, photo_id: photoId } },
+          }),
+        ),
+      )
     } catch (err) {
       setError((err as Error).message)
     }
   }
 
-  if (!mortgage) return error ? <p className="status error">{error}</p> : <p>Loading…</p>
+  async function reopen(reason: string) {
+    setMortgage(
+      await dataOrThrow(
+        client.POST('/api/mortgages/{mortgage_id}/reopen', {
+          params: { path: pathParams },
+          body: { reason },
+        }),
+      ),
+    )
+    ledgerChanged(queryClient)
+  }
+
+  if (!mortgage) {
+    return loaded.error ? (
+      <p className="status error">{loaded.error.message}</p>
+    ) : (
+      <p>Loading…</p>
+    )
+  }
   const { outstanding } = mortgage
 
   return (
@@ -215,7 +246,7 @@ export function MortgagePage() {
             </>
           }
           confirmLabel="Reopen"
-          onConfirm={async (reason) => setMortgage(await api.reopenMortgage(mortgage.id, reason))}
+          onConfirm={reopen}
           onClose={() => setReopening(false)}
         />
       )}

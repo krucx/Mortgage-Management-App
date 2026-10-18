@@ -1,6 +1,7 @@
 // Request and response types are generated from the backend's OpenAPI schema into
 // api.gen.ts (`npm run gen:types`); this file names them and holds the fetch calls.
 import type { components, operations } from './api.gen'
+import { errorMessage, LEDGER_CHANGED } from './serverState'
 import type { Sort } from './sort'
 
 type Schemas = components['schemas']
@@ -157,21 +158,6 @@ export type NoticeStatus = Notice['status']
 export type MessageSettings = Schemas['MessageSettings']
 export type MessagePlaceholders = Schemas['MessagePlaceholders']
 
-/** Turns a FastAPI error body into one readable line. */
-function errorMessage(status: number, body: unknown): string {
-  const detail = (body as { detail?: unknown } | null)?.detail
-  if (typeof detail === 'string') return detail
-  if (Array.isArray(detail)) {
-    return detail
-      .map((item: { loc?: unknown[]; msg?: string }) => {
-        const field = item.loc?.filter((part) => part !== 'body').join('.')
-        return field ? `${field}: ${item.msg}` : item.msg
-      })
-      .join('; ')
-  }
-  return `Request failed (${status})`
-}
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // FormData sets its own multipart Content-Type.
   const headers: HeadersInit =
@@ -182,8 +168,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 
-/** Fired after anything that can change what Mortgages owe (Payments, Voids, edits, closing). */
-export const LEDGER_CHANGED = 'ledger-changed'
+export { LEDGER_CHANGED }
 
 async function changesLedger<T>(result: Promise<T>): Promise<T> {
   const value = await result
