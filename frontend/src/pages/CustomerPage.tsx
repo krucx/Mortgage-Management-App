@@ -7,27 +7,19 @@ import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { useListPage } from '../components/useListPage'
 import type { Sorting } from '../components/useUrlSort'
-import type { Sort } from '../sort'
+import { lists } from '../requests'
 
 export function CustomerPage() {
   const id = Number(useParams().id)
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const fetchActive = useCallback(
-    (page: number, sort: Sort<MortgageSort> | null) =>
-      api.listMortgages(page, '', { customerId: id, status: 'active', sort }),
-    [id],
+  const activeList = useListPage(
+    MORTGAGE_SORTS,
+    lists.mortgages({ customerId: id, status: 'active' }),
   )
   // Redeemed and Forfeited, tucked away below the Active ones.
-  const fetchClosed = useCallback(
-    (page: number, sort: Sort<MortgageSort> | null) =>
-      api.listMortgages(page, '', { customerId: id, closed: true, sort }),
-    [id],
-  )
-  const activeList = useListPage(MORTGAGE_SORTS, fetchActive, { resetOn: [id] })
-  const closedList = useListPage(MORTGAGE_SORTS, fetchClosed, {
+  const closedList = useListPage(MORTGAGE_SORTS, lists.mortgages({ customerId: id, closed: true }), {
     sortParam: 'closed_sort',
-    resetOn: [id],
   })
   const active = activeList.listed
   const closed = closedList.listed

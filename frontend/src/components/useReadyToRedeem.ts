@@ -1,29 +1,17 @@
-import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router'
-import { api, LEDGER_CHANGED } from '../api'
+import { useQuery } from '@tanstack/react-query'
+import { dataOrThrow, keys, useServerState } from '../serverState'
 
 /**
- * How many Mortgages are paid off and waiting to be Redeemed. Re-checked on every page
- * and whenever a Payment, Redemption or Forfeiture is recorded.
+ * How many Mortgages are paid off and waiting to be Redeemed; asked for again whenever
+ * a change to what Mortgages owe makes it stale. Nothing is shown while it can't be had.
  */
 export function useReadyToRedeemCount(): number {
-  const { pathname } = useLocation()
-  const [count, setCount] = useState(0)
-
-  useEffect(() => {
-    let cancelled = false
-    const refresh = () =>
-      api
-        .readyToRedeem(1)
-        .then((ready) => !cancelled && setCount(ready.total))
-        .catch(() => {})
-    refresh()
-    window.addEventListener(LEDGER_CHANGED, refresh)
-    return () => {
-      cancelled = true
-      window.removeEventListener(LEDGER_CHANGED, refresh)
-    }
-  }, [pathname])
-
-  return count
+  const { client } = useServerState()
+  const { data } = useQuery({
+    queryKey: keys.readyToRedeem,
+    queryFn: () =>
+      dataOrThrow(client.GET('/api/closures/ready-to-redeem', { params: { query: { page: 1 } } })),
+    select: (ready) => ready.total,
+  })
+  return data ?? 0
 }

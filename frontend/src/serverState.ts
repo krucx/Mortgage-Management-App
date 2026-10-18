@@ -52,6 +52,8 @@ export const keys = {
   /** Every single-Mortgage key. */
   allMortgages: ['mortgage'] as const,
   lists: ['list'] as const,
+  /** One list (with any filters, sort and page). */
+  list: (name: string) => ['list', name] as const,
   dashboard: ['dashboard'] as const,
   readyToRedeem: ['ready-to-redeem'] as const,
   /** Every Preview of an unsaved change. */
@@ -81,6 +83,20 @@ export function markLedgerStale(queryClient: QueryClient): void {
   for (const queryKey of OUTDATED_BY_LEDGER_CHANGE) {
     void queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
   }
+}
+
+/** What each other kind of change makes stale. */
+export const STALE_AFTER = {
+  /** Approving, skipping or sending a Notice: the Notices, and the Dashboard's counts. */
+  notice: [keys.list('notices'), keys.dashboard],
+  /** Marking a Mortgage called: the Call List. */
+  callNote: [keys.list('call-list')],
+  /** Saving or deleting a Customer: the lists that show Customers. */
+  customer: [keys.list('customers'), keys.list('mortgages'), keys.list('payments')],
+} satisfies Record<string, readonly (readonly unknown[])[]>
+
+export function markStale(queryClient: QueryClient, stale: readonly (readonly unknown[])[]) {
+  for (const queryKey of stale) void queryClient.invalidateQueries({ queryKey })
 }
 
 /** Marks the event this module fires, so its own listener doesn't act on it twice. */
@@ -154,5 +170,18 @@ export function useMortgageChange() {
     const changed = await changeLedger(change)
     queryClient.setQueryData(keys.mortgage(changed.id), changed)
     return changed
+  }
+}
+
+/**
+ * Saves a change that cannot alter what Mortgages owe, then makes `stale` stale (one
+ * of STALE_AFTER): `const actOnNotice = useChange(STALE_AFTER.notice)`.
+ */
+export function useChange(stale: readonly (readonly unknown[])[]) {
+  const { client, queryClient } = useServerState()
+  return async <T,>(change: (client: ApiClient) => Promise<T>): Promise<T> => {
+    const result = await change(client)
+    markStale(queryClient, stale)
+    return result
   }
 }

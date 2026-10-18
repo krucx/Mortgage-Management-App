@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
-import { api, NOTICE_SORTS, type Notice, type NoticeSort, type NoticeStatus } from '../api'
+import { NOTICE_SORTS, type Notice, type NoticeStatus } from '../api'
 import { Modal } from '../components/Modal'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
@@ -8,7 +8,8 @@ import { useListPage } from '../components/useListPage'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
-import type { Sort } from '../sort'
+import { lists, noticeActions } from '../requests'
+import { STALE_AFTER, useChange, type ApiClient } from '../serverState'
 
 const SHOWN: [NoticeStatus | 'all', string][] = [
   ['awaiting_approval', 'To approve'],
@@ -35,28 +36,22 @@ export function NoticesPage() {
   const shown = SHOWN.find(([value]) => value === params.get('status'))?.[0] ?? 'queued'
   // Sorted on the server across every page; any change of tab (a click, Back, a link)
   // starts again at page 1.
-  const fetchPage = useCallback(
-    (page: number, sort: Sort<NoticeSort> | null) =>
-      api.listNotices(page, shown === 'all' ? undefined : shown, sort),
-    [shown],
-  )
-  const { listed, sorting, error: listError, reload, pager } = useListPage(
+  const { listed, sorting, error: listError, pager } = useListPage(
     NOTICE_SORTS,
-    fetchPage,
-    { resetOn: [shown] },
+    lists.notices(shown === 'all' ? undefined : shown),
   )
+  const changeNotices = useChange(STALE_AFTER.notice)
   const notices = listed?.items
   const [actionError, setActionError] = useState<string | null>(null)
   const error = actionError ?? listError
   // The Notice whose message is open, to read before approving or sending it.
   const [reviewing, setReviewing] = useState<Notice | null>(null)
 
-  async function act(action: (id: number) => Promise<Notice>, id: number) {
+  async function act(action: (client: ApiClient, id: number) => Promise<Notice>, id: number) {
     setActionError(null)
     try {
-      await action(id)
+      await changeNotices((client) => action(client, id))
       setReviewing(null)
-      await reload()
     } catch (err) {
       setActionError((err as Error).message)
     }
@@ -159,7 +154,7 @@ export function NoticesPage() {
                         <button
                           type="button"
                           className="small secondary"
-                          onClick={() => act(api.skipNotice, notice.id)}
+                          onClick={() => act(noticeActions.skip, notice.id)}
                         >
                           Skip
                         </button>
@@ -188,7 +183,7 @@ export function NoticesPage() {
                 Close
               </button>
               {reviewing.status === 'awaiting_approval' && (
-                <button type="button" onClick={() => act(api.approveNotice, reviewing.id)}>
+                <button type="button" onClick={() => act(noticeActions.approve, reviewing.id)}>
                   Approve
                 </button>
               )}
@@ -196,7 +191,7 @@ export function NoticesPage() {
                 <SendOnWhatsApp
                   phones={reviewing.phones}
                   text={reviewing.message}
-                  onSent={() => act(api.markNoticeSent, reviewing.id)}
+                  onSent={() => act(noticeActions.markSent, reviewing.id)}
                 />
               )}
             </div>

@@ -1,6 +1,6 @@
-import { Fragment, useCallback, useState, type MouseEvent } from 'react'
+import { Fragment, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { api, PAYMENT_SORTS, type PaymentSort } from '../api'
+import { PAYMENT_SORTS } from '../api'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
@@ -9,7 +9,7 @@ import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { formatDate, isMonth, todayIso } from '../format'
 import { formatINR } from '../money'
-import type { Sort } from '../sort'
+import { lists } from '../requests'
 
 const YEAR = /^\d{4}$/
 
@@ -31,34 +31,27 @@ export function PaymentsPage() {
   // The filters live in the URL, so a narrowed list can be shared or bookmarked.
   const [searchParams, setFilters] = useUrlFilters()
   // The period in the URL (e.g. from the Dashboard's Interest collected in April): a
-  // valid month wins, then a valid year. The values are written as template strings
-  // only so the React Compiler can see they are strings; it treats what a URL
-  // parameter gives back as something that may change, and would stop memoising
-  // fetchPage (oxlint: preserve-manual-memoization).
+  // valid month wins, then a valid year.
   const monthParam = searchParams.get('month') ?? ''
   const yearParam = searchParams.get('year') ?? ''
-  const month = isMonth(monthParam) ? `${monthParam}` : undefined
-  const year = !month && YEAR.test(yearParam) ? `${yearParam}` : undefined
+  const month = isMonth(monthParam) ? monthParam : undefined
+  const year = !month && YEAR.test(yearParam) ? yearParam : undefined
   const period: Period = month
     ? { kind: 'month', month }
     : year
       ? { kind: 'year', year }
       : { kind: 'any' }
   const includeVoided = searchParams.get('include_voided') !== 'false'
-  const fetchPage = useCallback(
-    (page: number, sort: Sort<PaymentSort> | null) =>
-      api.listPayments(page, debouncedQuery, { month, year, includeVoided, sort }),
-    [debouncedQuery, month, year, includeVoided],
-  )
   // Any change of filter starts again at page 1.
   const {
     listed: result,
     sorting,
     error,
     pager,
-  } = useListPage(PAYMENT_SORTS, fetchPage, {
-    resetOn: [debouncedQuery, month, year, includeVoided],
-  })
+  } = useListPage(
+    PAYMENT_SORTS,
+    lists.payments({ query: debouncedQuery, month, year, includeVoided }),
+  )
   const navigate = useNavigate()
 
   /** A click anywhere on a row opens the Payment, except on its own links. */

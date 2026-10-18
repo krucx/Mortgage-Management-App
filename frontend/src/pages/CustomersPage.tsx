@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
-import { api, CUSTOMER_SORTS, type CustomerRow, type CustomerSort } from '../api'
+import { api, CUSTOMER_SORTS, type CustomerRow } from '../api'
 import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
 import { useConfirm } from '../components/useConfirm'
@@ -8,7 +8,8 @@ import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { PersonLink, PersonList } from '../components/PersonLink'
 import { useSearch } from '../components/useSearch'
-import type { Sort } from '../sort'
+import { deleteCustomer, lists } from '../requests'
+import { STALE_AFTER, useChange } from '../serverState'
 
 /** All Customers in a paginated table, filterable by name or phone, or to those with an
  * Active Mortgage. */
@@ -21,21 +22,17 @@ export function CustomersPage() {
   // In the URL, so the narrowed list can be shared (e.g. from the Dashboard).
   const [searchParams, setFilters] = useUrlFilters()
   const activeOnly = searchParams.get('active') === 'true'
-  const fetchPage = useCallback(
-    (page: number, sort: Sort<CustomerSort> | null) =>
-      api.listCustomers(page, debouncedQuery, { hasActiveMortgage: activeOnly, sort }),
-    [debouncedQuery, activeOnly],
-  )
   // A new filter starts at page 1; deleting a page's last row steps back a page.
   const {
     listed: result,
     sorting,
     error: listError,
-    reload,
     pager,
-  } = useListPage(CUSTOMER_SORTS, fetchPage, {
-    resetOn: [debouncedQuery, activeOnly],
-  })
+  } = useListPage(
+    CUSTOMER_SORTS,
+    lists.customers({ query: debouncedQuery, hasActiveMortgage: activeOnly }),
+  )
+  const changeCustomers = useChange(STALE_AFTER.customer)
   const error = actionError ?? listError
 
   async function remove(row: CustomerRow) {
@@ -60,8 +57,7 @@ export function CustomersPage() {
         danger: true,
       })
       if (!confirmed) return
-      await api.deleteCustomer(row.id)
-      await reload()
+      await changeCustomers((client) => deleteCustomer(client, row.id))
     } catch (err) {
       setActionError((err as Error).message)
     }

@@ -1,21 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import { api, MORTGAGE_SORTS, READY_SORTS, type MortgageSort, type Redemption } from '../api'
+import { api, MORTGAGE_SORTS, READY_SORTS, type Redemption } from '../api'
 import { Summary } from '../components/ConfirmDialog'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
-import { tickedFirst, type Sort } from '../sort'
+import { tickedFirst } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
-import { changes } from '../requests'
+import { changes, lists } from '../requests'
 import { useLedgerChange } from '../serverState'
-
-/** Active Mortgages still owing something: the ones that can be Forfeited. */
-function listForfeitable(page: number, sort: Sort<MortgageSort> | null) {
-  return api.listMortgages(page, '', { status: 'active', owing: true, sort })
-}
 
 /**
  * Closures in one place: Mortgages paid off and waiting to be Redeemed, and Active
@@ -27,17 +22,20 @@ export function ClosuresPage() {
     listed: readyList,
     sorting: readySorting,
     error: readyError,
-    reload: reloadReady,
     pager: readyPager,
-  } = useListPage(READY_SORTS, api.readyToRedeem, { sortParam: 'ready_sort' })
+  } = useListPage(READY_SORTS, lists.readyToRedeem(), { sortParam: 'ready_sort' })
   const ready = readyList?.items ?? null
   const {
     listed: active,
     sorting,
     error: forfeitError,
-    reload: reloadForfeitable,
     pager: forfeitPager,
-  } = useListPage(MORTGAGE_SORTS, listForfeitable, { sortParam: 'forfeit_sort' })
+  } = useListPage(
+    MORTGAGE_SORTS,
+    // Active Mortgages still owing something: the ones that can be Forfeited.
+    lists.mortgages({ status: 'active', owing: true }),
+    { sortParam: 'forfeit_sort' },
+  )
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const error = forfeitError ?? readyError
 
@@ -171,11 +169,8 @@ export function ClosuresPage() {
       {chosen.length > 0 && (
         <ForfeitChosen
           chosen={chosen.map((m) => ({ id: m.id, name: m.name }))}
-          onDone={() => {
-            setSelected(new Set())
-            reloadForfeitable()
-            reloadReady()
-          }}
+          // The Forfeitures made both lists stale.
+          onDone={() => setSelected(new Set())}
         />
       )}
 

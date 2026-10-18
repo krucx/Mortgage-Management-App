@@ -1,12 +1,12 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
-import { api, MORTGAGE_SORTS, type MortgageSort, type MortgageStatus } from '../api'
+import { MORTGAGE_SORTS, type MortgageStatus } from '../api'
 import { MortgageTable } from '../components/MortgageTable'
 import { useListPage } from '../components/useListPage'
 import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { isMonth } from '../format'
-import type { Sort } from '../sort'
+import { lists } from '../requests'
 
 const STATUSES: MortgageStatus[] = ['active', 'redeemed', 'forfeited']
 
@@ -27,24 +27,20 @@ export function MortgagesPage() {
       ? ''
       : (STATUSES.find((s) => s === statusParam) ?? (closedIn ? '' : 'active'))
   const closedFilter = statusFilter === 'active' ? '' : closedIn
-  const fetchPage = useCallback(
-    (page: number, sort: Sort<MortgageSort> | null) =>
-      api.listMortgages(page, debouncedQuery, {
-        status: statusFilter || undefined,
-        closedIn: closedFilter || undefined,
-        sort,
-      }),
-    [debouncedQuery, statusFilter, closedFilter],
-  )
   // Any change of filter starts again at page 1.
   const {
     listed: result,
     sorting,
     error,
     pager,
-  } = useListPage(MORTGAGE_SORTS, fetchPage, {
-    resetOn: [debouncedQuery, statusFilter, closedFilter],
-  })
+  } = useListPage(
+    MORTGAGE_SORTS,
+    lists.mortgages({
+      query: debouncedQuery,
+      status: statusFilter || undefined,
+      closedIn: closedFilter || undefined,
+    }),
+  )
 
   function setFilter(name: 'status' | 'closed_in', value: string) {
     setFilters({ [name]: value || null })

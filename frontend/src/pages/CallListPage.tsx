@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { api, CALL_LIST_SORTS, type CallListRow } from '../api'
+import { CALL_LIST_SORTS, type CallListRow } from '../api'
 import { MarkCalled } from '../components/CallNotes'
 import { PersonLink } from '../components/PersonLink'
 import { SortButton, SortHeading } from '../components/SortHeading'
@@ -8,6 +8,8 @@ import { useListPage } from '../components/useListPage'
 import { formatPercent } from '../format'
 import { sender } from '../messaging'
 import { formatINR } from '../money'
+import { lists } from '../requests'
+import { markStale, STALE_AFTER, useServerState } from '../serverState'
 
 /** Why a Mortgage is on the Call List, in words. */
 function reasonsOf(row: CallListRow): string[] {
@@ -37,7 +39,8 @@ function ContactLinks({ phone }: { phone: string }) {
 /** Today's Mortgages to phone about, worked out whenever the page opens. */
 export function CallListPage() {
   // Sorted on the server across every page: each Customer's rows, then the Customers.
-  const { listed, sorting, error, reload, pager } = useListPage(CALL_LIST_SORTS, api.getCallList)
+  const { listed, sorting, error, pager } = useListPage(CALL_LIST_SORTS, lists.callList())
+  const { queryClient } = useServerState()
   const groups = listed?.items ?? null
   const [noting, setNoting] = useState<number | null>(null) // the Mortgage being marked called
 
@@ -112,7 +115,7 @@ export function CallListPage() {
                             mortgageName={row.mortgage_name}
                             onSaved={() => {
                               setNoting(null)
-                              reload()
+                              markStale(queryClient, STALE_AFTER.callNote)
                             }}
                             onCancel={() => setNoting(null)}
                           />
