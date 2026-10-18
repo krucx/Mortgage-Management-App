@@ -1,41 +1,40 @@
-import { useEffect, useState } from 'react'
+import { hashKey, keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { MortgagePreview } from '../api'
+import type { PreviewRequest } from '../requests'
+import { keys, useServerState } from '../serverState'
+import { useDebounced } from './useDebounced'
 
-type Load = () => Promise<MortgagePreview[]>
+/** A Preview as it loads. */
+export interface Preview<T = MortgagePreview[]> {
+  previews: T | null
+  error: string | null
+  loading: boolean
+}
 
 /**
- * Loads a preview whenever `load` changes (debounced), ignoring answers that a newer
- * request has replaced. `load` is null when there is nothing to preview. The last
- * answer stays shown, marked `loading`, until the next one arrives.
+ * The Preview of `request` once it has stopped changing for `delay` ms; null when
+ * there is nothing to preview. The last answer stays shown, marked `loading`, until the
+ * next one arrives, and an answer for a change since replaced is never shown.
  */
-export function usePreview(load: Load | null, delay = 400) {
-  const [answer, setAnswer] = useState<{
-    for: Load
-    previews: MortgagePreview[] | null
-    error: string | null
-  } | null>(null)
+export function usePreview<T = MortgagePreview[]>(
+  request: PreviewRequest<T> | null,
+  delay = 400,
+): Preview<T> {
+  const { client } = useServerState()
+  const wanted = request ? hashKey(request.key) : null
+  const settled = useDebounced(wanted, delay) === wanted
+  const query = useQuery({
+    queryKey: [...keys.previews, ...(request?.key ?? [])],
+    queryFn: () => request!.load(client),
+    enabled: request !== null && settled,
+    placeholderData: keepPreviousData,
+  })
 
-  useEffect(() => {
-    if (!load) return
-    let replaced = false
-    const timer = setTimeout(() => {
-      load().then(
-        (previews) => !replaced && setAnswer({ for: load, previews, error: null }),
-        (err: Error) =>
-          !replaced && setAnswer({ for: load, previews: null, error: err.message }),
-      )
-    }, delay)
-    return () => {
-      replaced = true
-      clearTimeout(timer)
-    }
-  }, [load, delay])
-
-  if (!load) return { previews: null, error: null, loading: false }
-  const current = answer?.for === load
+  if (!request) return { previews: null, error: null, loading: false }
+  const current = settled && !query.isPlaceholderData && !query.isFetching
   return {
-    previews: answer?.previews ?? null,
-    error: current ? (answer?.error ?? null) : null,
+    previews: query.data ?? null,
+    error: current ? (query.error?.message ?? null) : null,
     loading: !current,
   }
 }

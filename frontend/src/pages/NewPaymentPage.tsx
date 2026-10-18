@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   api,
   type Customer,
   type MortgageRow,
   type Payment,
+  type PaymentIn,
   type PaymentMethod,
 } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
@@ -18,6 +19,8 @@ import { usePreview } from '../components/usePreview'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
+import { changes, previews } from '../requests'
+import { useLedgerChange } from '../serverState'
 import { tickedFirst } from '../sort'
 
 type AllocationMode = 'equal' | 'amount' | 'percent'
@@ -96,6 +99,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const [saving, setSaving] = useState(false)
   const selectionStarted = useRef(false)
   const [confirm, confirmDialog] = useConfirm()
+  const changeLedger = useLedgerChange()
   // After saving: Mortgages this Payment paid off, offered for Redemption.
   const [paidOff, setPaidOff] = useState<{ payment: Payment; mortgages: MortgageRow[] }>()
 
@@ -151,10 +155,10 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     problems.push(`The Allocations add up to ${formatINR(allocated)}, not ${formatINR(total)}.`)
 
   // What saving would send; previewed (and refused, if it would be) by the backend.
-  const proposed =
+  const proposed: PaymentIn | null =
     problems.length || !amounts
       ? null
-      : JSON.stringify({
+      : {
           customer_id: customer.id,
           paid_on: paidOn,
           amount: total,
@@ -163,7 +167,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           allocations: chosen
             .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i] }))
             .filter((allocation) => allocation.amount > 0),
-        })
+        }
   const [refusal, setRefusal] = useState<string | null>(null)
 
   /** Switching to a manual mode starts from the current equal Allocations. */
@@ -207,7 +211,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     setSaving(true)
     setError(null)
     try {
-      const payment = await api.recordPayment(JSON.parse(proposed))
+      const payment = await changeLedger((client) => changes.recordPayment(client, proposed))
       const allocated = new Set(payment.allocations.map((a) => a.mortgage_id))
       // Any it left with nothing Outstanding, to offer for Redemption.
       const cleared = (
@@ -427,11 +431,10 @@ function PaymentPreview({
   proposed,
   onRefusal,
 }: {
-  proposed: string // the PaymentIn as JSON, so a new object for the same Payment re-uses it
+  proposed: PaymentIn
   onRefusal: (refusal: string | null) => void
 }) {
-  const load = useCallback(() => api.previewPayment(JSON.parse(proposed)), [proposed])
-  const preview = usePreview(load)
+  const preview = usePreview(previews.payment(proposed))
   useEffect(() => onRefusal(preview.error), [preview.error, onRefusal])
   useEffect(() => () => onRefusal(null), [onRefusal])
   return (

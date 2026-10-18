@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import {
-  api,
-  type Mortgage,
-  type PaymentMethod,
-  type Redemption,
-} from '../api'
+import type { ForfeitIn, Mortgage, PaymentMethod, RedeemIn } from '../api'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
+import { changes, previews, redemptionQuery } from '../requests'
+import { useMortgageChange, useServerState } from '../serverState'
 import { PART_MONTH_RULES } from '../terms'
 import { PreviewSection } from './BeforeAfter'
 import { Summary } from './ConfirmDialog'
@@ -42,7 +40,6 @@ export function CloseMortgage({
 }) {
   const [action, setAction] = useState<Action | null>(initialAction)
   const [on, setOn] = useState(todayIso())
-  const [quote, setQuote] = useState<{ on: string; redemption: Redemption | null; error?: string }>()
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const methods = usePaymentMethods()
   const [reference, setReference] = useState('')
@@ -51,39 +48,32 @@ export function CloseMortgage({
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirm, confirmDialog] = useConfirm()
+  const { client } = useServerState()
+  const changeMortgage = useMortgageChange()
 
   // The Redemption Amount on the chosen date.
-  useEffect(() => {
-    if (!action || !on) return
-    let cancelled = false
-    api
-      .getRedemption(mortgage.id, on)
-      .then((redemption) => !cancelled && setQuote({ on, redemption }))
-      .catch((err: Error) => !cancelled && setQuote({ on, redemption: null, error: err.message }))
-    return () => {
-      cancelled = true
-    }
-  }, [action, on, mortgage.id])
-
-  const redemption = quote?.on === on ? quote.redemption : null
-  const quoteError = quote?.on === on ? quote.error : undefined
+  const quote = useQuery({
+    ...redemptionQuery(client, mortgage.id, on),
+    enabled: Boolean(action && on),
+  })
+  const redemption = quote.data ?? null
+  const quoteError = quote.error?.message
   const recoveredPaise = rupeesToPaise(recovered || '0')
   const profitLoss = redemption && recovered ? recoveredPaise - redemption.total : null
   const future = on > todayIso() // a quote only: nothing can be recorded for a future date
 
-  // Re-previewed whenever what would be saved changes.
-  const proposed =
-    action === 'redeem'
-      ? JSON.stringify({ redeemed_on: on, method, reference: reference.trim() || null })
-      : JSON.stringify({ forfeited_on: on, recovered_amount: recoveredPaise, note })
-  const load = useCallback(
-    () =>
-      action === 'redeem'
-        ? api.previewRedeem(mortgage.id, JSON.parse(proposed))
-        : api.previewForfeit(mortgage.id, JSON.parse(proposed)),
-    [action, mortgage.id, proposed],
+  // What saving would send; re-previewed whenever it changes.
+  const redeem: RedeemIn = { redeemed_on: on, method, reference: reference.trim() || null }
+  const forfeit: ForfeitIn = { forfeited_on: on, recovered_amount: recoveredPaise, note }
+  const preview = usePreview(
+    !redemption || future
+      ? null
+      : action === 'redeem'
+        ? previews.redeem(mortgage.id, redeem)
+        : action === 'forfeit'
+          ? previews.forfeit(mortgage.id, forfeit)
+          : null,
   )
-  const preview = usePreview(action && redemption && !future ? load : null)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -128,17 +118,11 @@ export function CloseMortgage({
     setError(null)
     try {
       onClosed(
-        action === 'redeem'
-          ? await api.redeem(mortgage.id, {
-              redeemed_on: on,
-              method,
-              reference: reference.trim() || null,
-            })
-          : await api.forfeit(mortgage.id, {
-              forfeited_on: on,
-              recovered_amount: recoveredPaise,
-              note,
-            }),
+        await changeMortgage((client) =>
+          action === 'redeem'
+            ? changes.redeem(client, mortgage.id, redeem)
+            : changes.forfeit(client, mortgage.id, forfeit),
+        ),
       )
     } catch (err) {
       setError((err as Error).message)

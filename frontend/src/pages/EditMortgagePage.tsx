@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { api, PURITIES, type Mortgage, type Purity } from '../api'
+import { PURITIES, type Mortgage, type MortgageEdit, type Purity } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { useConfirm } from '../components/useConfirm'
 import { usePreview } from '../components/usePreview'
 import { formatDate, formatGrams, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
+import { changes, mortgageQuery, previews } from '../requests'
+import { useMortgageChange, useServerState } from '../serverState'
 
 const gramsToMg = (grams: string) => Math.round(Number(grams) * 1000)
 const mgToGrams = (mg: number) => String(mg / 1000)
@@ -14,62 +17,33 @@ const mgToGrams = (mg: number) => String(mg / 1000)
 /** Correct a Mortgage's details; the Ledger is replayed from them. */
 export function EditMortgagePage() {
   const id = Number(useParams().id)
+  const { client } = useServerState()
+  const loaded = useQuery(mortgageQuery(client, id))
+  if (!loaded.data) {
+    return loaded.error ? <p className="status error">{loaded.error.message}</p> : <p>Loading…</p>
+  }
+  // Keyed so the form starts again from another Mortgage's details.
+  return <EditMortgageForm key={id} mortgage={loaded.data} />
+}
+
+function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
+  const id = mortgage.id
   const navigate = useNavigate()
-  const [mortgage, setMortgage] = useState<Mortgage | null>(null)
   const [fields, setFields] = useState({
-    name: '',
-    start_date: '',
-    amountLent: '',
-    description: '',
-    gross: '',
-    net: '',
-    purity: 22 as Purity,
+    name: mortgage.name,
+    start_date: mortgage.start_date,
+    amountLent: String(mortgage.amount_lent / 100),
+    description: mortgage.description,
+    gross: mgToGrams(mortgage.gross_weight_mg),
+    net: mgToGrams(mortgage.net_weight_mg),
+    purity: mortgage.purity_karat as Purity,
   })
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirm, confirmDialog] = useConfirm()
+  const changeMortgage = useMortgageChange()
 
-  useEffect(() => {
-    api.getMortgage(id).then(
-      (loaded) => {
-        setMortgage(loaded)
-        setFields({
-          name: loaded.name,
-          start_date: loaded.start_date,
-          amountLent: String(loaded.amount_lent / 100),
-          description: loaded.description,
-          gross: mgToGrams(loaded.gross_weight_mg),
-          net: mgToGrams(loaded.net_weight_mg),
-          purity: loaded.purity_karat,
-        })
-      },
-      (err: Error) => setError(err.message),
-    )
-  }, [id])
-
-  // Only the start date and Principal change what is owed: preview those.
-  const numbersChanged =
-    mortgage !== null &&
-    Number(fields.amountLent) > 0 &&
-    (fields.start_date !== mortgage.start_date ||
-      rupeesToPaise(fields.amountLent) !== mortgage.amount_lent)
-  const proposed = numbersChanged
-    ? JSON.stringify({
-        name: fields.name.trim(),
-        start_date: fields.start_date,
-        amount_lent: rupeesToPaise(fields.amountLent),
-        description: fields.description,
-        gross_weight_mg: gramsToMg(fields.gross),
-        net_weight_mg: gramsToMg(fields.net),
-        purity_karat: fields.purity,
-      })
-    : ''
-  const load = useCallback(() => api.previewEdit(id, JSON.parse(proposed)), [id, proposed])
-  const preview = usePreview(proposed ? load : null)
-
-  if (!mortgage) return error ? <p className="status error">{error}</p> : <p>Loading…</p>
-
-  const edited = {
+  const edited: MortgageEdit = {
     name: fields.name.trim(),
     start_date: fields.start_date,
     amount_lent: rupeesToPaise(fields.amountLent),
@@ -78,8 +52,14 @@ export function EditMortgagePage() {
     net_weight_mg: gramsToMg(fields.net),
     purity_karat: fields.purity,
   }
+  // Only the start date and Principal change what is owed: preview those.
+  const numbersChanged =
+    Number(fields.amountLent) > 0 &&
+    (fields.start_date !== mortgage.start_date || edited.amount_lent !== mortgage.amount_lent)
+  const preview = usePreview(numbersChanged ? previews.edit(id, edited) : null)
+
   const was = mortgage
-  const changes: [string, string][] = [
+  const edits: [string, string][] = [
     ['Name', was.name, edited.name],
     ['Start date', formatDate(was.start_date), formatDate(edited.start_date || was.start_date)],
     ['Principal lent', formatINR(was.amount_lent), formatINR(edited.amount_lent)],
@@ -101,8 +81,8 @@ export function EditMortgagePage() {
       title: `Save changes to ${was.name}?`,
       body: (
         <>
-          <Summary rows={changes} />
-          {changes.some(([label]) => label === 'Start date' || label === 'Principal lent') && (
+          <Summary rows={edits} />
+          {edits.some(([label]) => label === 'Start date' || label === 'Principal lent') && (
             <p className="hint">The Ledger and what is owed are replayed from these details.</p>
           )}
         </>
@@ -112,7 +92,7 @@ export function EditMortgagePage() {
     setSaving(true)
     setError(null)
     try {
-      await api.editMortgage(id, edited)
+      await changeMortgage((client) => changes.edit(client, id, edited))
       navigate(`/mortgages/${id}`)
     } catch (err) {
       setError((err as Error).message)
@@ -213,7 +193,7 @@ export function EditMortgagePage() {
           </>
         )}
         <div className="row">
-          <button type="submit" disabled={saving || changes.length === 0 || !!preview.error}>
+          <button type="submit" disabled={saving || edits.length === 0 || !!preview.error}>
             {saving ? 'Saving…' : 'Save changes'}
           </button>
           <button type="button" className="secondary" onClick={() => navigate(-1)}>

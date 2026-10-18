@@ -1,6 +1,7 @@
 import type { LedgerChange, LedgerStep, MortgagePreview } from '../api'
+import type { PreviewRequest } from '../requests'
 import { useState } from 'react'
-import { usePreview } from './usePreview'
+import { usePreview, type Preview } from './usePreview'
 import { formatDate } from '../format'
 import { formatChange, formatINR } from '../money'
 import { ProjectionChart } from './ProjectionChart'
@@ -177,7 +178,7 @@ function LedgerChanges({ changes }: { changes: LedgerChange[] }) {
 }
 
 /** A preview as it loads: the last answer stays, dimmed, until the next arrives. */
-export function PreviewSection({ preview }: { preview: ReturnType<typeof usePreview> }) {
+export function PreviewSection({ preview }: { preview: Preview }) {
   if (preview.error) return <p className="status error">{preview.error}</p>
   if (!preview.previews) return <p className="hint">Working out what changes…</p>
   return (
@@ -188,8 +189,8 @@ export function PreviewSection({ preview }: { preview: ReturnType<typeof usePrev
 }
 
 /** What a change would do, worked out once when shown (e.g. in a confirmation). */
-export function ChangePreview({ load }: { load: () => Promise<MortgagePreview[]> }) {
-  const [once] = useState(() => load)
+export function ChangePreview({ request }: { request: PreviewRequest }) {
+  const [once] = useState(() => request)
   const preview = usePreview(once, 0)
   return (
     <>

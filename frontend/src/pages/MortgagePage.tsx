@@ -17,14 +17,8 @@ import { TermsPanel } from '../components/TermsPanel'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, formatGrams } from '../format'
 import { formatINR } from '../money'
-import {
-  addMortgagePhoto,
-  dataOrThrow,
-  keys,
-  ledgerChanged,
-  mortgageQuery,
-  useServerState,
-} from '../serverState'
+import { addMortgagePhoto, changes, mortgageQuery, previews } from '../requests'
+import { dataOrThrow, keys, useMortgageChange, useServerState } from '../serverState'
 import { describeTerms, formatRate, PART_MONTH_RULES } from '../terms'
 
 /** Ledger steps shown on the page; the rest are in the complete Ledger popup. */
@@ -33,6 +27,7 @@ const LEDGER_SHOWN = 8
 export function MortgagePage() {
   const id = Number(useParams().id)
   const { client, queryClient } = useServerState()
+  const changeMortgage = useMortgageChange()
   const loaded = useQuery(mortgageQuery(client, id))
   const mortgage = loaded.data
   const setMortgage = (changed: Mortgage) => queryClient.setQueryData(keys.mortgage(id), changed)
@@ -75,15 +70,7 @@ export function MortgagePage() {
   }
 
   async function reopen(reason: string) {
-    setMortgage(
-      await dataOrThrow(
-        client.POST('/api/mortgages/{mortgage_id}/reopen', {
-          params: { path: pathParams },
-          body: { reason },
-        }),
-      ),
-    )
-    ledgerChanged(queryClient)
+    await changeMortgage((client) => changes.reopen(client, id, reason))
   }
 
   if (!mortgage) {
@@ -242,7 +229,7 @@ export function MortgagePage() {
                 {mortgage.closure?.payment_id &&
                   ' Its final Payment is voided, so it is no longer counted.'}
               </p>
-              <ChangePreview load={() => api.previewReopen(mortgage.id)} />
+              <ChangePreview request={previews.reopen(mortgage.id)} />
             </>
           }
           confirmLabel="Reopen"

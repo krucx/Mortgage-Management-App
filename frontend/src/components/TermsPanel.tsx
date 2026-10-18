@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { api, type Mortgage } from '../api'
+import type { Mortgage } from '../api'
 import { formatDate } from '../format'
+import { changes, previews } from '../requests'
+import { useMortgageChange } from '../serverState'
 import { describeTerms } from '../terms'
 import { ChangePreview } from './BeforeAfter'
 import { useConfirm } from './useConfirm'
@@ -16,11 +18,12 @@ export function TermsPanel({
 }) {
   const [error, setError] = useState<string | null>(null)
   const [confirm, confirmDialog] = useConfirm()
+  const changeMortgage = useMortgageChange()
   async function remove(changeId: number, from: string) {
     const confirmed = await confirm({
       title: `Remove the Term Change from ${formatDate(from)}?`,
       body: (
-        <ChangePreview load={() => api.previewTermChangeRemoval(mortgage.id, changeId)} />
+        <ChangePreview request={previews.termChangeRemoval(mortgage.id, changeId)} />
       ),
       wide: true,
       confirmLabel: 'Remove',
@@ -29,7 +32,9 @@ export function TermsPanel({
     })
     if (!confirmed) return
     try {
-      onChange(await api.removeTermChange(mortgage.id, changeId))
+      onChange(
+        await changeMortgage((client) => changes.removeTermChange(client, mortgage.id, changeId)),
+      )
     } catch (err) {
       setError((err as Error).message)
     }

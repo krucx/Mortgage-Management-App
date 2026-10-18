@@ -8,6 +8,8 @@ import { ReasonDialog } from '../components/ReasonDialog'
 import { SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
 import { formatINR } from '../money'
+import { changes, previews } from '../requests'
+import { useLedgerChange } from '../serverState'
 
 /** One Payment and how it was allocated across Mortgages. */
 export function PaymentPage() {
@@ -16,6 +18,7 @@ export function PaymentPage() {
   const [error, setError] = useState<string | null>(null)
   const [voiding, setVoiding] = useState(false)
   const methods = usePaymentMethods()
+  const changeLedger = useLedgerChange()
 
   useEffect(() => {
     api
@@ -100,11 +103,15 @@ export function PaymentPage() {
                 It stays on record but is taken out of every Ledger. Enter a corrected Payment
                 afterwards if needed.
               </p>
-              <ChangePreview load={() => api.previewVoid(payment.id)} />
+              <ChangePreview request={previews.void(payment.id)} />
             </>
           }
           confirmLabel="Void Payment"
-          onConfirm={async (reason) => setPayment(await api.voidPayment(payment.id, reason))}
+          onConfirm={async (reason) =>
+            setPayment(
+              await changeLedger((client) => changes.voidPayment(client, payment.id, reason)),
+            )
+          }
           onClose={() => setVoiding(false)}
         />
       )}

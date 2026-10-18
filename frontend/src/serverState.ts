@@ -1,9 +1,10 @@
 // The server-state module: every request to the backend goes through the typed client
 // (paths, query parameters and bodies checked against api.gen.ts), and every answer is
 // kept in one query cache. What a change makes stale is declared here, once.
-import { QueryClient, queryOptions, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, useQueryClient } from '@tanstack/react-query'
 import createClient, { type Client } from 'openapi-fetch'
 import { createContext, useContext } from 'react'
+import type { Mortgage } from './api'
 import type { paths } from './api.gen'
 
 export type ApiClient = Client<paths>
@@ -23,14 +24,27 @@ export function errorMessage(status: number, body: unknown): string {
   return `Request failed (${status})`
 }
 
-/** The data of a typed-client call, or an Error carrying the backend's message. */
+/** The backend answered, but not with what was asked: a refusal (4xx) or a failure (5xx). */
+export class BackendError extends Error {
+  readonly status: number
+  constructor(status: number, body: unknown) {
+    super(errorMessage(status, body))
+    this.status = status
+  }
+}
+
+/** The data of a typed-client call, or a BackendError carrying the backend's message. */
 export async function dataOrThrow<T>(
   call: Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<T> {
   const { data, error, response } = await call
-  if (!response.ok) throw new Error(errorMessage(response.status, error))
+  if (!response.ok) throw new BackendError(response.status, error)
   return data as T
 }
+
+/** Asked again once, unless the backend refused: a refusal is the answer. */
+const retryUnlessRefused = (failures: number, error: Error) =>
+  failures < 1 && !(error instanceof BackendError && error.status < 500)
 
 /** Query keys, by what they hold; a prefix matches every key under it. */
 export const keys = {
@@ -40,17 +54,32 @@ export const keys = {
   lists: ['list'] as const,
   dashboard: ['dashboard'] as const,
   readyToRedeem: ['ready-to-redeem'] as const,
+  /** Every Preview of an unsaved change. */
+  previews: ['preview'] as const,
+  /** Every Redemption Amount quoted for a date. */
+  redemptions: ['redemption'] as const,
 }
 
 /** Fired by the old fetch functions after anything that can change what Mortgages owe. */
 export const LEDGER_CHANGED = 'ledger-changed'
 
-/** What a change to what Mortgages owe makes stale. */
-const STALE_AFTER_LEDGER_CHANGE = [keys.allMortgages, keys.lists, keys.dashboard, keys.readyToRedeem]
+/** What a change to what Mortgages owe makes stale, asked for again at once if shown. */
+const REFRESHED_AFTER_LEDGER_CHANGE = [
+  keys.allMortgages,
+  keys.lists,
+  keys.dashboard,
+  keys.readyToRedeem,
+]
+/** Stale too, but asked for again only when next shown: one on screen is usually the
+ *  Preview or quote of the very change just made, which the backend would now refuse. */
+const OUTDATED_BY_LEDGER_CHANGE = [keys.previews, keys.redemptions]
 
 export function markLedgerStale(queryClient: QueryClient): void {
-  for (const queryKey of STALE_AFTER_LEDGER_CHANGE) {
+  for (const queryKey of REFRESHED_AFTER_LEDGER_CHANGE) {
     void queryClient.invalidateQueries({ queryKey })
+  }
+  for (const queryKey of OUTDATED_BY_LEDGER_CHANGE) {
+    void queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
   }
 }
 
@@ -59,8 +88,8 @@ export const FIRED_BY_CACHE = 'cache'
 
 /**
  * Anything that can change what Mortgages owe (Payments, Voids, edits, Term Changes,
- * closing and reopening) makes every Mortgage, list, the Dashboard and the Ready to
- * Redeem count stale.
+ * closing and reopening) makes every Mortgage, list, the Dashboard, the Ready to
+ * Redeem count, every Preview and every Redemption Amount quote stale.
  */
 export function ledgerChanged(queryClient: QueryClient): void {
   markLedgerStale(queryClient)
@@ -76,12 +105,15 @@ export interface ServerState {
 /** A typed client and an empty cache; tests pass a fake `fetch` and no retries. */
 export function createServerState({
   fetch = (request: Request) => globalThis.fetch(request),
-  retry = 1,
-}: { fetch?: (request: Request) => Promise<Response>; retry?: boolean | number } = {}): ServerState {
+  retry = true,
+}: { fetch?: (request: Request) => Promise<Response>; retry?: boolean } = {}): ServerState {
   return {
     client: createClient<paths>({ baseUrl: window.location.origin, fetch }),
     queryClient: new QueryClient({
-      defaultOptions: { queries: { retry }, mutations: { retry: false } },
+      defaultOptions: {
+        queries: { retry: retry ? retryUnlessRefused : false },
+        mutations: { retry: false },
+      },
     }),
   }
 }
@@ -97,27 +129,30 @@ export function useServerState(): ServerState {
   return { client, queryClient }
 }
 
-/** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
-export function mortgageQuery(client: ApiClient, id: number) {
-  return queryOptions({
-    queryKey: keys.mortgage(id),
-    queryFn: () =>
-      dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: { path: { mortgage_id: id } } })),
-  })
+/**
+ * Saves a change that can alter what Mortgages owe, then makes stale everything it
+ * affects: `const changeLedger = useLedgerChange(); await changeLedger((c) => …)`.
+ */
+export function useLedgerChange() {
+  const { client, queryClient } = useServerState()
+  return async <T,>(change: (client: ApiClient) => Promise<T>): Promise<T> => {
+    const result = await change(client)
+    ledgerChanged(queryClient)
+    return result
+  }
 }
 
-/** Keep a photo of a Mortgage's jewellery; the Mortgage with it. */
-export function addMortgagePhoto(client: ApiClient, id: number, photo: Blob) {
-  return dataOrThrow(
-    client.POST('/api/mortgages/{mortgage_id}/photos', {
-      params: { path: { mortgage_id: id } },
-      // The schema types the file as a string; it is sent as multipart form data.
-      body: { photo: '' },
-      bodySerializer: () => {
-        const form = new FormData()
-        form.append('photo', photo, 'photo.jpg')
-        return form
-      },
-    }),
-  )
+/**
+ * Saves a change to one Mortgage that returns it, as useLedgerChange does, and keeps
+ * what was returned as that Mortgage, so its page shows the change at once rather than
+ * what was cached before it.
+ */
+export function useMortgageChange() {
+  const { queryClient } = useServerState()
+  const changeLedger = useLedgerChange()
+  return async (change: (client: ApiClient) => Promise<Mortgage>): Promise<Mortgage> => {
+    const changed = await changeLedger(change)
+    queryClient.setQueryData(keys.mortgage(changed.id), changed)
+    return changed
+  }
 }

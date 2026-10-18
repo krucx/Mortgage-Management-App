@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { api, type Payment, type Redemption } from '../api'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
+import { changes } from '../requests'
+import { useLedgerChange } from '../serverState'
 import { PART_MONTH_RULES } from '../terms'
 import { Modal } from './Modal'
 
@@ -24,6 +26,7 @@ export function RedeemPaidOff({
   const [saving, setSaving] = useState(false)
   const [failures, setFailures] = useState<string[]>([])
   const ids = mortgages.map((m) => m.id).join(',')
+  const changeLedger = useLedgerChange()
 
   useEffect(() => {
     for (const id of ids.split(',').map(Number)) {
@@ -50,11 +53,13 @@ export function RedeemPaidOff({
     const failed: string[] = []
     for (const m of mortgages.filter((m) => chosen.has(m.id))) {
       try {
-        await api.redeem(m.id, {
-          redeemed_on: payment.paid_on,
-          method: payment.method,
-          reference: payment.reference,
-        })
+        await changeLedger((client) =>
+          changes.redeem(client, m.id, {
+            redeemed_on: payment.paid_on,
+            method: payment.method,
+            reference: payment.reference,
+          }),
+        )
       } catch (err) {
         failed.push(`${m.name}: ${(err as Error).message}`)
       }

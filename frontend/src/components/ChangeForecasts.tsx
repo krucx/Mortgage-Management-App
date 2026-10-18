@@ -1,34 +1,17 @@
-import { useEffect, useState } from 'react'
-import { api, type CollateralPreview, type MortgageIn, type NewMortgagePreview } from '../api'
+import { useState } from 'react'
+import type { CollateralPreview, MortgageIn } from '../api'
 import { formatDate, formatPercent } from '../format'
 import { formatINR } from '../money'
+import { previews } from '../requests'
 import { Summary } from './ConfirmDialog'
 import { ProjectionChart } from './ProjectionChart'
-
-/** An answer from the backend, or its error, for as long as `load` stays the same. */
-function useAnswer<T>(load: () => Promise<T>): { answer: T | null; error: string | null } {
-  const [state, setState] = useState<{ answer: T | null; error: string | null }>({
-    answer: null,
-    error: null,
-  })
-  useEffect(() => {
-    let live = true
-    load().then(
-      (answer) => live && setState({ answer, error: null }),
-      (err: Error) => live && setState({ answer: null, error: err.message }),
-    )
-    return () => {
-      live = false
-    }
-  }, [load])
-  return state
-}
+import { usePreview } from './usePreview'
 
 /** What a new Mortgage would owe: today (if back-dated) and over a year with no
  *  Payments, from the backend's preview of creating it. */
 export function NewMortgageForecast({ mortgage }: { mortgage: MortgageIn }) {
-  const [load] = useState(() => () => api.previewNewMortgage(mortgage))
-  const { answer, error } = useAnswer<NewMortgagePreview>(load)
+  const [request] = useState(() => previews.newMortgage(mortgage))
+  const { previews: answer, error } = usePreview(request, 0)
   if (error) return <p className="status error">{error}</p>
   if (!answer) return <p className="hint">Working out what it will owe…</p>
   const { after } = answer
@@ -65,8 +48,8 @@ export function CollateralForecast({
   mortgageId: number
   value: number | null
 }) {
-  const [load] = useState(() => () => api.previewCollateral(mortgageId, value))
-  const { answer, error } = useAnswer<CollateralPreview>(load)
+  const [request] = useState(() => previews.collateral(mortgageId, value))
+  const { previews: answer, error } = usePreview(request, 0)
   if (error) return <p className="status error">{error}</p>
   if (!answer) return <p className="hint">Working out the Loan-to-Value…</p>
   const shown = (side: CollateralPreview['before']) =>

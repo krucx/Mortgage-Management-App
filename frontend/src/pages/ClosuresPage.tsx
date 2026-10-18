@@ -9,6 +9,8 @@ import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
 import { tickedFirst, type Sort } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
+import { changes } from '../requests'
+import { useLedgerChange } from '../serverState'
 
 /** Active Mortgages still owing something: the ones that can be Forfeited. */
 function listForfeitable(page: number, sort: Sort<MortgageSort> | null) {
@@ -197,6 +199,7 @@ function ForfeitChosen({
   const [saving, setSaving] = useState(false)
   const [failures, setFailures] = useState<string[]>([])
   const [confirm, confirmDialog] = useConfirm()
+  const changeLedger = useLedgerChange()
   const ids = chosen.map((m) => m.id).join(',')
 
   // The Redemption Amount of each chosen Mortgage on the Forfeiture date.
@@ -251,7 +254,9 @@ function ForfeitChosen({
     const failed: string[] = []
     for (const r of rows) {
       try {
-        await api.forfeit(r.id, { forfeited_on: on, recovered_amount: r.got ?? 0, note })
+        await changeLedger((client) =>
+          changes.forfeit(client, r.id, { forfeited_on: on, recovered_amount: r.got ?? 0, note }),
+        )
       } catch (err) {
         failed.push(`${r.name}: ${(err as Error).message}`)
       }
