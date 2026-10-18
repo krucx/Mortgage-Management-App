@@ -1,4 +1,5 @@
 import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router'
+import { ThemeToggle } from './components/ThemeToggle'
 import { useReadyToRedeemCount } from './components/useReadyToRedeem'
 import { CallListPage } from './pages/CallListPage'
 import { ChangeTermsPage } from './pages/ChangeTermsPage'
@@ -53,6 +54,7 @@ export default function App() {
             <Link to="/">Mortgage Management</Link>
           </h1>
           <Nav />
+          <ThemeToggle />
         </header>
         <main>
           <Routes>

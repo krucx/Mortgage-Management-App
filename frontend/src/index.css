@@ -34,8 +34,9 @@
   color-scheme: light dark;
 }
 
+/* Dark: the browser's theme unless the Lender chose light; or chosen (see theme.ts). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --text: #e6edf3;
     --wa-chat: #0b141a;
     --wa-bubble: #005c4b;
@@ -56,7 +57,36 @@
     --tone-closed: #d466a7;
     --exact: #1a9d8f;
     --estimate: #c4851d;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --text: #e6edf3;
+  --wa-chat: #0b141a;
+  --wa-bubble: #005c4b;
+  --wa-text: #e9edef;
+  --wa-green: #1f8f55;
+  --muted: #9198a1;
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --accent: #d4a72c;
+  --accent-text: #0d1117;
+  --ok: #3fb950;
+  --error: #f85149;
+  --warning: #d29922;
+  --tone-owed: #b98c1c;
+  --tone-money-in: #1fa3c0;
+  --tone-collateral: #8b7cf2;
+  --tone-closed: #d466a7;
+  --exact: #1a9d8f;
+  --estimate: #c4851d;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 * {
@@ -81,6 +111,26 @@ body {
 .layout h1 {
   font-size: 1.15rem;
   margin: 0;
+}
+
+/* The light/dark switch, at the right-hand end of the top bar. */
+.theme-toggle {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
 }
 
 .layout nav a {
