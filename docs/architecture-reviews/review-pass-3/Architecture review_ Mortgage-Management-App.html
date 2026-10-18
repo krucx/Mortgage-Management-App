@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Architecture Review Pass 3</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+</script>
+<style>
+  .seam { border-style: dashed; }
+  .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+  .label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+</style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+
+<header class="space-y-3">
+  <h1 class="font-serif text-4xl">Architecture review · pass 3</h1>
+  <p class="text-sm text-slate-500">Mortgage-Management-App · 18 Oct 2026 · scope: the whole codebase, sizeable wins only</p>
+  <p class="text-sm text-slate-600">Every candidate from passes 1 and 2 has landed. The backend is in good shape: the Mortgage replay, the Mortgage and Customer changes modules, the Notice queue, the list module and the settings module are all deep. The largest remaining friction is in the <b>frontend</b>, which no earlier pass touched beyond lists.</p>
+  <div class="flex flex-wrap gap-4 text-xs text-slate-500 pt-2">
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500"></span> module</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-6 border-t-2 border-dashed border-slate-500"></span> seam</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-6 border-t-2 border-red-600"></span> leakage</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 deep"></span> deep module</span>
+  </div>
+</header>
+
+<section id="candidates" class="space-y-10">
+
+<!-- 01 -->
+<article id="c1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <span class="font-mono text-slate-400">01</span>
+    <h2 class="font-serif text-2xl">One server-state module for the frontend: a query cache over a typed client</h2>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-semibold">Strong</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">local-substitutable (fake fetch)</span>
+    <span class="px-2 py-1 rounded bg-indigo-50 text-indigo-700">off-the-shelf: TanStack Query + openapi-fetch</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 space-y-0.5">
+    <li>frontend/src/api.ts: 51 hand-written fetch functions, hand-built query strings, <b>LEDGER_CHANGED</b> window event</li>
+    <li>components/usePreview.ts, useListPage.tsx, usePaymentMethods.ts, useReadyToRedeem.ts, useNumberOwner.ts, useSearch.ts, useDebounced.ts (245 lines)</li>
+    <li>pages/*.tsx, components/*.tsx: 44 useEffect calls, 51 race-guard / then(set…) sites</li>
+    <li>pages/ChangeTermsPage, EditMortgagePage, NewPaymentPage, CloseMortgage: JSON.stringify as memo key</li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">Before · every page re-builds a cache</p>
+      <div class="space-y-2 text-xs">
+        <div class="grid grid-cols-3 gap-2">
+          <div class="border border-slate-400 rounded p-2"><span class="label">MortgagePage</span><br>useState ×3<br>useEffect + catch</div>
+          <div class="border border-slate-400 rounded p-2"><span class="label">usePreview</span><br>debounce<br><span class="text-red-600">replaced flag</span></div>
+          <div class="border border-slate-400 rounded p-2"><span class="label">useListPage</span><br>page state<br><span class="text-red-600">latest ref</span></div>
+          <div class="border border-slate-400 rounded p-2"><span class="label">usePaymentMethods</span><br>module cache<br><span class="text-red-600">retry timer</span></div>
+          <div class="border border-slate-400 rounded p-2"><span class="label">useNumberOwner</span><br><span class="text-red-600">cancelled flag</span></div>
+          <div class="border border-slate-400 rounded p-2"><span class="label">SettingsPage ×5</span><br>load / status / saving</div>
+        </div>
+        <div class="border-2 border-red-500 rounded p-2 text-red-700">window <b>LEDGER_CHANGED</b> event · fired by 7 calls · heard by 2 · forgotten by createMortgage, setCollateral, photos, Customer saves</div>
+        <div class="border border-slate-400 rounded p-2 font-mono">api.ts · `/mortgages?page=${page}&amp;q=…` + (owing ? '&amp;owing=true' : '') …</div>
+        <div class="text-slate-500">0 page tests: nothing to put a fake behind</div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">After · one cache, one typed client</p>
+      <div class="space-y-2 text-xs">
+        <div class="grid grid-cols-3 gap-2 text-slate-500">
+          <div class="border border-slate-300 rounded p-2">pages: useQuery(key)</div>
+          <div class="border border-slate-300 rounded p-2">previews: useQuery + placeholderData</div>
+          <div class="border border-slate-300 rounded p-2">changes: useMutation</div>
+        </div>
+        <div class="border-t-2 border-dashed border-slate-500 my-1"></div>
+        <div class="deep rounded p-3 space-y-1">
+          <div class="label text-slate-300">Server state module</div>
+          <div>keys by resource: mortgage(id), list(kind, page, sort, filters), preview(change)</div>
+          <div>dedupe · stale answers dropped · retry · loading/error</div>
+          <div>a Ledger change invalidates <b>mortgage, lists, dashboard, ready-to-redeem</b> — declared once</div>
+        </div>
+        <div class="border-t-2 border-dashed border-slate-500 my-1"></div>
+        <div class="deep rounded p-3">
+          <div class="label text-slate-300">Typed client (openapi-fetch over api.gen.ts)</div>
+          <div>paths, query params, bodies checked against the backend's OpenAPI</div>
+        </div>
+        <div class="text-slate-500">tests: render a page with a fake fetch at the client seam</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div><h3 class="label text-slate-500 mb-1">Problem</h3><p>Each page and hook re-implements loading, error, race guards and caching in its own style, and "what to refetch after a change" is a hand-fired window event that most writes forget.</p></div>
+    <div><h3 class="label text-slate-500 mb-1">Solution</h3><p>Adopt TanStack Query as the server-state module and openapi-fetch as the client; api.ts shrinks to query keys and one invalidation rule per kind of change.</p></div>
+  </div>
+  <div>
+    <h3 class="label text-slate-500 mb-1">Wins</h3>
+    <ul class="text-sm grid sm:grid-cols-2 gap-x-6 list-disc pl-5">
+      <li>locality: invalidation declared once</li>
+      <li>leverage: one interface, 19 pages</li>
+      <li>delete ~245 lines of hand-rolled hooks</li>
+      <li>delete 51 hand-written URL builders</li>
+      <li>query params type-checked like bodies</li>
+      <li>pages testable behind a fake fetch</li>
+    </ul>
+  </div>
+  <p class="text-xs text-slate-500">The generated types (pass 1, #04) already exist, so openapi-fetch is the natural next step from openapi-typescript, not a new direction.</p>
+</article>
+
+<!-- 02 -->
+<article id="c2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <span class="font-mono text-slate-400">02</span>
+    <h2 class="font-serif text-2xl">One "propose a change" module: draft → Preview → confirm → save, across both tiers</h2>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-amber-100 text-amber-800 font-semibold">Worth exploring</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process + local-substitutable</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 space-y-0.5">
+    <li>backend/…/previews.py: 10 preview routes, each re-declaring the matching change route's params</li>
+    <li>backend/…/changes.py: the 10 save routes</li>
+    <li>frontend/src/api.ts: previewX + X pairs ×10</li>
+    <li>pages/ChangeTermsPage, EditMortgagePage, NewPaymentPage, PaymentPage (Void); components/CloseMortgage, ReasonDialog</li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-2">Before · each change wired four times</p>
+      <pre class="mermaid">
+flowchart LR
+  P1[ChangeTermsPage] --> PV1[previewTermChange]
+  P1 --> S1[addTermChange]
+  P2[EditMortgagePage] --> PV2[previewEdit]
+  P2 --> S2[editMortgage]
+  P3[CloseMortgage] --> PV3[previewRedeem / Forfeit]
+  P3 --> S3[redeem / forfeit]
+  PV1 --> R1["POST …/term-changes/preview"]
+  S1 --> R2["POST …/term-changes"]
+  PV2 --> R3["POST …/edit-preview"]
+  S2 --> R4["PUT …/{id}"]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class R1,R2,R3,R4 leak
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-2">After · a change is one thing</p>
+      <pre class="mermaid">
+flowchart LR
+  P1[ChangeTermsPage] --> H
+  P2[EditMortgagePage] --> H
+  P3[CloseMortgage] --> H
+  P4[NewPaymentPage] --> H
+  H["useChange(kind, draft)<br/>→ preview · confirm · save"]:::deep --> E["one route per change<br/>preview = same body, rolled back"]:::deep
+  E --> C[Mortgage changes module]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div><h3 class="label text-slate-500 mb-1">Problem</h3><p>The backend already makes a Preview by running the real change and rolling back, but every change still has twin routes, twin fetch functions, and a page that re-wires debounce, preview error, confirm dialog, saving flag and navigation by hand.</p></div>
+    <div><h3 class="label text-slate-500 mb-1">Solution</h3><p>A change is declared once per tier: the backend serves Preview and save from one declaration; the frontend has one hook that owns the draft-to-save flow, so pages only supply the form and the confirm summary.</p></div>
+  </div>
+  <div>
+    <h3 class="label text-slate-500 mb-1">Wins</h3>
+    <ul class="text-sm grid sm:grid-cols-2 gap-x-6 list-disc pl-5">
+      <li>~150 lines of preview routes become declarations</li>
+      <li>a new change gets Preview for free</li>
+      <li>"Save disabled while Preview errors" once</li>
+      <li>no JSON.stringify memo keys</li>
+    </ul>
+  </div>
+  <p class="text-xs text-slate-500">Builds on 01: the hook is a useQuery for the Preview plus a useMutation for the save. Do not do it first.</p>
+</article>
+
+<!-- 03 -->
+<article id="c3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <span class="font-mono text-slate-400">03</span>
+    <h2 class="font-serif text-2xl">Group the backend's 32 flat modules by the glossary's sections</h2>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-slate-200 text-slate-700 font-semibold">Speculative</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process · mechanical move</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 space-y-0.5">
+    <li>backend/src/mortgage_backend/*.py (32 files, one folder) — your own note in Requirements/backend-enhancements.txt</li>
+    <li>notices.py also serves the message settings routes; call_list.py also serves Call Notes</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4 text-xs">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-2">Before · one folder</p>
+      <div class="grid grid-cols-4 gap-1 font-mono">
+        <span class="border rounded px-1">audit</span><span class="border rounded px-1">backups</span><span class="border rounded px-1">call_list</span><span class="border rounded px-1">changes</span>
+        <span class="border rounded px-1">clock</span><span class="border rounded px-1">closing</span><span class="border rounded px-1">collateral</span><span class="border rounded px-1">customer_ch…</span>
+        <span class="border rounded px-1">customers</span><span class="border rounded px-1">daily_run</span><span class="border rounded px-1">dashboard</span><span class="border rounded px-1">db</span>
+        <span class="border rounded px-1">default_terms</span><span class="border rounded px-1">errors</span><span class="border rounded px-1">ledger</span><span class="border rounded px-1">message_set…</span>
+        <span class="border rounded px-1">messages</span><span class="border rounded px-1">money</span><span class="border rounded px-1">mortgages</span><span class="border rounded px-1">notices</span>
+        <span class="border rounded px-1">…12 more</span>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-2">After · folders named as in GLOSSARY.md</p>
+      <div class="grid grid-cols-2 gap-2 font-mono">
+        <div class="border-2 border-slate-600 rounded p-1"><b>people/</b> customers, customer_changes</div>
+        <div class="border-2 border-slate-600 rounded p-1"><b>lending/</b> ledger, replay, terms, changes, previews, projections, closing</div>
+        <div class="border-2 border-slate-600 rounded p-1"><b>payments/</b> payments, receipts</div>
+        <div class="border-2 border-slate-600 rounded p-1"><b>follow_up/</b> notices, messages, call_list</div>
+        <div class="border-2 border-slate-600 rounded p-1"><b>safekeeping/</b> audit, backups</div>
+        <div class="border-2 border-slate-600 rounded p-1"><b>platform/</b> db, settings, paging, clock, photos</div>
+      </div>
+    </div>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div><h3 class="label text-slate-500 mb-1">Problem</h3><p>Finding where a concept lives means scanning 32 names; nothing tells a reader that ledger, replay and changes belong together.</p></div>
+    <div><h3 class="label text-slate-500 mb-1">Solution</h3><p>Move files into packages named after the glossary's sections; no interface changes.</p></div>
+  </div>
+  <div class="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">Honest rating: this aids navigation, not depth. No module gains leverage or locality. Cheap and safe, so do it between features, not instead of 01.</div>
+</article>
+
+</section>
+
+<section class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <h2 class="font-serif text-xl">Looked at, not worth it now</h2>
+  <ul class="text-sm list-disc pl-5 space-y-1 text-slate-700">
+    <li><b>HTTP errors raised inside the changes modules</b> (38 sites in changes.py, customer_changes.py). FastAPI is the only caller; turning them into domain errors moves code without concentrating it.</li>
+    <li><b>Replaying every Mortgage to sort Mortgages by Outstanding.</b> One Lender's book; replay already runs once per request. Revisit only if lists get slow (ADR-0001 stands).</li>
+    <li><b>allocate.ts vs the backend's Overpayment check</b> (pass 1, #05). The Payment Preview now gives the server's answer; allocate.ts is only a suggestion. Settled.</li>
+  </ul>
+</section>
+
+<section id="top-recommendation" class="rounded-xl deep p-8 space-y-3">
+  <p class="label text-slate-400">Top recommendation</p>
+  <h2 class="font-serif text-3xl"><a href="#c1" class="underline decoration-dotted">01 · One server-state module for the frontend</a></h2>
+  <p class="text-slate-300">It replaces hand-rolled code with tools built for exactly this job, fixes refetch-after-change for good, gives the frontend its first seam for page tests, and 02 sits on top of it.</p>
+</section>
+
+</main>
+</body>
+</html>
