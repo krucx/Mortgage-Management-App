@@ -89,9 +89,34 @@ def _card_block(cards: list[tuple[str, list[Row]]], totals: list[Row]) -> str:
     return f"```\n{body}\n```"
 
 
+# The placeholders each template may use; saving a template using any other is refused.
+RECEIPT_PLACEHOLDERS = (
+    "customer_name",
+    "amount",
+    "method",
+    "reference",
+    "date",
+    "mortgages",
+    "total_owed",
+)
+NOTICE_PLACEHOLDERS = ("customer_name", "date", "interest", "mortgages", "total_owed")
+
+_PLACEHOLDER = re.compile(r"\{(\w+)\}")
+_BRACED = re.compile(r"\{[^{}]*\}?")  # a brace, up to the next brace or closing one
+
+
+def unknown_placeholders(template: str, allowed: Sequence[str]) -> list[str]:
+    """Each brace in `template` that is not exactly an `allowed` {placeholder}, as
+    written (so `{name}`, `{ amount }`, or an unclosed `{date`), once each, in order;
+    any of these would reach the Customer as typed."""
+    usable = {"{" + name + "}" for name in allowed}
+    found = dict.fromkeys(_BRACED.findall(template))
+    return [written for written in found if written not in usable]
+
+
 def fill(template: str, values: dict[str, str]) -> str:
     """The template with each {placeholder} replaced; unknown ones stay as written."""
-    return re.sub(r"\{(\w+)\}", lambda m: values.get(m.group(1), m.group(0)), template)
+    return _PLACEHOLDER.sub(lambda m: values.get(m.group(1), m.group(0)), template)
 
 
 def _date(on: date) -> str:

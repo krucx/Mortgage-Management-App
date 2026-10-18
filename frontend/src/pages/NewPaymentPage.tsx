@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   api,
-  PAYMENT_METHODS,
   type Customer,
   type MortgageRow,
   type Payment,
@@ -13,6 +12,8 @@ import { Summary } from '../components/ConfirmDialog'
 import { CustomerChooser } from '../components/CustomerChooser'
 import { RedeemPaidOff } from '../components/RedeemPaidOff'
 import { useConfirm } from '../components/useConfirm'
+import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
+import { usePaymentMethods } from '../components/usePaymentMethods'
 import { usePreview } from '../components/usePreview'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
@@ -89,6 +90,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const [amountText, setAmountText] = useState<Record<number, string>>({})
   const [percentText, setPercentText] = useState<Record<number, string>>({})
   const [method, setMethod] = useState<PaymentMethod>('cash')
+  const methods = usePaymentMethods()
   const [reference, setReference] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -193,7 +195,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           rows={[
             ['From', customer.name],
             ['Received', formatDate(paidOn)],
-            ['Method', PAYMENT_METHODS[method] + (reference.trim() ? ` · ${reference.trim()}` : '')],
+            ['Method', (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : '')],
             ...chosen
               .map((m, i): [string, string] => [m.name, formatINR(amounts[i])])
               .filter((_, i) => amounts[i] > 0),
@@ -256,16 +258,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         </label>
         <label>
           Method
-          <select
-            value={method}
-            onChange={(event) => setMethod(event.target.value as PaymentMethod)}
-          >
-            {Object.entries(PAYMENT_METHODS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <PaymentMethodSelect methods={methods} value={method} onChange={setMethod} />
         </label>
       </div>
 

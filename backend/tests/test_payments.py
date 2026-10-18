@@ -344,3 +344,11 @@ def test_payments_can_be_filtered_by_customer_mortgage_or_reference(
     assert count("bangles") == 1  # Mortgage Name
     assert count("utr9") == 1
     assert sita  # exists but has no Payments
+
+
+def test_the_payment_methods_are_published_with_their_names(client) -> None:
+    assert client.get("/api/payment-methods").json() == [
+        {"method": "cash", "name": "Cash"},
+        {"method": "upi", "name": "UPI"},
+        {"method": "bank_transfer", "name": "Bank transfer"},
+    ]

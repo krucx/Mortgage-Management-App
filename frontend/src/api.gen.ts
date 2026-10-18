@@ -644,6 +644,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Payment Methods
+         * @description Every way a Payment can be made, with its name.
+         */
+        get: operations["read_payment_methods_api_payment_methods_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/payments": {
         parameters: {
             query?: never;
@@ -920,6 +940,23 @@ export interface paths {
         get: operations["read_message_settings_api_settings_messages_get"];
         /** Update Message Settings */
         put: operations["update_message_settings_api_settings_messages_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/messages/placeholders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Message Placeholders */
+        get: operations["read_message_placeholders_api_settings_messages_placeholders_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1391,6 +1428,16 @@ export interface components {
             /** Unpaid Interest */
             unpaid_interest: number;
         };
+        /**
+         * MessagePlaceholders
+         * @description The placeholders each template may use.
+         */
+        MessagePlaceholders: {
+            /** Notice */
+            notice: string[];
+            /** Receipt */
+            receipt: string[];
+        };
         /** MessageSettings */
         MessageSettings: {
             /**
@@ -1732,6 +1779,12 @@ export interface components {
          * @enum {string}
          */
         PaymentMethod: "cash" | "upi" | "bank_transfer";
+        /** PaymentMethodName */
+        PaymentMethodName: {
+            method: components["schemas"]["PaymentMethod"];
+            /** Name */
+            name: string;
+        };
         /** PaymentPage */
         PaymentPage: {
             /** Interest Paid */
@@ -3314,6 +3367,26 @@ export interface operations {
             };
         };
     };
+    read_payment_methods_api_payment_methods_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodName"][];
+                };
+            };
+        };
+    };
     list_payments_api_payments_get: {
         parameters: {
             query?: {
@@ -3910,6 +3983,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_message_placeholders_api_settings_messages_placeholders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePlaceholders"];
                 };
             };
         };

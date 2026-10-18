@@ -7,6 +7,8 @@ amounts right-aligned. Customers see the item, never the Mortgage Name.
 from datetime import date
 
 from mortgage_backend.messages import (
+    NOTICE_PLACEHOLDERS,
+    RECEIPT_PLACEHOLDERS,
     NoticeLine,
     NoticeMessage,
     ReceiptLine,
@@ -14,6 +16,7 @@ from mortgage_backend.messages import (
     fill,
     notice_text,
     receipt_text,
+    unknown_placeholders,
 )
 
 RUPEE = 100  # paise
@@ -162,3 +165,50 @@ def test_a_notice_shows_the_interest_about_to_be_added() -> None:
         "```\n"
         "You will owe *₹1,63,500*."
     )
+
+
+def test_every_placeholder_a_template_may_use_is_filled() -> None:
+    def every(placeholders: tuple[str, ...]) -> str:
+        return " ".join("{" + name + "}" for name in placeholders)
+
+    worded = [
+        receipt_text(every(RECEIPT_PLACEHOLDERS), receipt(chain())),
+        notice_text(
+            every(NOTICE_PLACEHOLDERS),
+            NoticeMessage(
+                customer_name="Ramesh Kumar",
+                accrues_on=date(2026, 5, 14),
+                lines=[
+                    NoticeLine(
+                        description="Gold chain",
+                        interest=3_000 * RUPEE,
+                        owed_after=1_12_000 * RUPEE,
+                    )
+                ],
+            ),
+        ),
+    ]
+
+    assert all("{" not in text for text in worded)
+
+
+def test_placeholders_a_template_may_not_use_are_named_once_each() -> None:
+    template = "Namaste {name}, {amount} paid; {name} owes {interest} {total_owed}"
+
+    assert unknown_placeholders(template, RECEIPT_PLACEHOLDERS) == [
+        "{name}",
+        "{interest}",
+    ]
+    assert unknown_placeholders(RECEIPT, RECEIPT_PLACEHOLDERS) == []
+
+
+def test_braces_that_are_not_exactly_a_placeholder_are_named_as_written() -> None:
+    template = "{customer-name} { amount } {Date} {{total_owed}} owes {total_owed"
+
+    assert unknown_placeholders(template, RECEIPT_PLACEHOLDERS) == [
+        "{customer-name}",
+        "{ amount }",
+        "{Date}",
+        "{",
+        "{total_owed",
+    ]

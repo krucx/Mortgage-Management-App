@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import {
   api,
-  PAYMENT_METHODS,
   type Mortgage,
   type PaymentMethod,
   type Redemption,
@@ -14,6 +13,8 @@ import { PreviewSection } from './BeforeAfter'
 import { Summary } from './ConfirmDialog'
 import { usePreview } from './usePreview'
 import { useConfirm } from './useConfirm'
+import { PaymentMethodSelect } from './PaymentMethodSelect'
+import { usePaymentMethods } from './usePaymentMethods'
 
 type Action = 'redeem' | 'forfeit'
 
@@ -43,6 +44,7 @@ export function CloseMortgage({
   const [on, setOn] = useState(todayIso())
   const [quote, setQuote] = useState<{ on: string; redemption: Redemption | null; error?: string }>()
   const [method, setMethod] = useState<PaymentMethod>('cash')
+  const methods = usePaymentMethods()
   const [reference, setReference] = useState('')
   const [recovered, setRecovered] = useState('')
   const [note, setNote] = useState('')
@@ -96,7 +98,7 @@ export function CloseMortgage({
                   rows={[
                     ['Redeemed on', formatDate(on)],
                     ['Final Payment', formatINR(redemption.total)],
-                    ['Method', PAYMENT_METHODS[method] + (reference.trim() ? ` · ${reference}` : '')],
+                    ['Method', (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference}` : '')],
                   ]}
                 />
                 <p className="hint">Return the jewellery to {mortgage.customer.name}.</p>
@@ -204,16 +206,7 @@ export function CloseMortgage({
         <div className="grid-2">
           <label>
             Final Payment method
-            <select
-              value={method}
-              onChange={(event) => setMethod(event.target.value as PaymentMethod)}
-            >
-              {Object.entries(PAYMENT_METHODS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            <PaymentMethodSelect methods={methods} value={method} onChange={setMethod} />
           </label>
           <label>
             Reference (optional)

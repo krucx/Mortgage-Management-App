@@ -531,3 +531,49 @@ def test_saving_message_settings_syncs_the_notices_at_once(conn: Connection) -> 
     MESSAGE_SETTINGS.set(conn, MessageSettings(notice_days_before=15), TODAY)
 
     assert [n.accrues_on for n in list_notices(conn)] == [date(2026, 5, 25)]
+
+
+def test_a_template_with_an_unknown_placeholder_is_refused(app_client) -> None:
+    now = app_client.get("/api/settings/messages").json()
+
+    refused = app_client.put(
+        "/api/settings/messages", json={**now, "notice_template": "Hi {name} {date}"}
+    )
+    saved = app_client.put(
+        "/api/settings/messages", json={**now, "receipt_template": "Hi {customer_name}"}
+    )
+
+    assert refused.status_code == 422
+    assert "{name}" in refused.json()["detail"]
+    assert "Notice" in refused.json()["detail"]
+    assert saved.status_code == 200
+    assert app_client.get("/api/settings/messages").json()["notice_template"] == (
+        now["notice_template"]
+    )
+
+
+def test_the_placeholders_each_template_may_use_are_published(app_client) -> None:
+    placeholders = app_client.get("/api/settings/messages/placeholders").json()
+
+    assert placeholders["notice"] == [
+        "customer_name",
+        "date",
+        "interest",
+        "mortgages",
+        "total_owed",
+    ]
+    assert "method" in placeholders["receipt"]
+
+
+def test_a_receipt_template_with_a_malformed_placeholder_is_refused(app_client) -> None:
+    now = app_client.get("/api/settings/messages").json()
+
+    refused = app_client.put(
+        "/api/settings/messages",
+        json={**now, "receipt_template": "Hi {customer-name}, {amount} received"},
+    )
+
+    assert refused.status_code == 422
+    assert refused.json()["detail"].startswith(
+        "The Receipt template can't fill {customer-name}."
+    )

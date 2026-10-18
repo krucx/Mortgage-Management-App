@@ -20,15 +20,8 @@ from mortgage_backend.messages import (
     descriptions,
     receipt_text,
 )
-from mortgage_backend.payments import PaymentMethod, mortgages_of
+from mortgage_backend.payments import METHOD_NAMES, PaymentMethod, mortgages_of
 from mortgage_backend.replay import replays
-
-METHOD_NAMES = {
-    PaymentMethod.CASH: "Cash",
-    PaymentMethod.UPI: "UPI",
-    PaymentMethod.BANK_TRANSFER: "Bank transfer",
-}
-
 
 class ReceiptLineOut(ReceiptLine):
     mortgage_id: int  # for the Lender's links; never shown to the Customer

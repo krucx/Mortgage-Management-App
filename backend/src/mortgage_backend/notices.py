@@ -33,8 +33,15 @@ from mortgage_backend.db import (
     notice_mortgage_table,
     notice_table,
 )
+from mortgage_backend.errors import unprocessable
 from mortgage_backend.ledger import accrual_date, is_accrual_date
-from mortgage_backend.message_settings import MESSAGE_SETTINGS, MessageSettings
+from mortgage_backend.message_settings import (
+    MESSAGE_SETTINGS,
+    PLACEHOLDERS,
+    MessagePlaceholders,
+    MessageSettings,
+    template_refusal,
+)
 from mortgage_backend.messages import (
     NoticeLine,
     NoticeMessage,
@@ -381,9 +388,16 @@ def read_message_settings(engine: EngineDep) -> MessageSettings:
 def update_message_settings(
     settings: MessageSettings, engine: EngineDep, today: TodayDep
 ) -> MessageSettings:
+    if reason := template_refusal(settings):
+        raise unprocessable(reason)
     with engine.begin() as conn:
         MESSAGE_SETTINGS.set(conn, settings, today)
         return MESSAGE_SETTINGS.get(conn)
+
+
+@router.get("/settings/messages/placeholders")
+def read_message_placeholders() -> MessagePlaceholders:
+    return PLACEHOLDERS
 
 
 @router.get("/notices")

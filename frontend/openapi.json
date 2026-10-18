@@ -1274,6 +1274,31 @@
         "title": "LedgerStep",
         "type": "object"
       },
+      "MessagePlaceholders": {
+        "description": "The placeholders each template may use.",
+        "properties": {
+          "notice": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notice",
+            "type": "array"
+          },
+          "receipt": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Receipt",
+            "type": "array"
+          }
+        },
+        "required": [
+          "receipt",
+          "notice"
+        ],
+        "title": "MessagePlaceholders",
+        "type": "object"
+      },
       "MessageSettings": {
         "properties": {
           "notice_approve_first": {
@@ -2104,6 +2129,23 @@
         ],
         "title": "PaymentMethod",
         "type": "string"
+      },
+      "PaymentMethodName": {
+        "properties": {
+          "method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "name"
+        ],
+        "title": "PaymentMethodName",
+        "type": "object"
       },
       "PaymentPage": {
         "properties": {
@@ -4925,6 +4967,29 @@
         "summary": "Skip Notice"
       }
     },
+    "/api/payment-methods": {
+      "get": {
+        "description": "Every way a Payment can be made, with its name.",
+        "operationId": "read_payment_methods_api_payment_methods_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentMethodName"
+                  },
+                  "title": "Response Read Payment Methods Api Payment Methods Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Payment Methods"
+      }
+    },
     "/api/payments": {
       "get": {
         "description": "Payments, newest first (or by `sort`, reversed when `descending`), filtered by\nCustomer, Mortgage Name or reference, and to a month (YYYY-MM) or year. With a\nmonth or year, the interest they paid too.",
@@ -5739,6 +5804,24 @@
           }
         },
         "summary": "Update Message Settings"
+      }
+    },
+    "/api/settings/messages/placeholders": {
+      "get": {
+        "operationId": "read_message_placeholders_api_settings_messages_placeholders_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagePlaceholders"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Message Placeholders"
       }
     }
   }

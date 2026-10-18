@@ -58,11 +58,7 @@ export type MortgageIn = Schemas['MortgageIn']
 export type LedgerStep = Schemas['LedgerStep']
 
 export type PaymentMethod = Schemas['PaymentMethod']
-export const PAYMENT_METHODS: Record<PaymentMethod, string> = {
-  cash: 'Cash',
-  upi: 'UPI',
-  bank_transfer: 'Bank transfer',
-}
+export type PaymentMethodName = Schemas['PaymentMethodName']
 export type PaymentIn = Schemas['PaymentIn']
 /** A Payment as listed on the Payments page. */
 export type PaymentRow = Schemas['PaymentRow']
@@ -130,6 +126,7 @@ export type Notice = Schemas['Notice']
 export type NoticePage = Schemas['Page_Notice_']
 export type NoticeStatus = Notice['status']
 export type MessageSettings = Schemas['MessageSettings']
+export type MessagePlaceholders = Schemas['MessagePlaceholders']
 
 /** Turns a FastAPI error body into one readable line. */
 function errorMessage(status: number, body: unknown): string {
@@ -189,8 +186,12 @@ export const api = {
 
   getDashboard: () => request<Dashboard>('/dashboard'),
 
+  getPaymentMethods: () => request<PaymentMethodName[]>('/payment-methods'),
+
   getReceipt: (paymentId: number) => request<Receipt>(`/payments/${paymentId}/receipt`),
   getMessageSettings: () => request<MessageSettings>('/settings/messages'),
+  getMessagePlaceholders: () =>
+    request<MessagePlaceholders>('/settings/messages/placeholders'),
   updateMessageSettings: (settings: MessageSettings) =>
     request<MessageSettings>('/settings/messages', sendJson('PUT', settings)),
   listNotices: (page: number, status?: NoticeStatus, sort?: Sort<NoticeSort> | null) =>

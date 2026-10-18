@@ -30,6 +30,19 @@ class PaymentMethod(StrEnum):
     BANK_TRANSFER = "bank_transfer"
 
 
+# As the Lender and Customers read them, on screen and in Receipts.
+METHOD_NAMES = {
+    PaymentMethod.CASH: "Cash",
+    PaymentMethod.UPI: "UPI",
+    PaymentMethod.BANK_TRANSFER: "Bank transfer",
+}
+
+
+class PaymentMethodName(BaseModel):
+    method: PaymentMethod
+    name: str
+
+
 class AllocationOut(BaseModel):
     mortgage_id: int
     mortgage_name: str
@@ -184,6 +197,15 @@ def _interest_paid(conn: Connection, payment_ids: Select[Any], today: date) -> i
 
 
 router = APIRouter(prefix="/api")
+
+
+@router.get("/payment-methods")
+def read_payment_methods() -> list[PaymentMethodName]:
+    """Every way a Payment can be made, with its name."""
+    return [
+        PaymentMethodName(method=method, name=name)
+        for method, name in METHOD_NAMES.items()
+    ]
 
 
 @router.get("/payments/{payment_id}")

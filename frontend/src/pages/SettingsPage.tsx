@@ -4,6 +4,7 @@ import {
   type BackupStatus,
   type CallListSettings,
   type GoldRate,
+  type MessagePlaceholders,
   type MessageSettings,
 } from '../api'
 import { Summary } from '../components/ConfirmDialog'
@@ -292,10 +293,6 @@ function CallListThresholds() {
   )
 }
 
-const RECEIPT_PLACEHOLDERS =
-  '{customer_name} {amount} {method} {reference} {date} {mortgages} {total_owed}'
-const NOTICE_PLACEHOLDERS = '{customer_name} {date} {interest} {mortgages} {total_owed}'
-
 /** One editable WhatsApp template, with how its formatting will look. */
 function TemplateField({
   label,
@@ -304,7 +301,8 @@ function TemplateField({
   onChange,
 }: {
   label: string
-  placeholders: string
+  /** The placeholders the backend can fill in this template, once they arrive. */
+  placeholders?: string[]
   value: string
   onChange: (value: string) => void
 }) {
@@ -314,7 +312,12 @@ function TemplateField({
         {label}
         <textarea rows={10} required value={value} onChange={(event) => onChange(event.target.value)} />
         <span className="hint">
-          Placeholders: <code>{placeholders}</code>. {'{mortgages}'} is a small table per
+          {placeholders && (
+            <>
+              Placeholders: <code>{placeholders.map((name) => `{${name}}`).join(' ')}</code>.{' '}
+            </>
+          )}
+          {'{mortgages}'} is a small table per
           Mortgage, showing its description, never the Mortgage Name. *bold*, _italic_ as in WhatsApp.
         </span>
       </label>
@@ -326,13 +329,14 @@ function TemplateField({
 /** The wording of Receipts and Notices, and when Notices are queued. */
 function MessageSettingsForm() {
   const [draft, setDraft] = useState<MessageSettings | null>(null)
+  const [placeholders, setPlaceholders] = useState<MessagePlaceholders | null>(null)
   const [status, setStatus] = useState<Status>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    api
-      .getMessageSettings()
-      .then(setDraft, (error: Error) => setStatus({ kind: 'error', text: error.message }))
+    const failed = (error: Error) => setStatus({ kind: 'error', text: error.message })
+    api.getMessageSettings().then(setDraft, failed)
+    api.getMessagePlaceholders().then(setPlaceholders, failed)
   }, [])
 
   async function save(event: FormEvent) {
@@ -360,13 +364,13 @@ function MessageSettingsForm() {
         <form onSubmit={save} className="stack">
           <TemplateField
             label="Receipt"
-            placeholders={RECEIPT_PLACEHOLDERS}
+            placeholders={placeholders?.receipt}
             value={draft.receipt_template}
             onChange={(receipt_template) => setDraft({ ...draft, receipt_template })}
           />
           <TemplateField
             label="Notice"
-            placeholders={NOTICE_PLACEHOLDERS}
+            placeholders={placeholders?.notice}
             value={draft.notice_template}
             onChange={(notice_template) => setDraft({ ...draft, notice_template })}
           />

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
+import { usePaymentMethods, type PaymentMethodNames } from './usePaymentMethods'
 import {
-  PAYMENT_METHODS,
   type AuditEntry,
   type InterestMode,
   type PartMonthRule,
@@ -103,7 +103,7 @@ function groupChanges(entries: AuditEntry[]): Change[] {
   return changes
 }
 
-function describe(change: Change, showMortgage: boolean) {
+function describe(change: Change, showMortgage: boolean, methods: PaymentMethodNames | null) {
   const [first] = change
   const valueOf = (field: string) => change.find((e) => e.field === field)?.new_value ?? null
   const subject =
@@ -137,7 +137,7 @@ function describe(change: Change, showMortgage: boolean) {
       <span className="hint">
         {' '}
         · {formatValue('amount', valueOf('amount'))}{' '}
-        {PAYMENT_METHODS[valueOf('method') as PaymentMethod] ?? ''}
+        {methods?.[valueOf('method') as PaymentMethod] ?? ''}
       </span>
     )
   }
@@ -170,6 +170,7 @@ export function History({
   const [entries, setEntries] = useState<AuditEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
+  const methods = usePaymentMethods()
 
   useEffect(() => {
     let replaced = false // by a newer reload, whose answer must win
@@ -190,7 +191,7 @@ export function History({
       {shown.map((change) => (
         <li key={change[0].id}>
           <span className="hint">{formatDateTime(change[0].at)}</span>{' '}
-          {describe(change, showMortgage)}
+          {describe(change, showMortgage, methods)}
         </li>
       ))}
     </ul>

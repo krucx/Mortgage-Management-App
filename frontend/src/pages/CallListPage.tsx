@@ -6,6 +6,7 @@ import { PersonLink } from '../components/PersonLink'
 import { SortButton, SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
 import { formatPercent } from '../format'
+import { sender } from '../messaging'
 import { formatINR } from '../money'
 
 /** Why a Mortgage is on the Call List, in words. */
@@ -26,9 +27,9 @@ function ContactLinks({ phone }: { phone: string }) {
   return (
     <span className="contact">
       <a href={`tel:+91${phone}`}>{phone}</a>
-      <a href={`https://wa.me/91${phone}`} target="_blank" rel="noreferrer">
+      <button type="button" className="link" onClick={() => sender.chat(phone)}>
         WhatsApp
-      </a>
+      </button>
     </span>
   )
 }

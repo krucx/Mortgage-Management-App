@@ -6,6 +6,11 @@ from datetime import date
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
 
+from mortgage_backend.messages import (
+    NOTICE_PLACEHOLDERS,
+    RECEIPT_PLACEHOLDERS,
+    unknown_placeholders,
+)
 from mortgage_backend.settings import ConfigGroup
 
 RECEIPT_TEMPLATE = (
@@ -51,3 +56,31 @@ def _sync_notices(conn: Connection, today: date) -> None:
 MESSAGE_SETTINGS = ConfigGroup.prefixed(
     "message_", MessageSettings, after_set=[_sync_notices]
 )
+
+
+class MessagePlaceholders(BaseModel):
+    """The placeholders each template may use."""
+
+    receipt: list[str]
+    notice: list[str]
+
+
+PLACEHOLDERS = MessagePlaceholders(
+    receipt=list(RECEIPT_PLACEHOLDERS), notice=list(NOTICE_PLACEHOLDERS)
+)
+
+
+def template_refusal(settings: MessageSettings) -> str | None:
+    """Why `settings` can't be saved: a template using a placeholder it can't fill
+    (it would reach the Customer as written)."""
+    for name, template, allowed in (
+        ("Receipt", settings.receipt_template, RECEIPT_PLACEHOLDERS),
+        ("Notice", settings.notice_template, NOTICE_PLACEHOLDERS),
+    ):
+        if unknown := unknown_placeholders(template, allowed):
+            usable = " ".join("{" + placeholder + "}" for placeholder in allowed)
+            return (
+                f"The {name} template can't fill {', '.join(unknown)}. "
+                f"It can use: {usable}"
+            )
+    return None

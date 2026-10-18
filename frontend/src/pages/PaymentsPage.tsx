@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { api, PAYMENT_METHODS, PAYMENT_SORTS, type PaymentPage } from '../api'
+import { api, PAYMENT_SORTS, type PaymentPage } from '../api'
+import { usePaymentMethods } from '../components/usePaymentMethods'
 import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
@@ -33,6 +34,7 @@ function years(chosen: string): string[] {
 
 /** All Payments received, newest first, filterable by who, what and when. */
 export function PaymentsPage() {
+  const methods = usePaymentMethods()
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounced(query)
   const [page, setPage] = useState(1)
@@ -209,7 +211,7 @@ export function PaymentsPage() {
                       ))}
                     </td>
                     <td>
-                      {PAYMENT_METHODS[payment.method]}
+                      {methods?.[payment.method]}
                       {payment.reference && <span className="hint"> · {payment.reference}</span>}
                     </td>
                     <td className="num">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { api, PAYMENT_METHODS, type Payment, type Receipt } from '../api'
+import { api, type Payment, type Receipt } from '../api'
+import { usePaymentMethods } from '../components/usePaymentMethods'
 import { PersonLink } from '../components/PersonLink'
 import { ChangePreview } from '../components/BeforeAfter'
 import { ReasonDialog } from '../components/ReasonDialog'
@@ -14,6 +15,7 @@ export function PaymentPage() {
   const [payment, setPayment] = useState<Payment | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [voiding, setVoiding] = useState(false)
+  const methods = usePaymentMethods()
 
   useEffect(() => {
     api
@@ -51,7 +53,7 @@ export function PaymentPage() {
         <dt>Received</dt>
         <dd>{formatDate(payment.paid_on)}</dd>
         <dt>Method</dt>
-        <dd>{PAYMENT_METHODS[payment.method]}</dd>
+        <dd>{methods?.[payment.method]}</dd>
         <dt>Reference</dt>
         <dd>{payment.reference ?? '—'}</dd>
       </dl>
