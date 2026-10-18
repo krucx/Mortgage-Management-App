@@ -272,7 +272,7 @@
         "title": "Body_post_photo_api_mortgages__mortgage_id__photos_post",
         "type": "object"
       },
-      "Body_replace_customer_photo_api_customers__customer_id__photo_put": {
+      "Body_put_customer_photo_api_customers__customer_id__photo_put": {
         "properties": {
           "photo": {
             "contentMediaType": "application/octet-stream",
@@ -283,7 +283,7 @@
         "required": [
           "photo"
         ],
-        "title": "Body_replace_customer_photo_api_customers__customer_id__photo_put",
+        "title": "Body_put_customer_photo_api_customers__customer_id__photo_put",
         "type": "object"
       },
       "CallListGroup": {
@@ -3252,7 +3252,7 @@
         "summary": "List Customers"
       },
       "post": {
-        "operationId": "create_customer_api_customers_post",
+        "operationId": "post_customer_api_customers_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3285,7 +3285,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Customer"
+        "summary": "Post Customer"
       }
     },
     "/api/customers/{customer_id}": {
@@ -3358,7 +3358,7 @@
         "summary": "Read Customer"
       },
       "put": {
-        "operationId": "update_customer_api_customers__customer_id__put",
+        "operationId": "put_customer_api_customers__customer_id__put",
         "parameters": [
           {
             "in": "path",
@@ -3402,7 +3402,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update Customer"
+        "summary": "Put Customer"
       }
     },
     "/api/customers/{customer_id}/history": {
@@ -3450,7 +3450,7 @@
     },
     "/api/customers/{customer_id}/photo": {
       "put": {
-        "operationId": "replace_customer_photo_api_customers__customer_id__photo_put",
+        "operationId": "put_customer_photo_api_customers__customer_id__photo_put",
         "parameters": [
           {
             "in": "path",
@@ -3466,7 +3466,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_replace_customer_photo_api_customers__customer_id__photo_put"
+                "$ref": "#/components/schemas/Body_put_customer_photo_api_customers__customer_id__photo_put"
               }
             }
           },
@@ -3494,7 +3494,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Replace Customer Photo"
+        "summary": "Put Customer Photo"
       }
     },
     "/api/dashboard": {

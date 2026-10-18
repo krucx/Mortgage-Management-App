@@ -81,8 +81,8 @@ export interface paths {
          */
         get: operations["list_customers_api_customers_get"];
         put?: never;
-        /** Create Customer */
-        post: operations["create_customer_api_customers_post"];
+        /** Post Customer */
+        post: operations["post_customer_api_customers_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -98,8 +98,8 @@ export interface paths {
         };
         /** Read Customer */
         get: operations["read_customer_api_customers__customer_id__get"];
-        /** Update Customer */
-        put: operations["update_customer_api_customers__customer_id__put"];
+        /** Put Customer */
+        put: operations["put_customer_api_customers__customer_id__put"];
         post?: never;
         /**
          * Delete Customer
@@ -136,8 +136,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Replace Customer Photo */
-        put: operations["replace_customer_photo_api_customers__customer_id__photo_put"];
+        /** Put Customer Photo */
+        put: operations["put_customer_photo_api_customers__customer_id__photo_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1081,8 +1081,8 @@ export interface components {
             /** Photo */
             photo: string;
         };
-        /** Body_replace_customer_photo_api_customers__customer_id__photo_put */
-        Body_replace_customer_photo_api_customers__customer_id__photo_put: {
+        /** Body_put_customer_photo_api_customers__customer_id__photo_put */
+        Body_put_customer_photo_api_customers__customer_id__photo_put: {
             /** Photo */
             photo: string;
         };
@@ -2271,7 +2271,7 @@ export interface operations {
             };
         };
     };
-    create_customer_api_customers_post: {
+    post_customer_api_customers_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2335,7 +2335,7 @@ export interface operations {
             };
         };
     };
-    update_customer_api_customers__customer_id__put: {
+    put_customer_api_customers__customer_id__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -2430,7 +2430,7 @@ export interface operations {
             };
         };
     };
-    replace_customer_photo_api_customers__customer_id__photo_put: {
+    put_customer_photo_api_customers__customer_id__photo_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -2441,7 +2441,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_replace_customer_photo_api_customers__customer_id__photo_put"];
+                "multipart/form-data": components["schemas"]["Body_put_customer_photo_api_customers__customer_id__photo_put"];
             };
         };
         responses: {
