@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   type Customer,
@@ -12,10 +12,9 @@ import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { CustomerChooser } from '../components/CustomerChooser'
 import { RedeemPaidOff } from '../components/RedeemPaidOff'
-import { useConfirm } from '../components/useConfirm'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
-import { usePreview } from '../components/usePreview'
+import { useProposedChange } from '../components/useProposedChange'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
@@ -91,9 +90,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const methods = usePaymentMethods()
   const [reference, setReference] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [confirm, confirmDialog] = useConfirm()
   const changeLedger = useLedgerChange()
   // After saving: Mortgages this Payment paid off, offered for Redemption.
   const [paidOff, setPaidOff] = useState<{ payment: Payment; mortgages: MortgageRow[] }>()
@@ -168,7 +164,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i] }))
             .filter((allocation) => allocation.amount > 0),
         }
-  const [refusal, setRefusal] = useState<string | null>(null)
 
   /** Switching to a manual mode starts from the current equal Allocations. */
   function switchMode(next: AllocationMode) {
@@ -189,29 +184,31 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     setSelected(next)
   }
 
-  async function save(event: FormEvent) {
-    event.preventDefault()
-    if (!proposed || !amounts || refusal) return
-    const confirmed = await confirm({
-      title: `Record a Payment of ${formatINR(total)}?`,
-      body: (
-        <Summary
-          rows={[
-            ['From', customer.name],
-            ['Received', formatDate(paidOn)],
-            ['Method', (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : '')],
-            ...chosen
-              .map((m, i): [string, string] => [m.name, formatINR(amounts[i])])
-              .filter((_, i) => amounts[i] > 0),
-          ]}
-        />
-      ),
-    })
-    if (!confirmed) return
-    setSaving(true)
-    setError(null)
-    try {
-      const payment = await changeLedger((client) => changes.recordPayment(client, proposed))
+  const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
+    // Previewed (and refused, if it would be) by the backend, as saving would.
+    preview: proposed && previews.payment(proposed),
+    ready: proposed !== null,
+    confirm: () =>
+      proposed && amounts && {
+        title: `Record a Payment of ${formatINR(total)}?`,
+        body: (
+          <Summary
+            rows={[
+              ['From', customer.name],
+              ['Received', formatDate(paidOn)],
+              [
+                'Method',
+                (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : ''),
+              ],
+              ...chosen
+                .map((m, i): [string, string] => [m.name, formatINR(amounts[i])])
+                .filter((_, i) => amounts[i] > 0),
+            ]}
+          />
+        ),
+      },
+    save: async () => {
+      const payment = await changeLedger((client) => changes.recordPayment(client, proposed!))
       const allocated = new Set(payment.allocations.map((a) => a.mortgage_id))
       // Any it left with nothing Outstanding, to offer for Redemption (asked for afresh:
       // the Payment made what was cached stale).
@@ -220,16 +217,17 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           .fetchQuery(everyMortgageQuery(client, { customerId: customer.id, status: 'active' }))
           .then((all) => all.items, () => [])
       ).filter((m) => allocated.has(m.id) && m.outstanding_total === 0)
-      if (cleared.length) setPaidOff({ payment, mortgages: cleared })
-      else navigate(`/payments/${payment.id}`)
-    } catch (err) {
-      setError((err as Error).message)
-      setSaving(false)
-    }
-  }
+      return { payment, cleared }
+    },
+    saved: ({ payment, cleared }) =>
+      cleared.length
+        ? setPaidOff({ payment, mortgages: cleared })
+        : navigate(`/payments/${payment.id}`),
+  })
+
 
   return (
-    <form onSubmit={save}>
+    <form onSubmit={submit}>
       <div className="grid-3">
         <label>
           Date received
@@ -408,9 +406,14 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           ))}
         </ul>
       )}
-      {proposed && <PaymentPreview proposed={proposed} onRefusal={setRefusal} />}
+      {proposed && (
+        <>
+          <h3>What changes</h3>
+          <PreviewSection preview={preview} />
+        </>
+      )}
       <div className="row">
-        <button type="submit" disabled={saving || !proposed || !!refusal}>
+        <button type="submit" disabled={!canSave}>
           {saving ? 'Saving…' : `Record Payment${total > 0 ? ` of ${formatINR(total)}` : ''}`}
         </button>
       </div>
@@ -426,24 +429,5 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         />
       )}
     </form>
-  )
-}
-
-/** What recording the Payment would do to each Mortgage, or why it would be refused. */
-function PaymentPreview({
-  proposed,
-  onRefusal,
-}: {
-  proposed: PaymentIn
-  onRefusal: (refusal: string | null) => void
-}) {
-  const preview = usePreview(previews.payment(proposed))
-  useEffect(() => onRefusal(preview.error), [preview.error, onRefusal])
-  useEffect(() => () => onRefusal(null), [onRefusal])
-  return (
-    <>
-      <h3>What changes</h3>
-      <PreviewSection preview={preview} />
-    </>
   )
 }

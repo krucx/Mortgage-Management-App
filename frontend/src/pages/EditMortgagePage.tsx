@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { PURITIES, type Mortgage, type MortgageEdit, type Purity } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
-import { useConfirm } from '../components/useConfirm'
-import { usePreview } from '../components/usePreview'
+import { useProposedChange } from '../components/useProposedChange'
 import { formatDate, formatGrams, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { changes, mortgageQuery, previews } from '../requests'
@@ -38,9 +37,6 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     net: mgToGrams(mortgage.net_weight_mg),
     purity: mortgage.purity_karat as Purity,
   })
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [confirm, confirmDialog] = useConfirm()
   const changeMortgage = useMortgageChange()
 
   const edited: MortgageEdit = {
@@ -56,7 +52,6 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
   const numbersChanged =
     Number(fields.amountLent) > 0 &&
     (fields.start_date !== mortgage.start_date || edited.amount_lent !== mortgage.amount_lent)
-  const preview = usePreview(numbersChanged ? previews.edit(id, edited) : null)
 
   const was = mortgage
   const edits: [string, string][] = [
@@ -75,9 +70,10 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
   const set = (field: keyof typeof fields) => (value: string) =>
     setFields({ ...fields, [field]: value })
 
-  async function save(event: FormEvent) {
-    event.preventDefault()
-    const confirmed = await confirm({
+  const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
+    preview: numbersChanged ? previews.edit(id, edited) : null,
+    ready: edits.length > 0,
+    confirm: () => ({
       title: `Save changes to ${was.name}?`,
       body: (
         <>
@@ -87,18 +83,10 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
           )}
         </>
       ),
-    })
-    if (!confirmed) return
-    setSaving(true)
-    setError(null)
-    try {
-      await changeMortgage((client) => changes.edit(client, id, edited))
-      navigate(`/mortgages/${id}`)
-    } catch (err) {
-      setError((err as Error).message)
-      setSaving(false)
-    }
-  }
+    }),
+    save: () => changeMortgage((client) => changes.edit(client, id, edited)),
+    saved: () => navigate(`/mortgages/${id}`),
+  })
 
   return (
     <section className="card wide">
@@ -109,7 +97,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
           ` It is ${mortgage.status}, so its start date and Principal stay as they were; ` +
             'reopen it to change them.'}
       </p>
-      <form onSubmit={save}>
+      <form onSubmit={submit}>
         <label>
           Mortgage Name
           <input required value={fields.name} onChange={(e) => set('name')(e.target.value)} />
@@ -193,7 +181,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
           </>
         )}
         <div className="row">
-          <button type="submit" disabled={saving || edits.length === 0 || !!preview.error}>
+          <button type="submit" disabled={!canSave}>
             {saving ? 'Saving…' : 'Save changes'}
           </button>
           <button type="button" className="secondary" onClick={() => navigate(-1)}>

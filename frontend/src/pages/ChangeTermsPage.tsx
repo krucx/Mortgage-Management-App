@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import type { Mortgage } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { TermsFields } from '../components/TermsFields'
-import { useConfirm } from '../components/useConfirm'
-import { usePreview } from '../components/usePreview'
+import { useProposedChange } from '../components/useProposedChange'
 import { formatDate, todayIso } from '../format'
 import { changes, mortgageQuery, previews } from '../requests'
 import { useMortgageChange, useServerState } from '../serverState'
@@ -39,9 +38,6 @@ function ChangeTermsForm({ mortgage }: { mortgage: Mortgage }) {
     return free.find((day) => day > today) ?? free[0] ?? ''
   })
   const [draft, setDraft] = useState<TermsDraft>(() => toDraft(mortgage.terms))
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [confirm, confirmDialog] = useConfirm()
   const changeMortgage = useMortgageChange()
 
   // The Terms in force on the chosen date: a coming Term Change before it, or today's.
@@ -51,40 +47,28 @@ function ChangeTermsForm({ mortgage }: { mortgage: Mortgage }) {
   const after = Number(draft.ratePercent) > 0 ? fromDraft(draft) : null
   const changed = Boolean(after && effectiveOn && !sameTerms(before, after))
 
-  // Re-previewed whenever the date or the new Terms change.
-  const preview = usePreview(
-    changed && after ? previews.termChange(id, { effective_on: effectiveOn, ...after }) : null,
-  )
+  const change = changed && after ? { effective_on: effectiveOn, ...after } : null
   const free = freeDates(mortgage)
 
-  async function save(event: FormEvent) {
-    event.preventDefault()
-    if (!after || !changed) return
-    const confirmed = await confirm({
+  // Re-previewed whenever the date or the new Terms change.
+  const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
+    preview: change && previews.termChange(id, change),
+    ready: change !== null,
+    confirm: () => ({
       title: 'Change the Terms?',
       body: (
         <Summary
           rows={[
             ['From', formatDate(effectiveOn)],
             ['Before', describeTerms(before)],
-            ['After', describeTerms(after)],
+            ['After', after ? describeTerms(after) : ''],
           ]}
         />
       ),
-    })
-    if (!confirmed) return
-    setSaving(true)
-    setError(null)
-    try {
-      await changeMortgage((client) =>
-        changes.addTermChange(client, id, { effective_on: effectiveOn, ...after }),
-      )
-      navigate(`/mortgages/${id}`)
-    } catch (err) {
-      setError((err as Error).message)
-      setSaving(false)
-    }
-  }
+    }),
+    save: () => changeMortgage((client) => changes.addTermChange(client, id, change!)),
+    saved: () => navigate(`/mortgages/${id}`),
+  })
 
   return (
     <section className="card wide">
@@ -96,7 +80,7 @@ function ChangeTermsForm({ mortgage }: { mortgage: Mortgage }) {
       {mortgage.status !== 'active' ? (
         <p className="hint">This Mortgage is {mortgage.status}.</p>
       ) : (
-        <form onSubmit={save} className="stack">
+        <form onSubmit={submit} className="stack">
           <label>
             From the Accrual Date
             <select value={effectiveOn} onChange={(e) => setEffectiveOn(e.target.value)}>
@@ -121,7 +105,7 @@ function ChangeTermsForm({ mortgage }: { mortgage: Mortgage }) {
           )}
 
           <div className="row">
-            <button type="submit" disabled={saving || !changed || !!preview.error}>
+            <button type="submit" disabled={!canSave}>
               {saving ? 'Saving…' : 'Save Term Change'}
             </button>
             <button type="button" className="secondary" onClick={() => navigate(-1)}>
