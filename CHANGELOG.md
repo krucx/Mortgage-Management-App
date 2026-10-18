@@ -5,6 +5,37 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [1.1.1] - 2026-10-19
+
+A cleaner Call List. No database changes: updating keeps all data and Backups.
+
+### Changed
+
+- **Call List:** one table with a row per Mortgage, grouped by Customer. The Customer
+  appears once beside all their rows, with:
+  - the number of their Mortgages on the list, linking to them on the Mortgages page;
+  - their total Outstanding;
+  - each number's Call and WhatsApp buttons on one line.
+
+  A heavier line separates one Customer from the next.
+- **Call List reasons** are coloured oval status markers with the figure inside
+  ("15 mo", "104.5%", "Today"), and the legend at the top uses the same markers. The full
+  wording shows on hover and is read out by screen readers.
+- **Notices:** a Notice waiting to send has a compact WhatsApp button with a short "Send"
+  in its row, beside Skip. It still opens the message to review first.
+
+### Added
+
+- **Mortgages page:** `?customer=` shows one Customer's Mortgages only, says whose they
+  are, and has a **Show every Customer** button. The Call List's count links here.
+
+### Upgrading
+
+```sh
+git pull
+docker compose up -d --build
+```
+
 ## [1.1.0] - 2026-10-19
 
 The same features as 1.0.0, kept in step across every page, with a light/dark switch and
@@ -108,5 +139,6 @@ The first complete release, running on the Lender's own laptop with Docker Compo
 - **Safekeeping:** History of every change, never edited; password-protected Backups
   weekly and before every database update, into a synced folder.
 
+[1.1.1]: https://github.com/krucx/Mortgage-Management-App/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/krucx/Mortgage-Management-App/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/krucx/Mortgage-Management-App/releases/tag/1.0.0
