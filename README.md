@@ -2,6 +2,8 @@
 
 App for a jewellery Lender to manage Mortgages, Payments and follow-ups. It runs entirely on the Lender's own laptop. Domain terms are defined in [GLOSSARY.md](GLOSSARY.md); key decisions are in [Documentation/adr](Documentation/adr).
 
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md). A walkthrough of every page, and the app told as a story, are at <https://krucx.github.io/Mortgage-Management-App/>.
+
 ## Running it (Lender)
 
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and start it.

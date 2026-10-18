@@ -3,6 +3,7 @@
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import date, datetime
+from importlib.metadata import version
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
@@ -71,7 +72,10 @@ def create_app(
         yield
         backup.wait(timeout=8)  # let a running Backup finish if it can
 
-    app = FastAPI(title="Mortgage Management", lifespan=lifespan)
+    # The version in pyproject.toml, reported in the API schema.
+    app = FastAPI(
+        title="Mortgage Management", version=version("mortgage-backend"), lifespan=lifespan
+    )
     app.state.engine = engine
     app.state.photos_dir = photos_dir(database_url)
     app.state.today = today
