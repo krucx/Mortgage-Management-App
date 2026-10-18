@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { MORTGAGE_SORTS, type MortgageStatus } from '../api'
@@ -6,7 +7,8 @@ import { useListPage } from '../components/useListPage'
 import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { isMonth } from '../format'
-import { lists } from '../requests'
+import { customerQuery, lists } from '../requests'
+import { useServerState } from '../serverState'
 
 const STATUSES: MortgageStatus[] = ['active', 'redeemed', 'forfeited']
 
@@ -27,6 +29,10 @@ export function MortgagesPage() {
       ? ''
       : (STATUSES.find((s) => s === statusParam) ?? (closedIn ? '' : 'active'))
   const closedFilter = statusFilter === 'active' ? '' : closedIn
+  // One Customer's only (e.g. from the Call List's count of their Mortgages).
+  const customerId = Number(searchParams.get('customer')) || undefined
+  const { client } = useServerState()
+  const customer = useQuery({ ...customerQuery(client, customerId ?? 0), enabled: !!customerId }).data
   // Any change of filter starts again at page 1.
   const {
     listed: result,
@@ -37,6 +43,7 @@ export function MortgagesPage() {
     MORTGAGE_SORTS,
     lists.mortgages({
       query: debouncedQuery,
+      customerId,
       status: statusFilter || undefined,
       closedIn: closedFilter || undefined,
     }),
@@ -84,6 +91,17 @@ export function MortgagesPage() {
           </label>
         )}
       </div>
+      {customerId && (
+        <p className="row filter-note">
+          <span>
+            Only {customer ? <Link to={`/customers/${customerId}`}>{customer.name}</Link> : 'one Customer'}
+            's Mortgages
+          </span>
+          <button type="button" className="secondary small" onClick={() => setFilters({ customer: null })}>
+            Show every Customer
+          </button>
+        </p>
+      )}
       <input
         autoFocus
         type="search"
@@ -94,7 +112,7 @@ export function MortgagesPage() {
       {error && <p className="status error">{error}</p>}
       {result && result.total === 0 ? (
         <p className="hint">
-          {debouncedQuery || closedFilter ? 'No Mortgages match.' : 'No Mortgages yet.'}
+          {debouncedQuery || closedFilter || customerId ? 'No Mortgages match.' : 'No Mortgages yet.'}
         </p>
       ) : (
         result && <MortgageTable rows={result.items} sorting={sorting} />

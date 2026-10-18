@@ -725,8 +725,101 @@ textarea {
   min-width: 0;
 }
 
-.call-group {
-  margin-bottom: 1.5rem;
+/* The Call List: one row per Customer, opening to show their Mortgages. */
+.call-table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: 52rem;
+  width: 100%;
+}
+
+.call-table .w-customer { width: 28%; }
+.call-table .w-why { width: 27%; }
+.call-table .w-owed { width: 11%; }
+.call-table .w-called { width: 14%; }
+.call-table .w-contact { width: 20%; }
+
+.call-table tbody.call-customer {
+  border-top: 1px solid var(--border);
+}
+
+.call-table tr.call-summary td {
+  background: var(--accent-soft);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.call-table tr.call-summary td:nth-child(2) {
+  white-space: normal;
+}
+
+.call-who {
+  display: grid;
+  line-height: 1.3;
+}
+
+.call-count {
+  font-size: 0.85rem;
+}
+
+.call-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.disclosure {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.disclosure svg {
+  transition: transform 0.15s ease;
+}
+
+.disclosure[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.call-table tr.call-mortgage td {
+  border-top: 1px dashed var(--border);
+  vertical-align: middle;
+}
+
+.call-table tr.call-mortgage td:first-child {
+  padding-left: 2.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.call-table tr.call-mortgage td:last-child {
+  white-space: nowrap;
+}
+
+.call-table tr.call-noting td {
+  border-top: none;
+  padding-top: 0;
+}
+
+.call-contacts {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disclosure svg {
+    transition: none;
+  }
 }
 
 tr.called td {
