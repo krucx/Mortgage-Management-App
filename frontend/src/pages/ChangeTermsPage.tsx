@@ -47,26 +47,25 @@ function ChangeTermsForm({ mortgage }: { mortgage: Mortgage }) {
   const after = Number(draft.ratePercent) > 0 ? fromDraft(draft) : null
   const changed = Boolean(after && effectiveOn && !sameTerms(before, after))
 
-  const change = changed && after ? { effective_on: effectiveOn, ...after } : null
   const free = freeDates(mortgage)
 
-  // Re-previewed whenever the date or the new Terms change.
   const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
-    preview: change && previews.termChange(id, change),
-    ready: change !== null,
-    confirm: () => ({
+    change: changed && after ? { effective_on: effectiveOn, ...after } : null,
+    // Re-previewed whenever the date or the new Terms change.
+    preview: (change) => previews.termChange(id, change),
+    confirm: (change) => ({
       title: 'Change the Terms?',
       body: (
         <Summary
           rows={[
             ['From', formatDate(effectiveOn)],
             ['Before', describeTerms(before)],
-            ['After', after ? describeTerms(after) : ''],
+            ['After', describeTerms(change)],
           ]}
         />
       ),
     }),
-    save: () => changeMortgage((client) => changes.addTermChange(client, id, change!)),
+    save: (change) => changeMortgage((client) => changes.addTermChange(client, id, change)),
     saved: () => navigate(`/mortgages/${id}`),
   })
 

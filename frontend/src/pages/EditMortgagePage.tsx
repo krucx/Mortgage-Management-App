@@ -71,8 +71,8 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     setFields({ ...fields, [field]: value })
 
   const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
-    preview: numbersChanged ? previews.edit(id, edited) : null,
-    ready: edits.length > 0,
+    change: edits.length > 0 ? edited : null,
+    preview: (edit) => (numbersChanged ? previews.edit(id, edit) : null),
     confirm: () => ({
       title: `Save changes to ${was.name}?`,
       body: (
@@ -84,7 +84,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
         </>
       ),
     }),
-    save: () => changeMortgage((client) => changes.edit(client, id, edited)),
+    save: (edit) => changeMortgage((client) => changes.edit(client, id, edit)),
     saved: () => navigate(`/mortgages/${id}`),
   })
 

@@ -185,30 +185,29 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   }
 
   const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
-    // Previewed (and refused, if it would be) by the backend, as saving would.
-    preview: proposed && previews.payment(proposed),
-    ready: proposed !== null,
-    confirm: () =>
-      proposed && amounts && {
-        title: `Record a Payment of ${formatINR(total)}?`,
-        body: (
-          <Summary
-            rows={[
-              ['From', customer.name],
-              ['Received', formatDate(paidOn)],
-              [
-                'Method',
-                (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : ''),
-              ],
-              ...chosen
-                .map((m, i): [string, string] => [m.name, formatINR(amounts[i])])
-                .filter((_, i) => amounts[i] > 0),
-            ]}
-          />
-        ),
-      },
-    save: async () => {
-      const payment = await changeLedger((client) => changes.recordPayment(client, proposed!))
+    change: proposed,
+    preview: (payment) => previews.payment(payment),
+    confirm: (payment) => ({
+      title: `Record a Payment of ${formatINR(payment.amount)}?`,
+      body: (
+        <Summary
+          rows={[
+            ['From', customer.name],
+            ['Received', formatDate(paidOn)],
+            [
+              'Method',
+              (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : ''),
+            ],
+            ...payment.allocations.map((a): [string, string] => [
+              chosen.find((m) => m.id === a.mortgage_id)?.name ?? '',
+              formatINR(a.amount),
+            ]),
+          ]}
+        />
+      ),
+    }),
+    save: async (asked) => {
+      const payment = await changeLedger((client) => changes.recordPayment(client, asked))
       const allocated = new Set(payment.allocations.map((a) => a.mortgage_id))
       // Any it left with nothing Outstanding, to offer for Redemption (asked for afresh:
       // the Payment made what was cached stale).
@@ -219,12 +218,11 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       ).filter((m) => allocated.has(m.id) && m.outstanding_total === 0)
       return { payment, cleared }
     },
-    saved: ({ payment, cleared }) =>
-      cleared.length
-        ? setPaidOff({ payment, mortgages: cleared })
-        : navigate(`/payments/${payment.id}`),
+    saved: ({ payment, cleared }) => {
+      if (cleared.length) setPaidOff({ payment, mortgages: cleared })
+      else navigate(`/payments/${payment.id}`)
+    },
   })
-
 
   return (
     <form onSubmit={submit}>

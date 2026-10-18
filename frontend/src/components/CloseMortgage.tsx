@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import type { ForfeitIn, Mortgage, PaymentMethod, RedeemIn } from '../api'
+import type { ForfeitIn, Mortgage, PaymentMethod, RedeemIn, Redemption } from '../api'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { changes, previews, redemptionQuery } from '../requests'
@@ -58,23 +58,27 @@ export function CloseMortgage({
   const profitLoss = redemption && recovered ? recoveredPaise - redemption.total : null
   const future = on > todayIso() // a quote only: nothing can be recorded for a future date
 
-  // What saving would send; re-previewed whenever it changes.
+  // What saving would send for each; re-previewed whenever it changes.
   const redeem: RedeemIn = { redeemed_on: on, method, reference: reference.trim() || null }
   const forfeit: ForfeitIn = { forfeited_on: on, recovered_amount: recoveredPaise, note }
+  // The Closure as it would be made: either kind, with what it takes on that date.
+  type Proposed =
+    | { action: 'redeem'; redemption: Redemption; body: RedeemIn }
+    | { action: 'forfeit'; redemption: Redemption; body: ForfeitIn }
+  const proposed: Proposed | null =
+    !action || !redemption || future
+      ? null
+      : action === 'redeem'
+        ? { action, redemption, body: redeem }
+        : { action, redemption, body: forfeit }
   const { preview, submit, canSave, error, confirmDialog } = useProposedChange({
-    preview:
-      !redemption || future
-        ? null
-        : action === 'redeem'
-          ? previews.redeem(mortgage.id, redeem)
-          : action === 'forfeit'
-            ? previews.forfeit(mortgage.id, forfeit)
-            : null,
-    ready: Boolean(action && redemption && !future),
-    confirm: () =>
-      !redemption
-        ? null
-        : action === 'redeem'
+    change: proposed,
+    preview: (closure) =>
+      closure.action === 'redeem'
+        ? previews.redeem(mortgage.id, closure.body)
+        : previews.forfeit(mortgage.id, closure.body),
+    confirm: ({ action, redemption }) =>
+      action === 'redeem'
         ? {
             title: `Redeem ${mortgage.name}?`,
             body: (
@@ -107,11 +111,11 @@ export function CloseMortgage({
             confirmLabel: 'Confirm Forfeiture',
             danger: true,
           },
-    save: () =>
+    save: (closure) =>
       changeMortgage((client) =>
-        action === 'redeem'
-          ? changes.redeem(client, mortgage.id, redeem)
-          : changes.forfeit(client, mortgage.id, forfeit),
+        closure.action === 'redeem'
+          ? changes.redeem(client, mortgage.id, closure.body)
+          : changes.forfeit(client, mortgage.id, closure.body),
       ),
     saved: onClosed,
   })
