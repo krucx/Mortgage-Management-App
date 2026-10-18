@@ -1,42 +1,47 @@
-"""Changes to Mortgages and Payments, each made in one place: recording and Voiding
-Payments, edits, adding and removing Term Changes, and Redeeming, Forfeiting and
-Reopening.
+"""Changes to Mortgages and Payments, each made in one place: creating Mortgages,
+recording and Voiding Payments, edits, Collateral Values set by hand, photos, adding
+and removing Term Changes, and Redeeming, Forfeiting and Reopening.
 
 Every change is refused if it isn't allowed, written, then checked by replaying each
-Mortgage it touches (no Payment may end up larger than what was owed on its date), and
-then recorded in History. The request handlers only parse, call and answer; Previews make the
+Mortgage whose Ledger it touches (no Payment may end up larger than what was owed on its
+date), and then recorded in History. The request handlers only parse, call and answer; Previews make the
 same change and roll it back.
 """
 
 from collections.abc import Sequence
 from datetime import date, datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend import audit
+from mortgage_backend import audit, photos
 from mortgage_backend.clock import NowDep, TodayDep
 from mortgage_backend.db import (
     EngineDep,
     allocation_table,
     customer_table,
     exists,
+    mortgage_photo_table,
     mortgage_table,
     payment_table,
     term_change_table,
 )
+from mortgage_backend.default_terms import DEFAULT_TERMS
 from mortgage_backend.errors import unprocessable
 from mortgage_backend.ledger import Overpayment, is_accrual_date
 from mortgage_backend.money import format_inr
 from mortgage_backend.mortgages import (
     Mortgage,
     MortgageEdit,
+    MortgageIn,
     load_mortgage,
+    name_for,
     upcoming_accrual_dates,
 )
 from mortgage_backend.payments import Payment, PaymentMethod, load_payment, mortgages_of
+from mortgage_backend.photos import PhotosDirDep
 from mortgage_backend.replay import (
     MortgageReplay,
     MortgageStatus,
@@ -356,6 +361,108 @@ def edit_mortgage(
         audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
 
 
+_AUDITED_ON_CREATE = [
+    "customer_id",
+    "name",
+    "start_date",
+    "amount_lent",
+    "description",
+    "gross_weight_mg",
+    "net_weight_mg",
+    "purity_karat",
+    "monthly_rate_bps",
+    "interest_mode",
+    "part_month_rule",
+]
+
+
+def create_mortgage(
+    conn: Connection, mortgage: MortgageIn, today: date, now: datetime
+) -> int:
+    """Lend against a packet of jewellery (or refuse): named if no name is given, on
+    the Default Terms if none are."""
+    if mortgage.start_date > today:
+        raise unprocessable("Start date cannot be in the future")
+    name = name_for(conn, mortgage)
+    terms = mortgage.terms or DEFAULT_TERMS.get(conn)
+    mortgage_id: int = conn.execute(
+        insert(mortgage_table)
+        .values(
+            **mortgage.model_dump(exclude={"name", "terms"}),
+            **terms.model_dump(),
+            name=name,
+        )
+        .returning(mortgage_table.c.id)
+    ).scalar_one()
+    audit.record(
+        conn,
+        now,
+        "mortgage",
+        mortgage_id,
+        "created",
+        audit.created(mortgage_row(conn, mortgage_id), _AUDITED_ON_CREATE),
+    )
+    return mortgage_id
+
+
+def set_collateral(
+    conn: Connection, mortgage_id: int, value: int | None, today: date, now: datetime
+) -> None:
+    """Set the Collateral Value by hand, or clear it (None) to value the jewellery at
+    the Gold Rate again; only while the jewellery is held (Active)."""
+    before = mortgage_row(conn, mortgage_id)
+    _refuse_unless_active(before)
+    if value is not None and value <= 0:
+        raise unprocessable("A Collateral Value must be more than ₹0")
+    conn.execute(
+        update(mortgage_table)
+        .where(mortgage_table.c.id == mortgage_id)
+        .values(
+            collateral_override=value,
+            collateral_override_on=None if value is None else today,
+        )
+    )
+    changed = audit.changes(
+        before, {"collateral_override": value}, ["collateral_override"]
+    )
+    if changed:
+        audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
+
+
+def add_photo(
+    conn: Connection, mortgage_id: int, file_name: str, now: datetime
+) -> int:
+    """Keep a photo of the jewellery, already saved as `file_name`; its id."""
+    mortgage_row(conn, mortgage_id)  # refused if there is no such Mortgage
+    photo_id: int = conn.execute(
+        insert(mortgage_photo_table)
+        .values(mortgage_id=mortgage_id, file=file_name)
+        .returning(mortgage_photo_table.c.id)
+    ).scalar_one()
+    audit.record(conn, now, "mortgage", mortgage_id, "photo_added")
+    return photo_id
+
+
+def remove_photo(
+    conn: Connection, mortgage_id: int, photo_id: int, now: datetime
+) -> str:
+    """Stop keeping one of the Mortgage's photos; its file name, to delete once this
+    is saved."""
+    file_name: str | None = conn.execute(
+        select(mortgage_photo_table.c.file).where(
+            mortgage_photo_table.c.id == photo_id,
+            mortgage_photo_table.c.mortgage_id == mortgage_id,
+        )
+    ).scalar()
+    if file_name is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Photo not found")
+    conn.execute(
+        delete(mortgage_photo_table).where(mortgage_photo_table.c.id == photo_id)
+    )
+    audit.record(conn, now, "mortgage", mortgage_id, "photo_removed")
+    return file_name
+
+
 def closable(
     conn: Connection, mortgage_id: int, on: date, today: date, quote_only: bool = False
 ) -> MortgageReplay:
@@ -611,3 +718,63 @@ def post_reopen(
     with engine.begin() as conn:
         reopen(conn, mortgage_id, body.reason, today, now)
         return load_mortgage(conn, mortgage_id, today)
+
+
+@router.post("/mortgages", status_code=status.HTTP_201_CREATED)
+def post_mortgage(
+    mortgage: MortgageIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> Mortgage:
+    with engine.begin() as conn:
+        mortgage_id = create_mortgage(conn, mortgage, today, now)
+        return load_mortgage(conn, mortgage_id, today)
+
+
+class CollateralIn(BaseModel):
+    value: int | None = Field(default=None, gt=0)  # paise; None: the Gold Rate again
+
+
+@router.put("/mortgages/{mortgage_id}/collateral")
+def put_collateral(
+    mortgage_id: int,
+    collateral: CollateralIn,
+    engine: EngineDep,
+    today: TodayDep,
+    now: NowDep,
+) -> Mortgage:
+    """Set the Collateral Value by hand, or clear it to value at the Gold Rate again."""
+    with engine.begin() as conn:
+        set_collateral(conn, mortgage_id, collateral.value, today, now)
+        return load_mortgage(conn, mortgage_id, today)
+
+
+@router.post("/mortgages/{mortgage_id}/photos")
+async def post_photo(
+    mortgage_id: int,
+    photo: UploadFile,
+    engine: EngineDep,
+    photos_dir: PhotosDirDep,
+    today: TodayDep,
+    now: NowDep,
+) -> Mortgage:
+    with engine.connect() as conn:
+        mortgage_row(conn, mortgage_id)  # refused before saving a file for nothing
+    file_name = photos.save_photo(photos_dir, "mortgage", mortgage_id, await photo.read())
+    with engine.begin() as conn:
+        add_photo(conn, mortgage_id, file_name, now)
+        return load_mortgage(conn, mortgage_id, today)
+
+
+@router.delete("/mortgages/{mortgage_id}/photos/{photo_id}")
+def delete_photo(
+    mortgage_id: int,
+    photo_id: int,
+    engine: EngineDep,
+    photos_dir: PhotosDirDep,
+    today: TodayDep,
+    now: NowDep,
+) -> Mortgage:
+    with engine.begin() as conn:
+        file_name = remove_photo(conn, mortgage_id, photo_id, now)
+        mortgage = load_mortgage(conn, mortgage_id, today)
+    photos.delete_photo(photos_dir, file_name)
+    return mortgage

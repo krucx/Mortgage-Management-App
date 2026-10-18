@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { api, PURITIES, type Customer, type MortgageRow, type Purity } from '../api'
+import { api, PURITIES, type Customer, type MortgageIn, type MortgageRow, type Purity } from '../api'
+import { NewMortgageForecast } from '../components/ChangeForecasts'
 import { CustomerChooser } from '../components/CustomerChooser'
 import { Summary } from '../components/ConfirmDialog'
 import { MortgageTable } from '../components/MortgageTable'
@@ -146,26 +147,40 @@ function MortgageForm({ customer }: { customer: Customer }) {
   async function save(event: FormEvent) {
     event.preventDefault()
     if (!terms) return
+    const chosenTerms = fromDraft(terms)
+    const asked: MortgageIn = {
+      customer_id: customer.id,
+      name: name.trim() || null,
+      start_date: fields.start_date,
+      amount_lent: rupeesToPaise(fields.amountLent),
+      description: fields.description,
+      gross_weight_mg: gramsToMg(fields.gross),
+      net_weight_mg: gramsToMg(fields.net),
+      purity_karat: fields.purity,
+      terms: chosenTerms,
+    }
     if (createdId === undefined) {
-      const chosenTerms = fromDraft(terms)
       const confirmed = await confirm({
         title: `Create Mortgage ${name}?`,
         body: (
-          <Summary
-            rows={[
-              ['Customer', customer.name],
-              ['Start date', formatDate(fields.start_date)],
-              ['Amount lent', formatINR(rupeesToPaise(fields.amountLent))],
-              ['Jewellery', fields.description],
-              ['Weight', `${fields.gross} g gross, ${fields.net} g net, ${fields.purity}K`],
-              [
-                'Terms',
-                `${formatRate(chosenTerms.monthly_rate_bps)} a month · ` +
-                  INTEREST_MODES[chosenTerms.interest_mode],
-              ],
-              ['Photos', String(photos.length)],
-            ]}
-          />
+          <>
+            <Summary
+              rows={[
+                ['Customer', customer.name],
+                ['Start date', formatDate(fields.start_date)],
+                ['Amount lent', formatINR(rupeesToPaise(fields.amountLent))],
+                ['Jewellery', fields.description],
+                ['Weight', `${fields.gross} g gross, ${fields.net} g net, ${fields.purity}K`],
+                [
+                  'Terms',
+                  `${formatRate(chosenTerms.monthly_rate_bps)} a month · ` +
+                    INTEREST_MODES[chosenTerms.interest_mode],
+                ],
+                ['Photos', String(photos.length)],
+              ]}
+            />
+            <NewMortgageForecast mortgage={asked} />
+          </>
         ),
       })
       if (!confirmed) return
@@ -176,17 +191,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
     try {
       let id = createdId
       if (id === undefined) {
-        const created = await api.createMortgage({
-          customer_id: customer.id,
-          name: name.trim() || null,
-          start_date: fields.start_date,
-          amount_lent: rupeesToPaise(fields.amountLent),
-          description: fields.description,
-          gross_weight_mg: gramsToMg(fields.gross),
-          net_weight_mg: gramsToMg(fields.net),
-          purity_karat: fields.purity,
-          terms: fromDraft(terms),
-        })
+        const created = await api.createMortgage(asked)
         id = created.id
         setCreatedId(id)
       }

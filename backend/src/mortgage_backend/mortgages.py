@@ -5,44 +5,38 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import (
     Select,
     case,
-    delete,
     func,
-    insert,
     or_,
     select,
     true,
 )
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend import audit
-from mortgage_backend.clock import MonthQuery, NowDep, TodayDep, month_span
+from mortgage_backend.clock import MonthQuery, TodayDep, month_span
 from mortgage_backend.collateral import Collateral, Purity, collateral_of, gold_rates
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
     EngineDep,
     customer_table,
-    exists,
     mortgage_photo_table,
     mortgage_table,
 )
-from mortgage_backend.default_terms import DEFAULT_TERMS
 from mortgage_backend.errors import unprocessable
 from mortgage_backend.ledger import (
     LedgerStep,
     accrual_date,
 )
 from mortgage_backend.paging import Page, PageNumber, Sorting, query_page, rows_page
-from mortgage_backend.photos import PhotosDirDep, delete_photo, photo_url, save_photo
+from mortgage_backend.photos import photo_url
 from mortgage_backend.replay import (
     MortgageReplay,
     MortgageStatus,
     Outstanding,
-    mortgage_row,
     replays,
 )
 from mortgage_backend.terms import Terms
@@ -79,21 +73,6 @@ class MortgageIn(MortgageDetails):
 
 class MortgageEdit(MortgageDetails):
     name: str
-
-
-_AUDITED_ON_CREATE = [
-    "customer_id",
-    "name",
-    "start_date",
-    "amount_lent",
-    "description",
-    "gross_weight_mg",
-    "net_weight_mg",
-    "purity_karat",
-    "monthly_rate_bps",
-    "interest_mode",
-    "part_month_rule",
-]
 
 
 class MortgagePhoto(BaseModel):
@@ -317,6 +296,22 @@ def _customer_name(conn: Connection, customer_id: int) -> str:
     return name
 
 
+def name_for(conn: Connection, mortgage: MortgageIn) -> str:
+    """The new Mortgage's Mortgage Name: the one given, or one suggested from its
+    Customer, year and jewellery; refused for an unknown Customer or a name in use."""
+    customer_name = _customer_name(conn, mortgage.customer_id)
+    if mortgage.name is None:
+        return _suggest_name(
+            conn, customer_name, mortgage.start_date, mortgage.description
+        )
+    if _unique_name(conn, mortgage.name) != mortgage.name:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"The Mortgage Name {mortgage.name} is already used",
+        )
+    return mortgage.name
+
+
 router = APIRouter(prefix="/api")
 
 
@@ -330,46 +325,6 @@ def suggested_name(
                 conn, _customer_name(conn, customer_id), start_date, description
             )
         }
-
-
-@router.post("/mortgages", status_code=status.HTTP_201_CREATED)
-def create_mortgage(
-    mortgage: MortgageIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> Mortgage:
-    if mortgage.start_date > today:
-        raise unprocessable("Start date cannot be in the future")
-    with engine.begin() as conn:
-        customer_name = _customer_name(conn, mortgage.customer_id)
-        if mortgage.name is None:
-            name = _suggest_name(
-                conn, customer_name, mortgage.start_date, mortgage.description
-            )
-        elif _unique_name(conn, mortgage.name) != mortgage.name:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"The Mortgage Name {mortgage.name} is already used",
-            )
-        else:
-            name = mortgage.name
-        terms = mortgage.terms or DEFAULT_TERMS.get(conn)
-        mortgage_id = conn.execute(
-            insert(mortgage_table)
-            .values(
-                **mortgage.model_dump(exclude={"name", "terms"}),
-                **terms.model_dump(),
-                name=name,
-            )
-            .returning(mortgage_table.c.id)
-        ).scalar_one()
-        audit.record(
-            conn,
-            now,
-            "mortgage",
-            mortgage_id,
-            "created",
-            audit.created(mortgage_row(conn, mortgage_id), _AUDITED_ON_CREATE),
-        )
-        return load_mortgage(conn, mortgage_id, today)
 
 
 @router.get("/mortgages/{mortgage_id}")
@@ -490,82 +445,3 @@ def list_mortgages(
             sort=by_column,
             descending=descending,
         )
-
-
-@router.post("/mortgages/{mortgage_id}/photos")
-async def add_mortgage_photo(
-    mortgage_id: int,
-    photo: UploadFile,
-    engine: EngineDep,
-    photos_dir: PhotosDirDep,
-    today: TodayDep,
-    now: NowDep,
-) -> Mortgage:
-    with engine.connect() as conn:
-        if not exists(conn, mortgage_table, mortgage_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
-    file_name = save_photo(photos_dir, "mortgage", mortgage_id, await photo.read())
-    with engine.begin() as conn:
-        conn.execute(
-            insert(mortgage_photo_table).values(mortgage_id=mortgage_id, file=file_name)
-        )
-        audit.record(conn, now, "mortgage", mortgage_id, "photo_added")
-        return load_mortgage(conn, mortgage_id, today)
-
-
-@router.delete("/mortgages/{mortgage_id}/photos/{photo_id}")
-def delete_mortgage_photo(
-    mortgage_id: int,
-    photo_id: int,
-    engine: EngineDep,
-    photos_dir: PhotosDirDep,
-    today: TodayDep,
-    now: NowDep,
-) -> Mortgage:
-    with engine.begin() as conn:
-        file_name = conn.execute(
-            select(mortgage_photo_table.c.file).where(
-                mortgage_photo_table.c.id == photo_id,
-                mortgage_photo_table.c.mortgage_id == mortgage_id,
-            )
-        ).scalar()
-        if file_name is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Photo not found")
-        conn.execute(
-            delete(mortgage_photo_table).where(mortgage_photo_table.c.id == photo_id)
-        )
-        audit.record(conn, now, "mortgage", mortgage_id, "photo_removed")
-        mortgage = load_mortgage(conn, mortgage_id, today)
-    delete_photo(photos_dir, file_name)
-    return mortgage
-
-
-class CollateralIn(BaseModel):
-    value: int | None = Field(default=None, gt=0)  # paise; None: the Gold Rate again
-
-
-@router.put("/mortgages/{mortgage_id}/collateral")
-def set_collateral(
-    mortgage_id: int,
-    collateral: CollateralIn,
-    engine: EngineDep,
-    today: TodayDep,
-    now: NowDep,
-) -> Mortgage:
-    """Set the Collateral Value by hand, or clear it to value at the Gold Rate again."""
-    with engine.begin() as conn:
-        before = mortgage_row(conn, mortgage_id)
-        conn.execute(
-            mortgage_table.update()
-            .where(mortgage_table.c.id == mortgage_id)
-            .values(
-                collateral_override=collateral.value,
-                collateral_override_on=today if collateral.value else None,
-            )
-        )
-        changed = audit.changes(
-            before, {"collateral_override": collateral.value}, ["collateral_override"]
-        )
-        if changed:
-            audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
-        return load_mortgage(conn, mortgage_id, today)

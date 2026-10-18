@@ -96,6 +96,15 @@ _GROUP_KEYS: dict[CallListSort, Callable[[CallListGroup], Any]] = {
 CALL_LIST_SETTINGS = ConfigGroup.prefixed("call_list_", CallListSettings)
 
 
+def loan_to_value_too_high(
+    loan_to_value: float | None, settings: CallListSettings
+) -> bool:
+    """Whether a Mortgage is on the Call List for its Loan-to-Value."""
+    if loan_to_value is None:
+        return False
+    return loan_to_value * 100 > settings.loan_to_value_pct
+
+
 def _todays_notes(conn: Connection, today: date) -> dict[int, CallNote]:
     """The latest Call Note made today for each Mortgage."""
     notes = conn.execute(
@@ -138,10 +147,7 @@ def call_list(
         reasons: list[Reason] = []
         if months >= settings.months_unpaid:
             reasons.append("months_unpaid")
-        if (
-            loan_to_value is not None
-            and loan_to_value * 100 > settings.loan_to_value_pct
-        ):
+        if loan_to_value_too_high(loan_to_value, settings):
             reasons.append("loan_to_value")
         if any(step.event == "interest" and step.on == today for step in ledger):
             reasons.append("accrues_today")

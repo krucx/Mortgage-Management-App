@@ -12,27 +12,33 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy.engine import Connection
 
+from mortgage_backend.call_list import CALL_LIST_SETTINGS, loan_to_value_too_high
 from mortgage_backend.clock import NowDep, TodayDep
+from mortgage_backend.collateral import Collateral
 from mortgage_backend.db import EngineDep
 from mortgage_backend.ledger import LedgerEvent, LedgerStep
 from mortgage_backend.changes import (
+    CollateralIn,
     ForfeitIn,
     PaymentIn,
     RedeemIn,
     TermChangeIn,
     add_term_change,
+    create_mortgage,
     edit_mortgage,
     forfeit,
     record_payment,
     redeem,
     remove_term_change,
     reopen,
+    set_collateral,
     void_payment,
 )
-from mortgage_backend.mortgages import MortgageEdit
+from mortgage_backend.mortgages import MortgageEdit, MortgageIn, load_mortgage
 from mortgage_backend.payments import mortgages_of
 from mortgage_backend.projections import ComingTermChange, ProjectedPoint, baseline
 from mortgage_backend.replay import MortgageStatus, replay
+from mortgage_backend.terms import Terms
 
 
 class PreviewSide(BaseModel):
@@ -258,3 +264,73 @@ def preview_payment(
             today,
             lambda: record_payment(conn, payment, today, now),
         )
+
+
+class NewMortgagePreview(BaseModel):
+    """What a new Mortgage would be: its Mortgage Name and Terms, what it would owe
+    today (if back-dated), and its Projection with no Payments."""
+
+    name: str
+    terms: Terms
+    after: PreviewSide
+
+
+@router.post("/mortgages/preview")
+def preview_new_mortgage(
+    mortgage: MortgageIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> NewMortgagePreview:
+    with engine.connect() as conn:
+        try:
+            mortgage_id = create_mortgage(conn, mortgage, today, now)
+            created = _snapshot(conn, [mortgage_id], today)[mortgage_id]
+            row = replay(conn, mortgage_id).row
+        finally:
+            conn.rollback()
+    return NewMortgagePreview(
+        name=created.name,
+        terms=Terms(
+            monthly_rate_bps=row["monthly_rate_bps"],
+            interest_mode=row["interest_mode"],
+            part_month_rule=row["part_month_rule"],
+        ),
+        after=created.side,
+    )
+
+
+class CollateralPreview(BaseModel):
+    """The Collateral Value (and so Loan-to-Value) before and after setting it, and
+    whether that puts the Mortgage on the Call List for its Loan-to-Value."""
+
+    before: Collateral | None
+    after: Collateral | None
+    listed_before: bool
+    listed_after: bool
+
+
+@router.post("/mortgages/{mortgage_id}/collateral-preview")
+def preview_collateral(
+    mortgage_id: int,
+    collateral: CollateralIn,
+    engine: EngineDep,
+    today: TodayDep,
+    now: NowDep,
+) -> CollateralPreview:
+    with engine.connect() as conn:
+        try:
+            before = load_mortgage(conn, mortgage_id, today).collateral
+            set_collateral(conn, mortgage_id, collateral.value, today, now)
+            after = load_mortgage(conn, mortgage_id, today).collateral
+            settings = CALL_LIST_SETTINGS.get(conn)
+        finally:
+            conn.rollback()
+
+    def listed(value: Collateral | None) -> bool:
+        ratio = value.loan_to_value if value else None
+        return loan_to_value_too_high(ratio, settings)
+
+    return CollateralPreview(
+        before=before,
+        after=after,
+        listed_before=listed(before),
+        listed_after=listed(after),
+    )

@@ -258,7 +258,7 @@
         "title": "BackupStatus",
         "type": "object"
       },
-      "Body_add_mortgage_photo_api_mortgages__mortgage_id__photos_post": {
+      "Body_post_photo_api_mortgages__mortgage_id__photos_post": {
         "properties": {
           "photo": {
             "contentMediaType": "application/octet-stream",
@@ -269,7 +269,7 @@
         "required": [
           "photo"
         ],
-        "title": "Body_add_mortgage_photo_api_mortgages__mortgage_id__photos_post",
+        "title": "Body_post_photo_api_mortgages__mortgage_id__photos_post",
         "type": "object"
       },
       "Body_replace_customer_photo_api_customers__customer_id__photo_put": {
@@ -610,6 +610,47 @@
           }
         },
         "title": "CollateralIn",
+        "type": "object"
+      },
+      "CollateralPreview": {
+        "description": "The Collateral Value (and so Loan-to-Value) before and after setting it, and\nwhether that puts the Mortgage on the Call List for its Loan-to-Value.",
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Collateral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Collateral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "listed_after": {
+            "title": "Listed After",
+            "type": "boolean"
+          },
+          "listed_before": {
+            "title": "Listed Before",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "before",
+          "after",
+          "listed_before",
+          "listed_after"
+        ],
+        "title": "CollateralPreview",
         "type": "object"
       },
       "ComingMonth": {
@@ -1731,6 +1772,28 @@
         ],
         "title": "MortgageStatus",
         "type": "string"
+      },
+      "NewMortgagePreview": {
+        "description": "What a new Mortgage would be: its Mortgage Name and Terms, what it would owe\ntoday (if back-dated), and its Projection with no Payments.",
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/PreviewSide"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/Terms"
+          }
+        },
+        "required": [
+          "name",
+          "terms",
+          "after"
+        ],
+        "title": "NewMortgagePreview",
+        "type": "object"
       },
       "NewStandaloneReferrer": {
         "properties": {
@@ -3634,7 +3697,7 @@
         "summary": "List Mortgages"
       },
       "post": {
-        "operationId": "create_mortgage_api_mortgages_post",
+        "operationId": "post_mortgage_api_mortgages_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3667,7 +3730,45 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Mortgage"
+        "summary": "Post Mortgage"
+      }
+    },
+    "/api/mortgages/preview": {
+      "post": {
+        "operationId": "preview_new_mortgage_api_mortgages_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MortgageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewMortgagePreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview New Mortgage"
       }
     },
     "/api/mortgages/suggested-name": {
@@ -3914,7 +4015,7 @@
     "/api/mortgages/{mortgage_id}/collateral": {
       "put": {
         "description": "Set the Collateral Value by hand, or clear it to value at the Gold Rate again.",
-        "operationId": "set_collateral_api_mortgages__mortgage_id__collateral_put",
+        "operationId": "put_collateral_api_mortgages__mortgage_id__collateral_put",
         "parameters": [
           {
             "in": "path",
@@ -3958,7 +4059,56 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Set Collateral"
+        "summary": "Put Collateral"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/collateral-preview": {
+      "post": {
+        "operationId": "preview_collateral_api_mortgages__mortgage_id__collateral_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollateralIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollateralPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Collateral"
       }
     },
     "/api/mortgages/{mortgage_id}/edit-preview": {
@@ -4162,7 +4312,7 @@
     },
     "/api/mortgages/{mortgage_id}/photos": {
       "post": {
-        "operationId": "add_mortgage_photo_api_mortgages__mortgage_id__photos_post",
+        "operationId": "post_photo_api_mortgages__mortgage_id__photos_post",
         "parameters": [
           {
             "in": "path",
@@ -4178,7 +4328,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_add_mortgage_photo_api_mortgages__mortgage_id__photos_post"
+                "$ref": "#/components/schemas/Body_post_photo_api_mortgages__mortgage_id__photos_post"
               }
             }
           },
@@ -4206,12 +4356,12 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Add Mortgage Photo"
+        "summary": "Post Photo"
       }
     },
     "/api/mortgages/{mortgage_id}/photos/{photo_id}": {
       "delete": {
-        "operationId": "delete_mortgage_photo_api_mortgages__mortgage_id__photos__photo_id__delete",
+        "operationId": "delete_photo_api_mortgages__mortgage_id__photos__photo_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -4254,7 +4404,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Delete Mortgage Photo"
+        "summary": "Delete Photo"
       }
     },
     "/api/mortgages/{mortgage_id}/projection": {

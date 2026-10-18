@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { api, type Mortgage } from '../api'
 import { formatDate, formatPercent } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
-import { Summary } from './ConfirmDialog'
+import { CollateralForecast } from './ChangeForecasts'
 import { useConfirm } from './useConfirm'
 
 /** Collateral Value and Loan-to-Value, with a Collateral Value set by hand if needed. */
@@ -27,17 +27,20 @@ export function CollateralPanel({
         ? {
             title: 'Value at the Gold Rate again?',
             body: (
-              <p>
-                The Collateral Value set by hand is dropped; the {mortgage.purity_karat}K Gold Rate
-                is used instead.
-              </p>
+              <>
+                <p>
+                  The Collateral Value set by hand is dropped; the {mortgage.purity_karat}K Gold
+                  Rate is used instead.
+                </p>
+                <CollateralForecast mortgageId={mortgage.id} value={null} />
+              </>
             ),
           }
         : {
             title: 'Set the Collateral Value by hand?',
             body: (
               <>
-                <Summary rows={[['Collateral Value', formatINR(paise)]]} />
+                <CollateralForecast mortgageId={mortgage.id} value={paise} />
                 <p className="hint">Gold Rate changes no longer affect this Mortgage.</p>
               </>
             ),
@@ -86,7 +89,7 @@ export function CollateralPanel({
           <Link to="/settings">Settings</Link>, or set a value by hand.
         </p>
       )}
-      {editing ? (
+      {mortgage.status !== 'active' ? null : editing ? (
         <form onSubmit={submit} className="row">
           <label>
             Collateral Value (₹)

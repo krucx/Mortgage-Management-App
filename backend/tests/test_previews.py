@@ -381,3 +381,47 @@ def test_a_payment_preview_refuses_more_than_is_owed(client, ramesh, mortgage):
         "2026-Ramesh-GoldChain: the Payment on 15 Apr 2026 would be more than the "
         "₹1,09,000 owed then"
     )
+
+
+def test_a_new_mortgage_preview_shows_its_name_terms_and_what_it_would_owe(
+    client, ramesh
+):
+    asked = {"customer_id": ramesh["id"], **details(name=None)}
+
+    preview = client.post("/api/mortgages/preview", json=asked)
+
+    assert preview.status_code == 200, preview.text
+    shown = preview.json()
+    assert shown["name"] == "2026-Ramesh-GoldChain"
+    assert shown["terms"]["interest_mode"] == "compounded_yearly"  # the Default Terms
+    # Back-dated to 14 Jan: three months of 3% (capitalised only yearly) owed today.
+    assert shown["after"]["outstanding"] == 1_09_000 * RUPEE
+    assert len(shown["after"]["points"]) > 1
+    assert client.get("/api/mortgages").json()["total"] == 0  # nothing saved
+
+
+def test_a_new_mortgage_that_would_be_refused_cannot_be_previewed(client, mortgage):
+    asked = {"customer_id": mortgage["customer"]["id"], **details()}  # name in use
+
+    assert client.post("/api/mortgages/preview", json=asked).status_code == 409
+
+
+def test_a_collateral_preview_shows_the_loan_to_value_and_call_list_either_side(
+    client, mortgage
+):
+    client.put(
+        "/api/settings/gold-rates",
+        json=[{"purity_karat": 22, "rate_per_gram": 7_000 * RUPEE}],
+    )  # 19 g: ₹1,33,000 of gold, so ₹1,09,000 owed is 82%
+
+    preview = client.post(
+        f"/api/mortgages/{mortgage['id']}/collateral-preview",
+        json={"value": 1_20_000 * RUPEE},
+    ).json()
+
+    assert preview["before"]["value"] == 1_33_000 * RUPEE
+    assert preview["after"]["value"] == 1_20_000 * RUPEE
+    assert preview["after"]["loan_to_value"] == pytest.approx(109 / 120)
+    assert (preview["listed_before"], preview["listed_after"]) == (False, True)
+    stored = client.get(f"/api/mortgages/{mortgage['id']}").json()["collateral"]
+    assert stored["source"] == "gold_rate"  # nothing saved

@@ -15,7 +15,7 @@ from conftest import TODAY
 from mortgage_backend import changes
 from mortgage_backend.audit import mortgage_history
 from mortgage_backend.changes import AllocationIn, PaymentIn, TermChangeIn
-from mortgage_backend.mortgages import MortgageEdit
+from mortgage_backend.mortgages import MortgageEdit, MortgageIn
 from mortgage_backend.replay import replay
 from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, close
 
@@ -456,3 +456,126 @@ def test_a_term_change_on_a_closed_mortgage_stays(conn: Connection) -> None:
         changes.remove_term_change(conn, chain, coming.id, TODAY, NOW)
 
     assert refusal(error) == (409, "2026-Ramesh-Chain is forfeited: reopen it first")
+
+
+def new_mortgage(customer_id: int, **fields: object) -> MortgageIn:
+    values: dict[str, object] = {
+        "customer_id": customer_id,
+        "start_date": date(2026, 4, 1),
+        "amount_lent": LAKH,
+        "description": "Gold chain",
+        "gross_weight_mg": 20_000,
+        "net_weight_mg": 19_000,
+        "purity_karat": 22,
+    }
+    return MortgageIn.model_validate({**values, **fields})
+
+
+def test_a_new_mortgage_is_named_given_the_default_terms_and_recorded(
+    conn: Connection,
+) -> None:
+    ramesh = add_customer(conn)
+
+    created = changes.create_mortgage(conn, new_mortgage(ramesh), TODAY, NOW)
+
+    row = replay(conn, created).row
+    assert (row["name"], row["monthly_rate_bps"], row["interest_mode"]) == (
+        "2026-Ramesh-GoldChain",
+        300,
+        "compounded_yearly",
+    )
+    [entry] = [e for e in mortgage_history(conn, created) if e.field == "amount_lent"]
+    assert (entry.action, entry.new_value) == ("created", str(LAKH))
+
+
+@pytest.mark.parametrize(
+    ("changes_made", "code", "why"),
+    [
+        ({"start_date": date(2026, 4, 21)}, 422, "cannot be in the future"),
+        ({"customer_id": 404}, 422, "Customer not found"),
+        ({"name": "2026-Ramesh-Chain"}, 409, "already used"),
+    ],
+)
+def test_a_new_mortgage_is_refused_when_it_cannot_stand(
+    conn: Connection, changes_made: dict[str, object], code: int, why: str
+) -> None:
+    ramesh = add_customer(conn)
+    add_mortgage(conn, ramesh)  # named 2026-Ramesh-Chain
+    asked = new_mortgage(ramesh).model_copy(update=changes_made)
+
+    with pytest.raises(HTTPException) as refused:
+        changes.create_mortgage(conn, asked, TODAY, NOW)
+
+    assert refusal(refused)[0] == code and why in refusal(refused)[1]
+
+
+def test_a_collateral_value_is_set_by_hand_cleared_and_recorded(
+    conn: Connection,
+) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+
+    changes.set_collateral(conn, chain, 90_000 * RUPEE, TODAY, NOW)
+    set_row = replay(conn, chain).row
+    changes.set_collateral(conn, chain, None, TODAY, NOW)
+    cleared_row = replay(conn, chain).row
+
+    assert (set_row["collateral_override"], set_row["collateral_override_on"]) == (
+        90_000 * RUPEE,
+        TODAY,
+    )
+    assert cleared_row["collateral_override"] is None
+    assert cleared_row["collateral_override_on"] is None
+    edited = [e for e in mortgage_history(conn, chain) if e.action == "edited"]
+    assert [(e.old_value, e.new_value) for e in reversed(edited)] == [
+        (None, str(90_000 * RUPEE)),
+        (str(90_000 * RUPEE), None),
+    ]
+
+
+def test_a_collateral_value_is_refused_when_it_cannot_stand(conn: Connection) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    ring = add_mortgage(conn, ramesh, suffix="Ring")
+    close(conn, ring, status="redeemed", closed_on=TODAY)
+
+    def refused(mortgage_id: int, value: int) -> tuple[int, str]:
+        with pytest.raises(HTTPException) as refused:
+            changes.set_collateral(conn, mortgage_id, value, TODAY, NOW)
+        return refusal(refused)
+
+    assert refused(404, 90_000 * RUPEE)[0] == 404
+    assert refused(chain, 0) == (422, "A Collateral Value must be more than ₹0")
+    assert refused(ring, 90_000 * RUPEE) == (
+        409,
+        "2026-Ramesh-Ring is redeemed: reopen it first",
+    )
+
+
+def test_a_photo_is_added_and_removed_and_recorded(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+
+    photo = changes.add_photo(conn, chain, "mortgage-1-a.jpg", NOW)
+    removed = changes.remove_photo(conn, chain, photo, NOW)
+
+    assert removed == "mortgage-1-a.jpg"
+    assert [e.action for e in mortgage_history(conn, chain)] == [
+        "photo_removed",
+        "photo_added",
+    ]
+
+
+def test_a_photo_is_refused_for_no_mortgage_or_removed_from_the_wrong_one(
+    conn: Connection,
+) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    ring = add_mortgage(conn, ramesh, suffix="Ring")
+    photo = changes.add_photo(conn, chain, "mortgage-1-a.jpg", NOW)
+
+    with pytest.raises(HTTPException) as no_mortgage:
+        changes.add_photo(conn, 404, "mortgage-404-a.jpg", NOW)
+    with pytest.raises(HTTPException) as wrong_one:
+        changes.remove_photo(conn, ring, photo, NOW)
+
+    assert refusal(no_mortgage) == (404, "Mortgage not found")
+    assert refusal(wrong_one) == (404, "Photo not found")

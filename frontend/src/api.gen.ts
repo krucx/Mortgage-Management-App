@@ -184,8 +184,25 @@ export interface paths {
          */
         get: operations["list_mortgages_api_mortgages_get"];
         put?: never;
-        /** Create Mortgage */
-        post: operations["create_mortgage_api_mortgages_post"];
+        /** Post Mortgage */
+        post: operations["post_mortgage_api_mortgages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview New Mortgage */
+        post: operations["preview_new_mortgage_api_mortgages_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -263,11 +280,28 @@ export interface paths {
         };
         get?: never;
         /**
-         * Set Collateral
+         * Put Collateral
          * @description Set the Collateral Value by hand, or clear it to value at the Gold Rate again.
          */
-        put: operations["set_collateral_api_mortgages__mortgage_id__collateral_put"];
+        put: operations["put_collateral_api_mortgages__mortgage_id__collateral_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/{mortgage_id}/collateral-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Collateral */
+        post: operations["preview_collateral_api_mortgages__mortgage_id__collateral_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -354,8 +388,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add Mortgage Photo */
-        post: operations["add_mortgage_photo_api_mortgages__mortgage_id__photos_post"];
+        /** Post Photo */
+        post: operations["post_photo_api_mortgages__mortgage_id__photos_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -372,8 +406,8 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Mortgage Photo */
-        delete: operations["delete_mortgage_photo_api_mortgages__mortgage_id__photos__photo_id__delete"];
+        /** Delete Photo */
+        delete: operations["delete_photo_api_mortgages__mortgage_id__photos__photo_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1042,8 +1076,8 @@ export interface components {
             /** Running */
             running: boolean;
         };
-        /** Body_add_mortgage_photo_api_mortgages__mortgage_id__photos_post */
-        Body_add_mortgage_photo_api_mortgages__mortgage_id__photos_post: {
+        /** Body_post_photo_api_mortgages__mortgage_id__photos_post */
+        Body_post_photo_api_mortgages__mortgage_id__photos_post: {
             /** Photo */
             photo: string;
         };
@@ -1183,6 +1217,19 @@ export interface components {
         CollateralIn: {
             /** Value */
             value?: number | null;
+        };
+        /**
+         * CollateralPreview
+         * @description The Collateral Value (and so Loan-to-Value) before and after setting it, and
+         *     whether that puts the Mortgage on the Call List for its Loan-to-Value.
+         */
+        CollateralPreview: {
+            after: components["schemas"]["Collateral"] | null;
+            before: components["schemas"]["Collateral"] | null;
+            /** Listed After */
+            listed_after: boolean;
+            /** Listed Before */
+            listed_before: boolean;
         };
         /** ComingMonth */
         ComingMonth: {
@@ -1630,6 +1677,17 @@ export interface components {
          * @enum {string}
          */
         MortgageStatus: "active" | "redeemed" | "forfeited";
+        /**
+         * NewMortgagePreview
+         * @description What a new Mortgage would be: its Mortgage Name and Terms, what it would owe
+         *     today (if back-dated), and its Projection with no Payments.
+         */
+        NewMortgagePreview: {
+            after: components["schemas"]["PreviewSide"];
+            /** Name */
+            name: string;
+            terms: components["schemas"]["Terms"];
+        };
         /** NewStandaloneReferrer */
         NewStandaloneReferrer: {
             /** Address */
@@ -2468,7 +2526,7 @@ export interface operations {
             };
         };
     };
-    create_mortgage_api_mortgages_post: {
+    post_mortgage_api_mortgages_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2488,6 +2546,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Mortgage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_new_mortgage_api_mortgages_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MortgageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewMortgagePreview"];
                 };
             };
             /** @description Validation Error */
@@ -2668,7 +2759,7 @@ export interface operations {
             };
         };
     };
-    set_collateral_api_mortgages__mortgage_id__collateral_put: {
+    put_collateral_api_mortgages__mortgage_id__collateral_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -2690,6 +2781,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Mortgage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_collateral_api_mortgages__mortgage_id__collateral_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mortgage_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollateralIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollateralPreview"];
                 };
             };
             /** @description Validation Error */
@@ -2839,7 +2965,7 @@ export interface operations {
             };
         };
     };
-    add_mortgage_photo_api_mortgages__mortgage_id__photos_post: {
+    post_photo_api_mortgages__mortgage_id__photos_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2850,7 +2976,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_add_mortgage_photo_api_mortgages__mortgage_id__photos_post"];
+                "multipart/form-data": components["schemas"]["Body_post_photo_api_mortgages__mortgage_id__photos_post"];
             };
         };
         responses: {
@@ -2874,7 +3000,7 @@ export interface operations {
             };
         };
     };
-    delete_mortgage_photo_api_mortgages__mortgage_id__photos__photo_id__delete: {
+    delete_photo_api_mortgages__mortgage_id__photos__photo_id__delete: {
         parameters: {
             query?: never;
             header?: never;

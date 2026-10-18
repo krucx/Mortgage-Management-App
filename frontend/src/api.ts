@@ -112,6 +112,8 @@ export type LedgerChange = Schemas['LedgerChange']
 export type PreviewSide = Schemas['PreviewSide']
 /** One Mortgage before and after a change that has not been saved. */
 export type MortgagePreview = Schemas['MortgagePreview']
+export type NewMortgagePreview = Schemas['NewMortgagePreview']
+export type CollateralPreview = Schemas['CollateralPreview']
 /** What a Term Change says; anything left out carries over. */
 export type TermChangeIn = Schemas['TermChangeIn']
 /** The details of a Mortgage that can be corrected (not its Customer or Terms). */
@@ -316,6 +318,13 @@ export const api = {
     changesLedger(request<Mortgage>(`/mortgages/${id}/reopen`, sendJson('POST', { reason }))),
   mortgageHistory: (id: number) => request<AuditEntry[]>(`/mortgages/${id}/history`),
   customerHistory: (id: number) => request<AuditEntry[]>(`/customers/${id}/history`),
+  previewNewMortgage: (mortgage: MortgageIn) =>
+    request<NewMortgagePreview>('/mortgages/preview', sendJson('POST', mortgage)),
+  previewCollateral: (id: number, value: number | null) =>
+    request<CollateralPreview>(
+      `/mortgages/${id}/collateral-preview`,
+      sendJson('POST', { value }),
+    ),
   previewEdit: (id: number, mortgage: MortgageEdit) =>
     request<MortgagePreview[]>(`/mortgages/${id}/edit-preview`, sendJson('POST', mortgage)),
   previewTermChange: (id: number, change: TermChangeIn) =>
