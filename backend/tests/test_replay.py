@@ -185,3 +185,75 @@ def test_a_projection_finds_when_hypothetical_payments_pay_it_off(
 
     # 14 May: ₹60,000 of ₹1,12,000; 14 Jun: the remaining ₹52,000 + ₹1,560.
     assert projected.paid_off_on == date(2026, 6, 14)
+
+
+def test_each_payment_is_found_applied_as_its_ledger_step(conn: Connection) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    ring = add_mortgage(conn, ramesh, suffix="Ring")
+    # ₹9,000 of interest is unpaid on 15 Apr: the first ₹2,000 is all interest.
+    first = add_payment(conn, ramesh, date(2026, 4, 15), {chain: 2_000 * RUPEE})
+    voided = add_payment(
+        conn, ramesh, date(2026, 4, 16), {chain: 5_000 * RUPEE}, voided=True
+    )
+    second = add_payment(conn, ramesh, date(2026, 4, 18), {chain: 10_000 * RUPEE})
+    elsewhere = add_payment(conn, ramesh, date(2026, 4, 18), {ring: 1_000 * RUPEE})
+
+    applied = replay(conn, chain).steps_by_payment()
+
+    assert set(applied) == {first, second}  # not the Voided one, nor the Ring's
+    assert (
+        applied[first].interest_paid,
+        applied[first].principal_paid,
+        applied[first].principal + applied[first].unpaid_interest,
+    ) == (2_000 * RUPEE, 0, 1_07_000 * RUPEE)
+    assert (
+        applied[second].interest_paid,
+        applied[second].principal_paid,
+        applied[second].principal + applied[second].unpaid_interest,
+    ) == (7_000 * RUPEE, 3_000 * RUPEE, 97_000 * RUPEE)
+
+
+def test_two_payments_on_one_day_are_applied_in_the_order_made(conn: Connection) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    # ₹9,000 of interest is unpaid on 15 Apr.
+    first = add_payment(conn, ramesh, date(2026, 4, 15), {chain: 6_000 * RUPEE})
+    second = add_payment(conn, ramesh, date(2026, 4, 15), {chain: 5_000 * RUPEE})
+
+    applied = replay(conn, chain).steps_by_payment()
+
+    assert (applied[first].interest_paid, applied[first].principal_paid) == (
+        6_000 * RUPEE,
+        0,
+    )
+    assert (applied[second].interest_paid, applied[second].principal_paid) == (
+        3_000 * RUPEE,
+        2_000 * RUPEE,
+    )
+
+
+def test_a_redemptions_final_payment_is_applied_after_the_part_month_charge(
+    conn: Connection,
+) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    # Redeemed on 20 Apr: ₹1,09,000 owed plus a full month's ₹3,000 (Full-month rule).
+    final = add_payment(conn, ramesh, TODAY, {chain: 1_12_000 * RUPEE})
+    close(conn, chain, status="redeemed", closed_on=TODAY, redemption_payment_id=final)
+
+    step = replay(conn, chain).steps_by_payment()[final]
+
+    assert step.interest_paid == 12_000 * RUPEE
+    assert step.principal + step.unpaid_interest == 0
+
+
+def test_payments_up_to_a_date_and_a_mortgage_never_paid(conn: Connection) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    unpaid = add_mortgage(conn, ramesh, suffix="Ring")
+    early = add_payment(conn, ramesh, date(2026, 3, 1), {chain: 1_000 * RUPEE})
+    add_payment(conn, ramesh, date(2026, 4, 15), {chain: 1_000 * RUPEE})
+
+    assert list(replay(conn, chain).steps_by_payment(date(2026, 4, 1))) == [early]
+    assert replay(conn, unpaid).steps_by_payment() == {}

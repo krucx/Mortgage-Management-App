@@ -11,7 +11,7 @@ from sqlalchemy import Select, func, or_, select, true
 from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.clock import MonthQuery, TodayDep, month_span
+from mortgage_backend.clock import MonthQuery, month_span
 from mortgage_backend.customers import PersonSummary
 from mortgage_backend.db import (
     EngineDep,
@@ -140,13 +140,7 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
     replayed = {} if voided else replays(conn, mortgages)
     allocations = []
     for mortgage in mortgages:
-        step = None
-        if not voided:
-            step = next(
-                s
-                for s in replayed[mortgage["id"]].ledger(payment.paid_on)
-                if s.payment_id == payment_id
-            )
+        step = None if voided else replayed[mortgage["id"]].steps_by_payment()[payment_id]
         allocations.append(
             AllocationOut(
                 mortgage_id=mortgage["id"],
@@ -171,7 +165,7 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
     )
 
 
-def _interest_paid(conn: Connection, payment_ids: Select[Any], today: date) -> int:
+def _interest_paid(conn: Connection, payment_ids: Select[Any]) -> int:
     """The interest the Payments paid, Voided ones counting for nothing, from replaying
     each Mortgage they went to."""
     wanted = set(conn.execute(payment_ids).scalars())
@@ -191,8 +185,8 @@ def _interest_paid(conn: Connection, payment_ids: Select[Any], today: date) -> i
     return sum(
         step.interest_paid
         for mortgage in replays(conn, rows).values()
-        for step in mortgage.ledger(today)
-        if step.payment_id in wanted
+        for payment_id, step in mortgage.steps_by_payment().items()
+        if payment_id in wanted
     )
 
 
@@ -217,7 +211,6 @@ def read_payment(payment_id: int, engine: EngineDep) -> Payment:
 @router.get("/payments")
 def list_payments(
     engine: EngineDep,
-    today: TodayDep,
     page: PageNumber = 1,
     q: str = "",
     month: MonthQuery = None,
@@ -260,7 +253,6 @@ def list_payments(
             interest = _interest_paid(
                 conn,
                 select(payment_table.c.id).select_from(with_customer).where(match),
-                today,
             )
         listed = query_page(
             conn,

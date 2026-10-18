@@ -1934,6 +1934,8 @@ export interface components {
             reference: string | null;
             /** Text */
             text: string;
+            /** Total Owed */
+            total_owed: number;
         };
         /** ReceiptLineOut */
         ReceiptLineOut: {

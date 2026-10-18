@@ -193,12 +193,12 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
     active: list[MortgageReplay] = []
     for row in rows:
         mortgage = replayed[row["id"]]
-        ledger = mortgage.ledger(today)
-        for step in ledger:
-            if step.event == "payment" and step.on.year == today.year:
+        for step in mortgage.steps_by_payment(today).values():
+            if step.on.year == today.year:
                 collected_year += step.interest_paid
                 if (step.on.year, step.on.month) == this_month:
                     collected_month += step.interest_paid
+        ledger = mortgage.ledger(today)
         if row["status"] == MortgageStatus.ACTIVE:
             owed = ledger[-1]
             principal += owed.principal

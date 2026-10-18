@@ -16,7 +16,6 @@ export function ReceiptPage() {
 
   if (error) return <p className="status error">{error}</p>
   if (!receipt) return <p>Loading…</p>
-  const owed = receipt.lines.reduce((sum, line) => sum + line.owed_after, 0)
 
   return (
     <section className="card wide receipt">
@@ -78,7 +77,7 @@ export function ReceiptPage() {
               <td className="num">{formatINR(receipt.amount)}</td>
               <td />
               <td />
-              <td className="num">{formatINR(owed)}</td>
+              <td className="num">{formatINR(receipt.total_owed)}</td>
             </tr>
           </tfoot>
         )}

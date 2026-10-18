@@ -36,6 +36,7 @@ class Receipt(BaseModel):
     method: str
     reference: str | None
     lines: list[ReceiptLineOut]
+    total_owed: int  # by the Mortgages it paid, after it
     text: str  # the WhatsApp message, from the Lender's Receipt template
 
 
@@ -65,11 +66,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
     described = descriptions(mortgages)
     lines = []
     for mortgage in mortgages:
-        step = next(
-            s
-            for s in replayed[mortgage["id"]].ledger(payment["paid_on"])
-            if s.payment_id == payment_id
-        )
+        step = replayed[mortgage["id"]].steps_by_payment()[payment_id]
         lines.append(
             ReceiptLineOut(
                 description=described[mortgage["id"]],
@@ -81,16 +78,13 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
             )
         )
     method = METHOD_NAMES[PaymentMethod(payment["method"])]
-    text = receipt_text(
-        MESSAGE_SETTINGS.get(conn).receipt_template,
-        ReceiptMessage(
-            customer_name=payment["name"],
-            paid_on=payment["paid_on"],
-            amount=payment["amount"],
-            method=method,
-            reference=payment["reference"],
-            lines=lines,
-        ),
+    message = ReceiptMessage(
+        customer_name=payment["name"],
+        paid_on=payment["paid_on"],
+        amount=payment["amount"],
+        method=method,
+        reference=payment["reference"],
+        lines=lines,
     )
     return Receipt(
         payment_id=payment_id,
@@ -103,7 +97,8 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         method=method,
         reference=payment["reference"],
         lines=lines,
-        text=text,
+        total_owed=message.total_owed,
+        text=receipt_text(MESSAGE_SETTINGS.get(conn).receipt_template, message),
     )
 
 

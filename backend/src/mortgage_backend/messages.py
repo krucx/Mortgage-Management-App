@@ -38,6 +38,11 @@ class ReceiptMessage(BaseModel):
     reference: str | None = None
     lines: Sequence[ReceiptLine]
 
+    @property
+    def total_owed(self) -> int:
+        """What the Mortgages it paid still owe, between them."""
+        return sum(line.owed_after for line in self.lines)
+
 
 class NoticeLine(BaseModel):
     """The interest one Mortgage is about to be charged."""
@@ -124,7 +129,6 @@ def _date(on: date) -> str:
 
 
 def receipt_text(template: str, receipt: ReceiptMessage) -> str:
-    owed = sum(line.owed_after for line in receipt.lines)
     block = _card_block(
         [
             (
@@ -138,7 +142,7 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
             )
             for line in receipt.lines
         ],
-        [("Total paid", receipt.amount), ("Total owed", owed)],
+        [("Total paid", receipt.amount), ("Total owed", receipt.total_owed)],
     )
     return fill(
         template,
@@ -149,7 +153,7 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
             "date": _date(receipt.paid_on),
             "reference": receipt.reference or "",
             "mortgages": block,
-            "total_owed": format_inr(owed),
+            "total_owed": format_inr(receipt.total_owed),
         },
     )
 

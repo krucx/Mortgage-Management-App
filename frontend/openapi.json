@@ -2546,6 +2546,10 @@
           "text": {
             "title": "Text",
             "type": "string"
+          },
+          "total_owed": {
+            "title": "Total Owed",
+            "type": "integer"
           }
         },
         "required": [
@@ -2557,6 +2561,7 @@
           "method",
           "reference",
           "lines",
+          "total_owed",
           "text"
         ],
         "title": "Receipt",

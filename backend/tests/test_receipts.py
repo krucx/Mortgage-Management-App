@@ -5,9 +5,13 @@ of interest by 15 Apr) and ₹50,000 of bangles (₹4,500). On 15 Apr he pays �
 to the chain and ₹2,000 to the bangles, all of it interest.
 """
 
-import pytest
+from datetime import date
 
-RUPEE = 100  # paise
+import pytest
+from sqlalchemy.engine import Connection
+
+from mortgage_backend.receipts import load_receipt
+from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment
 
 
 @pytest.fixture
@@ -132,3 +136,24 @@ def test_a_voided_payment_has_no_receipt(client, payment):
     response = client.get(f"/api/payments/{payment['id']}/receipt")
 
     assert response.status_code == 409
+
+
+def test_a_receipt_is_loaded_with_its_total_owed(conn: Connection) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    bangles = add_mortgage(
+        conn, ramesh, suffix="Bangles", description="Two bangles", amount_lent=LAKH // 2
+    )
+    paid = add_payment(
+        conn, ramesh, date(2026, 4, 15), {chain: 5_000 * RUPEE, bangles: 2_000 * RUPEE}
+    )
+
+    receipt = load_receipt(conn, paid)
+
+    # The chain owed ₹1,09,000 and the bangles ₹54,500 before it.
+    assert [line.owed_after for line in receipt.lines] == [
+        1_04_000 * RUPEE,
+        52_500 * RUPEE,
+    ]
+    assert receipt.total_owed == 1_56_500 * RUPEE
+    assert "₹1,56,500" in receipt.text

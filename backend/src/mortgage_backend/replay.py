@@ -77,6 +77,7 @@ class MortgageReplay:
             interest_mode=row["interest_mode"],
             part_month_rule=row["part_month_rule"],
         )
+        self._ledgers: dict[date, list[LedgerStep]] = {}  # each Ledger built, by as_of
 
     def terms_on(self, day: date) -> Terms:
         """The Terms for a month starting on `day`, Term Changes included."""
@@ -87,12 +88,28 @@ class MortgageReplay:
 
         Raises Overpayment if any Allocation is larger than what was owed on its date.
         """
-        return self._replay(
-            as_of,
-            self.allocations,
-            closed_on=self.row["closed_on"],
-            forfeited=self.row["status"] == MortgageStatus.FORFEITED,
-        )
+        if as_of not in self._ledgers:  # the facts never change, so neither does it
+            self._ledgers[as_of] = self._replay(
+                as_of,
+                self.allocations,
+                closed_on=self.row["closed_on"],
+                forfeited=self.row["status"] == MortgageStatus.FORFEITED,
+            )
+        return list(self._ledgers[as_of])
+
+    def steps_by_payment(self, up_to: date | None = None) -> dict[int, LedgerStep]:
+        """How each of its Payments was applied: the Ledger step it made, by Payment id,
+        for those up to `up_to` (every one, without it). A Voided Payment is in no
+        Ledger, so it is not here."""
+        if up_to is None:
+            if not self.allocations:
+                return {}
+            up_to = max(allocation.on for allocation in self.allocations)
+        return {
+            step.payment_id: step
+            for step in self.ledger(up_to)
+            if step.payment_id is not None
+        }
 
     def outstanding(self, on: date) -> Outstanding:
         """What the Mortgage owes on `on`: nothing once Redeemed or Forfeited."""
