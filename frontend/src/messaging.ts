@@ -1,5 +1,5 @@
 // Sending a message to a Customer. Today it is click-to-send WhatsApp (ADR 0002): a
-// wa.me link opens with the message prefilled and the Lender presses Send. Everything
+// WhatsApp link opens with the message prefilled and the Lender presses Send. Everything
 // else goes through `sender`, so the WhatsApp Business API can replace it later.
 
 export interface MessageSender {
@@ -21,7 +21,12 @@ const clickToSend: MessageSender = {
 
 export const sender: MessageSender = clickToSend
 
+/**
+ * WhatsApp's own send link. Not the wa.me short link: its redirect to this one turns
+ * emoji (🙏, 🔔, even ✅) into "�" on the way, though the preview showed them fine.
+ */
 function whatsAppLink(phone: string, text?: string): string {
-  const link = `https://wa.me/91${phone}`
-  return text === undefined ? link : `${link}?text=${encodeURIComponent(text)}`
+  const query = new URLSearchParams({ phone: `91${phone}` })
+  if (text !== undefined) query.set('text', text)
+  return `https://api.whatsapp.com/send/?${query}`
 }
