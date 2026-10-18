@@ -188,6 +188,7 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
   <h1>Mortgage Book Walkthrough</h1>
   <p class="lede">One Lender, one laptop, a book of gold-jewellery pledges. This guide follows a pledge through its whole life in the app: the morning view of the book, setting the rules, meeting a Customer, lending against their jewellery, taking Payments, following up, and closing the Mortgage. Each stop says where to click, what to say, and the details worth pointing out.</p>
   <div class="facts">
+    <span>Version: <b>1.1.2</b></span>
     <span>App: <b>http://127.0.0.1:8080</b></span>
     <span>Figures: <b>the live book on 18 Oct 2026</b></span>
     <span>Money: <b>₹, Indian digit grouping</b></span>
@@ -288,6 +289,7 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
     <div class="nuance rule"><b>Nothing owed is stored</b><span>Outstanding, the Ledger and Redemption Amounts are replayed from the Terms and Payments every time, so a correction anywhere shows everywhere at once.</span></div>
     <div class="nuance"><b>Exact versus estimate</b><span>Projections (exact) and Trend (estimate) are labelled in different colours, so nobody mistakes a guess for a promise.</span></div>
     <div class="nuance"><b>Back from another page</b><span>Figures you saw earlier show at once, dimmed, until the fresh ones arrive.</span></div>
+    <div class="nuance"><b>Light or dark</b><span>The round switch at the top right follows the browser's theme until the Lender picks one, and remembers the choice on the laptop.</span></div>
   </div>
 </section>
 
@@ -538,9 +540,11 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
       <div class="block-title">Show</div>
       <ol class="steps">
         <li><span><span class="ui">Notices</span>: one per Customer for each coming Accrual Date, covering all their Mortgages accruing that day. Tabs: To approve, To send, Sent, Skipped, All.</span></li>
-        <li><span>Open a Notice to read the message, then <span class="ui">Send on WhatsApp</span>, mark it sent, or <span class="ui">Skip</span>. (Show, don't send.)</span></li>
-        <li><span><span class="ui">Call List</span>: today's Mortgages grouped by Customer, each with why it is listed. Phone and WhatsApp links sit beside each name.</span></li>
-        <li><span><span class="ui">Mark called…</span> takes a note of what was said; the row then shows "Called" with the note. The Mortgage keeps every Call Note.</span></li>
+        <li><span>Open a Notice to read the message, then <span class="ui">Send on WhatsApp</span>, mark it sent, or <span class="ui">Skip</span>. On the To send tab, each row has a compact green WhatsApp <span class="ui">Send</span> beside <span class="ui">Skip</span>. (Show, don't send.)</span></li>
+        <li><span><span class="ui">Call List</span>: one table, a row per Mortgage, grouped by Customer. The Customer appears once beside their rows, with how many Mortgages are listed, their total, and a <span class="ui">Call</span> button showing each number next to a WhatsApp chat button.</span></li>
+        <li><span>Point to the <span class="ui">Why</span> markers: amber for Months Unpaid ("15 mo"), red for Loan-to-Value too high ("104.5%"), teal for accruing today ("Today"), with the legend above the table. Hover one for the full wording.</span></li>
+        <li><span>Click a Customer's <span class="ui">2 Mortgages</span>: the Mortgages page opens with only theirs, and <span class="ui">Show every Customer</span> goes back.</span></li>
+        <li><span><span class="ui">Mark called…</span> takes a note of what was said; the row then shows ✓ Called with the note. The Mortgage keeps every Call Note.</span></li>
       </ol>
       <div class="states" aria-label="A Notice's life">
         <span class="state">Queued by the daily run</span><span class="arrow">→</span>
@@ -565,7 +569,7 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
   <div class="nuances">
     <div class="nuance rule"><b>Notices always match today</b><span>A Notice whose Mortgages were Redeemed or edited meanwhile is withdrawn; turning on "approve first" holds those already queued.</span></div>
     <div class="nuance"><b>Months Unpaid counts the oldest first</b><span>Payments clear the oldest interest first; capitalised interest still counts as unpaid.</span></div>
-    <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed.</span></div>
+    <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed. Messages arrive exactly as previewed, emoji included.</span></div>
   </div>
 </section>
 
