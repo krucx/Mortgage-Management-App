@@ -9,6 +9,8 @@ import {
   keys,
   LEDGER_CHANGED,
   ledgerChanged,
+  markStale,
+  STALE_AFTER,
 } from '../src/serverState'
 import { fakeServer } from './fakeServer'
 
@@ -97,4 +99,48 @@ test('a Ledger change does not ask again for a Preview or quote on screen: the c
     true,
   ])
   stops.forEach((stop) => stop())
+})
+
+/** Which of `cached` (name → key) `change` leaves stale. */
+function staleAfter(change: readonly (readonly unknown[])[], cached: Record<string, readonly unknown[]>) {
+  const { queryClient } = createServerState()
+  for (const key of Object.values(cached)) queryClient.setQueryData(key, {})
+  markStale(queryClient, change)
+  return Object.entries(cached)
+    .filter(([, key]) => queryClient.getQueryState(key)?.isInvalidated)
+    .map(([name]) => name)
+}
+
+test("a Customer's new name or number reaches everything that shows it", () => {
+  const cached = {
+    customer: keys.customer(3),
+    mortgage: keys.mortgage(7),
+    payment: keys.payment(9),
+    receipt: [...keys.payment(9), 'receipt'],
+    callList: [...keys.list('call-list'), { page: 1 }],
+    notices: [...keys.list('notices'), { page: 1 }],
+    dashboard: keys.dashboard,
+  }
+  expect(staleAfter(STALE_AFTER.customer, cached)).toEqual(Object.keys(cached))
+})
+
+test('new message settings reword the Receipts as well as the Notices', () => {
+  const cached = { receipt: [...keys.payment(9), 'receipt'], notices: keys.list('notices') }
+  expect(staleAfter(STALE_AFTER.messageSettings, cached)).toEqual(['receipt', 'notices'])
+})
+
+test('marking a Mortgage called changes the Call List, its Call Notes and the Dashboard count', () => {
+  const cached = {
+    callList: keys.list('call-list'),
+    callNotes: keys.callNotes(7),
+    dashboard: keys.dashboard,
+  }
+  expect(staleAfter(STALE_AFTER.callNote, cached)).toEqual(['callList', 'callNotes', 'dashboard'])
+})
+
+test("a Ledger change makes a Customer's History stale: it holds their Mortgages' History", () => {
+  const { queryClient } = createServerState()
+  queryClient.setQueryData([...keys.customer(3), 'history'], [])
+  ledgerChanged(queryClient)
+  expect(queryClient.getQueryState([...keys.customer(3), 'history'])?.isInvalidated).toBe(true)
 })

@@ -10,20 +10,22 @@ import type {
   CustomerIn,
   CustomerSort,
   ForfeitIn,
+  MessageSettings,
+  Mortgage,
   MortgageEdit,
   MortgageIn,
-  MessageSettings,
   MortgagePreview,
   MortgageSort,
   MortgageStatus,
   NewMortgagePreview,
-  NoticeStatus,
   NoticeSort,
+  NoticeStatus,
+  Payment,
   PaymentIn,
   PaymentSort,
+  Purity,
   ReadySort,
   RedeemIn,
-  Purity,
   TermChangeIn,
   Terms,
 } from './api'
@@ -32,6 +34,8 @@ import type { Sort } from './sort'
 
 const mortgagePath = (id: number) => ({ path: { mortgage_id: id } })
 const paymentPath = (id: number) => ({ path: { payment_id: id } })
+const customerPath = (id: number) => ({ path: { customer_id: id } })
+const noticePath = (id: number) => ({ path: { notice_id: id } })
 
 /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
 export function mortgageQuery(client: ApiClient, id: number) {
@@ -322,16 +326,16 @@ export const lists = {
 /** What the Lender does with a queued Notice. */
 export const noticeActions = {
   approve: (client: ApiClient, id: number) =>
-    dataOrThrow(client.POST('/api/notices/{notice_id}/approve', { params: { path: { notice_id: id } } })),
+    dataOrThrow(client.POST('/api/notices/{notice_id}/approve', { params: noticePath(id) })),
   skip: (client: ApiClient, id: number) =>
-    dataOrThrow(client.POST('/api/notices/{notice_id}/skip', { params: { path: { notice_id: id } } })),
+    dataOrThrow(client.POST('/api/notices/{notice_id}/skip', { params: noticePath(id) })),
   markSent: (client: ApiClient, id: number) =>
-    dataOrThrow(client.POST('/api/notices/{notice_id}/sent', { params: { path: { notice_id: id } } })),
+    dataOrThrow(client.POST('/api/notices/{notice_id}/sent', { params: noticePath(id) })),
 }
 
 /** Delete a Customer (refused while they have Mortgages). */
 export const deleteCustomer = (client: ApiClient, id: number) =>
-  dataOrThrow(client.DELETE('/api/customers/{customer_id}', { params: { path: { customer_id: id } } }))
+  dataOrThrow(client.DELETE('/api/customers/{customer_id}', { params: customerPath(id) }))
 
 /** A settings group: read once, then known from what saving it returns. */
 function settingsQuery<T>(name: string, load: () => Promise<T>) {
@@ -402,7 +406,7 @@ export function customerHistoryQuery(client: ApiClient, id: number) {
     queryFn: () =>
       dataOrThrow(
         client.GET('/api/customers/{customer_id}/history', {
-          params: { path: { customer_id: id } },
+          params: customerPath(id),
         }),
       ),
   })
@@ -412,15 +416,19 @@ export function customerHistoryQuery(client: ApiClient, id: number) {
 export function projectionQuery(client: ApiClient, id: number, monthlyPayment: number | null) {
   return queryOptions({
     queryKey: [...keys.mortgage(id), 'projection', monthlyPayment],
-    queryFn: () =>
-      dataOrThrow(
+    queryFn: ({ client: cache }) => {
+      // Not asked for once the Mortgage is known to be closed: it has none.
+      const status = cache.getQueryData<Mortgage>(keys.mortgage(id))?.status
+      if (status && status !== 'active') throw new Error('Only an Active Mortgage has a Projection')
+      return dataOrThrow(
         client.GET('/api/mortgages/{mortgage_id}/projection', {
           params: {
             ...mortgagePath(id),
             query: monthlyPayment ? { monthly_payment: monthlyPayment } : {},
           },
         }),
-      ),
+      )
+    },
   })
 }
 
@@ -449,15 +457,14 @@ export function customerQuery(client: ApiClient, id: number) {
   return queryOptions({
     queryKey: keys.customer(id),
     queryFn: () =>
-      dataOrThrow(client.GET('/api/customers/{customer_id}', { params: { path: { customer_id: id } } })),
+      dataOrThrow(client.GET('/api/customers/{customer_id}', { params: customerPath(id) })),
   })
 }
 
 /** A Standalone Referrer, with the Customers they referred. */
 export function referrerQuery(client: ApiClient, id: number) {
   return queryOptions({
-    // Under the Customers, so saving a Customer they referred makes it stale.
-    queryKey: [...keys.allCustomers, 'referrer', id],
+    queryKey: keys.referrer(id),
     queryFn: () =>
       dataOrThrow(client.GET('/api/referrers/{referrer_id}', { params: { path: { referrer_id: id } } })),
   })
@@ -466,7 +473,7 @@ export function referrerQuery(client: ApiClient, id: number) {
 /** Customers and Referrers matching a name or phone. */
 export function searchQuery(client: ApiClient, query: string) {
   return queryOptions({
-    queryKey: [...keys.allCustomers, 'search', query],
+    queryKey: keys.search(query),
     queryFn: () => dataOrThrow(client.GET('/api/search', { params: { query: { q: query } } })),
   })
 }
@@ -474,7 +481,7 @@ export function searchQuery(client: ApiClient, query: string) {
 /** Who a Primary Number belongs to, if anyone. */
 export function numberOwnerQuery(client: ApiClient, phone: string) {
   return queryOptions({
-    queryKey: [...keys.allCustomers, 'number-owner', phone],
+    queryKey: keys.numberOwner(phone),
     queryFn: () =>
       dataOrThrow(client.GET('/api/people/by-phone', { params: { query: { phone } } })),
   })
@@ -487,14 +494,14 @@ export const customerChanges = {
       id === undefined
         ? client.POST('/api/customers', { body: customer })
         : client.PUT('/api/customers/{customer_id}', {
-            params: { path: { customer_id: id } },
+            params: customerPath(id),
             body: customer,
           }),
     ),
   replacePhoto: (client: ApiClient, id: number, photo: Blob) =>
     dataOrThrow(
       client.PUT('/api/customers/{customer_id}/photo', {
-        params: { path: { customer_id: id } },
+        params: customerPath(id),
         // The schema types the file as a string; it is sent as multipart form data.
         body: { photo: '' },
         bodySerializer: () => photoForm(photo),
@@ -540,7 +547,7 @@ export function suggestedNameQuery(
   asked: { customerId: number; startDate: string; description: string },
 ) {
   return queryOptions({
-    queryKey: ['suggested-name', asked],
+    queryKey: keys.suggestedName(asked),
     queryFn: () =>
       dataOrThrow(
         client.GET('/api/mortgages/suggested-name', {
@@ -572,17 +579,22 @@ export function paymentQuery(client: ApiClient, id: number) {
 export function receiptQuery(client: ApiClient, paymentId: number) {
   return queryOptions({
     queryKey: [...keys.payment(paymentId), 'receipt'],
-    queryFn: () =>
-      dataOrThrow(
+    queryFn: ({ client: cache }) => {
+      // Not asked for once the Payment is known to be Voided: it has none.
+      if (cache.getQueryData<Payment>(keys.payment(paymentId))?.voided_at) {
+        throw new Error('A Voided Payment has no Receipt')
+      }
+      return dataOrThrow(
         client.GET('/api/payments/{payment_id}/receipt', { params: paymentPath(paymentId) }),
-      ),
+      )
+    },
   })
 }
 
 /** Each way a Payment can be made, by name: fixed while the app runs. */
 export function paymentMethodsQuery(client: ApiClient) {
   return queryOptions({
-    queryKey: ['payment-methods'],
+    queryKey: keys.paymentMethods,
     queryFn: () => dataOrThrow(client.GET('/api/payment-methods')),
     staleTime: Infinity,
   })

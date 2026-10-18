@@ -59,6 +59,14 @@ export const keys = {
   allPayments: ['payment'] as const,
   /** A Mortgage's Call Notes. */
   callNotes: (mortgageId: number) => ['call-notes', mortgageId] as const,
+  allCallNotes: ['call-notes'] as const,
+  /** A Standalone Referrer; under the Customers, as saving one they referred changes it. */
+  referrer: (id: number) => ['customer', 'referrer', id] as const,
+  /** Who matches a search, and who owns a Primary Number: under the Customers too. */
+  search: (query: string) => ['customer', 'search', query] as const,
+  numberOwner: (phone: string) => ['customer', 'number-owner', phone] as const,
+  suggestedName: (asked: object) => ['suggested-name', asked] as const,
+  paymentMethods: ['payment-methods'] as const,
   /** Every single-Mortgage key. */
   allMortgages: ['mortgage'] as const,
   lists: ['list'] as const,
@@ -83,6 +91,8 @@ const REFRESHED_AFTER_LEDGER_CHANGE = [
   keys.allMortgages,
   // How each Payment was applied, and its Receipt, are replayed too.
   keys.allPayments,
+  // A Customer's History holds their Mortgages' History.
+  keys.allCustomers,
   keys.lists,
   keys.dashboard,
   keys.readyToRedeem,
@@ -100,27 +110,25 @@ export function markLedgerStale(queryClient: QueryClient): void {
   }
 }
 
+/** A change to what Collateral is worth: Loan-to-Value, so the Call List, everywhere. */
+const STALE_AFTER_REVALUING = [keys.allMortgages, keys.lists, keys.dashboard]
+
 /** What each other kind of change makes stale. */
 export const STALE_AFTER = {
   /** Approving, skipping or sending a Notice: the Notices, and the Dashboard's counts. */
   notice: [keys.list('notices'), keys.dashboard],
-  /** Marking a Mortgage called: the Call List and the Call Notes. */
-  callNote: [keys.list('call-list'), ['call-notes']],
-  /** Saving or deleting a Customer: the Customer, and the lists that show Customers. */
-  customer: [
-    keys.allCustomers,
-    keys.list('customers'),
-    keys.list('mortgages'),
-    keys.list('payments'),
-  ],
-  /** A Collateral Value set by hand: that Mortgage's Loan-to-Value, so the Call List. */
-  collateral: [keys.allMortgages, keys.lists, keys.dashboard],
-  /** New Gold Rates: every Collateral Value, so Loan-to-Value and the Call List. */
-  goldRates: [keys.allMortgages, keys.lists, keys.dashboard],
+  /** Marking a Mortgage called: the Call List, the Call Notes and the Dashboard's count. */
+  callNote: [keys.list('call-list'), keys.allCallNotes, keys.dashboard],
+  /** Saving or deleting a Customer: everything that shows their name or numbers. */
+  customer: [keys.allCustomers, keys.allMortgages, keys.allPayments, keys.lists, keys.dashboard],
+  /** A Collateral Value set by hand. */
+  collateral: STALE_AFTER_REVALUING,
+  /** New Gold Rates: every Collateral Value. */
+  goldRates: STALE_AFTER_REVALUING,
   /** New Call List thresholds: the Call List, and the Dashboard's count of it. */
   callListThresholds: [keys.list('call-list'), keys.dashboard],
-  /** New message settings: Notices are queued again to match them. */
-  messageSettings: [keys.list('notices'), keys.dashboard],
+  /** New message settings: Notices are queued again to match them, Receipts reworded. */
+  messageSettings: [keys.allPayments, keys.list('notices'), keys.dashboard],
 } satisfies Record<string, readonly (readonly unknown[])[]>
 
 export function markStale(queryClient: QueryClient, stale: readonly (readonly unknown[])[]) {
@@ -174,13 +182,18 @@ export function useServerState(): ServerState {
 }
 
 /**
- * Saves a change that can alter what Mortgages owe, then makes stale everything it
- * affects: `const changeLedger = useLedgerChange(); await changeLedger((c) => …)`.
+ * Saves a change that can alter what Mortgages owe, `keep`s what it returned, then
+ * makes stale everything it affects: `await changeLedger((c) => …, keep?)`. Kept first,
+ * so what is asked for again sees the change (e.g. not a Voided Payment's Receipt).
  */
 export function useLedgerChange() {
   const { client, queryClient } = useServerState()
-  return async <T,>(change: (client: ApiClient) => Promise<T>): Promise<T> => {
+  return async <T,>(
+    change: (client: ApiClient) => Promise<T>,
+    keep?: (result: T) => void,
+  ): Promise<T> => {
     const result = await change(client)
+    keep?.(result)
     ledgerChanged(queryClient)
     return result
   }
@@ -194,11 +207,8 @@ export function useLedgerChange() {
 export function useMortgageChange() {
   const { queryClient } = useServerState()
   const changeLedger = useLedgerChange()
-  return async (change: (client: ApiClient) => Promise<Mortgage>): Promise<Mortgage> => {
-    const changed = await changeLedger(change)
-    queryClient.setQueryData(keys.mortgage(changed.id), changed)
-    return changed
-  }
+  return (change: (client: ApiClient) => Promise<Mortgage>): Promise<Mortgage> =>
+    changeLedger(change, (changed) => queryClient.setQueryData(keys.mortgage(changed.id), changed))
 }
 
 /**

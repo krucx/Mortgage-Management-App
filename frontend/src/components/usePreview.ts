@@ -28,6 +28,8 @@ export function usePreview<T = MortgagePreview[]>(
     queryFn: () => request!.load(client),
     enabled: request !== null && settled,
     placeholderData: keepPreviousData,
+    // The answer for an unchanged draft is the same: looking away and back asks nothing.
+    refetchOnWindowFocus: false,
   })
 
   if (!request) return { previews: null, error: null, loading: false }

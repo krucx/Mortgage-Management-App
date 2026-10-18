@@ -103,8 +103,9 @@ export function PaymentPage() {
           }
           confirmLabel="Void Payment"
           onConfirm={async (reason) => {
-            setPayment(
-              await changeLedger((client) => changes.voidPayment(client, payment.id, reason)),
+            await changeLedger(
+              (client) => changes.voidPayment(client, payment.id, reason),
+              setPayment,
             )
           }}
           onClose={() => setVoiding(false)}
