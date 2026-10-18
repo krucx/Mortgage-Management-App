@@ -182,7 +182,17 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 .crosslink span.what { color: var(--muted); font-size: 0.92rem; }
 .crosslink .go { font-weight: 650; color: var(--accent); white-space: nowrap; }
 @media (max-width: 560px) { .crosslink { grid-template-columns: minmax(0, 1fr); } }
+
+/* The light/dark switch at the right-hand end of the sticky bar */
+.bar { display: flex; align-items: center; gap: 0.6rem; }
+.bar > ol { flex: 1; min-width: 0; }
+.theme-toggle { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
+.theme-toggle:hover { color: var(--text); border-color: var(--accent); }
 </style>
+<script>
+  // A light or dark theme chosen on this site, applied before the page draws.
+  try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t } catch {}
+</script>
 </head>
 <body>
 <main class="page">
@@ -206,7 +216,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
   </a>
 </header>
 
-<nav class="strip" aria-label="Chapters">
+<nav class="bar strip" aria-label="Chapters">
   <ol>
     <li><a href="#morning">The morning</a></li>
     <li><a href="#rules">House rules</a></li>
@@ -219,6 +229,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <li><a href="#endings">Endings</a></li>
     <li><a href="#safe">Safekeeping</a></li>
   </ol>
+  <button type="button" class="theme-toggle" id="theme-toggle"></button>
 </nav>
 
 <!-- The morning -->
@@ -782,6 +793,34 @@ const rupees = (n) => '₹' + Math.round(n).toLocaleString('en-IN')
   const pick = (b) => { buttons.forEach((x) => x.setAttribute('aria-pressed', String(x === b))); say.textContent = b.dataset.say }
   buttons.forEach((b) => b.addEventListener('click', () => pick(b)))
   pick(buttons.find((b) => b.getAttribute('aria-pressed') === 'true'))
+})()
+</script>
+<script>
+// Light or dark: the browser's theme until the reader picks one; picking the theme the
+// browser would show anyway goes back to following it.
+;(() => {
+  const button = document.getElementById('theme-toggle'), root = document.documentElement
+  const query = matchMedia('(prefers-color-scheme: dark)')
+  const sun = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>'
+  const moon = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a7 7 0 0 0 10.7 10.7Z"/></svg>'
+  const system = () => (query.matches ? 'dark' : 'light')
+  const shown = () => root.dataset.theme || system()
+  function paint() {
+    const other = shown() === 'dark' ? 'light' : 'dark'
+    button.innerHTML = shown() === 'dark' ? sun : moon
+    button.setAttribute('aria-label', `Switch to the ${other} theme`)
+    button.title = `Switch to the ${other} theme` + (root.dataset.theme ? '' : ' (now following the browser)')
+  }
+  button.addEventListener('click', () => {
+    const other = shown() === 'dark' ? 'light' : 'dark'
+    const choice = other === system() ? null : other
+    if (choice) root.dataset.theme = choice
+    else root.removeAttribute('data-theme')
+    try { choice ? localStorage.setItem('theme', choice) : localStorage.removeItem('theme') } catch {}
+    paint()
+  })
+  query.addEventListener('change', paint)
+  paint()
 })()
 </script>
 </body>
