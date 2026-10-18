@@ -3,68 +3,81 @@ import { Link } from 'react-router'
 import { CALL_LIST_SORTS, type CallListGroup, type CallListRow } from '../api'
 import { MarkCalled } from '../components/CallNotes'
 import { PersonLink } from '../components/PersonLink'
-import { SortButton, SortHeading } from '../components/SortHeading'
+import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
 import { formatPercent } from '../format'
 import { sender } from '../messaging'
 import { formatINR } from '../money'
 import { lists } from '../requests'
 
-/** Why a Customer is on the Call List, across their Mortgages: the most Months Unpaid,
- *  the highest Loan-to-Value, and whether any accrues today. */
-function reasonsOfCustomer(rows: CallListRow[]): string[] {
-  const listedFor = (reason: CallListRow['reasons'][number]) =>
-    rows.filter((row) => row.reasons.includes(reason))
-  const unpaid = listedFor('months_unpaid')
-  const tooHigh = listedFor('loan_to_value')
-  return [
-    unpaid.length > 0 && `${Math.max(...unpaid.map((r) => r.months_unpaid))} months unpaid`,
-    tooHigh.length > 0 &&
-      `Loan-to-Value ${formatPercent(Math.max(...tooHigh.map((r) => r.loan_to_value ?? 0)))}`,
-    listedFor('accrues_today').length > 0 && 'Accrues today',
-  ].filter((reason): reason is string => Boolean(reason))
-}
+type Reason = CallListRow['reasons'][number]
 
-/** Why a Mortgage is on the Call List, in words. */
-function reasonsOf(row: CallListRow): string[] {
+/** Each reason a Mortgage is listed, as a status circle: its short label and full wording. */
+function reasonsOf(row: CallListRow): { reason: Reason; short: string; full: string }[] {
   return row.reasons.map((reason) => {
     switch (reason) {
       case 'months_unpaid':
-        return `${row.months_unpaid} months unpaid`
-      case 'loan_to_value':
-        return `Loan-to-Value ${formatPercent(row.loan_to_value ?? 0)}`
+        return { reason, short: `${row.months_unpaid} mo`, full: `${row.months_unpaid} months unpaid` }
+      case 'loan_to_value': {
+        const ltv = formatPercent(row.loan_to_value ?? 0)
+        return { reason, short: ltv, full: `Loan-to-Value ${ltv}` }
+      }
       case 'accrues_today':
-        return 'Accrues today'
+        return { reason, short: 'Today', full: 'Accrues today' }
     }
   })
 }
 
-function ContactLinks({ phone }: { phone: string }) {
+const REASON_NAMES: [Reason, string][] = [
+  ['months_unpaid', 'Months Unpaid'],
+  ['loan_to_value', 'Loan-to-Value too high'],
+  ['accrues_today', 'Accrues today'],
+]
+
+function PhoneIcon() {
   return (
-    <span className="contact">
-      <a href={`tel:+91${phone}`}>{phone}</a>
-      <button type="button" className="link" onClick={() => sender.chat(phone)}>
-        WhatsApp
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
+    </svg>
+  )
+}
+
+function ChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+      <path d="M4 20l1.4-4A8 8 0 1 1 8.4 19L4 20Z" />
+    </svg>
+  )
+}
+
+/** A number to ring, and to message on WhatsApp, on one line. */
+function Reach({ phone }: { phone: string }) {
+  return (
+    <span className="reach">
+      <a className="button secondary small" href={`tel:+91${phone}`} aria-label={`Call ${phone}`}>
+        <PhoneIcon />
+        {phone}
+      </a>
+      <button
+        type="button"
+        className="secondary small icon-only"
+        aria-label={`WhatsApp ${phone}`}
+        title="WhatsApp"
+        onClick={() => sender.chat(phone)}
+      >
+        <ChatIcon />
       </button>
     </span>
   )
 }
 
-/** Today's Mortgages to phone about, worked out whenever the page opens: one row per
- *  Customer, which opens to show their Mortgages. */
+/** Today's Mortgages to phone about, worked out whenever the page opens: a row per
+ *  Mortgage, grouped by Customer. */
 export function CallListPage() {
   // Sorted on the server across every page: each Customer's rows, then the Customers.
   const { listed, sorting, error, pager } = useListPage(CALL_LIST_SORTS, lists.callList())
   const groups = listed?.items ?? null
-  const [open, setOpen] = useState<Set<number>>(new Set()) // Customers shown expanded
   const [noting, setNoting] = useState<number | null>(null) // the Mortgage being marked called
-
-  function toggle(customerId: number) {
-    const next = new Set(open)
-    if (next.has(customerId)) next.delete(customerId)
-    else next.add(customerId)
-    setOpen(next)
-  }
 
   return (
     <section className="card wide">
@@ -74,27 +87,20 @@ export function CallListPage() {
         The thresholds are in <Link to="/settings">Settings</Link>.
       </p>
       {error && <p className="status error">{error}</p>}
-      {listed && listed.total > 0 && groups && (
+      {listed && listed.total > 0 && (
         <div className="row spread">
           <p>
             {listed.mortgages} Mortgage{listed.mortgages === 1 ? '' : 's'} for {listed.total}{' '}
             Customer{listed.total === 1 ? '' : 's'}
           </p>
-          <div className="row">
-            <SortButton sorting={sorting} column="mortgage">
-              Sort Mortgages by name
-            </SortButton>
-            <button
-              type="button"
-              className="secondary small"
-              onClick={() => setOpen(new Set(groups.map((g) => g.customer.id)))}
-            >
-              Expand all
-            </button>
-            <button type="button" className="secondary small" onClick={() => setOpen(new Set())}>
-              Collapse all
-            </button>
-          </div>
+          <ul className="reason-legend" aria-label="What the circles mean">
+            {REASON_NAMES.map(([reason, name]) => (
+              <li key={reason}>
+                <span className={`reason-dot ${reason}`} aria-hidden="true" />
+                {name}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {groups === null ? (
@@ -104,18 +110,13 @@ export function CallListPage() {
       ) : (
         <div className="table-scroll">
           <table className="call-table">
-            {/* Fixed widths, so opening a Customer never moves the columns. */}
-            <colgroup>
-              <col className="w-customer" />
-              <col className="w-why" />
-              <col className="w-owed" />
-              <col className="w-called" />
-              <col className="w-contact" />
-            </colgroup>
             <thead>
               <tr>
                 <SortHeading sorting={sorting} column="customer">
                   Customer
+                </SortHeading>
+                <SortHeading sorting={sorting} column="mortgage">
+                  Mortgage
                 </SortHeading>
                 <SortHeading sorting={sorting} column="why" firstDescending>
                   Why
@@ -124,19 +125,18 @@ export function CallListPage() {
                   Outstanding
                 </SortHeading>
                 <th>Called today</th>
-                <th>Contact</th>
               </tr>
             </thead>
-            {groups.map((group) => (
-              <CustomerRows
-                key={group.customer.id}
-                group={group}
-                expanded={open.has(group.customer.id)}
-                onToggle={() => toggle(group.customer.id)}
-                noting={noting}
-                onNote={setNoting}
-              />
-            ))}
+            <tbody>
+              {groups.map((group) => (
+                <CustomerRows
+                  key={group.customer.id}
+                  group={group}
+                  noting={noting}
+                  onNote={setNoting}
+                />
+              ))}
+            </tbody>
           </table>
         </div>
       )}
@@ -145,102 +145,88 @@ export function CallListPage() {
   )
 }
 
-/** One Customer on the Call List: a summary row, and their Mortgages when expanded. */
+/** One Customer's Mortgages, a row each, with the Customer once beside them. */
 function CustomerRows({
   group,
-  expanded,
-  onToggle,
   noting,
   onNote,
 }: {
   group: CallListGroup
-  expanded: boolean
-  onToggle: () => void
   noting: number | null
   onNote: (mortgageId: number | null) => void
 }) {
   const { customer, rows } = group
   const owed = rows.reduce((sum, row) => sum + row.outstanding, 0)
-  const called = rows.filter((row) => row.called).length
+  const notingHere = rows.some((row) => row.mortgage_id === noting)
   const count = `${rows.length} Mortgage${rows.length === 1 ? '' : 's'}`
-  return (
-    <tbody className={expanded ? 'call-customer open' : 'call-customer'}>
-      <tr className="call-summary">
-        <td>
-          <span className="call-name">
-            <button
-              type="button"
-              className="disclosure"
-              aria-expanded={expanded}
-              aria-label={`${expanded ? 'Hide' : 'Show'} Mortgages of ${customer.name}`}
-              onClick={onToggle}
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 3.5 10.5 8 6 12.5" />
-              </svg>
-            </button>
-            <span className="call-who">
+  return rows.map((row, index) => (
+    <Fragment key={row.mortgage_id}>
+      <tr className={index === 0 ? 'group-start' : undefined}>
+        {index === 0 && (
+          <td className="call-customer" rowSpan={rows.length + (notingHere ? 1 : 0)}>
+            <div className="call-who">
               <strong>
                 <PersonLink person={customer} />
               </strong>
-              {/* All their Active Mortgages, on the Mortgages page */}
-              <Link className="call-count" to={`/mortgages?customer=${customer.id}`}>
-                {count}
-              </Link>
-            </span>
-          </span>
-        </td>
-        <td>{reasonsOfCustomer(rows).join(' · ')}</td>
-        <td className="num">{formatINR(owed)}</td>
-        <td className={called ? undefined : 'hint'}>
-          {rows.length === 1 ? (called ? 'Called' : 'Not yet') : `${called} of ${rows.length} called`}
+              <span className="hint">
+                {/* All their Active Mortgages, on the Mortgages page */}
+                <Link to={`/mortgages?customer=${customer.id}`}>{count}</Link> ·{' '}
+                <span className="num">{formatINR(owed)}</span>
+              </span>
+              <Reach phone={group.phone_1} />
+              {group.phone_2 && <Reach phone={group.phone_2} />}
+            </div>
+          </td>
+        )}
+        <td>
+          <Link to={`/mortgages/${row.mortgage_id}`}>{row.mortgage_name}</Link>
         </td>
         <td>
-          <span className="call-contacts">
-            <ContactLinks phone={group.phone_1} />
-            {group.phone_2 && <ContactLinks phone={group.phone_2} />}
+          <span className="reasons">
+            {reasonsOf(row).map(({ reason, short, full }) => (
+              <span key={reason} className="reason" aria-label={full} title={full}>
+                <span className={`reason-dot ${reason}`} aria-hidden="true" />
+                <span aria-hidden="true">{short}</span>
+              </span>
+            ))}
           </span>
         </td>
+        <td className="num">{formatINR(row.outstanding)}</td>
+        <td>
+          {row.called ? (
+            <div className="called-cell">
+              <span className="called-mark">
+                <span aria-hidden="true">✓</span> Called
+              </span>
+              {row.called.note && <span className="hint">{row.called.note}</span>}
+              {noting !== row.mortgage_id && (
+                <button type="button" className="link" onClick={() => onNote(row.mortgage_id)}>
+                  Again…
+                </button>
+              )}
+            </div>
+          ) : (
+            noting !== row.mortgage_id && (
+              <button type="button" className="small" onClick={() => onNote(row.mortgage_id)}>
+                Mark called…
+              </button>
+            )
+          )}
+        </td>
       </tr>
-      {expanded &&
-        rows.map((row) => (
-          <Fragment key={row.mortgage_id}>
-            <tr className={row.called ? 'call-mortgage called' : 'call-mortgage'}>
-              <td>
-                <Link to={`/mortgages/${row.mortgage_id}`} title={row.mortgage_name}>
-                  {row.mortgage_name}
-                </Link>
-              </td>
-              <td>{reasonsOf(row).join(' · ')}</td>
-              <td className="num">{formatINR(row.outstanding)}</td>
-              <td>{row.called ? `Called${row.called.note ? `: ${row.called.note}` : ''}` : <span className="hint">Not yet</span>}</td>
-              <td>
-                {noting !== row.mortgage_id && (
-                  <button
-                    type="button"
-                    className={row.called ? 'secondary small' : 'small'}
-                    onClick={() => onNote(row.mortgage_id)}
-                  >
-                    {row.called ? 'Again…' : 'Mark called…'}
-                  </button>
-                )}
-              </td>
-            </tr>
-            {noting === row.mortgage_id && (
-              <tr className="call-mortgage call-noting">
-                <td colSpan={5}>
-                  <MarkCalled
-                    mortgageId={row.mortgage_id}
-                    mortgageName={row.mortgage_name}
-                    // Marking called makes the Call List stale itself.
-                    onSaved={() => onNote(null)}
-                    onCancel={() => onNote(null)}
-                  />
-                </td>
-              </tr>
-            )}
-          </Fragment>
-        ))}
-    </tbody>
-  )
+      {noting === row.mortgage_id && (
+        <tr className="call-noting">
+          <td colSpan={4}>
+            <MarkCalled
+              mortgageId={row.mortgage_id}
+              mortgageName={row.mortgage_name}
+              // Marking called makes the Call List stale itself.
+              onSaved={() => onNote(null)}
+              onCancel={() => onNote(null)}
+            />
+          </td>
+        </tr>
+      )}
+    </Fragment>
+  ))
 }

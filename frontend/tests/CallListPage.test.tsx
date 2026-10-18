@@ -40,46 +40,54 @@ const listed: Listed = {
 const show = () =>
   showPage(fakeServer({ 'GET /api/call-list': listed }), '/call-list', { '/call-list': <CallListPage /> })
 
-/** The summary row of one Customer. */
-const customerRow = (name: string) =>
-  screen.getAllByRole('row').find((row) => within(row).queryByRole('link', { name }))!
+/** The cell holding a Customer, beside each of their Mortgages' rows. */
+const customerCell = (name: string) =>
+  screen.getByRole('link', { name }).closest('td') as HTMLTableCellElement
 
-test("each Customer starts collapsed to one summary row: their Mortgages' count, why, owed and calls", async () => {
+test('each Customer appears once, beside all their Mortgages, with their count, total and ways to reach them', async () => {
   show()
   await screen.findByRole('link', { name: 'Arjun Patel' })
 
-  const arjun = customerRow('Arjun Patel')
-  const count = within(arjun).getByRole('link', { name: '2 Mortgages' })
-  expect(count.getAttribute('href')).toBe('/mortgages?customer=2')
-  expect(within(arjun).getByText('15 months unpaid · Loan-to-Value 104.5% · Accrues today')).toBeTruthy()
+  const arjun = customerCell('Arjun Patel')
+  expect(arjun.rowSpan).toBe(2)
+  expect(within(arjun).getByRole('link', { name: '2 Mortgages' }).getAttribute('href')).toBe('/mortgages?customer=2')
   expect(within(arjun).getByText('₹1,31,631')).toBeTruthy()
-  expect(within(arjun).getByText('1 of 2 called')).toBeTruthy()
-  expect(within(customerRow('Sunita Rao')).getByRole('link', { name: '1 Mortgage' })).toBeTruthy()
-  expect(screen.queryByRole('link', { name: '2026-Arjun-GoldChain' })).toBeNull()
+  expect(within(arjun).getByRole('link', { name: 'Call 9820023456' }).getAttribute('href')).toBe('tel:+919820023456')
+  expect(within(arjun).getByRole('button', { name: 'WhatsApp 9820023456' })).toBeTruthy()
+  expect(within(customerCell('Sunita Rao')).getByRole('link', { name: 'Call 9810099999' })).toBeTruthy()
+
+  // Every Mortgage is its own row, always shown.
+  for (const name of ['2026-Arjun-GoldChain', '2025-Arjun-GoldRingRuby', '2026-Sunita-Mangalsutra']) {
+    expect(screen.getByRole('link', { name }).closest('tr')).toBeTruthy()
+  }
+  expect(screen.getAllByRole('row')).toHaveLength(1 + 3)
 })
 
-test("expanding a Customer shows their Mortgages, each to mark called", async () => {
+test('reasons show as status circles with short labels, and their full wording', async () => {
   show()
   await screen.findByRole('link', { name: 'Arjun Patel' })
 
-  fireEvent.click(within(customerRow('Arjun Patel')).getByRole('button', { name: 'Show Mortgages of Arjun Patel' }))
+  const ring = screen.getByRole('link', { name: '2025-Arjun-GoldRingRuby' }).closest('tr')!
+  expect(within(ring).getByText('15 mo')).toBeTruthy()
+  expect(within(ring).getByText('104.5%')).toBeTruthy()
+  expect(within(ring).getByLabelText('15 months unpaid')).toBeTruthy()
+  expect(within(ring).getByLabelText('Loan-to-Value 104.5%')).toBeTruthy()
 
-  expect(screen.getByRole('link', { name: '2026-Arjun-GoldChain' })).toBeTruthy()
-  expect(screen.getByText('Called: Will pay after Diwali')).toBeTruthy()
-  expect(screen.queryByRole('link', { name: '2026-Sunita-Mangalsutra' })).toBeNull()
+  const chain = screen.getByRole('link', { name: '2026-Arjun-GoldChain' }).closest('tr')!
+  expect(within(chain).getByLabelText('Accrues today')).toBeTruthy()
+})
 
-  fireEvent.click(screen.getByRole('button', { name: 'Mark called…' }))
+test("a Mortgage is marked called on its own row; one called today says so with the note", async () => {
+  show()
+  await screen.findByRole('link', { name: 'Arjun Patel' })
+
+  const ring = screen.getByRole('link', { name: '2025-Arjun-GoldRingRuby' }).closest('tr')!
+  expect(within(ring).getByText('Called')).toBeTruthy()
+  expect(within(ring).getByText('Will pay after Diwali')).toBeTruthy()
+
+  const chain = screen.getByRole('link', { name: '2026-Arjun-GoldChain' }).closest('tr')!
+  fireEvent.click(within(chain).getByRole('button', { name: 'Mark called…' }))
   expect(screen.getByLabelText('Call Note for 2026-Arjun-GoldChain')).toBeTruthy()
-})
-
-test('Expand all and Collapse all open and close every Customer at once', async () => {
-  show()
-  await screen.findByRole('link', { name: 'Arjun Patel' })
-
-  fireEvent.click(screen.getByRole('button', { name: 'Expand all' }))
-  expect(screen.getByRole('link', { name: '2026-Sunita-Mangalsutra' })).toBeTruthy()
-  expect(screen.getByRole('link', { name: '2025-Arjun-GoldRingRuby' })).toBeTruthy()
-
-  fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }))
-  expect(screen.queryByRole('link', { name: '2025-Arjun-GoldRingRuby' })).toBeNull()
+  // The Customer's cell still spans all their rows, the note's included.
+  expect(customerCell('Arjun Patel').rowSpan).toBe(3)
 })
