@@ -2,7 +2,6 @@
 see conftest)."""
 
 import pytest
-
 from api_seed import SIMPLE_3, lend, person
 from seed import LAKH, RUPEE
 

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import and_, insert, or_, select
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.db import (
+from mortgage_backend.platform.db import (
     EngineDep,
     allocation_table,
     audit_entry_table,

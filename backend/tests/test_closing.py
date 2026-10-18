@@ -1,7 +1,6 @@
 """Closing a Mortgage: Redemption (paid in full, jewellery returned) or Forfeiture."""
 
 import pytest
-
 from api_seed import SIMPLE_3, lend, pay, person
 from seed import LAKH
 

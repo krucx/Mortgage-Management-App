@@ -14,7 +14,7 @@ from datetime import date
 from pydantic import BaseModel
 from sqlalchemy.engine import RowMapping
 
-from mortgage_backend.money import format_inr
+from mortgage_backend.platform.money import format_inr
 
 CARD_WIDTH = 24  # characters: fits a phone's WhatsApp monospace line
 RULE = "─"

@@ -1,29 +1,29 @@
 """The Call List and Call Notes (see GLOSSARY.md), calculated whenever it is asked for."""
 
 from collections.abc import Callable, Mapping
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.clock import TodayDep
-from mortgage_backend.collateral import collateral_of, gold_rates
-from mortgage_backend.customers import PersonSummary
-from mortgage_backend.db import (
+from mortgage_backend.collateral.collateral import collateral_of, gold_rates
+from mortgage_backend.follow_up.call_notes import CallNote
+from mortgage_backend.lending.ledger import months_unpaid
+from mortgage_backend.lending.mortgages import select_with_customer
+from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus, replays
+from mortgage_backend.people.customers import PersonSummary
+from mortgage_backend.platform.clock import TodayDep
+from mortgage_backend.platform.db import (
     EngineDep,
     call_note_table,
     customer_table,
-    exists,
     mortgage_table,
 )
-from mortgage_backend.ledger import months_unpaid
-from mortgage_backend.mortgages import select_with_customer
-from mortgage_backend.paging import Page, PageNumber, rows_page
-from mortgage_backend.replay import MortgageReplay, MortgageStatus, replays
-from mortgage_backend.settings import ConfigGroup
+from mortgage_backend.platform.paging import Page, PageNumber, rows_page
+from mortgage_backend.platform.settings import ConfigGroup
 
 Reason = Literal["months_unpaid", "loan_to_value", "accrues_today"]
 
@@ -31,17 +31,6 @@ Reason = Literal["months_unpaid", "loan_to_value", "accrues_today"]
 class CallListSettings(BaseModel):
     months_unpaid: int = Field(default=3, ge=1)  # list at this many Months Unpaid
     loan_to_value_pct: int = Field(default=85, gt=0)  # list above this Loan-to-Value
-
-
-class CallNoteIn(BaseModel):
-    note: str = ""
-
-
-class CallNote(BaseModel):
-    id: int
-    called_on: date
-    note: str
-    created_at: datetime
 
 
 class CallListRow(BaseModel):
@@ -233,44 +222,3 @@ def update_call_list_settings(
     with engine.begin() as conn:
         CALL_LIST_SETTINGS.set(conn, settings, today)
         return CALL_LIST_SETTINGS.get(conn)
-
-
-def _not_found_unless_exists(conn: Connection, mortgage_id: int) -> None:
-    if not exists(conn, mortgage_table, mortgage_id):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
-
-
-@router.post("/mortgages/{mortgage_id}/call-notes", status_code=status.HTTP_201_CREATED)
-def add_call_note(
-    mortgage_id: int, call_note: CallNoteIn, engine: EngineDep, today: TodayDep
-) -> CallNote:
-    """Mark a Mortgage as called today, with what was said."""
-    with engine.begin() as conn:
-        _not_found_unless_exists(conn, mortgage_id)
-        note = (
-            conn.execute(
-                insert(call_note_table)
-                .values(
-                    mortgage_id=mortgage_id,
-                    called_on=today,
-                    note=call_note.note.strip(),
-                )
-                .returning(call_note_table)
-            )
-            .mappings()
-            .one()
-        )
-        return CallNote.model_validate(note)
-
-
-@router.get("/mortgages/{mortgage_id}/call-notes")
-def list_call_notes(mortgage_id: int, engine: EngineDep) -> list[CallNote]:
-    """A Mortgage's Call Notes, newest first."""
-    with engine.connect() as conn:
-        _not_found_unless_exists(conn, mortgage_id)
-        notes = conn.execute(
-            select(call_note_table)
-            .where(call_note_table.c.mortgage_id == mortgage_id)
-            .order_by(call_note_table.c.id.desc())
-        ).mappings()
-        return [CallNote.model_validate(note) for note in notes]

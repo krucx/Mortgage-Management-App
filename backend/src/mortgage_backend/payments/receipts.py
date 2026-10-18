@@ -11,17 +11,18 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.customers import PersonSummary, phones_of
-from mortgage_backend.db import EngineDep, customer_table, payment_table
-from mortgage_backend.message_settings import MESSAGE_SETTINGS
-from mortgage_backend.messages import (
+from mortgage_backend.follow_up.message_settings import MESSAGE_SETTINGS
+from mortgage_backend.follow_up.messages import (
     ReceiptLine,
     ReceiptMessage,
     descriptions,
     receipt_text,
 )
-from mortgage_backend.payments import METHOD_NAMES, PaymentMethod, mortgages_of
-from mortgage_backend.replay import replays
+from mortgage_backend.lending.replay import replays
+from mortgage_backend.payments.payments import METHOD_NAMES, PaymentMethod, mortgages_of
+from mortgage_backend.people.customers import PersonSummary, phones_of
+from mortgage_backend.platform.db import EngineDep, customer_table, payment_table
+
 
 class ReceiptLineOut(ReceiptLine):
     mortgage_id: int  # for the Lender's links; never shown to the Customer

@@ -2,7 +2,6 @@
 conftest). Every figure comes from replaying the Mortgages and from stored Payments."""
 
 import pytest
-
 from api_seed import lend, pay, person
 from seed import RUPEE
 

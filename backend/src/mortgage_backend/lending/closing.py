@@ -10,12 +10,16 @@ from typing import Any, Literal
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from mortgage_backend.changes import closable
-from mortgage_backend.clock import TodayDep
-from mortgage_backend.db import EngineDep, mortgage_table
-from mortgage_backend.mortgages import MortgageRow, mortgage_rows, select_with_customer
-from mortgage_backend.paging import Page, PageNumber, rows_page
-from mortgage_backend.replay import MortgageStatus, Redemption, replays
+from mortgage_backend.lending.changes import closable
+from mortgage_backend.lending.mortgages import (
+    MortgageRow,
+    mortgage_rows,
+    select_with_customer,
+)
+from mortgage_backend.lending.replay import MortgageStatus, Redemption, replays
+from mortgage_backend.platform.clock import TodayDep
+from mortgage_backend.platform.db import EngineDep, mortgage_table
+from mortgage_backend.platform.paging import Page, PageNumber, rows_page
 
 
 class ReadyToRedeem(BaseModel):

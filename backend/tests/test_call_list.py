@@ -1,7 +1,6 @@
 """The Call List: Mortgages to phone about today (today is 20 Apr 2026, see conftest)."""
 
 import pytest
-
 from api_seed import lend, pay, person
 from seed import LAKH, RUPEE
 

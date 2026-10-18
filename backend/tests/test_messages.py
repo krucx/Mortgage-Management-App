@@ -6,7 +6,9 @@ amounts right-aligned. Customers see the item, never the Mortgage Name.
 
 from datetime import date
 
-from mortgage_backend.messages import (
+from seed import RUPEE
+
+from mortgage_backend.follow_up.messages import (
     NOTICE_PLACEHOLDERS,
     RECEIPT_PLACEHOLDERS,
     NoticeLine,
@@ -18,8 +20,6 @@ from mortgage_backend.messages import (
     receipt_text,
     unknown_placeholders,
 )
-from seed import RUPEE
-
 
 RECEIPT = (
     "*Payment received*\n"

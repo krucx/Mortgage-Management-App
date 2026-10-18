@@ -5,10 +5,8 @@ from datetime import date
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy.engine import Connection
-
 from seed import RUPEE, add_customer, add_mortgage, add_payment
-
+from sqlalchemy.engine import Connection
 
 
 def test_a_seeded_overpayment_fails_at_setup(conn: Connection) -> None:

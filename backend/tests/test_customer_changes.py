@@ -6,20 +6,20 @@ from datetime import datetime
 
 import pytest
 from fastapi import HTTPException
+from seed import add_mortgage
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
-from mortgage_backend import customer_changes
-from mortgage_backend.audit import customer_history
-from mortgage_backend.customers import (
+from mortgage_backend.people import customer_changes
+from mortgage_backend.people.customers import (
     CustomerIn,
     ExistingCustomerReferrer,
     ExistingStandaloneReferrer,
     NewStandaloneReferrer,
     load_customer,
 )
-from mortgage_backend.db import standalone_referrer_table
-from seed import add_mortgage
+from mortgage_backend.platform.db import standalone_referrer_table
+from mortgage_backend.safekeeping.audit import customer_history
 
 NOW = datetime(2026, 4, 20, 11, 0)
 MOHAN = NewStandaloneReferrer(

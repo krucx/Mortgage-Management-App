@@ -8,14 +8,14 @@ from datetime import date
 from typing import Any
 
 import pytest
+from seed import LAKH, add_customer, add_mortgage, add_payment, redeem
 from sqlalchemy import event, select
 from sqlalchemy.engine import Connection, Engine, RowMapping
 
-from mortgage_backend import notices
-from mortgage_backend.call_list import call_list
-from mortgage_backend.db import make_engine, mortgage_table
-from mortgage_backend.replay import MortgageReplay, replays
-from seed import LAKH, add_customer, add_mortgage, add_payment, redeem
+from mortgage_backend.follow_up import notices
+from mortgage_backend.follow_up.call_list import call_list
+from mortgage_backend.lending.replay import MortgageReplay, replays
+from mortgage_backend.platform.db import make_engine, mortgage_table
 
 TODAY = date(2026, 4, 20)
 

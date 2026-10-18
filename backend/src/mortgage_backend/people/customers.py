@@ -16,15 +16,15 @@ from sqlalchemy import (
 from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.db import (
+from mortgage_backend.lending.replay import MortgageStatus
+from mortgage_backend.platform.db import (
     EngineDep,
     customer_table,
     mortgage_table,
     standalone_referrer_table,
 )
-from mortgage_backend.paging import Page, PageNumber, Sorting, query_page
-from mortgage_backend.photos import photo_url
-from mortgage_backend.replay import MortgageStatus
+from mortgage_backend.platform.paging import Page, PageNumber, Sorting, query_page
+from mortgage_backend.platform.photos import photo_url
 
 
 def normalise_phone(raw: str) -> str:

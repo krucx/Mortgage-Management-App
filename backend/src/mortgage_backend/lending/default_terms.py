@@ -2,10 +2,10 @@
 
 from fastapi import APIRouter
 
-from mortgage_backend.clock import TodayDep
-from mortgage_backend.db import EngineDep
-from mortgage_backend.settings import ConfigGroup
-from mortgage_backend.terms import Terms
+from mortgage_backend.lending.terms import Terms
+from mortgage_backend.platform.clock import TodayDep
+from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.settings import ConfigGroup
 
 # Stored when the database is created (migration 0001), so never missing.
 DEFAULT_TERMS = ConfigGroup.prefixed("default_", Terms)

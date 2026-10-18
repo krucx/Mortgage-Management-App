@@ -6,9 +6,9 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.db import get_config, set_config
-from mortgage_backend.settings import ConfigGroup
-from mortgage_backend.terms import InterestMode
+from mortgage_backend.lending.terms import InterestMode
+from mortgage_backend.platform.db import get_config, set_config
+from mortgage_backend.platform.settings import ConfigGroup
 
 TODAY = date(2026, 5, 12)
 

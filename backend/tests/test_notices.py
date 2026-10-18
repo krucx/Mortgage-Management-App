@@ -8,13 +8,16 @@ from collections.abc import Iterator
 from datetime import date, datetime
 
 import pytest
+from api_seed import lend, person
 from fastapi.testclient import TestClient
+from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, redeem
 from sqlalchemy.engine import Connection
 
-from api_seed import lend, person
-from mortgage_backend.main import create_app
-from mortgage_backend.message_settings import MESSAGE_SETTINGS, MessageSettings
-from mortgage_backend.notices import (
+from mortgage_backend.follow_up.message_settings import (
+    MESSAGE_SETTINGS,
+    MessageSettings,
+)
+from mortgage_backend.follow_up.notices import (
     NoticeAction,
     NoticeNotFound,
     NoticeRefused,
@@ -22,7 +25,7 @@ from mortgage_backend.notices import (
     list_notices,
     sync,
 )
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, redeem
+from mortgage_backend.main import create_app
 
 TODAY = date(2026, 5, 12)
 NOW = datetime(2026, 5, 12, 10, 0)

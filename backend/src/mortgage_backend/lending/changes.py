@@ -16,9 +16,33 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend import audit, photos
-from mortgage_backend.clock import NowDep, TodayDep
-from mortgage_backend.db import (
+from mortgage_backend.lending.default_terms import DEFAULT_TERMS
+from mortgage_backend.lending.ledger import Overpayment, is_accrual_date
+from mortgage_backend.lending.mortgages import (
+    Mortgage,
+    MortgageEdit,
+    MortgageIn,
+    load_mortgage,
+    name_for,
+    upcoming_accrual_dates,
+)
+from mortgage_backend.lending.replay import (
+    MortgageReplay,
+    MortgageStatus,
+    mortgage_row,
+    replay,
+    replays,
+)
+from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
+from mortgage_backend.payments.payments import (
+    Payment,
+    PaymentMethod,
+    load_payment,
+    mortgages_of,
+)
+from mortgage_backend.platform import photos
+from mortgage_backend.platform.clock import NowDep, TodayDep
+from mortgage_backend.platform.db import (
     EngineDep,
     allocation_table,
     customer_table,
@@ -28,28 +52,10 @@ from mortgage_backend.db import (
     payment_table,
     term_change_table,
 )
-from mortgage_backend.default_terms import DEFAULT_TERMS
-from mortgage_backend.errors import unprocessable
-from mortgage_backend.ledger import Overpayment, is_accrual_date
-from mortgage_backend.money import format_inr
-from mortgage_backend.mortgages import (
-    Mortgage,
-    MortgageEdit,
-    MortgageIn,
-    load_mortgage,
-    name_for,
-    upcoming_accrual_dates,
-)
-from mortgage_backend.payments import Payment, PaymentMethod, load_payment, mortgages_of
-from mortgage_backend.photos import PhotosDirDep
-from mortgage_backend.replay import (
-    MortgageReplay,
-    MortgageStatus,
-    mortgage_row,
-    replay,
-    replays,
-)
-from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
+from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.money import format_inr
+from mortgage_backend.platform.photos import PhotosDirDep
+from mortgage_backend.safekeeping import audit
 
 
 class AllocationIn(BaseModel):

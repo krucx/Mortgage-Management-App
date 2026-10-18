@@ -12,18 +12,19 @@ from datetime import date, datetime, time
 
 from sqlalchemy.engine import Connection
 
-from mortgage_backend import changes, customer_changes
-from mortgage_backend.changes import (
+from mortgage_backend.lending import changes
+from mortgage_backend.lending.changes import (
     AllocationIn,
     ForfeitIn,
     PaymentIn,
     RedeemIn,
     TermChangeIn,
 )
-from mortgage_backend.customers import CustomerIn
-from mortgage_backend.mortgages import MortgageIn
-from mortgage_backend.replay import mortgage_row
-from mortgage_backend.terms import Terms
+from mortgage_backend.lending.mortgages import MortgageIn
+from mortgage_backend.lending.replay import mortgage_row
+from mortgage_backend.lending.terms import Terms
+from mortgage_backend.people import customer_changes
+from mortgage_backend.people.customers import CustomerIn
 
 RUPEE = 100  # paise
 LAKH = 1_00_000 * RUPEE

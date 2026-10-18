@@ -3,8 +3,9 @@
 from datetime import date
 
 import pytest
+from seed import LAKH
 
-from mortgage_backend.ledger import (
+from mortgage_backend.lending.ledger import (
     Allocation,
     HypotheticalPayments,
     Overpayment,
@@ -14,8 +15,7 @@ from mortgage_backend.ledger import (
     months_unpaid,
     terms_on,
 )
-from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
-from seed import LAKH
+from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
 
 
 def terms(mode=InterestMode.SIMPLE, bps=300):

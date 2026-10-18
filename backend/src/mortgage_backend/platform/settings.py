@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.db import config_table, get_config, set_config
+from mortgage_backend.platform.db import config_table, get_config, set_config
 
 # Reacts to a group being set, on the same connection; `today` is the business date.
 AfterSet = Callable[[Connection, date], None]

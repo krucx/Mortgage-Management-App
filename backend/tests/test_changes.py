@@ -8,16 +8,16 @@ The Mortgage throughout: ₹1,00,000 at 3% a month, Simple, Full-month rule, fro
 from datetime import date, datetime
 
 import pytest
+from conftest import TODAY
 from fastapi import HTTPException
+from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, forfeit, redeem
 from sqlalchemy.engine import Connection
 
-from conftest import TODAY
-from mortgage_backend import changes
-from mortgage_backend.audit import mortgage_history
-from mortgage_backend.changes import AllocationIn, PaymentIn, TermChangeIn
-from mortgage_backend.mortgages import MortgageEdit, MortgageIn
-from mortgage_backend.replay import replay
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, forfeit, redeem
+from mortgage_backend.lending import changes
+from mortgage_backend.lending.changes import AllocationIn, PaymentIn, TermChangeIn
+from mortgage_backend.lending.mortgages import MortgageEdit, MortgageIn
+from mortgage_backend.lending.replay import replay
+from mortgage_backend.safekeeping.audit import mortgage_history
 
 NOW = datetime(2026, 4, 20, 11, 0)
 

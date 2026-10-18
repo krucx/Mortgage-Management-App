@@ -3,15 +3,19 @@ how many days ahead Notices are queued, and whether they need approving first.""
 
 from datetime import date
 
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.messages import (
+from mortgage_backend.follow_up.messages import (
     NOTICE_PLACEHOLDERS,
     RECEIPT_PLACEHOLDERS,
     unknown_placeholders,
 )
-from mortgage_backend.settings import ConfigGroup
+from mortgage_backend.platform.clock import TodayDep
+from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.settings import ConfigGroup
 
 RECEIPT_TEMPLATE = (
     "*Payment received* ✅\n"
@@ -48,7 +52,7 @@ class MessageSettings(BaseModel):
 def _sync_notices(conn: Connection, today: date) -> None:
     """Saving these syncs the Notices to them at once."""
     # Imported here: the Notice queue reads these settings itself.
-    from mortgage_backend import notices
+    from mortgage_backend.follow_up import notices
 
     notices.sync(conn, today)
 
@@ -84,3 +88,28 @@ def template_refusal(settings: MessageSettings) -> str | None:
                 f"It can use: {usable}"
             )
     return None
+
+
+router = APIRouter(prefix="/api")
+
+
+@router.get("/settings/messages")
+def read_message_settings(engine: EngineDep) -> MessageSettings:
+    with engine.connect() as conn:
+        return MESSAGE_SETTINGS.get(conn)
+
+
+@router.put("/settings/messages")
+def update_message_settings(
+    settings: MessageSettings, engine: EngineDep, today: TodayDep
+) -> MessageSettings:
+    if reason := template_refusal(settings):
+        raise unprocessable(reason)
+    with engine.begin() as conn:
+        MESSAGE_SETTINGS.set(conn, settings, today)
+        return MESSAGE_SETTINGS.get(conn)
+
+
+@router.get("/settings/messages/placeholders")
+def read_message_placeholders() -> MessagePlaceholders:
+    return PLACEHOLDERS

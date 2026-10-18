@@ -5,8 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.db import make_engine, migrate
 from mortgage_backend.main import create_app
+from mortgage_backend.platform.db import make_engine, migrate
 
 TODAY = date(2026, 4, 20)
 

@@ -24,33 +24,26 @@ from pydantic import BaseModel
 from sqlalchemy import delete, false, insert, not_, select, update
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.clock import NowDep, TodayDep
-from mortgage_backend.customers import PersonSummary, phones_of
-from mortgage_backend.db import (
+from mortgage_backend.follow_up.message_settings import MESSAGE_SETTINGS
+from mortgage_backend.follow_up.messages import (
+    NoticeLine,
+    NoticeMessage,
+    descriptions,
+    notice_text,
+)
+from mortgage_backend.lending.ledger import accrual_date, is_accrual_date
+from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus, replays
+from mortgage_backend.payments.payments import MortgageLink
+from mortgage_backend.people.customers import PersonSummary, phones_of
+from mortgage_backend.platform.clock import NowDep, TodayDep
+from mortgage_backend.platform.db import (
     EngineDep,
     customer_table,
     mortgage_table,
     notice_mortgage_table,
     notice_table,
 )
-from mortgage_backend.errors import unprocessable
-from mortgage_backend.ledger import accrual_date, is_accrual_date
-from mortgage_backend.message_settings import (
-    MESSAGE_SETTINGS,
-    PLACEHOLDERS,
-    MessagePlaceholders,
-    MessageSettings,
-    template_refusal,
-)
-from mortgage_backend.messages import (
-    NoticeLine,
-    NoticeMessage,
-    descriptions,
-    notice_text,
-)
-from mortgage_backend.paging import Page, PageNumber, rows_page
-from mortgage_backend.payments import MortgageLink
-from mortgage_backend.replay import MortgageReplay, MortgageStatus, replays
+from mortgage_backend.platform.paging import Page, PageNumber, rows_page
 
 
 class NoticeStatus(StrEnum):
@@ -376,28 +369,6 @@ def act(
 
 
 router = APIRouter(prefix="/api")
-
-
-@router.get("/settings/messages")
-def read_message_settings(engine: EngineDep) -> MessageSettings:
-    with engine.connect() as conn:
-        return MESSAGE_SETTINGS.get(conn)
-
-
-@router.put("/settings/messages")
-def update_message_settings(
-    settings: MessageSettings, engine: EngineDep, today: TodayDep
-) -> MessageSettings:
-    if reason := template_refusal(settings):
-        raise unprocessable(reason)
-    with engine.begin() as conn:
-        MESSAGE_SETTINGS.set(conn, settings, today)
-        return MESSAGE_SETTINGS.get(conn)
-
-
-@router.get("/settings/messages/placeholders")
-def read_message_placeholders() -> MessagePlaceholders:
-    return PLACEHOLDERS
 
 
 @router.get("/notices")

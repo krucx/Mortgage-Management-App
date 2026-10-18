@@ -8,11 +8,7 @@ The Mortgage throughout: ₹1,00,000 at 3% a month, Simple, Full-month rule, fro
 
 from datetime import date
 
-from sqlalchemy.engine import Connection
-
 from conftest import TODAY
-from mortgage_backend.ledger import HypotheticalPayments
-from mortgage_backend.replay import replay, replays
 from seed import (
     LAKH,
     RUPEE,
@@ -23,6 +19,10 @@ from seed import (
     forfeit,
     redeem,
 )
+from sqlalchemy.engine import Connection
+
+from mortgage_backend.lending.ledger import HypotheticalPayments
+from mortgage_backend.lending.replay import replay, replays
 
 
 def test_a_voided_payment_is_in_no_ledger(conn: Connection) -> None:

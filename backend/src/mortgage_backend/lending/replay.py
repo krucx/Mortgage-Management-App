@@ -15,13 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.db import (
-    allocation_table,
-    mortgage_table,
-    payment_table,
-    term_change_table,
-)
-from mortgage_backend.ledger import (
+from mortgage_backend.lending.ledger import (
     Allocation,
     HypotheticalPayments,
     LedgerStep,
@@ -32,7 +26,13 @@ from mortgage_backend.ledger import (
     project,
     terms_on,
 )
-from mortgage_backend.terms import Terms
+from mortgage_backend.lending.terms import Terms
+from mortgage_backend.platform.db import (
+    allocation_table,
+    mortgage_table,
+    payment_table,
+    term_change_table,
+)
 
 
 class MortgageStatus(StrEnum):

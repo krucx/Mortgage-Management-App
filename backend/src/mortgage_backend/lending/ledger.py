@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Literal
 
-from mortgage_backend.terms import InterestMode, PartMonthRule, Terms
+from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
 
 LedgerEvent = Literal[
     "started",

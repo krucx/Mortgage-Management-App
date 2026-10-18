@@ -1,7 +1,6 @@
 """Collateral Value from the Lender's Gold Rates, and Loan-to-Value."""
 
 import pytest
-
 from api_seed import lend, person
 from seed import RUPEE
 

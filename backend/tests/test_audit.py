@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from mortgage_backend.audit import Change, changes
+from mortgage_backend.safekeeping.audit import Change, changes
 
 
 def test_only_changed_fields_are_recorded_as_text():

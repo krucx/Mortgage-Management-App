@@ -12,12 +12,12 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.call_list import CALL_LIST_SETTINGS, loan_to_value_too_high
-from mortgage_backend.clock import NowDep, TodayDep
-from mortgage_backend.collateral import Collateral
-from mortgage_backend.db import EngineDep
-from mortgage_backend.ledger import LedgerEvent, LedgerStep
-from mortgage_backend.changes import (
+from mortgage_backend.collateral.collateral import Collateral
+from mortgage_backend.follow_up.call_list import (
+    CALL_LIST_SETTINGS,
+    loan_to_value_too_high,
+)
+from mortgage_backend.lending.changes import (
     CollateralIn,
     ForfeitIn,
     PaymentIn,
@@ -34,11 +34,18 @@ from mortgage_backend.changes import (
     set_collateral,
     void_payment,
 )
-from mortgage_backend.mortgages import MortgageEdit, MortgageIn, load_mortgage
-from mortgage_backend.payments import mortgages_of
-from mortgage_backend.projections import ComingTermChange, ProjectedPoint, baseline
-from mortgage_backend.replay import MortgageStatus, replay
-from mortgage_backend.terms import Terms
+from mortgage_backend.lending.ledger import LedgerEvent, LedgerStep
+from mortgage_backend.lending.mortgages import MortgageEdit, MortgageIn, load_mortgage
+from mortgage_backend.lending.projections import (
+    ComingTermChange,
+    ProjectedPoint,
+    baseline,
+)
+from mortgage_backend.lending.replay import MortgageStatus, replay
+from mortgage_backend.lending.terms import Terms
+from mortgage_backend.payments.payments import mortgages_of
+from mortgage_backend.platform.clock import NowDep, TodayDep
+from mortgage_backend.platform.db import EngineDep
 
 
 class PreviewSide(BaseModel):

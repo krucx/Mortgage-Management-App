@@ -1,7 +1,7 @@
 from alembic import context
 from sqlalchemy import create_engine
 
-from mortgage_backend.db import metadata
+from mortgage_backend.platform.db import metadata
 
 engine = create_engine(context.config.get_main_option("sqlalchemy.url", ""))
 

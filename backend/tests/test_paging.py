@@ -4,12 +4,18 @@ key the list declares once. Pages hold 20."""
 from collections.abc import Sequence
 from typing import Any
 
+from seed import add_customer
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.db import customer_table
-from mortgage_backend.paging import PAGE_SIZE, Page, Sorting, query_page, rows_page
-from seed import add_customer
+from mortgage_backend.platform.db import customer_table
+from mortgage_backend.platform.paging import (
+    PAGE_SIZE,
+    Page,
+    Sorting,
+    query_page,
+    rows_page,
+)
 
 # Customers by name, then newest first: the id breaks ties whichever way it is sorted.
 SORTING = Sorting(

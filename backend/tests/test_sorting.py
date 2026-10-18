@@ -5,8 +5,9 @@ conftest). Pages hold 20, so 25 rows make two pages.
 from datetime import date
 
 from api_seed import lend, nth_person, pay
-from mortgage_backend.db import make_engine
 from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment
+
+from mortgage_backend.platform.db import make_engine
 
 
 def get(client, path, **params):

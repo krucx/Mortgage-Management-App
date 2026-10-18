@@ -7,9 +7,8 @@ own `http`.)
 
 from typing import Any
 
-from fastapi.testclient import TestClient
-
 import seed
+from fastapi.testclient import TestClient
 from seed import LAKH, RUPEE
 
 # A small Mortgage, for lists of many: ₹10,000 against a 5 g ring.

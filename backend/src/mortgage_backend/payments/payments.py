@@ -11,17 +11,17 @@ from sqlalchemy import Select, func, or_, select, true
 from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.clock import MonthQuery, month_span
-from mortgage_backend.customers import PersonSummary
-from mortgage_backend.db import (
+from mortgage_backend.lending.replay import replays
+from mortgage_backend.people.customers import PersonSummary
+from mortgage_backend.platform.clock import MonthQuery, month_span
+from mortgage_backend.platform.db import (
     EngineDep,
     allocation_table,
     customer_table,
     mortgage_table,
     payment_table,
 )
-from mortgage_backend.paging import Page, PageNumber, Sorting, query_page
-from mortgage_backend.replay import replays
+from mortgage_backend.platform.paging import Page, PageNumber, Sorting, query_page
 
 
 class PaymentMethod(StrEnum):

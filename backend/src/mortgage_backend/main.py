@@ -8,36 +8,32 @@ from pathlib import Path
 from fastapi import FastAPI, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
-from mortgage_backend import (
-    audit,
-    backups,
-    call_list,
+from mortgage_backend.collateral import collateral
+from mortgage_backend.follow_up import call_list, call_notes, message_settings, notices
+from mortgage_backend.lending import (
     changes,
     closing,
-    collateral,
-    customer_changes,
-    customers,
     dashboard,
     default_terms,
     mortgages,
-    notices,
-    payments,
-    photos,
     previews,
     projections,
-    receipts,
 )
-from mortgage_backend.backups import (
-    Backups,
-    backup_dir_from_env,
-    backup_password_from_env,
-)
-from mortgage_backend.daily_run import DailyRun
-from mortgage_backend.db import (
+from mortgage_backend.payments import payments, receipts
+from mortgage_backend.people import customer_changes, customers
+from mortgage_backend.platform import photos
+from mortgage_backend.platform.daily_run import DailyRun
+from mortgage_backend.platform.db import (
     database_url_from_env,
     make_engine,
     migrate,
     photos_dir,
+)
+from mortgage_backend.safekeeping import audit, backups
+from mortgage_backend.safekeeping.backups import (
+    Backups,
+    backup_dir_from_env,
+    backup_password_from_env,
 )
 
 
@@ -101,12 +97,14 @@ def create_app(
     app.include_router(photos.router)
     app.include_router(collateral.router)
     app.include_router(call_list.router)
+    app.include_router(call_notes.router)
     app.include_router(dashboard.router)
     app.include_router(backups.router)
     app.include_router(audit.router)
     app.include_router(projections.router)
     app.include_router(previews.router)
     app.include_router(receipts.router)
+    app.include_router(message_settings.router)
     app.include_router(notices.router)
     return app
 

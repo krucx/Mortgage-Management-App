@@ -3,7 +3,6 @@
 """
 
 import pytest
-
 from api_seed import RING, lend, nth_person, pay
 from seed import RUPEE
 

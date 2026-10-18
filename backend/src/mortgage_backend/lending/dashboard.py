@@ -14,14 +14,14 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from mortgage_backend import notices
-from mortgage_backend.call_list import call_list
-from mortgage_backend.clock import TodayDep, month_span
-from mortgage_backend.collateral import collateral_of, gold_rates
-from mortgage_backend.db import EngineDep, mortgage_table, payment_table
-from mortgage_backend.ledger import accrual_date
-from mortgage_backend.money import RUPEE
-from mortgage_backend.replay import MortgageReplay, MortgageStatus, replays
+from mortgage_backend.collateral.collateral import collateral_of, gold_rates
+from mortgage_backend.follow_up import notices
+from mortgage_backend.follow_up.call_list import call_list
+from mortgage_backend.lending.ledger import accrual_date
+from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus, replays
+from mortgage_backend.platform.clock import TodayDep, month_span
+from mortgage_backend.platform.db import EngineDep, mortgage_table, payment_table
+from mortgage_backend.platform.money import RUPEE
 
 MONTHS_OF_PAYMENTS = 12
 HORIZONS = (3, 6, 12)  # months ahead

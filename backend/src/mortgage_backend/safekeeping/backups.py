@@ -21,8 +21,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.engine import Engine
 
-from mortgage_backend.db import database_file, photos_dir
-from mortgage_backend.settings import ConfigGroup
+from mortgage_backend.platform.db import database_file, photos_dir
+from mortgage_backend.platform.settings import ConfigGroup
 
 log = logging.getLogger(__name__)
 

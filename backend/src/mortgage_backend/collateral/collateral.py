@@ -7,9 +7,9 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.clock import TodayDep
-from mortgage_backend.db import EngineDep
-from mortgage_backend.settings import ConfigGroup
+from mortgage_backend.platform.clock import TodayDep
+from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.settings import ConfigGroup
 
 Purity = Literal[24, 22, 20, 18, 14]
 PURITIES: tuple[int, ...] = get_args(Purity)

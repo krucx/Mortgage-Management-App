@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from mortgage_backend.errors import unprocessable
+from mortgage_backend.platform.errors import unprocessable
 
 MAX_EDGE_PX = 1600
 _FILE_NAME = re.compile(r"^[a-z]+-\d+-[0-9a-f]{32}\.jpg$")

@@ -8,11 +8,11 @@ to the chain and ₹2,000 to the bangles, all of it interest.
 from datetime import date
 
 import pytest
+from api_seed import lend, pay, person
+from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment
 from sqlalchemy.engine import Connection
 
-from api_seed import lend, pay, person
-from mortgage_backend.receipts import load_receipt
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment
+from mortgage_backend.payments.receipts import load_receipt
 
 
 @pytest.fixture

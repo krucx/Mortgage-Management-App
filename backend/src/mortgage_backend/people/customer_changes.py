@@ -15,9 +15,7 @@ from fastapi import APIRouter, HTTPException, Response, UploadFile, status
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.engine import Connection
 
-from mortgage_backend import audit, photos
-from mortgage_backend.clock import NowDep
-from mortgage_backend.customers import (
+from mortgage_backend.people.customers import (
     Customer,
     CustomerIn,
     ExistingCustomerReferrer,
@@ -28,15 +26,18 @@ from mortgage_backend.customers import (
     load_customer,
     owner_of,
 )
-from mortgage_backend.db import (
+from mortgage_backend.platform import photos
+from mortgage_backend.platform.clock import NowDep
+from mortgage_backend.platform.db import (
     EngineDep,
     customer_table,
     exists,
     mortgage_table,
     standalone_referrer_table,
 )
-from mortgage_backend.errors import unprocessable
-from mortgage_backend.photos import PhotosDirDep
+from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.photos import PhotosDirDep
+from mortgage_backend.safekeeping import audit
 
 _AUDITED = ["name", "address", "phone_1", "phone_2", "referrer"]
 

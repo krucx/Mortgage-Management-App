@@ -11,12 +11,12 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.clock import TodayDep
-from mortgage_backend.collateral import collateral_of, gold_rates
-from mortgage_backend.db import EngineDep
-from mortgage_backend.ledger import HypotheticalPayments, accrual_date
-from mortgage_backend.replay import MortgageReplay, MortgageStatus, replay
-from mortgage_backend.terms import Terms
+from mortgage_backend.collateral.collateral import collateral_of, gold_rates
+from mortgage_backend.lending.ledger import HypotheticalPayments, accrual_date
+from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus, replay
+from mortgage_backend.lending.terms import Terms
+from mortgage_backend.platform.clock import TodayDep
+from mortgage_backend.platform.db import EngineDep
 
 MONTHS_AHEAD = 12
 PAID_OFF_SEARCH_MONTHS = 120  # how far to look for when it would be paid off

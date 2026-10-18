@@ -1,5 +1,4 @@
 import pytest
-
 from api_seed import lend, pay, person
 
 

@@ -17,29 +17,40 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.clock import MonthQuery, TodayDep, month_span
-from mortgage_backend.collateral import Collateral, Purity, collateral_of, gold_rates
-from mortgage_backend.customers import PersonSummary
-from mortgage_backend.db import (
-    EngineDep,
-    customer_table,
-    mortgage_photo_table,
-    mortgage_table,
+from mortgage_backend.collateral.collateral import (
+    Collateral,
+    Purity,
+    collateral_of,
+    gold_rates,
 )
-from mortgage_backend.errors import unprocessable
-from mortgage_backend.ledger import (
+from mortgage_backend.lending.ledger import (
     LedgerStep,
     accrual_date,
 )
-from mortgage_backend.paging import Page, PageNumber, Sorting, query_page, rows_page
-from mortgage_backend.photos import photo_url
-from mortgage_backend.replay import (
+from mortgage_backend.lending.replay import (
     MortgageReplay,
     MortgageStatus,
     Outstanding,
     replays,
 )
-from mortgage_backend.terms import Terms
+from mortgage_backend.lending.terms import Terms
+from mortgage_backend.people.customers import PersonSummary
+from mortgage_backend.platform.clock import MonthQuery, TodayDep, month_span
+from mortgage_backend.platform.db import (
+    EngineDep,
+    customer_table,
+    mortgage_photo_table,
+    mortgage_table,
+)
+from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.paging import (
+    Page,
+    PageNumber,
+    Sorting,
+    query_page,
+    rows_page,
+)
+from mortgage_backend.platform.photos import photo_url
 
 
 class MortgageDetails(BaseModel):

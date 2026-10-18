@@ -13,7 +13,7 @@ from datetime import date
 from pydantic import BaseModel
 from sqlalchemy.engine import Engine
 
-from mortgage_backend.settings import ConfigGroup
+from mortgage_backend.platform.settings import ConfigGroup
 
 log = logging.getLogger(__name__)
 

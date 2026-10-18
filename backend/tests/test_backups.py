@@ -8,12 +8,12 @@ from datetime import datetime, timedelta
 import pytest
 from alembic import command
 from alembic.config import Config
+from api_seed import person
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from api_seed import person
-from mortgage_backend.db import MIGRATIONS_DIR
 from mortgage_backend.main import create_app
+from mortgage_backend.platform.db import MIGRATIONS_DIR
 
 PASSWORD = "open sesame"
 
