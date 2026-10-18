@@ -1,50 +1,45 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link } from 'react-router'
-import { api, CUSTOMER_SORTS, type CustomerPage, type CustomerRow } from '../api'
-import { Pager } from '../components/Pager'
+import { api, CUSTOMER_SORTS, type CustomerRow, type CustomerSort } from '../api'
 import { SortHeading } from '../components/SortHeading'
-import { useUrlSort } from '../components/useUrlSort'
+import { useListPage } from '../components/useListPage'
 import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { PersonLink, PersonList } from '../components/PersonLink'
 import { useSearch } from '../components/useSearch'
+import type { Sort } from '../sort'
 
 /** All Customers in a paginated table, filterable by name or phone, or to those with an
  * Active Mortgage. */
 export function CustomersPage() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounced(query)
-  const [page, setPage] = useState(1)
-  const [result, setResult] = useState<CustomerPage | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [confirm, confirmDialog] = useConfirm()
   const referrers = useSearch(debouncedQuery).filter((hit) => hit.kind === 'referrer')
   // In the URL, so the narrowed list can be shared (e.g. from the Dashboard).
   const [searchParams, setFilters] = useUrlFilters()
   const activeOnly = searchParams.get('active') === 'true'
-  const sorting = useUrlSort(CUSTOMER_SORTS, { onChange: () => setPage(1) })
-  const { sort } = sorting
-
-  const load = useCallback(
-    () =>
-      api
-        .listCustomers(page, debouncedQuery, { hasActiveMortgage: activeOnly, sort })
-        .then((loaded) => {
-          // Deleting the last row of a page leaves it empty; step back a page.
-          if (loaded.items.length === 0 && page > 1) setPage(page - 1)
-          else setResult(loaded)
-        })
-        .catch((err: Error) => setError(err.message)),
-    [page, debouncedQuery, activeOnly, sort],
+  const fetchPage = useCallback(
+    (page: number, sort: Sort<CustomerSort> | null) =>
+      api.listCustomers(page, debouncedQuery, { hasActiveMortgage: activeOnly, sort }),
+    [debouncedQuery, activeOnly],
   )
-
-  useEffect(() => {
-    load()
-  }, [load])
+  // A new filter starts at page 1; deleting a page's last row steps back a page.
+  const {
+    listed: result,
+    sorting,
+    error: listError,
+    reload,
+    pager,
+  } = useListPage(CUSTOMER_SORTS, fetchPage, {
+    resetOn: [debouncedQuery, activeOnly],
+  })
+  const error = actionError ?? listError
 
   async function remove(row: CustomerRow) {
-    setError(null)
+    setActionError(null)
     try {
       const { referred } = await api.getCustomer(row.id)
       const confirmed = await confirm({
@@ -66,9 +61,9 @@ export function CustomersPage() {
       })
       if (!confirmed) return
       await api.deleteCustomer(row.id)
-      await load()
+      await reload()
     } catch (err) {
-      setError((err as Error).message)
+      setActionError((err as Error).message)
     }
   }
 
@@ -85,19 +80,13 @@ export function CustomersPage() {
         type="search"
         placeholder="Filter by name or phone"
         value={query}
-        onChange={(event) => {
-          setQuery(event.target.value)
-          setPage(1)
-        }}
+        onChange={(event) => setQuery(event.target.value)}
       />
       <label className="inline">
         <input
           type="checkbox"
           checked={activeOnly}
-          onChange={(event) => {
-            setFilters({ active: event.target.checked ? 'true' : null })
-            setPage(1)
-          }}
+          onChange={(event) => setFilters({ active: event.target.checked ? 'true' : null })}
         />
         Only Customers with an Active Mortgage
       </label>
@@ -173,15 +162,7 @@ export function CustomersPage() {
         </div>
       )}
 
-      {result && (
-        <Pager
-          page={result.page}
-          pageSize={result.page_size}
-          total={result.total}
-          shown={result.items.length}
-          onPage={setPage}
-        />
-      )}
+      {pager}
 
       {referrers.length > 0 && (
         <>

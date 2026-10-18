@@ -43,7 +43,7 @@ export function NoticesPage() {
   const { listed, sorting, error: listError, reload, pager } = useListPage(
     NOTICE_SORTS,
     fetchPage,
-    { resetOn: shown },
+    { resetOn: [shown] },
   )
   const notices = listed?.items
   const [actionError, setActionError] = useState<string | null>(null)

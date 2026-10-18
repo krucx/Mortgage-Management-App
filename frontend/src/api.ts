@@ -9,25 +9,52 @@ type Schemas = components['schemas']
 type SortOf<Operation extends keyof operations> = NonNullable<
   NonNullable<operations[Operation]['parameters']['query']> extends { sort?: infer S } ? S : never
 >
+/** Every column of `Sort`, in the order given: one missing or not in the generated
+ *  type fails to compile, so a column the backend adds or renames is never missed. */
+function columnsOf<Sort extends string>(columns: Record<Sort, true>): readonly Sort[] {
+  return Object.keys(columns) as Sort[]
+}
+
 export type CustomerSort = SortOf<'list_customers_api_customers_get'>
-export const CUSTOMER_SORTS: CustomerSort[] = ['name', 'phone', 'address', 'referrer']
+export const CUSTOMER_SORTS = columnsOf<CustomerSort>({
+  name: true,
+  phone: true,
+  address: true,
+  referrer: true,
+})
 export type MortgageSort = SortOf<'list_mortgages_api_mortgages_get'>
-export const MORTGAGE_SORTS: MortgageSort[] = [
-  'name',
-  'customer',
-  'started',
-  'lent',
-  'outstanding',
-  'status',
-]
+export const MORTGAGE_SORTS = columnsOf<MortgageSort>({
+  name: true,
+  customer: true,
+  started: true,
+  lent: true,
+  outstanding: true,
+  status: true,
+})
 export type PaymentSort = SortOf<'list_payments_api_payments_get'>
-export const PAYMENT_SORTS: PaymentSort[] = ['date', 'customer', 'mortgages', 'method', 'amount']
+export const PAYMENT_SORTS = columnsOf<PaymentSort>({
+  date: true,
+  customer: true,
+  mortgages: true,
+  method: true,
+  amount: true,
+})
 export type NoticeSort = SortOf<'read_notices_api_notices_get'>
-export const NOTICE_SORTS: NoticeSort[] = ['customer', 'accrues', 'mortgages', 'status']
+export const NOTICE_SORTS = columnsOf<NoticeSort>({
+  customer: true,
+  accrues: true,
+  mortgages: true,
+  status: true,
+})
 export type CallListSort = SortOf<'read_call_list_api_call_list_get'>
-export const CALL_LIST_SORTS: CallListSort[] = ['customer', 'mortgage', 'why', 'outstanding']
+export const CALL_LIST_SORTS = columnsOf<CallListSort>({
+  customer: true,
+  mortgage: true,
+  why: true,
+  outstanding: true,
+})
 export type ReadySort = SortOf<'ready_to_redeem_api_closures_ready_to_redeem_get'>
-export const READY_SORTS: ReadySort[] = ['mortgage', 'customer', 'amount']
+export const READY_SORTS = columnsOf<ReadySort>({ mortgage: true, customer: true, amount: true })
 
 /** A list's sort as query parameters; none for the list's own order. */
 function sortQuery(sort: Sort | null | undefined): string {

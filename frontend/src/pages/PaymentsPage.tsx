@@ -1,29 +1,20 @@
-import { Fragment, useEffect, useState, type MouseEvent } from 'react'
+import { Fragment, useCallback, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { api, PAYMENT_SORTS, type PaymentPage } from '../api'
+import { api, PAYMENT_SORTS, type PaymentSort } from '../api'
 import { usePaymentMethods } from '../components/usePaymentMethods'
-import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
-import { useUrlSort } from '../components/useUrlSort'
+import { useListPage } from '../components/useListPage'
 import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { formatDate, isMonth, todayIso } from '../format'
 import { formatINR } from '../money'
+import type { Sort } from '../sort'
 
 const YEAR = /^\d{4}$/
 
 /** When the Payments were received: any time, one month (YYYY-MM) or one year. */
 type Period = { kind: 'any' } | { kind: 'month'; month: string } | { kind: 'year'; year: string }
-
-/** The period in the page's URL (e.g. from the Dashboard's Interest collected in April). */
-function periodIn(params: URLSearchParams): Period {
-  const month = params.get('month') ?? ''
-  const year = params.get('year') ?? ''
-  if (isMonth(month)) return { kind: 'month', month }
-  if (YEAR.test(year)) return { kind: 'year', year }
-  return { kind: 'any' }
-}
 
 /** The last ten years, newest first, and `chosen` if it is older. */
 function years(chosen: string): string[] {
@@ -37,17 +28,37 @@ export function PaymentsPage() {
   const methods = usePaymentMethods()
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounced(query)
-  const [page, setPage] = useState(1)
   // The filters live in the URL, so a narrowed list can be shared or bookmarked.
   const [searchParams, setFilters] = useUrlFilters()
-  const period = periodIn(searchParams)
-  const month = period.kind === 'month' ? period.month : undefined
-  const year = period.kind === 'year' ? period.year : undefined
+  // The period in the URL (e.g. from the Dashboard's Interest collected in April): a
+  // valid month wins, then a valid year. The values are written as template strings
+  // only so the React Compiler can see they are strings; it treats what a URL
+  // parameter gives back as something that may change, and would stop memoising
+  // fetchPage (oxlint: preserve-manual-memoization).
+  const monthParam = searchParams.get('month') ?? ''
+  const yearParam = searchParams.get('year') ?? ''
+  const month = isMonth(monthParam) ? `${monthParam}` : undefined
+  const year = !month && YEAR.test(yearParam) ? `${yearParam}` : undefined
+  const period: Period = month
+    ? { kind: 'month', month }
+    : year
+      ? { kind: 'year', year }
+      : { kind: 'any' }
   const includeVoided = searchParams.get('include_voided') !== 'false'
-  const sorting = useUrlSort(PAYMENT_SORTS, { onChange: () => setPage(1) })
-  const { sort } = sorting
-  const [result, setResult] = useState<PaymentPage | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const fetchPage = useCallback(
+    (page: number, sort: Sort<PaymentSort> | null) =>
+      api.listPayments(page, debouncedQuery, { month, year, includeVoided, sort }),
+    [debouncedQuery, month, year, includeVoided],
+  )
+  // Any change of filter starts again at page 1.
+  const {
+    listed: result,
+    sorting,
+    error,
+    pager,
+  } = useListPage(PAYMENT_SORTS, fetchPage, {
+    resetOn: [debouncedQuery, month, year, includeVoided],
+  })
   const navigate = useNavigate()
 
   /** A click anywhere on a row opens the Payment, except on its own links. */
@@ -56,29 +67,15 @@ export function PaymentsPage() {
     navigate(`/payments/${paymentId}`)
   }
 
-  useEffect(() => {
-    api
-      .listPayments(page, debouncedQuery, {
-        month,
-        year,
-        includeVoided,
-        sort,
-      })
-      .then(setResult)
-      .catch((err: Error) => setError(err.message))
-  }, [page, debouncedQuery, month, year, includeVoided, sort])
-
   function choosePeriod(next: Period) {
     setFilters({
       month: next.kind === 'month' ? next.month : null,
       year: next.kind === 'year' ? next.year : null,
     })
-    setPage(1)
   }
 
   function chooseIncludeVoided(include: boolean) {
     setFilters({ include_voided: include ? null : 'false' })
-    setPage(1)
   }
   const thisMonth = todayIso().slice(0, 7)
 
@@ -95,10 +92,7 @@ export function PaymentsPage() {
         type="search"
         placeholder="Filter by Customer, Mortgage Name or reference"
         value={query}
-        onChange={(event) => {
-          setQuery(event.target.value)
-          setPage(1)
-        }}
+        onChange={(event) => setQuery(event.target.value)}
       />
       <div className="row">
         <label className="inline">
@@ -225,15 +219,7 @@ export function PaymentsPage() {
           </div>
         )
       )}
-      {result && (
-        <Pager
-          page={result.page}
-          pageSize={result.page_size}
-          total={result.total}
-          shown={result.items.length}
-          onPage={setPage}
-        />
-      )}
+      {pager}
     </section>
   )
 }

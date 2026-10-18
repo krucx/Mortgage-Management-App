@@ -1,23 +1,19 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import {
-  api,
-  MORTGAGE_SORTS,
-  READY_SORTS,
-  type MortgagePage,
-  type Redemption,
-} from '../api'
+import { api, MORTGAGE_SORTS, READY_SORTS, type MortgageSort, type Redemption } from '../api'
 import { Summary } from '../components/ConfirmDialog'
-import { Pager } from '../components/Pager'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
-import { useUrlSort } from '../components/useUrlSort'
 import { useConfirm } from '../components/useConfirm'
 import { formatDate, todayIso } from '../format'
-import { showOrStepBack } from '../paging'
-import { tickedFirst } from '../sort'
+import { tickedFirst, type Sort } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
+
+/** Active Mortgages still owing something: the ones that can be Forfeited. */
+function listForfeitable(page: number, sort: Sort<MortgageSort> | null) {
+  return api.listMortgages(page, '', { status: 'active', owing: true, sort })
+}
 
 /**
  * Closures in one place: Mortgages paid off and waiting to be Redeemed, and Active
@@ -33,24 +29,15 @@ export function ClosuresPage() {
     pager: readyPager,
   } = useListPage(READY_SORTS, api.readyToRedeem, { sortParam: 'ready_sort' })
   const ready = readyList?.items ?? null
-  const [active, setActive] = useState<MortgagePage | null>(null)
-  const [page, setPage] = useState(1)
-  const sorting = useUrlSort(MORTGAGE_SORTS, { param: 'forfeit_sort', onChange: () => setPage(1) })
-  const { sort } = sorting
+  const {
+    listed: active,
+    sorting,
+    error: forfeitError,
+    reload: reloadForfeitable,
+    pager: forfeitPager,
+  } = useListPage(MORTGAGE_SORTS, listForfeitable, { sortParam: 'forfeit_sort' })
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [forfeitError, setForfeitError] = useState<string | null>(null)
   const error = forfeitError ?? readyError
-
-  const loadForfeitable = useCallback(() => {
-    api
-      .listMortgages(page, '', { status: 'active', owing: true, sort })
-      .then(
-        (result) => showOrStepBack(result, setActive, setPage),
-        (err: Error) => setForfeitError(err.message),
-      )
-  }, [page, sort])
-
-  useEffect(loadForfeitable, [loadForfeitable])
 
   function toggle(id: number) {
     const next = new Set(selected)
@@ -178,21 +165,13 @@ export function ClosuresPage() {
           </table>
         </div>
       )}
-      {active && (
-        <Pager
-          page={active.page}
-          pageSize={active.page_size}
-          total={active.total}
-          shown={active.items.length}
-          onPage={setPage}
-        />
-      )}
+      {forfeitPager}
       {chosen.length > 0 && (
         <ForfeitChosen
           chosen={chosen.map((m) => ({ id: m.id, name: m.name }))}
           onDone={() => {
             setSelected(new Set())
-            loadForfeitable()
+            reloadForfeitable()
             reloadReady()
           }}
         />
