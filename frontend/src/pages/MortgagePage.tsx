@@ -170,7 +170,7 @@ export function MortgagePage() {
       )}
       <PhotoSource multiple onPhotos={addPhotos} />
 
-      <h3>{mortgage.status === 'active' ? 'Redeem or Forfeit' : 'Closure'}</h3>
+      <h3>{mortgage.status === 'active' ? 'Close this Mortgage' : 'Closure'}</h3>
       {mortgage.status === 'active' ? (
         <CloseMortgage mortgage={mortgage} onClosed={setMortgage} />
       ) : (
@@ -296,6 +296,8 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
         `Part-month interest: ${step.part_month_days} days since the last Accrual Date ` +
         `(${PART_MONTH_RULES[mortgage.terms.part_month_rule]}) on ${formatINR(step.charged_on)}`
       )
+    case 'waived':
+      return 'Waived off: the Lender let off what was left'
     case 'forfeited':
       return 'Forfeited: the jewellery settles what was owed'
     case 'capitalised':

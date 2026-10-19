@@ -28,6 +28,7 @@ import type {
   RedeemIn,
   TermChangeIn,
   Terms,
+  WaiveIn,
 } from './api'
 import { dataOrThrow, keys, type ApiClient } from './serverState'
 import type { Sort } from './sort'
@@ -147,6 +148,16 @@ export const previews = {
         }),
       ),
   }),
+  waive: (id: number, waive: WaiveIn): PreviewRequest => ({
+    key: ['waive', id, waive],
+    load: (client) =>
+      dataOrThrow(
+        client.POST('/api/mortgages/{mortgage_id}/waive-preview', {
+          params: mortgagePath(id),
+          body: waive,
+        }),
+      ),
+  }),
   forfeit: (id: number, forfeit: ForfeitIn): PreviewRequest => ({
     key: ['forfeit', id, forfeit],
     load: (client) =>
@@ -210,6 +221,10 @@ export const changes = {
     dataOrThrow(
       client.POST('/api/mortgages/{mortgage_id}/redeem', { params: mortgagePath(id), body: redeem }),
     ),
+  waive: (client: ApiClient, id: number, waive: WaiveIn) =>
+    dataOrThrow(
+      client.POST('/api/mortgages/{mortgage_id}/waive', { params: mortgagePath(id), body: waive }),
+    ),
   forfeit: (client: ApiClient, id: number, forfeit: ForfeitIn) =>
     dataOrThrow(
       client.POST('/api/mortgages/{mortgage_id}/forfeit', {
@@ -268,7 +283,7 @@ export const lists = {
     customerId?: number
     status?: MortgageStatus
     owing?: boolean
-    /** Only the Redeemed and Forfeited. */
+    /** Only the closed: Redeemed, Waived and Forfeited. */
     closed?: boolean
     /** Closed in that month (YYYY-MM). */
     closedIn?: string

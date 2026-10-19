@@ -223,6 +223,16 @@ export function DashboardPage() {
             value={figures.redeemed_this_month}
           />
           <Figure
+            to={`/mortgages?status=waived&closed_in=${month}`}
+            label="Waived off"
+            value={figures.waived_this_month}
+            note={
+              figures.waived_this_month
+                ? `${formatINR(figures.waived_amount_this_month)} let off`
+                : undefined
+            }
+          />
+          <Figure
             to={`/mortgages?status=forfeited&closed_in=${month}`}
             label="Forfeited"
             value={figures.forfeited_this_month}

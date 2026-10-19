@@ -77,6 +77,7 @@ const ACTION_LABELS: Record<AuditEntry['action'], string> = {
   deleted: 'deleted',
   voided: 'voided',
   redeemed: 'Redeemed',
+  waived: 'Waived off',
   forfeited: 'Forfeited',
   reopened: 'reopened',
   photo_added: 'photo added',

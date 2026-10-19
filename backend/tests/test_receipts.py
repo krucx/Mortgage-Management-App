@@ -85,6 +85,20 @@ def test_two_pieces_described_alike_are_told_apart_by_start_date(client, ramesh)
     ]
 
 
+def test_a_waivers_final_payment_leaves_nothing_owed(client, ramesh):
+    chain = lend(client, ramesh)
+    # ₹1,12,000 owed on 20 Apr: ₹1,11,000 paid and ₹1,000 waived.
+    waived = client.post(
+        f"/api/mortgages/{chain['id']}/waive",
+        json={"waived_on": "2026-04-20", "amount_paid": 111_000 * RUPEE, "method": "cash"},
+    ).json()
+
+    shown = receipt(client, {"id": waived["closure"]["payment_id"]})
+
+    assert shown["lines"][0]["paid"] == 111_000 * RUPEE
+    assert (shown["lines"][0]["owed_after"], shown["total_owed"]) == (0, 0)
+
+
 def test_a_voided_payment_has_no_receipt(client, payment):
     client.post(f"/api/payments/{payment['id']}/void", json={"reason": "typo"})
 

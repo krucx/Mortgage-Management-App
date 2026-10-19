@@ -19,7 +19,7 @@ export function CustomerPage() {
     MORTGAGE_SORTS,
     lists.mortgages({ customerId: id, status: 'active' }),
   )
-  // Redeemed and Forfeited, tucked away below the Active ones.
+  // Redeemed, Waived and Forfeited, tucked away below the Active ones.
   const closedList = useListPage(MORTGAGE_SORTS, lists.mortgages({ customerId: id, closed: true }), {
     sortParam: 'closed_sort',
   })

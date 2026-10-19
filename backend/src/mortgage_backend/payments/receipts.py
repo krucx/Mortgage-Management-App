@@ -18,7 +18,7 @@ from mortgage_backend.follow_up.messages import (
     descriptions,
     receipt_text,
 )
-from mortgage_backend.lending.replay import replays
+from mortgage_backend.lending.replay import MortgageStatus, replays
 from mortgage_backend.payments.payments import METHOD_NAMES, PaymentMethod, mortgages_of
 from mortgage_backend.people.customers import PersonSummary, phones_of
 from mortgage_backend.platform.db import EngineDep, customer_table, payment_table
@@ -68,6 +68,11 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
     lines = []
     for mortgage in mortgages:
         step = replayed[mortgage["id"]].steps_by_payment()[payment_id]
+        # A Waiver's final Payment leaves nothing owed: the rest was let off with it.
+        waived = (
+            mortgage["status"] == MortgageStatus.WAIVED
+            and mortgage["redemption_payment_id"] == payment_id
+        )
         lines.append(
             ReceiptLineOut(
                 description=described[mortgage["id"]],
@@ -75,7 +80,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
                 paid=mortgage["allocated"],
                 interest_paid=step.interest_paid,
                 principal_paid=step.principal_paid,
-                owed_after=step.principal + step.unpaid_interest,
+                owed_after=0 if waived else step.principal + step.unpaid_interest,
             )
         )
     method = METHOD_NAMES[PaymentMethod(payment["method"])]

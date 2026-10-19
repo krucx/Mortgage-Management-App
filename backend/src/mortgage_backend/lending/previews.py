@@ -23,6 +23,7 @@ from mortgage_backend.lending.changes import (
     PaymentIn,
     RedeemIn,
     TermChangeIn,
+    WaiveIn,
     add_term_change,
     create_mortgage,
     edit_mortgage,
@@ -33,6 +34,7 @@ from mortgage_backend.lending.changes import (
     reopen,
     set_collateral,
     void_payment,
+    waive,
 )
 from mortgage_backend.lending.ledger import LedgerEvent, LedgerStep
 from mortgage_backend.lending.mortgages import MortgageEdit, MortgageIn, load_mortgage
@@ -229,6 +231,19 @@ def preview_redeem(
             [mortgage_id],
             today,
             lambda: redeem(conn, mortgage_id, body, today, now),
+        )
+
+
+@router.post("/mortgages/{mortgage_id}/waive-preview")
+def preview_waive(
+    mortgage_id: int, body: WaiveIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[MortgagePreview]:
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [mortgage_id],
+            today,
+            lambda: waive(conn, mortgage_id, body, today, now),
         )
 
 

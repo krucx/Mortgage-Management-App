@@ -106,10 +106,11 @@ class MortgageRow(BaseModel):
 class Closure(BaseModel):
     """How and when a Mortgage was closed."""
 
-    kind: Literal["redeemed", "forfeited"]
+    kind: Literal["redeemed", "waived", "forfeited"]
     on: date
     redemption_amount: int  # owed on that date, Part-Month Rule charge included
-    payment_id: int | None  # Redeemed: the final Payment, if anything was owed
+    payment_id: int | None  # Redeemed or Waived: the final Payment, if any
+    waived_amount: int | None  # Waived: what the Lender let off
     recovered_amount: int | None  # Forfeited: what the jewellery fetched (or is worth)
     profit_loss: int | None  # Forfeited: recovered − Redemption Amount
     note: str | None
@@ -160,11 +161,13 @@ def _closure(mortgage: MortgageReplay) -> Closure | None:
         return None
     redemption_amount = mortgage.redemption(row["closed_on"]).total
     forfeited = row["status"] == MortgageStatus.FORFEITED
+    last = mortgage.ledger(row["closed_on"])[-1]
     return Closure(
         kind=row["status"],
         on=row["closed_on"],
         redemption_amount=redemption_amount,
         payment_id=row["redemption_payment_id"],
+        waived_amount=last.amount if last.event == "waived" else None,
         recovered_amount=row["recovered_amount"],
         profit_loss=row["recovered_amount"] - redemption_amount if forfeited else None,
         note=row["closure_note"],
@@ -357,9 +360,13 @@ _SORTING = Sorting[MortgageSort](
         "lent": mortgage_table.c.amount_lent,
         # In their lifecycle order, not alphabetical.
         "status": case(
-            {MortgageStatus.ACTIVE: 0, MortgageStatus.REDEEMED: 1},
+            {
+                MortgageStatus.ACTIVE: 0,
+                MortgageStatus.REDEEMED: 1,
+                MortgageStatus.WAIVED: 2,
+            },
             value=mortgage_table.c.status,
-            else_=2,
+            else_=3,
         ),
     },
     default_order=[
@@ -396,8 +403,8 @@ def list_mortgages(
     With `as_of`, only Mortgages started by then, with what they owed on that date
     (used when recording a back-dated Payment). With `owing`, only those with something
     Outstanding (Outstanding is computed, so that filter is applied after the replay).
-    With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month; with
-    `closed`, only those Redeemed or Forfeited. With `paged` false, every match on one
+    With `closed_in` (YYYY-MM), only those closed that month; with `closed`, only those
+    closed (Redeemed, Waived or Forfeited). With `paged` false, every match on one
     page: for pickers, such as a Payment's Allocations, which must never leave a
     Mortgage out.
     """

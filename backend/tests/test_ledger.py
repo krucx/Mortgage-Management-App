@@ -384,7 +384,7 @@ def test_forfeiting_settles_what_was_owed_so_nothing_stays_outstanding():
         rule_terms,
         date(2026, 9, 1),
         closed_on=date(2026, 2, 24),
-        forfeited=True,
+        written_off="forfeited",
     )
 
     assert [

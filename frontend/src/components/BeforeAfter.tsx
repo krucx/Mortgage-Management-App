@@ -15,6 +15,7 @@ const STEP_LABELS: Record<LedgerStep['event'], string> = {
   payment: 'Payment',
   capitalised: 'Capitalised',
   forfeited: 'Forfeited',
+  waived: 'Waived off',
   term_changed: 'Terms changed',
 }
 

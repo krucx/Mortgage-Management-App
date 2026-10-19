@@ -79,7 +79,7 @@ The monthly average of the last 3 full months (Payments received, Principal lent
 _Avoid_: Forecast, prediction
 
 **Outstanding**:
-What a Mortgage owes on a date: Principal plus unpaid interest, before any Part-Month Rule charge; nothing once Redeemed or Forfeited.
+What a Mortgage owes on a date: Principal plus unpaid interest, before any Part-Month Rule charge; nothing once closed.
 _Avoid_: Balance, dues
 
 **Redemption Amount**:
@@ -156,15 +156,19 @@ A Mortgage fully repaid with its jewellery returned to the Customer.
 _Avoid_: Settled, paid off
 
 **Closure**:
-The end of a Mortgage, by Redemption or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened.
+The end of a Mortgage, by Redemption, Waiver or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened.
 _Avoid_: Closing out, termination
+
+**Waived**:
+A Mortgage closed with the jewellery returned although the Customer's final Payment fell short of the Redemption Amount (or there was none): the Lender, at their discretion, lets off the rest, the Waived Amount.
+_Avoid_: Written off, settled, discounted
 
 **Forfeited**:
 A Mortgage on which the Customer defaulted and the Lender kept or sold the jewellery.
 _Avoid_: Defaulted, auctioned
 
 **Reopen**:
-Undoing a Closure made by mistake, with a reason: the Mortgage is Active again as if it had never been closed, and a Redemption's final Payment is Voided.
+Undoing a Closure made by mistake, with a reason: the Mortgage is Active again as if it had never been closed, and a Redemption's or Waiver's final Payment is Voided.
 _Avoid_: Undo, unclose, revive
 
 **Recovered Amount**:

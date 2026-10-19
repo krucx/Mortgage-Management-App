@@ -28,7 +28,7 @@ const STATUS_NAMES: Record<NoticeStatus, string> = {
 
 const NOTHING_TO_SEND =
   'Nothing to send: none of their Active Mortgages accrues on this date any more ' +
-  '(Redeemed, Forfeited or edited since).'
+  '(closed or edited since).'
 
 /** Notices the daily run queued ahead of Accrual Dates, to approve, send or skip. */
 export function NoticesPage() {

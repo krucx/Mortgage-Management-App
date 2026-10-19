@@ -671,6 +671,11 @@ button.danger-solid {
   color: var(--muted);
 }
 
+.badge.status-waived {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
 .badge.status-forfeited {
   color: var(--error);
   border-color: var(--error);

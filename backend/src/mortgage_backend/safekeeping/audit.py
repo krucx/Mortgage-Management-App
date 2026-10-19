@@ -27,6 +27,7 @@ Action = Literal[
     "deleted",
     "voided",
     "redeemed",
+    "waived",
     "forfeited",
     "reopened",
     "photo_added",

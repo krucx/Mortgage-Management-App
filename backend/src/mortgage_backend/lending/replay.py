@@ -3,12 +3,13 @@
 Every Ledger, Outstanding and Redemption Amount is read through here, so the rules for
 what a replay includes live in one place: a Voided Payment is in no Ledger, a closed
 Mortgage accrues nothing after its Closure, a Forfeited Mortgage's debt is settled by
-its jewellery, and a Redemption Amount leaves out the Redemption's own final Payment.
+its jewellery and a Waived one's is let off by the Lender, and a Redemption Amount leaves out the Redemption's own final Payment.
 """
 
 from collections.abc import Sequence
 from datetime import date
 from enum import StrEnum
+from typing import Literal
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
@@ -38,7 +39,15 @@ from mortgage_backend.platform.db import (
 class MortgageStatus(StrEnum):
     ACTIVE = "active"
     REDEEMED = "redeemed"
+    WAIVED = "waived"  # the Lender let off what was left; the jewellery went back
     FORFEITED = "forfeited"
+
+
+# What is left owing at a Closure is written off by these, but paid by a Redemption.
+_WRITTEN_OFF: dict[str, Literal["forfeited", "waived"]] = {
+    MortgageStatus.FORFEITED: "forfeited",
+    MortgageStatus.WAIVED: "waived",
+}
 
 
 class Outstanding(BaseModel):
@@ -93,7 +102,7 @@ class MortgageReplay:
                 as_of,
                 self.allocations,
                 closed_on=self.row["closed_on"],
-                forfeited=self.row["status"] == MortgageStatus.FORFEITED,
+                written_off=_WRITTEN_OFF.get(self.row["status"]),
             )
         return list(self._ledgers[as_of])
 
@@ -112,7 +121,7 @@ class MortgageReplay:
         }
 
     def outstanding(self, on: date) -> Outstanding:
-        """What the Mortgage owes on `on`: nothing once Redeemed or Forfeited."""
+        """What the Mortgage owes on `on`: nothing once closed."""
         last = self.ledger(on)[-1]
         return Outstanding(
             principal=last.principal,
@@ -128,7 +137,7 @@ class MortgageReplay:
             on,
             [a for a in self.allocations if a.payment_id != final_payment],
             closed_on=on,
-            forfeited=False,
+            written_off=None,
         )
         last = ledger[-1]
         part_month = next((s for s in ledger if s.event == "part_month"), None)
@@ -167,7 +176,7 @@ class MortgageReplay:
         as_of: date,
         allocations: Sequence[Allocation],
         closed_on: date | None,
-        forfeited: bool,
+        written_off: Literal["forfeited", "waived"] | None,
     ) -> list[LedgerStep]:
         return compute_ledger(
             self.row["start_date"],
@@ -176,7 +185,7 @@ class MortgageReplay:
             as_of,
             allocations,
             closed_on=closed_on,
-            forfeited=forfeited,
+            written_off=written_off,
             term_changes=self.term_changes,
         )
 

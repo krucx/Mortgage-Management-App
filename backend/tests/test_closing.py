@@ -1,4 +1,5 @@
-"""Closing a Mortgage: Redemption (paid in full, jewellery returned) or Forfeiture."""
+"""Closing a Mortgage: Redemption (paid in full, jewellery returned), Waiver (paid in
+part, the rest let off, jewellery returned) or Forfeiture."""
 
 import pytest
 from api_seed import SIMPLE_3, lend, pay, person
@@ -168,6 +169,7 @@ def test_forfeiting_records_what_was_recovered_and_the_profit_or_loss(
         "on": "2026-04-20",
         "redemption_amount": 112_000_00,
         "payment_id": None,
+        "waived_amount": None,
         "recovered_amount": recovered,
         "profit_loss": profit_loss,
         "note": "Sold to Bhandari",
@@ -196,6 +198,70 @@ def test_a_forfeited_mortgage_takes_no_more_payments(client, ramesh, mortgage):
 
     assert response.status_code == 409
     assert "reopen it first" in response.json()["detail"]
+
+
+def waive(client, mortgage, paid, on="2026-04-20", **extra):
+    return client.post(
+        f"/api/mortgages/{mortgage['id']}/waive",
+        json={"waived_on": on, "amount_paid": paid, "method": "cash", **extra},
+    )
+
+
+def test_waiving_records_the_final_payment_and_lets_off_the_rest(client, mortgage):
+    # ₹1,12,000 owed on 20 Apr; the Customer pays ₹1,11,500 and ₹500 is waived.
+    response = waive(client, mortgage, 111_500_00, reference="UTR9", note="Old friend")
+
+    assert response.status_code == 200, response.text
+    page = response.json()
+    assert page["status"] == "waived"
+    assert page["outstanding"]["total"] == 0
+    assert [(s["event"], s["amount"]) for s in page["ledger"][-2:]] == [
+        ("payment", 111_500_00),
+        ("waived", 500_00),
+    ]
+    closure = page["closure"]
+    assert (closure["kind"], closure["redemption_amount"], closure["waived_amount"]) == (
+        "waived",
+        112_000_00,
+        500_00,
+    )
+    assert closure["note"] == "Old friend"
+    payment = client.get(f"/api/payments/{closure['payment_id']}").json()
+    assert (payment["amount"], payment["reference"]) == (111_500_00, "UTR9")
+
+
+def test_everything_owed_can_be_waived_with_no_final_payment(client, mortgage):
+    page = waive(client, mortgage, 0).json()
+
+    assert page["closure"]["payment_id"] is None
+    assert page["closure"]["waived_amount"] == 112_000_00
+
+
+@pytest.mark.parametrize("paid", [112_000_00, 113_000_00])
+def test_paying_everything_owed_is_a_redemption_not_a_waiver(client, mortgage, paid):
+    response = waive(client, mortgage, paid)
+
+    assert response.status_code == 422
+    assert "Redeem it instead" in response.json()["detail"]
+    assert client.get(f"/api/mortgages/{mortgage['id']}").json()["status"] == "active"
+
+
+def test_a_mortgage_owing_nothing_cannot_be_waived(client, ramesh, mortgage):
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
+
+    response = waive(client, mortgage, 0, on="2026-04-14")
+
+    assert response.status_code == 422
+    assert "Redeem it instead" in response.json()["detail"]
+
+
+def test_a_waived_mortgage_takes_no_more_payments_and_cannot_be_closed_again(
+    client, mortgage
+):
+    waive(client, mortgage, 100_000_00)
+
+    assert redeem(client, mortgage).status_code == 422
+    assert waive(client, mortgage, 0).status_code == 422
 
 
 def test_closed_mortgages_can_be_listed_by_status(client, ramesh, mortgage):

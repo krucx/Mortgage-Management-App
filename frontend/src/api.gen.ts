@@ -177,8 +177,8 @@ export interface paths {
          *     With `as_of`, only Mortgages started by then, with what they owed on that date
          *     (used when recording a back-dated Payment). With `owing`, only those with something
          *     Outstanding (Outstanding is computed, so that filter is applied after the replay).
-         *     With `closed_in` (YYYY-MM), only those Redeemed or Forfeited that month; with
-         *     `closed`, only those Redeemed or Forfeited. With `paged` false, every match on one
+         *     With `closed_in` (YYYY-MM), only those closed that month; with `closed`, only those
+         *     closed (Redeemed, Waived or Forfeited). With `paged` false, every match on one
          *     page: for pickers, such as a Payment's Allocations, which must never leave a
          *     Mortgage out.
          */
@@ -502,7 +502,7 @@ export interface paths {
         put?: never;
         /**
          * Post Reopen
-         * @description Undo a Redemption or Forfeiture; a Redemption's final Payment is Voided.
+         * @description Undo a Closure; a Redemption's or Waiver's final Payment is Voided.
          */
         post: operations["post_reopen_api_mortgages__mortgage_id__reopen_post"];
         delete?: never;
@@ -596,6 +596,44 @@ export interface paths {
         put?: never;
         /** Preview Term Change Removal */
         post: operations["preview_term_change_removal_api_mortgages__mortgage_id__term_changes__change_id__remove_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/{mortgage_id}/waive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Waive
+         * @description Record a final Payment short of the Redemption Amount, waive the rest, and mark
+         *     the Mortgage Waived.
+         */
+        post: operations["post_waive_api_mortgages__mortgage_id__waive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/{mortgage_id}/waive-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Waive */
+        post: operations["preview_waive_api_mortgages__mortgage_id__waive_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1028,7 +1066,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "created" | "edited" | "deleted" | "voided" | "redeemed" | "forfeited" | "reopened" | "photo_added" | "photo_removed" | "term_change_added" | "term_change_removed";
+            action: "created" | "edited" | "deleted" | "voided" | "redeemed" | "waived" | "forfeited" | "reopened" | "photo_added" | "photo_removed" | "term_change_added" | "term_change_removed";
             /**
              * At
              * Format: date-time
@@ -1179,7 +1217,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "redeemed" | "forfeited";
+            kind: "redeemed" | "waived" | "forfeited";
             /** Note */
             note: string | null;
             /**
@@ -1195,6 +1233,8 @@ export interface components {
             recovered_amount: number | null;
             /** Redemption Amount */
             redemption_amount: number;
+            /** Waived Amount */
+            waived_amount: number | null;
         };
         /** Collateral */
         Collateral: {
@@ -1347,6 +1387,10 @@ export interface components {
             trend_months: string[];
             /** Unpaid Interest */
             unpaid_interest: number;
+            /** Waived Amount This Month */
+            waived_amount_this_month: number;
+            /** Waived This Month */
+            waived_this_month: number;
         };
         /** ExistingCustomerReferrer */
         ExistingCustomerReferrer: {
@@ -1426,7 +1470,7 @@ export interface components {
              * Event
              * @enum {string}
              */
-            event: "started" | "interest" | "part_month" | "payment" | "capitalised" | "forfeited" | "term_changed";
+            event: "started" | "interest" | "part_month" | "payment" | "capitalised" | "forfeited" | "waived" | "term_changed";
             /**
              * On
              * Format: date
@@ -1446,7 +1490,7 @@ export interface components {
              * Event
              * @enum {string}
              */
-            event: "started" | "interest" | "part_month" | "payment" | "capitalised" | "forfeited" | "term_changed";
+            event: "started" | "interest" | "part_month" | "payment" | "capitalised" | "forfeited" | "waived" | "term_changed";
             /**
              * Interest Paid
              * @default 0
@@ -1676,7 +1720,7 @@ export interface components {
          * MortgageStatus
          * @enum {string}
          */
-        MortgageStatus: "active" | "redeemed" | "forfeited";
+        MortgageStatus: "active" | "redeemed" | "waived" | "forfeited";
         /**
          * NewMortgagePreview
          * @description What a new Mortgage would be: its Mortgage Name and Terms, what it would owe
@@ -2120,6 +2164,24 @@ export interface components {
         VoidIn: {
             /** Reason */
             reason: string;
+        };
+        /** WaiveIn */
+        WaiveIn: {
+            /** Amount Paid */
+            amount_paid: number;
+            method: components["schemas"]["PaymentMethod"];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Reference */
+            reference?: string | null;
+            /**
+             * Waived On
+             * Format: date
+             */
+            waived_on: string;
         };
     };
     responses: never;
@@ -3347,6 +3409,76 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MortgagePreview"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_waive_api_mortgages__mortgage_id__waive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mortgage_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaiveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mortgage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_waive_api_mortgages__mortgage_id__waive_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mortgage_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaiveIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

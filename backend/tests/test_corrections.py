@@ -221,6 +221,22 @@ def test_reopening_a_forfeiture_clears_what_was_recovered(client, mortgage):
     assert reopened["outstanding"]["total"] == 1_09_000 * RUPEE
 
 
+def test_reopening_a_waiver_voids_its_final_payment_and_the_waiver(client, mortgage):
+    waived = client.post(
+        f"/api/mortgages/{mortgage['id']}/waive",
+        json={"waived_on": "2026-04-20", "amount_paid": 1_11_000 * RUPEE, "method": "cash"},
+    ).json()
+
+    reopened = client.post(
+        f"/api/mortgages/{mortgage['id']}/reopen", json={"reason": "Not agreed"}
+    ).json()
+
+    assert (reopened["status"], reopened["closure"]) == ("active", None)
+    assert reopened["outstanding"]["total"] == 1_09_000 * RUPEE
+    final = client.get(f"/api/payments/{waived['closure']['payment_id']}").json()
+    assert final["void_reason"] == "Not agreed"
+
+
 def test_only_a_closed_mortgage_can_be_reopened_and_only_with_a_reason(
     client, mortgage
 ):

@@ -19,6 +19,7 @@ LedgerEvent = Literal[
     "payment",
     "capitalised",
     "forfeited",
+    "waived",
     "term_changed",
 ]
 
@@ -271,16 +272,17 @@ def compute_ledger(
     as_of: date,
     allocations: Iterable[Allocation] = (),
     closed_on: date | None = None,
-    forfeited: bool = False,
+    written_off: Literal["forfeited", "waived"] | None = None,
     term_changes: Iterable[TermChange] = (),
     hypothetical: HypotheticalPayments | None = None,
 ) -> list[LedgerStep]:
     """Replay a Mortgage from its start up to and including `as_of`.
 
-    A Mortgage closed (Redeemed or Forfeited) on `closed_on` accrues nothing after it; on
-    that date the Part-Month Rule charge for the days since the last Accrual Date is added
-    before that day's Payments, so a final Payment can include it. A Forfeited Mortgage's
-    remaining debt is then settled by the jewellery, leaving nothing Outstanding.
+    A Mortgage closed (Redeemed, Waived or Forfeited) on `closed_on` accrues nothing after
+    it; on that date the Part-Month Rule charge for the days since the last Accrual Date is
+    added before that day's Payments, so a final Payment can include it. What a Waived or
+    Forfeited Mortgage still owes after them is then `written_off` (waived by the Lender,
+    or settled by the jewellery), leaving nothing Outstanding.
 
     Each month's interest is charged on the Principal as it stood at the start of that
     month (the previous Accrual Date), so paying Principal mid-month lowers interest only
@@ -316,8 +318,8 @@ def compute_ledger(
                 )
             )
     run.pay_through(as_of)
-    if forfeited and closed_on == as_of:
-        run.steps.append(LedgerStep(closed_on, "forfeited", run.owed(), 0, 0))
+    if written_off and closed_on == as_of:
+        run.steps.append(LedgerStep(closed_on, written_off, run.owed(), 0, 0))
     return run.steps
 
 

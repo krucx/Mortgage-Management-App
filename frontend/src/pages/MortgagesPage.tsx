@@ -10,7 +10,7 @@ import { isMonth } from '../format'
 import { customerQuery, lists } from '../requests'
 import { useServerState } from '../serverState'
 
-const STATUSES: MortgageStatus[] = ['active', 'redeemed', 'forfeited']
+const STATUSES: MortgageStatus[] = ['active', 'redeemed', 'waived', 'forfeited']
 
 /** All Mortgages, newest first, filterable by Mortgage Name or Customer, status and
  * the month they were closed in. */
@@ -66,6 +66,7 @@ export function MortgagesPage() {
           [
             ['active', 'Active'],
             ['redeemed', 'Redeemed'],
+            ['waived', 'Waived off'],
             ['forfeited', 'Forfeited'],
             ['', 'All'],
           ] as const

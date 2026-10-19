@@ -65,6 +65,8 @@ class Dashboard(BaseModel):
     notices_to_send: int  # queued, with something to send
     notices_to_approve: int  # waiting for the Lender's approval
     redeemed_this_month: int
+    waived_this_month: int
+    waived_amount_this_month: int  # what the Lender let off on them
     forfeited_this_month: int
     forfeiture_profit_loss_this_month: int  # Recovered Amount − Redemption Amount
     payments_by_month: list[MonthlyPayments]  # oldest first, this month last
@@ -189,7 +191,7 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
     principal = unpaid = collected_month = collected_year = 0
     valued_owed = valued = 0
     active_customers = set()
-    redeemed = forfeited = profit_loss = 0
+    redeemed = waived = waived_amount = forfeited = profit_loss = 0
     active: list[MortgageReplay] = []
     for row in rows:
         mortgage = replayed[row["id"]]
@@ -213,6 +215,9 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
         elif (row["closed_on"].year, row["closed_on"].month) == this_month:
             if row["status"] == MortgageStatus.REDEEMED:
                 redeemed += 1
+            elif row["status"] == MortgageStatus.WAIVED:
+                waived += 1
+                waived_amount += ledger[-1].amount  # the "waived" step
             else:
                 forfeited += 1
                 owed_then = mortgage.redemption(row["closed_on"]).total
@@ -236,6 +241,8 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
         notices_to_send=to_send[notices.NoticeStatus.QUEUED],
         notices_to_approve=to_send[notices.NoticeStatus.AWAITING_APPROVAL],
         redeemed_this_month=redeemed,
+        waived_this_month=waived,
+        waived_amount_this_month=waived_amount,
         forfeited_this_month=forfeited,
         forfeiture_profit_loss_this_month=profit_loss,
         payments_by_month=_payments_by_month(conn, today),

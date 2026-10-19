@@ -84,6 +84,23 @@ def test_closures_this_month(client, book):
     assert figures["forfeiture_profit_loss_this_month"] == 8_200 * RUPEE
 
 
+def test_waivers_this_month_and_what_was_let_off(client, book):
+    mahesh = person(client, "Mahesh Gupta", "9829077777")
+    coin = lend(client, mahesh, "2026-03-10", 10_000 * RUPEE, "Coin")
+    # Owes ₹10,600 on 12 Apr (₹300 on 10 Apr, ₹300 more under the Full-month rule).
+    client.post(
+        f"/api/mortgages/{coin['id']}/waive",
+        json={"waived_on": "2026-04-12", "amount_paid": 10_000 * RUPEE, "method": "cash"},
+    )
+
+    figures = dashboard(client)
+
+    assert figures["waived_this_month"] == 1
+    assert figures["waived_amount_this_month"] == 600 * RUPEE
+    # A Waiver is neither a Redemption nor a Forfeiture.
+    assert (figures["redeemed_this_month"], figures["forfeited_this_month"]) == (1, 1)
+
+
 def test_payments_by_month_for_the_last_twelve_months(client, book):
     months = dashboard(client)["payments_by_month"]
 

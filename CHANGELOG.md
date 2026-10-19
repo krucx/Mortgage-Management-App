@@ -5,6 +5,42 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [1.2.0] - 2026-10-20
+
+A third way to close a Mortgage: Waive off a small balance. No database changes:
+updating keeps all data and Backups.
+
+### Added
+
+- **Waive off**, between Redeem and Forfeit: the Customer pays what they can (or
+  nothing) as the final Payment, the Lender lets off the rest of the Redemption
+  Amount, and the jewellery goes back. The Mortgage is then **Waived** (see
+  GLOSSARY.md). Paying the whole Redemption Amount is refused: that is a Redemption.
+  - **On a Mortgage:** **Close this Mortgage** offers **Redeem… · Waive off… ·
+    Forfeit…**. Waive off shows what is let off as the amount received is typed, a
+    Preview, and a confirmation. Afterwards, the Mortgage shows the final Payment (with
+    its Receipt), what was waived off and the reason.
+  - **On Redeem / Forfeit:** the section is now **Forfeit or Waive off**. Tick Active
+    Mortgages, then choose **Forfeit** or **Waive off** for the chosen. Waive off takes
+    what each brought in, one Payment method and one reason for all.
+  - **Dashboard:** **Closed in [month]** has a **Waived off** tile between Redeemed and
+    Forfeited, with the total let off. It opens those Mortgages.
+  - **Mortgages page:** a **Waived off** status filter. Waived Mortgages sort between
+    Redeemed and Forfeited.
+  - **Reopen** undoes a Waiver like any Closure, Voiding its final Payment.
+
+### Changed
+
+- **Receipts:** a Waiver's final Payment shows nothing still owed, since the rest was
+  let off with it.
+
+### Upgrading
+
+```sh
+git pull
+docker compose up -d --build
+```
+
 ## [1.1.2] - 2026-10-19
 
 WhatsApp messages keep their emoji. No database changes: updating keeps all data and
