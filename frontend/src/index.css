@@ -113,6 +113,14 @@ body {
   margin: 0;
 }
 
+/* The version, small and raised beside the app's name. */
+.layout h1 .version {
+  margin-left: 0.2rem;
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
 /* The light/dark switch, at the right-hand end of the top bar. */
 .theme-toggle {
   margin-left: auto;

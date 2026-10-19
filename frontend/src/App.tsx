@@ -20,6 +20,7 @@ import { RedeemPage } from './pages/RedeemPage'
 import { ReceiptPage } from './pages/ReceiptPage'
 import { ReferrerPage } from './pages/ReferrerPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { APP_VERSION } from './version'
 
 function Nav() {
   const waiting = useReadyToRedeemCount()
@@ -52,6 +53,9 @@ export default function App() {
         <header>
           <h1>
             <Link to="/">Mortgage Management</Link>
+            <sup className="version" title={`Version ${APP_VERSION}`}>
+              v{APP_VERSION}
+            </sup>
           </h1>
           <Nav />
           <ThemeToggle />
