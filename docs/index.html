@@ -188,7 +188,7 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
   <h1>Mortgage Book Walkthrough</h1>
   <p class="lede">One Lender, one laptop, a book of gold-jewellery pledges. This guide follows a pledge through its whole life in the app: the morning view of the book, setting the rules, meeting a Customer, lending against their jewellery, taking Payments, following up, and closing the Mortgage. Each stop says where to click, what to say, and the details worth pointing out.</p>
   <div class="facts">
-    <span>Version: <b>1.1.2</b></span>
+    <span>Version: <b>1.2.0</b></span>
     <span>App: <b>http://127.0.0.1:8080</b></span>
     <span>Figures: <b>the live book on 18 Oct 2026</b></span>
     <span>Money: <b>₹, Indian digit grouping</b></span>
@@ -224,14 +224,14 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
   <button type="button" class="theme-toggle" id="theme-toggle"></button>
 </nav>
 
-<div class="life" role="img" aria-label="The life of a Mortgage: a Customer pledges jewellery, interest accrues on each Accrual Date, Notices and the Call List follow up, Payments are allocated, and the Mortgage is Redeemed or Forfeited.">
+<div class="life" role="img" aria-label="The life of a Mortgage: a Customer pledges jewellery, interest accrues on each Accrual Date, Notices and the Call List follow up, Payments are allocated, and the Mortgage is Redeemed, Waived off or Forfeited.">
   <div class="life-track">
     <div class="life-step"><i>Stop 3</i><b>Customer</b><span>Known by their Primary Number, maybe introduced by a Referrer</span></div>
     <div class="life-step"><i>Stop 4</i><b>Mortgage</b><span>One packet of jewellery, weighed and valued, on its Terms</span></div>
     <div class="life-step"><i>Stop 5</i><b>Accrual Dates</b><span>Interest added monthly; capitalised by the Interest Mode</span></div>
     <div class="life-step"><i>Stop 8</i><b>Follow-up</b><span>Notices before each Accrual Date; the Call List each day</span></div>
     <div class="life-step"><i>Stop 7</i><b>Payments</b><span>One sum split across Mortgages, interest first</span></div>
-    <div class="life-step"><i>Stop 9</i><b>Closure</b><span>Redeemed and handed back, or Forfeited</span></div>
+    <div class="life-step"><i>Stop 9</i><b>Closure</b><span>Redeemed or Waived off and handed back, or Forfeited</span></div>
   </div>
 </div>
 
@@ -249,7 +249,7 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
     <div class="tile" style="--tone: var(--money-in)"><span>Interest collected</span><strong>₹30,287</strong><small>this month · ₹59,087 this year</small></div>
     <div class="tile" style="--tone: var(--collateral)"><span>Collateral Value</span><strong>₹39,19,279</strong><small>Loan-to-Value 19.7%</small></div>
     <div class="tile" style="--tone: var(--accent)"><span>Follow-up</span><strong>4 · 2</strong><small>on today's Call List · Notices to send</small></div>
-    <div class="tile" style="--tone: var(--closed)"><span>Closed in October</span><strong>2 Redeemed</strong><small>0 Forfeited</small></div>
+    <div class="tile" style="--tone: var(--closed)"><span>Closed in October</span><strong>2 Redeemed</strong><small>0 Waived off · 0 Forfeited</small></div>
   </div>
   <div class="cols">
     <div>
@@ -438,7 +438,7 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
   <div class="nuances">
     <div class="nuance rule"><b>Interest on start-of-month Principal</b><span>Each month is charged on the Principal at the previous Accrual Date, so paying Principal a day before an Accrual Date doesn't dodge a month (ADR-0006).</span></div>
     <div class="nuance"><b>Term Changes never rewrite the past</b><span>They start on an Accrual Date and apply only from then on. One that has taken effect can't be removed; add another instead.</span></div>
-    <div class="nuance"><b>Closed Mortgages tuck away</b><span>Redeemed or Forfeited, the page shows how it ended and offers <span class="ui">Reopen…</span>.</span></div>
+    <div class="nuance"><b>Closed Mortgages tuck away</b><span>Redeemed, Waived off or Forfeited, the page shows how it ended and offers <span class="ui">Reopen…</span>.</span></div>
   </div>
 </section>
 
@@ -466,7 +466,7 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
         <dt>Edit details</dt><dd>start date, Principal</dd>
         <dt>Term Change</dt><dd>add · remove</dd>
         <dt>Payment</dt><dd>record · Void</dd>
-        <dt>Closure</dt><dd>Redeem · Forfeit · Reopen</dd>
+        <dt>Closure</dt><dd>Redeem · Waive off · Forfeit · Reopen</dd>
         <dt>Collateral Value</dt><dd>and the Call List</dd>
         <dt>New Mortgage</dt><dd>what it will owe</dd>
       </dl>
@@ -474,7 +474,7 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
   </div>
   <div class="nuances">
     <div class="nuance rule"><b>The Preview is the real change, undone</b><span>The backend makes the change with every check a save would run, reads the result, then rolls it back. A Preview can't disagree with a save.</span></div>
-    <div class="nuance"><b>Closed Mortgages stay consistent</b><span>The start date and Principal of a Redeemed or Forfeited Mortgage are locked until it is reopened.</span></div>
+    <div class="nuance"><b>Closed Mortgages stay consistent</b><span>The start date and Principal of a closed Mortgage are locked until it is reopened.</span></div>
   </div>
 </section>
 
@@ -567,7 +567,7 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     </div>
   </div>
   <div class="nuances">
-    <div class="nuance rule"><b>Notices always match today</b><span>A Notice whose Mortgages were Redeemed or edited meanwhile is withdrawn; turning on "approve first" holds those already queued.</span></div>
+    <div class="nuance rule"><b>Notices always match today</b><span>A Notice whose Mortgages were closed or edited meanwhile is withdrawn; turning on "approve first" holds those already queued.</span></div>
     <div class="nuance"><b>Months Unpaid counts the oldest first</b><span>Payments clear the oldest interest first; capitalised interest still counts as unpaid.</span></div>
     <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed. Messages arrive exactly as previewed, emoji included.</span></div>
   </div>
@@ -577,17 +577,18 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
 <section class="stop" id="s9" aria-labelledby="s9-title">
   <div class="stop-head">
     <div class="stop-no">9</div>
-    <h2 id="s9-title">Closing a Mortgage: Redeem or Forfeit</h2>
-    <p class="open">Open <span class="path">/closures</span> (Redeem / Forfeit), and the Redeem panel on <span class="path">/mortgages/4</span></p>
+    <h2 id="s9-title">Closing a Mortgage: Redeem, Waive off or Forfeit</h2>
+    <p class="open">Open <span class="path">/closures</span> (Redeem / Forfeit), and <span class="ui">Close this Mortgage</span> on <span class="path">/mortgages/4</span></p>
   </div>
-  <p class="say">"Every pledge ends one of two ways: the Customer pays in full and takes the jewellery home, or they default and the Lender keeps or sells it. The app works out the exact Redemption Amount for any date and records the profit or loss on a Forfeiture."</p>
+  <p class="say">"Every pledge ends one of three ways: the Customer pays in full and takes the jewellery home; they pay nearly all of it and the Lender, at their discretion, lets off the small balance left and hands the jewellery back; or they default and the Lender keeps or sells it. The app works out the exact Redemption Amount for any date, records what was let off on a Waiver, and the profit or loss on a Forfeiture."</p>
   <div class="cols">
     <div>
       <div class="block-title">Show</div>
       <ol class="steps">
         <li><span>Point to the dot on <span class="ui">Redeem / Forfeit</span> in the menu: a Mortgage is paid off and waiting for its jewellery to go back.</span></li>
-        <li><span>On the page, <span class="ui">Ready to Redeem</span> lists it (Mortgage 4 owes ₹0). Below, Active Mortgages still owing can be ticked and Forfeited together.</span></li>
+        <li><span>On the page, <span class="ui">Ready to Redeem</span> lists it (Mortgage 4 owes ₹0). Below, under <span class="ui">Forfeit or Waive off</span>, Active Mortgages still owing can be ticked and closed together: choose <span class="ui">Forfeit</span> or <span class="ui">Waive off</span> for the chosen.</span></li>
         <li><span>On a Mortgage, press <span class="ui">Redeem…</span>: pick a date to see the Redemption Amount (Principal, unpaid interest, part-month charge). A future date gives a quote only.</span></li>
+        <li><span>Switch to <span class="ui">Waive off…</span>: enter what the Customer pays now (₹0 is allowed) and the amount let off appears, with the button reading <span class="ui">Waive off ₹…</span>. Paying the full amount is refused: Redeem instead. Cancel.</span></li>
         <li><span>Switch to <span class="ui">Forfeit…</span>: enter the Recovered Amount and the profit or loss appears. Cancel.</span></li>
         <li><span>On a closed Mortgage, show <span class="ui">Reopen…</span>: it needs a reason, and its Preview shows interest charged for the whole time.</span></li>
       </ol>
@@ -598,6 +599,7 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
         <dt>Active</dt><dd>10</dd>
         <dt>Ready to Redeem</dt><dd>1 (Mortgage 4)</dd>
         <dt>Redeemed this month</dt><dd>2</dd>
+        <dt>Waived off</dt><dd>0</dd>
         <dt>Forfeited</dt><dd>0</dd>
       </dl>
       <p class="note">History shows two Reopens: closures made by mistake were undone, and every step is kept.</p>
@@ -605,8 +607,9 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
   </div>
   <div class="nuances">
     <div class="nuance rule"><b>The final Payment includes the part-month charge</b><span>Redeeming records it as a Payment, so the Receipt and the Ledger agree.</span></div>
+    <div class="nuance"><b>A Waiver is the Lender's choice</b><span>What the Customer pays is recorded as the final Payment, and their Receipt shows nothing still owed. The rest is let off and counted on the Dashboard's <span class="ui">Waived off</span> tile.</span></div>
     <div class="nuance"><b>No closing before a later Payment</b><span>A Closure can't be dated before a Payment already recorded.</span></div>
-    <div class="nuance"><b>Reopen undoes completely</b><span>The Mortgage is Active as if never closed, and a Redemption's final Payment is Voided.</span></div>
+    <div class="nuance"><b>Reopen undoes completely</b><span>The Mortgage is Active as if never closed, and a Redemption's or Waiver's final Payment is Voided.</span></div>
   </div>
 </section>
 

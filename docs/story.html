@@ -198,7 +198,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <main class="page">
 
 <header class="opening">
-  <div class="eyebrow">Mortgage Management 1.1.2 · a walkthrough</div>
+  <div class="eyebrow">Mortgage Management 1.2.0 · a walkthrough</div>
   <h1>A year in the life of a gold chain</h1>
   <p class="lede">Meera Sharma pledges a gold chain with a pendant. Over the next year it gathers interest, takes Payments, comes up for a phone call and is nearly paid off. Follow it through the app, together with the other people the Lender lends to.</p>
   <div class="cast" aria-label="The people in this story">
@@ -543,13 +543,13 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <section class="chapter" id="endings" aria-labelledby="endings-h">
   <div class="chapter-head"><div class="eyebrow">Chapter 8</div><h2 id="endings-h">How pledges end</h2></div>
   <div class="prose">
-    <p>Every pledge ends one of two ways. Either it is paid in full and the jewellery goes home (Redeemed), or the Customer defaults and the Lender keeps or sells it (Forfeited). This month has one of each, and one more waiting.</p>
+    <p>Every pledge ends one of three ways. It is paid in full and the jewellery goes home (Redeemed). Or the Customer pays nearly all of it, the Lender lets off the small balance left, and the jewellery goes home all the same (Waived off). Or the Customer defaults and the Lender keeps or sells it (Forfeited). This month has one Redemption and one Forfeiture, and one more waiting.</p>
   </div>
   <figure class="scene" data-shot="closures">
     <div class="frame"><div class="canvas"><img src="shots/closures.webp" width="1068" height="795" alt="Redeem / Forfeit: Lakshmi's temple necklace Ready to Redeem with a ₹3,867 part-month charge; Active Mortgages that can be Forfeited." loading="lazy"></div></div>
     <div class="beats-wrap">
       <ol class="beats">
-        <li data-spot="ready"><button class="beat"><span><b>Lakshmi paid in full this week.</b> Her necklace waits to go back; Redeeming today adds a ₹3,867 part-month charge as the final Payment. Below, Mortgages still owing can be ticked and Forfeited together.</span></button></li>
+        <li data-spot="ready"><button class="beat"><span><b>Lakshmi paid in full this week.</b> Her necklace waits to go back; Redeeming today adds a ₹3,867 part-month charge as the final Payment. Below, Mortgages still owing can be ticked and closed together, choosing to Forfeit them or Waive them off.</span></button></li>
       </ol>
     </div>
   </figure>
@@ -568,7 +568,8 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <figure class="still"><img src="shots/forfeited.webp" width="1018" height="246" alt="Imran's earrings, Forfeited on 10 Oct 2026: Redemption Amount ₹62,800, recovered ₹52,000, a loss of ₹10,800." loading="lazy"><figcaption>Imran's earrings: Forfeited on 10 October. Owed ₹62,800, sold for ₹52,000: a loss of ₹10,800, which the Dashboard counts for the month.</figcaption></figure>
   </div>
   <div class="rules">
-    <div class="rule"><b>Reopen undoes completely</b><span>With a reason, the Mortgage is Active again as if never closed, and a Redemption's final Payment is Voided.</span></div>
+    <div class="rule"><b>Waive off a small balance</b><span>On a Mortgage, Waive off takes what the Customer pays now as the final Payment (or nothing) and lets off the rest. Their Receipt shows nothing still owed, and the Dashboard counts what was let off for the month.</span></div>
+    <div class="rule"><b>Reopen undoes completely</b><span>With a reason, the Mortgage is Active again as if never closed, and a Redemption's or Waiver's final Payment is Voided.</span></div>
     <div class="rule"><b>No closing before a Payment</b><span>A Closure can't be dated before a Payment already recorded on that Mortgage.</span></div>
   </div>
 </section>
