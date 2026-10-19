@@ -40,3 +40,23 @@ test("from the Call List's count, the Mortgages page shows only that Customer's,
   expect(await screen.findByRole('link', { name: '2025-Meera-GoldChainPendant' })).toBeTruthy()
   expect(screen.queryByText(onlyNote('Arjun Patel'))).toBeNull()
 })
+
+test("typing a Customer's phone number into the search finds their Mortgages", async () => {
+  const asked: string[] = []
+  const server = fakeServer({
+    'GET /api/mortgages': (request: Request) => {
+      const q = new URL(request.url).searchParams.get('q') ?? ''
+      asked.push(q)
+      const items = q === '98200 23456' ? [row(3, '2025-Arjun-GoldRingRuby')] : []
+      return { items, total: items.length, page: 1, page_size: 20 }
+    },
+  })
+  showPage(server, '/mortgages', { '/mortgages': <MortgagesPage /> })
+
+  fireEvent.change(await screen.findByPlaceholderText('Filter by Mortgage Name, Customer or Primary Number'), {
+    target: { value: '98200 23456' },
+  })
+
+  expect(await screen.findByRole('link', { name: '2025-Arjun-GoldRingRuby' })).toBeTruthy()
+  expect(asked).toContain('98200 23456')
+})

@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import (
     Select,
     case,
+    false,
     func,
     or_,
     select,
@@ -34,7 +35,7 @@ from mortgage_backend.lending.replay import (
     replays,
 )
 from mortgage_backend.lending.terms import Terms
-from mortgage_backend.people.customers import PersonSummary
+from mortgage_backend.people.customers import PersonSummary, phone_fragment
 from mortgage_backend.platform.clock import MonthQuery, TodayDep, month_span
 from mortgage_backend.platform.db import (
     EngineDep,
@@ -398,7 +399,7 @@ def list_mortgages(
     descending: bool = False,
 ) -> Page[MortgageRow]:
     """Mortgages, newest first (or by `sort`, reversed when `descending`), filtered by
-    Mortgage Name or Customer name.
+    Mortgage Name, Customer name or (part of) the Customer's Primary Number.
 
     With `as_of`, only Mortgages started by then, with what they owed on that date
     (used when recording a back-dated Payment). With `owing`, only those with something
@@ -411,10 +412,13 @@ def list_mortgages(
     if as_of is not None and as_of > today:
         raise unprocessable("The date cannot be in the future")
     query = q.strip()
+    # Digits may be part of a Mortgage Name (its year) as well as of a phone number.
+    phone = phone_fragment(query)
     match = (
         or_(
             mortgage_table.c.name.icontains(query),
             customer_table.c.name.icontains(query),
+            customer_table.c.phone_1.contains(phone) if phone else false(),
         )
         if query
         else true()

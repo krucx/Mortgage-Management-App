@@ -28,6 +28,10 @@ updating keeps all data and Backups.
   - **Mortgages page:** a **Waived off** status filter. Waived Mortgages sort between
     Redeemed and Forfeited.
   - **Reopen** undoes a Waiver like any Closure, Voiding its final Payment.
+- **Mortgages page:** the search also finds a Customer's Mortgages by their Primary
+  Number: the whole number however it is typed (spaces, dashes, +91 or a leading 0),
+  or a run of 3 or more of its digits. Digits that are part of a Mortgage Name, such
+  as its year, still find it too.
 - **Version in the top bar:** the app's version shows as a small superscript beside
   "Mortgage Management" (e.g. v1.2.0), so it is plain which release is running.
 

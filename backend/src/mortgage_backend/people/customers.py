@@ -299,7 +299,7 @@ def read_referrer(referrer_id: int, engine: EngineDep) -> StandaloneReferrer:
 SEARCH_LIMIT = 25
 
 
-def _phone_fragment(query: str) -> str | None:
+def phone_fragment(query: str) -> str | None:
     """Digits to match against phone numbers, if the query looks like (part of) a phone number."""
     if re.search(r"[^\d\s+()-]", query):
         return None
@@ -314,7 +314,7 @@ def _phone_fragment(query: str) -> str | None:
 
 def _customer_matches(query: str) -> ColumnElement[bool]:
     """Customers whose name, or either contact number, matches the query."""
-    phone = _phone_fragment(query)
+    phone = phone_fragment(query)
     if phone:
         return or_(
             customer_table.c.phone_1.contains(phone),
@@ -329,7 +329,7 @@ def search(q: str, engine: EngineDep) -> list[SearchHit]:
     query = q.strip()
     if not query:
         return []
-    phone = _phone_fragment(query)
+    phone = phone_fragment(query)
     customer_match = _customer_matches(query)
     referrer_match = (
         standalone_referrer_table.c.phone.contains(phone)

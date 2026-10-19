@@ -192,6 +192,28 @@ def test_mortgages_can_be_searched_by_name_or_customer(client, ramesh):
     assert names() == ["2026-Ramesh-GoldChain", "2026-Sita-Bangles"]
 
 
+def test_mortgages_can_be_searched_by_the_customers_primary_number(client, ramesh):
+    sita = client.post(
+        "/api/customers",
+        json={"name": "Sita", "address": "", "phone_1": "9000000005", "phone_2": "9414000006"},
+    ).json()
+    create_mortgage(client, ramesh)
+    create_mortgage(client, sita, name="2026-Sita-Bangles", description="Two bangles")
+
+    def names(q):
+        return [
+            row["name"]
+            for row in client.get("/api/mortgages", params={"q": q}).json()["items"]
+        ]
+
+    assert names("+91 90000-00005") == ["2026-Sita-Bangles"]
+    assert names("09000-000005") == ["2026-Sita-Bangles"]
+    assert names("00005") == ["2026-Sita-Bangles"]  # part of it
+    assert names("9414000006") == []  # only the Primary Number, not Contact number 2
+    # Digits that are also a Mortgage Name's year still find it.
+    assert names("2026") == ["2026-Ramesh-GoldChain", "2026-Sita-Bangles"]
+
+
 def test_listed_mortgages_show_what_is_outstanding(client, ramesh):
     create_mortgage(client, ramesh)
 

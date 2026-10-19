@@ -12,8 +12,8 @@ import { useServerState } from '../serverState'
 
 const STATUSES: MortgageStatus[] = ['active', 'redeemed', 'waived', 'forfeited']
 
-/** All Mortgages, newest first, filterable by Mortgage Name or Customer, status and
- * the month they were closed in. */
+/** All Mortgages, newest first, filterable by Mortgage Name, Customer or their Primary
+ * Number, status and the month they were closed in. */
 export function MortgagesPage() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounced(query)
@@ -106,7 +106,7 @@ export function MortgagesPage() {
       <input
         autoFocus
         type="search"
-        placeholder="Filter by Mortgage Name or Customer"
+        placeholder="Filter by Mortgage Name, Customer or Primary Number"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />

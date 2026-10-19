@@ -172,7 +172,7 @@ export interface paths {
         /**
          * List Mortgages
          * @description Mortgages, newest first (or by `sort`, reversed when `descending`), filtered by
-         *     Mortgage Name or Customer name.
+         *     Mortgage Name, Customer name or (part of) the Customer's Primary Number.
          *
          *     With `as_of`, only Mortgages started by then, with what they owed on that date
          *     (used when recording a back-dated Payment). With `owing`, only those with something
