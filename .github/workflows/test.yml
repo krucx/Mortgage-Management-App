@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The release workflow runs these before publishing images.
+  workflow_call:
 
 jobs:
   backend:

@@ -23,6 +23,15 @@ What changed in each version is in [CHANGELOG.md](CHANGELOG.md). A walkthrough o
 
 The app restarts by itself with Docker. Database updates run automatically when the app starts. Your data lives only in `DATA_DIR`, never inside Docker.
 
+### Installing it as an app
+
+The app can be installed like a desktop or phone app, with its own icon and window. In
+Chrome or Edge, open it and choose **Install** in the address bar (Safari: **File → Add
+to Dock**). It opens even when Docker is stopped, then says the server can't be reached
+until Docker is running again. Figures always come fresh from the server: nothing owed
+is kept on the device. Whenever the server is up, the app itself comes from it too, so an
+update shows the next time the app is opened.
+
 ### Backups
 
 Once a week (on the first use of the day it falls due) the app writes
@@ -45,6 +54,23 @@ To restore:
 git pull
 docker compose up -d --build
 ```
+
+### Published images
+
+Each release is published to Docker Hub as
+[`krucx11/mortgage-management-app`](https://hub.docker.com/r/krucx11/mortgage-management-app),
+for Intel and Apple-silicon machines:
+
+| Image   | This release      | Newest release    |
+| ------- | ----------------- | ----------------- |
+| Backend | `backend-<version>` (e.g. `backend-1.2.0`) | `backend-latest` |
+| UI      | `ui-<version>` (e.g. `ui-1.2.0`)           | `ui-latest`      |
+
+They are built by `.github/workflows/release.yml` when a version tag (e.g. `1.2.0`) is
+pushed, after the tests pass. The `-latest` tags move only when the pushed version is the
+highest so far, so a fix for an older version doesn't take them back. The tag must match the version in `backend/pyproject.toml`
+and `frontend/package.json`. The workflow needs two repository secrets,
+`DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub access token with Read & Write).
 
 ## Development
 

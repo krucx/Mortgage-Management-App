@@ -32,6 +32,14 @@ updating keeps all data and Backups.
   Number: the whole number however it is typed (spaces, dashes, +91 or a leading 0),
   or a run of 3 or more of its digits. Digits that are part of a Mortgage Name, such
   as its year, still find it too.
+- **Install as an app:** the app is a Progressive Web App. Chrome, Edge and Safari can
+  install it with its own icon and window (see README). It opens even when Docker is
+  stopped, and then says plainly that the server can't be reached, instead of "Failed to
+  fetch". Figures are never cached on the device: they always come from the server.
+- **Published images:** each release is pushed to Docker Hub as
+  `krucx11/mortgage-management-app`, tagged `backend-<version>` and `ui-<version>`.
+  `backend-latest` and `ui-latest` move to it when it is the highest version so far. Built for Intel and Apple-silicon machines
+  after the tests pass.
 - **Version in the top bar:** the app's version shows as a small superscript beside
   "Mortgage Management" (e.g. v1.2.0), so it is plain which release is running.
 

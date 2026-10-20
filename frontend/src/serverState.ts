@@ -33,11 +33,19 @@ export class BackendError extends Error {
   }
 }
 
-/** The data of a typed-client call, or a BackendError carrying the backend's message. */
+/** What a request says when fetch itself fails. */
+const UNREACHABLE = "The app's server can't be reached: check that Docker is running on this laptop."
+
+/** The data of a typed-client call, or a BackendError carrying the backend's message (or,
+ *  when the server can't be reached at all, an Error saying so). */
 export async function dataOrThrow<T>(
   call: Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<T> {
-  const { data, error, response } = await call
+  const { data, error, response } = await call.catch((failure: unknown) => {
+    // fetch itself failed: offline, or the server is stopped (the installed app still opens).
+    if (failure instanceof TypeError) throw new Error(UNREACHABLE)
+    throw failure
+  })
   if (!response.ok) throw new BackendError(response.status, error)
   return data as T
 }
