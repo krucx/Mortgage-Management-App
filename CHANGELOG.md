@@ -5,19 +5,37 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
-## [Unreleased]
+## [1.4.0] - 2026-10-20
+
+Remove the app from Windows by double-click, keeping the latest Backup, and install it
+with the new guide on GitHub Pages. No database changes: updating keeps all data and
+Backups.
 
 ### Added
 
 - **Windows uninstall by double-click:** `windows/Uninstall.bat` removes the app from the
   PC. It stops the app and moves the latest Backup into Documents; only then does it
-  delete the Docker images, the Desktop shortcut, the data and the install folder. A Backup folder
-  chosen outside the install folder (Google Drive, OneDrive) is left as it is (see README).
+  delete the Docker images, the Desktop shortcut, the data and the install folder. A
+  Backup folder chosen outside the install folder (Google Drive, OneDrive) is left as it
+  is (see README).
+- **Install guide:** <https://krucx.github.io/Mortgage-Management-App/install.html> has
+  `Setup.bat` to download, and every step for the Lender's own computer: install, start,
+  update, Backups and restore, remove, and what to do when something goes wrong.
 
 ### Changed
 
 - When the app's server can't be reached, the app now says the server isn't running,
   rather than asking to check Docker (which the app may not use).
+
+### Upgrading
+
+On Windows, run `Setup.bat` (see README); it also brings `Uninstall.bat`. Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
 
 ## [1.3.0] - 2026-10-20
 
