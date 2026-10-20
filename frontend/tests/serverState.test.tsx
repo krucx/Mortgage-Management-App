@@ -130,11 +130,11 @@ test("a Ledger change makes a Customer's History stale: it holds their Mortgages
   expect(queryClient.getQueryState([...keys.customer(3), 'history'])?.isInvalidated).toBe(true)
 })
 
-test("when the app's server can't be reached, the message says so in plain words", async () => {
-  // Offline, or Docker stopped: the installed app still opens, but fetch itself fails.
+test("when the app's server can't be reached, the message says it isn't running", async () => {
+  // Offline, or the server stopped: the installed app still opens, but fetch itself fails.
   const unreachable = Promise.reject(new TypeError('Failed to fetch'))
 
   await expect(dataOrThrow(unreachable)).rejects.toThrow(
-    "The app's server can't be reached: check that Docker is running on this laptop.",
+    "The app's server isn't running: start Mortgage Management, then try again.",
   )
 })

@@ -111,9 +111,7 @@ function Install-Local {
 }
 
 function New-DesktopShortcut {
-    $desktop = [Environment]::GetFolderPath('Desktop')
-    $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut(
-        (Join-Path $desktop 'Mortgage Management.lnk'))
+    $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut((Get-ShortcutPath))
     $shortcut.TargetPath = Join-Path $PSScriptRoot 'Run.bat'
     $shortcut.WorkingDirectory = $PSScriptRoot
     $shortcut.IconLocation = (Join-Path $PSScriptRoot 'MortgageManagement.ico') + ',0'

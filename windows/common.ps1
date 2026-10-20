@@ -1,5 +1,5 @@
-# Shared by install.ps1 and run.ps1: the app's .env file, the PATH, and waiting for things
-# to start. Windows PowerShell 5.1 compatible, and ASCII only (5.1 misreads anything else).
+# Shared by install.ps1, run.ps1 and uninstall.ps1: the app's .env file, the shortcut, the
+# PATH, and waiting for things to start. Windows PowerShell 5.1 compatible, and ASCII only (5.1 misreads anything else).
 
 $ErrorActionPreference = 'Stop'
 
@@ -86,6 +86,10 @@ function Set-EnvValue {
 }
 
 function Get-EnvPath { return Join-Path $AppDir '.env' }
+
+function Get-ShortcutPath {
+    return Join-Path ([Environment]::GetFolderPath('Desktop')) 'Mortgage Management.lnk'
+}
 
 function Read-EnvFile { return Read-EnvText ([IO.File]::ReadAllText((Get-EnvPath))) }
 

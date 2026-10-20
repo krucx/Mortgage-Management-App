@@ -34,7 +34,7 @@ export class BackendError extends Error {
 }
 
 /** What a request says when fetch itself fails. */
-const UNREACHABLE = "The app's server can't be reached: check that Docker is running on this laptop."
+const UNREACHABLE = "The app's server isn't running: start Mortgage Management, then try again."
 
 /** The data of a typed-client call, or a BackendError carrying the backend's message (or,
  *  when the server can't be reached at all, an Error saying so). */

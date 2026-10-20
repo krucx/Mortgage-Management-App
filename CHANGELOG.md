@@ -5,6 +5,20 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [Unreleased]
+
+### Added
+
+- **Windows uninstall by double-click:** `windows/Uninstall.bat` removes the app from the
+  PC. It stops the app and moves the latest Backup into Documents; only then does it
+  delete the Docker images, the Desktop shortcut, the data and the install folder. A Backup folder
+  chosen outside the install folder (Google Drive, OneDrive) is left as it is (see README).
+
+### Changed
+
+- When the app's server can't be reached, the app now says the server isn't running,
+  rather than asking to check Docker (which the app may not use).
+
 ## [1.3.0] - 2026-10-20
 
 Set up on Windows by double-click, with or without Docker, and run the published images

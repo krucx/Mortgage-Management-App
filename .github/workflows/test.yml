@@ -81,3 +81,13 @@ jobs:
               ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
             Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
           }
+      - name: Uninstall keeps the latest Backup and removes the rest
+        shell: powershell
+        run: |
+          $installed = "$env:RUNNER_TEMP\mm"
+          $kept = "$env:RUNNER_TEMP\kept"
+          & "$installed\app\windows\uninstall.ps1" -NonInteractive -KeepBackupIn $kept
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (Test-Path $installed) { throw "$installed is still there: $(Get-ChildItem -Recurse $installed | Select-Object -First 20)" }
+          if (-not (Get-ChildItem $kept -Filter 'mortgage-backup-*.zip')) { throw 'The latest Backup was not kept.' }
+          Get-ChildItem $kept
