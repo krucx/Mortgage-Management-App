@@ -188,6 +188,8 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 .bar > ol { flex: 1; min-width: 0; }
 .theme-toggle { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
 .theme-toggle:hover { color: var(--text); border-color: var(--accent); }
+.home { justify-self: start; font-size: 0.85rem; text-decoration: none; font-weight: 600; }
+.home:hover { text-decoration: underline; }
 </style>
 <script>
   // A light or dark theme chosen on this site, applied before the page draws.
@@ -198,7 +200,8 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <main class="page">
 
 <header class="opening">
-  <div class="eyebrow">Mortgage Management 1.4.0 · a walkthrough</div>
+  <a class="home" href="index.html">← Mortgage Management docs</a>
+  <div class="eyebrow">Mortgage Management 1.4.0 · the story</div>
   <h1>A year in the life of a gold chain</h1>
   <p class="lede">Meera Sharma pledges a gold chain with a pendant. Over the next year it gathers interest, takes Payments, comes up for a phone call and is nearly paid off. Follow it through the app, together with the other people the Lender lends to.</p>
   <div class="cast" aria-label="The people in this story">
@@ -211,7 +214,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <div class="person"><b>Sunita Rao</b><span>a mangalsutra, accruing in two days</span></div>
   </div>
   <p class="sample">Everyone here is invented. The screenshots come from the app running on sample data, so every figure is what the app itself works out. Click a numbered marker or a step to see where it is on the screen; ← and → step through a scene.</p>
-  <a class="crosslink" href="index.html">
+  <a class="crosslink" href="walkthrough.html">
     <span><span class="label">Giving the demo?</span><b>Mortgage Book Walkthrough</b><span class="what">The presenter's guide: page by page, where to click, what to say, and the rules worth pointing out.</span></span>
     <span class="go">Open the guide →</span>
   </a>
@@ -606,7 +609,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <li>Payments split fairly, Receipts on WhatsApp, follow-up prepared daily for the Lender to send.</li>
     <li>Every pledge closed with an exact amount, and every change kept.</li>
   </ol>
-  <a class="crosslink" href="index.html">
+  <a class="crosslink" href="walkthrough.html">
     <span><span class="label">Presenting it live</span><b>Mortgage Book Walkthrough</b><span class="what">The step-by-step guide for each page, to follow in the app itself.</span></span>
     <span class="go">Open the guide →</span>
   </a>

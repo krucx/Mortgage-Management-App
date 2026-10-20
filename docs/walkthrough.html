@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mortgage Book Walkthrough</title>
+<style>
+/* Layout: a presenter's script — a sticky route map, then one stop per part of the app, in the order a pledge lives its life. Colours are the app's own. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1f2328;
+  --muted: #59636e;
+  --border: #d8dee4;
+  --accent: #8a5a00;
+  --accent-soft: #f5ecdc;
+  --owed: #8a5a00;
+  --money-in: #00748c;
+  --collateral: #5a4fcf;
+  --closed: #b3368c;
+  --ok: #1a7f37;
+  --warning: #9a6700;
+  --error: #cf222e;
+  --wa-chat: #efeae2;
+  --wa-bubble: #d9fdd3;
+  --wa-text: #111b21;
+  --font-body: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
+    --accent: #d4a72c; --accent-soft: #2a2312; --owed: #d4a72c; --money-in: #1fa3c0;
+    --collateral: #8b7cf2; --closed: #d466a7; --ok: #3fb950; --warning: #d29922; --error: #f85149;
+    --wa-chat: #0b141a; --wa-bubble: #005c4b; --wa-text: #e9edef;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
+  --accent: #d4a72c; --accent-soft: #2a2312; --owed: #d4a72c; --money-in: #1fa3c0;
+  --collateral: #8b7cf2; --closed: #d466a7; --ok: #3fb950; --warning: #d29922; --error: #f85149;
+  --wa-chat: #0b141a; --wa-bubble: #005c4b; --wa-text: #e9edef;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 5.5rem; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.6 var(--font-body);
+}
+.page { max-width: 62rem; margin: 0 auto; padding-inline: 1rem; padding-block: 2rem 4rem; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.1rem; font-family: var(--font-body); font-weight: 650; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+code, .path { font-family: var(--font-mono); font-size: 0.86em; }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Opening */
+.intro { display: grid; gap: 1rem; padding-block: 0.5rem 1.5rem; }
+.eyebrow { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
+.lede { font-size: 1.12rem; }
+.facts { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; font-size: 0.92rem; color: var(--muted); }
+.facts b { color: var(--text); font-weight: 600; }
+
+/* Before you start */
+.care { display: grid; gap: 0.5rem; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--warning); border-radius: 8px; padding: 1rem 1.25rem; }
+.care ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.3rem; }
+
+/* Route map */
+.route { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 0.6rem; margin-block: 1.5rem 0.5rem; border-bottom: 1px solid var(--border); }
+.route ol { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.35rem; overflow-x: auto; scrollbar-width: thin; }
+.route li { flex: 0 0 auto; }
+.route a { display: flex; align-items: center; gap: 0.4rem; text-decoration: none; color: var(--text); font-size: 0.85rem; padding: 0.3rem 0.65rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); white-space: nowrap; }
+.route a:hover { border-color: var(--accent); }
+.route .n { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); }
+
+/* Lifecycle diagram */
+.life { margin-block: 1.5rem; overflow-x: auto; }
+.life-track { display: grid; grid-template-columns: repeat(6, minmax(8.5rem, 1fr)); gap: 0; min-width: 52rem; }
+.life-step { position: relative; padding: 0.9rem 0.8rem 0.9rem 0.9rem; background: var(--surface); border: 1px solid var(--border); border-right: none; display: grid; gap: 0.2rem; align-content: start; }
+.life-step:first-child { border-radius: 8px 0 0 8px; }
+.life-step:last-child { border-right: 1px solid var(--border); border-radius: 0 8px 8px 0; }
+.life-step + .life-step::before { content: ""; position: absolute; left: -0.55rem; top: 50%; width: 1rem; height: 1rem; background: var(--surface); border-top: 1px solid var(--border); border-right: 1px solid var(--border); transform: translateY(-50%) rotate(45deg); }
+.life-step b { font-size: 0.95rem; }
+.life-step span { font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+.life-step i { font-style: normal; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
+
+/* A stop */
+.stop { display: grid; gap: 1.1rem; padding-block: 2.25rem; border-bottom: 1px solid var(--border); }
+.stop-head { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; align-items: baseline; }
+.stop-no { grid-row: span 2; font-family: var(--font-display); font-size: 2.6rem; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.open { font-size: 0.88rem; color: var(--muted); }
+.open .path { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.4rem; color: var(--text); }
+.say { font-size: 1.05rem; border-left: 3px solid var(--accent); padding-left: 1rem; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+@media (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.block-title { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 650; margin-bottom: 0.5rem; }
+
+/* Click path */
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 0.55rem; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 1.7rem minmax(0, 1fr); gap: 0.6rem; align-items: start; }
+.steps li::before { content: counter(s); width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); font-size: 0.82rem; font-weight: 700; display: grid; place-items: center; font-variant-numeric: tabular-nums; margin-top: 0.05rem; }
+.ui { font-weight: 600; background: var(--accent-soft); border-radius: 4px; padding: 0 0.3rem; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+
+/* Live figures */
+.live { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.1rem; display: grid; gap: 0.6rem; }
+.live dl { margin: 0; display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 1.4fr); gap: 0.35rem 1rem; font-size: 0.93rem; }
+.live dt { color: var(--muted); }
+.live dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.live .note { font-size: 0.82rem; color: var(--muted); }
+
+/* Nuances */
+.nuances { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.75rem; }
+.nuance { border-top: 2px solid var(--border); padding-top: 0.6rem; display: grid; gap: 0.25rem; font-size: 0.93rem; }
+.nuance b { font-size: 0.95rem; }
+.nuance.rule { border-top-color: var(--accent); }
+
+/* Dashboard sketch */
+.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.6rem; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--tone, var(--border)); border-radius: 6px; padding: 0.7rem 0.85rem; display: grid; gap: 0.1rem; }
+.tile span { font-size: 0.8rem; color: var(--muted); }
+.tile strong { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.tile small { font-size: 0.78rem; color: var(--muted); }
+
+/* Bars */
+.bars { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.3rem; align-items: end; height: 9rem; padding-top: 0.5rem; }
+.bar { display: grid; gap: 0.2rem; align-content: end; justify-items: center; height: 100%; }
+.bar div { width: 100%; max-width: 2rem; background: var(--money-in); border-radius: 3px 3px 0 0; min-height: 2px; }
+.bar span { font-size: 0.66rem; color: var(--muted); }
+.bar em { font-style: normal; font-size: 0.66rem; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Allocation sketch */
+.split { display: grid; gap: 0.35rem; font-size: 0.9rem; }
+.split-row { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) auto; gap: 0.6rem; align-items: center; }
+.split-bar { height: 0.7rem; border-radius: 3px; background: linear-gradient(90deg, var(--owed) var(--i), var(--money-in) var(--i)); }
+.legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -0.05rem; margin-right: 0.3rem; }
+
+/* WhatsApp preview */
+.wa { background: var(--wa-chat); border-radius: 8px; padding: 0.9rem; }
+.wa pre { margin: 0; background: var(--wa-bubble); color: var(--wa-text); border-radius: 8px; padding: 0.6rem 0.75rem; font: 0.82rem/1.45 var(--font-mono); white-space: pre-wrap; max-width: 21rem; }
+
+/* Notice lifecycle */
+.states { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.88rem; }
+.state { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 0.2rem 0.7rem; }
+.state.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.arrow { color: var(--muted); }
+
+.close { padding-block: 2.25rem 0; display: grid; gap: 0.9rem; }
+.close ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.35rem; max-width: 70ch; }
+footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
+
+/* The link to the other page about the app */
+.crosslink { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem 1.2rem; align-items: center; text-decoration: none; color: var(--text); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 10px; padding: 0.9rem 1.1rem; }
+.crosslink:hover { background: var(--surface); }
+.crosslink .label { font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
+.crosslink b { display: block; font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; }
+.crosslink span.what { color: var(--muted); font-size: 0.92rem; }
+.crosslink .go { font-weight: 650; color: var(--accent); white-space: nowrap; }
+@media (max-width: 560px) { .crosslink { grid-template-columns: minmax(0, 1fr); } }
+
+/* The light/dark switch at the right-hand end of the sticky bar */
+.bar { display: flex; align-items: center; gap: 0.6rem; }
+.bar > ol { flex: 1; min-width: 0; }
+.theme-toggle { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
+.theme-toggle:hover { color: var(--text); border-color: var(--accent); }
+.home { justify-self: start; font-size: 0.85rem; text-decoration: none; font-weight: 600; }
+.home:hover { text-decoration: underline; }
+</style>
+<script>
+  // A light or dark theme chosen on this site, applied before the page draws.
+  try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t } catch {}
+</script>
+</head>
+<body>
+<main class="page">
+
+<header class="intro">
+  <a class="home" href="index.html">← Mortgage Management docs</a>
+  <div class="eyebrow">Stakeholder demo · presenter's guide</div>
+  <h1>Mortgage Book Walkthrough</h1>
+  <p class="lede">One Lender, one laptop, a book of gold-jewellery pledges. This guide follows a pledge through its whole life in the app: the morning view of the book, setting the rules, meeting a Customer, lending against their jewellery, taking Payments, following up, and closing the Mortgage. Each stop says where to click, what to say, and the details worth pointing out.</p>
+  <div class="facts">
+    <span>Version: <b>1.4.0</b></span>
+    <span>App: <b>http://127.0.0.1:8080</b></span>
+    <span>Figures: <b>the live book on 18 Oct 2026</b></span>
+    <span>Money: <b>₹, Indian digit grouping</b></span>
+  </div>
+  <a class="crosslink" href="story.html">
+    <span><span class="label">Prefer to see it first?</span><b>The Gold Chain Story</b><span class="what">The same app told as one Customer's year, with live screenshots you step through and small models to try. Sample data, so it is safe to share.</span></span>
+    <span class="go">Read the story →</span>
+  </a>
+  <a class="crosslink" href="install.html">
+    <span><span class="label">Not installed yet?</span><b>Install Mortgage Management</b><span class="what">Download Setup.bat, and every step for your computer: install, start, update, Backups and remove.</span></span>
+    <span class="go">Install it →</span>
+  </a>
+</header>
+
+<section class="care" aria-labelledby="care-title">
+  <h3 id="care-title">Before you start: this is the real book</h3>
+  <ul>
+    <li>Everything you open, search, sort or preview is safe. A Preview works out the change and throws it away.</li>
+    <li>Every save asks first. To show a save without making it, stop at the confirmation and press <span class="ui">Keep editing</span> or <span class="ui">Cancel</span>.</li>
+    <li>This guide points to Mortgages and Payments by their page address (for example <code>/mortgages/10</code>) rather than naming Customers, so it can be shared.</li>
+  </ul>
+</section>
+
+<nav class="bar route" aria-label="Demo route">
+  <ol>
+    <li><a href="#s1"><span class="n">1</span>The book at a glance</a></li>
+    <li><a href="#s2"><span class="n">2</span>Settings</a></li>
+    <li><a href="#s3"><span class="n">3</span>Customers</a></li>
+    <li><a href="#s4"><span class="n">4</span>New Mortgage</a></li>
+    <li><a href="#s5"><span class="n">5</span>A Mortgage</a></li>
+    <li><a href="#s6"><span class="n">6</span>Changes and Previews</a></li>
+    <li><a href="#s7"><span class="n">7</span>Payments</a></li>
+    <li><a href="#s8"><span class="n">8</span>Follow-up</a></li>
+    <li><a href="#s9"><span class="n">9</span>Redeem / Forfeit</a></li>
+    <li><a href="#s10"><span class="n">10</span>Safekeeping</a></li>
+  </ol>
+  <button type="button" class="theme-toggle" id="theme-toggle"></button>
+</nav>
+
+<div class="life" role="img" aria-label="The life of a Mortgage: a Customer pledges jewellery, interest accrues on each Accrual Date, Notices and the Call List follow up, Payments are allocated, and the Mortgage is Redeemed, Waived off or Forfeited.">
+  <div class="life-track">
+    <div class="life-step"><i>Stop 3</i><b>Customer</b><span>Known by their Primary Number, maybe introduced by a Referrer</span></div>
+    <div class="life-step"><i>Stop 4</i><b>Mortgage</b><span>One packet of jewellery, weighed and valued, on its Terms</span></div>
+    <div class="life-step"><i>Stop 5</i><b>Accrual Dates</b><span>Interest added monthly; capitalised by the Interest Mode</span></div>
+    <div class="life-step"><i>Stop 8</i><b>Follow-up</b><span>Notices before each Accrual Date; the Call List each day</span></div>
+    <div class="life-step"><i>Stop 7</i><b>Payments</b><span>One sum split across Mortgages, interest first</span></div>
+    <div class="life-step"><i>Stop 9</i><b>Closure</b><span>Redeemed or Waived off and handed back, or Forfeited</span></div>
+  </div>
+</div>
+
+<!-- 1 · Dashboard -->
+<section class="stop" id="s1" aria-labelledby="s1-title">
+  <div class="stop-head">
+    <div class="stop-no">1</div>
+    <h2 id="s1-title">The book at a glance</h2>
+    <p class="open">Open <span class="path">/</span> (Dashboard, the home page)</p>
+  </div>
+  <p class="say">"This is the first thing the Lender sees each morning: what the whole lending book is owed, what came in, how safe it is against the gold, and what needs doing today. Every figure is worked out fresh from the Payments and Terms. Nothing here is typed in by hand."</p>
+  <div class="board" aria-label="Dashboard figures today">
+    <div class="tile" style="--tone: var(--owed)"><span>Owed on Active Mortgages</span><strong>₹7,73,872</strong><small>across 10 Mortgages and 4 Customers</small></div>
+    <div class="tile" style="--tone: var(--owed)"><span>Principal Outstanding</span><strong>₹7,28,591</strong><small>plus ₹45,281 unpaid interest</small></div>
+    <div class="tile" style="--tone: var(--money-in)"><span>Interest collected</span><strong>₹30,287</strong><small>this month · ₹59,087 this year</small></div>
+    <div class="tile" style="--tone: var(--collateral)"><span>Collateral Value</span><strong>₹39,19,279</strong><small>Loan-to-Value 19.7%</small></div>
+    <div class="tile" style="--tone: var(--accent)"><span>Follow-up</span><strong>4 · 2</strong><small>on today's Call List · Notices to send</small></div>
+    <div class="tile" style="--tone: var(--closed)"><span>Closed in October</span><strong>2 Redeemed</strong><small>0 Waived off · 0 Forfeited</small></div>
+  </div>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>Read the headline <span class="ui">Owed on Active Mortgages</span>. Click it: it opens the Mortgages list. Every tile is a link to the list behind it.</span></li>
+        <li><span>Point to <span class="ui">Loan-to-Value</span>: what is owed as a share of what the gold is worth. At 19.7% the book is well covered.</span></li>
+        <li><span>Scroll to <span class="ui">Payments received each month, and the year ahead</span>: the past twelve months as bars, the coming twelve as interest charged against expected Payments.</span></li>
+        <li><span>Show <span class="ui">Looking ahead</span>: the book in 3, 6 and 12 months. Projections are exact (replayed from today's Mortgages); estimates are a Trend from the last three months.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">Payments received, last 12 months</div>
+      <div class="bars" aria-label="Payments received each month">
+        <div class="bar"><div style="height:0%"></div><span>N</span></div>
+        <div class="bar"><div style="height:0%"></div><span>D</span></div>
+        <div class="bar"><div style="height:0%"></div><span>J</span></div>
+        <div class="bar"><div style="height:0%"></div><span>F</span></div>
+        <div class="bar"><div style="height:0%"></div><span>M</span></div>
+        <div class="bar"><div style="height:0%"></div><span>A</span></div>
+        <div class="bar"><em>50k</em><div style="height:22.8%"></div><span>M</span></div>
+        <div class="bar"><div style="height:0%"></div><span>J</span></div>
+        <div class="bar"><div style="height:0%"></div><span>J</span></div>
+        <div class="bar"><div style="height:0%"></div><span>A</span></div>
+        <div class="bar"><em>50k</em><div style="height:22.8%"></div><span>S</span></div>
+        <div class="bar"><em>2.19L</em><div style="height:100%"></div><span>O</span></div>
+      </div>
+      <p class="note">Nov 2025 – Oct 2026 · ₹50,000 in May, ₹50,000 in September, ₹2,19,124 in October.</p>
+      <dl>
+        <dt>Interest accruing, next 3 months</dt><dd>₹74,564</dd>
+        <dt>next 6 months</dt><dd>₹1,55,822</dd>
+        <dt>next 12 months</dt><dd>₹3,32,418</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Nothing owed is stored</b><span>Outstanding, the Ledger and Redemption Amounts are replayed from the Terms and Payments every time, so a correction anywhere shows everywhere at once.</span></div>
+    <div class="nuance"><b>Exact versus estimate</b><span>Projections (exact) and Trend (estimate) are labelled in different colours, so nobody mistakes a guess for a promise.</span></div>
+    <div class="nuance"><b>Back from another page</b><span>Figures you saw earlier show at once, dimmed, until the fresh ones arrive.</span></div>
+    <div class="nuance"><b>Light or dark</b><span>The round switch at the top right follows the browser's theme until the Lender picks one, and remembers the choice on the laptop.</span></div>
+  </div>
+</section>
+
+<!-- 2 · Settings -->
+<section class="stop" id="s2" aria-labelledby="s2-title">
+  <div class="stop-head">
+    <div class="stop-no">2</div>
+    <h2 id="s2-title">Settings: the Lender's rules</h2>
+    <p class="open">Open <span class="path">/settings</span></p>
+  </div>
+  <p class="say">"Before any lending, the Lender sets their house rules once: the usual Terms, today's gold prices, when someone needs a phone call, the wording of WhatsApp messages, and Backups."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show, top to bottom</div>
+      <ol class="steps">
+        <li><span><span class="ui">Default Terms</span>: copied into every new Mortgage. Changing them never touches existing Mortgages.</span></li>
+        <li><span><span class="ui">Gold Rates</span>: price per gram for each purity, with the date last updated. Saving revalues every Mortgage that uses them.</span></li>
+        <li><span><span class="ui">Call List</span>: how many Months Unpaid, or how high a Loan-to-Value, puts a Mortgage on the day's Call List.</span></li>
+        <li><span><span class="ui">WhatsApp messages</span>: the Receipt and Notice templates with their placeholders, a live preview, how many days ahead Notices are queued, and whether each needs approving first.</span></li>
+        <li><span><span class="ui">Backups</span>: when the last one was taken, <span class="ui">Back up now</span>, and how many to keep.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">The live settings</div>
+      <dl>
+        <dt>Default Terms</dt><dd>4% a month, Compounded Yearly, full month</dd>
+        <dt>Gold Rate 24K / 22K</dt><dd>₹14,766 / ₹13,536 a gram</dd>
+        <dt>Gold Rate 20K / 18K / 14K</dt><dd>₹12,332 / ₹11,075 / ₹8,601</dd>
+        <dt>Rates last updated</dt><dd>17 Oct 2026</dd>
+        <dt>Call List</dt><dd>1+ Months Unpaid, or Loan-to-Value above 85%</dd>
+        <dt>Notices</dt><dd>5 days before, sent without approval</dd>
+        <dt>Last Backup</dt><dd>18 Oct 2026, 05:27</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Templates can't break</b><span>A template using a placeholder the app can't fill is refused on save, so a Customer never receives <code>{typo}</code>.</span></div>
+    <div class="nuance"><b>Every save is confirmed</b><span>Each group shows a summary of what changes, and Gold Rates says every valued Mortgage is revalued at once.</span></div>
+    <div class="nuance"><b>Backups leave the laptop</b><span>A zip of the database and photos, weekly and before every update, into a synced folder: password-protected when the app runs in Docker.</span></div>
+  </div>
+</section>
+
+<!-- 3 · Customers -->
+<section class="stop" id="s3" aria-labelledby="s3-title">
+  <div class="stop-head">
+    <div class="stop-no">3</div>
+    <h2 id="s3-title">Customers and Referrers</h2>
+    <p class="open">Open <span class="path">/customers</span>, then a Customer</p>
+  </div>
+  <p class="say">"A Customer is a person, known by their mobile number. The app makes sure one person is never entered twice, and remembers who introduced them."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>The list: filter by name or phone as you type, tick <span class="ui">Only Customers with an Active Mortgage</span>, sort any column. Matching Referrers appear alongside.</span></li>
+        <li><span><span class="ui">New Customer</span>: type a contact number 1 that already belongs to someone. The form warns who owns it before you save.</span></li>
+        <li><span>The <span class="ui">Referrer</span> choice: None, an Existing person (search), or a New Referrer known only by name and phone.</span></li>
+        <li><span>Open a Customer: photo, numbers, who referred them, whom they referred, their Active Mortgages with closed ones tucked below, and their History.</span></li>
+        <li><span>Stop before saving: press <span class="ui">Keep editing</span>.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">In the book</div>
+      <dl>
+        <dt>Customers</dt><dd>5</dd>
+        <dt>with an Active Mortgage</dt><dd>4</dd>
+        <dt>with a photo</dt><dd>2</dd>
+      </dl>
+      <p class="note">Delete is offered only while a Customer has no Mortgages: lending history is never lost.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>The Primary Number</b><span>Contact number 1 identifies the person; no two people share it. Number 2 may be shared (a family phone): the app warns but allows it.</span></div>
+    <div class="nuance"><b>Referrers grow into Customers</b><span>A Standalone Referrer who later borrows becomes a Customer, keeping everyone they referred.</span></div>
+    <div class="nuance"><b>Nobody refers themselves</b><span>A Customer can't be picked as their own Referrer, whichever way it's entered.</span></div>
+  </div>
+</section>
+
+<!-- 4 · New Mortgage -->
+<section class="stop" id="s4" aria-labelledby="s4-title">
+  <div class="stop-head">
+    <div class="stop-no">4</div>
+    <h2 id="s4-title">Lending: a New Mortgage</h2>
+    <p class="open">Open <span class="path">/mortgages/new</span> (or <span class="ui">New Mortgage</span> on a Customer)</p>
+  </div>
+  <p class="say">"Lending is one Mortgage per packet of jewellery. The Lender picks the Customer, sees what they already owe, weighs the gold, and the app suggests a name and shows what this loan will grow to before anything is saved."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>Choose a Customer. Their <span class="ui">Active Mortgages</span> appear first, as a reminder of what they already owe.</span></li>
+        <li><span>Enter the start date (it may be back-dated), Principal lent, a description, gross and net weight, and purity.</span></li>
+        <li><span>Watch the <span class="ui">Mortgage Name</span> fill itself: year, the Customer's first name, and the jewellery (for example <code>2026-Name-GoldNecklace</code>). Type your own and it stops suggesting.</span></li>
+        <li><span>The Terms arrive from Settings and can be changed for this one Mortgage. Add photos from the camera or files.</span></li>
+        <li><span>Press <span class="ui">Create Mortgage</span>: the confirmation shows what it would owe today and over a year with no Payments. Press <span class="ui">Keep editing</span>.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">Terms, explained</div>
+      <dl>
+        <dt>Simple</dt><dd>interest never earns interest</dd>
+        <dt>Compounded Yearly</dt><dd>simple monthly, capitalised yearly</dd>
+        <dt>Compounded Monthly</dt><dd>capitalised every month</dd>
+        <dt>Part-Month Rule</dt><dd>pro-rata · full month · nothing</dd>
+      </dl>
+      <p class="note">The Part-Month Rule decides what is charged for the days since the last Accrual Date when a Mortgage is redeemed.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Accrual Dates follow the start date</b><span>Started on the 31st? Interest is added on the 31st, or the month's last day when it is shorter.</span></div>
+    <div class="nuance"><b>Names are unique</b><span>A second necklace the same year becomes <code>…-GoldNecklace-2</code> automatically.</span></div>
+    <div class="nuance"><b>Collateral Value from the weight</b><span>Net weight at the Gold Rate for its purity; the Lender can set a value by hand later.</span></div>
+  </div>
+</section>
+
+<!-- 5 · A Mortgage -->
+<section class="stop" id="s5" aria-labelledby="s5-title">
+  <div class="stop-head">
+    <div class="stop-no">5</div>
+    <h2 id="s5-title">One Mortgage, explained</h2>
+    <p class="open">Open <span class="path">/mortgages/10</span> (Compounded Monthly), then <span class="path">/mortgages/3</span> (a coming Term Change)</p>
+  </div>
+  <p class="say">"Everything about one pledge is on one page: what it owes now, the Terms and any coming changes, what the gold is worth, every call made, the photos, and the full step-by-step Ledger showing how the number was reached."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show, top to bottom</div>
+      <ol class="steps">
+        <li><span>The three tiles: <span class="ui">Outstanding</span>, <span class="ui">Principal</span>, <span class="ui">Unpaid interest</span>. Mortgage 10 lent ₹1,20,000 in April 2025 and owes ₹1,98,342 today.</span></li>
+        <li><span><span class="ui">Terms</span>: on Mortgage 3, a Term Change is <em>coming</em> from 1 Mar 2027 (10% a month) and can still be removed.</span></li>
+        <li><span><span class="ui">Collateral Value</span> and Loan-to-Value, with <span class="ui">Set by hand…</span>. The confirmation says whether that puts it on or off the Call List.</span></li>
+        <li><span><span class="ui">Ledger</span>: the latest 8 steps; <span class="ui">Show complete Ledger</span> opens all of them. Each line spells out its calculation ("Interest: 3% of ₹…").</span></li>
+        <li><span><span class="ui">Projection</span>: type a monthly amount in "What if they pay every month" to see when it would be paid off.</span></li>
+        <li><span><span class="ui">History</span>: every change, with old and new values.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">What compounding does</div>
+      <dl>
+        <dt>Mortgage 10 · Compounded Monthly</dt><dd>₹1,20,000 → ₹1,98,342</dd>
+        <dt>Mortgage 6 · Compounded Yearly</dt><dd>₹60,000 → ₹1,40,937</dd>
+        <dt>Mortgage 3 · Simple, 4%</dt><dd>₹40,000 → ₹27,044</dd>
+      </dl>
+      <p class="note">Mortgage 3 owes less than it lent: Payments have reduced its Principal. Mortgage 6 dates from January 2024.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Interest on start-of-month Principal</b><span>Each month is charged on the Principal at the previous Accrual Date, so paying Principal a day before an Accrual Date doesn't dodge a month (ADR-0006).</span></div>
+    <div class="nuance"><b>Term Changes never rewrite the past</b><span>They start on an Accrual Date and apply only from then on. One that has taken effect can't be removed; add another instead.</span></div>
+    <div class="nuance"><b>Closed Mortgages tuck away</b><span>Redeemed, Waived off or Forfeited, the page shows how it ended and offers <span class="ui">Reopen…</span>.</span></div>
+  </div>
+</section>
+
+<!-- 6 · Changes and Previews -->
+<section class="stop" id="s6" aria-labelledby="s6-title">
+  <div class="stop-head">
+    <div class="stop-no">6</div>
+    <h2 id="s6-title">Changes, with a Preview first</h2>
+    <p class="open">From a Mortgage: <span class="ui">Edit</span> (<span class="path">/mortgages/10/edit</span>) and <span class="ui">Change Terms…</span> (<span class="path">/mortgages/10/terms</span>)</p>
+  </div>
+  <p class="say">"Any change that affects money shows its effect before it is saved: what is owed today, the Redemption Amount in 3, 6 and 12 months, and exactly which Ledger lines would change. If the change isn't allowed, the Preview says why and Save stays off."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>On <span class="ui">Edit</span>, change the Principal lent. <span class="ui">What changes</span> appears: Owed today before → after, interest over 12 months, a before/after chart, and the changed Ledger steps.</span></li>
+        <li><span>Change it back: the Preview disappears and Save turns off. Only real changes can be saved.</span></li>
+        <li><span>On <span class="ui">Change Terms</span>, pick an Accrual Date and a new rate. The Preview shows the effect from that date only.</span></li>
+        <li><span>Press Save to show the confirmation, then <span class="ui">Keep editing</span>.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">Every change that has a Preview</div>
+      <dl>
+        <dt>Edit details</dt><dd>start date, Principal</dd>
+        <dt>Term Change</dt><dd>add · remove</dd>
+        <dt>Payment</dt><dd>record · Void</dd>
+        <dt>Closure</dt><dd>Redeem · Waive off · Forfeit · Reopen</dd>
+        <dt>Collateral Value</dt><dd>and the Call List</dd>
+        <dt>New Mortgage</dt><dd>what it will owe</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>The Preview is the real change, undone</b><span>The backend makes the change with every check a save would run, reads the result, then rolls it back. A Preview can't disagree with a save.</span></div>
+    <div class="nuance"><b>Closed Mortgages stay consistent</b><span>The start date and Principal of a closed Mortgage are locked until it is reopened.</span></div>
+  </div>
+</section>
+
+<!-- 7 · Payments -->
+<section class="stop" id="s7" aria-labelledby="s7-title">
+  <div class="stop-head">
+    <div class="stop-no">7</div>
+    <h2 id="s7-title">Payments, Receipts and Voids</h2>
+    <p class="open">Open <span class="path">/payments/new</span>, then <span class="path">/payments</span> and a Payment (<span class="path">/payments/4</span> is split three ways)</p>
+  </div>
+  <p class="say">"A Customer often hands over one sum for several pledges. The Lender enters it once, the app suggests how to split it, shows what each Mortgage will owe afterwards, and sends the Customer a Receipt on WhatsApp."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>Choose the Customer. Their Active Mortgages are listed with what each owes on the Payment date, so a back-dated Payment sees back-dated figures.</span></li>
+        <li><span>Enter the amount, or click <span class="ui">The full Outstanding on the chosen Mortgages</span>. Split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>; ticked Mortgages stay together at the top.</span></li>
+        <li><span>Type more than is owed: the Preview gives the reason ("would be more than the ₹… owed then") and Save stays off.</span></li>
+        <li><span>Open an existing Payment: each Allocation split into interest and Principal, the <span class="ui">Receipt</span> as it appears in WhatsApp, and <span class="ui">Print or save as PDF</span>.</span></li>
+        <li><span>Show <span class="ui">Void…</span>: it needs a reason and previews the effect. Cancel.</span></li>
+        <li><span>The Payments list: filter by month or year, hide Voided ones; a row opens its Payment.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">In the book</div>
+      <dl>
+        <dt>Payments</dt><dd>12 (3 Voided)</dd>
+        <dt>Cash · UPI · bank transfer</dt><dd>6 · 5 · 1</dd>
+        <dt>Split across Mortgages</dt><dd>2 Payments (2 and 3 ways)</dd>
+      </dl>
+      <div class="split" aria-label="How an Allocation is applied">
+        <div class="legend"><span><i style="background: var(--owed)"></i>unpaid interest first</span><span><i style="background: var(--money-in)"></i>then Principal</span></div>
+        <div class="split-row"><span>Allocation A</span><div class="split-bar" style="--i: 100%"></div><span class="num muted">all interest</span></div>
+        <div class="split-row"><span>Allocation B</span><div class="split-bar" style="--i: 40%"></div><span class="num muted">part Principal</span></div>
+      </div>
+      <div class="wa" aria-label="Receipt as sent on WhatsApp">
+        <pre>*Payment received* ✅
+
+Namaste {customer name},
+We have received *₹…* by Cash on 18 Oct 2026. Thank you!
+…</pre>
+      </div>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Within a Mortgage: interest, then Principal</b><span>Each Allocation pays unpaid interest before it reduces Principal.</span></div>
+    <div class="nuance"><b>Voided, never deleted</b><span>A Voided Payment stays on record with its reason but counts in no Ledger. A correction is entered as a new Payment.</span></div>
+    <div class="nuance"><b>Receipts speak the Customer's language</b><span>They name each Mortgage by its jewellery ("Gold chain"), never its Mortgage Name, and show what is still owed.</span></div>
+    <div class="nuance"><b>Paid in full? Redeem now</b><span>If a Payment clears a Mortgage, the app offers to Redeem it on the spot, including any part-month charge as the final Payment.</span></div>
+  </div>
+</section>
+
+<!-- 8 · Follow-up -->
+<section class="stop" id="s8" aria-labelledby="s8-title">
+  <div class="stop-head">
+    <div class="stop-no">8</div>
+    <h2 id="s8-title">Follow-up: Notices and the Call List</h2>
+    <p class="open">Open <span class="path">/notices</span>, then <span class="path">/call-list</span></p>
+  </div>
+  <p class="say">"The app never sends anything by itself. It prepares reminders and a calling list each day; the Lender reviews them and presses Send in WhatsApp."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span><span class="ui">Notices</span>: one per Customer for each coming Accrual Date, covering all their Mortgages accruing that day. Tabs: To approve, To send, Sent, Skipped, All.</span></li>
+        <li><span>Open a Notice to read the message, then <span class="ui">Send on WhatsApp</span>, mark it sent, or <span class="ui">Skip</span>. On the To send tab, each row has a compact green WhatsApp <span class="ui">Send</span> beside <span class="ui">Skip</span>. (Show, don't send.)</span></li>
+        <li><span><span class="ui">Call List</span>: one table, a row per Mortgage, grouped by Customer. The Customer appears once beside their rows, with how many Mortgages are listed, their total, and a <span class="ui">Call</span> button showing each number next to a WhatsApp chat button.</span></li>
+        <li><span>Point to the <span class="ui">Why</span> markers: amber for Months Unpaid ("15 mo"), red for Loan-to-Value too high ("104.5%"), teal for accruing today ("Today"), with the legend above the table. Hover one for the full wording.</span></li>
+        <li><span>Click a Customer's <span class="ui">2 Mortgages</span>: the Mortgages page opens with only theirs, and <span class="ui">Show every Customer</span> goes back.</span></li>
+        <li><span><span class="ui">Mark called…</span> takes a note of what was said; the row then shows ✓ Called with the note. The Mortgage keeps every Call Note.</span></li>
+      </ol>
+      <div class="states" aria-label="A Notice's life">
+        <span class="state">Queued by the daily run</span><span class="arrow">→</span>
+        <span class="state">To approve</span><span class="arrow">→</span>
+        <span class="state on">To send</span><span class="arrow">→</span>
+        <span class="state">Sent</span><span class="muted">or</span><span class="state">Skipped</span>
+      </div>
+    </div>
+    <div class="live">
+      <div class="block-title">Today</div>
+      <dl>
+        <dt>Notices to send</dt><dd>2</dd>
+        <dt>Notices sent</dt><dd>1</dd>
+        <dt>On the Call List</dt><dd>4 Mortgages, 3 Customers</dd>
+        <dt>listed for Months Unpaid</dt><dd>4</dd>
+        <dt>also for Loan-to-Value</dt><dd>3</dd>
+        <dt>Call Notes so far</dt><dd>2</dd>
+      </dl>
+      <p class="note">The Call List threshold is set to 1 Month Unpaid, so it is busy. The usual setting is 3.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Notices always match today</b><span>A Notice whose Mortgages were closed or edited meanwhile is withdrawn; turning on "approve first" holds those already queued.</span></div>
+    <div class="nuance"><b>Months Unpaid counts the oldest first</b><span>Payments clear the oldest interest first; capitalised interest still counts as unpaid.</span></div>
+    <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed. Messages arrive exactly as previewed, emoji included.</span></div>
+  </div>
+</section>
+
+<!-- 9 · Redeem / Forfeit -->
+<section class="stop" id="s9" aria-labelledby="s9-title">
+  <div class="stop-head">
+    <div class="stop-no">9</div>
+    <h2 id="s9-title">Closing a Mortgage: Redeem, Waive off or Forfeit</h2>
+    <p class="open">Open <span class="path">/closures</span> (Redeem / Forfeit), and <span class="ui">Close this Mortgage</span> on <span class="path">/mortgages/4</span></p>
+  </div>
+  <p class="say">"Every pledge ends one of three ways: the Customer pays in full and takes the jewellery home; they pay nearly all of it and the Lender, at their discretion, lets off the small balance left and hands the jewellery back; or they default and the Lender keeps or sells it. The app works out the exact Redemption Amount for any date, records what was let off on a Waiver, and the profit or loss on a Forfeiture."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>Point to the dot on <span class="ui">Redeem / Forfeit</span> in the menu: a Mortgage is paid off and waiting for its jewellery to go back.</span></li>
+        <li><span>On the page, <span class="ui">Ready to Redeem</span> lists it (Mortgage 4 owes ₹0). Below, under <span class="ui">Forfeit or Waive off</span>, Active Mortgages still owing can be ticked and closed together: choose <span class="ui">Forfeit</span> or <span class="ui">Waive off</span> for the chosen.</span></li>
+        <li><span>On a Mortgage, press <span class="ui">Redeem…</span>: pick a date to see the Redemption Amount (Principal, unpaid interest, part-month charge). A future date gives a quote only.</span></li>
+        <li><span>Switch to <span class="ui">Waive off…</span>: enter what the Customer pays now (₹0 is allowed) and the amount let off appears, with the button reading <span class="ui">Waive off ₹…</span>. Paying the full amount is refused: Redeem instead. Cancel.</span></li>
+        <li><span>Switch to <span class="ui">Forfeit…</span>: enter the Recovered Amount and the profit or loss appears. Cancel.</span></li>
+        <li><span>On a closed Mortgage, show <span class="ui">Reopen…</span>: it needs a reason, and its Preview shows interest charged for the whole time.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">In the book</div>
+      <dl>
+        <dt>Active</dt><dd>10</dd>
+        <dt>Ready to Redeem</dt><dd>1 (Mortgage 4)</dd>
+        <dt>Redeemed this month</dt><dd>2</dd>
+        <dt>Waived off</dt><dd>0</dd>
+        <dt>Forfeited</dt><dd>0</dd>
+      </dl>
+      <p class="note">History shows two Reopens: closures made by mistake were undone, and every step is kept.</p>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>The final Payment includes the part-month charge</b><span>Redeeming records it as a Payment, so the Receipt and the Ledger agree.</span></div>
+    <div class="nuance"><b>A Waiver is the Lender's choice</b><span>What the Customer pays is recorded as the final Payment, and their Receipt shows nothing still owed. The rest is let off and counted on the Dashboard's <span class="ui">Waived off</span> tile.</span></div>
+    <div class="nuance"><b>No closing before a later Payment</b><span>A Closure can't be dated before a Payment already recorded.</span></div>
+    <div class="nuance"><b>Reopen undoes completely</b><span>The Mortgage is Active as if never closed, and a Redemption's or Waiver's final Payment is Voided.</span></div>
+  </div>
+</section>
+
+<!-- 10 · Safekeeping -->
+<section class="stop" id="s10" aria-labelledby="s10-title">
+  <div class="stop-head">
+    <div class="stop-no">10</div>
+    <h2 id="s10-title">Safekeeping: History and Backups</h2>
+    <p class="open">The <span class="ui">History</span> on any Mortgage or Customer, and <span class="path">/settings</span> → Backups</p>
+  </div>
+  <p class="say">"Nothing is ever silently changed or lost. Every change is in the History with what it was before, and the whole book is backed up to a folder that leaves this laptop."</p>
+  <div class="cols">
+    <div>
+      <div class="block-title">Show</div>
+      <ol class="steps">
+        <li><span>On a Mortgage, the <span class="ui">History</span>: each edit with old → new values, Term Changes added and removed, photos, Voids and Reopens with their reasons.</span></li>
+        <li><span>On a Customer, the History also includes their Mortgages' changes.</span></li>
+        <li><span>In Settings, the last Backup's time and file, and the warning if Backups are not password-protected.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">History so far</div>
+      <dl>
+        <dt>Records created</dt><dd>71</dd>
+        <dt>Term Changes added · removed</dt><dd>11 · 3</dd>
+        <dt>Edits</dt><dd>7</dd>
+        <dt>Voids · Reopens</dt><dd>3 · 2</dd>
+        <dt>Photos added</dt><dd>3</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>History is never edited</b><span>Entries can't be changed or removed, by anyone.</span></div>
+    <div class="nuance"><b>Runs on the Lender's laptop</b><span>Docker Compose with the published images, reachable only from this machine; the data is a folder on disk (ADR-0004).</span></div>
+    <div class="nuance"><b>Set up by double-click on Windows</b><span><span class="ui">Setup.bat</span> installs the latest release and puts a <span class="ui">Mortgage Management</span> shortcut on the Desktop. With Docker Desktop it runs in Docker; without, it installs Node.js and uv and runs on the PC itself, with plain (no-password) Backup zips. Running Setup again updates it and keeps the data. Every step is in the <a href="install.html">install guide</a>.</span></div>
+    <div class="nuance"><b>Before every update</b><span>Starting a new version backs up first, then brings the database up to date.</span></div>
+  </div>
+</section>
+
+<section class="close" aria-labelledby="close-title">
+  <h2 id="close-title">Closing the demo</h2>
+  <p>Return to the Dashboard and recap the story in one line per stop:</p>
+  <ul>
+    <li>The book at a glance, worked out fresh every time.</li>
+    <li>The Lender's rules set once, applied everywhere.</li>
+    <li>Each person entered once, known by their number.</li>
+    <li>Every effect seen before it is saved, and every save confirmed.</li>
+    <li>Payments split fairly, Receipts on WhatsApp, follow-up prepared daily.</li>
+    <li>Every pledge closed with an exact amount, and every change kept in History and Backups.</li>
+  </ul>
+  <a class="crosslink" href="story.html">
+    <span><span class="label">Next</span><b>The Gold Chain Story</b><span class="what">Every page above, on screen, as one Customer's year.</span></span>
+    <span class="go">Read the story →</span>
+  </a>
+  <footer>Figures were worked out from a read-only copy of the database on 18 Oct 2026; the live app shows today's. No Customer names or numbers appear in this guide.</footer>
+</section>
+
+</main>
+<script>
+// Light or dark: the browser's theme until the reader picks one; picking the theme the
+// browser would show anyway goes back to following it.
+;(() => {
+  const button = document.getElementById('theme-toggle'), root = document.documentElement
+  const query = matchMedia('(prefers-color-scheme: dark)')
+  const sun = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>'
+  const moon = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a7 7 0 0 0 10.7 10.7Z"/></svg>'
+  const system = () => (query.matches ? 'dark' : 'light')
+  const shown = () => root.dataset.theme || system()
+  function paint() {
+    const other = shown() === 'dark' ? 'light' : 'dark'
+    button.innerHTML = shown() === 'dark' ? sun : moon
+    button.setAttribute('aria-label', `Switch to the ${other} theme`)
+    button.title = `Switch to the ${other} theme` + (root.dataset.theme ? '' : ' (now following the browser)')
+  }
+  button.addEventListener('click', () => {
+    const other = shown() === 'dark' ? 'light' : 'dark'
+    const choice = other === system() ? null : other
+    if (choice) root.dataset.theme = choice
+    else root.removeAttribute('data-theme')
+    try { choice ? localStorage.setItem('theme', choice) : localStorage.removeItem('theme') } catch {}
+    paint()
+  })
+  query.addEventListener('change', paint)
+  paint()
+})()
+</script>
+</body>
+</html>

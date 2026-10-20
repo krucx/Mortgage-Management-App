@@ -185,6 +185,8 @@ code, .path { font-family: var(--font-mono); font-size: 0.86em; overflow-wrap: a
 @media (max-width: 560px) { .crosslink { grid-template-columns: minmax(0, 1fr); } }
 .close { padding-block: 2.25rem 0; display: grid; gap: 0.9rem; }
 footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
+.home { justify-self: start; font-size: 0.85rem; text-decoration: none; font-weight: 600; }
+.home:hover { text-decoration: underline; }
 </style>
 <script>
   // A light or dark theme chosen on this site, applied before the page draws.
@@ -195,6 +197,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
 <main class="page">
 
 <header class="intro">
+  <a class="home" href="index.html">← Mortgage Management docs</a>
   <div class="eyebrow">Install guide · for the Lender's laptop</div>
   <h1>Install Mortgage Management</h1>
   <p class="lede">The app runs on the Lender's own laptop, and nowhere else. On Windows it is a double-click: download <b>Setup</b>, answer three questions, and open the shortcut it puts on the Desktop. This page takes you through it for your own computer, and then through everything after: starting it, updating it, Backups, bringing a Backup back, and removing it.</p>
@@ -290,7 +293,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <li data-for="win-local"><input type="checkbox" id="i-allow"><label for="i-allow"><b>Allow Node.js to install</b><span class="detail">Windows asks once whether the Node.js installer may make changes: choose <span class="ui">Yes</span>. Then wait: the first install takes a few minutes.</span></label></li>
         <li data-for="win-docker"><input type="checkbox" id="i-wait"><label for="i-wait"><b>Wait for the download</b><span class="detail">Setup downloads the app into Docker. A few minutes the first time, and much less on later updates.</span></label></li>
         <li><input type="checkbox" id="i-start"><label for="i-start"><b>Say yes to start it</b><span class="detail">At <span class="ui">Start it now? [Y/n]</span> press Enter. The app opens in the browser at <span class="path">http://localhost:8080</span>.</span></label></li>
-        <li><input type="checkbox" id="i-settings"><label for="i-settings"><b>Set the Lender's rules</b><span class="detail">In the app, open <span class="ui">Settings</span> first: the default Terms, the Lender's details for Receipts, and how many Backups to keep. The <a href="index.html#s2">walkthrough</a> goes through each.</span></label></li>
+        <li><input type="checkbox" id="i-settings"><label for="i-settings"><b>Set the Lender's rules</b><span class="detail">In the app, open <span class="ui">Settings</span> first: the default Terms, the Lender's details for Receipts, and how many Backups to keep. The <a href="walkthrough.html#s2">walkthrough</a> goes through each.</span></label></li>
       </ol>
       <div class="progress"><meter min="0" max="1" value="0" data-progress="install-win"></meter><span data-progress-text="install-win"></span><button type="button" class="reset" data-reset="install-win">Start over</button></div>
     </div>
@@ -558,7 +561,7 @@ docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
 
 <section class="close" aria-label="More about the app">
   <div class="crosslinks">
-    <a class="crosslink" href="index.html">
+    <a class="crosslink" href="walkthrough.html">
       <span><span class="label">Once it's running</span><b>Mortgage Book Walkthrough</b><span class="what">Each page of the app, where to click, and what it shows.</span></span>
       <span class="go">Open the guide →</span>
     </a>

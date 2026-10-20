@@ -2,7 +2,7 @@
 
 App for a jewellery Lender to manage Mortgages, Payments and follow-ups. It runs entirely on the Lender's own laptop. Domain terms are defined in [GLOSSARY.md](GLOSSARY.md); key decisions are in [Documentation/adr](Documentation/adr).
 
-What changed in each version is in [CHANGELOG.md](CHANGELOG.md). A walkthrough of every page, the app told as a story, and an install guide are at <https://krucx.github.io/Mortgage-Management-App/>.
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md). The documentation (features, workflows and the rules behind the figures), a walkthrough of every page, the app told as a story, and an install guide are at <https://krucx.github.io/Mortgage-Management-App/>.
 
 ## Running it (Lender)
 
