@@ -1,0 +1,13 @@
+# Local development: builds both images from this folder instead of pulling them, under
+# their own names, so they never replace the images pulled from Docker Hub.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+services:
+  backend:
+    build: ./backend
+    image: mortgage-management-app-backend:dev
+    pull_policy: build
+
+  frontend:
+    build: ./frontend
+    image: mortgage-management-app-ui:dev
+    pull_policy: build

@@ -13,6 +13,7 @@ What changed in each version is in [CHANGELOG.md](CHANGELOG.md). A walkthrough o
    - `BACKUP_DIR`: point it at a Google Drive / iCloud synced folder.
    - `BACKUP_PASSWORD`: the password for the Backup zips. Write it down somewhere safe.
    - `TZ`: your time zone (default `Asia/Kolkata`).
+   - `APP_VERSION`: leave empty to run the latest release, or set one (e.g. `1.2.0`).
 4. In this folder, run:
 
    ```sh
@@ -21,7 +22,8 @@ What changed in each version is in [CHANGELOG.md](CHANGELOG.md). A walkthrough o
 
 5. Open <http://localhost:8080> (or whatever `APP_PORT` is set to).
 
-The app restarts by itself with Docker. Database updates run automatically when the app starts. Your data lives only in `DATA_DIR`, never inside Docker.
+The first start downloads the app from Docker Hub (see Published images); nothing is
+built on the laptop. The app restarts by itself with Docker. Database updates run automatically when the app starts. Your data lives only in `DATA_DIR`, never inside Docker.
 
 ### Installing it as an app
 
@@ -51,9 +53,14 @@ To restore:
 ### Updating
 
 ```sh
-git pull
-docker compose up -d --build
+git pull               # this folder's compose file and notes
+docker compose pull    # the newest images (or those for APP_VERSION)
+docker compose up -d
 ```
+
+To go back to an earlier release, set `APP_VERSION` in `.env` and run the same two
+`docker compose` commands. A newer release may have updated the database: restore the
+Backup taken before that update (see Backups) when going back past one.
 
 ### Published images
 
@@ -68,8 +75,8 @@ for Intel and Apple-silicon machines:
 
 They are built by `.github/workflows/release.yml` when a version tag (e.g. `1.2.0`) is
 pushed, after the tests pass. The `-latest` tags move only when the pushed version is the
-highest so far, so a fix for an older version doesn't take them back. The tag must match the version in `backend/pyproject.toml`
-and `frontend/package.json`. The workflow needs two repository secrets,
+highest so far, so a fix for an older version doesn't take them back. The tag must match
+the version in `backend/pyproject.toml` and `frontend/package.json`. The workflow needs two repository secrets,
 `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub access token with Read & Write).
 
 ## Development
@@ -80,6 +87,19 @@ Run the two halves directly for hot reload (no Docker needed):
 cd backend && uv run uvicorn mortgage_backend.main:app --reload   # API on :8000
 cd frontend && npm install && npm run dev                          # UI on :5173, proxies /api to :8000
 ```
+
+To try this folder's own code as the Lender runs it, build the images locally instead
+of pulling them. `docker-compose.dev.yml` builds both under their own names
+(`mortgage-management-app-backend:dev`, `mortgage-management-app-ui:dev`), so the images
+from Docker Hub are left as they are:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+Use a scratch `DATA_DIR` and `BACKUP_DIR` (on every `docker compose` command) when
+trying unreleased code, so it never runs a migration on real data. Plain
+`docker compose up -d` goes back to the published images.
 
 - `backend/`: FastAPI + SQLite (SQLAlchemy, Alembic migrations), managed with [uv](https://docs.astral.sh/uv/).
 - `frontend/`: React + TypeScript + Vite, served by nginx in production.

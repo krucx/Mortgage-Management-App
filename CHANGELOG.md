@@ -5,6 +5,25 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [Unreleased]
+
+### Changed
+
+- **Running the app pulls it from Docker Hub:** `docker compose up -d` runs the
+  published images (`krucx11/mortgage-management-app`), the latest release unless
+  `APP_VERSION` in `.env` names one. Nothing is built on the Lender's laptop.
+- **Updating** is `git pull`, `docker compose pull`, `docker compose up -d`.
+- **Development:** `docker-compose.dev.yml` builds both images from the folder instead,
+  under their own `:dev` names, so they never replace the published ones (see README).
+
+### Upgrading
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
+
 ## [1.2.0] - 2026-10-20
 
 A third way to close a Mortgage: Waive off a small balance. No database changes:
