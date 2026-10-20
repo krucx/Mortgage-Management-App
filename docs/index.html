@@ -574,7 +574,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div class="nuance rule"><b>The app never sends by itself</b><span>WhatsApp opens with the message ready and the Lender presses Send. No WhatsApp account setup or API is needed.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR-0002</a></div>
         <div class="nuance"><b>Customers see their jewellery, not codes</b><span>Receipts and Notices name each Mortgage by its description ("Gold chain"), never its Mortgage Name.</span></div>
         <div class="nuance"><b>Templates can't break</b><span>A template with a placeholder the app can't fill is refused on save, so a Customer never receives <code>{typo}</code>.</span></div>
-        <div class="nuance"><b>Notices always match today</b><span>Until it is sent, a Notice's amounts and wording are worked out each time it is read, so a later Payment, edit or Closure shows in it. Turning on approve-first holds those already queued.</span></div>
+        <div class="nuance"><b>Notices always match today</b><span>Until it is sent, a Notice's amounts and wording are worked out each time it is read, so a later Payment or edit shows in it; if none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on approve-first holds those already queued.</span></div>
       </div>
     </div>
 

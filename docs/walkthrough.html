@@ -134,10 +134,10 @@ code, .path { font-family: var(--font-mono); font-size: 0.86em; }
 
 /* Bars */
 .bars { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.3rem; align-items: end; height: 9rem; padding-top: 0.5rem; }
-.bar { display: grid; gap: 0.2rem; align-content: end; justify-items: center; height: 100%; }
-.bar div { width: 100%; max-width: 2rem; background: var(--money-in); border-radius: 3px 3px 0 0; min-height: 2px; }
-.bar span { font-size: 0.66rem; color: var(--muted); }
-.bar em { font-style: normal; font-size: 0.66rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.bars .bar { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 0.2rem; height: 100%; }
+.bars .bar div { width: 100%; max-width: 2rem; background: var(--money-in); border-radius: 3px 3px 0 0; min-height: 2px; }
+.bars .bar span { font-size: 0.66rem; color: var(--muted); }
+.bars .bar em { font-style: normal; font-size: 0.66rem; color: var(--text); font-variant-numeric: tabular-nums; }
 
 /* Allocation sketch */
 .split { display: grid; gap: 0.35rem; font-size: 0.9rem; }
@@ -170,8 +170,8 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
 @media (max-width: 560px) { .crosslink { grid-template-columns: minmax(0, 1fr); } }
 
 /* The light/dark switch at the right-hand end of the sticky bar */
-.bar { display: flex; align-items: center; gap: 0.6rem; }
-.bar > ol { flex: 1; min-width: 0; }
+nav.bar { display: flex; align-items: center; gap: 0.6rem; }
+nav.bar > ol { flex: 1; min-width: 0; }
 .theme-toggle { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
 .theme-toggle:hover { color: var(--text); border-color: var(--accent); }
 .home { justify-self: start; font-size: 0.85rem; text-decoration: none; font-weight: 600; }
@@ -574,7 +574,7 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     </div>
   </div>
   <div class="nuances">
-    <div class="nuance rule"><b>Notices always match today</b><span>A Notice whose Mortgages were closed or edited meanwhile is withdrawn; turning on "approve first" holds those already queued.</span></div>
+    <div class="nuance rule"><b>Notices always match today</b><span>Until it is sent, a Notice is worded from today's figures each time it is read, so later Payments and edits show. If none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on "approve first" holds those already queued.</span></div>
     <div class="nuance"><b>Months Unpaid counts the oldest first</b><span>Payments clear the oldest interest first; capitalised interest still counts as unpaid.</span></div>
     <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed. Messages arrive exactly as previewed, emoji included.</span></div>
   </div>
