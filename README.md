@@ -77,6 +77,10 @@ To restore:
 
 ### Updating
 
+On Windows, double-click `Setup.bat` again (it is also in
+`%USERPROFILE%\MortgageManagement\app\windows`): it updates to the newest release, with
+or without Docker, and keeps the `.env`, data and Backups. Elsewhere:
+
 ```sh
 git pull               # this folder's compose file and notes
 docker compose pull    # the newest images (or those for APP_VERSION)

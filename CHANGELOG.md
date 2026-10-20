@@ -5,16 +5,10 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
-## [Unreleased]
+## [1.3.0] - 2026-10-20
 
-### Changed
-
-- **Running the app pulls it from Docker Hub:** `docker compose up -d` runs the
-  published images (`krucx11/mortgage-management-app`), the latest release unless
-  `APP_VERSION` in `.env` names one. Nothing is built on the Lender's laptop.
-- **Updating** is `git pull`, `docker compose pull`, `docker compose up -d`.
-- **Development:** `docker-compose.dev.yml` builds both images from the folder instead,
-  under their own `:dev` names, so they never replace the published ones (see README).
+Set up on Windows by double-click, with or without Docker, and run the published images
+from Docker Hub. No database changes: updating keeps all data and Backups.
 
 ### Added
 
@@ -27,7 +21,18 @@ Every release of Mortgage Management, newest first. The format follows
   writes plain zips itself. A Backup password still needs the zip program: without it, the
   Backup fails and says so, rather than writing an unprotected zip.
 
+### Changed
+
+- **Running the app pulls it from Docker Hub:** `docker compose up -d` runs the
+  published images (`krucx11/mortgage-management-app`), the latest release unless
+  `APP_VERSION` in `.env` names one. Nothing is built on the Lender's laptop.
+- **Updating** is `git pull`, `docker compose pull`, `docker compose up -d`.
+- **Development:** `docker-compose.dev.yml` builds both images from the folder instead,
+  under their own `:dev` names, so they never replace the published ones (see README).
+
 ### Upgrading
+
+On Windows, run `Setup.bat` (see README). Elsewhere:
 
 ```sh
 git pull
