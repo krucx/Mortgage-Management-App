@@ -198,7 +198,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <main class="page">
 
 <header class="opening">
-  <div class="eyebrow">Mortgage Management 1.2.0 · a walkthrough</div>
+  <div class="eyebrow">Mortgage Management 1.3.0 · a walkthrough</div>
   <h1>A year in the life of a gold chain</h1>
   <p class="lede">Meera Sharma pledges a gold chain with a pendant. Over the next year it gathers interest, takes Payments, comes up for a phone call and is nearly paid off. Follow it through the app, together with the other people the Lender lends to.</p>
   <div class="cast" aria-label="The people in this story">
@@ -277,7 +277,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <figure class="still"><img src="shots/settings-terms.webp" width="1068" height="462" alt="Default Terms: 2% a month, Compounded Yearly, pro-rata Part-Month Rule." loading="lazy"><figcaption>Default Terms: 2% a month, Compounded Yearly, pro-rata. Copied into every new Mortgage; existing ones never change.</figcaption></figure>
     <figure class="still"><img src="shots/settings-gold.webp" width="1068" height="555" alt="Gold Rates per gram for 24K, 22K, 20K, 18K and 14K." loading="lazy"><figcaption>Gold Rates per gram, by purity. Saving revalues every Mortgage valued at the Gold Rate at once.</figcaption></figure>
     <figure class="still"><img src="shots/settings-calls.webp" width="1068" height="294" alt="Call List thresholds: 3 Months Unpaid, Loan-to-Value above 85%." loading="lazy"><figcaption>When a Mortgage goes on the Call List: 3 Months Unpaid, or Loan-to-Value above 85%.</figcaption></figure>
-    <figure class="still"><img src="shots/settings-backups.webp" width="1068" height="367" alt="Backups: the last one taken, Back up now, and how many to keep." loading="lazy"><figcaption>Backups: a password-protected zip of everything, weekly and before every update, into a synced folder.</figcaption></figure>
+    <figure class="still"><img src="shots/settings-backups.webp" width="1068" height="367" alt="Backups: the last one taken, Back up now, and how many to keep." loading="lazy"><figcaption>Backups: a zip of everything (password-protected when the app runs in Docker), weekly and before every update, into a synced folder.</figcaption></figure>
   </div>
 </section>
 
@@ -588,6 +588,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
   <div class="chapter-head"><div class="eyebrow">Epilogue</div><h2 id="safe-h">Nothing is lost</h2></div>
   <div class="prose">
     <p>Every change is kept in the History, with when it happened and what it was before. Nobody can edit or remove it. The whole book is backed up to a folder that leaves the laptop, weekly and before every update.</p>
+    <p>Getting the app onto the laptop is a double-click too. On Windows, <b>Setup</b> fetches the latest release and puts a <b>Mortgage Management</b> shortcut on the Desktop. With Docker Desktop it runs the published app in Docker; without, it installs what the app needs and runs it on the PC itself. Running Setup again brings the newest release, and the book and its Backups stay as they are.</p>
   </div>
   <div class="duo">
     <figure class="still"><img src="shots/mortgage-history.webp" width="1018" height="140" alt="History of Meera's chain: the description edited, and each Payment recorded." loading="lazy"><figcaption>The chain's History: its description corrected ("Gold chain with pendant" → "…with Lakshmi pendant") and each Payment recorded.</figcaption></figure>
@@ -610,7 +611,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <span class="go">Open the guide →</span>
   </a>
   <footer>
-    <span>Screenshots from version 1.1.2. Sample data: every person and figure on this page is invented, and was worked out by the app itself on 19 Oct 2026.</span>
+    <span>Screenshots from versions 1.1.2 and 1.2.0 (Waive off); nothing on screen changed in 1.3.0. Sample data: every person and figure on this page is invented, and was worked out by the app itself on 19 Oct 2026.</span>
     <span>Mortgage Management runs on the Lender's own laptop; this page only shows it.</span>
   </footer>
 </section>

@@ -188,7 +188,7 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
   <h1>Mortgage Book Walkthrough</h1>
   <p class="lede">One Lender, one laptop, a book of gold-jewellery pledges. This guide follows a pledge through its whole life in the app: the morning view of the book, setting the rules, meeting a Customer, lending against their jewellery, taking Payments, following up, and closing the Mortgage. Each stop says where to click, what to say, and the details worth pointing out.</p>
   <div class="facts">
-    <span>Version: <b>1.2.0</b></span>
+    <span>Version: <b>1.3.0</b></span>
     <span>App: <b>http://127.0.0.1:8080</b></span>
     <span>Figures: <b>the live book on 18 Oct 2026</b></span>
     <span>Money: <b>₹, Indian digit grouping</b></span>
@@ -328,7 +328,7 @@ footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); }
   <div class="nuances">
     <div class="nuance rule"><b>Templates can't break</b><span>A template using a placeholder the app can't fill is refused on save, so a Customer never receives <code>{typo}</code>.</span></div>
     <div class="nuance"><b>Every save is confirmed</b><span>Each group shows a summary of what changes, and Gold Rates says every valued Mortgage is revalued at once.</span></div>
-    <div class="nuance"><b>Backups leave the laptop</b><span>A password-protected zip of the database and photos, weekly and before every update, into a synced folder.</span></div>
+    <div class="nuance"><b>Backups leave the laptop</b><span>A zip of the database and photos, weekly and before every update, into a synced folder: password-protected when the app runs in Docker.</span></div>
   </div>
 </section>
 
@@ -643,7 +643,8 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
   </div>
   <div class="nuances">
     <div class="nuance rule"><b>History is never edited</b><span>Entries can't be changed or removed, by anyone.</span></div>
-    <div class="nuance"><b>Runs on the Lender's laptop</b><span>Docker Compose, reachable only from this machine; the data is a folder on disk (ADR-0004).</span></div>
+    <div class="nuance"><b>Runs on the Lender's laptop</b><span>Docker Compose with the published images, reachable only from this machine; the data is a folder on disk (ADR-0004).</span></div>
+    <div class="nuance"><b>Set up by double-click on Windows</b><span><span class="ui">Setup.bat</span> installs the latest release and puts a <span class="ui">Mortgage Management</span> shortcut on the Desktop. With Docker Desktop it runs in Docker; without, it installs Node.js and uv and runs on the PC itself, with plain (no-password) Backup zips. Running Setup again updates it and keeps the data.</span></div>
     <div class="nuance"><b>Before every update</b><span>Starting a new version backs up first, then brings the database up to date.</span></div>
   </div>
 </section>
