@@ -16,6 +16,17 @@ Every release of Mortgage Management, newest first. The format follows
 - **Development:** `docker-compose.dev.yml` builds both images from the folder instead,
   under their own `:dev` names, so they never replace the published ones (see README).
 
+### Added
+
+- **Windows setup by double-click:** `windows/Setup.bat` gets the latest release (with git
+  when it is installed, else as a download), writes the `.env` and puts a **Mortgage
+  Management** shortcut on the Desktop. With Docker Desktop installed the app runs in
+  Docker; without it, setup installs Node.js and uv and the app runs directly on the PC.
+  Running Setup again updates the app and keeps the `.env`, data and Backups (see README).
+- **Backups without a zip program:** where there is none (Windows without Docker), the app
+  writes plain zips itself. A Backup password still needs the zip program: without it, the
+  Backup fails and says so, rather than writing an unprotected zip.
+
 ### Upgrading
 
 ```sh

@@ -66,8 +66,10 @@ export default defineConfig({
   ],
   // The app's version, shown beside its name in the top bar.
   define: { __APP_VERSION__: JSON.stringify(version) },
+  // Also used by `vite preview`, which serves the app without Docker (windows/run.ps1).
+  // 127.0.0.1, not localhost: on Windows localhost can mean IPv6, where the API isn't.
   server: {
-    proxy: { '/api': 'http://localhost:8000' },
+    proxy: { '/api': 'http://127.0.0.1:8000' },
   },
   test: {
     include: ['tests/**/*.test.{ts,tsx}'],

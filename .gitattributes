@@ -1,0 +1,4 @@
+# Windows double-click scripts keep Windows line endings, in the repo too, so a
+# file downloaded straight from GitHub runs as it is.
+windows/*.bat -text
+windows/*.ps1 text eol=crlf

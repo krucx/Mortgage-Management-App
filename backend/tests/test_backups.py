@@ -280,6 +280,39 @@ def test_two_backups_in_the_same_minute_are_both_kept(client, backup_dir):
     ]
 
 
+def test_without_the_zip_program_backups_are_plain_zips_made_by_the_app(
+    database_url, clock, backup_dir, tmp_path, monkeypatch
+):
+    # As on Windows without Docker: no zip program to be found.
+    monkeypatch.setenv("PATH", str(tmp_path / "nothing-here"))
+    with start(database_url, clock, backup_dir, password="") as client:
+        add_customer_with_photo(client)
+        finished(client)  # the day's first Backup, started by the first request
+        clock.now += timedelta(minutes=1)
+        client.post("/api/backups")
+        status = finished(client)
+
+    assert status["last_error"] is None
+    name = backups_in(backup_dir)[-1]
+    with zipfile.ZipFile(backup_dir / name) as backup:
+        assert backup.read("mortgage.db")[:15] == b"SQLite format 3"
+        assert any(
+            n.startswith("photos/") and n.endswith(".jpg") for n in backup.namelist()
+        )
+
+
+def test_a_backup_password_needs_the_zip_program(
+    database_url, clock, backup_dir, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("PATH", str(tmp_path / "nothing-here"))
+    with start(database_url, clock, backup_dir) as client:
+        status = finished(client)
+
+    # Never quietly unprotected: the Backup fails, and says why.
+    assert "zip program" in status["last_error"]
+    assert backups_in(backup_dir) == []
+
+
 def test_a_failed_backup_is_reported_and_leaves_nothing_behind(
     database_url, clock, tmp_path
 ):

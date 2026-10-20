@@ -33,3 +33,51 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+  # The Windows setup without Docker, end to end on a real Windows PC: what a Lender's
+  # double-click does, for the commit being tested.
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: The scripts' own decisions (Pester)
+        shell: powershell
+        run: |
+          Install-Module Pester -MinimumVersion 5.5 -Force -SkipPublisherCheck -Scope CurrentUser
+          Import-Module Pester -MinimumVersion 5.5
+          $result = Invoke-Pester windows/tests -Output Detailed -PassThru
+          if ($result.FailedCount -gt 0) { exit 1 }
+      # The runner has Docker, so the setup is told to run without it, as on a PC with none.
+      - name: Set up without Docker
+        shell: powershell
+        run: >
+          windows/setup.ps1 -NonInteractive -Mode local
+          -Ref "${{ github.event.pull_request.head.sha || github.sha }}"
+          -InstallDir "$env:RUNNER_TEMP\mm"
+      - name: The app starts, answers, and takes a Backup
+        shell: powershell
+        run: |
+          $installed = "$env:RUNNER_TEMP\mm"
+          $app = Start-Process powershell -PassThru -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass',
+            '-File', "$installed\app\windows\run.ps1", '-NoBrowser'
+          try {
+            $until = (Get-Date).AddMinutes(5)
+            while ($true) {
+              try { Invoke-RestMethod http://127.0.0.1:8080/api/customers | Out-Null; break }
+              catch { if ((Get-Date) -gt $until) { throw 'The app did not answer through the UI.' }; Start-Sleep 3 }
+            }
+            $manifest = Invoke-RestMethod http://127.0.0.1:8080/manifest.webmanifest
+            if ($manifest.name -ne 'Mortgage Management') { throw 'The app screens are not served.' }
+            # The day's first request starts a Backup: a plain zip, with no zip program.
+            $until = (Get-Date).AddMinutes(2)
+            while (-not (Get-ChildItem "$installed\backups" -Filter '*.zip')) {
+              if ((Get-Date) -gt $until) { throw "No Backup: $(Invoke-RestMethod http://127.0.0.1:8080/api/backups | ConvertTo-Json)" }
+              Start-Sleep 2
+            }
+            Get-ChildItem "$installed\backups"
+          } finally {
+            Get-CimInstance Win32_Process -Filter "ParentProcessId = $($app.Id)" |
+              ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+          }

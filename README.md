@@ -6,6 +6,31 @@ What changed in each version is in [CHANGELOG.md](CHANGELOG.md). A walkthrough o
 
 ## Running it (Lender)
 
+### On Windows: double-click setup
+
+1. Download [`Setup.bat`](https://raw.githubusercontent.com/krucx/Mortgage-Management-App/main/windows/Setup.bat)
+   (right-click → Save link as) and double-click it. If Windows warns about an
+   unrecognised app, choose **More info → Run anyway**.
+2. Answer its questions (Enter keeps the default each time), and say yes to start it.
+3. From then on, open the **Mortgage Management** shortcut on the Desktop.
+
+Setup puts everything in `%USERPROFILE%\MortgageManagement`: `app` (the code and its
+`.env`), `data` (database and photos) and `backups` (unless you chose another folder,
+such as a Google Drive or OneDrive one). It sets up the latest release:
+
+- **With Docker Desktop installed**, the app runs in Docker, as below. Setup asks for a
+  Backup password.
+- **Without Docker**, it runs directly on the PC. Setup installs Node.js (through winget,
+  which may ask for permission) and [uv](https://docs.astral.sh/uv/), which brings the
+  right Python. The shortcut's window must stay open while the app is used; closing it
+  stops the app. Backups are plain zips, without a password: Windows has nothing built in
+  that makes password zips.
+
+Run `Setup.bat` again to update to the newest release; your `.env`, data and Backups are
+kept. It uses git when it is installed, and otherwise downloads the release from GitHub.
+
+### Anywhere with Docker
+
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and start it.
 2. Get this folder onto the laptop (`git clone` or download).
 3. Copy `.env.example` to `.env` and adjust it:
@@ -100,6 +125,13 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 Use a scratch `DATA_DIR` and `BACKUP_DIR` (on every `docker compose` command) when
 trying unreleased code, so it never runs a migration on real data. Plain
 `docker compose up -d` goes back to the published images.
+
+The Windows setup lives in `windows/`: `Setup.bat` → `setup.ps1` (gets the code) →
+`install.ps1` (Docker or local, `.env`, installs, shortcut), and `Run.bat` → `run.ps1`.
+`common.ps1` holds what install and run share; `windows/tests` checks their decisions
+with Pester. The `windows` job in `.github/workflows/test.yml` runs the setup without
+Docker end to end on a Windows runner. `setup.ps1 -Ref <branch or commit>` sets up code
+that isn't released yet.
 
 - `backend/`: FastAPI + SQLite (SQLAlchemy, Alembic migrations), managed with [uv](https://docs.astral.sh/uv/).
 - `frontend/`: React + TypeScript + Vite, served by nginx in production.

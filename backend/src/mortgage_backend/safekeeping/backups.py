@@ -12,6 +12,7 @@ import shutil
 import sqlite3
 import subprocess
 import threading
+import zipfile
 from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
@@ -183,6 +184,15 @@ class Backups:
         """Add `path` (under `cwd`) to a standard password zip, which opens in Explorer
         and Finder. Info-ZIP takes the password only as an argument; that is visible
         to other processes in the container, and kept out of any error message."""
+        if shutil.which("zip") is None:
+            if self.password:
+                raise RuntimeError(
+                    "A Backup password needs the zip program, which this computer "
+                    "doesn't have: install it, or leave BACKUP_PASSWORD empty"
+                )
+            # No zip program (Windows without Docker): a plain zip, made here.
+            _zip_without_program(archive, path, cwd)
+            return
         password = ["-P", self.password] if self.password else []
         result = subprocess.run(
             ["zip", "-q", "-r", "-X", *password, str(archive), path],
@@ -265,3 +275,16 @@ def update_backup_settings(
 ) -> BackupStatus:
     backups.set_keep(settings.keep)
     return backups.status()
+
+
+def _zip_without_program(archive: Path, path: str, cwd: Path) -> None:
+    """Add `path` (a file, or a folder and all it holds) under `cwd` to a plain zip."""
+    target = cwd / path
+    files = (
+        sorted(f for f in target.rglob("*") if f.is_file())
+        if target.is_dir()
+        else [target]
+    )
+    with zipfile.ZipFile(archive, "a", zipfile.ZIP_DEFLATED) as zipped:
+        for file in files:
+            zipped.write(file, file.relative_to(cwd).as_posix())
