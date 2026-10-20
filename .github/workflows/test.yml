@@ -34,6 +34,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # docs/install.html offers it for download from GitHub Pages.
+      - name: The Setup.bat on GitHub Pages is the one in windows/
+        run: cmp windows/Setup.bat docs/Setup.bat
+
   # The Windows setup without Docker, end to end on a real Windows PC: what a Lender's
   # double-click does, for the commit being tested.
   windows:

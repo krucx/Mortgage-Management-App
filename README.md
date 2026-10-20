@@ -2,14 +2,17 @@
 
 App for a jewellery Lender to manage Mortgages, Payments and follow-ups. It runs entirely on the Lender's own laptop. Domain terms are defined in [GLOSSARY.md](GLOSSARY.md); key decisions are in [Documentation/adr](Documentation/adr).
 
-What changed in each version is in [CHANGELOG.md](CHANGELOG.md). A walkthrough of every page, and the app told as a story, are at <https://krucx.github.io/Mortgage-Management-App/>.
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md). A walkthrough of every page, the app told as a story, and an install guide are at <https://krucx.github.io/Mortgage-Management-App/>.
 
 ## Running it (Lender)
 
 ### On Windows: double-click setup
 
-1. Download [`Setup.bat`](https://raw.githubusercontent.com/krucx/Mortgage-Management-App/main/windows/Setup.bat)
-   (right-click → Save link as) and double-click it. If Windows warns about an
+The [install guide](https://krucx.github.io/Mortgage-Management-App/install.html) has the
+download and every step, for your own computer. In short:
+
+1. Download [`Setup.bat`](https://krucx.github.io/Mortgage-Management-App/Setup.bat)
+   and double-click it. If Windows warns about an
    unrecognised app, choose **More info → Run anyway**.
 2. Answer its questions (Enter keeps the default each time), and say yes to start it.
 3. From then on, open the **Mortgage Management** shortcut on the Desktop.

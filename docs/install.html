@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Install Mortgage Management</title>
+<meta name="description" content="Download Setup.bat and install Mortgage Management on a laptop, step by step: install, start, update, Backups, restore and remove.">
+<style>
+/* Layout: one path through the app's life on a laptop (choose, install, start, update, Backups, remove), the steps shown for the reader's own computer. Colours are the app's own, as on the other two pages. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1f2328;
+  --muted: #59636e;
+  --border: #d8dee4;
+  --accent: #8a5a00;
+  --accent-soft: #f5ecdc;
+  --ok: #1a7f37;
+  --warning: #9a6700;
+  --error: #cf222e;
+  --term-bg: #0c0c0c;
+  --term-text: #cccccc;
+  --term-prompt: #f9f1a5;
+  --term-ok: #16c60c;
+  --term-warn: #f9f1a5;
+  --term-err: #e74856;
+  --font-body: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
+    --accent: #d4a72c; --accent-soft: #2a2312; --ok: #3fb950; --warning: #d29922; --error: #f85149;
+    --term-bg: #010409;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
+  --accent: #d4a72c; --accent-soft: #2a2312; --ok: #3fb950; --warning: #d29922; --error: #f85149;
+  --term-bg: #010409;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 5.5rem; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--font-body); }
+[hidden] { display: none !important; }
+.page { max-width: 62rem; margin: 0 auto; padding-inline: 1rem; padding-block: 2rem 4rem; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.1rem; font-family: var(--font-body); font-weight: 650; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible, button:focus-visible, input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+code, .path { font-family: var(--font-mono); font-size: 0.86em; overflow-wrap: anywhere; }
+.path { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.4rem; }
+.ui { font-weight: 600; background: var(--accent-soft); border-radius: 4px; padding: 0 0.3rem; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.muted { color: var(--muted); }
+
+/* Opening */
+.intro { display: grid; gap: 1rem; padding-block: 0.5rem 1.5rem; }
+.eyebrow { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
+.lede { font-size: 1.12rem; }
+.facts { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; font-size: 0.92rem; color: var(--muted); }
+.facts b { color: var(--text); font-weight: 600; }
+.get { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; }
+.download { display: inline-flex; align-items: center; gap: 0.55rem; background: var(--accent); color: var(--bg); text-decoration: none; font-weight: 650; padding: 0.65rem 1.1rem; border-radius: 8px; }
+.download:hover { filter: brightness(1.08); }
+.download svg { flex: none; }
+.get p { font-size: 0.9rem; color: var(--muted); flex: 1 1 18rem; }
+
+/* Sticky bar: the sections, and the light/dark switch */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 0.6rem; margin-block: 1.5rem 0.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.6rem; }
+.bar ol { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; gap: 0.35rem; overflow-x: auto; scrollbar-width: thin; }
+.bar li { flex: 0 0 auto; }
+.bar a { display: flex; align-items: center; gap: 0.4rem; text-decoration: none; color: var(--text); font-size: 0.85rem; padding: 0.3rem 0.65rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); white-space: nowrap; }
+.bar a:hover { border-color: var(--accent); }
+.bar .n { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); }
+.theme-toggle { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
+.theme-toggle:hover { color: var(--text); border-color: var(--accent); }
+
+/* A section */
+.stop { display: grid; gap: 1.1rem; padding-block: 2.25rem; border-bottom: 1px solid var(--border); }
+.stop-head { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; align-items: baseline; }
+.stop-no { grid-row: span 2; font-family: var(--font-display); font-size: 2.6rem; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.sub { font-size: 0.92rem; color: var(--muted); }
+.block-title { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 650; margin-bottom: 0.5rem; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+@media (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+/* The chooser */
+.choose { display: grid; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; }
+.choose fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.choose legend { font-weight: 650; padding: 0; margin-bottom: 0.4rem; }
+.options { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.option { position: relative; }
+.option input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.option span { display: grid; gap: 0.1rem; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.8rem; min-width: 11rem; background: var(--bg); }
+.option small { color: var(--muted); font-size: 0.8rem; }
+.option input:checked + span { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.option input:hover + span { border-color: var(--accent); }
+.verdict { border-left: 3px solid var(--accent); padding-left: 0.9rem; display: grid; gap: 0.3rem; }
+.verdict b { font-size: 1.02rem; }
+
+/* Compare */
+.compare { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.compare th, .compare td { text-align: left; vertical-align: top; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); }
+.compare thead th { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.compare tbody th { font-weight: 600; width: 30%; }
+.table-wrap { overflow-x: auto; }
+
+/* Checklists */
+.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.checklist > li { display: grid; grid-template-columns: 1.7rem minmax(0, 1fr); gap: 0.6rem; align-items: start; }
+.checklist input { width: 1.25rem; height: 1.25rem; margin: 0.2rem 0 0; accent-color: var(--accent); cursor: pointer; }
+.checklist label { cursor: pointer; display: grid; gap: 0.25rem; }
+.checklist label b { font-weight: 650; }
+.checklist input:checked + label b { text-decoration: line-through; text-decoration-color: var(--muted); color: var(--muted); }
+.checklist .detail { font-size: 0.93rem; color: var(--muted); }
+.progress { font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; gap: 0.6rem; }
+.progress meter { width: 8rem; }
+.checklist[data-plain] { counter-reset: s; }
+.checklist[data-plain] > li { counter-increment: s; }
+.checklist[data-plain] label { cursor: auto; }
+.dot::before { content: counter(s); width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); font-size: 0.82rem; font-weight: 700; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+.reset { font: inherit; font-size: 0.82rem; background: none; border: 0; color: var(--accent); cursor: pointer; text-decoration: underline; padding: 0; }
+
+/* Command boxes */
+.cmd { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.cmd pre { margin: 0; padding: 0.5rem 0.75rem; font: 0.85rem/1.5 var(--font-mono); overflow-x: auto; flex: 1; }
+.copy { flex: none; font: inherit; font-size: 0.78rem; border: 0; border-left: 1px solid var(--border); background: var(--bg); color: var(--muted); padding: 0 0.7rem; cursor: pointer; }
+.copy:hover { color: var(--text); }
+
+/* The Setup window, stepped through */
+.term { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); display: grid; }
+.term-title { background: var(--surface); border-bottom: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); padding: 0.35rem 0.75rem; display: flex; gap: 0.5rem; align-items: center; }
+.term-title i { width: 0.7rem; height: 0.7rem; border-radius: 2px; background: var(--accent); display: inline-block; }
+.term-body { background: var(--term-bg); color: var(--term-text); font: 0.82rem/1.5 var(--font-mono); padding: 0.75rem 0.9rem; min-height: 15rem; max-height: 26rem; overflow-y: auto; }
+.term-body div { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.5em; }
+.term-body .q { color: var(--term-prompt); }
+.term-body .q kbd { color: #ffffff; font: inherit; }
+.term-body .ok { color: var(--term-ok); }
+.term-body .warn { color: var(--term-warn); }
+.term-body .err { color: var(--term-err); }
+.term-body .now { background: rgba(255, 255, 255, 0.09); outline: 1px solid rgba(255, 255, 255, 0.18); border-radius: 2px; }
+.term-note { background: var(--accent-soft); border-top: 1px solid var(--border); padding: 0.7rem 0.9rem; font-size: 0.92rem; min-height: 4.2rem; }
+.term-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.55rem 0.75rem; background: var(--surface); border-top: 1px solid var(--border); font-size: 0.85rem; }
+.term-controls button { font: inherit; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; padding: 0.25rem 0.75rem; cursor: pointer; }
+.term-controls button:hover:not(:disabled) { border-color: var(--accent); }
+.term-controls button:disabled { opacity: 0.45; cursor: default; }
+.term-controls .count { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* Notes */
+.nuances { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.75rem; }
+.nuance { border-top: 2px solid var(--border); padding-top: 0.6rem; display: grid; gap: 0.25rem; font-size: 0.93rem; align-content: start; }
+.nuance b { font-size: 0.95rem; }
+.nuance.rule { border-top-color: var(--accent); }
+.callout { display: grid; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--warning); border-radius: 8px; padding: 0.9rem 1.1rem; font-size: 0.95rem; }
+.callout.ok { border-left-color: var(--ok); }
+.badge { font-size: 0.72rem; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0.05rem 0.5rem; vertical-align: 0.15rem; white-space: nowrap; justify-self: start; }
+.folders { margin: 0; padding: 0.75rem 0.9rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font: 0.85rem/1.6 var(--font-mono); overflow-x: auto; white-space: pre; }
+.folders em { font-style: normal; color: var(--muted); }
+
+/* Troubleshooting */
+.faq { display: grid; gap: 0.5rem; }
+.faq details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.faq details[open] summary { margin-bottom: 0.5rem; }
+.faq details > div { display: grid; gap: 0.5rem; font-size: 0.95rem; }
+.faq ol, .faq ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.25rem; }
+
+/* Links to the other pages */
+.crosslinks { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.75rem; }
+.crosslink { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem 1.2rem; align-items: center; text-decoration: none; color: var(--text); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 10px; padding: 0.9rem 1.1rem; }
+.crosslink:hover { background: var(--surface); }
+.crosslink .label { font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
+.crosslink b { display: block; font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; }
+.crosslink span.what { color: var(--muted); font-size: 0.92rem; }
+.crosslink .go { font-weight: 650; color: var(--accent); white-space: nowrap; }
+@media (max-width: 560px) { .crosslink { grid-template-columns: minmax(0, 1fr); } }
+.close { padding-block: 2.25rem 0; display: grid; gap: 0.9rem; }
+footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
+</style>
+<script>
+  // A light or dark theme chosen on this site, applied before the page draws.
+  try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t } catch {}
+</script>
+</head>
+<body>
+<main class="page">
+
+<header class="intro">
+  <div class="eyebrow">Install guide · for the Lender's laptop</div>
+  <h1>Install Mortgage Management</h1>
+  <p class="lede">The app runs on the Lender's own laptop, and nowhere else. On Windows it is a double-click: download <b>Setup</b>, answer three questions, and open the shortcut it puts on the Desktop. This page takes you through it for your own computer, and then through everything after: starting it, updating it, Backups, bringing a Backup back, and removing it.</p>
+  <div class="get">
+    <a class="download" href="Setup.bat" download="Setup.bat">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>
+      Download Setup.bat
+    </a>
+    <p>For Windows 10 and 11. It always installs the newest release, so this one file stays good: keep it to update later. Also on <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/windows/Setup.bat">GitHub</a>.</p>
+  </div>
+  <div class="facts">
+    <span>Newest release: <b>1.3.0</b></span>
+    <span>Takes: <b>5–15 minutes</b></span>
+    <span>Needs: <b>an internet connection while installing</b></span>
+    <span>Opens at: <b>http://localhost:8080</b></span>
+  </div>
+</header>
+
+<nav class="bar" aria-label="Sections">
+  <ol>
+    <li><a href="#choose"><span class="n">1</span>Your computer</a></li>
+    <li><a href="#install"><span class="n">2</span>Install</a></li>
+    <li><a href="#start"><span class="n">3</span>Start and use</a></li>
+    <li><a href="#update"><span class="n">4</span>Update</a></li>
+    <li><a href="#backups"><span class="n">5</span>Backups and restore</a></li>
+    <li><a href="#remove"><span class="n">6</span>Remove</a></li>
+    <li><a href="#help"><span class="n">7</span>If something goes wrong</a></li>
+  </ol>
+  <button type="button" class="theme-toggle" id="theme-toggle"></button>
+</nav>
+
+<!-- 1 · Choose -->
+<section class="stop" id="choose" aria-labelledby="choose-title">
+  <div class="stop-head">
+    <div class="stop-no">1</div>
+    <h2 id="choose-title">Your computer</h2>
+    <p class="sub">Pick yours: every step below changes to match. Setup checks for Docker by itself, so a wrong guess here does no harm.</p>
+  </div>
+  <form class="choose" id="chooser">
+    <fieldset>
+      <legend>Which computer is the app going on?</legend>
+      <div class="options">
+        <label class="option"><input type="radio" name="os" value="win" checked><span><b>Windows</b><small>Windows 10 or 11</small></span></label>
+        <label class="option"><input type="radio" name="os" value="mac"><span><b>Mac or Linux</b><small>with Docker Desktop</small></span></label>
+      </div>
+    </fieldset>
+    <fieldset data-for="win">
+      <legend>Is Docker Desktop installed on it?</legend>
+      <div class="options">
+        <label class="option"><input type="radio" name="docker" value="local" checked><span><b>No, or not sure</b><small>The simplest: nothing else to install first</small></span></label>
+        <label class="option"><input type="radio" name="docker" value="docker"><span><b>Yes</b><small>Look for Docker Desktop in the Start menu</small></span></label>
+      </div>
+    </fieldset>
+    <div class="verdict" aria-live="polite">
+      <div data-for="win-local"><b>Windows, without Docker.</b> <span class="muted">Setup installs what the app needs (Node.js and uv) and the app runs on the PC itself, from a window that stays open while you use it.</span></div>
+      <div data-for="win-docker"><b>Windows, with Docker Desktop.</b> <span class="muted">Setup downloads the published app into Docker. It runs in the background, and Backups can have a password.</span></div>
+      <div data-for="mac"><b>Mac or Linux, with Docker Desktop.</b> <span class="muted">There is no double-click setup here: a few commands in Terminal, once.</span></div>
+    </div>
+  </form>
+
+  <div data-for="win">
+    <div class="block-title">With or without Docker: which is better?</div>
+    <div class="table-wrap">
+      <table class="compare">
+        <thead><tr><th scope="col"></th><th scope="col">Without Docker</th><th scope="col">With Docker Desktop</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Install first</th><td>Nothing: Setup installs Node.js and uv itself</td><td><a href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a> (it may ask to restart the PC)</td></tr>
+          <tr><th scope="row">While you use it</th><td>Its window stays open; closing it stops the app</td><td>Runs in the background, and starts again with Docker</td></tr>
+          <tr><th scope="row">Backup zips</th><td>Plain zips, no password (Windows has nothing built in to make them)</td><td>Can have a password, asked for during Setup</td></tr>
+          <tr><th scope="row">Best for</th><td>Most Lenders: the least to install and look after</td><td>Backups kept in a shared or synced folder, where a password matters</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top: 0.6rem">You can change later: install Docker Desktop and run Setup again, and it moves the app into Docker, keeping the data.</p>
+  </div>
+</section>
+
+<!-- 2 · Install -->
+<section class="stop" id="install" aria-labelledby="install-title">
+  <div class="stop-head">
+    <div class="stop-no">2</div>
+    <h2 id="install-title">Install</h2>
+    <p class="sub">Tick each step as you go: this page remembers where you are on this computer.</p>
+  </div>
+
+  <div class="cols" data-for="win">
+    <div style="display: grid; gap: 1rem">
+      <ol class="checklist" data-list="install-win">
+        <li data-for="win-docker"><input type="checkbox" id="i-docker"><label for="i-docker"><b>Start Docker Desktop</b><span class="detail">Open it from the Start menu and wait until it says <span class="ui">Engine running</span>. If it isn't installed yet, get it from <a href="https://www.docker.com/products/docker-desktop/">docker.com</a> first. (Setup will also try to start it.)</span></label></li>
+        <li><input type="checkbox" id="i-download"><label for="i-download"><b>Download Setup.bat</b><span class="detail"><a href="Setup.bat" download="Setup.bat">Download it here</a>. If the browser asks, choose <span class="ui">Keep</span>: Edge may say it "isn't commonly downloaded", as it says of any new file. It lands in <span class="path">Downloads</span>.</span></label></li>
+        <li><input type="checkbox" id="i-run"><label for="i-run"><b>Double-click Setup.bat</b><span class="detail">Windows may show <span class="ui">Windows protected your PC</span>: click <span class="ui">More info</span>, then <span class="ui">Run anyway</span>. A black window opens: that is Setup.</span></label></li>
+        <li><input type="checkbox" id="i-answer"><label for="i-answer"><b>Answer its questions</b><span class="detail">Pressing Enter keeps the suggested answer each time, and is right for most people. Step through the window on the right to see each question before you meet it.</span></label></li>
+        <li data-for="win-local"><input type="checkbox" id="i-allow"><label for="i-allow"><b>Allow Node.js to install</b><span class="detail">Windows asks once whether the Node.js installer may make changes: choose <span class="ui">Yes</span>. Then wait: the first install takes a few minutes.</span></label></li>
+        <li data-for="win-docker"><input type="checkbox" id="i-wait"><label for="i-wait"><b>Wait for the download</b><span class="detail">Setup downloads the app into Docker. A few minutes the first time, and much less on later updates.</span></label></li>
+        <li><input type="checkbox" id="i-start"><label for="i-start"><b>Say yes to start it</b><span class="detail">At <span class="ui">Start it now? [Y/n]</span> press Enter. The app opens in the browser at <span class="path">http://localhost:8080</span>.</span></label></li>
+        <li><input type="checkbox" id="i-settings"><label for="i-settings"><b>Set the Lender's rules</b><span class="detail">In the app, open <span class="ui">Settings</span> first: the default Terms, the Lender's details for Receipts, and how many Backups to keep. The <a href="index.html#s2">walkthrough</a> goes through each.</span></label></li>
+      </ol>
+      <div class="progress"><meter min="0" max="1" value="0" data-progress="install-win"></meter><span data-progress-text="install-win"></span><button type="button" class="reset" data-reset="install-win">Start over</button></div>
+    </div>
+
+    <div class="term" data-term="setup" aria-label="The Setup window, one line at a time">
+      <div class="term-title"><i></i>Setup.bat</div>
+      <div class="term-body" tabindex="0">
+        <div data-mode="both">Mortgage Management setup</div>
+        <div data-mode="both" data-note="Setup puts everything in one folder in your user folder: the app, its data, and its Backups. Nothing is put anywhere else, but for Node.js and uv when there is no Docker.">Installing in C:\Users\you\MortgageManagement</div>
+        <div data-mode="both" data-note="It always gets the newest release from GitHub.">Getting version 1.3.0...</div>
+        <div data-mode="local" data-note="Setup found no Docker, so the app will run on the PC itself. To use Docker instead, install Docker Desktop and run Setup again.">Docker is not installed: the app will run directly on this PC.</div>
+        <div data-mode="docker" data-note="Setup found Docker Desktop, so the app will run in Docker.">Docker is installed: the app will run in Docker.</div>
+        <div data-mode="both"></div>
+        <div data-mode="both" data-note="Next it asks where Backups should go. Have a Google Drive or OneDrive folder ready if you want them kept off this PC.">Backups can go to a Google Drive or OneDrive folder, so they are kept off this PC.</div>
+        <div data-mode="both" class="q" data-note="Press Enter to keep Backups in the app's own folder. Better: paste a folder that Google Drive or OneDrive syncs, so a Backup survives a lost or broken laptop. With Google Drive for desktop that is usually like G:\My Drive\Mortgage Backups; with OneDrive, C:\Users\you\OneDrive\Mortgage Backups. Make the folder first, then paste its path.">Backup folder (Enter for C:\Users\you\MortgageManagement\backups): <kbd>⏎</kbd></div>
+        <div data-mode="local" data-note="Without Docker, Windows has nothing that makes password zips, so no password is asked for.">Without Docker, Backups are plain zips (no password).</div>
+        <div data-mode="docker" class="q" data-note="Type a password for the Backup zips (nothing shows as you type), or press Enter for none. Use one when Backups go to a synced folder. A single quote (') can't be used.">Backup password (Enter for none): <kbd>********</kbd></div>
+        <div data-mode="docker" class="q" data-note="The same again, to be sure it was typed right.">The same password again: <kbd>********</kbd></div>
+        <div data-mode="docker" class="warn" data-note="Write it down now and keep it somewhere safe: a Backup can't be opened without it, by anyone.">Write the Backup password down somewhere safe: a Backup cannot be opened without it.</div>
+        <div data-mode="docker" data-note="If Docker Desktop wasn't already running, Setup starts it and waits.">Starting Docker Desktop (this can take a minute or two)...</div>
+        <div data-mode="docker" data-note="The app is downloaded from Docker Hub. Lines of download progress scroll past here.">Downloading the app (Docker images)...</div>
+        <div data-mode="local" data-note="Windows asks once whether this may make changes: choose Yes. Skipped if Node.js is already installed.">Installing Node.js (Windows may ask for permission)...</div>
+        <div data-mode="local" data-note="uv runs the app's server, and brings the right Python with it. Skipped if it is already installed.">Installing uv (it also brings the right Python)...</div>
+        <div data-mode="local" data-note="The app's server and its screens are installed into the app's folder. This is the slowest part, a few minutes, with lines of progress scrolling past.">Installing the backend...</div>
+        <div data-mode="local">Building the app screens...</div>
+        <div data-mode="both"></div>
+        <div data-mode="both" class="ok" data-note="Done. There is now a Mortgage Management shortcut on the Desktop, with the app's own icon.">Mortgage Management is set up.</div>
+        <div data-mode="both">Start it any time with the "Mortgage Management" shortcut on the Desktop.</div>
+        <div data-mode="both">Run Setup again to update to the newest release.</div>
+        <div data-mode="both" class="q" data-note="Press Enter to start it now. It opens in the browser.">Start it now? [Y/n]: <kbd>⏎</kbd></div>
+        <div data-mode="local" class="ok" data-note="Without Docker, this window is now the app: keep it open while you use it (you can minimise it). Closing it stops the app.">Mortgage Management is running at http://localhost:8080.
+Keep this window open while you use it; close it to stop the app.</div>
+        <div data-mode="docker" class="ok" data-note="With Docker the app keeps running after the window closes: press any key to close it.">Mortgage Management is running at http://localhost:8080 (in Docker).
+It keeps running after this window closes.</div>
+      </div>
+      <div class="term-note" aria-live="polite">Step through the window with <b>Next</b>: each line Setup shows, and what to do at each question.</div>
+      <div class="term-controls">
+        <button type="button" data-step="-1">Back</button>
+        <button type="button" data-step="1">Next</button>
+        <button type="button" data-step="all">Show all</button>
+        <span class="count"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" data-for="win">
+    <b>Where everything goes</b>
+    <pre class="folders">C:\Users\you\MortgageManagement
+  app       <em>the app itself, and its settings file .env</em>
+  data      <em>the database and photos: the whole book</em>
+  backups   <em>the Backup zips (unless you chose another folder)</em></pre>
+    <span class="muted">Setup keeps the Docker or no-Docker choice, the Backup folder and the password in <span class="path">app\.env</span>, a text file that Setup and the shortcut read.</span>
+  </div>
+
+  <div data-for="mac" style="display: grid; gap: 1rem">
+    <ol class="checklist" data-list="install-mac">
+      <li><input type="checkbox" id="m-docker"><label for="m-docker"><b>Install and start Docker Desktop</b><span class="detail">From <a href="https://www.docker.com/products/docker-desktop/">docker.com</a>, for Intel or Apple silicon. Wait until it says <span class="ui">Engine running</span>.</span></label></li>
+      <li><input type="checkbox" id="m-get"><label for="m-get"><b>Get the app's folder</b><span class="detail">In Terminal (git is built into a Mac; it asks to install the developer tools the first time):</span>
+        <div class="cmd"><pre>git clone https://github.com/krucx/Mortgage-Management-App.git
+cd Mortgage-Management-App</pre><button type="button" class="copy">Copy</button></div></label></li>
+      <li><input type="checkbox" id="m-env"><label for="m-env"><b>Make its settings file</b><span class="detail">Copy the example, then open <span class="path">.env</span> in a text editor (<code>open -e .env</code> on a Mac):</span>
+        <div class="cmd"><pre>cp .env.example .env</pre><button type="button" class="copy">Copy</button></div>
+        <span class="detail"><code>DATA_DIR</code>: the folder for the database and photos. <code>BACKUP_DIR</code>: a Google Drive or iCloud synced folder. <code>BACKUP_PASSWORD</code>: the password for the Backup zips; write it down. <code>TZ</code>: your time zone (default <code>Asia/Kolkata</code>).</span></label></li>
+      <li><input type="checkbox" id="m-up"><label for="m-up"><b>Start it</b><span class="detail">In the same folder. The first start downloads the app from Docker Hub.</span>
+        <div class="cmd"><pre>docker compose up -d</pre><button type="button" class="copy">Copy</button></div></label></li>
+      <li><input type="checkbox" id="m-open"><label for="m-open"><b>Open it</b><span class="detail">At <a href="http://localhost:8080">http://localhost:8080</a>, and set the Lender's rules in <span class="ui">Settings</span> first.</span></label></li>
+    </ol>
+    <div class="progress"><meter min="0" max="1" value="0" data-progress="install-mac"></meter><span data-progress-text="install-mac"></span><button type="button" class="reset" data-reset="install-mac">Start over</button></div>
+  </div>
+</section>
+
+<!-- 3 · Start -->
+<section class="stop" id="start" aria-labelledby="start-title">
+  <div class="stop-head">
+    <div class="stop-no">3</div>
+    <h2 id="start-title">Start and use it</h2>
+    <p class="sub">Every day after the install.</p>
+  </div>
+  <div class="cols">
+    <ol class="checklist" data-list="start" data-plain>
+      <li data-for="win"><input type="checkbox" id="s-open" tabindex="-1"><label for="s-open"><b>Open the Mortgage Management shortcut on the Desktop</b><span class="detail">It opens the app in the browser.</span></label></li>
+      <li data-for="win-local"><input type="checkbox" id="s-keep" tabindex="-1"><label for="s-keep"><b>Leave its window open</b><span class="detail">Minimise it, but don't close it: the window is the app. Close it at the end of the day to stop the app.</span></label></li>
+      <li data-for="win-docker"><input type="checkbox" id="s-bg" tabindex="-1"><label for="s-bg"><b>Close its window whenever you like</b><span class="detail">The app keeps running in Docker, and starts again with Docker Desktop, so after the first time the browser alone is enough. If the PC was restarted, the shortcut starts Docker Desktop and the app again.</span></label></li>
+      <li data-for="mac"><input type="checkbox" id="s-mac" tabindex="-1"><label for="s-mac"><b>Open http://localhost:8080</b><span class="detail">The app starts again with Docker Desktop by itself; keep Docker Desktop set to start when you sign in.</span></label></li>
+      <li><input type="checkbox" id="s-install" tabindex="-1"><label for="s-install"><b>Install it as an app (optional)</b><span class="detail">In Chrome or Edge, open it and choose <span class="ui">Install</span> in the address bar (Safari: <span class="ui">File → Add to Dock</span>). It gets its own icon and window. It opens even when the server is stopped, and then says the server isn't running until it is started.</span></label></li>
+    </ol>
+    <div class="nuances">
+      <div class="nuance rule"><b>Only on this laptop</b><span>The app answers at <span class="path">localhost</span> only: no one else on the network, or the internet, can reach it.</span></div>
+      <div class="nuance"><b>Nothing is kept in the browser</b><span>Figures always come fresh from the app's server, so clearing the browser loses nothing.</span></div>
+      <div class="nuance"><b>A different port</b><span>If something else already uses 8080, set <code>APP_PORT</code> in <span class="path">app\.env</span> (for example to 8090) and start it again.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 · Update -->
+<section class="stop" id="update" aria-labelledby="update-title">
+  <div class="stop-head">
+    <div class="stop-no">4</div>
+    <h2 id="update-title">Update to a new release</h2>
+    <p class="sub">What changed in each release is in the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md">changelog</a>.</p>
+  </div>
+  <div class="cols">
+    <div data-for="win" style="display: grid; gap: 0.8rem">
+      <ol class="checklist" data-list="update" data-plain>
+        <li data-for="win-local"><input type="checkbox" id="u-stop" tabindex="-1"><label for="u-stop"><b>Close the app's window</b><span class="detail">So the app is stopped while it is updated.</span></label></li>
+        <li><input type="checkbox" id="u-run" tabindex="-1"><label for="u-run"><b>Double-click Setup.bat again</b><span class="detail">The one you downloaded, or the copy in <span class="path">C:\Users\you\MortgageManagement\app\windows</span>.</span></label></li>
+        <li><input type="checkbox" id="u-start" tabindex="-1"><label for="u-start"><b>Say yes to start it</b><span class="detail">It asks no other questions this time: the Backup folder, password and data are kept as they are.</span></label></li>
+      </ol>
+    </div>
+    <div data-for="mac" style="display: grid; gap: 0.6rem">
+      <p>In the app's folder, in Terminal:</p>
+      <div class="cmd"><pre>git pull
+docker compose pull
+docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
+      <p class="sub">To go back to an earlier release, set <code>APP_VERSION</code> in <span class="path">.env</span> (for example <code>1.2.0</code>) and run the last two commands. If a newer release updated the database, restore the Backup taken before that update.</p>
+    </div>
+    <div class="nuances">
+      <div class="nuance rule"><b>A Backup comes first</b><span>When a release updates the database, the app takes a Backup marked <code>-before-update</code> before it does. If that Backup fails, the app doesn't start, so the data is never changed without one.</span></div>
+      <div class="nuance"><b>Nothing to download each time</b><span>Setup.bat always fetches the newest release, so the same file works for every update.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · Backups -->
+<section class="stop" id="backups" aria-labelledby="backups-title">
+  <div class="stop-head">
+    <div class="stop-no">5</div>
+    <h2 id="backups-title">Backups, and bringing one back</h2>
+    <p class="sub">The whole book, database and photos, in one zip.</p>
+  </div>
+  <div class="nuances">
+    <div class="nuance rule"><b>Weekly, by itself</b><span>On the first use of the day one falls due, the app writes <code>mortgage-backup-&lt;date&gt;-&lt;time&gt;.zip</code> to the Backup folder, and keeps the last few (4 by default).</span></div>
+    <div class="nuance"><b>Any time, by hand</b><span><span class="ui">Settings</span> shows the last Backup and has a <span class="ui">Back up now</span> button. Use it before anything risky.</span></div>
+    <div class="nuance"><b>Off the laptop</b><span>A Backup folder in Google Drive, OneDrive or iCloud means a lost laptop doesn't lose the book. To move it later, change <code>BACKUP_DIR</code> in <span class="path">app\.env</span>, then start the app again.</span></div>
+  </div>
+  <div style="display: grid; gap: 0.6rem">
+    <div class="block-title">To bring a Backup back</div>
+    <ol class="checklist" data-list="restore" data-plain>
+      <li><input type="checkbox" id="r-stop" tabindex="-1"><label for="r-stop"><b>Stop the app</b><span class="detail" data-for="win-local">Close its window.</span><span class="detail" data-for="win-docker">In Docker Desktop, under <span class="ui">Containers</span>, stop the one named <span class="ui">app</span>.</span><span class="detail" data-for="mac">In its folder: <code>docker compose down</code>.</span></label></li>
+      <li><input type="checkbox" id="r-open" tabindex="-1"><label for="r-open"><b>Open the Backup zip</b><span class="detail">Explorer, Finder or 7-Zip all open it. A Backup with a password asks for it.</span></label></li>
+      <li><input type="checkbox" id="r-copy" tabindex="-1"><label for="r-copy"><b>Put its contents in the data folder</b><span class="detail">Replace <code>mortgage.db</code> and the <code>photos</code> folder in <span class="path" data-for="win">C:\Users\you\MortgageManagement\data</span><span class="path" data-for="mac">DATA_DIR</span> with the ones from the zip.</span></label></li>
+      <li><input type="checkbox" id="r-start" tabindex="-1"><label for="r-start"><b>Start the app again</b><span class="detail" data-for="win">With the Desktop shortcut.</span><span class="detail" data-for="mac">With <code>docker compose up -d</code>.</span></label></li>
+    </ol>
+  </div>
+  <div class="callout ok"><b>Moving to a new laptop</b><span>Install it on the new one, then bring back the latest Backup as above. On the old one, <a href="#remove">remove it</a>: that keeps the latest Backup in Documents first.</span></div>
+</section>
+
+<!-- 6 · Remove -->
+<section class="stop" id="remove" aria-labelledby="remove-title">
+  <div class="stop-head">
+    <div class="stop-no">6</div>
+    <h2 id="remove-title">Remove it from the laptop</h2>
+    <p class="sub">The latest Backup is kept in Documents before anything is deleted.</p>
+  </div>
+  <div class="cols" data-for="win">
+    <div style="display: grid; gap: 1rem">
+      <ol class="checklist" data-list="remove-win">
+        <li><input type="checkbox" id="x-open"><label for="x-open"><b>Open the app's windows folder</b><span class="detail">In File Explorer, paste <span class="path">%USERPROFILE%\MortgageManagement\app\windows</span> into the address bar and press Enter.</span></label></li>
+        <li><input type="checkbox" id="x-run"><label for="x-run"><b>Double-click Uninstall.bat</b> <span class="badge">after 1.3.0</span><span class="detail">If it isn't there, the app is on 1.3.0: <a href="#update">update it</a> first, and it appears.</span></label></li>
+        <li><input type="checkbox" id="x-yes"><label for="x-yes"><b>Read the list, and type yes</b><span class="detail">It says what it will delete and what it leaves. Anything but <code>yes</code> removes nothing.</span></label></li>
+        <li><input type="checkbox" id="x-check"><label for="x-check"><b>Find the Backup in Documents</b><span class="detail">A <code>mortgage-backup-….zip</code>: the whole book, to bring back on any laptop. Copy it somewhere safe.</span></label></li>
+      </ol>
+      <div class="progress"><meter min="0" max="1" value="0" data-progress="remove-win"></meter><span data-progress-text="remove-win"></span><button type="button" class="reset" data-reset="remove-win">Start over</button></div>
+      <div class="nuances">
+        <div class="nuance rule"><b>In this order</b><span>It stops the app, keeps the latest Backup in Documents, and only then deletes: the Docker images, the Desktop shortcut, the data, and the MortgageManagement folder.</span></div>
+        <div class="nuance"><b>Left as it is</b><span>A Backup folder in Google Drive or OneDrive (the latest Backup is copied from it, not moved), and Node.js and uv, which other programs may use.</span></div>
+        <div class="nuance"><b>With no Backup</b><span>It says so, and asks again: removing then loses the book. Take one with <span class="ui">Back up now</span> in Settings first.</span></div>
+      </div>
+    </div>
+
+    <div class="term" data-term="remove" aria-label="The Uninstall window, one line at a time">
+      <div class="term-title"><i></i>Uninstall.bat</div>
+      <div class="term-body" tabindex="0">
+        <div data-mode="both"></div>
+        <div data-mode="both">Remove Mortgage Management from this PC</div>
+        <div data-mode="both" data-note="First it says exactly what it will do. Nothing has changed yet.">It stops the app and keeps its latest Backup in C:\Users\you\Documents. Then these are deleted:</div>
+        <div data-mode="both">  C:\Users\you\MortgageManagement (the app)</div>
+        <div data-mode="both">  the Mortgage Management shortcut on the Desktop</div>
+        <div data-mode="docker" data-note="With Docker, the app's images are removed from Docker too.">  its Docker images</div>
+        <div data-mode="both" class="q" data-note="Type yes and press Enter to go ahead. Anything else, or just Enter, stops here with nothing removed.">Remove Mortgage Management? Type yes to go ahead: <kbd>yes</kbd></div>
+        <div data-mode="docker" data-note="The app is stopped first, so no Backup is being written while the latest one is kept.">Stopping the app...</div>
+        <div data-mode="local" data-note="If the app's window was still open, it is stopped first, so no Backup is being written while the latest one is kept.">Stopping the app...</div>
+        <div data-mode="both" class="ok" data-note="The newest Backup zip is moved into Documents. If a file of that name is already there, it is kept too: the new one is named “… (2).zip”.">The latest Backup is kept: C:\Users\you\Documents\mortgage-backup-2026-10-20-0900.zip</div>
+        <div data-mode="both">If Backups had a password, it opens with that password.</div>
+        <div data-mode="docker">Removing its Docker images...</div>
+        <div data-mode="both" data-note="Only now is anything deleted.">Deleting the app and its data...</div>
+        <div data-mode="both"></div>
+        <div data-mode="both" class="ok">Mortgage Management is removed from this PC.</div>
+        <div data-mode="both" data-note="Press any key to close the window. Uninstall.bat itself is gone too, with the folder it was in.">Its latest Backup is in C:\Users\you\Documents.</div>
+      </div>
+      <div class="term-note" aria-live="polite">Step through the window with <b>Next</b>: what it shows, and what it does at each line.</div>
+      <div class="term-controls">
+        <button type="button" data-step="-1">Back</button>
+        <button type="button" data-step="1">Next</button>
+        <button type="button" data-step="all">Show all</button>
+        <span class="count"></span>
+      </div>
+    </div>
+  </div>
+
+  <div data-for="mac" style="display: grid; gap: 0.6rem">
+    <ol class="checklist" data-list="remove-mac" data-plain>
+      <li><input type="checkbox" id="xm-backup" tabindex="-1"><label for="xm-backup"><b>Keep the latest Backup</b><span class="detail">Take one with <span class="ui">Back up now</span> in Settings, then copy the newest <code>mortgage-backup-….zip</code> from <code>BACKUP_DIR</code> to Documents.</span></label></li>
+      <li><input type="checkbox" id="xm-down" tabindex="-1"><label for="xm-down"><b>Stop it and remove it from Docker</b><span class="detail">In the app's folder:</span><div class="cmd"><pre>docker compose down --rmi all</pre><button type="button" class="copy">Copy</button></div></label></li>
+      <li><input type="checkbox" id="xm-delete" tabindex="-1"><label for="xm-delete"><b>Delete the folders</b><span class="detail">The app's folder, and its <code>DATA_DIR</code>.</span></label></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 7 · Help -->
+<section class="stop" id="help" aria-labelledby="help-title">
+  <div class="stop-head">
+    <div class="stop-no">7</div>
+    <h2 id="help-title">If something goes wrong</h2>
+    <p class="sub">Setup and the shortcut say in red what stopped them. The most common, and what to do:</p>
+  </div>
+  <div class="faq">
+    <details>
+      <summary>The app says “The app's server isn't running”</summary>
+      <div>
+        <p>The screens opened, but the server behind them is stopped: usually the browser or installed app was opened on its own.</p>
+        <ul>
+          <li data-for="win">Open the <span class="ui">Mortgage Management</span> shortcut on the Desktop, then reload the page.</li>
+          <li data-for="win-docker">If that doesn't help, check Docker Desktop is running (its whale in the taskbar's corner).</li>
+          <li data-for="mac">Start Docker Desktop; the app starts with it. If not, run <code>docker compose up -d</code> in its folder.</li>
+        </ul>
+      </div>
+    </details>
+    <details data-for="win">
+      <summary>Windows won't let Setup.bat run</summary>
+      <div>
+        <p>On <span class="ui">Windows protected your PC</span>, click <span class="ui">More info</span>, then <span class="ui">Run anyway</span>. If there is no <span class="ui">Run anyway</span>, right-click Setup.bat → <span class="ui">Properties</span>, tick <span class="ui">Unblock</span> at the bottom, <span class="ui">OK</span>, and double-click it again.</p>
+      </div>
+    </details>
+    <details data-for="win-local">
+      <summary>“winget is missing”</summary>
+      <div><p>Setup uses winget, Windows' own installer, to install Node.js. Install <a href="https://apps.microsoft.com/detail/9NBLGGH4NNS1">App Installer</a> from the Microsoft Store, then run Setup again.</p></div>
+    </details>
+    <details data-for="win-docker">
+      <summary>“Docker Desktop did not start” or “Docker is installed but not running”</summary>
+      <div><p>Open Docker Desktop yourself and wait until it says <span class="ui">Engine running</span> (the first start after installing it can ask to finish setting up, or to restart the PC). Then run Setup, or the shortcut, again.</p></div>
+    </details>
+    <details data-for="win">
+      <summary>Setup stopped part-way (a lost connection, a closed window)</summary>
+      <div><p>Run it again. It picks up where it can, and never touches the data or Backups.</p></div>
+    </details>
+    <details data-for="win-local">
+      <summary>I closed the app's window by mistake</summary>
+      <div><p>Nothing is lost: everything saved is in the data folder. Open the shortcut again.</p></div>
+    </details>
+    <details>
+      <summary>Something else uses port 8080</summary>
+      <div><p>Set <code>APP_PORT</code> to another number (for example <code>8090</code>) in <span class="path" data-for="win">C:\Users\you\MortgageManagement\app\.env</span><span class="path" data-for="mac">.env</span>, start the app again, and open <span class="path">http://localhost:8090</span>.</p></div>
+    </details>
+    <details data-for="win-docker">
+      <summary>The Backup password is lost</summary>
+      <div><p>Backups made with it can't be opened, by anyone. The book itself is fine: set a new <code>BACKUP_PASSWORD</code> in <span class="path">app\.env</span>, start the app again, and take a Backup with <span class="ui">Back up now</span>, so there is one you can open.</p></div>
+    </details>
+    <details>
+      <summary>Still stuck</summary>
+      <div><p>Open an <a href="https://github.com/krucx/Mortgage-Management-App/issues">issue on GitHub</a> with the red message from the window, or a photo of it.</p></div>
+    </details>
+  </div>
+</section>
+
+<section class="close" aria-label="More about the app">
+  <div class="crosslinks">
+    <a class="crosslink" href="index.html">
+      <span><span class="label">Once it's running</span><b>Mortgage Book Walkthrough</b><span class="what">Each page of the app, where to click, and what it shows.</span></span>
+      <span class="go">Open the guide →</span>
+    </a>
+    <a class="crosslink" href="story.html">
+      <span><span class="label">Prefer to see it first?</span><b>The Gold Chain Story</b><span class="what">The app told as one Customer's year, with live screenshots.</span></span>
+      <span class="go">Read the story →</span>
+    </a>
+  </div>
+  <footer>Written for version 1.3.0; Uninstall.bat comes with the release after it. The full details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>.</footer>
+</section>
+
+</main>
+<script>
+// Which computer: shows the steps for it, and remembers the choice on this device.
+;(() => {
+  const form = document.getElementById('chooser')
+  const saved = (() => { try { return JSON.parse(localStorage.getItem('install-path') || 'null') } catch { return null } })()
+  if (saved) {
+    for (const [name, value] of Object.entries(saved)) {
+      const input = form.querySelector(`input[name="${name}"][value="${value}"]`)
+      if (input) input.checked = true
+    }
+  }
+  function apply() {
+    const os = form.os.value, docker = form.docker.value
+    const path = os === 'mac' ? 'mac' : `win-${docker}`
+    const shown = new Set([path, os])
+    for (const el of document.querySelectorAll('[data-for]')) {
+      el.hidden = !el.dataset.for.split(' ').some(tag => shown.has(tag))
+    }
+    for (const term of terms) term.setMode(os === 'mac' ? 'docker' : docker)
+    for (const list of lists) list.count()
+    try { localStorage.setItem('install-path', JSON.stringify({ os, docker })) } catch {}
+  }
+  form.addEventListener('change', apply)
+
+  // The Setup and Uninstall windows, one line at a time.
+  const terms = [...document.querySelectorAll('[data-term]')].map(term => {
+    const body = term.querySelector('.term-body'), note = term.querySelector('.term-note')
+    const count = term.querySelector('.count'), intro = note.innerHTML
+    const [back, next] = term.querySelectorAll('[data-step]')
+    let lines = [], at = 0
+    // Blank lines are spacing, not a step of their own.
+    const blank = i => i > 0 && i < lines.length && !lines[i - 1].textContent.trim()
+    function draw(showNote = true) {
+      lines.forEach((line, i) => {
+        line.hidden = i >= at
+        line.classList.toggle('now', showNote && i === at - 1)
+      })
+      const current = lines[at - 1]
+      note.innerHTML = !showNote || at === 0 ? intro : (current.dataset.note || '<span class="muted">…</span>')
+      back.disabled = at === 0
+      next.disabled = at === lines.length
+      count.textContent = `${at} of ${lines.length}`
+      if (current && showNote) current.scrollIntoView({ block: 'nearest' })
+    }
+    term.addEventListener('click', event => {
+      const step = event.target.closest('[data-step]')?.dataset.step
+      if (!step) return
+      if (step === 'all') { at = lines.length; draw(false); return }
+      do { at = Math.min(lines.length, Math.max(0, at + Number(step))) } while (blank(at))
+      draw()
+    })
+    return {
+      setMode(mode) {
+        const all = [...body.children]
+        for (const line of all) line.hidden = true
+        lines = all.filter(line => line.dataset.mode === 'both' || line.dataset.mode === mode)
+        at = 0
+        draw()
+      },
+    }
+  })
+
+  // Checklists: ticks remembered on this device.
+  const lists = [...document.querySelectorAll('.checklist:not([data-plain])')].map(list => {
+    const key = `install-ticks-${list.dataset.list}`
+    const meter = document.querySelector(`[data-progress="${list.dataset.list}"]`)
+    const text = document.querySelector(`[data-progress-text="${list.dataset.list}"]`)
+    const boxes = () => [...list.querySelectorAll('input[type="checkbox"]')].filter(box => !box.closest('[hidden]'))
+    let ticked = []
+    try { ticked = JSON.parse(localStorage.getItem(key) || '[]') } catch {}
+    for (const box of list.querySelectorAll('input')) box.checked = ticked.includes(box.id)
+    function count() {
+      const shown = boxes(), done = shown.filter(box => box.checked).length
+      meter.max = shown.length
+      meter.value = done
+      text.textContent = done === shown.length ? 'All done' : `${done} of ${shown.length} done`
+    }
+    function save() {
+      const ids = [...list.querySelectorAll('input:checked')].map(box => box.id)
+      try { localStorage.setItem(key, JSON.stringify(ids)) } catch {}
+      count()
+    }
+    list.addEventListener('change', save)
+    document.querySelector(`[data-reset="${list.dataset.list}"]`).addEventListener('click', () => {
+      for (const box of list.querySelectorAll('input')) box.checked = false
+      save()
+    })
+    return { count }
+  })
+  // The other lists are plain steps: their boxes are only numbering.
+  for (const box of document.querySelectorAll('.checklist[data-plain] input')) {
+    box.replaceWith(Object.assign(document.createElement('span'), { className: 'dot', ariaHidden: 'true' }))
+  }
+
+  // Copy buttons next to commands.
+  for (const button of document.querySelectorAll('.copy')) {
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(button.previousElementSibling.textContent)
+        button.textContent = 'Copied'
+      } catch {
+        button.textContent = 'Select and copy'
+      }
+      setTimeout(() => { button.textContent = 'Copy' }, 1800)
+    })
+  }
+
+  apply()
+})()
+
+// Light or dark: the browser's theme until the reader picks one; picking the theme the
+// browser would show anyway goes back to following it.
+;(() => {
+  const button = document.getElementById('theme-toggle'), root = document.documentElement
+  const query = matchMedia('(prefers-color-scheme: dark)')
+  const sun = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>'
+  const moon = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a7 7 0 0 0 10.7 10.7Z"/></svg>'
+  const system = () => (query.matches ? 'dark' : 'light')
+  const shown = () => root.dataset.theme || system()
+  function paint() {
+    const other = shown() === 'dark' ? 'light' : 'dark'
+    button.innerHTML = shown() === 'dark' ? sun : moon
+    button.setAttribute('aria-label', `Switch to the ${other} theme`)
+    button.title = `Switch to the ${other} theme` + (root.dataset.theme ? '' : ' (now following the browser)')
+  }
+  button.addEventListener('click', () => {
+    const other = shown() === 'dark' ? 'light' : 'dark'
+    const choice = other === system() ? null : other
+    if (choice) root.dataset.theme = choice
+    else root.removeAttribute('data-theme')
+    try { choice ? localStorage.setItem('theme', choice) : localStorage.removeItem('theme') } catch {}
+    paint()
+  })
+  query.addEventListener('change', paint)
+  paint()
+})()
+</script>
+</body>
+</html>

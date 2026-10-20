@@ -2,3 +2,6 @@
 # file downloaded straight from GitHub runs as it is.
 windows/*.bat -text
 windows/*.ps1 text eol=crlf
+
+# The copy GitHub Pages serves for download (docs/install.html) is the same file.
+docs/Setup.bat -text
