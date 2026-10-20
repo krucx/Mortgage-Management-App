@@ -94,7 +94,8 @@ jobs:
         run: |
           $installed = "$env:RUNNER_TEMP\mm"
           $kept = "$env:RUNNER_TEMP\kept"
-          & "$installed\app\windows\uninstall.ps1" -NonInteractive -KeepBackupIn $kept
+          # Its own process, as Uninstall.bat runs it, so its exit code is always set.
+          powershell -NoProfile -ExecutionPolicy Bypass -File "$installed\app\windows\uninstall.ps1" -NonInteractive -KeepBackupIn $kept
           if ($LASTEXITCODE -ne 0) { exit 1 }
           if (Test-Path $installed) { throw "$installed is still there: $(Get-ChildItem -Recurse $installed | Select-Object -First 20)" }
           if (-not (Get-ChildItem $kept -Filter 'mortgage-backup-*.zip')) { throw 'The latest Backup was not kept.' }
