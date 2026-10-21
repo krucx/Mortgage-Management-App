@@ -19,6 +19,56 @@ const redemption = {
   part_month_charge: 60_000, total: 2_240_000,
 }
 
+/** Waiving off a Mortgage owing ₹22,400, as the backend's Preview would answer: what is
+ *  let off, or (if what is paid covers it) a refusal. */
+async function waivePreview(request: Request) {
+  const { mortgages } = (await request.json()) as {
+    mortgages: { mortgage_id: number; amount_paid: number }[]
+  }
+  const covering = mortgages.find((m) => m.amount_paid >= redemption.total)
+  if (covering)
+    return Response.json(
+      { detail: '2025-Arjun-GoldRing: ₹22,400 covers the ₹22,400 owed: Redeem it instead' },
+      { status: 422 },
+    )
+  const closure = (paid: number) => ({
+    kind: 'waived',
+    on: '2026-04-20',
+    redemption_amount: redemption.total,
+    payment_id: paid > 0 ? 50 : null,
+    payment_amount: paid > 0 ? paid : null,
+    waived_amount: redemption.total - paid,
+    recovered_amount: null,
+    profit_loss: null,
+    note: null,
+  })
+  const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
+  return mortgages.map((m) => ({
+    mortgage_id: m.mortgage_id,
+    mortgage_name: row.name,
+    before: side(null),
+    after: side(closure(m.amount_paid)),
+    ledger_changes: [],
+  }))
+}
+
+async function waiveOff(rupees: string) {
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Choose 2025-Arjun-GoldRing' }))
+  fireEvent.click(screen.getByRole('radio', { name: 'Waive off' }))
+  fireEvent.change(await screen.findByLabelText('Received now for 2025-Arjun-GoldRing'), {
+    target: { value: rupees },
+  })
+}
+
+async function confirmWaiver() {
+  const submit = screen.getByRole('button', { name: 'Waive off 1' }) as HTMLButtonElement
+  await vi.waitFor(() => expect(submit.disabled).toBe(false), { timeout: 2000 })
+  fireEvent.click(submit)
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirm Waiver' }),
+  )
+}
+
 test('the chosen Mortgages can be Waived off instead of Forfeited, each with what it brought in', async () => {
   const waived: unknown[] = []
   let listed = [row]
@@ -27,48 +77,70 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
     'GET /api/mortgages': () => ({ items: listed, total: listed.length, page: 1, page_size: 20 }),
     'GET /api/mortgages/3/redemption': redemption,
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
-    'POST /api/mortgages/3/waive': async (request: Request) => {
+    'POST /api/closures/waive-preview': waivePreview,
+    'POST /api/closures/waive': async (request: Request) => {
       waived.push(await request.json())
       listed = []
-      return {}
+      return []
     },
   })
   showPage(server, '/closures', { '/closures': <ClosuresPage /> })
 
-  fireEvent.click(await screen.findByRole('checkbox', { name: 'Choose 2025-Arjun-GoldRing' }))
-  fireEvent.click(screen.getByRole('radio', { name: 'Waive off' }))
-  fireEvent.change(await screen.findByLabelText('Received now for 2025-Arjun-GoldRing'), {
-    target: { value: '22000' },
-  })
-  expect(await screen.findByText('Total waived off ₹400')).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: 'Waive off 1' }))
-  const dialog = await screen.findByRole('dialog')
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm Waiver' }))
+  await waiveOff('22000')
+  fireEvent.change(screen.getByLabelText('Reference (for all)'), { target: { value: 'UTR9' } })
+  expect(await screen.findByText('Total waived off ₹400', {}, { timeout: 2000 })).toBeTruthy()
+  await confirmWaiver()
 
   expect(await screen.findByText('No Active Mortgages with anything Outstanding.')).toBeTruthy()
-  expect(waived).toEqual([expect.objectContaining({ amount_paid: 2_200_000, method: 'cash' })])
-  expect(server.requests).not.toContain('POST /api/mortgages/3/forfeit')
+  expect(waived).toEqual([
+    expect.objectContaining({
+      method: 'cash',
+      reference: 'UTR9',
+      mortgages: [{ mortgage_id: 3, amount_paid: 2_200_000 }],
+    }),
+  ])
+  expect(server.requests).not.toContain('POST /api/closures/forfeit')
 })
 
-test('receiving all that is owed cannot be Waived off: it is a Redemption', async () => {
-  showPage(
-    fakeServer({
-      'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
-      'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
-      'GET /api/mortgages/3/redemption': redemption,
-    }),
-    '/closures',
-    { '/closures': <ClosuresPage /> },
-  )
-
-  fireEvent.click(await screen.findByRole('checkbox', { name: 'Choose 2025-Arjun-GoldRing' }))
-  fireEvent.click(screen.getByRole('radio', { name: 'Waive off' }))
-  fireEvent.change(await screen.findByLabelText('Received now for 2025-Arjun-GoldRing'), {
-    target: { value: '22400' },
+test("receiving all that is owed cannot be Waived off: the Preview gives the backend's reason", async () => {
+  const server = fakeServer({
+    'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
+    'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
+    'GET /api/mortgages/3/redemption': redemption,
+    'POST /api/closures/waive-preview': waivePreview,
   })
+  showPage(server, '/closures', { '/closures': <ClosuresPage /> })
 
-  expect(await screen.findByText('Covers what is owed: Redeem it instead')).toBeTruthy()
+  await waiveOff('22400')
+
+  expect(
+    await screen.findByText(
+      '2025-Arjun-GoldRing: ₹22,400 covers the ₹22,400 owed: Redeem it instead',
+      {},
+      { timeout: 2000 },
+    ),
+  ).toBeTruthy()
   expect((screen.getByRole('button', { name: 'Waive off 1' }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+test("if the backend refuses the Waiver when it is saved, nothing is Waived off and its reason is shown", async () => {
+  const server = fakeServer({
+    'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
+    'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
+    'GET /api/mortgages/3/redemption': redemption,
+    'POST /api/closures/waive-preview': waivePreview,
+    'POST /api/closures/waive': () =>
+      Response.json({ detail: '2025-Arjun-GoldRing is already forfeited' }, { status: 422 }),
+  })
+  showPage(server, '/closures', { '/closures': <ClosuresPage /> })
+
+  await waiveOff('22000')
+  await confirmWaiver()
+
+  expect(await screen.findByText('2025-Arjun-GoldRing is already forfeited')).toBeTruthy()
+  expect(
+    (screen.getByRole('checkbox', { name: 'Choose 2025-Arjun-GoldRing' }) as HTMLInputElement).checked,
+  ).toBe(true)
 })
 
 const second = { ...row, id: 4, name: '2025-Arjun-Bangles' }

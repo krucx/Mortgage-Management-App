@@ -216,200 +216,203 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   })
 
   return (
-    <form onSubmit={submit}>
-      <div className="grid-3">
-        <label>
-          Date received
-          <input
-            type="date"
-            required
-            max={todayIso()}
-            value={paidOn}
-            onChange={(event) => setPaidOn(event.target.value)}
-          />
-        </label>
-        <label>
-          Amount received (₹)
-          <input
-            type="number"
-            required
-            min="0.01"
-            step="0.01"
-            value={totalText}
-            onChange={(event) => setTotalText(event.target.value)}
-          />
-          {chosen.length > 0 && (
-            <button
-              type="button"
-              className="link"
-              onClick={() => setTotalText(String(totalOutstanding / 100))}
-            >
-              The full Outstanding on the chosen Mortgages ({formatINR(totalOutstanding)})
-            </button>
-          )}
-        </label>
-        <label>
-          Method
-          <PaymentMethodSelect methods={methods} value={method} onChange={setMethod} />
-        </label>
-      </div>
-
-      <fieldset>
-        <legend>Allocate across Mortgages</legend>
-        <div className="row">
-          {(
-            [
-              ['equal', 'Equally (suggested)'],
-              ['amount', 'By amount'],
-              ['percent', 'By percentage'],
-            ] as const
-          ).map(([value, label]) => (
-            <label key={value} className="inline">
-              <input
-                type="radio"
-                name="allocation-mode"
-                checked={mode === value}
-                onChange={() => switchMode(value)}
-              />
-              {label}
-            </label>
-          ))}
+    <>
+      <form onSubmit={submit}>
+        <div className="grid-3">
+          <label>
+            Date received
+            <input
+              type="date"
+              required
+              max={todayIso()}
+              value={paidOn}
+              onChange={(event) => setPaidOn(event.target.value)}
+            />
+          </label>
+          <label>
+            Amount received (₹)
+            <input
+              type="number"
+              required
+              min="0.01"
+              step="0.01"
+              value={totalText}
+              onChange={(event) => setTotalText(event.target.value)}
+            />
+            {chosen.length > 0 && (
+              <button
+                type="button"
+                className="link"
+                onClick={() => setTotalText(String(totalOutstanding / 100))}
+              >
+                The full Outstanding on the chosen Mortgages ({formatINR(totalOutstanding)})
+              </button>
+            )}
+          </label>
+          <label>
+            Method
+            <PaymentMethodSelect methods={methods} value={method} onChange={setMethod} />
+          </label>
         </div>
 
-        {mortgages === null ? (
-          <p>Loading…</p>
-        ) : mortgages.length === 0 ? (
-          <p className="hint">No Active Mortgages on {formatDate(paidOn)}.</p>
-        ) : payable.length === 0 ? (
-          <p className="hint">Nothing Outstanding on {formatDate(paidOn)}.</p>
-        ) : (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th aria-label="Include" />
-                  <th>Mortgage</th>
-                  <th className="num">Outstanding on {formatDate(paidOn)}</th>
-                  {mode === 'percent' && <th className="num">%</th>}
-                  <th className="num">Allocation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* The ticked ones first, so the Mortgages being paid are together. */}
-                {tickedFirst(payable, selected).map((m) => {
-                  const index = chosen.findIndex((c) => c.id === m.id)
-                  const amount = index >= 0 && amounts ? amounts[index] : null
-                  return (
-                    <tr key={m.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          aria-label={`Include ${m.name}`}
-                          checked={selected.has(m.id)}
-                          onChange={() => toggle(m.id)}
-                        />
-                      </td>
-                      <td>
-                        <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
-                      </td>
-                      <td className="num">{formatINR(m.outstanding_total)}</td>
-                      {mode === 'percent' && (
+        <fieldset>
+          <legend>Allocate across Mortgages</legend>
+          <div className="row">
+            {(
+              [
+                ['equal', 'Equally (suggested)'],
+                ['amount', 'By amount'],
+                ['percent', 'By percentage'],
+              ] as const
+            ).map(([value, label]) => (
+              <label key={value} className="inline">
+                <input
+                  type="radio"
+                  name="allocation-mode"
+                  checked={mode === value}
+                  onChange={() => switchMode(value)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+
+          {mortgages === null ? (
+            <p>Loading…</p>
+          ) : mortgages.length === 0 ? (
+            <p className="hint">No Active Mortgages on {formatDate(paidOn)}.</p>
+          ) : payable.length === 0 ? (
+            <p className="hint">Nothing Outstanding on {formatDate(paidOn)}.</p>
+          ) : (
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th aria-label="Include" />
+                    <th>Mortgage</th>
+                    <th className="num">Outstanding on {formatDate(paidOn)}</th>
+                    {mode === 'percent' && <th className="num">%</th>}
+                    <th className="num">Allocation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* The ticked ones first, so the Mortgages being paid are together. */}
+                  {tickedFirst(payable, selected).map((m) => {
+                    const index = chosen.findIndex((c) => c.id === m.id)
+                    const amount = index >= 0 && amounts ? amounts[index] : null
+                    return (
+                      <tr key={m.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={`Include ${m.name}`}
+                            checked={selected.has(m.id)}
+                            onChange={() => toggle(m.id)}
+                          />
+                        </td>
+                        <td>
+                          <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
+                        </td>
+                        <td className="num">{formatINR(m.outstanding_total)}</td>
+                        {mode === 'percent' && (
+                          <td className="num">
+                            {index >= 0 && (
+                              <input
+                                type="number"
+                                className="small-input"
+                                aria-label={`Percentage for ${m.name}`}
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={percentText[m.id] ?? ''}
+                                onChange={(event) =>
+                                  setPercentText({ ...percentText, [m.id]: event.target.value })
+                                }
+                              />
+                            )}
+                          </td>
+                        )}
                         <td className="num">
-                          {index >= 0 && (
+                          {index < 0 ? (
+                            '—'
+                          ) : mode === 'amount' ? (
                             <input
                               type="number"
                               className="small-input"
-                              aria-label={`Percentage for ${m.name}`}
+                              aria-label={`Amount for ${m.name}`}
                               min="0"
-                              max="100"
                               step="0.01"
-                              value={percentText[m.id] ?? ''}
+                              value={amountText[m.id] ?? ''}
                               onChange={(event) =>
-                                setPercentText({ ...percentText, [m.id]: event.target.value })
+                                setAmountText({ ...amountText, [m.id]: event.target.value })
                               }
                             />
+                          ) : amount === null ? (
+                            '—'
+                          ) : (
+                            formatINR(amount)
                           )}
                         </td>
-                      )}
-                      <td className="num">
-                        {index < 0 ? (
-                          '—'
-                        ) : mode === 'amount' ? (
-                          <input
-                            type="number"
-                            className="small-input"
-                            aria-label={`Amount for ${m.name}`}
-                            min="0"
-                            step="0.01"
-                            value={amountText[m.id] ?? ''}
-                            onChange={(event) =>
-                              setAmountText({ ...amountText, [m.id]: event.target.value })
-                            }
-                          />
-                        ) : amount === null ? (
-                          '—'
-                        ) : (
-                          formatINR(amount)
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <p className="hint">
-          Within each Mortgage the Allocation pays unpaid interest first, then Principal.
-        </p>
-        {awaitingRedemption.length > 0 && (
-          <details className="tucked">
-            <summary>Paid off, waiting for Redemption ({awaitingRedemption.length})</summary>
-            <ul className="plain stack">
-              {awaitingRedemption.map((m) => (
-                <li key={m.id} className="row spread">
-                  <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
-                  <Link className="button small secondary" to={`/mortgages/${m.id}/redeem`}>
-                    Redeem
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-      </fieldset>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="hint">
+            Within each Mortgage the Allocation pays unpaid interest first, then Principal.
+          </p>
+          {awaitingRedemption.length > 0 && (
+            <details className="tucked">
+              <summary>Paid off, waiting for Redemption ({awaitingRedemption.length})</summary>
+              <ul className="plain stack">
+                {awaitingRedemption.map((m) => (
+                  <li key={m.id} className="row spread">
+                    <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
+                    <Link className="button small secondary" to={`/mortgages/${m.id}/redeem`}>
+                      Redeem
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </fieldset>
 
-      <label>
-        Reference (optional)
-        <input
-          placeholder="e.g. UPI transaction ID"
-          value={reference}
-          onChange={(event) => setReference(event.target.value)}
-        />
-      </label>
+        <label>
+          Reference (optional)
+          <input
+            placeholder="e.g. UPI transaction ID"
+            value={reference}
+            onChange={(event) => setReference(event.target.value)}
+          />
+        </label>
 
-      {total > 0 && problems.length > 0 && (
-        <ul className="problems">
-          {problems.map((problem) => (
-            <li key={problem}>{problem}</li>
-          ))}
-        </ul>
-      )}
-      {proposed && (
-        <>
-          <h3>What changes</h3>
-          <PreviewSection preview={preview} />
-        </>
-      )}
-      <div className="row">
-        <button type="submit" disabled={!canSave}>
-          {saving ? 'Saving…' : `Record Payment${total > 0 ? ` of ${formatINR(total)}` : ''}`}
-        </button>
-      </div>
-      {(error ?? listed.error) && (
-        <p className="status error">{error ?? listed.error?.message}</p>
-      )}
-      {confirmDialog}
+        {total > 0 && problems.length > 0 && (
+          <ul className="problems">
+            {problems.map((problem) => (
+              <li key={problem}>{problem}</li>
+            ))}
+          </ul>
+        )}
+        {proposed && (
+          <>
+            <h3>What changes</h3>
+            <PreviewSection preview={preview} />
+          </>
+        )}
+        <div className="row">
+          <button type="submit" disabled={!canSave}>
+            {saving ? 'Saving…' : `Record Payment${total > 0 ? ` of ${formatINR(total)}` : ''}`}
+          </button>
+        </div>
+        {(error ?? listed.error) && (
+          <p className="status error">{error ?? listed.error?.message}</p>
+        )}
+        {confirmDialog}
+      </form>
+      {/* Its own form, so outside the Payment's: forms cannot nest. */}
       {paidOff && (
         <RedeemPaidOff
           payment={paidOff.payment}
@@ -417,6 +420,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           onDone={() => navigate(`/payments/${paidOff.payment.id}`)}
         />
       )}
-    </form>
+    </>
   )
 }

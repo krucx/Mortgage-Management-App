@@ -45,14 +45,19 @@ const preview = [3, 4].map((id, i) => ({
   ledger_changes: [],
 }))
 
-/** A form closing `forfeiting`, showing each Mortgage's Closure as the Preview has it. */
-function Form() {
+const confirming = () => ({ title: 'Forfeit 2?', confirmLabel: 'Confirm Forfeiture' })
+
+/** A form closing `closing` (Forfeiting 3 and 4, unless told otherwise), showing each
+ *  Mortgage's Closure as the Preview has it. */
+function Form({
+  closing: proposed = forfeiting,
+  confirm = confirming,
+}: {
+  closing?: Closing
+  confirm?: typeof confirming | null
+}) {
   const [done, setDone] = useState(false)
-  const closing = useClosing({
-    closing: forfeiting,
-    confirm: () => ({ title: 'Forfeit 2?', confirmLabel: 'Confirm Forfeiture' }),
-    saved: () => setDone(true),
-  })
+  const closing = useClosing({ closing: proposed, confirm, saved: () => setDone(true) })
   return (
     <form onSubmit={closing.submit}>
       {[3, 4].map((id) => (
@@ -70,8 +75,8 @@ function Form() {
   )
 }
 
-function showForm(server: FakeServer) {
-  showPage(server, '/', { '/': <Form /> })
+function showForm(server: FakeServer, form = <Form />) {
+  showPage(server, '/', { '/': form })
 }
 
 async function confirmForfeiture() {
@@ -119,4 +124,56 @@ test("a refusal shows the backend's reason and closes nothing", async () => {
 
   expect(await screen.findByText('Mortgage 4: There are Payments after that date')).toBeTruthy()
   expect(screen.queryByText('Closed')).toBeNull()
+})
+
+test('a Waiver and a Redemption each go to their own routes', async () => {
+  const waiving: Closing = {
+    kind: 'waive',
+    waive: {
+      waived_on: '2026-04-20',
+      method: 'upi',
+      reference: 'UTR9',
+      note: '',
+      mortgages: [{ mortgage_id: 3, amount_paid: 2_200_000 }],
+    },
+  }
+  const redeeming: Closing = {
+    kind: 'redeem',
+    redeem: { redeemed_on: '2026-04-20', method: 'cash', reference: null, mortgage_ids: [3] },
+  }
+  const server = fakeServer({
+    'POST /api/closures/waive-preview': preview,
+    'POST /api/closures/waive': [],
+    'POST /api/closures/redeem-preview': preview,
+    'POST /api/closures/redeem': [],
+  })
+  showForm(server, <Form closing={waiving} />)
+  await confirmForfeiture()
+  expect(await screen.findByText('Closed')).toBeTruthy()
+  cleanup()
+  showForm(server, <Form closing={redeeming} />)
+  await confirmForfeiture()
+  expect(await screen.findByText('Closed')).toBeTruthy()
+
+  expect(server.requests.filter((r) => r.startsWith('POST /api/closures/'))).toEqual([
+    'POST /api/closures/waive-preview',
+    'POST /api/closures/waive',
+    'POST /api/closures/redeem-preview',
+    'POST /api/closures/redeem',
+  ])
+})
+
+test('a closing whose own dialog already asked saves without asking again', async () => {
+  const server = fakeServer({
+    'POST /api/closures/forfeit-preview': preview,
+    'POST /api/closures/forfeit': [],
+  })
+  showForm(server, <Form confirm={null} />)
+
+  const submit = (await screen.findByRole('button', { name: 'Forfeit' })) as HTMLButtonElement
+  await vi.waitFor(() => expect(submit.disabled).toBe(false), { timeout: 2000 })
+  fireEvent.click(submit)
+
+  expect(await screen.findByText('Closed')).toBeTruthy()
+  expect(screen.queryByRole('dialog')).toBeNull()
 })

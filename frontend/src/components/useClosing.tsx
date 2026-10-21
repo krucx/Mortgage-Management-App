@@ -1,11 +1,41 @@
-import type { Closure, ForfeitAllIn } from '../api'
-import { changes, previews } from '../requests'
-import { useLedgerChange } from '../serverState'
+import type { Closure, ForfeitAllIn, RedeemAllIn, WaiveAllIn } from '../api'
+import { changes, previews, type PreviewRequest } from '../requests'
+import { useLedgerChange, type ApiClient } from '../serverState'
 import type { ConfirmOptions } from './ConfirmDialog'
 import { useProposedChange } from './useProposedChange'
 
-/** A Closure the Lender proposes: for now, Forfeiting one or more Mortgages on a date. */
-export type Closing = { kind: 'forfeit'; forfeit: ForfeitAllIn }
+/** A Closure the Lender proposes: Redeeming, Waiving off or Forfeiting one or more
+ *  Mortgages on a date. */
+export type Closing =
+  | { kind: 'redeem'; redeem: RedeemAllIn }
+  | { kind: 'waive'; waive: WaiveAllIn }
+  | { kind: 'forfeit'; forfeit: ForfeitAllIn }
+
+type Requests = {
+  preview: () => PreviewRequest
+  save: (client: ApiClient) => Promise<unknown>
+}
+
+/** Each kind's Preview and save, for a Closing of that kind. */
+function requestsFor(closing: Closing): Requests {
+  switch (closing.kind) {
+    case 'redeem':
+      return {
+        preview: () => previews.redeemAll(closing.redeem),
+        save: (client) => changes.redeemAll(client, closing.redeem),
+      }
+    case 'waive':
+      return {
+        preview: () => previews.waiveAll(closing.waive),
+        save: (client) => changes.waiveAll(client, closing.waive),
+      }
+    case 'forfeit':
+      return {
+        preview: () => previews.forfeitAll(closing.forfeit),
+        save: (client) => changes.forfeitAll(client, closing.forfeit),
+      }
+  }
+}
 
 /**
  * Closing Mortgages, one or several at once: the Preview of `closing` as it is drafted,
@@ -21,15 +51,16 @@ export function useClosing({
 }: {
   /** What to close, or null while the draft can't be saved. */
   closing: Closing | null
-  confirm: (closing: Closing) => ConfirmOptions
+  /** The confirmation asked for; null when the page's own dialog has asked already. */
+  confirm: ((closing: Closing) => ConfirmOptions) | null
   saved: () => void
 }) {
   const changeLedger = useLedgerChange()
   const proposed = useProposedChange({
     change: closing,
-    preview: (closing) => previews.forfeitAll(closing.forfeit),
+    preview: (closing) => requestsFor(closing).preview(),
     confirm,
-    save: (closing) => changeLedger((client) => changes.forfeitAll(client, closing.forfeit)),
+    save: (closing) => changeLedger((client) => requestsFor(closing).save(client)),
     saved,
   })
   const closures = new Map(

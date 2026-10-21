@@ -22,8 +22,10 @@ from mortgage_backend.lending.changes import (
     ForfeitAllIn,
     ForfeitIn,
     PaymentIn,
+    RedeemAllIn,
     RedeemIn,
     TermChangeIn,
+    WaiveAllIn,
     WaiveIn,
     add_term_change,
     create_mortgage,
@@ -32,11 +34,13 @@ from mortgage_backend.lending.changes import (
     forfeit_all,
     record_payment,
     redeem,
+    redeem_all,
     remove_term_change,
     reopen,
     set_collateral,
     void_payment,
     waive,
+    waive_all,
 )
 from mortgage_backend.lending.ledger import LedgerEvent, LedgerStep
 from mortgage_backend.lending.mortgages import MortgageEdit, MortgageIn, load_mortgage
@@ -261,6 +265,34 @@ def preview_forfeit(
             [mortgage_id],
             today,
             lambda: forfeit(conn, mortgage_id, body, today, now),
+        )
+
+
+@router.post("/closures/redeem-preview")
+def preview_redeem_all(
+    body: RedeemAllIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[MortgagePreview]:
+    """Each of the Mortgages before and after Redeeming them all."""
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            body.mortgage_ids,
+            today,
+            lambda: redeem_all(conn, body, today, now),
+        )
+
+
+@router.post("/closures/waive-preview")
+def preview_waive_all(
+    body: WaiveAllIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[MortgagePreview]:
+    """Each of the Mortgages before and after Waiving them all off."""
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [m.mortgage_id for m in body.mortgages],
+            today,
+            lambda: waive_all(conn, body, today, now),
         )
 
 

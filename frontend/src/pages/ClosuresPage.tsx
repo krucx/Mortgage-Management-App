@@ -1,5 +1,5 @@
 import { useQueries } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { MORTGAGE_SORTS, READY_SORTS, type PaymentMethod, type Redemption } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
@@ -9,13 +9,12 @@ import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
 import { useClosing, type Closing } from '../components/useClosing'
 import { useListPage } from '../components/useListPage'
-import { useConfirm } from '../components/useConfirm'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { formatDate, todayIso } from '../format'
 import { tickedFirst } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
-import { changes, lists, redemptionQuery } from '../requests'
-import { useLedgerChange, useServerState, type ApiClient } from '../serverState'
+import { lists, redemptionQuery } from '../requests'
+import { useServerState } from '../serverState'
 
 /**
  * Closures in one place: Mortgages paid off and waiting to be Redeemed, and Active
@@ -229,35 +228,6 @@ function useQuotes(chosen: Chosen[], on: string) {
   return (id: number) => quotes[`${on}:${id}`]
 }
 
-/** Close each of `rows` in turn; what went wrong with any that could not be. */
-async function closeEach<Row extends Chosen>(
-  rows: Row[],
-  changeLedger: ReturnType<typeof useLedgerChange>,
-  close: (client: ApiClient, row: Row) => Promise<unknown>,
-): Promise<string[]> {
-  const failed: string[] = []
-  for (const r of rows) {
-    try {
-      await changeLedger((client) => close(client, r))
-    } catch (err) {
-      failed.push(`${r.name}: ${(err as Error).message}`)
-    }
-  }
-  return failed
-}
-
-/** What went wrong closing some of the chosen. */
-function Failures({ failures }: { failures: string[] }) {
-  if (failures.length === 0) return null
-  return (
-    <ul className="problems">
-      {failures.map((failure) => (
-        <li key={failure}>{failure}</li>
-      ))}
-    </ul>
-  )
-}
-
 /** The Redemption Amount cell: the amount, still loading, or why there is none. */
 function Owed({ quote }: { quote: Redemption | string | undefined }) {
   if (typeof quote === 'string') return <span className="status error">{quote}</span>
@@ -393,52 +363,49 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
 }
 
 /** Waive off several Mortgages on one date: each takes its own final Payment (or none),
- *  and the rest of its Redemption Amount is let off. */
+ *  and the rest of its Redemption Amount is let off; all of them, or none if the
+ *  backend refuses any. */
 function WaiveChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void }) {
   const [on, setOn] = useState(todayIso())
   const [received, setReceived] = useState<Record<number, string>>({})
   const [method, setMethod] = useState<PaymentMethod>('cash')
+  const [reference, setReference] = useState('')
   const methods = usePaymentMethods()
   const [note, setNote] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [failures, setFailures] = useState<string[]>([])
-  const [confirm, confirmDialog] = useConfirm()
-  const changeLedger = useLedgerChange()
   const quoteOf = useQuotes(chosen, on)
 
-  const rows = chosen.map((m) => {
-    const quote = quoteOf(m.id)
-    const owed = typeof quote === 'object' ? quote.total : null
-    const got = received[m.id] ? rupeesToPaise(received[m.id]) : null
-    const waived = owed !== null && got !== null ? owed - got : null
-    // Only something short of the Redemption Amount can be waived; all of it is a Redemption.
-    const problem =
-      owed === 0
-        ? 'Owes nothing: Redeem it instead'
-        : waived !== null && waived <= 0
-          ? 'Covers what is owed: Redeem it instead'
-          : null
-    return { ...m, quote, owed, got, waived, problem }
-  })
-  const ready = rows.every((r) => r.waived !== null && !r.problem)
-  const totalWaived = rows.reduce((sum, r) => sum + (r.waived ?? 0), 0)
-  const anyPaid = rows.some((r) => (r.got ?? 0) > 0)
-  const future = on > todayIso()
-
-  async function submit(event: FormEvent) {
-    event.preventDefault()
-    if (!ready || future) return
-    const confirmed = await confirm({
+  const entered = chosen.every((m) => received[m.id])
+  const closing: Closing | null = entered
+    ? {
+        kind: 'waive',
+        waive: {
+          waived_on: on,
+          method,
+          reference: reference.trim() || null,
+          note,
+          mortgages: chosen.map((m) => ({
+            mortgage_id: m.id,
+            amount_paid: rupeesToPaise(received[m.id]),
+          })),
+        },
+      }
+    : null
+  const { preview, submit, saving, canSave, error, confirmDialog, closureOf } = useClosing({
+    closing,
+    confirm: () => ({
       title: `Waive off ${chosen.length} Mortgage${chosen.length > 1 ? 's' : ''}?`,
       body: (
         <>
           <Summary
             rows={[
               ['Waived on', formatDate(on)],
-              ...rows.map((r): [string, string] => [
-                r.name,
-                `Received ${formatINR(r.got ?? 0)}, waived ${formatINR(r.waived ?? 0)}`,
-              ]),
+              ...chosen.map((m): [string, string] => {
+                const closure = closureOf(m.id)
+                return [
+                  m.name,
+                  `Received ${formatINR(closure?.payment_amount ?? 0)}, waived ${formatINR(closure?.waived_amount ?? 0)}`,
+                ]
+              }),
               ['Total waived off', formatINR(totalWaived)],
               ['Reason', note.trim() || '—'],
             ]}
@@ -447,22 +414,14 @@ function WaiveChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void 
         </>
       ),
       confirmLabel: 'Confirm Waiver',
-    })
-    if (!confirmed) return
-    setSaving(true)
-    const failed = await closeEach(rows, changeLedger, (client, r) =>
-      changes.waive(client, r.id, {
-        waived_on: on,
-        amount_paid: r.got ?? 0,
-        method,
-        reference: null,
-        note,
-      }),
-    )
-    setSaving(false)
-    setFailures(failed)
-    if (failed.length === 0) onDone()
-  }
+    }),
+    saved: onDone,
+  })
+  // What each one lets off, as the Preview works it out.
+  const waivedAmounts = chosen.map((m) => closureOf(m.id)?.waived_amount ?? null)
+  const previewed = closing !== null && !preview.error && waivedAmounts.every((w) => w !== null)
+  const totalWaived = waivedAmounts.reduce<number>((sum, w) => sum + (w ?? 0), 0)
+  const anyPaid = chosen.some((m) => rupeesToPaise(received[m.id] || '0') > 0)
 
   return (
     <form onSubmit={submit} className="stack close-panel">
@@ -492,31 +451,29 @@ function WaiveChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void 
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.name}</td>
+            {chosen.map((m, i) => (
+              <tr key={m.id}>
+                <td>{m.name}</td>
                 <td className="num">
-                  <Owed quote={r.quote} />
+                  <Owed quote={quoteOf(m.id)} />
                 </td>
                 <td className="num">
                   <input
                     type="number"
                     className="small-input"
-                    aria-label={`Received now for ${r.name}`}
+                    aria-label={`Received now for ${m.name}`}
                     required
                     min="0"
                     step="0.01"
-                    value={received[r.id] ?? ''}
-                    onChange={(event) => setReceived({ ...received, [r.id]: event.target.value })}
+                    value={received[m.id] ?? ''}
+                    onChange={(event) => setReceived({ ...received, [m.id]: event.target.value })}
                   />
                 </td>
                 <td className="num">
-                  {r.problem ? (
-                    <span className="status error">{r.problem}</span>
-                  ) : r.waived === null ? (
+                  {!previewed || waivedAmounts[i] === null ? (
                     '—'
                   ) : (
-                    <span className="status warning">{formatINR(r.waived)}</span>
+                    <span className="status warning">{formatINR(waivedAmounts[i])}</span>
                   )}
                 </td>
               </tr>
@@ -525,21 +482,31 @@ function WaiveChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void 
         </table>
       </div>
       {anyPaid && (
-        <label>
-          Final Payments made by
-          <PaymentMethodSelect methods={methods} value={method} onChange={setMethod} />
-        </label>
+        <div className="grid-2">
+          <label>
+            Final Payments made by
+            <PaymentMethodSelect methods={methods} value={method} onChange={setMethod} />
+          </label>
+          <label>
+            Reference (for all)
+            <input
+              placeholder="e.g. UPI transaction id"
+              value={reference}
+              onChange={(event) => setReference(event.target.value)}
+            />
+          </label>
+        </div>
       )}
-      {future && <p className="hint">A Waiver cannot be recorded for a future date.</p>}
+      {closing && <PreviewSection preview={preview} />}
       <div className="row">
-        <button type="submit" disabled={saving || !ready || future}>
+        <button type="submit" disabled={!canSave || !previewed}>
           {saving ? 'Waiving off…' : `Waive off ${chosen.length}`}
         </button>
-        {ready && (
+        {previewed && (
           <span className="status warning">Total waived off {formatINR(totalWaived)}</span>
         )}
       </div>
-      <Failures failures={failures} />
+      {error && <p className="status error">{error}</p>}
       {confirmDialog}
     </form>
   )

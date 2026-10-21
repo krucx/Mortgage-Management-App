@@ -26,9 +26,11 @@ import type {
   PaymentSort,
   Purity,
   ReadySort,
+  RedeemAllIn,
   RedeemIn,
   TermChangeIn,
   Terms,
+  WaiveAllIn,
   WaiveIn,
 } from './api'
 import { dataOrThrow, keys, type ApiClient } from './serverState'
@@ -169,6 +171,14 @@ export const previews = {
         }),
       ),
   }),
+  redeemAll: (redeem: RedeemAllIn): PreviewRequest => ({
+    key: ['redeem-all', redeem],
+    load: (client) => dataOrThrow(client.POST('/api/closures/redeem-preview', { body: redeem })),
+  }),
+  waiveAll: (waive: WaiveAllIn): PreviewRequest => ({
+    key: ['waive-all', waive],
+    load: (client) => dataOrThrow(client.POST('/api/closures/waive-preview', { body: waive })),
+  }),
   forfeitAll: (forfeit: ForfeitAllIn): PreviewRequest => ({
     key: ['forfeit-all', forfeit],
     load: (client) => dataOrThrow(client.POST('/api/closures/forfeit-preview', { body: forfeit })),
@@ -237,6 +247,10 @@ export const changes = {
         body: forfeit,
       }),
     ),
+  redeemAll: (client: ApiClient, redeem: RedeemAllIn) =>
+    dataOrThrow(client.POST('/api/closures/redeem', { body: redeem })),
+  waiveAll: (client: ApiClient, waive: WaiveAllIn) =>
+    dataOrThrow(client.POST('/api/closures/waive', { body: waive })),
   forfeitAll: (client: ApiClient, forfeit: ForfeitAllIn) =>
     dataOrThrow(client.POST('/api/closures/forfeit', { body: forfeit })),
   reopen: (client: ApiClient, id: number, reason: string) =>

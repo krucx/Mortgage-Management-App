@@ -107,6 +107,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/closures/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Redeem All
+         * @description Redeem several Mortgages at once: all of them, or (if any is refused) none.
+         */
+        post: operations["post_redeem_all_api_closures_redeem_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/closures/redeem-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Redeem All
+         * @description Each of the Mortgages before and after Redeeming them all.
+         */
+        post: operations["preview_redeem_all_api_closures_redeem_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/closures/waive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Waive All
+         * @description Waive off several Mortgages at once: all of them, or (if any is refused) none.
+         */
+        post: operations["post_waive_all_api_closures_waive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/closures/waive-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Waive All
+         * @description Each of the Mortgages before and after Waiving them all off.
+         */
+        post: operations["preview_waive_all_api_closures_waive_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/customers": {
         parameters: {
             query?: never;
@@ -2126,6 +2206,22 @@ export interface components {
             /** Principal Paid */
             principal_paid: number;
         };
+        /**
+         * RedeemAllIn
+         * @description Several Mortgages Redeemed on one date, any final Payments made the same way.
+         */
+        RedeemAllIn: {
+            method: components["schemas"]["PaymentMethod"];
+            /** Mortgage Ids */
+            mortgage_ids: number[];
+            /**
+             * Redeemed On
+             * Format: date
+             */
+            redeemed_on: string;
+            /** Reference */
+            reference?: string | null;
+        };
         /** RedeemIn */
         RedeemIn: {
             method: components["schemas"]["PaymentMethod"];
@@ -2237,6 +2333,27 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /**
+         * WaiveAllIn
+         * @description Several Mortgages Waived off on one date, each with its own final Payment.
+         */
+        WaiveAllIn: {
+            method: components["schemas"]["PaymentMethod"];
+            /** Mortgages */
+            mortgages: components["schemas"]["WaivedMortgageIn"][];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Reference */
+            reference?: string | null;
+            /**
+             * Waived On
+             * Format: date
+             */
+            waived_on: string;
+        };
         /** WaiveIn */
         WaiveIn: {
             /** Amount Paid */
@@ -2254,6 +2371,13 @@ export interface components {
              * Format: date
              */
             waived_on: string;
+        };
+        /** WaivedMortgageIn */
+        WaivedMortgageIn: {
+            /** Amount Paid */
+            amount_paid: number;
+            /** Mortgage Id */
+            mortgage_id: number;
         };
     };
     responses: never;
@@ -2423,6 +2547,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_ReadyToRedeem_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_redeem_all_api_closures_redeem_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedeemAllIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mortgage"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_redeem_all_api_closures_redeem_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedeemAllIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MortgagePreview"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_waive_all_api_closures_waive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaiveAllIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mortgage"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_waive_all_api_closures_waive_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaiveAllIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MortgagePreview"][];
                 };
             };
             /** @description Validation Error */

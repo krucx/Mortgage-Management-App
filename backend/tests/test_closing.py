@@ -429,3 +429,127 @@ def test_if_any_one_cannot_be_forfeited_none_are_and_the_reason_names_it(
         assert client.get(f"/api/mortgages/{m['id']}").json()["status"] == "active"
     history = client.get(f"/api/mortgages/{mortgage['id']}/history").json()
     assert "forfeited" not in [entry["action"] for entry in history]
+
+
+def waive_all(client, paid, on="2026-04-20", preview=False, reference="UTR9"):
+    """Waive off a set of Mortgages on one date: `paid` is what each one's final Payment
+    brings in, by Mortgage."""
+    return client.post(
+        "/api/closures/waive" + ("-preview" if preview else ""),
+        json={
+            "waived_on": on,
+            "method": "upi",
+            "reference": reference,
+            "note": "Old friends",
+            "mortgages": [
+                {"mortgage_id": m["id"], "amount_paid": amount} for m, amount in paid
+            ],
+        },
+    )
+
+
+def test_waiving_off_several_lets_off_each_rest_and_keeps_the_reference(
+    client, ramesh, mortgage
+):
+    other = lend(client, ramesh)
+    # ₹1,12,000 owed on each on 20 Apr.
+    response = waive_all(client, [(mortgage, 111_500_00), (other, 110_000_00)])
+
+    assert response.status_code == 200, response.text
+    closures = [
+        client.get(f"/api/mortgages/{m['id']}").json()["closure"] for m in (mortgage, other)
+    ]
+    assert [(c["kind"], c["payment_amount"], c["waived_amount"]) for c in closures] == [
+        ("waived", 111_500_00, 500_00),
+        ("waived", 110_000_00, 2_000_00),
+    ]
+    payments = [client.get(f"/api/payments/{c['payment_id']}").json() for c in closures]
+    assert [(p["method"], p["reference"]) for p in payments] == [("upi", "UTR9")] * 2
+
+
+def test_if_any_one_cannot_be_waived_off_none_are_and_the_reason_names_it(
+    client, ramesh, mortgage
+):
+    other = lend(client, ramesh, name="2026-Ramesh-Bangles")
+
+    # All that the Bangles owe is a Redemption, not a Waiver.
+    response = waive_all(client, [(mortgage, 111_500_00), (other, 112_000_00)])
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "2026-Ramesh-Bangles: ₹1,12,000 covers the ₹1,12,000 owed: Redeem it instead"
+    )
+    for m in (mortgage, other):
+        assert client.get(f"/api/mortgages/{m['id']}").json()["status"] == "active"
+    assert client.get("/api/payments").json()["items"] == []
+
+
+def test_the_preview_of_waiving_off_several_shows_each_closure_and_saves_nothing(
+    client, ramesh, mortgage
+):
+    other = lend(client, ramesh)
+
+    response = waive_all(
+        client, [(mortgage, 111_500_00), (other, 110_000_00)], preview=True
+    )
+
+    assert response.status_code == 200, response.text
+    assert [p["after"]["closure"]["waived_amount"] for p in response.json()] == [
+        500_00,
+        2_000_00,
+    ]
+    for m in (mortgage, other):
+        assert client.get(f"/api/mortgages/{m['id']}").json()["status"] == "active"
+
+
+def redeem_all(client, mortgages, on="2026-04-20", preview=False):
+    """Redeem a set of Mortgages on one date, any final Payments by UPI."""
+    return client.post(
+        "/api/closures/redeem" + ("-preview" if preview else ""),
+        json={
+            "redeemed_on": on,
+            "method": "upi",
+            "reference": "UTR5",
+            "mortgage_ids": [m["id"] for m in mortgages],
+        },
+    )
+
+
+def test_redeeming_several_closes_each_and_records_any_final_payment(
+    client, ramesh, mortgage
+):
+    other = lend(client, ramesh)
+    # Paid off on the 14 Apr Accrual Date: nothing more to pay.
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
+    # Paid off today, 6 days in: a full month's ₹3,000 is the final Payment.
+    pay(client, ramesh, {other["id"]: 109_000_00}, on="2026-04-20")
+
+    response = redeem_all(client, [mortgage, other])
+
+    assert response.status_code == 200, response.text
+    closures = [
+        client.get(f"/api/mortgages/{m['id']}").json()["closure"] for m in (mortgage, other)
+    ]
+    assert [(c["kind"], c["payment_amount"]) for c in closures] == [
+        ("redeemed", None),
+        ("redeemed", 3_000_00),
+    ]
+    final = client.get(f"/api/payments/{closures[1]['payment_id']}").json()
+    assert (final["method"], final["reference"]) == ("upi", "UTR5")
+
+
+def test_if_any_one_cannot_be_redeemed_none_are_and_the_preview_saves_nothing(
+    client, ramesh, mortgage
+):
+    other = lend(client, ramesh)
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-20")
+    pay(client, ramesh, {other["id"]: 109_000_00}, on="2026-04-20")
+    assert redeem(client, other).status_code == 200
+
+    preview = redeem_all(client, [mortgage], preview=True)
+    refused = redeem_all(client, [mortgage, other])
+
+    assert [p["after"]["closure"]["payment_amount"] for p in preview.json()] == [3_000_00]
+    assert refused.status_code == 422
+    assert refused.json()["detail"] == f"{other['name']} is already redeemed"
+    assert client.get(f"/api/mortgages/{mortgage['id']}").json()["status"] == "active"

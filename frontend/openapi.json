@@ -2779,6 +2779,45 @@
         "title": "ReceiptLineOut",
         "type": "object"
       },
+      "RedeemAllIn": {
+        "description": "Several Mortgages Redeemed on one date, any final Payments made the same way.",
+        "properties": {
+          "method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "mortgage_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Mortgage Ids",
+            "type": "array"
+          },
+          "redeemed_on": {
+            "format": "date",
+            "title": "Redeemed On",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          }
+        },
+        "required": [
+          "redeemed_on",
+          "method",
+          "mortgage_ids"
+        ],
+        "title": "RedeemAllIn",
+        "type": "object"
+      },
       "RedeemIn": {
         "properties": {
           "method": {
@@ -3085,6 +3124,50 @@
         "title": "VoidIn",
         "type": "object"
       },
+      "WaiveAllIn": {
+        "description": "Several Mortgages Waived off on one date, each with its own final Payment.",
+        "properties": {
+          "method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "mortgages": {
+            "items": {
+              "$ref": "#/components/schemas/WaivedMortgageIn"
+            },
+            "minItems": 1,
+            "title": "Mortgages",
+            "type": "array"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "waived_on": {
+            "format": "date",
+            "title": "Waived On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "waived_on",
+          "method",
+          "mortgages"
+        ],
+        "title": "WaiveAllIn",
+        "type": "object"
+      },
       "WaiveIn": {
         "properties": {
           "amount_paid": {
@@ -3123,6 +3206,25 @@
           "method"
         ],
         "title": "WaiveIn",
+        "type": "object"
+      },
+      "WaivedMortgageIn": {
+        "properties": {
+          "amount_paid": {
+            "minimum": 0.0,
+            "title": "Amount Paid",
+            "type": "integer"
+          },
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mortgage_id",
+          "amount_paid"
+        ],
+        "title": "WaivedMortgageIn",
         "type": "object"
       }
     }
@@ -3399,6 +3501,178 @@
           }
         },
         "summary": "Ready To Redeem"
+      }
+    },
+    "/api/closures/redeem": {
+      "post": {
+        "description": "Redeem several Mortgages at once: all of them, or (if any is refused) none.",
+        "operationId": "post_redeem_all_api_closures_redeem_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemAllIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Mortgage"
+                  },
+                  "title": "Response Post Redeem All Api Closures Redeem Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Redeem All"
+      }
+    },
+    "/api/closures/redeem-preview": {
+      "post": {
+        "description": "Each of the Mortgages before and after Redeeming them all.",
+        "operationId": "preview_redeem_all_api_closures_redeem_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemAllIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Redeem All Api Closures Redeem Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Redeem All"
+      }
+    },
+    "/api/closures/waive": {
+      "post": {
+        "description": "Waive off several Mortgages at once: all of them, or (if any is refused) none.",
+        "operationId": "post_waive_all_api_closures_waive_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaiveAllIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Mortgage"
+                  },
+                  "title": "Response Post Waive All Api Closures Waive Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Waive All"
+      }
+    },
+    "/api/closures/waive-preview": {
+      "post": {
+        "description": "Each of the Mortgages before and after Waiving them all off.",
+        "operationId": "preview_waive_all_api_closures_waive_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaiveAllIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Waive All Api Closures Waive Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Waive All"
       }
     },
     "/api/customers": {

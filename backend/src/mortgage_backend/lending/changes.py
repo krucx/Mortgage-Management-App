@@ -122,6 +122,30 @@ class ForfeitIn(BaseModel):
     note: str = ""
 
 
+class RedeemAllIn(BaseModel):
+    """Several Mortgages Redeemed on one date, any final Payments made the same way."""
+
+    redeemed_on: date
+    method: PaymentMethod  # how the final Payments were made
+    reference: str | None = None
+    mortgage_ids: list[int] = Field(min_length=1)
+
+
+class WaivedMortgageIn(BaseModel):
+    mortgage_id: int
+    amount_paid: int = Field(ge=0)  # paise: its final Payment; the rest is waived
+
+
+class WaiveAllIn(BaseModel):
+    """Several Mortgages Waived off on one date, each with its own final Payment."""
+
+    waived_on: date
+    method: PaymentMethod  # how the final Payments were made, if any
+    reference: str | None = None
+    note: str = ""  # why, for all of them
+    mortgages: list[WaivedMortgageIn] = Field(min_length=1)
+
+
 class ForfeitedMortgageIn(BaseModel):
     mortgage_id: int
     recovered_amount: int = Field(ge=0)  # paise: sale price, or value if kept
@@ -659,6 +683,43 @@ def forfeit(
     )
 
 
+def redeem_all(
+    conn: Connection, redemptions: RedeemAllIn, today: date, now: datetime
+) -> None:
+    """Redeem each of the Mortgages (or refuse); in the caller's transaction, so a
+    refusal of any one leaves all of them as they were."""
+    each = RedeemIn(
+        redeemed_on=redemptions.redeemed_on,
+        method=redemptions.method,
+        reference=redemptions.reference,
+    )
+    for mortgage_id in redemptions.mortgage_ids:
+        with _refusal_names_mortgage(conn, mortgage_id):
+            redeem(conn, mortgage_id, each, today, now)
+
+
+def waive_all(
+    conn: Connection, waivers: WaiveAllIn, today: date, now: datetime
+) -> None:
+    """Waive off each of the Mortgages (or refuse); in the caller's transaction, so a
+    refusal of any one leaves all of them as they were."""
+    for waived in waivers.mortgages:
+        with _refusal_names_mortgage(conn, waived.mortgage_id):
+            waive(
+                conn,
+                waived.mortgage_id,
+                WaiveIn(
+                    waived_on=waivers.waived_on,
+                    amount_paid=waived.amount_paid,
+                    method=waivers.method,
+                    reference=waivers.reference,
+                    note=waivers.note,
+                ),
+                today,
+                now,
+            )
+
+
 def forfeit_all(
     conn: Connection, forfeits: ForfeitAllIn, today: date, now: datetime
 ) -> None:
@@ -846,6 +907,26 @@ def post_forfeit(
     with engine.begin() as conn:
         forfeit(conn, mortgage_id, body, today, now)
         return load_mortgage(conn, mortgage_id, today)
+
+
+@router.post("/closures/redeem")
+def post_redeem_all(
+    body: RedeemAllIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[Mortgage]:
+    """Redeem several Mortgages at once: all of them, or (if any is refused) none."""
+    with engine.begin() as conn:
+        redeem_all(conn, body, today, now)
+        return [load_mortgage(conn, m, today) for m in body.mortgage_ids]
+
+
+@router.post("/closures/waive")
+def post_waive_all(
+    body: WaiveAllIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[Mortgage]:
+    """Waive off several Mortgages at once: all of them, or (if any is refused) none."""
+    with engine.begin() as conn:
+        waive_all(conn, body, today, now)
+        return [load_mortgage(conn, m.mortgage_id, today) for m in body.mortgages]
 
 
 @router.post("/closures/forfeit")
