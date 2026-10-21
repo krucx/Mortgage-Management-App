@@ -5,6 +5,51 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [1.5.0] - 2026-10-21
+
+Close several Mortgages as one change, all or none, with a Preview of every Closure first;
+and a change the app would refuse is now refused before you confirm it. No database
+changes: updating keeps all data and Backups.
+
+### Added
+
+- **Closing several Mortgages at once, all or none:** Forfeiting or Waiving off the
+  Mortgages chosen on Redeem / Forfeit, and Redeeming the ones a Payment left Ready to
+  Redeem, is one change. If any one of them can't be closed, none is, and the reason names
+  that Mortgage. Each shows a Preview of every Closure before you confirm.
+- **Reference on bulk Waive-offs:** the Waive-off panel on Redeem / Forfeit takes a
+  reference for the final Payments, kept on each.
+- **"Fully paid: Redeem now?"** after a Payment shows the Preview of the Redemptions before
+  Redeeming them.
+
+### Changed
+
+- **Refused before you confirm:** a Customer on someone else's Primary Number (or, when
+  editing, a Referrer's) can't be saved, and deleting a Customer who has Mortgages says why
+  without asking first. Before, both were refused only after Confirm.
+- **Mortgage Name:** Create Mortgage waits until the suggested Mortgage Name matches the
+  description and start date as typed, so a Mortgage is never saved under the name for an
+  earlier description. If no name can be suggested, the form says so; type one.
+- Whether a Mortgage can be Waived off, or closed on a future date, is decided by the
+  server alone, and its reason shows in the Preview. A future date is still quoted.
+- A closed Mortgage's figures (final Payment, Waived Amount, profit or loss) are worked out
+  once and read the same on its page, the Dashboard and Receipts; nothing shown changes.
+
+### Fixed
+
+- The Referrer search, and the Customers, Mortgages and Payments filters, have names for
+  screen readers.
+
+### Upgrading
+
+On Windows, run `Setup.bat` (see README). Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
+
 ## [1.4.0] - 2026-10-20
 
 Remove the app from Windows by double-click, keeping the latest Backup, and install it
