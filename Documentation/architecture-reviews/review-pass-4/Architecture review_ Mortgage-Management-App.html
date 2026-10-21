@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Architecture Review Pass 4</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .seam { border-style: dashed; }
+  .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+  .label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+</style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+
+<header class="space-y-3">
+  <h1 class="font-serif text-4xl">Architecture review · pass 4</h1>
+  <p class="text-sm text-slate-500">Mortgage-Management-App · 21 Oct 2026 · scope: does the SQLite database hold too much for a small Lender (about 100 Active Mortgages)?</p>
+  <p class="text-sm text-slate-600">Short answer: <b>no</b>. After a simulated 10 years with 100 Active Mortgages, the database is 5 MB (1 MB zipped) and the Dashboard loads in 83 ms. Storage won't be a problem. The only cost that grows with the age of the book is the Dashboard replaying every Mortgage, and that is still under 150 ms after 20 years.</p>
+  <div class="flex flex-wrap gap-4 text-xs text-slate-500 pt-2">
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500"></span> module</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-6 border-t-2 border-dashed border-slate-500"></span> seam</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-6 border-t-2 border-red-600"></span> grows with age</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 deep"></span> deep module</span>
+  </div>
+</header>
+
+<section class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <h2 class="font-serif text-2xl">Measured growth</h2>
+  <p class="text-sm text-slate-600">The book was seeded through the change modules (<code class="font-mono">tests/seed.py</code>), so every History row, Allocation and index is written exactly as the app writes them. The simulation keeps 100 Mortgages Active, each lasting 6 to 36 months before it is Redeemed, with a monthly Payment 85% of the time. Times are the warm minimum of 3 runs on a Mac. Docker on a Windows laptop may be 2 to 3 times slower.</p>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="label text-slate-500 text-left">
+        <tr class="border-b border-slate-200"><th class="py-2 pr-4">Years</th><th class="pr-4 text-right">Mortgages</th><th class="pr-4 text-right">Payments</th><th class="pr-4 text-right">History rows</th><th class="pr-4 text-right">DB size</th><th class="pr-4 text-right">Dashboard</th><th class="text-right">Call List</th></tr>
+      </thead>
+      <tbody class="font-mono text-slate-700">
+        <tr class="border-b border-slate-100"><td class="py-1.5">1</td><td class="text-right pr-4">117</td><td class="text-right pr-4">1,040</td><td class="text-right pr-4">4,559</td><td class="text-right pr-4">0.7 MB</td><td class="text-right pr-4">28 ms</td><td class="text-right">5 ms</td></tr>
+        <tr class="border-b border-slate-100"><td class="py-1.5">5</td><td class="text-right pr-4">339</td><td class="text-right pr-4">5,244</td><td class="text-right pr-4">20,096</td><td class="text-right pr-4">2.5 MB</td><td class="text-right pr-4">54 ms</td><td class="text-right">6 ms</td></tr>
+        <tr class="border-b border-slate-100"><td class="py-1.5">10</td><td class="text-right pr-4">632</td><td class="text-right pr-4">10,528</td><td class="text-right pr-4">39,828</td><td class="text-right pr-4">5.0 MB</td><td class="text-right pr-4">83 ms</td><td class="text-right">6 ms</td></tr>
+        <tr><td class="py-1.5">20</td><td class="text-right pr-4">1,186</td><td class="text-right pr-4">21,016</td><td class="text-right pr-4">78,518</td><td class="text-right pr-4">9.8 MB</td><td class="text-right pr-4">147 ms</td><td class="text-right">7 ms</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">Where the 5 MB goes · 10 years</p>
+      <div class="space-y-1.5 text-xs">
+        <div class="flex items-center gap-2"><span class="w-36 shrink-0">History (audit_entry)</span><div class="h-3 deep rounded-sm" style="width:100%"></div><span class="font-mono w-14 text-right">2.8 MB</span></div>
+        <div class="flex items-center gap-2"><span class="w-36 shrink-0">History index</span><div class="h-3 deep rounded-sm" style="width:29%"></div><span class="font-mono w-14 text-right ml-auto">0.8 MB</span></div>
+        <div class="flex items-center gap-2"><span class="w-36 shrink-0">Payments</span><div class="h-3 bg-slate-300 rounded-sm" style="width:19%"></div><span class="font-mono w-14 text-right ml-auto">0.5 MB</span></div>
+        <div class="flex items-center gap-2"><span class="w-36 shrink-0">Allocations + indexes</span><div class="h-3 bg-slate-300 rounded-sm" style="width:15%"></div><span class="font-mono w-14 text-right ml-auto">0.4 MB</span></div>
+        <div class="flex items-center gap-2"><span class="w-36 shrink-0">Mortgages</span><div class="h-3 bg-slate-300 rounded-sm" style="width:4%"></div><span class="font-mono w-14 text-right ml-auto">0.1 MB</span></div>
+        <div class="flex items-center gap-2"><span class="w-36 shrink-0">Everything else</span><div class="h-3 bg-slate-300 rounded-sm" style="width:8%"></div><span class="font-mono w-14 text-right ml-auto">~0.3 MB</span></div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4 text-sm space-y-2">
+      <p class="label text-slate-500">Reading it</p>
+      <p>History is about 70% of the database, because it keeps one row per changed field: a Payment writes about 4 rows. That is many rows next to the data, but it is History's job (it is never edited or removed), and at about 270 KB a year it costs nothing worth saving.</p>
+      <p><b>Photos</b>, not the database, will make Backups grow. They are kept as files and capped at 1600 px JPEG, so expect about 100–300 KB a photo, or tens of MB a year at worst. That is still fine for a cloud-synced folder (ADR-0003).</p>
+    </div>
+  </div>
+</section>
+
+<section id="candidates" class="space-y-10">
+
+<!-- 01 -->
+<article id="c1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <span class="font-mono text-slate-400">01</span>
+    <h2 class="font-serif text-2xl">The Dashboard replays only the Mortgages that can still count</h2>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-slate-200 text-slate-700 font-semibold">Speculative</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process · one query filter</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 space-y-0.5">
+    <li>backend/…/lending/dashboard.py: dashboard() selects every Mortgage, then replays it</li>
+    <li>backend/…/lending/replay.py: replays()</li>
+    <li>backend/…/follow_up/call_list.py: replays Active Mortgages only (stays flat, for comparison)</li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">Before · what it replays grows every year</p>
+      <div class="flex items-end gap-2 h-28">
+        <div class="w-10 bg-red-500 rounded-t" style="height:10%"></div>
+        <div class="w-10 bg-red-500 rounded-t" style="height:28%"></div>
+        <div class="w-10 bg-red-500 rounded-t" style="height:53%"></div>
+        <div class="w-10 bg-red-500 rounded-t" style="height:100%"></div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2 font-mono">yr 1 · 5 · 10 · 20 → 117 · 339 · 632 · 1,186 replayed</p>
+      <p class="text-xs text-slate-500">28 → 147 ms</p>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">After · what it replays follows the live book</p>
+      <div class="flex items-end gap-2 h-28">
+        <div class="w-10 deep rounded-t" style="height:12%"></div>
+        <div class="w-10 deep rounded-t" style="height:14%"></div>
+        <div class="w-10 deep rounded-t" style="height:14%"></div>
+        <div class="w-10 deep rounded-t" style="height:14%"></div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2 font-mono">yr 1 · 5 · 10 · 20 → ~150 replayed (Active + closed this year)</p>
+      <p class="text-xs text-slate-500">roughly flat</p>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div><h3 class="label text-slate-500 mb-1">Problem</h3><p>To total "collected this year" and the month's Closures, the Dashboard replays every Mortgage ever made. Closed Mortgages pile up forever, so this is the only work that grows with the <i>age</i> of the book rather than its size.</p></div>
+    <div><h3 class="label text-slate-500 mb-1">Solution</h3><p>Replay only Mortgages that are Active or were closed this year. Ones closed in earlier years can't add to either figure. This filters the query rather than storing a total, so ADR-0001 still holds.</p></div>
+  </div>
+  <div>
+    <h3 class="label text-slate-500 mb-1">Wins</h3>
+    <ul class="text-sm grid sm:grid-cols-2 gap-x-6 list-disc pl-5">
+      <li>Dashboard cost follows the ~100 live Mortgages</li>
+      <li>the interface is unchanged: test_dashboard.py carries over</li>
+      <li>one filter, nothing new to keep in sync</li>
+      <li>no stored totals that could go stale</li>
+    </ul>
+  </div>
+  <div class="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">Honest rating: 147 ms after 20 years is not a problem anyone will notice. Do it only if the book turns out much larger than 100 Mortgages.</div>
+</article>
+
+</section>
+
+<section class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <h2 class="font-serif text-xl">Looked at, not worth it now</h2>
+  <ul class="text-sm list-disc pl-5 space-y-1 text-slate-700">
+    <li><b>Trimming or archiving History.</b> It goes against the glossary ("never edited or removed") and would save about 3 MB over 10 years.</li>
+    <li><b>Storing Ledger rows to speed up the Dashboard.</b> It would reopen ADR-0001 to fix a speed problem that doesn't exist. The measurements back up that ADR's assumption that "replaying a few hundred Mortgages takes milliseconds" (ADR-0001 stands).</li>
+    <li><b>Moving off SQLite.</b> One Lender on one laptop (ADR-0004) is exactly the job SQLite is built for, and 10 MB after 20 years is tiny for it.</li>
+  </ul>
+</section>
+
+<section id="top-recommendation" class="rounded-xl deep p-8 space-y-3">
+  <p class="label text-slate-400">Top recommendation</p>
+  <h2 class="font-serif text-3xl">Leave the database as it is</h2>
+  <p class="text-slate-300">At 100 Active Mortgages it grows about 0.5 MB a year, and the lists and Call List stay flat. If anything is ever done, make it <a href="#c1" class="underline decoration-dotted">01</a>, a single filter that caps the one cost that grows with time. Watch photo sizes in Backups more than the database.</p>
+</section>
+
+</main>
+</body>
+</html>
