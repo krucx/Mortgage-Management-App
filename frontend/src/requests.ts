@@ -9,6 +9,7 @@ import type {
   CollateralPreview,
   CustomerIn,
   CustomerSort,
+  ForfeitAllIn,
   ForfeitIn,
   MessageSettings,
   Mortgage,
@@ -168,6 +169,10 @@ export const previews = {
         }),
       ),
   }),
+  forfeitAll: (forfeit: ForfeitAllIn): PreviewRequest => ({
+    key: ['forfeit-all', forfeit],
+    load: (client) => dataOrThrow(client.POST('/api/closures/forfeit-preview', { body: forfeit })),
+  }),
   reopen: (id: number): PreviewRequest => ({
     key: ['reopen', id],
     load: (client) =>
@@ -232,6 +237,8 @@ export const changes = {
         body: forfeit,
       }),
     ),
+  forfeitAll: (client: ApiClient, forfeit: ForfeitAllIn) =>
+    dataOrThrow(client.POST('/api/closures/forfeit', { body: forfeit })),
   reopen: (client: ApiClient, id: number, reason: string) =>
     dataOrThrow(
       client.POST('/api/mortgages/{mortgage_id}/reopen', {

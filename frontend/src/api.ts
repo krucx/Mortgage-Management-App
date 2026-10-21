@@ -131,6 +131,7 @@ export type Redemption = Schemas['Redemption']
 export type RedeemIn = Schemas['RedeemIn']
 export type WaiveIn = Schemas['WaiveIn']
 export type ForfeitIn = Schemas['ForfeitIn']
+export type ForfeitAllIn = Schemas['ForfeitAllIn']
 /** An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back. */
 export type ReadyToRedeem = Schemas['ReadyToRedeem']
 export type Closure = Schemas['Closure']

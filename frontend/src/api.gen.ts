@@ -46,6 +46,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/closures/forfeit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Forfeit All
+         * @description Forfeit several Mortgages at once: all of them, or (if any is refused) none.
+         */
+        post: operations["post_forfeit_all_api_closures_forfeit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/closures/forfeit-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Forfeit All
+         * @description Each of the Mortgages before and after Forfeiting them all.
+         */
+        post: operations["preview_forfeit_all_api_closures_forfeit_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/closures/ready-to-redeem": {
         parameters: {
             query?: never;
@@ -1414,6 +1454,24 @@ export interface components {
              */
             kind: "referrer";
         };
+        /**
+         * ForfeitAllIn
+         * @description Several Mortgages Forfeited on one date, each with its own Recovered Amount.
+         */
+        ForfeitAllIn: {
+            /**
+             * Forfeited On
+             * Format: date
+             */
+            forfeited_on: string;
+            /** Mortgages */
+            mortgages: components["schemas"]["ForfeitedMortgageIn"][];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
         /** ForfeitIn */
         ForfeitIn: {
             /**
@@ -1426,6 +1484,13 @@ export interface components {
              * @default
              */
             note: string;
+            /** Recovered Amount */
+            recovered_amount: number;
+        };
+        /** ForfeitedMortgageIn */
+        ForfeitedMortgageIn: {
+            /** Mortgage Id */
+            mortgage_id: number;
             /** Recovered Amount */
             recovered_amount: number;
         };
@@ -1946,6 +2011,7 @@ export interface components {
         };
         /** PreviewSide */
         PreviewSide: {
+            closure: components["schemas"]["Closure"] | null;
             /** Outstanding */
             outstanding: number;
             /** Points */
@@ -2258,6 +2324,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CallListPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_forfeit_all_api_closures_forfeit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForfeitAllIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mortgage"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_forfeit_all_api_closures_forfeit_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForfeitAllIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MortgagePreview"][];
                 };
             };
             /** @description Validation Error */

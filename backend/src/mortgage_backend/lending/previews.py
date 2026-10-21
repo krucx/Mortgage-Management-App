@@ -19,6 +19,7 @@ from mortgage_backend.follow_up.call_list import (
 )
 from mortgage_backend.lending.changes import (
     CollateralIn,
+    ForfeitAllIn,
     ForfeitIn,
     PaymentIn,
     RedeemIn,
@@ -28,6 +29,7 @@ from mortgage_backend.lending.changes import (
     create_mortgage,
     edit_mortgage,
     forfeit,
+    forfeit_all,
     record_payment,
     redeem,
     remove_term_change,
@@ -43,7 +45,7 @@ from mortgage_backend.lending.projections import (
     ProjectedPoint,
     baseline,
 )
-from mortgage_backend.lending.replay import MortgageStatus, replay
+from mortgage_backend.lending.replay import Closure, MortgageStatus, replay
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.payments.payments import mortgages_of
 from mortgage_backend.platform.clock import NowDep, TodayDep
@@ -55,6 +57,7 @@ class PreviewSide(BaseModel):
     # The Projection with no further Payments (empty for a closed Mortgage)
     points: list[ProjectedPoint]
     term_changes: list[ComingTermChange]
+    closure: Closure | None  # None while Active
 
 
 class LedgerChange(BaseModel):
@@ -124,6 +127,7 @@ def _snapshot(
                 outstanding=mortgage.outstanding(today).total,
                 points=projection.points if projection else [],
                 term_changes=projection.term_changes if projection else [],
+                closure=mortgage.closure(),
             ),
         )
     return found
@@ -257,6 +261,20 @@ def preview_forfeit(
             [mortgage_id],
             today,
             lambda: forfeit(conn, mortgage_id, body, today, now),
+        )
+
+
+@router.post("/closures/forfeit-preview")
+def preview_forfeit_all(
+    body: ForfeitAllIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[MortgagePreview]:
+    """Each of the Mortgages before and after Forfeiting them all."""
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [m.mortgage_id for m in body.mortgages],
+            today,
+            lambda: forfeit_all(conn, body, today, now),
         )
 
 

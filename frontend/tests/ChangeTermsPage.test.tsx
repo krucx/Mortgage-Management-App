@@ -12,7 +12,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const side = (outstanding: number) => ({ outstanding, points: [], term_changes: [] })
+const side = (outstanding: number) => ({ outstanding, points: [], term_changes: [], closure: null })
 const preview: MortgagePreview = {
   mortgage_id: 7,
   mortgage_name: mortgage.name,

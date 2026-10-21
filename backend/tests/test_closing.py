@@ -348,3 +348,84 @@ def test_mortgages_can_be_listed_by_whether_anything_is_outstanding(
 
     assert [row["id"] for row in page["items"]] == [other["id"]]
     assert page["total"] == 1
+
+
+def forfeit_all(client, recovered, on="2026-04-20", note="Auctioned", preview=False):
+    """Forfeit a set of Mortgages on one date: `recovered` is each one's Recovered
+    Amount, by Mortgage."""
+    return client.post(
+        "/api/closures/forfeit" + ("-preview" if preview else ""),
+        json={
+            "forfeited_on": on,
+            "note": note,
+            "mortgages": [
+                {"mortgage_id": m["id"], "recovered_amount": amount}
+                for m, amount in recovered
+            ],
+        },
+    )
+
+
+def test_forfeiting_several_closes_each_with_its_own_recovered_amount(
+    client, ramesh, mortgage
+):
+    other = lend(client, ramesh)
+    # ₹1,12,000 owed on each on 20 Apr.
+    response = forfeit_all(client, [(mortgage, 120_000_00), (other, 100_000_00)])
+
+    assert response.status_code == 200, response.text
+    closures = {
+        m["id"]: client.get(f"/api/mortgages/{m['id']}").json()["closure"]
+        for m in (mortgage, other)
+    }
+    assert [
+        (c["kind"], c["recovered_amount"], c["profit_loss"], c["note"])
+        for c in (closures[mortgage["id"]], closures[other["id"]])
+    ] == [
+        ("forfeited", 120_000_00, 8_000_00, "Auctioned"),
+        ("forfeited", 100_000_00, -12_000_00, "Auctioned"),
+    ]
+    history = client.get(f"/api/mortgages/{other['id']}/history").json()
+    assert ("forfeited", "on 20 Apr 2026, recovered ₹1,00,000") in [
+        (entry["action"], entry["note"]) for entry in history
+    ]
+
+
+def test_the_preview_of_forfeiting_several_shows_each_closure_and_saves_nothing(
+    client, ramesh, mortgage
+):
+    other = lend(client, ramesh)
+
+    response = forfeit_all(
+        client, [(mortgage, 120_000_00), (other, 100_000_00)], preview=True
+    )
+
+    assert response.status_code == 200, response.text
+    previews = response.json()
+    assert [p["mortgage_id"] for p in previews] == [mortgage["id"], other["id"]]
+    assert [p["before"]["closure"] for p in previews] == [None, None]
+    assert [
+        (p["after"]["closure"]["kind"], p["after"]["closure"]["profit_loss"])
+        for p in previews
+    ] == [("forfeited", 8_000_00), ("forfeited", -12_000_00)]
+    for m in (mortgage, other):
+        assert client.get(f"/api/mortgages/{m['id']}").json()["status"] == "active"
+
+
+def test_if_any_one_cannot_be_forfeited_none_are_and_the_reason_names_it(
+    client, ramesh, mortgage
+):
+    other = lend(client, ramesh, name="2026-Ramesh-Bangles")
+    pay(client, ramesh, {other["id"]: 1_000_00}, on="2026-04-20")
+
+    response = forfeit_all(
+        client, [(mortgage, LAKH), (other, LAKH)], on="2026-04-15"
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail.startswith("2026-Ramesh-Bangles: There are Payments after that date")
+    for m in (mortgage, other):
+        assert client.get(f"/api/mortgages/{m['id']}").json()["status"] == "active"
+    history = client.get(f"/api/mortgages/{mortgage['id']}/history").json()
+    assert "forfeited" not in [entry["action"] for entry in history]

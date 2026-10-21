@@ -2,10 +2,12 @@ import { useQueries } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { MORTGAGE_SORTS, READY_SORTS, type PaymentMethod, type Redemption } from '../api'
+import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
+import { useClosing, type Closing } from '../components/useClosing'
 import { useListPage } from '../components/useListPage'
 import { useConfirm } from '../components/useConfirm'
 import { usePaymentMethods } from '../components/usePaymentMethods'
@@ -262,56 +264,56 @@ function Owed({ quote }: { quote: Redemption | string | undefined }) {
   return quote ? formatINR(quote.total) : '…'
 }
 
-/** Forfeit several Mortgages on one date, each with its own Recovered Amount. */
+/** Forfeit several Mortgages on one date, each with its own Recovered Amount: all of
+ *  them, or none if the backend refuses any. */
 function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void }) {
   const [on, setOn] = useState(todayIso())
   const [recovered, setRecovered] = useState<Record<number, string>>({})
   const [note, setNote] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [failures, setFailures] = useState<string[]>([])
-  const [confirm, confirmDialog] = useConfirm()
-  const changeLedger = useLedgerChange()
   const quoteOf = useQuotes(chosen, on)
 
-  const rows = chosen.map((m) => {
-    const quote = quoteOf(m.id)
-    const owed = typeof quote === 'object' ? quote.total : null
-    const got = recovered[m.id] ? rupeesToPaise(recovered[m.id]) : null
-    return { ...m, quote, owed, got, result: owed !== null && got !== null ? got - owed : null }
-  })
-  const ready = rows.every((r) => r.owed !== null && r.got !== null)
-  const totalResult = rows.reduce((sum, r) => sum + (r.result ?? 0), 0)
-  const future = on > todayIso()
-
-  async function submit(event: FormEvent) {
-    event.preventDefault()
-    if (!ready || future) return
-    const confirmed = await confirm({
+  const entered = chosen.every((m) => recovered[m.id])
+  const closing: Closing | null = entered
+    ? {
+        kind: 'forfeit',
+        forfeit: {
+          forfeited_on: on,
+          note,
+          mortgages: chosen.map((m) => ({
+            mortgage_id: m.id,
+            recovered_amount: rupeesToPaise(recovered[m.id]),
+          })),
+        },
+      }
+    : null
+  const { preview, submit, saving, canSave, error, confirmDialog, closureOf } = useClosing({
+    closing,
+    confirm: () => ({
       title: `Forfeit ${chosen.length} Mortgage${chosen.length > 1 ? 's' : ''}?`,
       body: (
         <Summary
           rows={[
             ['Forfeited on', formatDate(on)],
-            ...rows.map((r): [string, string] => [
-              r.name,
-              `Recovered ${formatINR(r.got ?? 0)} of ${formatINR(r.owed ?? 0)}`,
-            ]),
-            [totalResult >= 0 ? 'Total profit' : 'Total loss', formatINR(Math.abs(totalResult))],
+            ...chosen.map((m): [string, string] => {
+              const closure = closureOf(m.id)
+              return [
+                m.name,
+                `Recovered ${formatINR(closure?.recovered_amount ?? 0)} of ${formatINR(closure?.redemption_amount ?? 0)}`,
+              ]
+            }),
+            [total >= 0 ? 'Total profit' : 'Total loss', formatINR(Math.abs(total))],
           ]}
         />
       ),
       confirmLabel: 'Confirm Forfeiture',
       danger: true,
-    })
-    if (!confirmed) return
-    setSaving(true)
-    const failed = await closeEach(rows, changeLedger, (client, r) =>
-      changes.forfeit(client, r.id, { forfeited_on: on, recovered_amount: r.got ?? 0, note }),
-    )
-    setSaving(false)
-    setFailures(failed)
-    if (failed.length === 0) onDone()
-  }
+    }),
+    saved: onDone,
+  })
+  // Each one's profit or loss, as the Preview works it out.
+  const profitLosses = chosen.map((m) => closureOf(m.id)?.profit_loss ?? null)
+  const previewed = closing !== null && !preview.error && profitLosses.every((r) => r !== null)
+  const total = profitLosses.reduce<number>((sum, r) => sum + (r ?? 0), 0)
 
   return (
     <form onSubmit={submit} className="stack close-panel">
@@ -341,30 +343,30 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.name}</td>
+            {chosen.map((m, i) => (
+              <tr key={m.id}>
+                <td>{m.name}</td>
                 <td className="num">
-                  <Owed quote={r.quote} />
+                  <Owed quote={quoteOf(m.id)} />
                 </td>
                 <td className="num">
                   <input
                     type="number"
                     className="small-input"
-                    aria-label={`Recovered Amount for ${r.name}`}
+                    aria-label={`Recovered Amount for ${m.name}`}
                     required
                     min="0"
                     step="0.01"
-                    value={recovered[r.id] ?? ''}
-                    onChange={(event) => setRecovered({ ...recovered, [r.id]: event.target.value })}
+                    value={recovered[m.id] ?? ''}
+                    onChange={(event) => setRecovered({ ...recovered, [m.id]: event.target.value })}
                   />
                 </td>
                 <td className="num">
-                  {r.result === null ? (
+                  {!previewed || profitLosses[i] === null ? (
                     '—'
                   ) : (
-                    <span className={`status ${r.result >= 0 ? 'saved' : 'error'}`}>
-                      {formatINR(r.result)}
+                    <span className={`status ${profitLosses[i] >= 0 ? 'saved' : 'error'}`}>
+                      {formatINR(profitLosses[i])}
                     </span>
                   )}
                 </td>
@@ -373,18 +375,18 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
           </tbody>
         </table>
       </div>
-      {future && <p className="hint">A Forfeiture cannot be recorded for a future date.</p>}
+      {closing && <PreviewSection preview={preview} />}
       <div className="row">
-        <button type="submit" className="danger-solid" disabled={saving || !ready || future}>
+        <button type="submit" className="danger-solid" disabled={!canSave || !previewed}>
           {saving ? 'Forfeiting…' : `Forfeit ${chosen.length}`}
         </button>
-        {ready && (
-          <span className={`status ${totalResult >= 0 ? 'saved' : 'error'}`}>
-            {totalResult >= 0 ? 'Total profit' : 'Total loss'} {formatINR(Math.abs(totalResult))}
+        {previewed && (
+          <span className={`status ${total >= 0 ? 'saved' : 'error'}`}>
+            {total >= 0 ? 'Total profit' : 'Total loss'} {formatINR(Math.abs(total))}
           </span>
         )}
       </div>
-      <Failures failures={failures} />
+      {error && <p className="status error">{error}</p>}
       {confirmDialog}
     </form>
   )

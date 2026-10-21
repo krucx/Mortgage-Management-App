@@ -1098,6 +1098,35 @@
         "title": "ExistingStandaloneReferrer",
         "type": "object"
       },
+      "ForfeitAllIn": {
+        "description": "Several Mortgages Forfeited on one date, each with its own Recovered Amount.",
+        "properties": {
+          "forfeited_on": {
+            "format": "date",
+            "title": "Forfeited On",
+            "type": "string"
+          },
+          "mortgages": {
+            "items": {
+              "$ref": "#/components/schemas/ForfeitedMortgageIn"
+            },
+            "minItems": 1,
+            "title": "Mortgages",
+            "type": "array"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "forfeited_on",
+          "mortgages"
+        ],
+        "title": "ForfeitAllIn",
+        "type": "object"
+      },
       "ForfeitIn": {
         "properties": {
           "forfeited_on": {
@@ -1121,6 +1150,25 @@
           "recovered_amount"
         ],
         "title": "ForfeitIn",
+        "type": "object"
+      },
+      "ForfeitedMortgageIn": {
+        "properties": {
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          },
+          "recovered_amount": {
+            "minimum": 0.0,
+            "title": "Recovered Amount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mortgage_id",
+          "recovered_amount"
+        ],
+        "title": "ForfeitedMortgageIn",
         "type": "object"
       },
       "GoldRate": {
@@ -2392,6 +2440,16 @@
       },
       "PreviewSide": {
         "properties": {
+          "closure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Closure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "outstanding": {
             "title": "Outstanding",
             "type": "integer"
@@ -2414,7 +2472,8 @@
         "required": [
           "outstanding",
           "points",
-          "term_changes"
+          "term_changes",
+          "closure"
         ],
         "title": "PreviewSide",
         "type": "object"
@@ -3181,6 +3240,92 @@
           }
         },
         "summary": "Read Call List"
+      }
+    },
+    "/api/closures/forfeit": {
+      "post": {
+        "description": "Forfeit several Mortgages at once: all of them, or (if any is refused) none.",
+        "operationId": "post_forfeit_all_api_closures_forfeit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForfeitAllIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Mortgage"
+                  },
+                  "title": "Response Post Forfeit All Api Closures Forfeit Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Forfeit All"
+      }
+    },
+    "/api/closures/forfeit-preview": {
+      "post": {
+        "description": "Each of the Mortgages before and after Forfeiting them all.",
+        "operationId": "preview_forfeit_all_api_closures_forfeit_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForfeitAllIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MortgagePreview"
+                  },
+                  "title": "Response Preview Forfeit All Api Closures Forfeit Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Forfeit All"
       }
     },
     "/api/closures/ready-to-redeem": {

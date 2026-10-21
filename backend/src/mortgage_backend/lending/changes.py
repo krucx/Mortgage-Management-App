@@ -8,7 +8,8 @@ date), and then recorded in History. The request handlers only parse, call and a
 same change and roll it back.
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
@@ -119,6 +120,19 @@ class ForfeitIn(BaseModel):
     forfeited_on: date
     recovered_amount: int = Field(ge=0)  # paise: sale price, or value if kept
     note: str = ""
+
+
+class ForfeitedMortgageIn(BaseModel):
+    mortgage_id: int
+    recovered_amount: int = Field(ge=0)  # paise: sale price, or value if kept
+
+
+class ForfeitAllIn(BaseModel):
+    """Several Mortgages Forfeited on one date, each with its own Recovered Amount."""
+
+    forfeited_on: date
+    note: str = ""  # for all of them
+    mortgages: list[ForfeitedMortgageIn] = Field(min_length=1)
 
 
 # Changing these on a closed Mortgage would contradict how it was closed.
@@ -645,6 +659,38 @@ def forfeit(
     )
 
 
+def forfeit_all(
+    conn: Connection, forfeits: ForfeitAllIn, today: date, now: datetime
+) -> None:
+    """Forfeit each of the Mortgages (or refuse); in the caller's transaction, so a
+    refusal of any one leaves all of them as they were."""
+    for forfeited in forfeits.mortgages:
+        with _refusal_names_mortgage(conn, forfeited.mortgage_id):
+            forfeit(
+                conn,
+                forfeited.mortgage_id,
+                ForfeitIn(
+                    forfeited_on=forfeits.forfeited_on,
+                    recovered_amount=forfeited.recovered_amount,
+                    note=forfeits.note,
+                ),
+                today,
+                now,
+            )
+
+
+@contextmanager
+def _refusal_names_mortgage(conn: Connection, mortgage_id: int) -> Iterator[None]:
+    """A refusal of one of several Mortgages says which, unless it already does."""
+    try:
+        yield
+    except HTTPException as refused:
+        name = mortgage_row(conn, mortgage_id)["name"]
+        if name not in str(refused.detail):
+            refused.detail = f"{name}: {refused.detail}"
+        raise
+
+
 def reopen(
     conn: Connection, mortgage_id: int, reason: str, today: date, now: datetime
 ) -> None:
@@ -800,6 +846,16 @@ def post_forfeit(
     with engine.begin() as conn:
         forfeit(conn, mortgage_id, body, today, now)
         return load_mortgage(conn, mortgage_id, today)
+
+
+@router.post("/closures/forfeit")
+def post_forfeit_all(
+    body: ForfeitAllIn, engine: EngineDep, today: TodayDep, now: NowDep
+) -> list[Mortgage]:
+    """Forfeit several Mortgages at once: all of them, or (if any is refused) none."""
+    with engine.begin() as conn:
+        forfeit_all(conn, body, today, now)
+        return [load_mortgage(conn, m.mortgage_id, today) for m in body.mortgages]
 
 
 @router.post("/mortgages/{mortgage_id}/reopen")
