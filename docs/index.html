@@ -166,11 +166,11 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
 <main class="page">
 
 <header class="intro">
-  <div class="eyebrow">Mortgage Management 1.4.0 · documentation</div>
+  <div class="eyebrow">Mortgage Management 1.5.0 · documentation</div>
   <h1>Mortgage Management</h1>
   <p class="lede">A lending book for a jeweller who lends against gold. One Lender keeps every Customer, every pledged packet of jewellery, every Payment and every follow-up in one app on their own laptop. The app works out what each Mortgage owes on any date, prepares the day's Notices and phone calls, and keeps every change.</p>
   <div class="facts">
-    <span>Version: <b>1.4.0</b></span>
+    <span>Version: <b>1.5.0</b></span>
     <span>Runs on: <b>the Lender's laptop, Windows or anywhere with Docker</b></span>
     <span>Opens at: <b>http://localhost:8080</b></span>
     <span>Money: <b>₹, Indian digit grouping</b></span>
@@ -413,7 +413,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <summary><b>Lend against new jewellery</b><span>A new or returning Customer pledges a packet</span></summary>
       <div class="flow-body">
         <ol class="steps">
-          <li><span>New to the book? <span class="ui">Customers → New Customer</span>. Enter their name and contact number 1, and their Referrer if someone introduced them. The form warns if the number already belongs to someone.</span></li>
+          <li><span>New to the book? <span class="ui">Customers → New Customer</span>. Enter their name and contact number 1, and their Referrer if someone introduced them. If the number already belongs to another Customer, the form says whose, and it can't be saved.</span></li>
           <li><span>On the Customer, press <span class="ui">New Mortgage</span>. Their Active Mortgages show first, as a reminder of what they already owe.</span></li>
           <li><span>Enter the start date (back-dating is fine), the Principal lent, a description of the jewellery, gross and net weight, and purity. Add photos.</span></li>
           <li><span>Check the suggested Mortgage Name and the Terms copied from Settings; change either for this Mortgage if needed.</span></li>
@@ -431,7 +431,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li><span>Enter the amount and the method (Cash, UPI or bank transfer), or press <span class="ui">The full Outstanding on the chosen Mortgages</span>.</span></li>
           <li><span>Tick the Mortgages it is for and split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>. The Preview shows what each will owe afterwards.</span></li>
           <li><span>Record it, then open the Receipt: <span class="ui">Send on WhatsApp</span> or <span class="ui">Print or save as PDF</span>.</span></li>
-          <li><span>If it cleared a Mortgage, the app offers <span class="ui">Redeem now</span>: accept to close it and hand the jewellery back.</span></li>
+          <li><span>If it left a Mortgage Ready to Redeem, the app offers <span class="ui">Redeem now</span>, with a Preview: accept to close it and hand the jewellery back.</span></li>
         </ol>
         <p class="tip">Entered the wrong amount? Open the Payment, press <span class="ui">Void…</span> with a reason, and record it again.</p>
       </div>
@@ -481,7 +481,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li><span><b>Redeem</b>: on the Mortgage, <span class="ui">Redeem…</span>, pick the date and record the Redemption Amount (Principal, unpaid interest and any part-month charge) as the final Payment.</span></li>
           <li><span><b>Waive off</b>: when the Customer pays nearly all and the Lender lets the rest go, enter what they paid now (₹0 is allowed). The amount let off is shown and recorded.</span></li>
           <li><span><b>Forfeit</b>: when the Customer has defaulted, enter the Recovered Amount the jewellery fetched or is worth. The profit or loss is shown.</span></li>
-          <li><span>To close several at once, tick them under <span class="ui">Forfeit or Waive off</span> on the Redeem / Forfeit page.</span></li>
+          <li><span>To close several at once, tick them under <span class="ui">Forfeit or Waive off</span> on the Redeem / Forfeit page. They close together, all or none, after a Preview of each.</span></li>
         </ol>
         <p class="tip">Closed by mistake? <span class="ui">Reopen…</span> with a reason makes it Active as if it was never closed, and Voids the final Payment.</p>
       </div>
@@ -654,7 +654,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <span class="go">Read the story →</span>
     </a>
   </div>
-  <footer>Written for version 1.4.0. What changed in each version is in the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md">changelog</a>; the details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>. Screenshots use invented sample data.</footer>
+  <footer>Written for version 1.5.0. What changed in each version is in the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md">changelog</a>; the details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>. Screenshots use invented sample data.</footer>
 </section>
 
 </main>

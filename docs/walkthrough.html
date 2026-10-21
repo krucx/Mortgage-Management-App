@@ -191,7 +191,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
   <h1>Mortgage Book Walkthrough</h1>
   <p class="lede">One Lender, one laptop, a book of gold-jewellery pledges. This guide follows a pledge through its whole life in the app: the morning view of the book, setting the rules, meeting a Customer, lending against their jewellery, taking Payments, following up, and closing the Mortgage. Each stop says where to click, what to say, and the details worth pointing out.</p>
   <div class="facts">
-    <span>Version: <b>1.4.0</b></span>
+    <span>Version: <b>1.5.0</b></span>
     <span>App: <b>http://127.0.0.1:8080</b></span>
     <span>Figures: <b>the live book on 18 Oct 2026</b></span>
     <span>Money: <b>₹, Indian digit grouping</b></span>
@@ -352,7 +352,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
       <div class="block-title">Show</div>
       <ol class="steps">
         <li><span>The list: filter by name or phone as you type, tick <span class="ui">Only Customers with an Active Mortgage</span>, sort any column. Matching Referrers appear alongside.</span></li>
-        <li><span><span class="ui">New Customer</span>: type a contact number 1 that already belongs to someone. The form warns who owns it before you save.</span></li>
+        <li><span><span class="ui">New Customer</span>: type a contact number 1 that already belongs to another Customer. The form says whose it is, and <span class="ui">Save</span> can't be pressed until the number changes.</span></li>
         <li><span>The <span class="ui">Referrer</span> choice: None, an Existing person (search), or a New Referrer known only by name and phone.</span></li>
         <li><span>Open a Customer: photo, numbers, who referred them, whom they referred, their Active Mortgages with closed ones tucked below, and their History.</span></li>
         <li><span>Stop before saving: press <span class="ui">Keep editing</span>.</span></li>
@@ -365,7 +365,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <dt>with an Active Mortgage</dt><dd>4</dd>
         <dt>with a photo</dt><dd>2</dd>
       </dl>
-      <p class="note">Delete is offered only while a Customer has no Mortgages: lending history is never lost.</p>
+      <p class="note">Delete works only while a Customer has no Mortgages: for one with Mortgages it says why, before asking anything. Lending history is never lost.</p>
     </div>
   </div>
   <div class="nuances">
@@ -389,7 +389,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
       <ol class="steps">
         <li><span>Choose a Customer. Their <span class="ui">Active Mortgages</span> appear first, as a reminder of what they already owe.</span></li>
         <li><span>Enter the start date (it may be back-dated), Principal lent, a description, gross and net weight, and purity.</span></li>
-        <li><span>Watch the <span class="ui">Mortgage Name</span> fill itself: year, the Customer's first name, and the jewellery (for example <code>2026-Name-GoldNecklace</code>). Type your own and it stops suggesting.</span></li>
+        <li><span>Watch the <span class="ui">Mortgage Name</span> fill itself: year, the Customer's first name, and the jewellery (for example <code>2026-Name-GoldNecklace</code>). Type your own and it stops suggesting. <span class="ui">Create Mortgage</span> waits until the name matches what you typed.</span></li>
         <li><span>The Terms arrive from Settings and can be changed for this one Mortgage. Add photos from the camera or files.</span></li>
         <li><span>Press <span class="ui">Create Mortgage</span>: the confirmation shows what it would owe today and over a year with no Payments. Press <span class="ui">Keep editing</span>.</span></li>
       </ol>
@@ -530,7 +530,7 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     <div class="nuance rule"><b>Within a Mortgage: interest, then Principal</b><span>Each Allocation pays unpaid interest before it reduces Principal.</span></div>
     <div class="nuance"><b>Voided, never deleted</b><span>A Voided Payment stays on record with its reason but counts in no Ledger. A correction is entered as a new Payment.</span></div>
     <div class="nuance"><b>Receipts speak the Customer's language</b><span>They name each Mortgage by its jewellery ("Gold chain"), never its Mortgage Name, and show what is still owed.</span></div>
-    <div class="nuance"><b>Paid in full? Redeem now</b><span>If a Payment clears a Mortgage, the app offers to Redeem it on the spot, including any part-month charge as the final Payment.</span></div>
+    <div class="nuance"><b>Paid in full? Redeem now</b><span>If a Payment leaves a Mortgage Ready to Redeem, the app offers to Redeem it on the spot, with a Preview, including any part-month charge as the final Payment.</span></div>
   </div>
 </section>
 
@@ -593,7 +593,7 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
       <div class="block-title">Show</div>
       <ol class="steps">
         <li><span>Point to the dot on <span class="ui">Redeem / Forfeit</span> in the menu: a Mortgage is paid off and waiting for its jewellery to go back.</span></li>
-        <li><span>On the page, <span class="ui">Ready to Redeem</span> lists it (Mortgage 4 owes ₹0). Below, under <span class="ui">Forfeit or Waive off</span>, Active Mortgages still owing can be ticked and closed together: choose <span class="ui">Forfeit</span> or <span class="ui">Waive off</span> for the chosen.</span></li>
+        <li><span>On the page, <span class="ui">Ready to Redeem</span> lists it (Mortgage 4 owes ₹0). Below, under <span class="ui">Forfeit or Waive off</span>, Active Mortgages still owing can be ticked and closed together: choose <span class="ui">Forfeit</span> or <span class="ui">Waive off</span> for the chosen. A Preview shows each Closure first, and they close all or none: if one is refused, nothing is closed and the reason names it.</span></li>
         <li><span>On a Mortgage, press <span class="ui">Redeem…</span>: pick a date to see the Redemption Amount (Principal, unpaid interest, part-month charge). A future date gives a quote only.</span></li>
         <li><span>Switch to <span class="ui">Waive off…</span>: enter what the Customer pays now (₹0 is allowed) and the amount let off appears, with the button reading <span class="ui">Waive off ₹…</span>. Paying the full amount is refused: Redeem instead. Cancel.</span></li>
         <li><span>Switch to <span class="ui">Forfeit…</span>: enter the Recovered Amount and the profit or loss appears. Cancel.</span></li>
