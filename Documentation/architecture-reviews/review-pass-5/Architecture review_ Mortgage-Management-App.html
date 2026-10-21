@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Architecture Review Pass 5</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+</script>
+<style>
+  .seam { border-style: dashed; }
+  .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+  .label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+</style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+
+<header class="space-y-3">
+  <h1 class="font-serif text-4xl">Architecture review · pass 5</h1>
+  <p class="text-sm text-slate-500">Mortgage-Management-App · 21 Oct 2026 · scope: what changed since pass 3 (Waive off, Closures, Call List, the server-state module, the propose-a-change hook, Windows scripts)</p>
+  <p class="text-sm text-slate-600">Every pass-3 candidate has landed. The server-state module and the Notice queue are deep and well tested. The newest friction is around <b>Closure</b>: Waive off arrived as a third way to close a Mortgage, and the frontend now writes closing three times and repeats the backend's rules.</p>
+  <div class="flex flex-wrap gap-4 text-xs text-slate-500 pt-2">
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500"></span> module</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-6 border-t-2 border-dashed border-slate-500"></span> seam</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-6 border-t-2 border-red-600"></span> leakage</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 deep"></span> deep module</span>
+  </div>
+</header>
+
+<section id="candidates" class="space-y-10">
+
+<!-- 01 -->
+<article id="c1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <span class="font-mono text-slate-400">01</span>
+    <h2 class="font-serif text-2xl">One closing module: Redeem, Waive or Forfeit one Mortgage or many, with a Preview</h2>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-semibold">Strong</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process + local-substitutable (fake server)</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 space-y-0.5">
+    <li>frontend/src/components/CloseMortgage.tsx (416 lines): one Mortgage, through useProposedChange; switches on the action 6 times</li>
+    <li>frontend/src/pages/ClosuresPage.tsx (544): bulk Forfeit and bulk Waive written by hand, no Preview; closeEach 228–243</li>
+    <li>frontend/src/components/RedeemPaidOff.tsx 52–71: a copy of closeEach for Redeem</li>
+    <li>backend/…/lending/changes.py 480–640: closable, redeem, waive, forfeit (one Mortgage per call)</li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-2">Before · three closing flows, rules in both tiers</p>
+      <pre class="mermaid">
+flowchart TB
+  A[CloseMortgage<br/>one, with Preview] --> R1["POST …/redeem · waive · forfeit"]
+  B[ClosuresPage<br/>bulk Waive / Forfeit<br/>no Preview] -->|loop, one commit each| R1
+  C[RedeemPaidOff<br/>bulk Redeem] -->|loop, one commit each| R1
+  A -.-> W1["can it be Waived?<br/>not a future date?"]
+  B -.-> W2["can it be Waived?<br/>not a future date? ×2"]
+  R1 --> W3["changes.py: closable · waive<br/>the real rules"]
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  class W1,W2 leak
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-2">After · one closing module per tier</p>
+      <pre class="mermaid">
+flowchart TB
+  A[Mortgage page] --> H
+  B[Closures page] --> H
+  C[Ready to Redeem] --> H
+  H["closing module (frontend)<br/>kind · Mortgages · date<br/>→ Preview · confirm · save"]:::deep --> E["close a set of Mortgages<br/>one transaction · Preview = rolled back"]:::deep
+  E --> X[Mortgage changes module<br/>rules once]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div><h3 class="label text-slate-500 mb-1">Problem</h3><p>A Closure is made three ways. The bulk ways skip the Preview and commit one Mortgage at a time, so a failure halfway through leaves the Lender's selection half-closed. "Can it be Waived?" is written in 3 places and "not a future date" in 4; the frontend uses the browser's date while the backend uses its own clock.</p></div>
+    <div><h3 class="label text-slate-500 mb-1">Solution</h3><p>The backend closes a set of Mortgages in one transaction, so a Preview of a bulk Closure comes for free. The frontend has one closing module used by all three pages, which shows the backend's refusal and holds none of its rules.</p></div>
+  </div>
+  <div>
+    <h3 class="label text-slate-500 mb-1">Wins</h3>
+    <ul class="text-sm grid sm:grid-cols-2 gap-x-6 list-disc pl-5">
+      <li>locality: Closure rules in one module</li>
+      <li>leverage: one interface, three pages</li>
+      <li>bulk Closures get a Preview</li>
+      <li>no half-closed selections</li>
+      <li>delete closeEach and its copy</li>
+      <li>bulk Forfeit and Redeem testable (none today)</li>
+    </ul>
+  </div>
+  <p class="text-xs text-slate-500">Tests today: only bulk Waive has page tests (2, in ClosuresPage.test.tsx). Bulk Forfeit, RedeemPaidOff and a partial failure have none.</p>
+</article>
+
+<!-- 02 -->
+<article id="c2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <span class="font-mono text-slate-400">02</span>
+    <h2 class="font-serif text-2xl">The Mortgage replay hands back a complete Closure</h2>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-amber-100 text-amber-800 font-semibold">Worth exploring</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 space-y-0.5">
+    <li>backend/…/lending/mortgages.py 159–175: _closure, Waived Amount from ledger(closed_on)[-1], profit/loss</li>
+    <li>backend/…/lending/dashboard.py 220–225: the same figures again, from ledger(today)[-1]</li>
+    <li>backend/…/payments/receipts.py 72–83: its own "is this the Waiver's final Payment" test</li>
+    <li>frontend/src/components/CloseMortgage.tsx:390: final Payment worked out as redemption_amount − waived</li>
+    <li>"Ready to Redeem" in 4 places: closing.py:81, mortgages.py:452, NewPaymentPage.tsx:29 and :218</li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">Before · each reader works out the Closure</p>
+      <div class="space-y-2 text-xs">
+        <div class="deep rounded p-2"><span class="label text-slate-300">Mortgage replay</span><br>Ledger steps only</div>
+        <div class="border-t-2 border-dashed border-slate-500"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="border border-slate-400 rounded p-2"><span class="label">Mortgage page</span><br><span class="text-red-600">last step = Waived Amount</span></div>
+          <div class="border border-slate-400 rounded p-2"><span class="label">Dashboard</span><br><span class="text-red-600">last step, profit/loss</span></div>
+          <div class="border border-slate-400 rounded p-2"><span class="label">Receipt</span><br><span class="text-red-600">final-Payment test</span></div>
+          <div class="border border-slate-400 rounded p-2"><span class="label">CloseMortgage.tsx</span><br><span class="text-red-600">owed − waived</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">After · the Closure is part of the replay</p>
+      <div class="space-y-2 text-xs">
+        <div class="deep rounded p-3 space-y-1">
+          <div class="label text-slate-300">Mortgage replay</div>
+          <div>Ledger · Outstanding · Redemption Amount</div>
+          <div><b>Closure</b>: kind, date, final Payment and its amount, Waived Amount, Recovered Amount, profit/loss</div>
+        </div>
+        <div class="border-t-2 border-dashed border-slate-500"></div>
+        <div class="grid grid-cols-4 gap-2 text-slate-500">
+          <div class="border border-slate-300 rounded p-2">Mortgage page reads</div>
+          <div class="border border-slate-300 rounded p-2">Dashboard reads</div>
+          <div class="border border-slate-300 rounded p-2">Receipt reads</div>
+          <div class="border border-slate-300 rounded p-2">frontend shows</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div><h3 class="label text-slate-500 mb-1">Problem</h3><p>The Closure figures each reader needs are worked out by that reader, from the Ledger's last step or from the frontend's arithmetic, so the Waived Amount and profit/loss each have more than one definition.</p></div>
+    <div><h3 class="label text-slate-500 mb-1">Solution</h3><p>The Mortgage replay works out the whole Closure once; every reader takes it from there. It is still derived on demand, so ADR-0001 holds.</p></div>
+  </div>
+  <div>
+    <h3 class="label text-slate-500 mb-1">Wins</h3>
+    <ul class="text-sm grid sm:grid-cols-2 gap-x-6 list-disc pl-5">
+      <li>locality: one definition of each figure</li>
+      <li>tests hit the replay, not each reader</li>
+      <li>frontend does no Closure arithmetic</li>
+      <li>pairs with 01: the Preview shows the Closure</li>
+    </ul>
+  </div>
+</article>
+
+<!-- 03 -->
+<article id="c3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <span class="font-mono text-slate-400">03</span>
+    <h2 class="font-serif text-2xl">Changes that need a reason go through the propose-a-change hook too</h2>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-amber-100 text-amber-800 font-semibold">Worth exploring</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">local-substitutable (fake server)</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 space-y-0.5">
+    <li>frontend/src/components/useProposedChange.tsx: 4 users (Change Terms, Edit Mortgage, New Payment, CloseMortgage); Save disabled while the Preview refuses (line 45)</li>
+    <li>frontend/src/components/ReasonDialog.tsx: its own saving and error state; knows nothing of the Preview</li>
+    <li>pages/MortgagePage.tsx 221–238 (Reopen), pages/PaymentPage.tsx:101 (Void), components/TermsPanel.tsx:26 (remove a Term Change)</li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-2">Before · two paths, one rule enforced on one</p>
+      <pre class="mermaid">
+flowchart LR
+  T[Change Terms / Edit /<br/>New Payment / Close] --> P[useProposedChange<br/>Save blocked on refusal]:::deep
+  R[Reopen / Void /<br/>remove Term Change] --> D[ReasonDialog<br/>+ ChangePreview]
+  D -.->|Save allowed while<br/>Preview refuses| S[save route]
+  P --> S
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class D leak
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-2">After · one path</p>
+      <pre class="mermaid">
+flowchart LR
+  T[Change Terms / Edit /<br/>New Payment / Close] --> P
+  R[Reopen / Void /<br/>remove Term Change] --> P
+  P["useProposedChange<br/>draft (+ reason) → Preview → confirm → save"]:::deep --> S[save route]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div><h3 class="label text-slate-500 mb-1">Problem</h3><p>Reopen, Void and removing a Term Change show a Preview inside ReasonDialog, but the Lender can still confirm while that Preview shows a refusal. The rule the hook holds for four changes doesn't hold for these three.</p></div>
+    <div><h3 class="label text-slate-500 mb-1">Solution</h3><p>The hook takes an optional reason; ReasonDialog shrinks to a form field inside it.</p></div>
+  </div>
+  <div>
+    <h3 class="label text-slate-500 mb-1">Wins</h3>
+    <ul class="text-sm grid sm:grid-cols-2 gap-x-6 list-disc pl-5">
+      <li>leverage: one interface, 7 changes</li>
+      <li>Preview rule holds everywhere</li>
+      <li>proposedChange tests cover Reopen, Void</li>
+      <li>delete ReasonDialog's own saving state</li>
+    </ul>
+  </div>
+</article>
+
+<!-- 04 -->
+<article id="c4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <span class="font-mono text-slate-400">04</span>
+    <h2 class="font-serif text-2xl">Each change declares what it makes stale, beside its request</h2>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-slate-200 text-slate-700 font-semibold">Speculative</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 space-y-0.5">
+    <li>frontend/src/requests.ts ~190–245: changes.* say nothing about what they make stale</li>
+    <li>22 call sites choose useLedgerChange, useMortgageChange or useChange(STALE_AFTER.x)</li>
+    <li>pages/MortgagePage.tsx 41–44 and SettingsPage (setQueryData ×5) write the cache by hand</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4 text-xs">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">Before · the call site picks</p>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="border border-slate-400 rounded p-2">page A → <span class="text-red-600">useLedgerChange</span></div>
+        <div class="border border-slate-400 rounded p-2">page B → <span class="text-red-600">useMortgageChange</span></div>
+        <div class="border border-slate-400 rounded p-2">page C → <span class="text-red-600">useChange(STALE_AFTER.x)</span></div>
+        <div class="border border-slate-400 rounded p-2">Settings → <span class="text-red-600">setQueryData ×5</span></div>
+      </div>
+      <p class="text-slate-500 mt-2">22 sites · each right today</p>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">After · the change knows</p>
+      <div class="deep rounded p-3">changes.recordPayment · makes stale: Ledger<br>changes.setGoldRate · makes stale: Collateral<br>…one line each</div>
+      <div class="border-t-2 border-dashed border-slate-500 my-2"></div>
+      <div class="text-slate-500">pages: save(change)</div>
+    </div>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div><h3 class="label text-slate-500 mb-1">Problem</h3><p>What a change makes stale is decided at each call site, so a new page using an old change can pick the wrong list.</p></div>
+    <div><h3 class="label text-slate-500 mb-1">Solution</h3><p>Move the choice onto the change's request entry; pages only save.</p></div>
+  </div>
+  <div class="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">Honest rating: no bug today. It protects the next change, so do it only while touching requests.ts for 01 or 03.</div>
+</article>
+
+<!-- 05 -->
+<article id="c5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <span class="font-mono text-slate-400">05</span>
+    <h2 class="font-serif text-2xl">A Payment says which Mortgages it cleared; New Payment gets a page test</h2>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-1 rounded bg-slate-200 text-slate-700 font-semibold">Speculative</span>
+    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">local-substitutable (fake server)</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-600 space-y-0.5">
+    <li>frontend/src/pages/NewPaymentPage.tsx 205–219: a second fetch after saving, to find Mortgages with nothing Outstanding</li>
+    <li>NewPaymentPage.tsx 106–121, 169–179: re-ticking on a date change; switching between amount and percent modes</li>
+    <li>frontend/tests/allocate.test.ts (17 tests) · no NewPaymentPage.test.tsx</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4 text-xs">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">Before · tested at the edge, not where it's called</p>
+      <div class="space-y-2">
+        <div class="border border-slate-400 rounded p-2">NewPaymentPage · <span class="text-red-600">0 tests</span><br>mode switch · re-tick · second fetch</div>
+        <div class="border border-slate-400 rounded p-2">allocate.ts · 17 tests</div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="label text-slate-500 mb-3">After · tested through the page</p>
+      <div class="space-y-2">
+        <div class="deep rounded p-2">NewPaymentPage behind fakeServer / showPage</div>
+        <div class="border border-slate-300 rounded p-2 text-slate-500">Payment answer lists the Mortgages it cleared · no second fetch</div>
+      </div>
+    </div>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div><h3 class="label text-slate-500 mb-1">Problem</h3><p>The riskiest form in the app is tested only through allocate.ts. The bugs would be in how the page calls it, and in the page asking a second time what the Payment just did.</p></div>
+    <div><h3 class="label text-slate-500 mb-1">Solution</h3><p>The backend's Payment answer names the Mortgages it left with nothing Outstanding; add a page test on the existing harness.</p></div>
+  </div>
+</article>
+
+</section>
+
+<section class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <h2 class="font-serif text-xl">Looked at, not worth it now</h2>
+  <ul class="text-sm list-disc pl-5 space-y-1 text-slate-700">
+    <li><b>Notice actions decided in both tiers</b> (notices.py _ACTIONS; NoticesPage 5 status checks). Real but small; the queue module is deep with 28 tests.</li>
+    <li><b>Status and step label maps</b> in BeforeAfter, History, MortgagePage, MortgagesPage. Typed over generated unions, so the compiler catches a missing kind.</li>
+    <li><b>Call List.</b> The backend owns the reasons; the frontend only labels them. 11 + 3 tests.</li>
+    <li><b>requests.ts</b> (634 lines of thin entries). Shallow one by one, but pairing a typed key with its load is the point. Merging twin routes is ADR-0007.</li>
+    <li><b>useReadyToRedeem</b> (12 lines). Shallow, but deleting it only moves one line into its callers.</li>
+    <li><b>windows/*.ps1.</b> Assert-Success is duplicated because setup.ps1 runs before common.ps1 is downloaded. The parts worth testing are already pure and covered by Pester.</li>
+    <li><b>suggestEqually's split by Infinity</b> in New Payment. Deliberate and commented: whether a Payment is too large is for the Preview to say.</li>
+  </ul>
+</section>
+
+<section id="top-recommendation" class="rounded-xl deep p-8 space-y-3">
+  <p class="label text-slate-400">Top recommendation</p>
+  <h2 class="font-serif text-3xl"><a href="#c1" class="underline decoration-dotted">01 · One closing module</a></h2>
+  <p class="text-slate-300">It's the only candidate with a real way for the Lender to lose: a bulk Closure that fails halfway is left half-closed, with no Preview beforehand. It removes three copies of the Closure rules, and 02 slots into it.</p>
+</section>
+
+</main>
+</body>
+</html>
