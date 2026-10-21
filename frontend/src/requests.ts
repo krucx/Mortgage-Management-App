@@ -10,7 +10,6 @@ import type {
   CustomerIn,
   CustomerSort,
   ForfeitAllIn,
-  ForfeitIn,
   MessageSettings,
   Mortgage,
   MortgageEdit,
@@ -27,11 +26,9 @@ import type {
   Purity,
   ReadySort,
   RedeemAllIn,
-  RedeemIn,
   TermChangeIn,
   Terms,
   WaiveAllIn,
-  WaiveIn,
 } from './api'
 import { dataOrThrow, keys, type ApiClient } from './serverState'
 import type { Sort } from './sort'
@@ -141,36 +138,6 @@ export const previews = {
         client.POST('/api/payments/{payment_id}/void-preview', { params: paymentPath(paymentId) }),
       ),
   }),
-  redeem: (id: number, redeem: RedeemIn): PreviewRequest => ({
-    key: ['redeem', id, redeem],
-    load: (client) =>
-      dataOrThrow(
-        client.POST('/api/mortgages/{mortgage_id}/redeem-preview', {
-          params: mortgagePath(id),
-          body: redeem,
-        }),
-      ),
-  }),
-  waive: (id: number, waive: WaiveIn): PreviewRequest => ({
-    key: ['waive', id, waive],
-    load: (client) =>
-      dataOrThrow(
-        client.POST('/api/mortgages/{mortgage_id}/waive-preview', {
-          params: mortgagePath(id),
-          body: waive,
-        }),
-      ),
-  }),
-  forfeit: (id: number, forfeit: ForfeitIn): PreviewRequest => ({
-    key: ['forfeit', id, forfeit],
-    load: (client) =>
-      dataOrThrow(
-        client.POST('/api/mortgages/{mortgage_id}/forfeit-preview', {
-          params: mortgagePath(id),
-          body: forfeit,
-        }),
-      ),
-  }),
   redeemAll: (redeem: RedeemAllIn): PreviewRequest => ({
     key: ['redeem-all', redeem],
     load: (client) => dataOrThrow(client.POST('/api/closures/redeem-preview', { body: redeem })),
@@ -230,21 +197,6 @@ export const changes = {
       client.POST('/api/payments/{payment_id}/void', {
         params: paymentPath(paymentId),
         body: { reason },
-      }),
-    ),
-  redeem: (client: ApiClient, id: number, redeem: RedeemIn) =>
-    dataOrThrow(
-      client.POST('/api/mortgages/{mortgage_id}/redeem', { params: mortgagePath(id), body: redeem }),
-    ),
-  waive: (client: ApiClient, id: number, waive: WaiveIn) =>
-    dataOrThrow(
-      client.POST('/api/mortgages/{mortgage_id}/waive', { params: mortgagePath(id), body: waive }),
-    ),
-  forfeit: (client: ApiClient, id: number, forfeit: ForfeitIn) =>
-    dataOrThrow(
-      client.POST('/api/mortgages/{mortgage_id}/forfeit', {
-        params: mortgagePath(id),
-        body: forfeit,
       }),
     ),
   redeemAll: (client: ApiClient, redeem: RedeemAllIn) =>

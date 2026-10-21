@@ -1,15 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import type { ForfeitIn, Mortgage, PaymentMethod, RedeemIn, Redemption, WaiveIn } from '../api'
+import type { Mortgage, PaymentMethod } from '../api'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
-import { changes, previews, redemptionQuery } from '../requests'
-import { useMortgageChange, useServerState } from '../serverState'
+import { redemptionQuery } from '../requests'
+import { useServerState } from '../serverState'
 import { PART_MONTH_RULES } from '../terms'
 import { PreviewSection } from './BeforeAfter'
 import { Summary } from './ConfirmDialog'
-import { useProposedChange } from './useProposedChange'
+import { useClosing, type Closing } from './useClosing'
 import { PaymentMethodSelect } from './PaymentMethodSelect'
 import { usePaymentMethods } from './usePaymentMethods'
 
@@ -58,66 +58,56 @@ export function CloseMortgage({
   const [received, setReceived] = useState('')
   const [note, setNote] = useState('')
   const { client } = useServerState()
-  const changeMortgage = useMortgageChange()
 
-  // The Redemption Amount on the chosen date.
+  // The Redemption Amount on the chosen date: a quote, even for a future date.
   const quote = useQuery({
     ...redemptionQuery(client, mortgage.id, on),
     enabled: Boolean(action && on),
   })
   const redemption = quote.data ?? null
   const quoteError = quote.error?.message
-  const recoveredPaise = rupeesToPaise(recovered || '0')
-  const profitLoss = redemption && recovered ? recoveredPaise - redemption.total : null
   const receivedPaise = rupeesToPaise(received || '0')
-  // What the Lender lets off: the Redemption Amount less what the Customer pays now.
-  const waived = redemption && received ? redemption.total - receivedPaise : null
-  // Only something short of the Redemption Amount can be waived; all of it is a Redemption.
-  const waiveProblem =
-    redemption && action === 'waive'
-      ? redemption.total === 0
-        ? 'Nothing is owed on this date: Redeem it instead.'
-        : waived !== null && waived <= 0
-          ? `That covers the ${formatINR(redemption.total)} owed: Redeem it instead.`
-          : null
-      : null
-  const future = on > todayIso() // a quote only: nothing can be recorded for a future date
+  const paymentReference = reference.trim() || null
 
-  // What saving would send for each; re-previewed whenever it changes.
-  const redeem: RedeemIn = { redeemed_on: on, method, reference: reference.trim() || null }
-  const waive: WaiveIn = {
-    waived_on: on,
-    amount_paid: receivedPaise,
-    method,
-    reference: reference.trim() || null,
-    note,
-  }
-  const forfeit: ForfeitIn = { forfeited_on: on, recovered_amount: recoveredPaise, note }
-  // The Closure as it would be made: any kind, with what it takes on that date.
-  type Proposed =
-    | { action: 'redeem'; redemption: Redemption; body: RedeemIn }
-    | { action: 'waive'; redemption: Redemption; body: WaiveIn }
-    | { action: 'forfeit'; redemption: Redemption; body: ForfeitIn }
-  const proposed: Proposed | null =
-    !action || !redemption || future
+  // What saving would send, as a closing of this one Mortgage; re-previewed as it changes.
+  const closing: Closing | null =
+    !action || !on
       ? null
       : action === 'redeem'
-        ? { action, redemption, body: redeem }
+        ? {
+            kind: 'redeem',
+            redeem: { redeemed_on: on, method, reference: paymentReference, mortgage_ids: [mortgage.id] },
+          }
         : action === 'waive'
-          ? waived === null || waiveProblem
+          ? received === ''
             ? null
-            : { action, redemption, body: waive }
-          : { action, redemption, body: forfeit }
-  const { preview, submit, canSave, error, confirmDialog } = useProposedChange({
-    change: proposed,
-    preview: (closure) =>
-      closure.action === 'redeem'
-        ? previews.redeem(mortgage.id, closure.body)
-        : closure.action === 'waive'
-          ? previews.waive(mortgage.id, closure.body)
-          : previews.forfeit(mortgage.id, closure.body),
-    confirm: ({ action, redemption }) =>
-      action === 'waive'
+            : {
+                kind: 'waive',
+                waive: {
+                  waived_on: on,
+                  method,
+                  reference: paymentReference,
+                  note,
+                  mortgages: [{ mortgage_id: mortgage.id, amount_paid: receivedPaise }],
+                },
+              }
+          : recovered === ''
+            ? null
+            : {
+                kind: 'forfeit',
+                forfeit: {
+                  forfeited_on: on,
+                  note,
+                  mortgages: [
+                    { mortgage_id: mortgage.id, recovered_amount: rupeesToPaise(recovered) },
+                  ],
+                },
+              }
+  const { preview, submit, canSave, error, confirmDialog, closureOf } = useClosing({
+    closing,
+    confirm: () => {
+      const closure = closureOf(mortgage.id)
+      return action === 'waive'
         ? {
             title: `Waive off ${mortgage.name}?`,
             body: (
@@ -125,15 +115,18 @@ export function CloseMortgage({
                 <Summary
                   rows={[
                     ['Waived on', formatDate(on)],
-                    ['Redemption Amount', formatINR(redemption.total)],
+                    ['Redemption Amount', formatINR(closure?.redemption_amount ?? 0)],
                     [
                       'Final Payment',
-                      receivedPaise > 0
-                        ? `${formatINR(receivedPaise)} · ${methods?.[method] ?? ''}` +
-                          (reference.trim() ? ` · ${reference}` : '')
+                      closure?.payment_amount
+                        ? `${formatINR(closure.payment_amount)} · ${methods?.[method] ?? ''}` +
+                          (paymentReference ? ` · ${paymentReference}` : '')
                         : 'None',
                     ],
-                    ['Waived off', <strong key="waived">{formatINR(waived ?? 0)}</strong>],
+                    [
+                      'Waived off',
+                      <strong key="waived">{formatINR(closure?.waived_amount ?? 0)}</strong>,
+                    ],
                     ['Reason', note.trim() || '—'],
                   ]}
                 />
@@ -143,48 +136,45 @@ export function CloseMortgage({
             confirmLabel: 'Confirm Waiver',
           }
         : action === 'redeem'
-        ? {
-            title: `Redeem ${mortgage.name}?`,
-            body: (
-              <>
+          ? {
+              title: `Redeem ${mortgage.name}?`,
+              body: (
+                <>
+                  <Summary
+                    rows={[
+                      ['Redeemed on', formatDate(on)],
+                      ['Final Payment', formatINR(closure?.payment_amount ?? 0)],
+                      ['Method', (methods?.[method] ?? '') + (paymentReference ? ` · ${paymentReference}` : '')],
+                    ]}
+                  />
+                  <p className="hint">Return the jewellery to {mortgage.customer.name}.</p>
+                </>
+              ),
+              confirmLabel: 'Confirm Redemption',
+            }
+          : {
+              title: `Forfeit ${mortgage.name}?`,
+              body: (
                 <Summary
                   rows={[
-                    ['Redeemed on', formatDate(on)],
-                    ['Final Payment', formatINR(redemption.total)],
-                    ['Method', (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference}` : '')],
+                    ['Forfeited on', formatDate(on)],
+                    ['Redemption Amount', formatINR(closure?.redemption_amount ?? 0)],
+                    ['Recovered Amount', formatINR(closure?.recovered_amount ?? 0)],
+                    ['Profit / loss', formatINR(closure?.profit_loss ?? 0)],
+                    ['Note', note.trim() || '—'],
                   ]}
                 />
-                <p className="hint">Return the jewellery to {mortgage.customer.name}.</p>
-              </>
-            ),
-            confirmLabel: 'Confirm Redemption',
-          }
-        : {
-            title: `Forfeit ${mortgage.name}?`,
-            body: (
-              <Summary
-                rows={[
-                  ['Forfeited on', formatDate(on)],
-                  ['Redemption Amount', formatINR(redemption.total)],
-                  ['Recovered Amount', formatINR(recoveredPaise)],
-                  ['Profit / loss', profitLoss === null ? '—' : formatINR(profitLoss)],
-                  ['Note', note.trim() || '—'],
-                ]}
-              />
-            ),
-            confirmLabel: 'Confirm Forfeiture',
-            danger: true,
-          },
-    save: (closure) =>
-      changeMortgage((client) =>
-        closure.action === 'redeem'
-          ? changes.redeem(client, mortgage.id, closure.body)
-          : closure.action === 'waive'
-            ? changes.waive(client, mortgage.id, closure.body)
-            : changes.forfeit(client, mortgage.id, closure.body),
-      ),
-    saved: onClosed,
+              ),
+              confirmLabel: 'Confirm Forfeiture',
+              danger: true,
+            }
+    },
+    saved: ([closed]) => onClosed(closed),
   })
+  // The Closure as the Preview has it; nothing while the backend would refuse it.
+  const proposedClosure = preview.error ? null : closureOf(mortgage.id)
+  const waived = proposedClosure?.waived_amount ?? null
+  const profitLoss = proposedClosure?.profit_loss ?? null
 
   if (!action) {
     return (
@@ -268,12 +258,8 @@ export function CloseMortgage({
               value={received}
               onChange={(event) => setReceived(event.target.value)}
             />
-            {waiveProblem ? (
-              <span className="status error">{waiveProblem}</span>
-            ) : (
-              waived !== null && (
-                <span className="status warning">Waived off: {formatINR(waived)}</span>
-              )
+            {waived !== null && (
+              <span className="status warning">Waived off: {formatINR(waived)}</span>
             )}
           </label>
           {receivedPaise > 0 && (
@@ -322,7 +308,7 @@ export function CloseMortgage({
         </>
       )}
 
-      {redemption && !future && (
+      {closing && (
         <>
           <h3>What changes</h3>
           <PreviewSection preview={preview} />
@@ -333,7 +319,7 @@ export function CloseMortgage({
         <button
           type="submit"
           className={action === 'forfeit' ? 'danger-solid' : ''}
-          disabled={!canSave}
+          disabled={!canSave || !proposedClosure}
         >
           {action === 'redeem'
             ? `Redeem${redemption ? ` for ${formatINR(redemption.total)}` : ''}`
@@ -349,11 +335,6 @@ export function CloseMortgage({
           Cancel
         </button>
       </div>
-      {future && (
-        <p className="hint">
-          A quote for a future date; it can only be recorded on or before today.
-        </p>
-      )}
       {error && <p className="status error">{error}</p>}
       {confirmDialog}
     </form>

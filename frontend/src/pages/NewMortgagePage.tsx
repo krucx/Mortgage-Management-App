@@ -143,13 +143,18 @@ function MortgageForm({ customer }: { customer: Customer }) {
     placeholderData: (previous) => previous,
   })
   const name = nameEdited ? typedName : (suggested.data?.name ?? '')
+  // The suggestion is for the form as it stands, not an earlier description or date,
+  // so the name confirmed and saved is never one the Lender has typed past.
+  const nameReady =
+    nameEdited ||
+    (suggested.isSuccess && !suggested.isPlaceholderData && description === fields.description)
 
   const set = (field: keyof typeof fields) => (value: string) =>
     setFields({ ...fields, [field]: value })
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (!terms) return
+    if (!terms || !nameReady) return
     const chosenTerms = fromDraft(terms)
     const asked: MortgageIn = {
       customer_id: customer.id,
@@ -310,6 +315,11 @@ function MortgageForm({ customer }: { customer: Customer }) {
             setNameEdited(true)
           }}
         />
+        {!nameEdited && suggested.isError && (
+          <span className="status error">
+            No Mortgage Name could be suggested ({suggested.error.message}): type one.
+          </span>
+        )}
         <span className="hint">
           Must start with the start year. A number is added if the name is already taken.
         </span>
@@ -350,7 +360,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
       </fieldset>
 
       <div className="row">
-        <button type="submit" disabled={saving || !terms}>
+        <button type="submit" disabled={saving || !terms || !nameReady}>
           {saving ? 'Saving…' : locked ? 'Retry photo upload' : 'Create Mortgage'}
         </button>
       </div>
