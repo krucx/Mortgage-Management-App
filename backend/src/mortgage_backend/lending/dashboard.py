@@ -213,15 +213,16 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
                 valued += collateral.value
                 valued_owed += total
         elif (row["closed_on"].year, row["closed_on"].month) == this_month:
-            if row["status"] == MortgageStatus.REDEEMED:
+            closure = mortgage.closure()
+            assert closure is not None  # it is closed
+            if closure.kind == "redeemed":
                 redeemed += 1
-            elif row["status"] == MortgageStatus.WAIVED:
+            elif closure.kind == "waived":
                 waived += 1
-                waived_amount += ledger[-1].amount  # the "waived" step
+                waived_amount += closure.waived_amount or 0
             else:
                 forfeited += 1
-                owed_then = mortgage.redemption(row["closed_on"]).total
-                profit_loss += row["recovered_amount"] - owed_then
+                profit_loss += closure.profit_loss or 0
 
     projections, trend_months, coming_months = _projections(conn, active, today)
     to_send = notices.unsent_counts(conn)

@@ -69,6 +69,20 @@ class Redemption(BaseModel):
     total: int  # the Redemption Amount
 
 
+class Closure(BaseModel):
+    """How and when a Mortgage was closed, and what it came to."""
+
+    kind: Literal["redeemed", "waived", "forfeited"]
+    on: date
+    redemption_amount: int  # owed on that date, Part-Month Rule charge included
+    payment_id: int | None  # Redeemed or Waived: the final Payment, if any
+    payment_amount: int | None  # what that final Payment paid on this Mortgage
+    waived_amount: int | None  # Waived: what the Lender let off
+    recovered_amount: int | None  # Forfeited: what the jewellery fetched (or is worth)
+    profit_loss: int | None  # Forfeited: recovered − Redemption Amount
+    note: str | None
+
+
 class MortgageReplay:
     """One Mortgage's stored facts, loaded once, and what they replay to."""
 
@@ -129,6 +143,14 @@ class MortgageReplay:
             total=last.principal + last.unpaid_interest,
         )
 
+    def ready_to_redeem(self, on: date) -> bool:
+        """Active with nothing Outstanding on `on`, its jewellery waiting to go back (see
+        Ready to Redeem in GLOSSARY.md)."""
+        return (
+            self.row["status"] == MortgageStatus.ACTIVE
+            and self.outstanding(on).total == 0
+        )
+
     def redemption(self, on: date) -> Redemption:
         """The Redemption Amount if closed on `on`, leaving out the Redemption's own
         final Payment."""
@@ -149,6 +171,36 @@ class MortgageReplay:
             part_month_days=days_since_accrual(self.row["start_date"], on),
             part_month_charge=charge,
             total=last.principal + last.unpaid_interest,
+        )
+
+    def closure(self) -> Closure | None:
+        """How it was closed and what that came to; None while Active."""
+        row = self.row
+        if row["status"] == MortgageStatus.ACTIVE:
+            return None
+        redemption_amount = self.redemption(row["closed_on"]).total
+        forfeited = row["status"] == MortgageStatus.FORFEITED
+        last = self.ledger(row["closed_on"])[-1]
+        final_payment_id = row["redemption_payment_id"]
+        return Closure(
+            kind=row["status"],
+            on=row["closed_on"],
+            redemption_amount=redemption_amount,
+            payment_id=final_payment_id,
+            payment_amount=next(
+                (
+                    a.amount
+                    for a in self.allocations
+                    if a.payment_id == final_payment_id
+                ),
+                None,
+            ),
+            waived_amount=last.amount if last.event == "waived" else None,
+            recovered_amount=row["recovered_amount"],
+            profit_loss=row["recovered_amount"] - redemption_amount
+            if forfeited
+            else None,
+            note=row["closure_note"],
         )
 
     def projection(

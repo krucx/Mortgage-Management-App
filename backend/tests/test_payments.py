@@ -313,3 +313,44 @@ def test_the_payment_methods_are_published_with_their_names(client) -> None:
         {"method": "upi", "name": "UPI"},
         {"method": "bank_transfer", "name": "Bank transfer"},
     ]
+
+
+def test_a_payment_names_the_mortgages_it_left_ready_to_redeem(client, ramesh, mortgage):
+    other = lend(client, ramesh)
+    # ₹1,09,000 owed on each on 14 Apr: this one is paid in full, the other in part.
+    payment = pay(
+        client,
+        ramesh,
+        {mortgage["id"]: 109_000_00, other["id"]: 9_000_00},
+        on="2026-04-14",
+    )
+
+    assert [m["name"] for m in payment["ready_to_redeem"]] == [mortgage["name"]]
+    assert payment["ready_to_redeem"][0]["outstanding_total"] == 0
+
+
+def test_a_back_dated_payment_that_paid_everything_leaves_it_ready_to_redeem_today(
+    client, ramesh, mortgage
+):
+    # ₹1,06,000 owed on 14 Mar; with no Principal left, nothing accrues after.
+    payment = pay(client, ramesh, {mortgage["id"]: 106_000_00}, on="2026-03-14")
+
+    assert [m["id"] for m in payment["ready_to_redeem"]] == [mortgage["id"]]
+
+
+def test_a_payment_that_leaves_something_outstanding_names_none(
+    client, ramesh, mortgage
+):
+    payment = pay(client, ramesh, {mortgage["id"]: 19_000_00}, on="2026-04-20")
+
+    assert payment["ready_to_redeem"] == []
+
+
+def test_an_earlier_payment_does_not_name_a_mortgage_a_later_one_left_ready_to_redeem(
+    client, ramesh, mortgage
+):
+    earlier = pay(client, ramesh, {mortgage["id"]: 9_000_00}, on="2026-04-14")
+    # ₹1,00,000 left on 14 Apr; the later Payment pays it all.
+    pay(client, ramesh, {mortgage["id"]: 100_000_00}, on="2026-04-14")
+
+    assert client.get(f"/api/payments/{earlier['id']}").json()["ready_to_redeem"] == []

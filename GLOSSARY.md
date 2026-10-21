@@ -151,6 +151,10 @@ _Avoid_: Export, snapshot, archive
 **Active**:
 A Mortgage still accruing interest with jewellery held.
 
+**Ready to Redeem**:
+An Active Mortgage with nothing Outstanding: its jewellery is waiting to go back, and it takes no more Payments until it is Redeemed.
+_Avoid_: Paid off, cleared, settled
+
 **Redeemed**:
 A Mortgage fully repaid with its jewellery returned to the Customer.
 _Avoid_: Settled, paid off

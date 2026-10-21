@@ -29,6 +29,7 @@ from mortgage_backend.lending.ledger import (
     accrual_date,
 )
 from mortgage_backend.lending.replay import (
+    Closure,
     MortgageReplay,
     MortgageStatus,
     Outstanding,
@@ -102,19 +103,7 @@ class MortgageRow(BaseModel):
     amount_lent: int
     status: MortgageStatus
     outstanding_total: int
-
-
-class Closure(BaseModel):
-    """How and when a Mortgage was closed."""
-
-    kind: Literal["redeemed", "waived", "forfeited"]
-    on: date
-    redemption_amount: int  # owed on that date, Part-Month Rule charge included
-    payment_id: int | None  # Redeemed or Waived: the final Payment, if any
-    waived_amount: int | None  # Waived: what the Lender let off
-    recovered_amount: int | None  # Forfeited: what the jewellery fetched (or is worth)
-    profit_loss: int | None  # Forfeited: recovered − Redemption Amount
-    note: str | None
+    ready_to_redeem: bool  # Active with nothing Outstanding
 
 
 class TermChangeOut(BaseModel):
@@ -156,25 +145,6 @@ class Mortgage(BaseModel):
     closure: Closure | None
 
 
-def _closure(mortgage: MortgageReplay) -> Closure | None:
-    row = mortgage.row
-    if row["status"] == MortgageStatus.ACTIVE:
-        return None
-    redemption_amount = mortgage.redemption(row["closed_on"]).total
-    forfeited = row["status"] == MortgageStatus.FORFEITED
-    last = mortgage.ledger(row["closed_on"])[-1]
-    return Closure(
-        kind=row["status"],
-        on=row["closed_on"],
-        redemption_amount=redemption_amount,
-        payment_id=row["redemption_payment_id"],
-        waived_amount=last.amount if last.event == "waived" else None,
-        recovered_amount=row["recovered_amount"],
-        profit_loss=row["recovered_amount"] - redemption_amount if forfeited else None,
-        note=row["closure_note"],
-    )
-
-
 def mortgage_rows(
     conn: Connection,
     rows: Sequence[RowMapping],
@@ -194,6 +164,7 @@ def mortgage_rows(
             amount_lent=row["amount_lent"],
             status=row["status"],
             outstanding_total=replayed[row["id"]].outstanding(as_of).total,
+            ready_to_redeem=replayed[row["id"]].ready_to_redeem(as_of),
         )
         for row in rows
     ]
@@ -257,7 +228,7 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         ledger=mortgage.ledger(today),
         outstanding=outstanding,
         collateral=collateral_of(row, gold_rates(conn), outstanding.total),
-        closure=_closure(mortgage),
+        closure=mortgage.closure(),
     )
 
 

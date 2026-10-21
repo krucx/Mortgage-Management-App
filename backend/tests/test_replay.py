@@ -18,11 +18,12 @@ from seed import (
     add_term_change,
     forfeit,
     redeem,
+    waive,
 )
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.lending.ledger import HypotheticalPayments
-from mortgage_backend.lending.replay import replay, replays
+from mortgage_backend.lending.replay import Closure, replay, replays
 
 
 def test_a_voided_payment_is_in_no_ledger(conn: Connection) -> None:
@@ -97,6 +98,50 @@ def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
     assert (forfeited.event, forfeited.amount) == ("forfeited", 1_09_000 * RUPEE)
     # What the Mortgage owed when it was Forfeited.
     assert mortgage.redemption(date(2026, 3, 20)).total == 1_09_000 * RUPEE
+
+
+def test_a_waived_mortgage_closure_has_its_final_payment_and_what_was_let_off(
+    conn: Connection,
+) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    # ₹1,09,000 owed on 20 Mar (as above); the Customer pays ₹1,08,000.
+    final = waive(conn, chain, date(2026, 3, 20), paid=1_08_000 * RUPEE)
+
+    assert replay(conn, chain).closure() == Closure(
+        kind="waived",
+        on=date(2026, 3, 20),
+        redemption_amount=1_09_000 * RUPEE,
+        payment_id=final,
+        payment_amount=1_08_000 * RUPEE,
+        waived_amount=1_000 * RUPEE,
+        recovered_amount=None,
+        profit_loss=None,
+        note="Old friend",
+    )
+
+
+def test_a_forfeited_mortgage_closure_has_its_profit_or_loss(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    # ₹1,09,000 owed on 20 Mar; the jewellery fetches ₹90,000, a loss of ₹19,000.
+    forfeit(conn, chain, date(2026, 3, 20), recovered=90_000 * RUPEE)
+
+    closure = replay(conn, chain).closure()
+
+    assert closure is not None
+    assert (closure.kind, closure.payment_id, closure.payment_amount) == (
+        "forfeited",
+        None,
+        None,
+    )
+    assert (closure.recovered_amount, closure.profit_loss) == (
+        90_000 * RUPEE,
+        -19_000 * RUPEE,
+    )
+    assert closure.waived_amount is None
+
+
+def test_an_active_mortgage_has_no_closure(conn: Connection) -> None:
+    assert replay(conn, add_mortgage(conn, add_customer(conn))).closure() is None
 
 
 def test_term_changes_apply_from_their_accrual_date(conn: Connection) -> None:

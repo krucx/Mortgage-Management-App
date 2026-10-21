@@ -169,6 +169,7 @@ def test_forfeiting_records_what_was_recovered_and_the_profit_or_loss(
         "on": "2026-04-20",
         "redemption_amount": 112_000_00,
         "payment_id": None,
+        "payment_amount": None,
         "waived_amount": None,
         "recovered_amount": recovered,
         "profit_loss": profit_loss,

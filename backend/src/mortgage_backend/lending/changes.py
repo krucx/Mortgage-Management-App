@@ -715,7 +715,7 @@ def post_payment(
     payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Payment:
     with engine.begin() as conn:
-        return load_payment(conn, record_payment(conn, payment, today, now))
+        return load_payment(conn, record_payment(conn, payment, today, now), today)
 
 
 @router.post("/payments/{payment_id}/void")
@@ -725,7 +725,7 @@ def post_void(
     """Void a Payment entered by mistake; a corrected one is entered as a new Payment."""
     with engine.begin() as conn:
         void_payment(conn, payment_id, body.reason, today, now)
-        return load_payment(conn, payment_id)
+        return load_payment(conn, payment_id, today)
 
 
 @router.post(

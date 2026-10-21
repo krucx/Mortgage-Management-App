@@ -78,6 +78,6 @@ def ready_to_redeem(
                 mortgage=mortgage, redemption=replayed[mortgage.id].redemption(today)
             )
             for mortgage in listed
-            if mortgage.outstanding_total == 0
+            if mortgage.ready_to_redeem
         ]
     return rows_page(ready, page, _SORT_KEYS, sort=sort, descending=descending)

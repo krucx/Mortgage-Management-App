@@ -60,6 +60,7 @@ test('waiving off shows what is let off, asks first, then shows the Waiver', asy
       on: '2026-04-20',
       redemption_amount: 5_075_000,
       payment_id: 12,
+      payment_amount: 5_000_000,
       waived_amount: 75_000,
       recovered_amount: null,
       profit_loss: null,
@@ -90,6 +91,28 @@ test('waiving off shows what is let off, asks first, then shows the Waiver', asy
 
   expect(await screen.findByText(/Waived off on/)).toBeTruthy()
   expect(body).toMatchObject({ amount_paid: 5_000_000, note: 'Small balance' })
+})
+
+test('a Waived Mortgage shows its final Payment and what was let off', async () => {
+  const waived = {
+    ...mortgage,
+    status: 'waived' as const,
+    closure: {
+      kind: 'waived' as const,
+      on: '2026-04-20',
+      redemption_amount: 5_075_000,
+      payment_id: 12,
+      payment_amount: 5_000_000,
+      waived_amount: 75_000,
+      recovered_amount: null,
+      profit_loss: null,
+      note: 'Small balance',
+    },
+  }
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': waived }))
+
+  const paid = await screen.findByRole('link', { name: '₹50,000 (receipt)' })
+  expect(paid.getAttribute('href')).toBe('/payments/12')
 })
 
 test('waiving off the whole Redemption Amount is pointed to Redeem instead', async () => {

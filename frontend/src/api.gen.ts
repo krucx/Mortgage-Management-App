@@ -1210,7 +1210,7 @@ export interface components {
         };
         /**
          * Closure
-         * @description How and when a Mortgage was closed.
+         * @description How and when a Mortgage was closed, and what it came to.
          */
         Closure: {
             /**
@@ -1225,6 +1225,8 @@ export interface components {
              * Format: date
              */
             on: string;
+            /** Payment Amount */
+            payment_amount: number | null;
             /** Payment Id */
             payment_id: number | null;
             /** Profit Loss */
@@ -1709,6 +1711,8 @@ export interface components {
             name: string;
             /** Outstanding Total */
             outstanding_total: number;
+            /** Ready To Redeem */
+            ready_to_redeem: boolean;
             /**
              * Start Date
              * Format: date
@@ -1852,6 +1856,8 @@ export interface components {
              * Format: date
              */
             paid_on: string;
+            /** Ready To Redeem */
+            ready_to_redeem: components["schemas"]["MortgageRow"][];
             /** Reference */
             reference: string | null;
             /** Void Reason */

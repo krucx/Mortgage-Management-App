@@ -1,6 +1,6 @@
 """Payments from a Customer, each split into Allocations to their Mortgages (see GLOSSARY.md)."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated, Any, Literal
@@ -11,9 +11,15 @@ from sqlalchemy import Select, func, or_, select, true
 from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.lending.replay import replays
+from mortgage_backend.lending.mortgages import (
+    MortgageRow,
+    mortgage_rows,
+    select_with_customer,
+)
+from mortgage_backend.lending.ledger import LedgerStep
+from mortgage_backend.lending.replay import MortgageReplay, replays
 from mortgage_backend.people.customers import PersonSummary
-from mortgage_backend.platform.clock import MonthQuery, month_span
+from mortgage_backend.platform.clock import MonthQuery, TodayDep, month_span
 from mortgage_backend.platform.db import (
     EngineDep,
     allocation_table,
@@ -62,6 +68,9 @@ class Payment(BaseModel):
     allocations: list[AllocationOut]
     voided_at: datetime | None
     void_reason: str | None
+    # The Mortgages it left with nothing Outstanding that are still Ready to Redeem
+    # today (none once Voided).
+    ready_to_redeem: list[MortgageRow]
 
 
 class MortgageLink(BaseModel):
@@ -124,7 +133,7 @@ def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
     )
 
 
-def load_payment(conn: Connection, payment_id: int) -> Payment:
+def load_payment(conn: Connection, payment_id: int, today: date) -> Payment:
     payment = conn.execute(
         select(payment_table, customer_table.c.name.label("customer_name"))
         .join(customer_table, customer_table.c.id == payment_table.c.customer_id)
@@ -162,7 +171,40 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
         allocations=allocations,
         voided_at=payment.voided_at,
         void_reason=payment.void_reason,
+        ready_to_redeem=[]
+        if voided
+        else _ready_to_redeem(conn, payment_id, mortgages, today, replayed),
     )
+
+
+def _ready_to_redeem(
+    conn: Connection,
+    payment_id: int,
+    mortgages: Sequence[RowMapping],
+    today: date,
+    replayed: Mapping[int, MortgageReplay],
+) -> list[MortgageRow]:
+    """Those of `mortgages` (replayed already) that the Payment left with nothing
+    Outstanding and that are still Ready to Redeem today, in the same order."""
+    with_customer = {
+        row["id"]: row
+        for row in conn.execute(
+            select_with_customer().where(
+                mortgage_table.c.id.in_([m["id"] for m in mortgages])
+            )
+        ).mappings()
+    }
+    rows = [
+        with_customer[m["id"]]
+        for m in mortgages
+        if _leaves_nothing(replayed[m["id"]].steps_by_payment()[payment_id])
+    ]
+    listed = mortgage_rows(conn, rows, today, replayed)
+    return [row for row in listed if row.ready_to_redeem]
+
+
+def _leaves_nothing(step: LedgerStep) -> bool:
+    return step.principal + step.unpaid_interest == 0
 
 
 def _interest_paid(conn: Connection, payment_ids: Select[Any]) -> int:
@@ -203,9 +245,9 @@ def read_payment_methods() -> list[PaymentMethodName]:
 
 
 @router.get("/payments/{payment_id}")
-def read_payment(payment_id: int, engine: EngineDep) -> Payment:
+def read_payment(payment_id: int, engine: EngineDep, today: TodayDep) -> Payment:
     with engine.connect() as conn:
-        return load_payment(conn, payment_id)
+        return load_payment(conn, payment_id, today)
 
 
 @router.get("/payments")

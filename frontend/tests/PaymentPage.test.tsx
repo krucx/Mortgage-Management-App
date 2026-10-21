@@ -20,6 +20,7 @@ const payment: Payment = {
   reference: null,
   voided_at: null,
   void_reason: null,
+  ready_to_redeem: [],
   allocations: [
     {
       mortgage_id: 7,

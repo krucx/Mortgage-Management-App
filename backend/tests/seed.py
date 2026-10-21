@@ -19,6 +19,7 @@ from mortgage_backend.lending.changes import (
     PaymentIn,
     RedeemIn,
     TermChangeIn,
+    WaiveIn,
 )
 from mortgage_backend.lending.mortgages import MortgageIn
 from mortgage_backend.lending.replay import mortgage_row
@@ -143,3 +144,17 @@ def forfeit(conn: Connection, mortgage_id: int, on: date, recovered: int = 0) ->
         on,
         _at(on),
     )
+
+
+def waive(conn: Connection, mortgage_id: int, on: date, paid: int = 0) -> int | None:
+    """Waive the Mortgage on `on`, the Customer paying `paid` (paise) in cash; the final
+    Payment's id (None if nothing was paid)."""
+    changes.waive(
+        conn,
+        mortgage_id,
+        WaiveIn(waived_on=on, amount_paid=paid, method="cash", note="Old friend"),
+        on,
+        _at(on),
+    )
+    final: int | None = mortgage_row(conn, mortgage_id)["redemption_payment_id"]
+    return final

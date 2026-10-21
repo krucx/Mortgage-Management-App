@@ -24,9 +24,9 @@ import { tickedFirst } from '../sort'
 
 type AllocationMode = 'equal' | 'amount' | 'percent'
 
-/** A Mortgage with nothing Outstanding (paid off, awaiting Redemption) can't take a
- *  Payment: it is offered for Redemption instead. */
-const canTakePayment = (m: MortgageRow) => m.outstanding_total > 0
+/** A Mortgage Ready to Redeem can't take a Payment: it is offered for Redemption
+ *  instead. */
+const canTakePayment = (m: MortgageRow) => !m.ready_to_redeem
 
 /**
  * Equal shares as a suggestion only. More than is Outstanding is still split equally:
@@ -95,7 +95,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const [paidOff, setPaidOff] = useState<{ payment: Payment; mortgages: MortgageRow[] }>()
 
   // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
-  const { client, queryClient } = useServerState()
+  const { client } = useServerState()
   const listed = useQuery({
     ...everyMortgageQuery(client, { customerId: customer.id, status: 'active', asOf: paidOn }),
     enabled: paidOn !== '',
@@ -206,20 +206,11 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         />
       ),
     }),
-    save: async (asked) => {
-      const payment = await changeLedger((client) => changes.recordPayment(client, asked))
-      const allocated = new Set(payment.allocations.map((a) => a.mortgage_id))
-      // Any it left with nothing Outstanding, to offer for Redemption (asked for afresh:
-      // the Payment made what was cached stale).
-      const cleared = (
-        await queryClient
-          .fetchQuery(everyMortgageQuery(client, { customerId: customer.id, status: 'active' }))
-          .then((all) => all.items, () => [])
-      ).filter((m) => allocated.has(m.id) && m.outstanding_total === 0)
-      return { payment, cleared }
-    },
-    saved: ({ payment, cleared }) => {
-      if (cleared.length) setPaidOff({ payment, mortgages: cleared })
+    save: (asked) => changeLedger((client) => changes.recordPayment(client, asked)),
+    saved: (payment) => {
+      // Any it left Ready to Redeem are offered for Redemption.
+      if (payment.ready_to_redeem.length)
+        setPaidOff({ payment, mortgages: payment.ready_to_redeem })
       else navigate(`/payments/${payment.id}`)
     },
   })

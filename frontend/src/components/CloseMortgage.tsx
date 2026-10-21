@@ -376,7 +376,6 @@ export function ClosureSummary({ mortgage }: { mortgage: Mortgage }) {
     )
   }
   if (closure.kind === 'waived') {
-    const waived = closure.waived_amount ?? 0
     return (
       <div className="close-panel">
         <strong>Waived off on {formatDate(closure.on)}</strong>
@@ -387,13 +386,13 @@ export function ClosureSummary({ mortgage }: { mortgage: Mortgage }) {
               'Final Payment',
               closure.payment_id ? (
                 <Link key="paid" to={`/payments/${closure.payment_id}`}>
-                  {formatINR(closure.redemption_amount - waived)} (receipt)
+                  {formatINR(closure.payment_amount ?? 0)} (receipt)
                 </Link>
               ) : (
                 'None'
               ),
             ],
-            ['Waived off', formatINR(waived)],
+            ['Waived off', formatINR(closure.waived_amount ?? 0)],
             ['Reason', closure.note ?? '—'],
           ]}
         />
