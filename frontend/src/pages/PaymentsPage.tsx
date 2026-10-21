@@ -83,6 +83,7 @@ export function PaymentsPage() {
       <input
         autoFocus
         type="search"
+        aria-label="Filter Payments"
         placeholder="Filter by Customer, Mortgage Name or reference"
         value={query}
         onChange={(event) => setQuery(event.target.value)}

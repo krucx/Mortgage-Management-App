@@ -27,6 +27,7 @@ def test_lender_can_create_a_customer_and_open_their_page(client):
 
 
 import pytest
+from api_seed import lend
 
 
 @pytest.mark.parametrize(
@@ -382,3 +383,23 @@ def test_deleting_a_customer_clears_them_as_referrer_of_others(client):
 
 def test_deleting_a_customer_that_does_not_exist_is_404(client):
     assert client.delete("/api/customers/999").status_code == 404
+
+
+def test_the_preview_of_deleting_a_customer_with_mortgages_gives_the_refusal(client):
+    ramesh = create_customer(client)
+    lend(client, ramesh)
+
+    response = client.post(f"/api/customers/{ramesh['id']}/delete-preview")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "A Customer with Mortgages cannot be deleted"
+    assert client.get(f"/api/customers/{ramesh['id']}").status_code == 200
+
+
+def test_the_preview_of_deleting_a_customer_without_mortgages_deletes_nothing(client):
+    ramesh = create_customer(client)
+
+    response = client.post(f"/api/customers/{ramesh['id']}/delete-preview")
+
+    assert response.status_code == 204
+    assert client.get(f"/api/customers/{ramesh['id']}").status_code == 200

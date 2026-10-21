@@ -268,6 +268,31 @@ def put_customer(
         return load_customer(conn, customer_id)
 
 
+@router.post("/customers/preview", status_code=status.HTTP_204_NO_CONTENT)
+def preview_new_customer(customer: CustomerIn, engine: EngineDep, now: NowDep) -> Response:
+    """Whether the Customer can be added: they are added, then undone, so it is refused
+    here exactly when saving would be."""
+    with engine.connect() as conn:
+        try:
+            create_customer(conn, customer, now)
+        finally:
+            conn.rollback()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/customers/{customer_id}/preview", status_code=status.HTTP_204_NO_CONTENT)
+def preview_customer_edit(
+    customer_id: int, customer: CustomerIn, engine: EngineDep, now: NowDep
+) -> Response:
+    """Whether the edit can be saved: it is made, then undone, as for a new Customer."""
+    with engine.connect() as conn:
+        try:
+            edit_customer(conn, customer_id, customer, now)
+        finally:
+            conn.rollback()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.put("/customers/{customer_id}/photo")
 async def put_customer_photo(
     customer_id: int,
@@ -295,4 +320,19 @@ def delete_customer(
     with engine.begin() as conn:
         photo = remove_customer(conn, customer_id, now)
     photos.delete_photo(photos_dir, photo)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/customers/{customer_id}/delete-preview",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def preview_delete_customer(customer_id: int, engine: EngineDep, now: NowDep) -> Response:
+    """Whether the Customer can be deleted: the delete is made, then undone, so it is
+    refused here exactly when deleting would be."""
+    with engine.connect() as conn:
+        try:
+            remove_customer(conn, customer_id, now)
+        finally:
+            conn.rollback()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

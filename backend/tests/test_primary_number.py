@@ -176,3 +176,28 @@ def test_lender_can_look_up_who_a_number_belongs_to(client):
     assert owner(client, "9414099999")["kind"] == "referrer"
     assert owner(client, "9000000000") is None
     assert owner(client, "123") is None
+
+
+def test_the_preview_of_saving_a_customer_gives_the_same_refusal_and_saves_nothing(
+    client,
+):
+    create(client, referrer=MOHAN)
+    suresh = create(client, name="Suresh", phone_1="9000000002")
+    taken = {**RAMESH, "name": "Suresh", "phone_1": "9414099999"}
+
+    # Editing onto a Standalone Referrer's number is refused, as saving would be.
+    edit = client.put(f"/api/customers/{suresh['id']}/preview", json=taken)
+    # A new Customer on another Customer's number too.
+    new = client.post("/api/customers/preview", json={**RAMESH, "name": "Duplicate"})
+
+    assert (edit.status_code, new.status_code) == (409, 409)
+    assert "Mohan Lal" in edit.json()["detail"]
+    assert "Ramesh Kumar" in new.json()["detail"]
+    assert client.get(f"/api/customers/{suresh['id']}").json()["phone_1"] == "9000000002"
+
+
+def test_the_preview_of_saving_a_customer_that_would_save_saves_nothing(client):
+    response = client.post("/api/customers/preview", json=RAMESH)
+
+    assert response.status_code == 204
+    assert client.get("/api/customers").json()["total"] == 0

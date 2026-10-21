@@ -106,6 +106,7 @@ export function MortgagesPage() {
       <input
         autoFocus
         type="search"
+        aria-label="Filter Mortgages"
         placeholder="Filter by Mortgage Name, Customer or Primary Number"
         value={query}
         onChange={(event) => setQuery(event.target.value)}

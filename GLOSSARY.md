@@ -74,6 +74,10 @@ _Avoid_: Recalculation, recompute, refresh
 The Ledger continued into the future under stated assumptions, used to compare outcomes before a decision.
 _Avoid_: Forecast, estimate
 
+**Preview**:
+What a change would do, shown before it is saved: the change is made and then undone, so a Preview is refused exactly when saving would be.
+_Avoid_: Dry run, simulation
+
 **Trend**:
 The monthly average of the last 3 full months (Payments received, Principal lent, Redemptions) carried forward as an estimate; nothing is replayed, so unlike a Projection it is never exact.
 _Avoid_: Forecast, prediction

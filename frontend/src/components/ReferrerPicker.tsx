@@ -85,6 +85,8 @@ export function ReferrerPicker({
             </p>
           )}
           <input
+            type="search"
+            aria-label="Search for the Referrer"
             placeholder="Search Customers and Referrers by name or phone"
             value={query}
             onChange={(event) => setQuery(event.target.value)}

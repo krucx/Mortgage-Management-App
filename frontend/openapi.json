@@ -3799,6 +3799,38 @@
         "summary": "Post Customer"
       }
     },
+    "/api/customers/preview": {
+      "post": {
+        "description": "Whether the Customer can be added: they are added, then undone, so it is refused\nhere exactly when saving would be.",
+        "operationId": "preview_new_customer_api_customers_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview New Customer"
+      }
+    },
     "/api/customers/{customer_id}": {
       "delete": {
         "description": "Delete a Customer; anyone they referred keeps their record but loses the link.",
@@ -3916,6 +3948,39 @@
         "summary": "Put Customer"
       }
     },
+    "/api/customers/{customer_id}/delete-preview": {
+      "post": {
+        "description": "Whether the Customer can be deleted: the delete is made, then undone, so it is\nrefused here exactly when deleting would be.",
+        "operationId": "preview_delete_customer_api_customers__customer_id__delete_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Delete Customer"
+      }
+    },
     "/api/customers/{customer_id}/history": {
       "get": {
         "operationId": "read_customer_history_api_customers__customer_id__history_get",
@@ -4006,6 +4071,49 @@
           }
         },
         "summary": "Put Customer Photo"
+      }
+    },
+    "/api/customers/{customer_id}/preview": {
+      "put": {
+        "description": "Whether the edit can be saved: it is made, then undone, as for a new Customer.",
+        "operationId": "preview_customer_edit_api_customers__customer_id__preview_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Customer Edit"
       }
     },
     "/api/dashboard": {

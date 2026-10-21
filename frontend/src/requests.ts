@@ -342,6 +342,11 @@ export const noticeActions = {
 /** Delete a Customer (refused while they have Mortgages). */
 export const deleteCustomer = (client: ApiClient, id: number) =>
   dataOrThrow(client.DELETE('/api/customers/{customer_id}', { params: customerPath(id) }))
+/** Whether deleting the Customer would be refused (it throws the reason), saving nothing. */
+export const previewDeleteCustomer = (client: ApiClient, id: number) =>
+  dataOrThrow(
+    client.POST('/api/customers/{customer_id}/delete-preview', { params: customerPath(id) }),
+  )
 
 /** A settings group: read once, then known from what saving it returns. */
 function settingsQuery<T>(name: string, load: () => Promise<T>) {
@@ -495,6 +500,20 @@ export function numberOwnerQuery(client: ApiClient, phone: string) {
 
 /** Saving a Customer: new (no id) or edited; their photo is replaced separately. */
 export const customerChanges = {
+  /** Whether saving would be refused (its reason as the Preview's error), saving nothing. */
+  preview: (customer: CustomerIn, id?: number): PreviewRequest<null> => ({
+    key: ['customer-save', id ?? 'new', customer],
+    // Nothing comes back when it would save; null, as a query's answer can't be undefined.
+    load: (client) =>
+      dataOrThrow(
+        id === undefined
+          ? client.POST('/api/customers/preview', { body: customer })
+          : client.PUT('/api/customers/{customer_id}/preview', {
+              params: customerPath(id),
+              body: customer,
+            }),
+      ).then(() => null),
+  }),
   save: (client: ApiClient, customer: CustomerIn, id?: number) =>
     dataOrThrow(
       id === undefined

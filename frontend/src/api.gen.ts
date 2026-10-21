@@ -209,6 +209,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/customers/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview New Customer
+         * @description Whether the Customer can be added: they are added, then undone, so it is refused
+         *     here exactly when saving would be.
+         */
+        post: operations["preview_new_customer_api_customers_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/customers/{customer_id}": {
         parameters: {
             query?: never;
@@ -226,6 +247,27 @@ export interface paths {
          * @description Delete a Customer; anyone they referred keeps their record but loses the link.
          */
         delete: operations["delete_customer_api_customers__customer_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customers/{customer_id}/delete-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Delete Customer
+         * @description Whether the Customer can be deleted: the delete is made, then undone, so it is
+         *     refused here exactly when deleting would be.
+         */
+        post: operations["preview_delete_customer_api_customers__customer_id__delete_preview_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -258,6 +300,26 @@ export interface paths {
         get?: never;
         /** Put Customer Photo */
         put: operations["put_customer_photo_api_customers__customer_id__photo_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customers/{customer_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Preview Customer Edit
+         * @description Whether the edit can be saved: it is made, then undone, as for a new Customer.
+         */
+        put: operations["preview_customer_edit_api_customers__customer_id__preview_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2760,6 +2822,37 @@ export interface operations {
             };
         };
     };
+    preview_new_customer_api_customers_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_customer_api_customers__customer_id__get: {
         parameters: {
             query?: never;
@@ -2855,6 +2948,35 @@ export interface operations {
             };
         };
     };
+    preview_delete_customer_api_customers__customer_id__delete_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_customer_history_api_customers__customer_id__history_get: {
         parameters: {
             query?: never;
@@ -2909,6 +3031,39 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Customer"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_customer_edit_api_customers__customer_id__preview_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

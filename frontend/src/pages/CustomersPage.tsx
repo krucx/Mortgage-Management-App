@@ -8,7 +8,7 @@ import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { PersonLink, PersonList } from '../components/PersonLink'
 import { useSearch } from '../components/useSearch'
-import { customerQuery, deleteCustomer, lists } from '../requests'
+import { customerQuery, deleteCustomer, lists, previewDeleteCustomer } from '../requests'
 import { STALE_AFTER, useChange, useServerState } from '../serverState'
 
 /** All Customers in a paginated table, filterable by name or phone, or to those with an
@@ -39,6 +39,8 @@ export function CustomersPage() {
   async function remove(row: CustomerRow) {
     setActionError(null)
     try {
+      // A Customer the backend won't delete is refused here, before anything is asked.
+      await previewDeleteCustomer(client, row.id)
       const { referred } = await queryClient.fetchQuery(customerQuery(client, row.id))
       const confirmed = await confirm({
         title: `Delete ${row.name}?`,
@@ -75,6 +77,7 @@ export function CustomersPage() {
       <input
         autoFocus
         type="search"
+        aria-label="Filter Customers"
         placeholder="Filter by name or phone"
         value={query}
         onChange={(event) => setQuery(event.target.value)}

@@ -53,7 +53,7 @@ test("typing a Customer's phone number into the search finds their Mortgages", a
   })
   showPage(server, '/mortgages', { '/mortgages': <MortgagesPage /> })
 
-  fireEvent.change(await screen.findByPlaceholderText('Filter by Mortgage Name, Customer or Primary Number'), {
+  fireEvent.change(await screen.findByRole('searchbox', { name: 'Filter Mortgages' }), {
     target: { value: '98200 23456' },
   })
 

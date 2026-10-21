@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import type { Customer, PersonSummary } from '../api'
+import type { Customer, CustomerIn, PersonSummary } from '../api'
 import { PeopleInline, PersonLink } from '../components/PersonLink'
 import { PhotoPicker } from '../components/PhotoPicker'
 import { ReferrerPicker, type ReferrerSelection } from '../components/ReferrerPicker'
 import { useNumberOwner } from '../components/useNumberOwner'
+import { usePreview } from '../components/usePreview'
 import { Summary } from '../components/ConfirmDialog'
 import { useConfirm } from '../components/useConfirm'
 import { normalisePhone } from '../phone'
@@ -59,10 +60,18 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
   const { client, queryClient } = useServerState()
   const changeCustomer = useChange(STALE_AFTER.customer)
 
-  /** Warn (never block) when another Customer already uses this number. */
   // Contact number 1 is the Primary Number: it identifies the person.
   const numberOwner = useNumberOwner(fields.phone_1)
   const ownerIsSelf = numberOwner?.kind === 'customer' && numberOwner.id === customerId
+
+  // What saving would send, checked by the backend as it is typed: a save it would refuse
+  // (e.g. someone else's Primary Number) can't be pressed, and its reason is shown.
+  const asked: CustomerIn | null =
+    referrer === 'unpicked' || !fields.name.trim() || !normalisePhone(fields.phone_1)
+      ? null
+      : { ...fields, phone_2: fields.phone_2.trim() || null, referrer }
+  const check = usePreview(asked && customerChanges.preview(asked, customerId))
+  const unchecked = asked !== null && (check.loading || check.error !== null)
 
   /** Contact number 2 may be shared (e.g. a family phone): warn, never block. */
   async function checkPhone2() {
@@ -78,6 +87,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
 
   async function save(event: FormEvent) {
     event.preventDefault()
+    if (unchecked) return
     if (referrer === 'unpicked') {
       setError('Pick the Referrer from the search results, or choose "None".')
       return
@@ -141,7 +151,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
           Already belongs to Customer <PersonLink person={numberOwner} />
         </span>
       )}
-      {numberOwner?.kind === 'referrer' && (
+      {numberOwner?.kind === 'referrer' && customerId === undefined && (
         <span className="status warning">
           Belongs to <PersonLink person={numberOwner} />. Saving makes them this Customer, and
           the people they referred move with them.
@@ -205,13 +215,14 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
         />
 
         <div className="row">
-          <button type="submit" disabled={saving}>
+          <button type="submit" disabled={saving || unchecked}>
             {saving ? 'Saving…' : 'Save'}
           </button>
           <button type="button" className="secondary" onClick={() => navigate(-1)}>
             Cancel
           </button>
         </div>
+        {check.error && <p className="status error">{check.error}</p>}
         {error && <p className="status error">{error}</p>}
       </form>
       {confirmDialog}
