@@ -48,6 +48,13 @@ Describe 'the .env file' {
         $values['APP_PORT'] | Should -Be '8080'
     }
 
+    It 'persists a custom data folder for every app run' {
+        $text = New-EnvText -Mode 'docker' -DataDir 'D:\Mortgage Data' `
+            -BackupDir 'D:\Mortgage Backups' -Password ''
+
+        (Read-EnvText $text)['DATA_DIR'] | Should -Be 'D:\Mortgage Data'
+    }
+
     It 'keeps a Backup password exactly, spaces and # included' {
         $text = New-EnvText -Mode 'docker' -DataDir 'D' -BackupDir 'B' -Password 'open sesame #42'
 
@@ -72,5 +79,31 @@ Describe 'the .env file' {
     It 'adds a value that is missing' {
         (Read-EnvText (Set-EnvValue "DATA_DIR=D:\data`n" 'RUN_WITH' 'local'))['RUN_WITH'] |
             Should -Be 'local'
+    }
+}
+
+Describe 'first setup folder selection' {
+    It 'asks for and persists a custom data folder' {
+        $InstallDir = Join-Path $TestDrive 'install'
+        $NonInteractive = $false
+        $chosenDataPath = Join-Path $TestDrive 'chosen data'
+        $chosenBackupPath = Join-Path $TestDrive 'chosen backups'
+        New-Item -ItemType Directory -Force $InstallDir | Out-Null
+
+        Mock Get-EnvPath { Join-Path $InstallDir '.env' }
+        Mock Read-Host {
+            param([string]$Prompt)
+            switch -Wildcard ($Prompt) {
+                'Data folder*' { return $chosenDataPath }
+                'Backup folder*' { return $chosenBackupPath }
+                default { throw "Unexpected prompt: $Prompt" }
+            }
+        }
+
+        Initialize-EnvFile -Mode 'local'
+
+        $values = Read-EnvText ([IO.File]::ReadAllText((Get-EnvPath)))
+        $values['DATA_DIR'] | Should -Be $chosenDataPath
+        Test-Path $chosenDataPath | Should -BeTrue
     }
 }

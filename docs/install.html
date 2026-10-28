@@ -209,7 +209,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <p>For Windows 10 and 11. It always installs the newest release, so this one file stays good: keep it to update later. Also on <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/windows/Setup.bat">GitHub</a>.</p>
   </div>
   <div class="facts">
-    <span>Newest release: <b>1.5.0</b></span>
+    <span>Newest release: <b>1.5.1</b></span>
     <span>Takes: <b>5–15 minutes</b></span>
     <span>Needs: <b>an internet connection while installing</b></span>
     <span>Opens at: <b>http://localhost:8080</b></span>
@@ -303,10 +303,12 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <div class="term-body" tabindex="0">
         <div data-mode="both">Mortgage Management setup</div>
         <div data-mode="both" data-note="Setup puts everything in one folder in your user folder: the app, its data, and its Backups. Nothing is put anywhere else, but for Node.js and uv when there is no Docker.">Installing in C:\Users\you\MortgageManagement</div>
-        <div data-mode="both" data-note="It always gets the newest release from GitHub.">Getting version 1.5.0...</div>
+        <div data-mode="both" data-note="It always gets the newest release from GitHub.">Getting version 1.5.1...</div>
         <div data-mode="local" data-note="Setup found no Docker, so the app will run on the PC itself. To use Docker instead, install Docker Desktop and run Setup again.">Docker is not installed: the app will run directly on this PC.</div>
         <div data-mode="docker" data-note="Setup found Docker Desktop, so the app will run in Docker.">Docker is installed: the app will run in Docker.</div>
         <div data-mode="both"></div>
+        <div data-mode="both" data-note="First choose where the database and photos live. Keep the default, or choose another folder with enough space. Setup saves this choice and uses it every time the app runs.">The data folder holds the database and photos. Choose a folder with enough space for your records.</div>
+        <div data-mode="both" class="q" data-note="Press Enter to keep the data with the app. You can choose another folder, including one on another drive. Setup creates it if needed.">Data folder (Enter for C:\Users\you\MortgageManagement\data): <kbd>⏎</kbd></div>
         <div data-mode="both" data-note="Next it asks where Backups should go. Have a Google Drive or OneDrive folder ready if you want them kept off this PC.">Backups can go to a Google Drive or OneDrive folder, so they are kept off this PC.</div>
         <div data-mode="both" class="q" data-note="Press Enter to keep Backups in the app's own folder. Better: paste a folder that Google Drive or OneDrive syncs, so a Backup survives a lost or broken laptop. With Google Drive for desktop that is usually like G:\My Drive\Mortgage Backups; with OneDrive, C:\Users\you\OneDrive\Mortgage Backups. Make the folder first, then paste its path.">Backup folder (Enter for C:\Users\you\MortgageManagement\backups): <kbd>⏎</kbd></div>
         <div data-mode="local" data-note="Without Docker, Windows has nothing that makes password zips, so no password is asked for.">Without Docker, Backups are plain zips (no password).</div>
@@ -345,7 +347,7 @@ It keeps running after this window closes.</div>
   app       <em>the app itself, and its settings file .env</em>
   data      <em>the database and photos: the whole book</em>
   backups   <em>the Backup zips (unless you chose another folder)</em></pre>
-    <span class="muted">Setup keeps the Docker or no-Docker choice, the Backup folder and the password in <span class="path">app\.env</span>, a text file that Setup and the shortcut read.</span>
+    <span class="muted">Setup keeps the Docker or no-Docker choice, the data folder, the Backup folder and the password in <span class="path">app\.env</span>, a text file that Setup and the shortcut read. The data folder is recorded as <code>DATA_DIR</code> and reused every time the app runs.</span>
   </div>
 
   <div data-for="mac" style="display: grid; gap: 1rem">
@@ -400,7 +402,7 @@ cd Mortgage-Management-App</pre><button type="button" class="copy">Copy</button>
       <ol class="checklist" data-list="update" data-plain>
         <li data-for="win-local"><input type="checkbox" id="u-stop" tabindex="-1"><label for="u-stop"><b>Close the app's window</b><span class="detail">So the app is stopped while it is updated.</span></label></li>
         <li><input type="checkbox" id="u-run" tabindex="-1"><label for="u-run"><b>Double-click Setup.bat again</b><span class="detail">The one you downloaded, or the copy in <span class="path">C:\Users\you\MortgageManagement\app\windows</span>.</span></label></li>
-        <li><input type="checkbox" id="u-start" tabindex="-1"><label for="u-start"><b>Say yes to start it</b><span class="detail">It asks no other questions this time: the Backup folder, password and data are kept as they are.</span></label></li>
+        <li><input type="checkbox" id="u-start" tabindex="-1"><label for="u-start"><b>Say yes to start it</b><span class="detail">It asks no other questions this time: the data folder, Backup folder and password are kept as they are.</span></label></li>
       </ol>
     </div>
     <div data-for="mac" style="display: grid; gap: 0.6rem">
@@ -428,6 +430,7 @@ docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
     <div class="nuance rule"><b>Weekly, by itself</b><span>On the first use of the day one falls due, the app writes <code>mortgage-backup-&lt;date&gt;-&lt;time&gt;.zip</code> to the Backup folder, and keeps the last few (4 by default).</span></div>
     <div class="nuance"><b>Any time, by hand</b><span><span class="ui">Settings</span> shows the last Backup and has a <span class="ui">Back up now</span> button. Use it before anything risky.</span></div>
     <div class="nuance"><b>Off the laptop</b><span>A Backup folder in Google Drive, OneDrive or iCloud means a lost laptop doesn't lose the book. To move it later, change <code>BACKUP_DIR</code> in <span class="path">app\.env</span>, then start the app again.</span></div>
+    <div class="nuance"><b>Moving the data</b><span>Stop the app, move <code>mortgage.db</code> and the <code>photos</code> folder together, then change <code>DATA_DIR</code> in <span class="path">app\.env</span> to that folder before starting the app again.</span></div>
   </div>
   <div style="display: grid; gap: 0.6rem">
     <div class="block-title">To bring a Backup back</div>
@@ -570,7 +573,7 @@ docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
       <span class="go">Read the story →</span>
     </a>
   </div>
-  <footer>Written for version 1.5.0. The full details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>.</footer>
+  <footer>Written for version 1.5.1. The full details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>.</footer>
 </section>
 
 </main>

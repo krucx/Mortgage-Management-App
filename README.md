@@ -14,12 +14,15 @@ download and every step, for your own computer. In short:
 1. Download [`Setup.bat`](https://krucx.github.io/Mortgage-Management-App/Setup.bat)
    and double-click it. If Windows warns about an
    unrecognised app, choose **More info → Run anyway**.
-2. Answer its questions (Enter keeps the default each time), and say yes to start it.
+2. Choose where the database and photos should live, where Backups should go, answer
+   any other questions (Enter keeps the default each time), and say yes to start it.
 3. From then on, open the **Mortgage Management** shortcut on the Desktop.
 
 Setup puts everything in `%USERPROFILE%\MortgageManagement`: `app` (the code and its
-`.env`), `data` (database and photos) and `backups` (unless you chose another folder,
-such as a Google Drive or OneDrive one). It sets up the latest release:
+`.env`), `data` (database and photos, unless you chose another folder) and `backups`
+(unless you chose another folder, such as a Google Drive or OneDrive one). The selected
+data folder is saved as `DATA_DIR` in `app\.env` and reused by every run. Setup creates
+the folder if needed. It sets up the latest release:
 
 - **With Docker Desktop installed**, the app runs in Docker, as below. Setup asks for a
   Backup password.
@@ -31,6 +34,8 @@ such as a Google Drive or OneDrive one). It sets up the latest release:
 
 Run `Setup.bat` again to update to the newest release; your `.env`, data and Backups are
 kept. It uses git when it is installed, and otherwise downloads the release from GitHub.
+To move the data later, stop the app, move `mortgage.db` and `photos` together to the
+new folder, then update `DATA_DIR` in `app\.env` before starting the app again.
 
 To remove the app from the PC, double-click `Uninstall.bat` in
 `%USERPROFILE%\MortgageManagement\app\windows` and type `yes`. It stops the app and

@@ -5,6 +5,17 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [1.5.1] - 2026-10-28
+
+Choose a separate folder for the database and photos during Windows setup. No database
+changes: updating keeps all data and Backups.
+
+### Changed
+
+- **Windows setup:** choose the folder for the database and photos on first install.
+  The choice is saved in `DATA_DIR` and reused by Docker and local runs. Existing
+  installations keep their selected folder when updated.
+
 ## [1.5.0] - 2026-10-21
 
 Close several Mortgages as one change, all or none, with a Preview of every Closure first;

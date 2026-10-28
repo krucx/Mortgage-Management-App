@@ -37,7 +37,7 @@ function Read-Password {
 }
 
 function Initialize-EnvFile {
-    <# A .env for `Mode`, asking for the Backup folder (and, with Docker, a password). #>
+    <# A .env for `Mode`, asking for the data and Backup folders (and, with Docker, a password). #>
     param([string]$Mode)
     if (Test-Path (Get-EnvPath)) {
         $text = Set-EnvValue ([IO.File]::ReadAllText((Get-EnvPath))) 'RUN_WITH' $Mode
@@ -54,6 +54,9 @@ function Initialize-EnvFile {
     $password = ''
     if (-not $NonInteractive) {
         Write-Host ''
+        Write-Host 'The data folder holds the database and photos. Choose a folder with enough space for your records.'
+        $chosen = Read-Host "Data folder (Enter for $dataDir)"
+        if ($chosen) { $dataDir = $chosen.Trim('"', ' ') }
         Write-Host 'Backups can go to a Google Drive or OneDrive folder, so they are kept off this PC.'
         $chosen = Read-Host "Backup folder (Enter for $backupDir)"
         if ($chosen) { $backupDir = $chosen.Trim('"', ' ') }
