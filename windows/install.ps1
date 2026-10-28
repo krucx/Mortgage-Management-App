@@ -38,7 +38,7 @@ function Read-Password {
 
 function Initialize-EnvFile {
     <# A .env for `Mode`, asking for the data and Backup folders (and, with Docker, a password). #>
-    param([string]$Mode)
+    param([string]$Mode, [string]$InstallDir, [bool]$NonInteractive)
     if (Test-Path (Get-EnvPath)) {
         $text = Set-EnvValue ([IO.File]::ReadAllText((Get-EnvPath))) 'RUN_WITH' $Mode
         if ($Mode -eq 'local' -and (Read-EnvText $text)['BACKUP_PASSWORD']) {
@@ -122,21 +122,23 @@ function New-DesktopShortcut {
     $shortcut.Save()
 }
 
-$chosen = Select-Mode -Requested $Mode -DockerInstalled (Test-Command docker)
-if ($chosen -eq 'docker') {
-    Write-Host 'Docker is installed: the app will run in Docker.'
-} else {
-    Write-Host 'Docker is not installed: the app will run directly on this PC.'
-}
-Initialize-EnvFile $chosen
-if ($chosen -eq 'docker') { Install-Docker } else { Install-Local }
-New-DesktopShortcut
+if ($MyInvocation.InvocationName -ne '.') {
+    $chosen = Select-Mode -Requested $Mode -DockerInstalled (Test-Command docker)
+    if ($chosen -eq 'docker') {
+        Write-Host 'Docker is installed: the app will run in Docker.'
+    } else {
+        Write-Host 'Docker is not installed: the app will run directly on this PC.'
+    }
+    Initialize-EnvFile -Mode $chosen -InstallDir $InstallDir -NonInteractive:$NonInteractive
+    if ($chosen -eq 'docker') { Install-Docker } else { Install-Local }
+    New-DesktopShortcut
 
-Write-Host ''
-Write-Host 'Mortgage Management is set up.' -ForegroundColor Green
-Write-Host 'Start it any time with the "Mortgage Management" shortcut on the Desktop.'
-Write-Host 'Run Setup again to update to the newest release.'
-if (-not $NonInteractive) {
-    $start = Read-Host 'Start it now? [Y/n]'
-    if ($start -eq '' -or $start -match '^[Yy]') { & (Join-Path $PSScriptRoot 'run.ps1') }
+    Write-Host ''
+    Write-Host 'Mortgage Management is set up.' -ForegroundColor Green
+    Write-Host 'Start it any time with the "Mortgage Management" shortcut on the Desktop.'
+    Write-Host 'Run Setup again to update to the newest release.'
+    if (-not $NonInteractive) {
+        $start = Read-Host 'Start it now? [Y/n]'
+        if ($start -eq '' -or $start -match '^[Yy]') { & (Join-Path $PSScriptRoot 'run.ps1') }
+    }
 }

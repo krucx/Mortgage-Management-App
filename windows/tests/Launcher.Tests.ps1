@@ -5,6 +5,7 @@ BeforeAll {
     $windows = Split-Path -Parent $PSScriptRoot
     . (Join-Path $windows 'common.ps1')
     . (Join-Path $windows 'setup.ps1')   # dot-sourced: defines its functions, runs nothing
+    . (Join-Path $windows 'install.ps1') -InstallDir $windows -Mode local -NonInteractive
 }
 
 Describe 'the latest release' {
@@ -100,7 +101,7 @@ Describe 'first setup folder selection' {
             }
         }
 
-        Initialize-EnvFile -Mode 'local'
+        Initialize-EnvFile -Mode 'local' -InstallDir $InstallDir -NonInteractive:$NonInteractive
 
         $values = Read-EnvText ([IO.File]::ReadAllText((Get-EnvPath)))
         $values['DATA_DIR'] | Should -Be $chosenDataPath
