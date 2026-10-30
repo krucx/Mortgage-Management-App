@@ -71,6 +71,9 @@ class PaymentIn(BaseModel):
     method: PaymentMethod
     reference: str | None = None
     allocations: list[AllocationIn] = Field(min_length=1)
+    # Mortgages it Redeems on its date: each one's Allocation is its whole Redemption
+    # Amount, recorded as its final Payment.
+    redeeming: list[int] = []
 
     @model_validator(mode="after")
     def allocations_add_up(self) -> "PaymentIn":
@@ -78,6 +81,8 @@ class PaymentIn(BaseModel):
             raise ValueError("Allocations must add up to the Payment amount")
         if len({a.mortgage_id for a in self.allocations}) != len(self.allocations):
             raise ValueError("Each Mortgage can appear only once in a Payment")
+        if not set(self.redeeming) <= {a.mortgage_id for a in self.allocations}:
+            raise ValueError("A Mortgage it Redeems must have an Allocation")
         self.reference = (self.reference or "").strip() or None
         return self
 
@@ -193,10 +198,17 @@ def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -> 
             ) from None
 
 
-def _write_payment(conn: Connection, payment: PaymentIn) -> int:
+def _write_payment(
+    conn: Connection, payment: PaymentIn, received_with: int | None = None
+) -> int:
+    """Write the Payment; `received_with` is the first of the Payments recorded from the
+    same sum, which share its Receipt."""
     payment_id: int = conn.execute(
         insert(payment_table)
-        .values(**payment.model_dump(exclude={"allocations"}))
+        .values(
+            **payment.model_dump(exclude={"allocations", "redeeming"}),
+            received_with=received_with,
+        )
         .returning(payment_table.c.id)
     ).scalar_one()
     conn.execute(
@@ -274,11 +286,62 @@ def _refuse_payment(
 def record_payment(
     conn: Connection, payment: PaymentIn, today: date, now: datetime
 ) -> int:
-    """Record a Payment (or refuse); returns its id."""
+    """Record a Payment (or refuse); returns its id. The Mortgages it is `redeeming` are
+    each Redeemed with their own final Payment, received with the rest of it: the id is
+    then the first of those Payments."""
     rows = _refuse_payment(conn, payment, today)
-    payment_id = _write_payment(conn, payment)
-    check_replays(conn, rows, today)
-    _record_payment_history(conn, payment_id, payment, now)
+    redeemed = [a for a in payment.allocations if a.mortgage_id in payment.redeeming]
+    ordinary = [a for a in payment.allocations if a not in redeemed]
+    first = None
+    if ordinary:
+        paid = payment.model_copy(
+            update={
+                "amount": sum(a.amount for a in ordinary),
+                "allocations": ordinary,
+                "redeeming": [],
+            }
+        )
+        first = _write_payment(conn, paid)
+        check_replays(conn, [r for r in rows if r["id"] not in payment.redeeming], today)
+        _record_payment_history(conn, first, paid, now)
+    for allocation in redeemed:
+        with _refusal_names_mortgage(conn, allocation.mortgage_id):
+            final = _redeem_with_allocation(conn, allocation, payment, first, today, now)
+        if first is None:
+            first = final
+    assert first is not None  # there is at least one Allocation
+    return first
+
+
+def _redeem_with_allocation(
+    conn: Connection,
+    allocation: AllocationIn,
+    payment: PaymentIn,
+    received_with: int | None,
+    today: date,
+    now: datetime,
+) -> int:
+    """Redeem the Allocation's Mortgage on the Payment date with the Allocation as its
+    final Payment (or refuse, unless it is the whole Redemption Amount)."""
+    mortgage = closable(conn, allocation.mortgage_id, payment.paid_on, today)
+    owed = mortgage.redemption(payment.paid_on).total
+    if allocation.amount != owed:
+        raise unprocessable(
+            f"{format_inr(allocation.amount)} is not the Redemption Amount on "
+            f"{payment.paid_on:%d %b %Y} ({format_inr(owed)})"
+        )
+    payment_id = _close_redeemed(
+        conn,
+        mortgage,
+        payment.paid_on,
+        owed,
+        payment.method,
+        payment.reference,
+        today,
+        now,
+        received_with,
+    )
+    assert payment_id is not None  # an Allocation is more than nothing
     return payment_id
 
 
@@ -555,10 +618,12 @@ def _close_with_payment(
     reference: str | None,
     today: date,
     now: datetime,
+    received_with: int | None = None,
     **closure: object,
-) -> None:
-    """Record the final Payment of `amount` (unless it is nothing) and close the
-    Mortgage as `closure` says."""
+) -> int | None:
+    """Record the final Payment of `amount` (unless it is nothing), received with the
+    Payment `received_with` if any, and close the Mortgage as `closure` says; returns
+    the final Payment's id."""
     row = mortgage.row
     # The final Payment may include the part-month charge, owed only once the Mortgage
     # closes, so it is replayed after closing rather than as an ordinary Payment.
@@ -574,7 +639,7 @@ def _close_with_payment(
             allocations=[AllocationIn(mortgage_id=row["id"], amount=amount)],
         )
         _refuse_payment(conn, final, today)
-        payment_id = _write_payment(conn, final)
+        payment_id = _write_payment(conn, final, received_with)
     _set_closure(
         conn,
         row["id"],
@@ -585,6 +650,7 @@ def _close_with_payment(
     check_replays(conn, [mortgage_row(conn, row["id"])], today)
     if final is not None and payment_id is not None:
         _record_payment_history(conn, payment_id, final, now)
+    return payment_id
 
 
 def redeem(
@@ -594,7 +660,7 @@ def redeem(
     mark the Mortgage Redeemed (or refuse)."""
     mortgage = closable(conn, mortgage_id, redeem.redeemed_on, today)
     owed = mortgage.redemption(redeem.redeemed_on).total
-    _close_with_payment(
+    _close_redeemed(
         conn,
         mortgage,
         redeem.redeemed_on,
@@ -603,16 +669,43 @@ def redeem(
         redeem.reference,
         today,
         now,
+    )
+
+
+def _close_redeemed(
+    conn: Connection,
+    mortgage: MortgageReplay,
+    on: date,
+    owed: int,
+    method: PaymentMethod,
+    reference: str | None,
+    today: date,
+    now: datetime,
+    received_with: int | None = None,
+) -> int | None:
+    """Record the final Payment of the Redemption Amount `owed` (unless it is nothing)
+    and mark the Mortgage Redeemed; returns the final Payment's id."""
+    payment_id = _close_with_payment(
+        conn,
+        mortgage,
+        on,
+        owed,
+        method,
+        reference,
+        today,
+        now,
+        received_with,
         status=MortgageStatus.REDEEMED,
     )
     audit.record(
         conn,
         now,
         "mortgage",
-        mortgage_id,
+        mortgage.row["id"],
         "redeemed",
-        note=f"on {redeem.redeemed_on:%d %b %Y} for {format_inr(owed)}",
+        note=f"on {on:%d %b %Y} for {format_inr(owed)}",
     )
+    return payment_id
 
 
 def waive(

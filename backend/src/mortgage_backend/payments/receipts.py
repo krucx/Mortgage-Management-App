@@ -8,7 +8,7 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.follow_up.message_settings import MESSAGE_SETTINGS
@@ -62,19 +62,33 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "This Payment was Voided: it has no Receipt"
         )
-    mortgages = mortgages_of(conn, payment_id)
+    # The Payments recorded from the same sum as this one, which share its Receipt.
+    first = payment["received_with"] or payment_id
+    together = (
+        conn.execute(
+            select(payment_table.c.id, payment_table.c.amount)
+            .where(
+                or_(payment_table.c.id == first, payment_table.c.received_with == first),
+                payment_table.c.voided_at.is_(None),
+            )
+            .order_by(payment_table.c.id)
+        )
+        .mappings()
+        .all()
+    )
+    allocated = [(p["id"], m) for p in together for m in mortgages_of(conn, p["id"])]
+    mortgages = [mortgage for _, mortgage in allocated]
     replayed = replays(conn, mortgages)
     described = descriptions(mortgages)
+    amount = sum(p["amount"] for p in together)
     lines = []
-    for mortgage in mortgages:
-        step = replayed[mortgage["id"]].steps_by_payment()[payment_id]
+    for paid_by, mortgage in allocated:
+        step = replayed[mortgage["id"]].steps_by_payment()[paid_by]
         # A Waiver's final Payment leaves nothing owed: the rest was let off with it.
         closure = replayed[mortgage["id"]].closure()
-        waived = (
-            closure is not None
-            and closure.kind == "waived"
-            and closure.payment_id == payment_id
-        )
+        # How the Mortgage closed, when this Allocation was its final Payment.
+        closed_by = closure.kind if closure and closure.payment_id == paid_by else None
+        waived = closed_by == "waived"
         lines.append(
             ReceiptLineOut(
                 description=described[mortgage["id"]],
@@ -83,13 +97,14 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
                 interest_paid=step.interest_paid,
                 principal_paid=step.principal_paid,
                 owed_after=0 if waived else step.principal + step.unpaid_interest,
+                redeemed=closed_by == "redeemed",
             )
         )
     method = METHOD_NAMES[PaymentMethod(payment["method"])]
     message = ReceiptMessage(
         customer_name=payment["name"],
         paid_on=payment["paid_on"],
-        amount=payment["amount"],
+        amount=amount,
         method=method,
         reference=payment["reference"],
         lines=lines,
@@ -101,7 +116,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         ),
         phones=phones_of(payment),
         paid_on=payment["paid_on"],
-        amount=payment["amount"],
+        amount=amount,
         method=method,
         reference=payment["reference"],
         lines=lines,

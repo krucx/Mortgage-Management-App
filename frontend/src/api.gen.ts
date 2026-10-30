@@ -2086,6 +2086,11 @@ export interface components {
              * Format: date
              */
             paid_on: string;
+            /**
+             * Redeeming
+             * @default []
+             */
+            redeeming: number[];
             /** Reference */
             reference?: string | null;
         };
@@ -2267,6 +2272,11 @@ export interface components {
             paid: number;
             /** Principal Paid */
             principal_paid: number;
+            /**
+             * Redeemed
+             * @default false
+             */
+            redeemed: boolean;
         };
         /**
          * RedeemAllIn

@@ -192,7 +192,7 @@ const ring = { ...row, id: 8, name: '2026GoldRing', outstanding_total: 2_000_000
 /** Mortgages 7 (pro-rata) and 8 (Part-Month Rule "nothing") owing ₹50,750 and ₹20,000.
  *  Redeeming 7 adds a part-month charge: ₹250 before 1 Apr 2026, ₹750 after. 8 adds
  *  nothing, and can't be quoted before 1 Apr 2026 (it had not started). */
-function quoting() {
+function quoting(extra: Record<string, unknown> = {}) {
   const quote = (id: number, request: Request) => {
     const on = new URL(request.url).searchParams.get('on') ?? ''
     if (id === 8 && on < '2026-04-01')
@@ -208,6 +208,7 @@ function quoting() {
     'POST /api/payments/preview': [],
     'GET /api/mortgages/7/redemption': (request: Request) => quote(7, request),
     'GET /api/mortgages/8/redemption': (request: Request) => quote(8, request),
+    ...extra,
   })
 }
 
@@ -279,4 +280,71 @@ test("when a chosen Mortgage can't be quoted, the full Redemption Amount can't b
   expect(
     await screen.findByText("Can't pay it in full: 2026GoldRing had not started on that date"),
   ).toBeTruthy()
+})
+
+// --- Paying the full Redemption Amount Redeems: asked before anything is recorded.
+
+/** The fake backend, recording what each Payment saved asked for. */
+function recording() {
+  const saved: Record<string, unknown>[] = []
+  const backend = quoting({
+    'POST /api/payments': async (request: Request) => {
+      const asked = (await request.json()) as Record<string, unknown>
+      saved.push(asked)
+      return {
+        ...asked,
+        id: 9,
+        customer: { kind: 'customer', id: 3, name: customer.name },
+        allocations: [],
+        voided_at: null,
+        void_reason: null,
+        ready_to_redeem: [],
+      }
+    },
+  })
+  showPage(backend, '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  return saved
+}
+
+async function record(amounts: Record<string, string>) {
+  fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
+  let total = 0
+  for (const [name, amount] of Object.entries(amounts)) {
+    fireEvent.change(screen.getByLabelText(`Amount for ${name}`), { target: { value: amount } })
+    total += Number(amount)
+  }
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: String(total) } })
+  await screen.findByRole('button', { name: /^Pay the full Redemption Amount \(/ })
+  const save = screen.getByRole('button', { name: /^Record Payment of/ }) as HTMLButtonElement
+  await vi.waitFor(() => expect(save.disabled).toBe(false), { timeout: 2000 })
+  fireEvent.click(save)
+  return screen.findByRole('dialog')
+}
+
+test('paying the full Redemption Amount asks to Redeem first, then records the Payment as Redeeming', async () => {
+  const saved = recording()
+  const asked = await record({ [row.name]: '51500', [ring.name]: '20000' })
+
+  expect(within(asked).getByRole('heading', { name: 'Redeem and hand back the jewellery?' })).toBeTruthy()
+  expect(
+    within(asked).getByText(
+      `This pays the full Redemption Amount of ${row.name} (₹51,500, including a 15-day part-month charge).`,
+    ),
+  ).toBeTruthy()
+  fireEvent.click(within(asked).getByRole('button', { name: 'Redeem' }))
+
+  expect(await screen.findByText('Now at /payments/9')).toBeTruthy()
+  expect(saved.map((p) => p.redeeming)).toEqual([[7, 8]])
+})
+
+test('only the Mortgages paid in full are Redeemed, and Go back records nothing', async () => {
+  const saved = recording()
+  const asked = await record({ [row.name]: '51500', [ring.name]: '5000' })
+
+  expect(within(asked).queryByText(new RegExp(`Redemption Amount of ${ring.name}`))).toBeNull()
+  expect(within(asked).getByText(new RegExp(`Redemption Amount of ${row.name}`))).toBeTruthy()
+  fireEvent.click(within(asked).getByRole('button', { name: 'Go back' }))
+
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(saved).toEqual([])
 })

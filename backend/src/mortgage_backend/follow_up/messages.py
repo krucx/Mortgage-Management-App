@@ -28,6 +28,7 @@ class ReceiptLine(BaseModel):
     interest_paid: int
     principal_paid: int
     owed_after: int  # Outstanding just after the Payment
+    redeemed: bool = False  # the Allocation was its final Payment: jewellery returned
 
 
 class ReceiptMessage(BaseModel):
@@ -132,7 +133,7 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
     block = _card_block(
         [
             (
-                line.description,
+                f"{line.description} (Redeemed)" if line.redeemed else line.description,
                 [
                     ("Paid", line.paid),
                     ("  Interest", line.interest_paid),

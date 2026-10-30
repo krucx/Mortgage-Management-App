@@ -2262,6 +2262,14 @@
             "title": "Paid On",
             "type": "string"
           },
+          "redeeming": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Redeeming",
+            "type": "array"
+          },
           "reference": {
             "anyOf": [
               {
@@ -2766,6 +2774,11 @@
           "principal_paid": {
             "title": "Principal Paid",
             "type": "integer"
+          },
+          "redeemed": {
+            "default": false,
+            "title": "Redeemed",
+            "type": "boolean"
           }
         },
         "required": [

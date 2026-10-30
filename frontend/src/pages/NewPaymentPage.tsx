@@ -16,7 +16,7 @@ import { RedeemPaidOff } from '../components/RedeemPaidOff'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
-import { Owed } from '../components/Owed'
+import { Owed, type Quote } from '../components/Owed'
 import { useQuotes } from '../components/useQuotes'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
@@ -161,6 +161,15 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   if (mode === 'percent' && amounts === null) problems.push('The percentages must add up to 100.')
   if (amounts && total > 0 && allocated !== total)
     problems.push(`The Allocations add up to ${formatINR(allocated)}, not ${formatINR(total)}.`)
+  // Until each one's Redemption Amount is known, paying it in full can't be told apart.
+  if (quotes.some((quote) => quote === undefined))
+    problems.push('Working out the Redemption Amounts…')
+
+  // The chosen Mortgages paid their whole Redemption Amount: paying it Redeems them.
+  const redeeming = chosen.filter((m, i) => {
+    const quote = quoteOf(m.id)
+    return amounts !== null && typeof quote === 'object' && amounts[i] === quote.total
+  })
 
   // What saving would send; previewed (and refused, if it would be) by the backend.
   const proposed: PaymentIn | null =
@@ -175,6 +184,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           allocations: chosen
             .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i] }))
             .filter((allocation) => allocation.amount > 0),
+          redeeming: redeeming.map((m) => m.id),
         }
 
   /** Switching to a manual mode starts from the current equal Allocations. */
@@ -207,22 +217,37 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     change: proposed,
     preview: (payment) => previews.payment(payment),
     confirm: (payment) => ({
-      title: `Record a Payment of ${formatINR(payment.amount)}?`,
+      ...(redeeming.length > 0 && {
+        confirmLabel: 'Redeem',
+        cancelLabel: 'Go back',
+      }),
+      title:
+        redeeming.length > 0
+          ? 'Redeem and hand back the jewellery?'
+          : `Record a Payment of ${formatINR(payment.amount)}?`,
       body: (
-        <Summary
-          rows={[
-            ['From', customer.name],
-            ['Received', formatDate(paidOn)],
-            [
-              'Method',
-              (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : ''),
-            ],
-            ...payment.allocations.map((a): [string, string] => [
-              chosen.find((m) => m.id === a.mortgage_id)?.name ?? '',
-              formatINR(a.amount),
-            ]),
-          ]}
-        />
+        <>
+          {redeeming.map((m) => (
+            <p key={m.id}>
+              <RedeemedInFull name={m.name} quote={quoteOf(m.id)} />
+            </p>
+          ))}
+          <Summary
+            rows={[
+              ['From', customer.name],
+              ['Received', formatDate(paidOn)],
+              [
+                'Method',
+                (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : ''),
+              ],
+              ...payment.allocations.map((a): [string, string] => [
+                chosen.find((m) => m.id === a.mortgage_id)?.name ?? '',
+                formatINR(a.amount) +
+                  (redeeming.some((m) => m.id === a.mortgage_id) ? ' · Redeems it' : ' · paid'),
+              ]),
+            ]}
+          />
+        </>
       ),
     }),
     save: (asked) => changeLedger((client) => changes.recordPayment(client, asked)),
@@ -458,4 +483,12 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       )}
     </>
   )
+}
+
+/** What paying a Mortgage's whole Redemption Amount does, for the Redeem question. */
+function RedeemedInFull({ name, quote }: { name: string; quote: Quote }) {
+  if (typeof quote !== 'object') return null
+  const charge =
+    quote.part_month_charge > 0 ? `, including a ${quote.part_month_days}-day part-month charge` : ''
+  return `This pays the full Redemption Amount of ${name} (${formatINR(quote.total)}${charge}).`
 }

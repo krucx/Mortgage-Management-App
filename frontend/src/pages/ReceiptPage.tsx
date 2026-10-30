@@ -58,7 +58,10 @@ export function ReceiptPage() {
         <tbody>
           {receipt.lines.map((line) => (
             <tr key={line.mortgage_id}>
-              <td>{line.description}</td>
+              <td>
+                {line.description}
+                {line.redeemed && ' (Redeemed)'}
+              </td>
               <td className="num">{formatINR(line.paid)}</td>
               <td className="num">{formatINR(line.interest_paid)}</td>
               <td className="num">{formatINR(line.principal_paid)}</td>
