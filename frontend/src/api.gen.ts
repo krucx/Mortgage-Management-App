@@ -2286,6 +2286,8 @@ export interface components {
             method: components["schemas"]["PaymentMethod"];
             /** Mortgage Ids */
             mortgage_ids: number[];
+            /** Received With */
+            received_with?: number | null;
             /**
              * Redeemed On
              * Format: date

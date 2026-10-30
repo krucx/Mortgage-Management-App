@@ -254,3 +254,64 @@ def test_paying_the_whole_redemption_amount_without_redeeming_is_refused(client,
         f"{nothing['name']}: ₹1,09,000 is its whole Redemption Amount on 20 Apr 2026: "
         "Redeem it with this Payment instead"
     )
+
+
+# --- Redeeming after a Payment left a Mortgage Ready to Redeem: its Final Payment
+# (the part-month charge) is a part of that Payment, on its Receipt.
+
+
+def redeem_after(client, payment, mortgages, on=ON):
+    return client.post(
+        "/api/closures/redeem",
+        json={
+            "redeemed_on": on,
+            "method": "upi",
+            "reference": "UTR9",
+            "mortgage_ids": [m["id"] for m in mortgages],
+            "received_with": payment["id"],
+        },
+    )
+
+
+def test_the_final_payment_of_a_redemption_after_a_payment_is_on_that_payments_receipt(
+    client, ramesh, chain
+):
+    # ₹1,09,000 clears the Outstanding; Redeeming adds the ₹3,000 part-month charge.
+    paid = pay(client, ramesh, {chain["id"]: 109_000_00}, on=ON)
+
+    response = redeem_after(client, paid, [chain])
+
+    assert response.status_code == 200, response.text
+    shown = receipt(client, paid["id"])
+    assert shown["amount"] == REDEMPTION_AMOUNT
+    assert [(r["paid"], r["redeemed"]) for r in shown["lines"]] == [
+        (109_000_00, False),
+        (3_000_00, True),
+    ]
+
+
+def test_the_payment_redeemed_with_must_be_that_customers_on_the_redemption_date(
+    client, ramesh, chain
+):
+    paid = pay(client, ramesh, {chain["id"]: 109_000_00}, on="2026-04-15")
+
+    response = redeem_after(client, paid, [chain])
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "The Payment it came with must be this Customer's, on 20 Apr 2026, and not Voided"
+    )
+
+
+def test_a_voided_payment_or_another_customers_cannot_be_redeemed_with(
+    client, ramesh, chain
+):
+    voided = pay(client, ramesh, {chain["id"]: 1_000_00}, on=ON)
+    client.post(f"/api/payments/{voided['id']}/void", json={"reason": "Bounced"})
+    suresh = person(client, name="Suresh Shah", phone_1="9829099999")
+    theirs = pay(client, suresh, {lend(client, suresh)["id"]: 1_000_00}, on=ON)
+
+    refused = [redeem_after(client, p, [chain]) for p in (voided, theirs)]
+
+    assert [r.status_code for r in refused] == [422, 422]
+    assert all("The Payment it came with must be" in r.json()["detail"] for r in refused)

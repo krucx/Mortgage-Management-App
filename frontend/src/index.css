@@ -1325,3 +1325,28 @@ label textarea,
 label .hint {
   font-weight: normal;
 }
+
+/* A compact marker whose reason shows in a red bubble on hover, focus or tap
+   (ReasonTip). The bubble is darker than --error so white text reads in both themes. */
+.reason-tip {
+  cursor: help;
+  white-space: nowrap;
+  text-decoration: underline dotted;
+}
+.reason-bubble {
+  position: fixed;
+  z-index: 50;
+  width: max-content;
+  max-width: 260px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--error) 75%, #000);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: normal;
+  line-height: 1.3;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+  pointer-events: none;
+}

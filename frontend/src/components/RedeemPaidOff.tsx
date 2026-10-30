@@ -37,6 +37,7 @@ export function RedeemPaidOff({
               method: payment.method,
               reference: payment.reference,
               mortgage_ids: mortgages.filter((m) => chosen.has(m.id)).map((m) => m.id),
+              received_with: payment.id,
             },
           },
     confirm: null, // this dialog is the confirmation

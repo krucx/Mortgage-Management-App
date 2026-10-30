@@ -149,6 +149,7 @@ test('a Payment that leaves a Mortgage Ready to Redeem offers to Redeem it, in o
       method: 'upi',
       reference: 'UTR7',
       mortgage_ids: [7],
+      received_with: 9,
     },
   ])
   expect(backend.requests.filter((r) => r.endsWith('/redeem'))).toEqual([
@@ -226,7 +227,15 @@ test('each Mortgage shows what it would take to Redeem on the Payment date, back
   fireEvent.change(screen.getByLabelText('Date received'), { target: { value: '2026-03-15' } })
   expect(await screen.findByRole('columnheader', { name: 'To redeem on 15 Mar 2026' })).toBeTruthy()
   expect(await within(chain).findByText('₹51,000')).toBeTruthy()
-  expect(await within(ringRow).findByText('2026GoldRing had not started on that date')).toBeTruthy()
+  // Compact in the table: the reason is the marker's tooltip.
+  const marker = await within(ringRow).findByText("Can't redeem")
+  expect(screen.queryByRole('tooltip')).toBeNull()
+  fireEvent.mouseEnter(marker)
+  expect(screen.getByRole('tooltip').textContent).toBe('2026GoldRing had not started on that date')
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(screen.queryByRole('tooltip')).toBeNull()
+  fireEvent.click(marker) // a tap, on a phone
+  expect(screen.getByRole('tooltip')).toBeTruthy()
 })
 
 test('paying the full Redemption Amount fills each chosen Mortgage with its Redemption Amount, and the total with their sum', async () => {
