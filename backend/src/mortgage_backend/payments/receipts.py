@@ -80,9 +80,11 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
     allocated = [(p["id"], m) for p in together for m in mortgages_of(conn, p["id"])]
     mortgages = [mortgage for _, mortgage in allocated]
     replayed = replays(conn, mortgages)
-    described = descriptions(mortgages)
+    # Each Mortgage once: one paid in two parts isn't two pieces described alike.
+    described = descriptions(list({m["id"]: m for m in mortgages}.values()))
     amount = sum(p["amount"] for p in together)
-    lines = []
+    # One line a Mortgage: a part paying what it owed and its Final Payment, together.
+    lines: dict[int, ReceiptLineOut] = {}
     for paid_by, mortgage in allocated:
         step = replayed[mortgage["id"]].steps_by_payment()[paid_by]
         # A Waiver's final Payment leaves nothing owed: the rest was let off with it.
@@ -90,17 +92,26 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         # How the Mortgage closed, when this Allocation was its final Payment.
         closed_by = closure.kind if closure and closure.payment_id == paid_by else None
         waived = closed_by == "waived"
-        lines.append(
-            ReceiptLineOut(
-                description=described[mortgage["id"]],
-                mortgage_id=mortgage["id"],
-                paid=mortgage["allocated"],
-                interest_paid=step.interest_paid,
-                principal_paid=step.principal_paid,
-                owed_after=0 if waived else step.principal + step.unpaid_interest,
-                redeemed=closed_by == "redeemed",
-            )
+        line = ReceiptLineOut(
+            description=described[mortgage["id"]],
+            mortgage_id=mortgage["id"],
+            paid=mortgage["allocated"],
+            interest_paid=step.interest_paid,
+            principal_paid=step.principal_paid,
+            owed_after=0 if waived else step.principal + step.unpaid_interest,
+            redeemed=closed_by == "redeemed",
         )
+        earlier = lines.get(mortgage["id"])
+        if earlier is not None:
+            line = line.model_copy(
+                update={
+                    "paid": earlier.paid + line.paid,
+                    "interest_paid": earlier.interest_paid + line.interest_paid,
+                    "principal_paid": earlier.principal_paid + line.principal_paid,
+                    "redeemed": earlier.redeemed or line.redeemed,
+                }
+            )
+        lines[mortgage["id"]] = line
     method = METHOD_NAMES[PaymentMethod(payment["method"])]
     message = ReceiptMessage(
         customer_name=payment["name"],
@@ -108,7 +119,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         amount=amount,
         method=method,
         reference=payment["reference"],
-        lines=lines,
+        lines=list(lines.values()),
     )
     return Receipt(
         payment_id=payment_id,
@@ -120,7 +131,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         amount=amount,
         method=method,
         reference=payment["reference"],
-        lines=lines,
+        lines=list(lines.values()),
         total_owed=message.total_owed,
         text=receipt_text(MESSAGE_SETTINGS.get(conn).receipt_template, message),
     )

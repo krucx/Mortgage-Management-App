@@ -284,10 +284,14 @@ def test_the_final_payment_of_a_redemption_after_a_payment_is_on_that_payments_r
     assert response.status_code == 200, response.text
     shown = receipt(client, paid["id"])
     assert shown["amount"] == REDEMPTION_AMOUNT
-    assert [(r["paid"], r["redeemed"]) for r in shown["lines"]] == [
-        (109_000_00, False),
-        (3_000_00, True),
-    ]
+    # One line for the Mortgage, both parts together: all its interest (₹9,000 and the
+    # ₹3,000 part-month charge) and Principal paid, nothing still owed.
+    assert [
+        (r["description"], r["paid"], r["interest_paid"], r["principal_paid"])
+        for r in shown["lines"]
+    ] == [("Gold chain", REDEMPTION_AMOUNT, 12_000_00, LAKH)]
+    assert [(r["owed_after"], r["redeemed"]) for r in shown["lines"]] == [(0, True)]
+    assert shown["total_owed"] == 0
 
 
 def test_the_payment_redeemed_with_must_be_that_customers_on_the_redemption_date(

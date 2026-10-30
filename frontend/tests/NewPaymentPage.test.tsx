@@ -186,6 +186,27 @@ test('the offer to Redeem gives the final Payment and the Part-Month Rule behind
   ).toBeTruthy()
 })
 
+test("the offer to Redeem asks for the Redemption Amount afresh, not the one New Payment had before the Payment", async () => {
+  // Before the Payment, New Payment quoted ₹50,750 + ₹750; after it, only ₹750 is left.
+  let asked = 0
+  const quote = async () => {
+    if (asked++ === 0)
+      return { ...redemption, part_month_days: 10, part_month_charge: 75_000, total: 5_150_000 }
+    await new Promise((resolve) => setTimeout(resolve, 300)) // the fresh one takes a moment
+    return { ...redemption, part_month_days: 10, part_month_charge: 75_000, total: 75_000 }
+  }
+  showNewPayment(server([], quote))
+  await recordPayment()
+
+  const offer = screen.getByRole('dialog')
+  expect(within(offer).queryByText(/₹51,500/)).toBeNull()
+  expect(
+    await within(offer).findByText(
+      'The final Payment is ₹750: the part-month charge for 10 days (Pro-rata by day).',
+    ),
+  ).toBeTruthy()
+})
+
 // --- What each Mortgage would take to Redeem on the Payment date.
 
 const ring = { ...row, id: 8, name: '2026GoldRing', outstanding_total: 2_000_000 }

@@ -49,8 +49,13 @@ export function RedeemPaidOff({
     queries: mortgages.map((m) => redemptionQuery(client, m.id, payment.paid_on)),
   })
   const terms = useQueries({ queries: mortgages.map((m) => mortgageQuery(client, m.id)) })
+  // One cached from before the Payment is out of date (New Payment quoted the whole
+  // Redemption Amount): wait for the fresh one.
   const quotes = Object.fromEntries(
-    mortgages.map((m, i) => [m.id, quoted[i].data ?? quoted[i].error?.message]),
+    mortgages.map((m, i) => [
+      m.id,
+      quoted[i].isFetching ? undefined : (quoted[i].data ?? quoted[i].error?.message),
+    ]),
   )
   const rules = Object.fromEntries(
     mortgages.map((m, i) => {
