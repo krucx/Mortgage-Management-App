@@ -1,4 +1,5 @@
 import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router'
+import { StartGate } from './components/StartGate'
 import { ThemeToggle } from './components/ThemeToggle'
 import { useReadyToRedeemCount } from './components/useReadyToRedeem'
 import { CallListPage } from './pages/CallListPage'
@@ -48,43 +49,45 @@ function Nav() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <div className="layout">
-        <header>
-          <h1>
-            <Link to="/">Mortgage Management</Link>
-            <sup className="version" title={`Version ${APP_VERSION}`}>
-              v{APP_VERSION}
-            </sup>
-          </h1>
-          <Nav />
-          <ThemeToggle />
-        </header>
-        <main>
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/payments" element={<PaymentsPage />} />
-            <Route path="/payments/new" element={<NewPaymentPage />} />
-            <Route path="/payments/:id" element={<PaymentPage />} />
-            <Route path="/payments/:id/receipt" element={<ReceiptPage />} />
-            <Route path="/customers" element={<CustomersPage />} />
-            <Route path="/customers/new" element={<CustomerFormPage />} />
-            <Route path="/customers/:id" element={<CustomerPage />} />
-            <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
-            <Route path="/mortgages" element={<MortgagesPage />} />
-            <Route path="/mortgages/new" element={<NewMortgagePage />} />
-            <Route path="/mortgages/:id" element={<MortgagePage />} />
-            <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
-            <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
-            <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
-            <Route path="/call-list" element={<CallListPage />} />
-            <Route path="/notices" element={<NoticesPage />} />
-            <Route path="/closures" element={<ClosuresPage />} />
-            <Route path="/referrers/:id" element={<ReferrerPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+    <StartGate>
+      <BrowserRouter>
+        <div className="layout">
+          <header>
+            <h1>
+              <Link to="/">Mortgage Management</Link>
+              <sup className="version" title={`Version ${APP_VERSION}`}>
+                v{APP_VERSION}
+              </sup>
+            </h1>
+            <Nav />
+            <ThemeToggle />
+          </header>
+          <main>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/payments" element={<PaymentsPage />} />
+              <Route path="/payments/new" element={<NewPaymentPage />} />
+              <Route path="/payments/:id" element={<PaymentPage />} />
+              <Route path="/payments/:id/receipt" element={<ReceiptPage />} />
+              <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/customers/new" element={<CustomerFormPage />} />
+              <Route path="/customers/:id" element={<CustomerPage />} />
+              <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
+              <Route path="/mortgages" element={<MortgagesPage />} />
+              <Route path="/mortgages/new" element={<NewMortgagePage />} />
+              <Route path="/mortgages/:id" element={<MortgagePage />} />
+              <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
+              <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
+              <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
+              <Route path="/call-list" element={<CallListPage />} />
+              <Route path="/notices" element={<NoticesPage />} />
+              <Route path="/closures" element={<ClosuresPage />} />
+              <Route path="/referrers/:id" element={<ReferrerPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
+          </main>
+        </div>
+      </BrowserRouter>
+    </StartGate>
   )
 }

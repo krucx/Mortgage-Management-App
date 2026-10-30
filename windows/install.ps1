@@ -1,7 +1,8 @@
 <#
 Installs Mortgage Management from the code it sits in (run by setup.ps1): chooses Docker
 or local, writes the .env (kept as it is when there already is one), installs what the
-chosen way needs, and puts a shortcut on the Desktop.
+chosen way needs, and puts a shortcut on the Desktop and registers the
+mortgage-management:// link the installed app (PWA) starts it with.
 
   docker  Docker is installed: pulls the published images.
   local   No Docker: Node (winget) and uv (its own installer, with Python), then the
@@ -132,10 +133,12 @@ if ($MyInvocation.InvocationName -ne '.') {
     Initialize-EnvFile -Mode $chosen -InstallDir $InstallDir -NonInteractive:$NonInteractive
     if ($chosen -eq 'docker') { Install-Docker } else { Install-Local }
     New-DesktopShortcut
+    Register-AppLink
 
     Write-Host ''
     Write-Host 'Mortgage Management is set up.' -ForegroundColor Green
-    Write-Host 'Start it any time with the "Mortgage Management" shortcut on the Desktop.'
+    Write-Host 'Start it any time with the "Mortgage Management" shortcut on the Desktop,'
+    Write-Host 'or from the installed app''s icon: when the app is not running it offers to start it.'
     Write-Host 'Run Setup again to update to the newest release.'
     if (-not $NonInteractive) {
         $start = Read-Host 'Start it now? [Y/n]'

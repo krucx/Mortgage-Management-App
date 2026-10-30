@@ -158,6 +158,16 @@ main {
   padding: 0 1rem;
 }
 
+.start-gate {
+  display: grid;
+  gap: 1rem;
+  margin-top: 4rem;
+}
+
+.start-gate h1 {
+  margin: 0;
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);

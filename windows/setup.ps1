@@ -29,11 +29,32 @@ function Select-LatestVersion {
     return ($versions | Sort-Object { [version]$_ } | Select-Object -Last 1)
 }
 
+function Get-ReleaseTags {
+    <# The repo's tags from GitHub; throws when GitHub can't be reached in a few seconds. #>
+    return Invoke-RestMethod -UseBasicParsing -TimeoutSec 5 "https://api.github.com/repos/$Repo/tags?per_page=100"
+}
+
 function Get-LatestRelease {
-    $tags = Invoke-RestMethod -UseBasicParsing "https://api.github.com/repos/$Repo/tags?per_page=100"
-    $latest = Select-LatestVersion @($tags | ForEach-Object { $_.name })
+    param([object[]]$Tags)
+    $latest = Select-LatestVersion @($Tags | ForEach-Object { $_.name })
     if (-not $latest) { throw "No release of $Repo was found." }
     return $latest
+}
+
+function Get-InstalledVersion {
+    <# The version of the app installed in `AppDir`, or nothing when there is none. #>
+    param([string]$AppDir)
+    if (-not (Test-Path (Join-Path $AppDir '.env'))) { return $null }
+    $package = Join-Path $AppDir 'frontend\package.json'
+    if (-not (Test-Path $package)) { return 'unknown' }
+    return (Get-Content -Raw $package | ConvertFrom-Json).version
+}
+
+function Start-InstalledApp {
+    <# Start the installed app the way the Desktop shortcut does. #>
+    param([string]$AppDir)
+    & (Join-Path $AppDir 'windows\run.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Mortgage Management could not start (see above).' }
 }
 
 function Assert-Success {
@@ -107,7 +128,24 @@ function Main {
     Write-Host ''
     Write-Host 'Mortgage Management setup' -ForegroundColor Yellow
     Write-Host "Installing in $InstallDir"
-    if (-not $Ref) { $Ref = Get-LatestRelease }
+    try {
+        $tags = Get-ReleaseTags
+    } catch {
+        # GitHub answered, but with an error (e.g. too many requests): not offline, and only
+        # in the way when the latest release is to be found.
+        if ($_.Exception.Response) {
+            if (-not $Ref) { throw }
+        } else {
+            $installed = Get-InstalledVersion $appDir
+            if (-not $installed) {
+                throw 'GitHub cannot be reached, and the first setup needs internet: connect, then run Setup again.'
+            }
+            Write-Host "Offline: starting the version you have ($installed)" -ForegroundColor Yellow
+            Start-InstalledApp $appDir
+            return
+        }
+    }
+    if (-not $Ref) { $Ref = Get-LatestRelease $tags }
     Write-Host "Getting version $Ref..."
     if (Get-Command git -ErrorAction SilentlyContinue) {
         Get-AppCodeWithGit $Ref $appDir

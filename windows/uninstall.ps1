@@ -1,8 +1,8 @@
 <#
 Removes Mortgage Management from this Windows PC (run by Uninstall.bat). It stops the app
 and moves the latest Backup into Documents, so the data can be brought back; only then
-does it remove the Docker images, the Desktop shortcut, the data folder and the install
-folder.
+does it remove the Docker images, the Desktop shortcut and mortgage-management:// link, the
+data folder and the install folder.
 
 A Backup folder outside the install folder (a Google Drive or OneDrive folder chosen at
 setup) is left as it is, the latest Backup copied rather than moved from it: changing it
@@ -183,7 +183,7 @@ function Main {
     Write-Host "It stops the app and keeps its latest Backup in $keepIn. Then these are deleted:"
     Write-Host "  $installDir (the app)"
     if (-not (Test-Inside $dataDir $installDir)) { Write-Host "  $dataDir (its data)" }
-    Write-Host '  the Mortgage Management shortcut on the Desktop'
+    Write-Host '  the Mortgage Management shortcut on the Desktop, and its mortgage-management:// link'
     if ($settings['RUN_WITH'] -eq 'docker') { Write-Host '  its Docker images' }
     if ($backupDirStays) { Write-Host "The Backup folder $backupDir is left as it is." }
     $question = 'Remove Mortgage Management?'
@@ -213,6 +213,7 @@ function Main {
     }
     $shortcut = Get-ShortcutPath
     if (Test-Path -LiteralPath $shortcut) { Remove-Item -LiteralPath $shortcut -Force }
+    Unregister-AppLink
     Write-Host 'Deleting the app and its data...'
     Remove-Folder $dataDir
     Remove-Folder $installDir

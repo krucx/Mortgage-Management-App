@@ -323,7 +323,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div data-mode="local">Building the app screens...</div>
         <div data-mode="both"></div>
         <div data-mode="both" class="ok" data-note="Done. There is now a Mortgage Management shortcut on the Desktop, with the app's own icon.">Mortgage Management is set up.</div>
-        <div data-mode="both">Start it any time with the "Mortgage Management" shortcut on the Desktop.</div>
+        <div data-mode="both">Start it any time with the "Mortgage Management" shortcut on the Desktop,</div>
+        <div data-mode="both">or from the installed app's icon: when the app is not running it offers to start it.</div>
         <div data-mode="both">Run Setup again to update to the newest release.</div>
         <div data-mode="both" class="q" data-note="Press Enter to start it now. It opens in the browser.">Start it now? [Y/n]: <kbd>⏎</kbd></div>
         <div data-mode="local" class="ok" data-note="Without Docker, this window is now the app: keep it open while you use it (you can minimise it). Closing it stops the app.">Mortgage Management is running at http://localhost:8080.
@@ -380,7 +381,7 @@ cd Mortgage-Management-App</pre><button type="button" class="copy">Copy</button>
       <li data-for="win-local"><input type="checkbox" id="s-keep" tabindex="-1"><label for="s-keep"><b>Leave its window open</b><span class="detail">Minimise it, but don't close it: the window is the app. Close it at the end of the day to stop the app.</span></label></li>
       <li data-for="win-docker"><input type="checkbox" id="s-bg" tabindex="-1"><label for="s-bg"><b>Close its window whenever you like</b><span class="detail">The app keeps running in Docker, and starts again with Docker Desktop, so after the first time the browser alone is enough. If the PC was restarted, the shortcut starts Docker Desktop and the app again.</span></label></li>
       <li data-for="mac"><input type="checkbox" id="s-mac" tabindex="-1"><label for="s-mac"><b>Open http://localhost:8080</b><span class="detail">The app starts again with Docker Desktop by itself; keep Docker Desktop set to start when you sign in.</span></label></li>
-      <li><input type="checkbox" id="s-install" tabindex="-1"><label for="s-install"><b>Install it as an app (optional)</b><span class="detail">In Chrome or Edge, open it and choose <span class="ui">Install</span> in the address bar (Safari: <span class="ui">File → Add to Dock</span>). It gets its own icon and window. It opens even when the server is stopped, and then says the server isn't running until it is started.</span></label></li>
+      <li><input type="checkbox" id="s-install" tabindex="-1"><label for="s-install"><b>Install it as an app (optional)</b><span class="detail">In Chrome or Edge, open it and choose <span class="ui">Install</span> in the address bar (Safari: <span class="ui">File → Add to Dock</span>). It gets its own icon and window, and can be used instead of the Desktop shortcut.</span><span class="detail" data-for="win">When the app isn't running, the icon opens a <span class="ui">Start Mortgage Management</span> button: click it, and the first time choose <span class="ui">Open</span> when Windows asks. It loads the app as soon as it is running.</span><span class="detail" data-for="mac">It opens even when the server is stopped, and loads the app once it is started.</span></label></li>
     </ol>
     <div class="nuances">
       <div class="nuance rule"><b>Only on this laptop</b><span>The app answers at <span class="path">localhost</span> only: no one else on the network, or the internet, can reach it.</span></div>
@@ -474,7 +475,7 @@ docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
         <div data-mode="both">Remove Mortgage Management from this PC</div>
         <div data-mode="both" data-note="First it says exactly what it will do. Nothing has changed yet.">It stops the app and keeps its latest Backup in C:\Users\you\Documents. Then these are deleted:</div>
         <div data-mode="both">  C:\Users\you\MortgageManagement (the app)</div>
-        <div data-mode="both">  the Mortgage Management shortcut on the Desktop</div>
+        <div data-mode="both">  the Mortgage Management shortcut on the Desktop, and its mortgage-management:// link</div>
         <div data-mode="docker" data-note="With Docker, the app's images are removed from Docker too.">  its Docker images</div>
         <div data-mode="both" class="q" data-note="Type yes and press Enter to go ahead. Anything else, or just Enter, stops here with nothing removed.">Remove Mortgage Management? Type yes to go ahead: <kbd>yes</kbd></div>
         <div data-mode="docker" data-note="The app is stopped first, so no Backup is being written while the latest one is kept.">Stopping the app...</div>
@@ -519,11 +520,19 @@ docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
       <div>
         <p>The screens opened, but the server behind them is stopped: usually the browser or installed app was opened on its own.</p>
         <ul>
-          <li data-for="win">Open the <span class="ui">Mortgage Management</span> shortcut on the Desktop, then reload the page.</li>
+          <li data-for="win">In the installed app, click <span class="ui">Start Mortgage Management</span>. Or open the <span class="ui">Mortgage Management</span> shortcut on the Desktop, then reload the page.</li>
           <li data-for="win-docker">If that doesn't help, check Docker Desktop is running (its whale in the taskbar's corner).</li>
           <li data-for="mac">Start Docker Desktop; the app starts with it. If not, run <code>docker compose up -d</code> in its folder.</li>
         </ul>
       </div>
+    </details>
+    <details data-for="win">
+      <summary>Setup says “Offline: starting the version you have”</summary>
+      <div><p>GitHub couldn't be reached, so Setup started the version already installed instead of updating it. Run Setup again once the laptop is online to update. The very first setup always needs internet.</p></div>
+    </details>
+    <details data-for="win">
+      <summary>“Start Mortgage Management” waits, then says it hasn't started</summary>
+      <div><p>Open the <span class="ui">Mortgage Management</span> shortcut on the Desktop: its window says in red what stopped the app. If the button does nothing at all, run Setup once more, which registers the link it uses.</p></div>
     </details>
     <details data-for="win">
       <summary>Windows won't let Setup.bat run</summary>

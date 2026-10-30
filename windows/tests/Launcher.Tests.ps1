@@ -6,6 +6,7 @@ BeforeAll {
     . (Join-Path $windows 'common.ps1')
     . (Join-Path $windows 'setup.ps1')   # dot-sourced: defines its functions, runs nothing
     . (Join-Path $windows 'install.ps1') -InstallDir $windows -Mode local -NonInteractive
+    . (Join-Path $windows 'link.ps1')
 }
 
 Describe 'the latest release' {
@@ -106,5 +107,99 @@ Describe 'first setup folder selection' {
         $values = Read-EnvText ([IO.File]::ReadAllText((Get-EnvPath)))
         $values['DATA_DIR'] | Should -Be $chosenDataPath
         Test-Path $chosenDataPath | Should -BeTrue
+    }
+}
+
+# What Invoke-RestMethod throws when GitHub answers, but not with what was asked: it carries
+# the response, which an unreachable GitHub never gives.
+class GitHubAnswered : Exception {
+    [object]$Response = 'HTTP 403'
+    GitHubAnswered() : base('Response status code does not indicate success: 403 (rate limit exceeded).') {}
+}
+
+Describe 'Setup without internet' {
+    BeforeEach {
+        $InstallDir = Join-Path $TestDrive ([guid]::NewGuid())  # TestDrive lasts the whole Describe
+        $Ref = ''
+        $app = Join-Path $InstallDir 'app'
+        Mock Invoke-RestMethod { throw [Net.WebException]::new('The remote name could not be resolved') }
+        Mock Write-Host {}
+        Mock Start-InstalledApp {}
+    }
+
+    It 'starts the version that is installed, saying so' {
+        New-Item -ItemType Directory -Force (Join-Path $app 'frontend') | Out-Null
+        Set-Content (Join-Path $app '.env') 'RUN_WITH=local'
+        Set-Content (Join-Path $app 'frontend/package.json') '{ "name": "mortgage-frontend", "version": "1.5.1" }'
+
+        Main
+
+        Should -Invoke Start-InstalledApp -Times 1 -ParameterFilter { $AppDir -eq $app }
+        Should -Invoke Write-Host -ParameterFilter { $Object -eq 'Offline: starting the version you have (1.5.1)' }
+    }
+
+    It 'does not skip the update when GitHub answers with an error (e.g. too many requests)' {
+        New-Item -ItemType Directory -Force (Join-Path $app 'frontend') | Out-Null
+        Set-Content (Join-Path $app '.env') 'RUN_WITH=local'
+        Mock Invoke-RestMethod { throw [GitHubAnswered]::new() }
+
+        { Main } | Should -Throw '*403*'
+
+        Should -Invoke Start-InstalledApp -Times 0
+    }
+
+    It 'stops, saying the first setup needs internet, when nothing is installed' {
+        { Main } | Should -Throw '*first setup needs internet*'
+
+        Should -Invoke Start-InstalledApp -Times 0
+    }
+}
+
+Describe 'the mortgage-management:// link' {
+    It 'starts the app' {
+        Select-LinkAction @('mortgage-management://start') | Should -Be 'start'
+    }
+
+    It 'starts the app with the slash a browser may add' {
+        Select-LinkAction @('mortgage-management://start/') | Should -Be 'start'
+    }
+
+    It 'does nothing for any other action' {
+        Select-LinkAction @('mortgage-management://uninstall') | Should -BeNullOrEmpty
+        Select-LinkAction @('mortgage-management://start-everything') | Should -BeNullOrEmpty
+        Select-LinkAction @('other://start') | Should -BeNullOrEmpty
+    }
+
+    It 'does nothing when anything more is passed' {
+        Select-LinkAction @('mortgage-management://start?x=1') | Should -BeNullOrEmpty
+        Select-LinkAction @('mortgage-management://start/now') | Should -BeNullOrEmpty
+        Select-LinkAction @('mortgage-management://start', '-InstallDir') | Should -BeNullOrEmpty
+        Select-LinkAction @() | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'registering the mortgage-management:// link' {
+    BeforeEach {
+        Mock Set-UserClassValue {}
+        Mock Remove-UserClassKey {}
+        if (-not $env:SystemRoot) { $env:SystemRoot = $TestDrive }  # Windows sets it
+    }
+
+    It 'is a link Windows opens with the app''s link handler, passing it only the link' {
+        Register-AppLink
+
+        Should -Invoke Set-UserClassValue -ParameterFilter {
+            $Key -eq 'mortgage-management' -and $Name -eq 'URL Protocol' -and $Value -eq ''
+        }
+        Should -Invoke Set-UserClassValue -ParameterFilter {
+            $Key -eq 'mortgage-management\shell\open\command' -and $Name -eq '' -and
+            $Value -like "* -File `"$(Join-Path $AppDir 'windows\link.ps1')`" `"%1`""
+        }
+    }
+
+    It 'is removed whole' {
+        Unregister-AppLink
+
+        Should -Invoke Remove-UserClassKey -Times 1 -ParameterFilter { $Key -eq 'mortgage-management' }
     }
 }

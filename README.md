@@ -16,7 +16,9 @@ download and every step, for your own computer. In short:
    unrecognised app, choose **More info → Run anyway**.
 2. Choose where the database and photos should live, where Backups should go, answer
    any other questions (Enter keeps the default each time), and say yes to start it.
-3. From then on, open the **Mortgage Management** shortcut on the Desktop.
+3. From then on, open the **Mortgage Management** shortcut on the Desktop, or the
+   installed app's icon (below): when the app isn't running, it offers a **Start
+   Mortgage Management** button.
 
 Setup puts everything in `%USERPROFILE%\MortgageManagement`: `app` (the code and its
 `.env`), `data` (database and photos, unless you chose another folder) and `backups`
@@ -34,15 +36,16 @@ the folder if needed. It sets up the latest release:
 
 Run `Setup.bat` again to update to the newest release; your `.env`, data and Backups are
 kept. It uses git when it is installed, and otherwise downloads the release from GitHub.
+Without internet it starts the version you have instead (the first setup needs internet).
 To move the data later, stop the app, move `mortgage.db` and `photos` together to the
 new folder, then update `DATA_DIR` in `app\.env` before starting the app again.
 
 To remove the app from the PC, double-click `Uninstall.bat` in
-`%USERPROFILE%\MortgageManagement\app\windows` and type `yes`. It stops the app and
-moves the latest Backup into **Documents**; only then does it delete the Docker images,
-the Desktop shortcut, the data and the `MortgageManagement` folder. A Backup folder you
-chose outside it (Google Drive, OneDrive) is left as it is (the latest Backup is copied
-from it instead), and so are Node.js and uv.
+`%USERPROFILE%\MortgageManagement\app\windows` and type `yes`. It stops the app and moves
+the latest Backup into **Documents**; only then does it delete the Docker images, the
+Desktop shortcut and `mortgage-management://` link, the data and the `MortgageManagement`
+folder. A Backup folder you chose outside it (Google Drive, OneDrive) is left as it is
+(the latest Backup is copied from it instead), and so are Node.js and uv.
 
 ### Anywhere with Docker
 
@@ -68,11 +71,13 @@ built on the laptop. The app restarts by itself with Docker. Database updates ru
 ### Installing it as an app
 
 The app can be installed like a desktop or phone app, with its own icon and window. In
-Chrome or Edge, open it and choose **Install** in the address bar (Safari: **File → Add
-to Dock**). It opens even when the server is stopped, then says the server isn't running
-until it is started again. Figures always come fresh from the server: nothing owed
-is kept on the device. Whenever the server is up, the app itself comes from it too, so an
-update shows the next time the app is opened.
+Chrome or Edge, open it and choose **Install** in the address bar (Safari: **File → Add to
+Dock**). It opens even when the server is stopped. On Windows it then offers **Start
+Mortgage Management**, which starts the app through the `mortgage-management://` link
+Setup registers (Windows asks once whether to open it) and loads it as soon as it answers;
+elsewhere, start the server and the app loads by itself. Figures always come fresh from
+the server: nothing owed is kept on the device. Whenever the server is up, the app itself
+comes from it too, so an update shows the next time the app is opened.
 
 ### Backups
 
@@ -146,11 +151,13 @@ trying unreleased code, so it never runs a migration on real data. Plain
 `docker compose up -d` goes back to the published images.
 
 The Windows setup lives in `windows/`: `Setup.bat` → `setup.ps1` (gets the code) →
-`install.ps1` (Docker or local, `.env`, installs, shortcut), `Run.bat` → `run.ps1`, and
-`Uninstall.bat` → `uninstall.ps1`. `common.ps1` holds what they share; `windows/tests`
-checks their decisions with Pester. The `windows` job in `.github/workflows/test.yml` runs
-the setup without Docker end to end on a Windows runner, then the uninstall.
-`setup.ps1 -Ref <branch or commit>` sets up code that isn't released yet.
+`install.ps1` (Docker or local, `.env`, installs, shortcut, `mortgage-management://`
+link), `Run.bat` → `run.ps1`, `link.ps1` (opens the link: `mortgage-management://start`
+runs `Run.bat`; see Documentation/adr/0008), and `Uninstall.bat` → `uninstall.ps1`.
+`common.ps1` holds what they share; `windows/tests` checks their decisions with Pester.
+The `windows` job in `.github/workflows/test.yml` runs the setup without Docker end to end
+on a Windows runner, then the uninstall. `setup.ps1 -Ref <branch or commit>` sets up code
+that isn't released yet.
 
 - `backend/`: FastAPI + SQLite (SQLAlchemy, Alembic migrations), managed with [uv](https://docs.astral.sh/uv/).
 - `frontend/`: React + TypeScript + Vite, served by nginx in production.
