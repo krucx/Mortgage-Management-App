@@ -10,8 +10,9 @@ this version only once this version has started and answers; until then, and if 
 does, the version before it keeps running.
 
   docker  Docker is installed: pulls the published images.
-  local   No Docker: Node (winget) and uv (its own installer, with Python), then the
-          backend's packages and the built UI.
+  local   No Docker: uv (its own installer, with Python) and the backend's packages. A
+          release comes with its screens built; other code (a branch or commit) has them
+          built here, with Node (winget).
 
 Windows PowerShell 5.1 compatible, and ASCII only.
 #>
@@ -93,7 +94,10 @@ function Install-Docker {
 }
 
 function Install-Local {
-    if (-not (Test-Command node)) {
+    <# The backend's packages, and the screens built unless they came built (a release's
+       ready-built download): then Node isn't needed at all. #>
+    $built = Test-Path (Join-Path $AppDir 'frontend\dist\index.html')
+    if (-not $built -and -not (Test-Command node)) {
         if (-not (Test-Command winget)) {
             throw 'winget is missing: install "App Installer" from the Microsoft Store, then run setup again.'
         }
@@ -114,6 +118,7 @@ function Install-Local {
         & uv sync --frozen --no-dev
         Assert-Success 'Installing the backend (uv sync)'
     } finally { Pop-Location }
+    if ($built) { return }
     Write-Host 'Building the app screens...'
     Push-Location (Join-Path $AppDir 'frontend')
     try {

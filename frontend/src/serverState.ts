@@ -89,6 +89,8 @@ export const keys = {
   /** Every settings group. */
   settings: ['settings'] as const,
   backups: ['backups'] as const,
+  /** Whether a newer release is out (the backend asks GitHub at most once a day). */
+  update: ['update'] as const,
 }
 
 /** What a change to what Mortgages owe makes stale, asked for again at once if shown. */

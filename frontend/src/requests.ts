@@ -624,3 +624,12 @@ export function paymentMethodsQuery(client: ApiClient) {
     staleTime: Infinity,
   })
 }
+
+/** The version running, and a newer release if one is out. */
+export function updateStatusQuery(client: ApiClient) {
+  return queryOptions({
+    queryKey: keys.update,
+    queryFn: () => dataOrThrow(client.GET('/api/update')),
+    staleTime: Infinity,
+  })
+}

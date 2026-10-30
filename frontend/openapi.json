@@ -2917,6 +2917,24 @@
         "title": "Redemption",
         "type": "object"
       },
+      "Release": {
+        "properties": {
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "notes"
+        ],
+        "title": "Release",
+        "type": "object"
+      },
       "SearchHit": {
         "properties": {
           "id": {
@@ -3098,6 +3116,30 @@
           "part_month_rule"
         ],
         "title": "Terms",
+        "type": "object"
+      },
+      "UpdateStatus": {
+        "properties": {
+          "available": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Release"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "running": {
+            "title": "Running",
+            "type": "string"
+          }
+        },
+        "required": [
+          "running",
+          "available"
+        ],
+        "title": "UpdateStatus",
         "type": "object"
       },
       "ValidationError": {
@@ -6729,6 +6771,24 @@
           }
         },
         "summary": "Read Message Placeholders"
+      }
+    },
+    "/api/update": {
+      "get": {
+        "operationId": "read_update_status_api_update_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Update Status"
       }
     }
   }

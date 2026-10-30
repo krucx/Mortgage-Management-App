@@ -6,6 +6,8 @@ services:
     build: ./backend
     image: mortgage-management-app-backend:dev
     pull_policy: build
+    environment:
+      CHECK_FOR_UPDATES: "false"  # a development build never offers an update
 
   frontend:
     build: ./frontend

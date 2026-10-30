@@ -164,6 +164,26 @@ Describe 'the mortgage-management:// link' {
         Select-LinkAction @('mortgage-management://start/') | Should -Be 'start'
     }
 
+    It 'updates the app' {
+        Select-LinkAction @('mortgage-management://update/') | Should -Be 'update'
+    }
+
+    It 'runs Setup for the newest release on update, and the launcher on start' {
+        Mock Start-Launcher {}
+        Mock Start-Setup {}
+
+        Open-Link @('mortgage-management://update')
+        Should -Invoke Start-Setup -Times 1
+        Should -Invoke Start-Launcher -Times 0
+
+        Open-Link @('mortgage-management://start')
+        Should -Invoke Start-Launcher -Times 1
+
+        Open-Link @('mortgage-management://anything')
+        Should -Invoke Start-Setup -Times 1
+        Should -Invoke Start-Launcher -Times 1
+    }
+
     It 'does nothing for any other action' {
         Select-LinkAction @('mortgage-management://uninstall') | Should -BeNullOrEmpty
         Select-LinkAction @('mortgage-management://start-everything') | Should -BeNullOrEmpty
@@ -445,5 +465,153 @@ Describe 'Setup updating to a new version' {
             $Ref -eq '1.6.0' -and $Folder -eq (Join-Path $InstallDir 'versions/1.6.0')
         }
         Test-Path (Join-Path $InstallDir 'versions/1.6.0/windows/ran') | Should -BeTrue
+    }
+}
+
+# What Invoke-WebRequest throws when GitHub has no such file (a release from before the
+# ready-built download).
+class NotPublished : Exception {
+    [object]$Response = [pscustomobject]@{ StatusCode = 404 }
+    NotPublished() : base('Response status code does not indicate success: 404 (Not Found).') {}
+}
+
+Describe 'Setup when the version installed is the newest' {
+    BeforeEach {
+        $InstallDir = Join-Path $TestDrive ([guid]::NewGuid())
+        $Ref = ''
+        $Mode = 'auto'
+        $NonInteractive = $true
+        $app = Join-Path $InstallDir 'app'
+        New-Item -ItemType Directory -Force (Join-Path $app 'frontend') | Out-Null
+        Set-Content (Join-Path $app '.env') 'RUN_WITH=local'
+        Set-Content (Join-Path $app 'frontend/package.json') '{ "version": "1.6.0" }'
+        Mock Write-Host {}
+        Mock Get-ReleaseTags { @([pscustomobject]@{ name = '1.5.1' }, [pscustomobject]@{ name = '1.6.0' }) }
+        Mock Get-AppCode {}
+        Mock Start-InstalledApp {}
+    }
+
+    It 'downloads nothing, and starts it' {
+        Main
+
+        Should -Invoke Get-AppCode -Times 0
+        Should -Invoke Start-InstalledApp -Times 1 -ParameterFilter { $AppDir -eq $app }
+    }
+
+    It 'never goes back to an older release than the version installed' {
+        Set-Content (Join-Path $app 'frontend/package.json') '{ "version": "1.7.0" }'
+
+        Main
+
+        Should -Invoke Get-AppCode -Times 0
+        Should -Invoke Start-InstalledApp -Times 1
+    }
+
+    It 'sets up the release over code from a branch or commit of the same version' {
+        Mock Get-JunctionTarget { Join-Path $InstallDir 'versions/3f9a1c2' }
+        Mock Get-AppCode { throw 'got it' }
+
+        { Main } | Should -Throw '*got it*'
+
+        Should -Invoke Get-AppCode -Times 1 -ParameterFilter { $Ref -eq '1.6.0' }
+    }
+
+    It 'sets the version up again when asked for it by name (to repair it)' {
+        $Ref = '1.6.0'
+        Mock Get-AppCode { throw 'got it' }
+
+        { Main } | Should -Throw '*got it*'
+    }
+
+    It 'still sets up another version when asked for one' {
+        $Ref = '1.5.1'
+        Mock Get-AppCode { throw 'got it' }
+
+        { Main } | Should -Throw '*got it*'
+
+        Should -Invoke Start-InstalledApp -Times 0
+    }
+}
+
+Describe 'getting a version''s code' {
+    BeforeEach {
+        $folder = Join-Path $TestDrive ([guid]::NewGuid())
+        $script:fromSource = 0
+        Mock Get-AppCodeWithGit { $script:fromSource++ }
+        Mock Get-AppCodeDownload { $script:fromSource++ }
+    }
+
+    It 'is the ready-built download, for a release that has one' {
+        Mock Invoke-WebRequest {
+            param($Uri, $OutFile)
+            $staging = Join-Path $TestDrive ([guid]::NewGuid())
+            $top = Join-Path $staging 'mortgage-management-1.6.0/frontend/dist'
+            New-Item -ItemType Directory -Force $top | Out-Null
+            Set-Content (Join-Path $top 'index.html') 'the app'
+            Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $OutFile
+        }
+
+        Get-AppCode '1.6.0' $folder
+
+        Should -Invoke Invoke-WebRequest -Times 1 -ParameterFilter {
+            $Uri -eq 'https://github.com/krucx/Mortgage-Management-App/releases/download/1.6.0/mortgage-management-1.6.0.zip'
+        }
+        Get-Content (Join-Path $folder 'frontend/dist/index.html') | Should -Be 'the app'
+        $script:fromSource | Should -Be 0
+    }
+
+    It 'is the code itself, for an older release without one' {
+        Mock Invoke-WebRequest { throw [NotPublished]::new() }
+
+        Get-AppCode '1.4.0' $folder
+
+        $script:fromSource | Should -Be 1
+    }
+
+    It 'is the code itself for a branch or commit, never looking for a download' {
+        Mock Invoke-WebRequest {}
+
+        Get-AppCode 'main' $folder
+
+        Should -Invoke Invoke-WebRequest -Times 0
+        $script:fromSource | Should -Be 1
+    }
+}
+
+Describe 'installing without Docker' {
+    BeforeAll {
+        # Stand-ins for the programs, which Pester can only mock when there is such a command.
+        function uv {}
+        function npm {}
+        function winget {}
+    }
+
+    BeforeEach {
+        $AppDir = Join-Path $TestDrive ([guid]::NewGuid())
+        New-Item -ItemType Directory -Force (Join-Path $AppDir 'backend'), (Join-Path $AppDir 'frontend') | Out-Null
+        Mock Write-Host {}
+        Mock Test-Command { param($Name) $Name -ne 'node' }  # uv is there, Node is not
+        Mock uv { $global:LASTEXITCODE = 0 }
+        Mock npm { $global:LASTEXITCODE = 0 }
+        Mock winget { $global:LASTEXITCODE = 0 }
+        Mock Update-SessionPath {}
+    }
+
+    It 'needs no Node, and builds nothing, when the screens come built' {
+        New-Item -ItemType Directory -Force (Join-Path $AppDir 'frontend/dist') | Out-Null
+        Set-Content (Join-Path $AppDir 'frontend/dist/index.html') 'the app'
+
+        Install-Local
+
+        Should -Invoke uv -Times 1
+        Should -Invoke npm -Times 0
+        Should -Invoke winget -Times 0
+    }
+
+    It 'installs Node and builds the screens from the code otherwise' {
+        Install-Local
+
+        Should -Invoke winget -Times 1
+        Should -Invoke npm -Times 2
     }
 }

@@ -8,6 +8,8 @@ services:
     environment:
       TZ: ${TZ:-Asia/Kolkata}
       BACKUP_PASSWORD: ${BACKUP_PASSWORD:-}
+      # Once a day, whether a newer release is out, for the in-app update banner.
+      CHECK_FOR_UPDATES: "true"
     volumes:
       - ${DATA_DIR:?Set DATA_DIR in .env}:/data
       - ${BACKUP_DIR:?Set BACKUP_DIR in .env}:/backups

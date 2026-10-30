@@ -22,13 +22,19 @@ from mortgage_backend.lending import (
 )
 from mortgage_backend.payments import payments, receipts
 from mortgage_backend.people import customer_changes, customers
-from mortgage_backend.platform import photos
+from mortgage_backend.platform import photos, updates
 from mortgage_backend.platform.daily_run import DailyRun
 from mortgage_backend.platform.db import (
     database_url_from_env,
     make_engine,
     migrate,
     photos_dir,
+)
+from mortgage_backend.platform.screens import screens_dir_from_env, serve_screens
+from mortgage_backend.platform.updates import (
+    LatestRelease,
+    UpdateCheck,
+    latest_release_from_env,
 )
 from mortgage_backend.safekeeping import audit, backups
 from mortgage_backend.safekeeping.backups import (
@@ -44,8 +50,12 @@ def create_app(
     now: Callable[[], datetime] = datetime.now,
     backup_dir: Path | None = None,
     backup_password: str = "",
+    screens_dir: Path | None = None,
+    latest_release: LatestRelease | None = None,
 ) -> FastAPI:
-    """The app; without a `backup_dir` it takes no Backups."""
+    """The app; without a `backup_dir` it takes no Backups, with a `screens_dir` it serves
+    the built screens too (without Docker, where nginx doesn't), and without
+    `latest_release` it never looks for a newer release."""
     engine = make_engine(database_url)
     backup = Backups(engine, database_url, backup_dir, backup_password, now)
 
@@ -82,6 +92,7 @@ def create_app(
     app.state.now = now
     app.state.backups = backup
     app.state.daily_run = daily_run
+    app.state.update_check = UpdateCheck(app.version, latest_release, now)
 
     @app.middleware("http")
     async def run_daily_jobs(
@@ -110,6 +121,9 @@ def create_app(
     app.include_router(receipts.router)
     app.include_router(message_settings.router)
     app.include_router(notices.router)
+    app.include_router(updates.router)
+    if screens_dir is not None:
+        serve_screens(app, screens_dir)  # last, so it never answers for the API
     return app
 
 
@@ -117,4 +131,6 @@ app = create_app(
     database_url_from_env(),
     backup_dir=backup_dir_from_env(),
     backup_password=backup_password_from_env(),
+    screens_dir=screens_dir_from_env(),
+    latest_release=latest_release_from_env(),
 )

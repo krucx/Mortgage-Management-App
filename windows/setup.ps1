@@ -84,14 +84,14 @@ function Get-AppCodeWithGit {
     Assert-Success "Switching to $Ref (git checkout)"
 }
 
-function Get-AppCodeDownload {
-    <# Without git: the code as a zip from GitHub, unpacked into the new folder `Folder`. #>
-    param([string]$Ref, [string]$Folder)
+function Save-CodeZip {
+    <# The zip at `Url` (one folder at its top), unpacked into the new folder `Folder`. #>
+    param([string]$Url, [string]$Folder)
     $work = Join-Path ([IO.Path]::GetTempPath()) ('mortgage-code-' + [guid]::NewGuid())
     New-Item -ItemType Directory $work | Out-Null
     try {
         $zip = Join-Path $work 'code.zip'
-        Invoke-WebRequest -UseBasicParsing "https://codeload.github.com/$Repo/zip/$Ref" -OutFile $zip
+        Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $zip
         Expand-Archive $zip (Join-Path $work 'code')
         $unpacked = Get-ChildItem (Join-Path $work 'code') | Select-Object -First 1
         Move-Item $unpacked.FullName $Folder
@@ -100,9 +100,32 @@ function Get-AppCodeDownload {
     }
 }
 
-function Get-AppCode {
-    <# `Ref`'s code into the new folder `Folder`, with git when it is installed. #>
+function Get-AppCodeDownload {
+    <# Without git: the code as a zip from GitHub, unpacked into the new folder `Folder`. #>
     param([string]$Ref, [string]$Folder)
+    Save-CodeZip "https://codeload.github.com/$Repo/zip/$Ref" $Folder
+}
+
+function Get-ReadyBuilt {
+    <# A release's ready-built download (the code with its screens built, published by the
+       release workflow) into the new folder `Folder`. Whether there was one: a release
+       from before it was published has none. #>
+    param([string]$Version, [string]$Folder)
+    try {
+        Save-CodeZip "https://github.com/$Repo/releases/download/$Version/mortgage-management-$Version.zip" $Folder
+        return $true
+    } catch {
+        $response = $_.Exception.Response
+        if ($response -and [int]$response.StatusCode -eq 404) { return $false }
+        throw
+    }
+}
+
+function Get-AppCode {
+    <# `Ref`'s code into the new folder `Folder`: a release's ready-built download, so nothing
+       needs building on this PC; else the code itself, with git when it is installed. #>
+    param([string]$Ref, [string]$Folder)
+    if ($Ref -match '^\d+\.\d+\.\d+$' -and (Get-ReadyBuilt $Ref $Folder)) { return }
     if (Get-Command git -ErrorAction SilentlyContinue) {
         Get-AppCodeWithGit $Ref $Folder
     } else {
@@ -116,6 +139,18 @@ function Get-JunctionTarget {
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
     if (-not $item -or -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $null }
     return @($item.Target)[0]
+}
+
+function Test-HasNewest {
+    <# Whether the version installed in `AppDir` needs nothing from the release `Latest`: it
+       is newer (Setup never goes back), or it is that release itself, not code from a branch
+       or commit of the same version (its folder is named after what was set up). #>
+    param([string]$AppDir, [string]$Installed, [string]$Latest)
+    if ($Installed -notmatch '^\d+\.\d+\.\d+$') { return $false }
+    if ([version]$Installed -gt [version]$Latest) { return $true }
+    if ($Installed -ne $Latest) { return $false }
+    $target = Get-JunctionTarget $AppDir
+    return -not $target -or ((Split-Path -Leaf $target) -replace '-\d+$', '') -eq $Installed
 }
 
 function Main {
@@ -147,7 +182,15 @@ function Main {
             return
         }
     }
-    if (-not $Ref) { $Ref = Get-LatestRelease $tags }
+    if (-not $Ref) {
+        $latest = Get-LatestRelease $tags
+        if ($installed -and (Test-HasNewest $appDir $installed $latest)) {
+            Write-Host "Version $installed is installed, and no release is newer: starting it." -ForegroundColor Green
+            Start-InstalledApp $appDir
+            return
+        }
+        $Ref = $latest
+    }
     Write-Host "Getting version $Ref..."
     $versions = Join-Path $InstallDir 'versions'
     New-Item -ItemType Directory -Force $versions | Out-Null

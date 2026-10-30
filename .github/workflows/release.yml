@@ -4,6 +4,9 @@ name: Release
 # that version and, when it is the highest version tagged so far, as the latest:
 #   krucx11/mortgage-management-app:backend-1.2.0, :backend-latest
 #   krucx11/mortgage-management-app:ui-1.2.0, :ui-latest
+# and a GitHub Release, its notes the version's CHANGELOG section (the in-app update
+# banner shows them), with the ready-built download Windows Setup installs from:
+#   mortgage-management-1.2.0.zip, the code with its screens built (frontend/dist)
 # Needs the repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (a Docker Hub
 # access token with Read & Write).
 on:
@@ -75,3 +78,43 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  # After the images, so the update banner never offers a release Docker can't pull yet.
+  github-release:
+    needs: [version, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Build the screens
+        working-directory: frontend
+        run: npm ci && npm run build
+      # The code as tagged (git archive), with the built screens, under one folder.
+      - name: The ready-built download
+        run: |
+          mkdir staging
+          git archive --format=tar --prefix="mortgage-management-$TAG/" HEAD | tar -x -C staging
+          cp -r frontend/dist "staging/mortgage-management-$TAG/frontend/dist"
+          (cd staging && zip -qr "../mortgage-management-$TAG.zip" "mortgage-management-$TAG")
+          unzip -l "mortgage-management-$TAG.zip" | grep -q "mortgage-management-$TAG/frontend/dist/index.html"
+      # From the version's heading to the next one.
+      - name: Its notes, from the CHANGELOG
+        run: |
+          awk -v tag="$TAG" '
+            /^## \[/ { if (found) exit; if (index($0, "## [" tag "]") == 1) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "CHANGELOG.md has no section for $TAG"; exit 1; }
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$TAG" "mortgage-management-$TAG.zip"
+          --title "$TAG" --notes-file notes.md --verify-tag
+          --latest=${{ needs.version.outputs.latest }}

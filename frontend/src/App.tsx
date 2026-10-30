@@ -1,6 +1,7 @@
 import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router'
 import { StartGate } from './components/StartGate'
 import { ThemeToggle } from './components/ThemeToggle'
+import { UpdateBanner } from './components/UpdateBanner'
 import { useReadyToRedeemCount } from './components/useReadyToRedeem'
 import { CallListPage } from './pages/CallListPage'
 import { ChangeTermsPage } from './pages/ChangeTermsPage'
@@ -62,6 +63,7 @@ export default function App() {
             <Nav />
             <ThemeToggle />
           </header>
+          <UpdateBanner />
           <main>
             <Routes>
               <Route path="/" element={<DashboardPage />} />

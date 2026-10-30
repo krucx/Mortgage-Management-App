@@ -252,7 +252,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       </div>
     </fieldset>
     <div class="verdict" aria-live="polite">
-      <div data-for="win-local"><b>Windows, without Docker.</b> <span class="muted">Setup installs what the app needs (Node.js and uv) and the app runs on the PC itself, from a window that stays open while you use it.</span></div>
+      <div data-for="win-local"><b>Windows, without Docker.</b> <span class="muted">Setup installs what the app needs (uv, which brings Python) and the app runs on the PC itself, from a window that stays open while you use it.</span></div>
       <div data-for="win-docker"><b>Windows, with Docker Desktop.</b> <span class="muted">Setup downloads the published app into Docker. It runs in the background, and Backups can have a password.</span></div>
       <div data-for="mac"><b>Mac or Linux, with Docker Desktop.</b> <span class="muted">There is no double-click setup here: a few commands in Terminal, once.</span></div>
     </div>
@@ -264,7 +264,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <table class="compare">
         <thead><tr><th scope="col"></th><th scope="col">Without Docker</th><th scope="col">With Docker Desktop</th></tr></thead>
         <tbody>
-          <tr><th scope="row">Install first</th><td>Nothing: Setup installs Node.js and uv itself</td><td><a href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a> (it may ask to restart the PC)</td></tr>
+          <tr><th scope="row">Install first</th><td>Nothing: Setup installs uv itself</td><td><a href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a> (it may ask to restart the PC)</td></tr>
           <tr><th scope="row">While you use it</th><td>Its window stays open; closing it stops the app</td><td>Runs in the background, and starts again with Docker</td></tr>
           <tr><th scope="row">Backup zips</th><td>Plain zips, no password (Windows has nothing built in to make them)</td><td>Can have a password, asked for during Setup</td></tr>
           <tr><th scope="row">Best for</th><td>Most Lenders: the least to install and look after</td><td>Backups kept in a shared or synced folder, where a password matters</td></tr>
@@ -290,7 +290,6 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <li><input type="checkbox" id="i-download"><label for="i-download"><b>Download Setup.bat</b><span class="detail"><a href="Setup.bat" download="Setup.bat">Download it here</a>. If the browser asks, choose <span class="ui">Keep</span>: Edge may say it "isn't commonly downloaded", as it says of any new file. It lands in <span class="path">Downloads</span>.</span></label></li>
         <li><input type="checkbox" id="i-run"><label for="i-run"><b>Double-click Setup.bat</b><span class="detail">Windows may show <span class="ui">Windows protected your PC</span>: click <span class="ui">More info</span>, then <span class="ui">Run anyway</span>. A black window opens: that is Setup.</span></label></li>
         <li><input type="checkbox" id="i-answer"><label for="i-answer"><b>Answer its questions</b><span class="detail">Pressing Enter keeps the suggested answer each time, and is right for most people. Step through the window on the right to see each question before you meet it.</span></label></li>
-        <li data-for="win-local"><input type="checkbox" id="i-allow"><label for="i-allow"><b>Allow Node.js to install</b><span class="detail">Windows asks once whether the Node.js installer may make changes: choose <span class="ui">Yes</span>. Then wait: the first install takes a few minutes.</span></label></li>
         <li data-for="win-docker"><input type="checkbox" id="i-wait"><label for="i-wait"><b>Wait for the download</b><span class="detail">Setup downloads the app into Docker. A few minutes the first time, and much less on later updates.</span></label></li>
         <li><input type="checkbox" id="i-start"><label for="i-start"><b>Say yes to start it</b><span class="detail">At <span class="ui">Start it now? [Y/n]</span> press Enter. The app opens in the browser at <span class="path">http://localhost:8080</span>.</span></label></li>
         <li><input type="checkbox" id="i-settings"><label for="i-settings"><b>Set the Lender's rules</b><span class="detail">In the app, open <span class="ui">Settings</span> first: the default Terms, the Lender's details for Receipts, and how many Backups to keep. The <a href="walkthrough.html#s2">walkthrough</a> goes through each.</span></label></li>
@@ -302,7 +301,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <div class="term-title"><i></i>Setup.bat</div>
       <div class="term-body" tabindex="0">
         <div data-mode="both">Mortgage Management setup</div>
-        <div data-mode="both" data-note="Setup puts everything in one folder in your user folder: the app, its data, and its Backups. Nothing is put anywhere else, but for Node.js and uv when there is no Docker.">Installing in C:\Users\you\MortgageManagement</div>
+        <div data-mode="both" data-note="Setup puts everything in one folder in your user folder: the app, its data, and its Backups. Nothing is put anywhere else, but for uv when there is no Docker.">Installing in C:\Users\you\MortgageManagement</div>
         <div data-mode="both" data-note="It always gets the newest release from GitHub.">Getting version 1.5.1...</div>
         <div data-mode="local" data-note="Setup found no Docker, so the app will run on the PC itself. To use Docker instead, install Docker Desktop and run Setup again.">Docker is not installed: the app will run directly on this PC.</div>
         <div data-mode="docker" data-note="Setup found Docker Desktop, so the app will run in Docker.">Docker is installed: the app will run in Docker.</div>
@@ -317,10 +316,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div data-mode="docker" class="warn" data-note="Write it down now and keep it somewhere safe: a Backup can't be opened without it, by anyone.">Write the Backup password down somewhere safe: a Backup cannot be opened without it.</div>
         <div data-mode="docker" data-note="If Docker Desktop wasn't already running, Setup starts it and waits.">Starting Docker Desktop (this can take a minute or two)...</div>
         <div data-mode="docker" data-note="The app is downloaded from Docker Hub. Lines of download progress scroll past here.">Downloading the app (Docker images)...</div>
-        <div data-mode="local" data-note="Windows asks once whether this may make changes: choose Yes. Skipped if Node.js is already installed.">Installing Node.js (Windows may ask for permission)...</div>
         <div data-mode="local" data-note="uv runs the app's server, and brings the right Python with it. Skipped if it is already installed.">Installing uv (it also brings the right Python)...</div>
-        <div data-mode="local" data-note="The app's server and its screens are installed into the app's folder. This is the slowest part, a few minutes, with lines of progress scrolling past.">Installing the backend...</div>
-        <div data-mode="local">Building the app screens...</div>
+        <div data-mode="local" data-note="The app's server is installed into the app's folder; its screens come ready-built. This is the slowest part, a minute or two, with lines of progress scrolling past.">Installing the backend...</div>
         <div data-mode="both"></div>
         <div data-mode="both" class="ok" data-note="Done. There is now a Mortgage Management shortcut on the Desktop, with the app's own icon.">Mortgage Management is set up.</div>
         <div data-mode="both">Start it any time with the "Mortgage Management" shortcut on the Desktop,</div>
@@ -414,6 +411,8 @@ docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
     </div>
     <div class="nuances">
       <div class="nuance rule"><b>A Backup comes first</b><span>When a release updates the database, the app takes a Backup marked <code>-before-update</code> before it does. If that Backup fails, the app doesn't start, so the data is never changed without one.</span></div>
+      <div class="nuance"><b>Or from the app itself</b><span>When a newer release is out, the app shows a banner with what's new. On Windows, <span class="ui">Install now</span> runs Setup for it (Windows asks once whether to open it), and the app reloads by itself once the new version runs. <span class="ui">Later</span> hides it until the next release.</span></div>
+      <div class="nuance"><b>Nothing to download when it's current</b><span>Setup compares the version you have with the newest first: if you have it, it downloads nothing and just starts the app.</span></div>
       <div class="nuance"><b>The version before is kept</b><span>Each version has its own folder in <span class="path">MortgageManagement\versions</span>, and <span class="path">app</span> points at the one that runs. The one before stays there; older ones are removed after an update.</span></div>
       <div class="nuance"><b>Nothing to download each time</b><span>Setup.bat always fetches the newest release, so the same file works for every update.</span></div>
     </div>
@@ -542,7 +541,7 @@ docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
     </details>
     <details data-for="win-local">
       <summary>“winget is missing”</summary>
-      <div><p>Setup uses winget, Windows' own installer, to install Node.js. Install <a href="https://apps.microsoft.com/detail/9NBLGGH4NNS1">App Installer</a> from the Microsoft Store, then run Setup again.</p></div>
+      <div><p>Setup uses winget, Windows' own installer, to install Node.js, which it needs only to set up code that isn't released yet. Install <a href="https://apps.microsoft.com/detail/9NBLGGH4NNS1">App Installer</a> from the Microsoft Store, then run Setup again.</p></div>
     </details>
     <details data-for="win-docker">
       <summary>“Docker Desktop did not start” or “Docker is installed but not running”</summary>

@@ -30,11 +30,13 @@ release:
 
 - **With Docker Desktop installed**, the app runs in Docker, as below. Setup asks for a
   Backup password.
-- **Without Docker**, it runs directly on the PC. Setup installs Node.js (through winget,
-  which may ask for permission) and [uv](https://docs.astral.sh/uv/), which brings the
-  right Python. The shortcut's window must stay open while the app is used; closing it
-  stops the app. Backups are plain zips, without a password: Windows has nothing built in
-  that makes password zips.
+- **Without Docker**, it runs directly on the PC. Setup installs
+  [uv](https://docs.astral.sh/uv/), which brings the right Python, and the backend's
+  packages; a release comes with its screens built, which the backend serves itself, so no
+  Node.js is needed (Setup installs it through winget only to set up unreleased code,
+  `-Ref <branch or commit>`). The shortcut's window must stay open while the app is used;
+  closing it stops the app. Backups are plain zips, without a password: Windows has
+  nothing built in that makes password zips.
 
 Run `Setup.bat` again to update to the newest release; your `.env`, data and Backups are
 kept. It uses git when it is installed, and otherwise downloads the release from GitHub.
@@ -103,9 +105,13 @@ To restore:
 
 ### Updating
 
-On Windows, double-click `Setup.bat` again (it is also in
+When a newer release is out, the app says so in a banner with what's new (it asks GitHub
+at most once a day). On Windows, **Install now** runs Setup for it (Windows asks once
+whether to open it) and the app reloads by itself once the new version runs; **Later**
+hides the banner until the next release. Or double-click `Setup.bat` again (it is also in
 `%USERPROFILE%\MortgageManagement\app\windows`): it updates to the newest release, with
-or without Docker, and keeps the `.env`, data and Backups. If the new version had already
+or without Docker, and keeps the `.env`, data and Backups; when you have the newest
+already, it downloads nothing and just starts it. If the new version had already
 updated the database when it failed to start, Setup says which `-before-update` Backup
 to restore should the version you had not start on it. Elsewhere:
 
@@ -161,11 +167,11 @@ trying unreleased code, so it never runs a migration on real data. Plain
 The Windows setup lives in `windows/`: `Setup.bat` → `setup.ps1` (gets the code) →
 `install.ps1` (Docker or local, `.env`, installs, shortcut, `mortgage-management://`
 link), `Run.bat` → `run.ps1`, `link.ps1` (opens the link: `mortgage-management://start`
-runs `Run.bat`; see Documentation/adr/0008), and `Uninstall.bat` → `uninstall.ps1`.
-`common.ps1` holds what they share; `windows/tests` checks their decisions with Pester.
-The `windows` job in `.github/workflows/test.yml` runs the setup without Docker end to end
-on a Windows runner, then the uninstall. `setup.ps1 -Ref <branch or commit>` sets up code
-that isn't released yet.
+runs `Run.bat`, `mortgage-management://update` runs Setup; see Documentation/adr/0008),
+and `Uninstall.bat` → `uninstall.ps1`. `common.ps1` holds what they share; `windows/tests`
+checks their decisions with Pester. The `windows` job in `.github/workflows/test.yml` runs
+the setup without Docker end to end on a Windows runner, then the uninstall. `setup.ps1
+-Ref <branch or commit>` sets up code that isn't released yet.
 
 - `backend/`: FastAPI + SQLite (SQLAlchemy, Alembic migrations), managed with [uv](https://docs.astral.sh/uv/).
 - `frontend/`: React + TypeScript + Vite, served by nginx in production.
