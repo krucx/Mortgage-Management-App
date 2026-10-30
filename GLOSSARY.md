@@ -88,7 +88,7 @@ _Avoid_: Balance, dues
 
 **Redemption Amount**:
 What a Customer must pay on a given date to redeem a Mortgage: outstanding interest and Principal plus any Part-Month Rule charge.
-_Avoid_: Payoff, closing balance
+_Avoid_: Payoff, closing balance, final settlement amount
 
 ## Collateral
 
@@ -107,11 +107,11 @@ _Avoid_: LTV ratio, coverage
 ## Payments
 
 **Payment**:
-A single sum received from a Customer on one date, possibly covering several Mortgages.
+A single sum received from a Customer on one date, possibly covering several Mortgages and redeeming some of them with their final Payments.
 _Avoid_: Receipt (that is the acknowledgement of a Payment), collection
 
 **Receipt**:
-The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes, sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
+The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
 _Avoid_: Invoice, bill
 
 **Allocation**:
@@ -156,7 +156,7 @@ _Avoid_: Export, snapshot, archive
 A Mortgage still accruing interest with jewellery held.
 
 **Ready to Redeem**:
-An Active Mortgage with nothing Outstanding: its jewellery is waiting to go back, and it takes no more Payments until it is Redeemed.
+An Active Mortgage with nothing Outstanding: its jewellery is waiting to go back, and the only Payment it takes is its Redemption's final Payment of any Part-Month Rule charge.
 _Avoid_: Paid off, cleared, settled
 
 **Redeemed**:
