@@ -17,6 +17,7 @@ import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
 import { Owed, type Quote } from '../components/Owed'
+import { ReasonTip } from '../components/ReasonTip'
 import { useQuotes } from '../components/useQuotes'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
@@ -312,7 +313,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
               </button>
             )}
             {chosen.length > 0 && unquotable && (
-              <span className="hint">Can't pay it in full: {unquotable}</span>
+              <span>
+                <ReasonTip reason={unquotable}>Can't pay it in full</ReasonTip>
+              </span>
             )}
           </label>
           <label>

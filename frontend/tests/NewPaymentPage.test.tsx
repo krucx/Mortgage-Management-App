@@ -307,9 +307,9 @@ test("when a chosen Mortgage can't be quoted, the full Redemption Amount can't b
     name: 'Pay the full Redemption Amount',
   })) as HTMLButtonElement
   expect(full.disabled).toBe(true)
-  expect(
-    await screen.findByText("Can't pay it in full: 2026GoldRing had not started on that date"),
-  ).toBeTruthy()
+  // Compact too: the reason is in the marker's tooltip.
+  fireEvent.mouseEnter(await screen.findByText("Can't pay it in full"))
+  expect(screen.getByRole('tooltip').textContent).toBe('2026GoldRing had not started on that date')
 })
 
 // --- Paying the full Redemption Amount Redeems: asked before anything is recorded.

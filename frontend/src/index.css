@@ -1326,27 +1326,75 @@ label .hint {
   font-weight: normal;
 }
 
-/* A compact marker whose reason shows in a red bubble on hover, focus or tap
-   (ReasonTip). The bubble is darker than --error so white text reads in both themes. */
+/* A compact red marker whose reason shows in a bubble on hover, focus or tap
+   (ReasonTip). The bubble is darker than --error so white text reads in both themes;
+   its arrow points up at the marker (down when it opens above). */
 .reason-tip {
-  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--error);
+  font-weight: 600;
   white-space: nowrap;
-  text-decoration: underline dotted;
+  cursor: help;
+  border-radius: 4px;
+}
+.reason-tip:focus-visible {
+  outline: 2px solid var(--error);
+  outline-offset: 2px;
+}
+.reason-tip-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
 }
 .reason-bubble {
+  --bubble: color-mix(in srgb, var(--error) 78%, #000);
   position: fixed;
   z-index: 50;
   width: max-content;
-  max-width: 260px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--error) 75%, #000);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bubble);
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
   font-weight: normal;
-  line-height: 1.3;
+  line-height: 1.4;
   text-align: left;
   white-space: normal;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
   pointer-events: none;
+  animation: reason-bubble-in 120ms ease-out;
+}
+.reason-bubble::before {
+  content: '';
+  position: absolute;
+  right: 12px;
+  bottom: 100%;
+  border: 6px solid transparent;
+  border-bottom-color: var(--bubble);
+}
+.reason-bubble.above::before {
+  top: 100%;
+  bottom: auto;
+  border-bottom-color: transparent;
+  border-top-color: var(--bubble);
+}
+@keyframes reason-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reason-bubble {
+    animation: none;
+  }
 }

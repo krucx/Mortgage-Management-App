@@ -1,26 +1,30 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
 
-const WIDTH = 260 // the bubble's widest, as in index.css
-const GAP = 4
+const WIDEST = 300 // the bubble's widest, in px
+const EDGE = 8 // kept this far inside the window
+const GAP = 8 // between the marker and the bubble, room for its arrow
 
-type Place = { left: number; top?: number; bottom?: number }
+/** Where the bubble sits: its right edge under the marker's, above it near the bottom. */
+type Place = { right: number; maxWidth: number; top?: number; bottom?: number; above: boolean }
 
 /**
- * A compact red marker whose `reason` shows in a bubble on hover, focus or tap, so a
- * long refusal doesn't stretch a table. The bubble is fixed to the window (a scrolling
- * table can't clip it), kept on screen, and closed by Escape or scrolling.
+ * A compact red marker (its label and an ⓘ) whose `reason` shows in a bubble on hover,
+ * focus or tap, so a long refusal doesn't stretch a table or a form. The bubble is
+ * fixed to the window (a scrolling table can't clip it), kept on screen, points at the
+ * marker, and closes on Escape or scrolling.
  */
 export function ReasonTip({ reason, children }: { reason: string; children: ReactNode }) {
   const id = useId()
   const [place, setPlace] = useState<Place | null>(null)
   const show = (event: { currentTarget: HTMLElement }) => {
     const box = event.currentTarget.getBoundingClientRect()
-    const left = Math.max(8, Math.min(box.left, window.innerWidth - WIDTH - 8))
-    // Above the marker when there's no room for it below.
+    const right = Math.max(EDGE, window.innerWidth - box.right)
+    const maxWidth = Math.min(WIDEST, window.innerWidth - right - EDGE)
+    const above = box.bottom + 96 > window.innerHeight
     setPlace(
-      box.bottom + 80 > window.innerHeight
-        ? { left, bottom: window.innerHeight - box.top + GAP }
-        : { left, top: box.bottom + GAP },
+      above
+        ? { right, maxWidth, above, bottom: window.innerHeight - box.top + GAP }
+        : { right, maxWidth, above, top: box.bottom + GAP },
     )
   }
   const hide = () => setPlace(null)
@@ -38,7 +42,7 @@ export function ReasonTip({ reason, children }: { reason: string; children: Reac
 
   return (
     <span
-      className="status error reason-tip"
+      className="reason-tip"
       tabIndex={0}
       aria-describedby={id}
       onMouseEnter={show}
@@ -48,7 +52,16 @@ export function ReasonTip({ reason, children }: { reason: string; children: Reac
       onBlur={hide}
     >
       {children}
-      <span id={id} className="reason-bubble" role="tooltip" hidden={!place} style={place ?? undefined}>
+      <span className="reason-tip-icon" aria-hidden="true">
+        i
+      </span>
+      <span
+        id={id}
+        role="tooltip"
+        className={`reason-bubble${place?.above ? ' above' : ''}`}
+        hidden={!place}
+        style={place ? { right: place.right, maxWidth: place.maxWidth, top: place.top, bottom: place.bottom } : undefined}
+      >
         {reason}
       </span>
     </span>
