@@ -5,6 +5,74 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [2.0.0] - 2026-10-30
+
+A Payment of a Mortgage's whole Redemption Amount Redeems it, with one Receipt for
+everything handed over; and on Windows the app updates itself safely, from a banner in the
+app, and starts from its installed icon. **Updates the database** (Payments that Redeem
+keep their parts together): the app takes a Backup marked `-before-update` first, and
+1.5.1 does not start on the updated database.
+
+### Added
+
+- **Redeeming with a Payment:** when an Allocation on New Payment is its Mortgage's whole
+  Redemption Amount, the app asks "Redeem and hand back the jewellery?" and Redeems it on
+  the Payment date, with that Allocation as its Final Payment, alongside any other parts,
+  all or none. One Receipt covers everything handed over and marks the Mortgages it
+  Redeemed; saving opens it.
+- **New Payment shows each Mortgage's Redemption Amount** on the Payment date beside its
+  Outstanding (with the reason when there is none), and **Pay the full Redemption Amount**
+  fills each Allocation with it, or says why it can't.
+- **"Paid up to [last Accrual Date]: Redeem now?"** after a Payment shows the Final Payment
+  and its Part-Month Rule; the Ready to Redeem popup's Final Payment joins its Payment's
+  Receipt.
+- **Update banner:** when a newer release is out, the app says so with what's new. On
+  Windows, **Install now** updates it and the app reloads by itself on the new version;
+  **Later** hides it until the next release.
+- **Start from the app's icon (Windows):** when the app isn't running, the installed app
+  offers **Start Mortgage Management**, and loads once it answers.
+- **Each release on GitHub** comes with a ready-built download, its notes this changelog.
+
+### Changed
+
+- **Paying a whole Redemption Amount Redeems:** it is no longer accepted as an ordinary
+  Allocation ("Redeem it with this Payment instead"), so paying off on an Accrual Date
+  Redeems the Mortgage.
+- **Safe updates (Windows):** each version is installed beside the one running, in
+  `MortgageManagement\versions`, and switched to only once it starts (`app` now points at
+  the version that runs). If anything fails, Setup says "Update failed; still on x.y.z"
+  and the version you had keeps running; if the new version had already updated the
+  database, it names the Backup to restore. The version before is kept.
+- **Smaller updates (Windows):** Setup downloads nothing when you have the newest release,
+  and without Docker installs the release ready-built: no Node.js or npm is needed, and
+  the backend serves the app's screens itself.
+- **Setup without internet (Windows)** starts the version you have instead of stopping.
+- **Equal shares on New Payment** fill each Mortgage up to its Redemption Amount, then
+  share the rest.
+- **"Can't redeem"** in the To redeem on columns is a compact red marker, its reason in a
+  tooltip.
+
+### Fixed
+
+- After a Payment, the Redeem offer quoted the whole Redemption Amount it had just paid
+  instead of what was left.
+- A Mortgage paid in two parts of one Payment took two Receipt lines, with the Total owed
+  wrong.
+- Changing a value in `.env` on Windows dropped that line's Windows line ending.
+
+### Upgrading
+
+On Windows, download **Setup.bat** afresh from the
+[install guide](https://krucx.github.io/Mortgage-Management-App/install.html) and run it:
+the copy in `app\windows` from 1.5.1 updates in place the old way (it still works, and the
+next update is the safe one). From 2.0.0 on, use the banner's **Install now**. Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
+
 ## [1.5.1] - 2026-10-28
 
 Choose a separate folder for the database and photos during Windows setup. No database
