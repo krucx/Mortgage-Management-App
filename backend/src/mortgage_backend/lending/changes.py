@@ -201,8 +201,8 @@ def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -> 
 def _write_payment(
     conn: Connection, payment: PaymentIn, received_with: int | None = None
 ) -> int:
-    """Write the Payment; `received_with` is the first of the Payments recorded from the
-    same sum, which share its Receipt."""
+    """Write the Payment, or a part of one: `received_with` is the Payment's first part,
+    whose Receipt the part shares."""
     payment_id: int = conn.execute(
         insert(payment_table)
         .values(
@@ -287,11 +287,14 @@ def record_payment(
     conn: Connection, payment: PaymentIn, today: date, now: datetime
 ) -> int:
     """Record a Payment (or refuse); returns its id. The Mortgages it is `redeeming` are
-    each Redeemed with their own final Payment, received with the rest of it: the id is
-    then the first of those Payments."""
+    each Redeemed with their Final Payment kept as a part of its own: the id is then the
+    Payment's first part."""
     rows = _refuse_payment(conn, payment, today)
     redeemed = [a for a in payment.allocations if a.mortgage_id in payment.redeeming]
     ordinary = [a for a in payment.allocations if a not in redeemed]
+    for allocation in ordinary:
+        with _refusal_names_mortgage(conn, allocation.mortgage_id):
+            _refuse_unredeemed_in_full(conn, allocation, payment.paid_on, today)
     first = None
     if ordinary:
         paid = payment.model_copy(
@@ -311,6 +314,22 @@ def record_payment(
             first = final
     assert first is not None  # there is at least one Allocation
     return first
+
+
+def _refuse_unredeemed_in_full(
+    conn: Connection, allocation: AllocationIn, on: date, today: date
+) -> None:
+    """Refuse an ordinary Allocation of the Mortgage's whole Redemption Amount: paying
+    all of it Redeems the Mortgage (where it could be Redeemed on that date)."""
+    try:
+        mortgage = closable(conn, allocation.mortgage_id, on, today)
+    except HTTPException:
+        return
+    if allocation.amount == mortgage.redemption(on).total:
+        raise unprocessable(
+            f"{format_inr(allocation.amount)} is its whole Redemption Amount on "
+            f"{on:%d %b %Y}: Redeem it with this Payment instead"
+        )
 
 
 def _redeem_with_allocation(

@@ -180,7 +180,7 @@ def test_mortgages_owing_something_sort_too(client):
     large = lend(client, owner, "2026-02-01", amount=9_000 * RUPEE)
     paid_off = lend(client, owner, "2026-03-01", amount=5_000 * RUPEE)
     owed = get(client, f"mortgages/{paid_off['id']}")["outstanding"]["total"]
-    pay(client, owner, {paid_off["id"]: owed}, on="2026-04-01")
+    pay(client, owner, {paid_off["id"]: owed}, on="2026-04-02")
 
     listed = get(client, "mortgages", owing=True, sort="lent")["items"]
 

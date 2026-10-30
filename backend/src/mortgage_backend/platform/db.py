@@ -126,8 +126,8 @@ payment_table = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.now()),
     Column("voided_at", DateTime),  # a Void keeps the Payment but out of every Ledger
     Column("void_reason", String),
-    # The first of the Payments recorded from the same sum (a Payment that Redeems
-    # records each final Payment apart): they share its Receipt.
+    # The first part of the Payment this is part of: a Payment's Final Payments are
+    # kept as parts of their own, and all its parts share one Receipt.
     Column("received_with", Integer, ForeignKey("payment.id")),
 )
 

@@ -107,8 +107,12 @@ _Avoid_: LTV ratio, coverage
 ## Payments
 
 **Payment**:
-A single sum received from a Customer on one date, possibly covering several Mortgages and redeeming some of them with their final Payments.
+A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt.
 _Avoid_: Receipt (that is the acknowledgement of a Payment), collection
+
+**Final Payment**:
+What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.
+_Avoid_: Settlement, closing payment
 
 **Receipt**:
 The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.

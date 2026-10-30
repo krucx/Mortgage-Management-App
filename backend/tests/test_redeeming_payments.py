@@ -3,7 +3,7 @@ Payment date, closes it with that Allocation as its final Payment; the rest of t
 Payment, if any, is ordinary, and all of it is recorded or none."""
 
 import pytest
-from api_seed import lend, pay, person
+from api_seed import SIMPLE_3, lend, pay, person
 from seed import LAKH
 
 # 20 Apr 2026, for a Mortgage of ₹1 lakh from 14 Jan at 3% (full-month Part-Month
@@ -240,3 +240,17 @@ def test_a_back_dated_payment_that_redeems_before_a_later_payment_is_refused(
 
     assert response.status_code == 422
     assert "There are Payments after that date" in response.json()["detail"]
+
+
+def test_paying_the_whole_redemption_amount_without_redeeming_is_refused(client, ramesh):
+    # With nothing charged for the part-month, the Redemption Amount is the Outstanding.
+    nothing = lend(client, ramesh, terms={**SIMPLE_3, "part_month_rule": "nothing"})
+    asked = payment_of(ramesh, {nothing["id"]: LAKH + 9_000_00})
+
+    response = client.post("/api/payments", json=asked)
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        f"{nothing['name']}: ₹1,09,000 is its whole Redemption Amount on 20 Apr 2026: "
+        "Redeem it with this Payment instead"
+    )

@@ -255,7 +255,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       // Any it left Ready to Redeem are offered for Redemption.
       if (payment.ready_to_redeem.length)
         setPaidOff({ payment, mortgages: payment.ready_to_redeem })
-      else navigate(`/payments/${payment.id}`)
+      else navigate(`/payments/${payment.id}/receipt`)
     },
   })
 
@@ -478,7 +478,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         <RedeemPaidOff
           payment={paidOff.payment}
           mortgages={paidOff.mortgages}
-          onDone={() => navigate(`/payments/${paidOff.payment.id}`)}
+          onDone={() => navigate(`/payments/${paidOff.payment.id}/receipt`)}
         />
       )}
     </>

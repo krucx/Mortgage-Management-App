@@ -1,5 +1,5 @@
-"""A Payment that Redeems records each Mortgage's final Payment apart from the rest, so
-the Payments recorded from one sum point at the first of them, whose Receipt they share.
+"""A Payment that Redeems keeps each Final Payment in it as a part of its own, so its
+parts point at its first part, whose Receipt they share.
 
 Revision ID: 0013
 Revises: 0012

@@ -90,8 +90,8 @@ def test_a_back_dated_payment_that_breaks_a_later_one_is_refused(
 ) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    # Paid off exactly on 14 Mar: ₹1,00,000 + ₹6,000.
-    add_payment(conn, ramesh, date(2026, 3, 14), {chain: 1_06_000 * RUPEE})
+    # Paid off on 15 Mar: ₹1,00,000 + ₹6,000.
+    add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_06_000 * RUPEE})
 
     with pytest.raises(HTTPException) as error:
         changes.record_payment(
@@ -104,7 +104,7 @@ def test_a_back_dated_payment_that_breaks_a_later_one_is_refused(
     # After ₹1,000 on 20 Feb only ₹1,05,000 is owed on 14 Mar.
     assert refusal(error) == (
         422,
-        "2026-Ramesh-Chain: the Payment on 14 Mar 2026 would be more than the "
+        "2026-Ramesh-Chain: the Payment on 15 Mar 2026 would be more than the "
         "₹1,05,000 owed then",
     )
 
@@ -203,15 +203,15 @@ def test_an_edit_that_would_make_a_payment_too_large_is_refused(
 ) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    add_payment(conn, ramesh, date(2026, 3, 14), {chain: 1_06_000 * RUPEE})
+    add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_06_000 * RUPEE})
 
     with pytest.raises(HTTPException) as error:
         changes.edit_mortgage(conn, chain, edit(amount_lent=50_000 * RUPEE), TODAY, NOW)
 
-    # Lent ₹50,000: only ₹53,000 owed on 14 Mar.
+    # Lent ₹50,000: only ₹53,000 owed on 15 Mar.
     assert refusal(error) == (
         422,
-        "2026-Ramesh-Chain: the Payment on 14 Mar 2026 would be more than the "
+        "2026-Ramesh-Chain: the Payment on 15 Mar 2026 would be more than the "
         "₹53,000 owed then",
     )
 
@@ -317,7 +317,7 @@ def test_a_closed_mortgages_start_and_principal_are_locked(conn: Connection) -> 
 def test_a_refused_change_records_no_history(conn: Connection) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    add_payment(conn, ramesh, date(2026, 3, 14), {chain: 1_06_000 * RUPEE})
+    add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_06_000 * RUPEE})
 
     with pytest.raises(HTTPException):
         changes.edit_mortgage(conn, chain, edit(amount_lent=50_000 * RUPEE), TODAY, NOW)

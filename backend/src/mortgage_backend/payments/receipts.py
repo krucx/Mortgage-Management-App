@@ -62,7 +62,8 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "This Payment was Voided: it has no Receipt"
         )
-    # The Payments recorded from the same sum as this one, which share its Receipt.
+    # The parts of the Payment this one is part of (its Final Payments kept apart), which
+    # share one Receipt.
     first = payment["received_with"] or payment_id
     together = (
         conn.execute(

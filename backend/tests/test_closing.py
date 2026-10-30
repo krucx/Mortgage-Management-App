@@ -102,16 +102,22 @@ def test_a_closed_mortgage_takes_no_more_payments(client, ramesh, mortgage):
     assert "reopen it first" in response.json()["detail"]
 
 
-def test_a_paid_off_mortgage_redeemed_on_an_accrual_date_needs_no_final_payment(
+def test_paying_everything_on_an_accrual_date_redeems_with_no_part_month_charge(
     client, ramesh, mortgage
 ):
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
-    assert redemption(client, mortgage, on="2026-04-14")["total"] == 0
+    assert redemption(client, mortgage, on="2026-04-14")["total"] == 109_000_00
 
-    page = redeem(client, mortgage, on="2026-04-14").json()
+    pay(
+        client,
+        ramesh,
+        {mortgage["id"]: 109_000_00},
+        on="2026-04-14",
+        redeeming=[mortgage["id"]],
+    )
 
+    page = client.get(f"/api/mortgages/{mortgage['id']}").json()
     assert page["status"] == "redeemed"
-    assert page["closure"]["payment_id"] is None
+    assert page["closure"]["payment_amount"] == 109_000_00
 
 
 @pytest.mark.parametrize(
@@ -248,14 +254,6 @@ def test_paying_everything_owed_is_a_redemption_not_a_waiver(client, mortgage, p
     assert client.get(f"/api/mortgages/{mortgage['id']}").json()["status"] == "active"
 
 
-def test_a_mortgage_owing_nothing_cannot_be_waived(client, ramesh, mortgage):
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
-
-    response = waive(client, mortgage, 0, on="2026-04-14")
-
-    assert response.status_code == 422
-    assert "Redeem it instead" in response.json()["detail"]
-
 
 def test_a_waived_mortgage_takes_no_more_payments_and_cannot_be_closed_again(
     client, mortgage
@@ -281,7 +279,7 @@ def test_closed_mortgages_can_be_listed_by_status(client, ramesh, mortgage):
 
 
 def test_paying_a_mortgage_down_to_nothing_does_not_redeem_it(client, ramesh, mortgage):
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-15")
 
     page = client.get(f"/api/mortgages/{mortgage['id']}").json()
 
@@ -334,15 +332,14 @@ def test_a_paid_off_mortgage_is_ready_to_redeem_with_todays_redemption_amount(
     client, ramesh, mortgage
 ):
     other = lend(client, ramesh)
-    # Paid off on an Accrual Date: the new month starts with no Principal, so no charge.
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
-    # Paid off mid-month (today, 6 days in): redeeming adds a full month on ₹1,00,000.
+    # Paid off mid-month, on 15 Apr and today: redeeming adds a full month on ₹1,00,000.
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-15")
     pay(client, ramesh, {other["id"]: 109_000_00}, on="2026-04-20")
 
     items = ready(client)
 
     assert [(i["mortgage"]["name"], i["redemption"]["total"]) for i in items] == [
-        (mortgage["name"], 0),
+        (mortgage["name"], 3_000_00),
         (other["name"], 3_000_00),
     ]
     assert items[0]["mortgage"]["customer"]["name"] == "Ramesh Kumar"
@@ -350,7 +347,7 @@ def test_a_paid_off_mortgage_is_ready_to_redeem_with_todays_redemption_amount(
 
 
 def test_a_redeemed_mortgage_is_no_longer_waiting(client, ramesh, mortgage):
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-15")
 
     redeem(client, mortgage)
 
@@ -361,7 +358,7 @@ def test_mortgages_can_be_listed_by_whether_anything_is_outstanding(
     client, ramesh, mortgage
 ):
     other = lend(client, ramesh)
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-15")
 
     page = client.get(
         "/api/mortgages", params={"status": "active", "owing": True}
@@ -540,9 +537,8 @@ def test_redeeming_several_closes_each_and_records_any_final_payment(
     client, ramesh, mortgage
 ):
     other = lend(client, ramesh)
-    # Paid off on the 14 Apr Accrual Date: nothing more to pay.
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-14")
-    # Paid off today, 6 days in: a full month's ₹3,000 is the final Payment.
+    # Paid off mid-month: a full month's ₹3,000 is each one's final Payment.
+    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-15")
     pay(client, ramesh, {other["id"]: 109_000_00}, on="2026-04-20")
 
     response = redeem_all(client, [mortgage, other])
@@ -552,7 +548,7 @@ def test_redeeming_several_closes_each_and_records_any_final_payment(
         client.get(f"/api/mortgages/{m['id']}").json()["closure"] for m in (mortgage, other)
     ]
     assert [(c["kind"], c["payment_amount"]) for c in closures] == [
-        ("redeemed", None),
+        ("redeemed", 3_000_00),
         ("redeemed", 3_000_00),
     ]
     final = client.get(f"/api/payments/{closures[1]['payment_id']}").json()

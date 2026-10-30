@@ -142,7 +142,7 @@ test('a Payment that leaves a Mortgage Ready to Redeem offers to Redeem it, in o
   await vi.waitFor(() => expect(redeem.disabled).toBe(false), { timeout: 2000 })
   fireEvent.click(redeem)
 
-  expect(await screen.findByText('Now at /payments/9')).toBeTruthy()
+  expect(await screen.findByText('Now at /payments/9/receipt')).toBeTruthy()
   expect(sent).toEqual([
     {
       redeemed_on: backend.paid.paid_on,
@@ -333,7 +333,7 @@ test('paying the full Redemption Amount asks to Redeem first, then records the P
   ).toBeTruthy()
   fireEvent.click(within(asked).getByRole('button', { name: 'Redeem' }))
 
-  expect(await screen.findByText('Now at /payments/9')).toBeTruthy()
+  expect(await screen.findByText('Now at /payments/9/receipt')).toBeTruthy()
   expect(saved.map((p) => p.redeeming)).toEqual([[7, 8]])
 })
 
