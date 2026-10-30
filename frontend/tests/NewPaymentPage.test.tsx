@@ -228,11 +228,11 @@ test('each Mortgage shows what it would take to Redeem on the Payment date, back
   expect(await within(ringRow).findByText('2026GoldRing had not started on that date')).toBeTruthy()
 })
 
-test('Settle in full fills each chosen Mortgage with its Redemption Amount, and the total with their sum', async () => {
+test('paying the full Redemption Amount fills each chosen Mortgage with its Redemption Amount, and the total with their sum', async () => {
   showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
 
-  const settle = await screen.findByRole('button', { name: 'Settle in full (₹71,500)' })
-  fireEvent.click(settle)
+  const full = await screen.findByRole('button', { name: 'Pay the full Redemption Amount (₹71,500)' })
+  fireEvent.click(full)
 
   expect((screen.getByLabelText('Amount received (₹)') as HTMLInputElement).value).toBe('71500')
   expect((screen.getByLabelText(`Amount for ${row.name}`) as HTMLInputElement).value).toBe('51500')
@@ -264,4 +264,19 @@ test('with none Ready to Redeem there is no pointer to the Redeem tab', async ()
 
   await screen.findByRole('link', { name: row.name })
   expect(screen.queryByRole('link', { name: /Ready to Redeem/ })).toBeNull()
+})
+
+test("when a chosen Mortgage can't be quoted, the full Redemption Amount can't be filled in and the reason is given", async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  await screen.findByRole('button', { name: /^Pay the full Redemption Amount/ })
+
+  fireEvent.change(screen.getByLabelText('Date received'), { target: { value: '2026-03-15' } })
+
+  const full = (await screen.findByRole('button', {
+    name: 'Pay the full Redemption Amount',
+  })) as HTMLButtonElement
+  expect(full.disabled).toBe(true)
+  expect(
+    await screen.findByText("Can't pay it in full: 2026GoldRing had not started on that date"),
+  ).toBeTruthy()
 })

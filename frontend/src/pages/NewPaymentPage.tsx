@@ -137,6 +137,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   // The chosen Mortgages' Redemption Amounts, once every one of them has one.
   const redemptions = quotes.every((q) => typeof q === 'object') ? (quotes as Redemption[]) : null
   const redemptionTotal = redemptions?.reduce((sum, q) => sum + q.total, 0) ?? null
+  // Why they can't all be paid in full: the first chosen one that has no quote.
+  const unquotable = quotes.find((q) => typeof q === 'string')
 
   const amounts: number[] | null =
     mode === 'equal'
@@ -188,7 +190,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   }
 
   /** Each chosen Mortgage's whole Redemption Amount, by amount. */
-  function settleInFull(redemptions: Redemption[], total: number) {
+  function fillRedemptionAmounts(redemptions: Redemption[], total: number) {
     setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, String(redemptions[i].total / 100)])))
     setTotalText(String(total / 100))
     setMode('amount')
@@ -265,14 +267,23 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                 The full Outstanding on the chosen Mortgages ({formatINR(totalOutstanding)})
               </button>
             )}
-            {chosen.length > 0 && redemptions && redemptionTotal !== null && (
+            {chosen.length > 0 && (
               <button
                 type="button"
                 className="link"
-                onClick={() => settleInFull(redemptions, redemptionTotal)}
+                disabled={!redemptions || redemptionTotal === null}
+                onClick={() =>
+                  redemptions &&
+                  redemptionTotal !== null &&
+                  fillRedemptionAmounts(redemptions, redemptionTotal)
+                }
               >
-                Settle in full ({formatINR(redemptionTotal)})
+                Pay the full Redemption Amount
+                {redemptionTotal !== null && ` (${formatINR(redemptionTotal)})`}
               </button>
+            )}
+            {chosen.length > 0 && unquotable && (
+              <span className="hint">Can't pay it in full: {unquotable}</span>
             )}
           </label>
           <label>
