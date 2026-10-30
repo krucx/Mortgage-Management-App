@@ -15,7 +15,8 @@ const row = {
   start_date: '2025-06-15', amount_lent: 2_000_000, status: 'active', outstanding_total: 2_180_000,
 }
 const redemption = {
-  on: '2026-04-20', principal: 2_000_000, unpaid_interest: 180_000, part_month_days: 6,
+  on: '2026-04-20', principal: 2_000_000, unpaid_interest: 180_000, last_accrual_on: '2026-04-14',
+  part_month_days: 6,
   part_month_charge: 60_000, total: 2_240_000,
 }
 
@@ -285,4 +286,26 @@ test("a Forfeiture the Preview says would be refused can't be confirmed, and its
   ).toBeTruthy()
   expect((screen.getByRole('button', { name: 'Forfeit 2' }) as HTMLButtonElement).disabled).toBe(true)
   expect(server.requests).not.toContain('POST /api/closures/forfeit')
+})
+
+test('each Mortgage Ready to Redeem shows its Redemption Amount today and the part-month days behind it', async () => {
+  const paidOff = { ...row, outstanding_total: 0, ready_to_redeem: true }
+  const charge = { ...redemption, principal: 0, unpaid_interest: 0, total: 60_000 }
+  showPage(
+    fakeServer({
+      'GET /api/closures/ready-to-redeem': {
+        items: [{ mortgage: paidOff, redemption: charge }],
+        total: 1,
+        page: 1,
+        page_size: 20,
+      },
+      'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 20 },
+    }),
+    '/closures',
+    { '/closures': <ClosuresPage /> },
+  )
+
+  const ready = (await screen.findByRole('link', { name: row.name })).closest('tr')!
+  expect(within(ready).getByText('₹600')).toBeTruthy()
+  expect(within(ready).getByText('(part-month charge for 6 days)')).toBeTruthy()
 })

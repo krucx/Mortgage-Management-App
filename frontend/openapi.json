@@ -2850,6 +2850,11 @@
       "Redemption": {
         "description": "What it takes to close a Mortgage on a date (see Redemption Amount in GLOSSARY.md).",
         "properties": {
+          "last_accrual_on": {
+            "format": "date",
+            "title": "Last Accrual On",
+            "type": "string"
+          },
           "on": {
             "format": "date",
             "title": "On",
@@ -2880,6 +2885,7 @@
           "on",
           "principal",
           "unpaid_interest",
+          "last_accrual_on",
           "part_month_days",
           "part_month_charge",
           "total"

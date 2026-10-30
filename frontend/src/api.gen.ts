@@ -2301,6 +2301,11 @@ export interface components {
          */
         Redemption: {
             /**
+             * Last Accrual On
+             * Format: date
+             */
+            last_accrual_on: string;
+            /**
              * On
              * Format: date
              */

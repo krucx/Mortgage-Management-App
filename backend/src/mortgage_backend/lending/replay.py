@@ -7,7 +7,7 @@ its jewellery and a Waived one's is let off by the Lender, and a Redemption Amou
 """
 
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, timedelta
 from enum import StrEnum
 from typing import Literal
 
@@ -64,6 +64,7 @@ class Redemption(BaseModel):
     on: date
     principal: int
     unpaid_interest: int
+    last_accrual_on: date  # the last Accrual Date by `on` (the start, before any)
     part_month_days: int  # since the last Accrual Date
     part_month_charge: int  # per the Part-Month Rule
     total: int  # the Redemption Amount
@@ -164,11 +165,13 @@ class MortgageReplay:
         last = ledger[-1]
         part_month = next((s for s in ledger if s.event == "part_month"), None)
         charge = part_month.amount if part_month else 0
+        days = days_since_accrual(self.row["start_date"], on)
         return Redemption(
             on=on,
             principal=last.principal,
             unpaid_interest=last.unpaid_interest - charge,
-            part_month_days=days_since_accrual(self.row["start_date"], on),
+            last_accrual_on=on - timedelta(days=days),
+            part_month_days=days,
             part_month_charge=charge,
             total=last.principal + last.unpaid_interest,
         )

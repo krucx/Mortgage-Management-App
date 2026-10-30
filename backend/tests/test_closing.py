@@ -49,6 +49,7 @@ def test_the_redemption_amount_includes_the_part_month_rule_charge(
         "on": "2026-04-20",
         "principal": LAKH,
         "unpaid_interest": 9_000_00,
+        "last_accrual_on": "2026-04-14",
         "part_month_days": 6,
         "part_month_charge": charge,
         "total": LAKH + 9_000_00 + charge,
@@ -293,6 +294,26 @@ def test_the_redemption_amount_can_be_quoted_for_a_future_date(client, mortgage)
     assert (
         redemption(client, mortgage, on="2026-05-20")["total"]
         == LAKH + 12_000_00 + 3_000_00
+    )
+
+
+@pytest.mark.parametrize(
+    ("start", "on", "last_accrual_on", "days"),
+    [
+        # 31 Jan: the Accrual Dates are 28 Feb and 31 Mar, clamped to month-end.
+        ("2026-01-31", "2026-03-05", "2026-02-28", 5),
+        # Before the first Accrual Date, the days count from the start.
+        ("2026-01-14", "2026-01-20", "2026-01-14", 6),
+    ],
+)
+def test_the_part_month_days_count_from_the_last_accrual_date(
+    client, ramesh, start, on, last_accrual_on, days
+):
+    quote = redemption(client, lend(client, ramesh, start=start), on=on)
+
+    assert (quote["last_accrual_on"], quote["part_month_days"]) == (
+        last_accrual_on,
+        days,
     )
 
 

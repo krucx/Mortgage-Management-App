@@ -7,6 +7,7 @@ import {
   type Payment,
   type PaymentIn,
   type PaymentMethod,
+  type Redemption,
 } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
@@ -15,6 +16,8 @@ import { RedeemPaidOff } from '../components/RedeemPaidOff'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
+import { Owed } from '../components/Owed'
+import { useQuotes } from '../components/useQuotes'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
@@ -128,6 +131,13 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
   const total = rupeesToPaise(totalText || '0')
 
+  // What each one would take to Redeem on the Payment date, or why it can't be.
+  const quoteOf = useQuotes(payable, paidOn)
+  const quotes = chosen.map((m) => quoteOf(m.id))
+  // The chosen Mortgages' Redemption Amounts, once every one of them has one.
+  const redemptions = quotes.every((q) => typeof q === 'object') ? (quotes as Redemption[]) : null
+  const redemptionTotal = redemptions?.reduce((sum, q) => sum + q.total, 0) ?? null
+
   const amounts: number[] | null =
     mode === 'equal'
       ? suggestEqually(total, outstanding)
@@ -175,6 +185,13 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         Object.fromEntries(percentagesOf(equal, total).map((pct, i) => [chosen[i].id, String(pct)])),
       )
     setMode(next)
+  }
+
+  /** Each chosen Mortgage's whole Redemption Amount, by amount. */
+  function settleInFull(redemptions: Redemption[], total: number) {
+    setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, String(redemptions[i].total / 100)])))
+    setTotalText(String(total / 100))
+    setMode('amount')
   }
 
   function toggle(id: number) {
@@ -248,6 +265,15 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                 The full Outstanding on the chosen Mortgages ({formatINR(totalOutstanding)})
               </button>
             )}
+            {chosen.length > 0 && redemptions && redemptionTotal !== null && (
+              <button
+                type="button"
+                className="link"
+                onClick={() => settleInFull(redemptions, redemptionTotal)}
+              >
+                Settle in full ({formatINR(redemptionTotal)})
+              </button>
+            )}
           </label>
           <label>
             Method
@@ -291,6 +317,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                     <th aria-label="Include" />
                     <th>Mortgage</th>
                     <th className="num">Outstanding on {formatDate(paidOn)}</th>
+                    <th className="num">To redeem on {formatDate(paidOn)}</th>
                     {mode === 'percent' && <th className="num">%</th>}
                     <th className="num">Allocation</th>
                   </tr>
@@ -314,6 +341,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                           <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
                         </td>
                         <td className="num">{formatINR(m.outstanding_total)}</td>
+                        <td className="num">
+                          <Owed quote={quoteOf(m.id)} />
+                        </td>
                         {mode === 'percent' && (
                           <td className="num">
                             {index >= 0 && (
@@ -363,20 +393,15 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           <p className="hint">
             Within each Mortgage the Allocation pays unpaid interest first, then Principal.
           </p>
+          {/* They take only their Redemption's final Payment, made on the Redeem tab. */}
           {awaitingRedemption.length > 0 && (
-            <details className="tucked">
-              <summary>Paid off, waiting for Redemption ({awaitingRedemption.length})</summary>
-              <ul className="plain stack">
-                {awaitingRedemption.map((m) => (
-                  <li key={m.id} className="row spread">
-                    <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
-                    <Link className="button small secondary" to={`/mortgages/${m.id}/redeem`}>
-                      Redeem
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </details>
+            <p className="hint">
+              <Link to="/closures">
+                {awaitingRedemption.length === 1
+                  ? "1 of this Customer's Mortgages is Ready to Redeem →"
+                  : `${awaitingRedemption.length} of this Customer's Mortgages are Ready to Redeem →`}
+              </Link>
+            </p>
           )}
         </fieldset>
 

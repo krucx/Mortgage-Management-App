@@ -58,6 +58,12 @@ export function RedeemPaidOff({
     }),
   )
 
+  // Paid up to their last Accrual Dates: one date for the title when they share it.
+  const lastAccrualDates = new Set(
+    Object.values(quotes).flatMap((quote) => (typeof quote === 'object' ? [quote.last_accrual_on] : [])),
+  )
+  const sharedLastAccrual = lastAccrualDates.size === 1 ? [...lastAccrualDates][0] : null
+
   function toggle(id: number) {
     const next = new Set(chosen)
     if (next.has(id)) next.delete(id)
@@ -68,10 +74,11 @@ export function RedeemPaidOff({
   return (
     <Modal onClose={onDone} className="wide-dialog">
       <form onSubmit={submit}>
-        <h2>Fully paid: Redeem now?</h2>
+        <h2>{sharedLastAccrual ? `Paid up to ${formatDate(sharedLastAccrual)}` : 'Paid up'}: Redeem now?</h2>
         <p>
-          This Payment cleared what {mortgages.length > 1 ? 'these Mortgages' : 'this Mortgage'}{' '}
-          owed. Redeem on {formatDate(payment.paid_on)} and hand the jewellery back?
+          Principal and interest are fully paid on{' '}
+          {mortgages.length > 1 ? 'these Mortgages' : 'this Mortgage'}. Redeem on{' '}
+          {formatDate(payment.paid_on)} and hand the jewellery back?
         </p>
         <ul className="plain stack">
           {mortgages.map((m) => {
@@ -87,11 +94,12 @@ export function RedeemPaidOff({
                     <span className="status error">{quote}</span>
                   ) : !quote ? (
                     'Working out the Redemption Amount…'
-                  ) : quote.total === 0 ? (
-                    'Nothing more to pay.'
                   ) : (
-                    `Needs ${formatINR(quote.total)} more as the final Payment: part-month charge ` +
-                    `for ${quote.part_month_days} days (${rules[m.id] ?? 'Part-Month Rule'}).`
+                    (sharedLastAccrual ? '' : `Paid up to ${formatDate(quote.last_accrual_on)}. `) +
+                    (quote.total === 0
+                      ? 'Nothing more to pay.'
+                      : `The final Payment is ${formatINR(quote.total)}: the part-month charge ` +
+                        `for ${quote.part_month_days} days (${rules[m.id] ?? 'Part-Month Rule'}).`)
                   )}
                 </div>
               </li>

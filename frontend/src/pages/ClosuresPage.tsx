@@ -1,7 +1,6 @@
-import { useQueries } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { MORTGAGE_SORTS, READY_SORTS, type PaymentMethod, type Redemption } from '../api'
+import { MORTGAGE_SORTS, READY_SORTS, type PaymentMethod } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
@@ -10,11 +9,12 @@ import { SortHeading } from '../components/SortHeading'
 import { useClosing, type Closing } from '../components/useClosing'
 import { useListPage } from '../components/useListPage'
 import { usePaymentMethods } from '../components/usePaymentMethods'
+import { Owed } from '../components/Owed'
+import { useQuotes } from '../components/useQuotes'
 import { formatDate, todayIso } from '../format'
 import { tickedFirst } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
-import { lists, redemptionQuery } from '../requests'
-import { useServerState } from '../serverState'
+import { lists } from '../requests'
 
 /**
  * Closures in one place: Mortgages paid off and waiting to be Redeemed, and Active
@@ -66,7 +66,10 @@ export function ClosuresPage() {
           <span className="badge count">{readyList.total}</span>
         )}
       </h3>
-      <p className="hint">Paid off with nothing Outstanding: hand the jewellery back and Redeem.</p>
+      <p className="hint">
+        Principal and interest fully paid: take any part-month charge as the final Payment, hand
+        the jewellery back and Redeem.
+      </p>
       {ready === null ? (
         <p>Loading…</p>
       ) : readyList?.total === 0 ? (
@@ -100,7 +103,10 @@ export function ClosuresPage() {
                   <td className="num">
                     {formatINR(redemption.total)}
                     {redemption.part_month_charge > 0 && (
-                      <span className="hint"> (part-month charge)</span>
+                      <span className="hint">
+                        {' '}
+                        (part-month charge for {redemption.part_month_days} days)
+                      </span>
                     )}
                   </td>
                   <td>
@@ -217,22 +223,6 @@ export function ClosuresPage() {
 }
 
 type Chosen = { id: number; name: string }
-
-/** The Redemption Amount of each chosen Mortgage on `on`, or why there is none. */
-function useQuotes(chosen: Chosen[], on: string) {
-  const { client } = useServerState()
-  const quoted = useQueries({ queries: chosen.map((m) => redemptionQuery(client, m.id, on)) })
-  const quotes: Record<string, Redemption | string | undefined> = Object.fromEntries(
-    chosen.map((m, i) => [`${on}:${m.id}`, quoted[i].data ?? quoted[i].error?.message]),
-  )
-  return (id: number) => quotes[`${on}:${id}`]
-}
-
-/** The Redemption Amount cell: the amount, still loading, or why there is none. */
-function Owed({ quote }: { quote: Redemption | string | undefined }) {
-  if (typeof quote === 'string') return <span className="status error">{quote}</span>
-  return quote ? formatINR(quote.total) : '…'
-}
 
 /** Forfeit several Mortgages on one date, each with its own Recovered Amount: all of
  *  them, or none if the backend refuses any. */
