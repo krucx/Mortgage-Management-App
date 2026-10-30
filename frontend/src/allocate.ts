@@ -28,28 +28,29 @@ function giveLeftover(
 }
 
 /**
- * The default Allocations: equal whole-rupee shares. A Mortgage owing less than its share is
- * paid off exactly and the excess is shared among the rest, repeating until stable.
+ * The default Allocations: equal whole-rupee shares, each Mortgage taking at most its cap
+ * (its Redemption Amount, or Outstanding). One whose cap is less than its share gets
+ * exactly its cap and the excess is shared among the rest, repeating until stable.
  * Leftover rupees (and any paise) go to the first Mortgages. Null if the total is more
- * than everything Outstanding.
+ * than all the caps.
  */
-export function allocateEqually(total: number, outstanding: number[]): number[] | null {
-  if (total > outstanding.reduce((a, b) => a + b, 0)) return null
-  const amounts = outstanding.map(() => 0)
-  let open = outstanding.map((_, i) => i).filter((i) => outstanding[i] > 0)
+export function allocateEqually(total: number, caps: number[]): number[] | null {
+  if (total > caps.reduce((a, b) => a + b, 0)) return null
+  const amounts = caps.map(() => 0)
+  let open = caps.map((_, i) => i).filter((i) => caps[i] > 0)
   let remaining = total
 
   for (;;) {
     const share = Math.floor(remaining / open.length / RUPEE) * RUPEE
-    const paidOff = open.filter((i) => outstanding[i] <= share)
+    const paidOff = open.filter((i) => caps[i] <= share)
     if (paidOff.length === 0) {
       for (const i of open) amounts[i] = share
-      giveLeftover(amounts, (i) => outstanding[i] - amounts[i], open, remaining - share * open.length)
+      giveLeftover(amounts, (i) => caps[i] - amounts[i], open, remaining - share * open.length)
       return amounts
     }
     for (const i of paidOff) {
-      amounts[i] = outstanding[i]
-      remaining -= outstanding[i]
+      amounts[i] = caps[i]
+      remaining -= caps[i]
     }
     open = open.filter((i) => !paidOff.includes(i))
     if (open.length === 0) return amounts
@@ -58,26 +59,26 @@ export function allocateEqually(total: number, outstanding: number[]): number[] 
 
 /**
  * Amounts from percentages of the total, in whole rupees, with the rounding leftover
- * going to the first Mortgages. With `outstanding`, no Mortgage gets more than it owes and
- * the excess goes to the other chosen Mortgages with room (a percentage can't always hit an
+ * going to the first Mortgages. With `caps`, no Mortgage gets more than its cap and the
+ * excess goes to the other chosen Mortgages with room (a percentage can't always hit an
  * exact amount).
  * Null unless the percentages add up to 100.
  */
 export function amountsFromPercentages(
   total: number,
   percentages: number[],
-  outstanding: number[] = percentages.map(() => Infinity),
+  caps: number[] = percentages.map(() => Infinity),
 ): number[] | null {
   const sum = percentages.reduce((a, b) => a + b, 0)
   if (Math.abs(sum - 100) > 1e-9) return null
   const amounts = percentages.map(
     // The epsilon keeps e.g. 29% of ₹1,00,000 from flooring to ₹28,999 through float error.
     (percent, i) =>
-      Math.min(outstanding[i], Math.floor((total * percent) / 100 / RUPEE + 1e-9) * RUPEE),
+      Math.min(caps[i], Math.floor((total * percent) / 100 / RUPEE + 1e-9) * RUPEE),
   )
   const order = percentages.map((_, i) => i).filter((i) => percentages[i] > 0)
   // Anything that can't be placed is left over, so the Allocations visibly fall short.
-  const room = (i: number) => outstanding[i] - amounts[i]
+  const room = (i: number) => caps[i] - amounts[i]
   giveLeftover(amounts, room, order, total - amounts.reduce((a, b) => a + b, 0))
   return amounts
 }

@@ -357,3 +357,16 @@ test('only the Mortgages paid in full are Redeemed, and Go back records nothing'
   expect(screen.queryByRole('dialog')).toBeNull()
   expect(saved).toEqual([])
 })
+
+test('equal shares fill the smaller Mortgages up to their Redemption Amount, and the rest goes to the others', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  await screen.findByRole('button', { name: /^Pay the full Redemption Amount \(/ })
+
+  // ₹71,500: ₹20,000 Redeems the ring; the chain's ₹51,500 is the rest.
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '71500' } })
+
+  const chain = screen.getByRole('link', { name: row.name }).closest('tr')!
+  const ringRow = screen.getByRole('link', { name: ring.name }).closest('tr')!
+  expect(within(chain).getAllByText('₹51,500')).toHaveLength(2) // to redeem, and allocated
+  expect(within(ringRow).getAllByText('₹20,000')).toHaveLength(3) // owed, to redeem, allocated
+})

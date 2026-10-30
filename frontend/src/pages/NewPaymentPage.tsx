@@ -32,15 +32,16 @@ type AllocationMode = 'equal' | 'amount' | 'percent'
 const canTakePayment = (m: MortgageRow) => !m.ready_to_redeem
 
 /**
- * Equal shares as a suggestion only. More than is Outstanding is still split equally:
- * whether a Payment is too large is for the preview to say, as saving would.
+ * Equal shares as a suggestion only, each up to its cap. More than all of them can take
+ * is still split equally: whether a Payment is too large is for the preview to say, as
+ * saving would.
  */
-function suggestEqually(total: number, outstanding: number[]): number[] | null {
+function suggestEqually(total: number, caps: number[]): number[] | null {
   return (
-    allocateEqually(total, outstanding) ??
+    allocateEqually(total, caps) ??
     allocateEqually(
       total,
-      outstanding.map(() => Infinity),
+      caps.map(() => Infinity),
     )
   )
 }
@@ -139,16 +140,19 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const redemptionTotal = redemptions?.reduce((sum, q) => sum + q.total, 0) ?? null
   // Why they can't all be paid in full: the first chosen one that has no quote.
   const unquotable = quotes.find((q) => typeof q === 'string')
+  // The most each one can take: its Redemption Amount (paying all of it Redeems it), or
+  // its Outstanding while that is loading or where there is none on the Payment date.
+  const caps = quotes.map((quote, i) => (typeof quote === 'object' ? quote.total : outstanding[i]))
 
   const amounts: number[] | null =
     mode === 'equal'
-      ? suggestEqually(total, outstanding)
+      ? suggestEqually(total, caps)
       : mode === 'amount'
         ? chosen.map((m) => rupeesToPaise(amountText[m.id] || '0'))
         : amountsFromPercentages(
             total,
             chosen.map((m) => Number(percentText[m.id] || '0')),
-            outstanding,
+            caps,
           )
   const allocated = amounts?.reduce((a, b) => a + b, 0) ?? 0
 
@@ -189,7 +193,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 
   /** Switching to a manual mode starts from the current equal Allocations. */
   function switchMode(next: AllocationMode) {
-    const equal = suggestEqually(total, outstanding)
+    const equal = suggestEqually(total, caps)
     if (next === 'amount' && equal)
       setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, String(equal[i] / 100)])))
     if (next === 'percent' && total > 0 && equal)
