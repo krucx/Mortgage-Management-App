@@ -103,12 +103,12 @@ Describe 'stopping the app before it is removed' {
     }
 
     It 'stops what runs from the app folder, and what that started' {
-        Select-AppProcessIds -Processes $processes -AppDir $app -Self 31 |
+        Select-AppProcessIds -Processes $processes -Folder $app -Self 31 |
             Sort-Object | Should -Be @(20, 21, 22, 23)
     }
 
     It 'never stops the uninstaller, or the window it runs in' {
-        Select-AppProcessIds -Processes $processes -AppDir "$app\" -Self 31 |
+        Select-AppProcessIds -Processes $processes -Folder "$app\" -Self 31 |
             Should -Not -Contain 30
     }
 }

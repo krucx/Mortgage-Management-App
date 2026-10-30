@@ -401,9 +401,8 @@ cd Mortgage-Management-App</pre><button type="button" class="copy">Copy</button>
   <div class="cols">
     <div data-for="win" style="display: grid; gap: 0.8rem">
       <ol class="checklist" data-list="update" data-plain>
-        <li data-for="win-local"><input type="checkbox" id="u-stop" tabindex="-1"><label for="u-stop"><b>Close the app's window</b><span class="detail">So the app is stopped while it is updated.</span></label></li>
-        <li><input type="checkbox" id="u-run" tabindex="-1"><label for="u-run"><b>Double-click Setup.bat again</b><span class="detail">The one you downloaded, or the copy in <span class="path">C:\Users\you\MortgageManagement\app\windows</span>.</span></label></li>
-        <li><input type="checkbox" id="u-start" tabindex="-1"><label for="u-start"><b>Say yes to start it</b><span class="detail">It asks no other questions this time: the data folder, Backup folder and password are kept as they are.</span></label></li>
+        <li><input type="checkbox" id="u-run" tabindex="-1"><label for="u-run"><b>Double-click Setup.bat again</b><span class="detail">The one you downloaded, or the copy in <span class="path">C:\Users\you\MortgageManagement\app\windows</span>. It installs the new version beside the one you have, and switches to it only once it starts; if anything goes wrong it says <span class="ui">Update failed; still on x.y.z</span> and the version you had stays.</span></label></li>
+        <li><input type="checkbox" id="u-start" tabindex="-1"><label for="u-start"><b>The new version starts by itself</b><span class="detail">Setup stops the version running, starts the new one, and switches once it answers. It asks no other questions this time: the data folder, Backup folder and password are kept as they are.</span><span class="detail" data-for="win-local">Without Docker it runs in a window of its own that opens: keep that one open while you use it.</span></label></li>
       </ol>
     </div>
     <div data-for="mac" style="display: grid; gap: 0.6rem">
@@ -415,6 +414,7 @@ docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
     </div>
     <div class="nuances">
       <div class="nuance rule"><b>A Backup comes first</b><span>When a release updates the database, the app takes a Backup marked <code>-before-update</code> before it does. If that Backup fails, the app doesn't start, so the data is never changed without one.</span></div>
+      <div class="nuance"><b>The version before is kept</b><span>Each version has its own folder in <span class="path">MortgageManagement\versions</span>, and <span class="path">app</span> points at the one that runs. The one before stays there; older ones are removed after an update.</span></div>
       <div class="nuance"><b>Nothing to download each time</b><span>Setup.bat always fetches the newest release, so the same file works for every update.</span></div>
     </div>
   </div>

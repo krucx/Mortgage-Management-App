@@ -49,69 +49,15 @@ function Save-BackupTo {
     return $target
 }
 
-function Select-AppProcessIds {
-    <# The ids among `Processes` (Win32_Process) to stop before `AppDir` is deleted: those
-       run from it, by program or command line, and everything they started. Never `Self`
-       or the processes it runs under (the uninstaller's own window is in AppDir too). #>
-    param([object[]]$Processes, [string]$AppDir, [int]$Self)
-    $inside = $AppDir.TrimEnd('\') + '\'
-    $byId = @{}
-    foreach ($process in $Processes) { $byId[[int]$process.ProcessId] = $process }
-    $spared = @{}
-    for ($id = $Self; $byId.ContainsKey($id) -and -not $spared.ContainsKey($id);
-         $id = [int]$byId[$id].ParentProcessId) {
-        $spared[$id] = $true
-    }
-    $stopping = @{}
-    foreach ($process in $Processes) {
-        $text = "$($process.ExecutablePath) $($process.CommandLine)"
-        if (-not $spared.ContainsKey([int]$process.ProcessId) -and
-                $text.IndexOf($inside, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
-            $stopping[[int]$process.ProcessId] = $true
-        }
-    }
-    do {
-        # What a stopping process started, until there is nothing more.
-        $added = $false
-        foreach ($process in $Processes) {
-            $id = [int]$process.ProcessId
-            if (-not $stopping.ContainsKey($id) -and -not $spared.ContainsKey($id) -and
-                    $stopping.ContainsKey([int]$process.ParentProcessId)) {
-                $stopping[$id] = $true
-                $added = $true
-            }
-        }
-    } while ($added)
-    return @($stopping.Keys)
-}
-
 function Confirm-Yes {
     <# Whether the person typed yes to `Question`. #>
     param([string]$Question)
     return (Read-Host "$Question Type yes to go ahead") -eq 'yes'
 }
 
-function Test-Inside {
-    <# Whether `Path` is `Folder` or inside it. #>
-    param([string]$Path, [string]$Folder)
-    $separator = [IO.Path]::DirectorySeparatorChar
-    $path = [IO.Path]::GetFullPath($Path).TrimEnd($separator) + $separator
-    $folder = [IO.Path]::GetFullPath($Folder).TrimEnd($separator) + $separator
-    return $path.StartsWith($folder, [StringComparison]::OrdinalIgnoreCase)
-}
-
-function Invoke-Compose {
-    param([string]$What, [string[]]$Arguments)
-    Push-Location $AppDir
-    try {
-        & docker compose @Arguments
-        Assert-Success $What
-    } finally { Pop-Location }
-}
-
 function Stop-App {
     <# Stop the app, so no Backup is written while it is removed, and its files can go. #>
-    param([hashtable]$Settings)
+    param([hashtable]$Settings, [string]$InstallDir)
     if ($Settings['RUN_WITH'] -eq 'docker') {
         # Left running, Docker would start it again (with empty folders) after it is removed.
         if (-not (Test-Command docker)) {
@@ -119,10 +65,10 @@ function Stop-App {
         }
         Start-DockerDesktop
         Write-Host 'Stopping the app...'
-        Invoke-Compose 'Stopping the app (docker compose down)' @('down')
+        Invoke-AppCompose $AppDir 'Stopping the app (docker compose down)' @('down')
     }
-    # Without Docker the app runs from Run.bat's window.
-    $ids = Select-AppProcessIds -Processes @(Get-CimInstance Win32_Process) -AppDir $AppDir -Self $PID
+    # Without Docker the app runs from Run.bat's window, of whichever version.
+    $ids = Select-AppProcessIds -Processes @(Get-CimInstance Win32_Process) -Folder $InstallDir -Self $PID
     if ($ids.Count -gt 0) {
         Write-Host 'Stopping the app...'
         foreach ($id in $ids) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
@@ -168,7 +114,7 @@ function Assert-Deletable {
 function Main {
     # Out of the app folder, so this window does not keep it from being deleted.
     Set-Location ([IO.Path]::GetTempPath())
-    $installDir = Split-Path -Parent $AppDir
+    $installDir = Get-InstallDir
     $settings = if (Test-Path (Get-EnvPath)) { Read-EnvFile } else { @{} }
     $dataDir = Get-AppFolder $settings['DATA_DIR'] (Join-Path $installDir 'data')
     $backupDir = Get-AppFolder $settings['BACKUP_DIR'] (Join-Path $installDir 'backups')
@@ -197,7 +143,7 @@ function Main {
         return
     }
 
-    Stop-App $settings
+    Stop-App $settings $installDir
     # Picked once the app is stopped, so no newer Backup can follow it.
     $latest = Select-LatestBackup $backupDir
     if ($latest) {
@@ -209,12 +155,15 @@ function Main {
 
     if ($settings['RUN_WITH'] -eq 'docker') {
         Write-Host 'Removing its Docker images...'
-        Invoke-Compose 'Removing the Docker images (docker compose down --rmi all)' @('down', '--rmi', 'all')
+        Invoke-AppCompose $AppDir 'Removing the Docker images (docker compose down --rmi all)' @('down', '--rmi', 'all')
     }
     $shortcut = Get-ShortcutPath
     if (Test-Path -LiteralPath $shortcut) { Remove-Item -LiteralPath $shortcut -Force }
     Unregister-AppLink
     Write-Host 'Deleting the app and its data...'
+    # The junction to the version that runs first, by itself, so nothing is deleted through it.
+    $app = Join-Path $installDir 'app'
+    if (Test-Junction $app) { [IO.Directory]::Delete($app) }
     Remove-Folder $dataDir
     Remove-Folder $installDir
 

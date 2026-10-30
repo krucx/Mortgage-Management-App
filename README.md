@@ -20,11 +20,13 @@ download and every step, for your own computer. In short:
    installed app's icon (below): when the app isn't running, it offers a **Start
    Mortgage Management** button.
 
-Setup puts everything in `%USERPROFILE%\MortgageManagement`: `app` (the code and its
+Setup puts everything in `%USERPROFILE%\MortgageManagement`: `versions` (each
+version's code, in a folder of its own), `app` (a link to the version that runs, with its
 `.env`), `data` (database and photos, unless you chose another folder) and `backups`
 (unless you chose another folder, such as a Google Drive or OneDrive one). The selected
-data folder is saved as `DATA_DIR` in `app\.env` and reused by every run. Setup creates
-the folder if needed. It sets up the latest release:
+data folder is saved as `DATA_DIR` in `app\.env` and reused by every run; it must be
+outside `app` and `versions`. Setup creates the folder if needed. It sets up the latest
+release:
 
 - **With Docker Desktop installed**, the app runs in Docker, as below. Setup asks for a
   Backup password.
@@ -36,7 +38,11 @@ the folder if needed. It sets up the latest release:
 
 Run `Setup.bat` again to update to the newest release; your `.env`, data and Backups are
 kept. It uses git when it is installed, and otherwise downloads the release from GitHub.
-Without internet it starts the version you have instead (the first setup needs internet).
+It installs the new version beside the one you have and switches to it only once it
+starts, leaving it running; if anything fails it says **Update failed; still on x.y.z**
+and the version you had stays. The version before is kept in `versions`, older ones are
+removed. Without internet it starts the version you have instead (the first setup needs
+internet).
 To move the data later, stop the app, move `mortgage.db` and `photos` together to the
 new folder, then update `DATA_DIR` in `app\.env` before starting the app again.
 
@@ -99,7 +105,9 @@ To restore:
 
 On Windows, double-click `Setup.bat` again (it is also in
 `%USERPROFILE%\MortgageManagement\app\windows`): it updates to the newest release, with
-or without Docker, and keeps the `.env`, data and Backups. Elsewhere:
+or without Docker, and keeps the `.env`, data and Backups. If the new version had already
+updated the database when it failed to start, Setup says which `-before-update` Backup
+to restore should the version you had not start on it. Elsewhere:
 
 ```sh
 git pull               # this folder's compose file and notes

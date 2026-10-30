@@ -203,3 +203,247 @@ Describe 'registering the mortgage-management:// link' {
         Should -Invoke Remove-UserClassKey -Times 1 -ParameterFilter { $Key -eq 'mortgage-management' }
     }
 }
+
+Describe 'which Docker images a version runs' {
+    It 'is that version''s own release' {
+        Select-ImageVersion -Requested '' -Version '1.6.0' | Should -Be '1.6.0'
+    }
+
+    It 'is the release the .env asks for, when it names one' {
+        Select-ImageVersion -Requested '1.2.0' -Version '1.6.0' | Should -Be '1.2.0'
+    }
+
+    It 'is the latest when the version is not known' {
+        Select-ImageVersion -Requested '' -Version '' | Should -Be 'latest'
+    }
+}
+
+Describe 'cleaning up old versions' {
+    BeforeAll {
+        $versions = Join-Path $TestDrive 'versions'
+        $v = @{}
+        foreach ($name in '1.4.0', '1.5.0', '1.5.1', '1.6.0', '1.6.0-2') { $v[$name] = Join-Path $versions $name }
+    }
+
+    It 'keeps the version now running and the one before it, and removes the rest' {
+        $removed = Select-OldVersions -Folders $v.Values -Current $v['1.6.0'] -Previous $v['1.5.1']
+
+        @($removed | Sort-Object) | Should -Be @($v['1.4.0'], $v['1.5.0'], $v['1.6.0-2'])
+    }
+
+    It 'never removes a version folder holding the data or Backup folder' {
+        $data = Join-Path $v['1.4.0'] 'data'
+
+        $removed = Select-OldVersions -Folders $v.Values -Current $v['1.6.0'] -Previous $v['1.5.1'] -Keeping @($data)
+
+        $removed | Should -Not -Contain $v['1.4.0']
+        $removed | Should -Contain $v['1.5.0']
+    }
+}
+
+Describe 'an install from before versions had folders of their own' {
+    BeforeEach {
+        $installDir = Join-Path $TestDrive ([guid]::NewGuid())
+        $oldApp = Join-Path $installDir 'app'
+        $data = Join-Path $installDir 'data'
+        New-Item -ItemType Directory -Force (Join-Path $oldApp 'frontend'), $data | Out-Null
+        Set-Content (Join-Path $oldApp 'frontend/package.json') '{ "version": "1.5.1" }'
+        Set-Content (Join-Path $data 'mortgage.db') 'the records'
+        Mock Set-AppJunction {}
+    }
+
+    It 'becomes the folder of its version, with its .env, and the app folder points at it' {
+        $envText = "RUN_WITH=local`r`nDATA_DIR=$data`r`n"
+        Set-Content -NoNewline -Path (Join-Path $oldApp '.env') -Value $envText
+
+        $moved = Move-ToVersionsLayout -InstallDir $installDir
+
+        $moved | Should -Be (Join-Path $installDir 'versions/1.5.1')
+        Get-Content -Raw (Join-Path $moved '.env') | Should -Be $envText
+        Test-Path $oldApp | Should -BeFalse
+        Get-Content -Raw (Join-Path $data 'mortgage.db') | Should -Match 'the records'
+        Should -Invoke Set-AppJunction -Times 1 -ParameterFilter { $InstallDir -eq $installDir -and $Target -eq $moved }
+    }
+
+    It 'is left as it is when its data folder is inside the app folder, which a switch would leave behind' {
+        $inside = Join-Path $oldApp 'data'
+        Set-Content (Join-Path $oldApp '.env') "RUN_WITH=local`r`nDATA_DIR=$inside`r`n"
+
+        { Move-ToVersionsLayout -InstallDir $installDir } | Should -Throw '*inside*'
+
+        Test-Path $oldApp | Should -BeTrue
+        Should -Invoke Set-AppJunction -Times 0
+    }
+}
+
+Describe 'installing a new version beside the one running' {
+    BeforeEach {
+        $InstallDir = Join-Path $TestDrive ([guid]::NewGuid())
+        $Mode = 'local'
+        $NonInteractive = $true
+        $backups = Join-Path $InstallDir 'backups'
+        $old = Join-Path $InstallDir 'versions/1.5.1'
+        $AppDir = Join-Path $InstallDir 'versions/1.6.0'   # the new version's code, this script's
+        New-Item -ItemType Directory -Force (Join-Path $old 'frontend'), (Join-Path $AppDir 'frontend'), $backups | Out-Null
+        Set-Content (Join-Path $old 'frontend/package.json') '{ "version": "1.5.1" }'
+        Set-Content (Join-Path $AppDir 'frontend/package.json') '{ "version": "1.6.0" }'
+        $oldEnv = "# my notes`r`nRUN_WITH=local`r`nDATA_DIR=$(Join-Path $InstallDir 'data')`r`nBACKUP_DIR=$backups`r`n"
+        Set-Content -NoNewline -Path (Join-Path $old '.env') -Value $oldEnv
+
+        Mock Write-Host {}
+        Mock Get-CurrentVersion { $old }
+        Mock Install-Local {}
+        Mock Stop-RunningApp { $true }
+        Mock Start-Version {}
+        Mock Wait-Version { $true }
+        Mock Set-AppJunction {}
+        Mock Remove-OldVersions {}
+        Mock New-DesktopShortcut {}
+        Mock Register-AppLink {}
+    }
+
+    It 'switches to it once it answers, with the same .env, and the old one''s left as it was' {
+        Install-App
+
+        Should -Invoke Start-Version -Times 1 -ParameterFilter { $Folder -eq $AppDir }
+        Should -Invoke Set-AppJunction -Times 1 -ParameterFilter { $Target -eq $AppDir }
+        Should -Invoke Remove-OldVersions -Times 1
+        Should -Invoke Start-Version -Times 0 -ParameterFilter { $Folder -eq $old }
+        Get-Content -Raw (Join-Path $AppDir '.env') | Should -Be $oldEnv
+        Get-Content -Raw (Join-Path $old '.env') | Should -Be $oldEnv
+    }
+
+    It 'stays on the old version, started again, when the new one does not answer' {
+        Mock Wait-Version { $false }
+
+        { Install-App } | Should -Throw '*1.6.0 did not start*'
+
+        Should -Invoke Set-AppJunction -Times 0
+        Should -Invoke Stop-RunningApp -Times 2  # the old version, then the new one
+        Should -Invoke Start-Version -Times 1 -ParameterFilter { $Folder -eq $old }
+    }
+
+    It 'leaves the old version running, untouched, when installing the new one fails' {
+        Mock Install-Local { throw 'Installing the backend (uv sync) failed (exit code 2).' }
+
+        { Install-App } | Should -Throw '*uv sync*'
+
+        Should -Invoke Stop-RunningApp -Times 0
+        Should -Invoke Start-Version -Times 0
+        Should -Invoke Set-AppJunction -Times 0
+    }
+
+    It 'says which Backup to restore when the new version had already updated the database' {
+        Mock Wait-Version { $false }
+        Mock Start-Version {
+            if ($Folder -eq $AppDir) { Set-Content (Join-Path $backups 'mortgage-backup-2026-10-30-1200-before-update.zip') 'zip' }
+        }
+
+        { Install-App } | Should -Throw '*restore*mortgage-backup-2026-10-30-1200-before-update.zip*'
+    }
+
+    It 'starts the old version again only if it was running (without Docker)' {
+        Mock Wait-Version { $false }
+        Mock Stop-RunningApp { $false }
+
+        { Install-App } | Should -Throw
+
+        Should -Invoke Start-Version -Times 0 -ParameterFilter { $Folder -eq $old }
+    }
+
+    It 'starts the old version again when starting the new one fails outright' {
+        Mock Start-Version { if ($Folder -eq $AppDir) { throw 'Starting the app (docker compose up) failed (exit code 1).' } }
+
+        { Install-App } | Should -Throw '*docker compose up*'
+
+        Should -Invoke Set-AppJunction -Times 0
+        Should -Invoke Start-Version -Times 1 -ParameterFilter { $Folder -eq $old }
+    }
+
+    It 'stops the old version''s Docker containers when the new one runs without Docker' {
+        Set-Content -NoNewline -Path (Join-Path $old '.env') -Value ($oldEnv -replace 'RUN_WITH=local', 'RUN_WITH=docker')
+
+        Install-App
+
+        Should -Invoke Stop-RunningApp -Times 1 -ParameterFilter { $Mode -eq 'docker' -and $Folder -eq $old -and -not $Replaced }
+    }
+
+    It 'installs in place, as before, when an older Setup put the new code in the app folder itself' {
+        $AppDir = Join-Path $InstallDir 'app'
+        New-Item -ItemType Directory -Force (Join-Path $AppDir 'frontend') | Out-Null
+        Set-Content -NoNewline -Path (Join-Path $AppDir '.env') -Value $oldEnv
+        Mock Get-CurrentVersion { $AppDir }
+
+        Install-App
+
+        Should -Invoke Install-Local -Times 1
+        Should -Invoke Stop-RunningApp -Times 0
+        Should -Invoke Set-AppJunction -Times 0
+        Test-Path (Join-Path $AppDir '.env') | Should -BeTrue
+    }
+
+    It 'is simply the app, the first time' {
+        Mock Get-CurrentVersion { $null }
+
+        Install-App
+
+        Should -Invoke Set-AppJunction -Times 1 -ParameterFilter { $Target -eq $AppDir }
+        Should -Invoke Start-Version -Times 0
+        Should -Invoke Remove-OldVersions -Times 0
+    }
+}
+
+Describe 'Setup updating to a new version' {
+    BeforeEach {
+        $InstallDir = Join-Path $TestDrive ([guid]::NewGuid())
+        $Ref = ''
+        $Mode = 'auto'
+        $NonInteractive = $true
+        $app = Join-Path $InstallDir 'app'
+        New-Item -ItemType Directory -Force (Join-Path $app 'frontend') | Out-Null
+        Set-Content (Join-Path $app '.env') 'RUN_WITH=local'
+        Set-Content (Join-Path $app 'frontend/package.json') '{ "version": "1.5.1" }'
+        Mock Write-Host {}
+        Mock Get-ReleaseTags { @([pscustomobject]@{ name = '1.6.0' }) }
+    }
+
+    It 'stays on the version installed, leaving no trace of the new one, when getting it fails' {
+        Mock Get-AppCode {
+            param($Ref, $Folder)
+            New-Item -ItemType Directory $Folder | Out-Null
+            throw 'The download was interrupted.'
+        }
+
+        { Main } | Should -Throw 'Update failed; still on 1.5.1*interrupted*'
+
+        Test-Path (Join-Path $InstallDir 'versions/1.6.0') | Should -BeFalse
+        Get-Content (Join-Path $app '.env') | Should -Be 'RUN_WITH=local'
+    }
+
+    It 'stays on the version installed when installing the new one fails' {
+        Mock Get-AppCode {
+            param($Ref, $Folder)
+            New-Item -ItemType Directory -Force (Join-Path $Folder 'windows') | Out-Null
+            Set-Content (Join-Path $Folder 'windows/install.ps1') "throw 'Installing the backend (uv sync) failed.'"
+        }
+
+        { Main } | Should -Throw 'Update failed; still on 1.5.1*uv sync*'
+
+        Test-Path (Join-Path $InstallDir 'versions/1.6.0') | Should -BeFalse
+    }
+
+    It 'gets the new version into a folder of its own, beside the one installed' {
+        Mock Get-AppCode {
+            param($Ref, $Folder)
+            New-Item -ItemType Directory -Force (Join-Path $Folder 'windows') | Out-Null
+            Set-Content (Join-Path $Folder 'windows/install.ps1') "Set-Content (Join-Path `$PSScriptRoot 'ran') `$args"
+        }
+
+        Main
+
+        Should -Invoke Get-AppCode -Times 1 -ParameterFilter {
+            $Ref -eq '1.6.0' -and $Folder -eq (Join-Path $InstallDir 'versions/1.6.0')
+        }
+        Test-Path (Join-Path $InstallDir 'versions/1.6.0/windows/ran') | Should -BeTrue
+    }
+}

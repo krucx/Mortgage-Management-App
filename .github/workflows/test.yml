@@ -46,7 +46,7 @@ jobs:
   # double-click does, for the commit being tested.
   windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - name: The scripts' own decisions (Pester)
@@ -89,6 +89,22 @@ jobs:
               ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
             Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
           }
+      # Setup again installs the same commit beside the first, in a folder of its own, and
+      # switches app (a junction) to it once it answers, keeping the first to go back to.
+      - name: An update switches to the new version once it starts
+        shell: powershell
+        run: |
+          $installed = "$env:RUNNER_TEMP\mm"
+          windows/setup.ps1 -NonInteractive -Mode local -Ref "${{ github.event.pull_request.head.sha || github.sha }}" -InstallDir $installed
+          $app = Get-Item "$installed\app"
+          $target = @($app.Target)[0]
+          $versions = @(Get-ChildItem "$installed\versions" -Directory | ForEach-Object { $_.Name })
+          "app -> $target; versions: $versions"
+          if (-not ($app.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'app is not a junction to a version.' }
+          if ($target -notlike '*-2') { throw 'app does not point at the new version.' }
+          if ($versions.Count -ne 2) { throw "Expected the new version and the one before it: $versions" }
+          # The update left the new version running, in a window of its own.
+          Invoke-RestMethod http://127.0.0.1:8080/api/customers | Out-Null
       - name: Uninstall keeps the latest Backup and removes the rest
         shell: powershell
         run: |

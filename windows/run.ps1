@@ -20,11 +20,7 @@ function Open-App {
 
 function Start-WithDocker {
     Start-DockerDesktop
-    Push-Location $AppDir
-    try {
-        & docker compose up -d
-        Assert-Success 'Starting the app (docker compose up)'
-    } finally { Pop-Location }
+    Invoke-AppCompose $AppDir 'Starting the app (docker compose up)' @('up', '-d')
     if (-not (Wait-Url $url 180)) { throw "The app did not answer at $url." }
     Open-App
     Write-Host "Mortgage Management is running at $url (in Docker)." -ForegroundColor Green
@@ -83,7 +79,7 @@ try {
         throw 'Mortgage Management is not set up yet: run Setup first.'
     }
     $settings = Read-EnvFile
-    $port = if ($settings['APP_PORT']) { $settings['APP_PORT'] } else { '8080' }
+    $port = Get-AppPort $settings
     $url = "http://localhost:$port"
     $mode = Select-Mode -Requested $settings['RUN_WITH'] -DockerInstalled (Test-Command docker)
     if ($mode -eq 'docker') { Start-WithDocker } else { Start-Locally }

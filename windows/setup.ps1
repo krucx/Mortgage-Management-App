@@ -1,7 +1,9 @@
 <#
 Sets up Mortgage Management on this Windows PC, or updates it when run again: gets the
-app's code (the latest release unless -Ref names another), then runs install.ps1 from
-that code, which keeps the .env and data.
+app's code (the latest release unless -Ref names another) into a folder of its own,
+InstallDir\versions\<version>, beside the version installed, then runs install.ps1 from
+that code, which switches to it only once it starts. If anything fails, the version
+installed stays, and the new folder goes.
 
 It may be downloaded on its own (by Setup.bat), so it uses nothing else from the repo
 until the code is here. Windows PowerShell 5.1 compatible, and ASCII only.
@@ -62,46 +64,29 @@ function Assert-Success {
     if ($LASTEXITCODE -ne 0) { throw "$What failed (exit code $LASTEXITCODE)." }
 }
 
-function Save-EnvAside {
-    <# The app's .env, if there is one, moved out of the way; restored by Restore-Env. #>
-    param([string]$AppDir)
-    $envFile = Join-Path $AppDir '.env'
-    if (-not (Test-Path $envFile)) { return $null }
-    $aside = Join-Path ([IO.Path]::GetTempPath()) ('mortgage-env-' + [guid]::NewGuid())
-    Copy-Item $envFile $aside
-    return $aside
-}
-
-function Restore-Env {
-    param([string]$Aside, [string]$AppDir)
-    if ($Aside) { Move-Item -Force $Aside (Join-Path $AppDir '.env') }
+function Select-FreeFolder {
+    <# Parent\Name, or Name-2, Name-3 and on when that is taken (as in common.ps1, which is
+       not here yet). #>
+    param([string]$Parent, [string]$Name)
+    $folder = Join-Path $Parent $Name
+    for ($n = 2; Test-Path -LiteralPath $folder; $n++) { $folder = Join-Path $Parent "$Name-$n" }
+    return $folder
 }
 
 function Get-AppCodeWithGit {
-    param([string]$Ref, [string]$AppDir)
-    if (-not (Test-Path (Join-Path $AppDir '.git'))) {
-        $aside = Save-EnvAside $AppDir
-        if (Test-Path $AppDir) { Remove-Item -Recurse -Force $AppDir }
-        & git clone --quiet "https://github.com/$Repo.git" $AppDir
-        Assert-Success 'Getting the code (git clone)'
-        Restore-Env $aside $AppDir
-    }
-    & git -C $AppDir fetch --quiet --tags --force origin
-    Assert-Success 'Getting the latest code (git fetch)'
-    & git -C $AppDir rev-parse --verify --quiet "refs/remotes/origin/$Ref" *> $null
-    if ($LASTEXITCODE -eq 0) {
-        $target = "origin/$Ref"  # a branch
-    } else {
-        & git -C $AppDir fetch --quiet origin $Ref *> $null  # a commit not on a branch yet
-        $target = $Ref
-    }
-    & git -C $AppDir checkout --quiet --force --detach $target
+    <# Just `Ref` (a release, branch or commit), into the new folder `Folder`. #>
+    param([string]$Ref, [string]$Folder)
+    & git init --quiet $Folder
+    Assert-Success 'Getting the code (git init)'
+    & git -C $Folder fetch --quiet --depth 1 "https://github.com/$Repo.git" $Ref
+    Assert-Success "Getting version $Ref (git fetch)"
+    & git -C $Folder checkout --quiet --detach FETCH_HEAD
     Assert-Success "Switching to $Ref (git checkout)"
 }
 
 function Get-AppCodeDownload {
-    <# Without git: the code as a zip from GitHub, replacing what was there but the .env. #>
-    param([string]$Ref, [string]$AppDir)
+    <# Without git: the code as a zip from GitHub, unpacked into the new folder `Folder`. #>
+    param([string]$Ref, [string]$Folder)
     $work = Join-Path ([IO.Path]::GetTempPath()) ('mortgage-code-' + [guid]::NewGuid())
     New-Item -ItemType Directory $work | Out-Null
     try {
@@ -109,25 +94,43 @@ function Get-AppCodeDownload {
         Invoke-WebRequest -UseBasicParsing "https://codeload.github.com/$Repo/zip/$Ref" -OutFile $zip
         Expand-Archive $zip (Join-Path $work 'code')
         $unpacked = Get-ChildItem (Join-Path $work 'code') | Select-Object -First 1
-        $aside = Save-EnvAside $AppDir
-        if (Test-Path $AppDir) { Remove-Item -Recurse -Force $AppDir }
-        Move-Item $unpacked.FullName $AppDir
-        Restore-Env $aside $AppDir
+        Move-Item $unpacked.FullName $Folder
     } finally {
         Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
     }
+}
+
+function Get-AppCode {
+    <# `Ref`'s code into the new folder `Folder`, with git when it is installed. #>
+    param([string]$Ref, [string]$Folder)
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        Get-AppCodeWithGit $Ref $Folder
+    } else {
+        Get-AppCodeDownload $Ref $Folder
+    }
+}
+
+function Get-JunctionTarget {
+    <# What InstallDir\app points at, when it is a junction (install.ps1 makes it one). #>
+    param([string]$Path)
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item -or -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $null }
+    return @($item.Target)[0]
 }
 
 function Main {
     # GitHub needs TLS 1.2, which Windows PowerShell 5.1 does not always offer by default.
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     if (-not $InstallDir) { $InstallDir = Join-Path $env:USERPROFILE 'MortgageManagement' }
+    # In full, so it reads the same as what InstallDir\app points at.
+    $InstallDir = [IO.Path]::GetFullPath($InstallDir)
     $appDir = Join-Path $InstallDir 'app'
     New-Item -ItemType Directory -Force $InstallDir | Out-Null
 
     Write-Host ''
     Write-Host 'Mortgage Management setup' -ForegroundColor Yellow
     Write-Host "Installing in $InstallDir"
+    $installed = Get-InstalledVersion $appDir
     try {
         $tags = Get-ReleaseTags
     } catch {
@@ -136,7 +139,6 @@ function Main {
         if ($_.Exception.Response) {
             if (-not $Ref) { throw }
         } else {
-            $installed = Get-InstalledVersion $appDir
             if (-not $installed) {
                 throw 'GitHub cannot be reached, and the first setup needs internet: connect, then run Setup again.'
             }
@@ -147,17 +149,30 @@ function Main {
     }
     if (-not $Ref) { $Ref = Get-LatestRelease $tags }
     Write-Host "Getting version $Ref..."
-    if (Get-Command git -ErrorAction SilentlyContinue) {
-        Get-AppCodeWithGit $Ref $appDir
-    } else {
-        Get-AppCodeDownload $Ref $appDir
+    $versions = Join-Path $InstallDir 'versions'
+    New-Item -ItemType Directory -Force $versions | Out-Null
+    # A branch name can hold characters a folder name can't.
+    $folder = Select-FreeFolder $versions ($Ref -replace '[^A-Za-z0-9._-]', '-')
+    try {
+        Get-AppCode $Ref $folder
+        $install = Join-Path $folder 'windows\install.ps1'
+        if (-not (Test-Path $install)) {
+            throw "Version $Ref is too old for this setup (it has no windows\install.ps1)."
+        }
+        & $install -InstallDir $InstallDir -Mode $Mode -NonInteractive:$NonInteractive
+    } catch {
+        $failure = $_.Exception.Message
+        # install.ps1 had switched to it already: it is the version that runs.
+        $target = Get-JunctionTarget $appDir
+        if ($target -and [IO.Path]::GetFullPath($target).TrimEnd('\') -eq $folder.TrimEnd('\')) { throw }
+        try {
+            Remove-Item -LiteralPath $folder -Recurse -Force
+        } catch {
+            Write-Host "The unfinished version in $folder could not be removed: the next update removes it." -ForegroundColor Yellow
+        }
+        if ($installed) { throw "Update failed; still on $installed. $failure" }
+        throw
     }
-
-    $install = Join-Path $appDir 'windows\install.ps1'
-    if (-not (Test-Path $install)) {
-        throw "Version $Ref is too old for this setup (it has no windows\install.ps1)."
-    }
-    & $install -InstallDir $InstallDir -Mode $Mode -NonInteractive:$NonInteractive
 }
 
 # Dot-sourced (by the tests) it only defines the functions above.
