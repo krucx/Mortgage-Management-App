@@ -1,7 +1,7 @@
 // Tells the Lender when a newer release is out, with its notes. On Windows, Install now
 // opens mortgage-management://update, which runs Setup for it (Documentation/adr/0008).
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { updateStatusQuery } from '../requests'
 import { useServerState } from '../serverState'
 
@@ -29,6 +29,63 @@ function writePutOff(version: string) {
   } catch {
     // Not kept: it shows again next time.
   }
+}
+
+/** A line of release notes with its **bold**, `code` and [links](…) as they read. */
+function inline(text: string): ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/).map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**'))
+      return <strong key={i}>{part.slice(2, -2)}</strong>
+    if (part.startsWith('`') && part.endsWith('`')) return <code key={i}>{part.slice(1, -1)}</code>
+    const link = /^\[([^\]]+)\]\([^)]+\)$/.exec(part)
+    return link ? link[1] : part
+  })
+}
+
+/** A release's notes (its changelog section, in Markdown) as headings, lists and paragraphs. */
+function ReleaseNotes({ markdown }: { markdown: string }) {
+  const blocks: ReactNode[] = []
+  const lines = markdown.split(/\r?\n/)
+  for (let i = 0; i < lines.length;) {
+    if (lines[i].startsWith('```')) {
+      const end = lines.findIndex((line, j) => j > i && line.startsWith('```'))
+      const last = end === -1 ? lines.length : end
+      blocks.push(<pre key={i}>{lines.slice(i + 1, last).join('\n')}</pre>)
+      i = last + 1
+      continue
+    }
+    if (!lines[i].trim()) {
+      i++
+      continue
+    }
+    const start = i
+    const block: string[] = []
+    while (i < lines.length && lines[i].trim() && !lines[i].startsWith('```'))
+      block.push(lines[i++])
+    const heading = /^#+\s+(.*)/.exec(block[0])
+    if (heading) {
+      blocks.push(<h4 key={start}>{inline(heading[1])}</h4>)
+    } else if (block[0].startsWith('- ')) {
+      // An item runs on over its indented lines.
+      const items = block.reduce<string[]>(
+        (all, line) =>
+          line.startsWith('- ')
+            ? [...all, line.slice(2)]
+            : [...all.slice(0, -1), `${all.at(-1)} ${line.trim()}`],
+        [],
+      )
+      blocks.push(
+        <ul key={start}>
+          {items.map((item, n) => (
+            <li key={n}>{inline(item)}</li>
+          ))}
+        </ul>,
+      )
+    } else {
+      blocks.push(<p key={start}>{inline(block.map((line) => line.trim()).join(' '))}</p>)
+    }
+  }
+  return <div className="notes">{blocks}</div>
 }
 
 const openInWindows = (link: string) => window.location.assign(link)
@@ -122,7 +179,7 @@ export function UpdateBanner({
       )}
       <details>
         <summary>What's new</summary>
-        <p className="notes">{available.notes}</p>
+        <ReleaseNotes markdown={available.notes} />
       </details>
       {onWindows && !installing && (
         <button

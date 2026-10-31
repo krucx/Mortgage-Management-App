@@ -133,3 +133,20 @@ test('the app loads whichever new version Setup installed, even one newer than o
 
   await waitFor(() => expect(reloads()).toBe(1))
 })
+
+test('the notes read as the changelog does, without its Markdown marks', async () => {
+  const notes =
+    'Safer updates.\n\n### Added\n\n- **Update banner:** see `Install now`, or the\n  [install guide](https://example.org).\n- Start from the icon.'
+  showBanner(
+    fakeServer({ 'GET /api/update': { running: '1.5.1', available: { version: '2.0.0', notes } } }),
+  )
+
+  expect(await screen.findByRole('heading', { name: 'Added' })).toBeTruthy()
+  const items = screen.getAllByRole('listitem').map((item) => item.textContent)
+  expect(items).toEqual([
+    'Update banner: see Install now, or the install guide.',
+    'Start from the icon.',
+  ])
+  expect(screen.getByText('Update banner:').tagName).toBe('STRONG')
+  expect(screen.queryByText(/\*\*|###|\]\(/)).toBeNull()
+})

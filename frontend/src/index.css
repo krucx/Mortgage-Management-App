@@ -175,12 +175,16 @@ main {
   gap: 0.5rem 1rem;
   box-sizing: border-box;
   width: calc(100% - 2rem);
-  max-width: calc(720px - 2rem);
+  max-width: calc(860px - 2rem); /* as wide as main */
   margin: 1rem auto 0;
   padding: 0.75rem 1rem;
   background: var(--accent-soft);
   border: 1px solid var(--accent-edge);
   border-radius: 8px;
+}
+
+.layout:has(.card.wide) .update-banner {
+  max-width: calc(1100px - 2rem);
 }
 
 .update-banner details,
@@ -190,8 +194,20 @@ main {
 }
 
 .update-banner .notes {
-  white-space: pre-wrap;
   margin-top: 0.5rem;
+}
+
+.update-banner .notes h4 {
+  margin: 0.75rem 0 0.25rem;
+}
+
+.update-banner .notes p,
+.update-banner .notes ul {
+  margin: 0 0 0.5rem;
+}
+
+.update-banner .notes pre {
+  white-space: pre-wrap;
 }
 
 .card {
