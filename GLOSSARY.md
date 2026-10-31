@@ -60,14 +60,18 @@ Moving unpaid interest into Principal at the end of a compounding period.
 _Avoid_: Compounding event, rollover
 
 **Part-Month Rule**:
-How interest is charged for the days since the last Accrual Date when a Mortgage is redeemed: pro-rata, full month, or nothing.
+How the Interest to Date is charged for a month under way: pro-rata (each day started, out of 30), full month (the whole month once it starts), or nothing.
+
+**Interest to Date**:
+The interest for the month under way, as of a date, under its Part-Month Rule: counted from its first day (the start or an Accrual Date) through that date, so today is always charged; it changes from day to day until the month's interest is charged on the next Accrual Date, and is fixed at a Closure.
+_Avoid_: Accrued interest, part-month charge, pending interest
 
 **Ledger**:
 The step-by-step history of a Mortgage — interest added, capitalisations, payments — derived from its terms and payments.
 _Avoid_: Statement, MortgageLedger
 
 **Replay**:
-Working out a Mortgage's Ledger, Outstanding or Redemption Amount from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).
+Working out a Mortgage's Ledger or Outstanding from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).
 _Avoid_: Recalculation, recompute, refresh
 
 **Projection**:
@@ -83,12 +87,8 @@ The monthly average of the last 3 full months (Payments received, Principal lent
 _Avoid_: Forecast, prediction
 
 **Outstanding**:
-What a Mortgage owes on a date: Principal plus unpaid interest, before any Part-Month Rule charge; nothing once closed.
-_Avoid_: Balance, dues
-
-**Redemption Amount**:
-What a Customer must pay on a given date to redeem a Mortgage: outstanding interest and Principal plus any Part-Month Rule charge.
-_Avoid_: Payoff, closing balance, final settlement amount
+What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day; nothing once closed.
+_Avoid_: Redemption Amount, balance, dues, payoff
 
 ## Collateral
 
@@ -133,7 +133,7 @@ A message to a Customer, sent ahead of Accrual Dates, covering every one of thei
 _Avoid_: Reminder, notification
 
 **Months Unpaid**:
-How many of a Mortgage's latest monthly interest charges its Payments have not yet covered, counting Payments against the oldest interest first; capitalised interest still counts as unpaid.
+How many of a Mortgage's latest monthly interest charges (never its Interest to Date) its Payments have not yet covered, counting Payments against the oldest interest first; capitalised interest still counts as unpaid.
 _Avoid_: Months overdue, arrears
 
 **Call List**:
@@ -159,10 +159,6 @@ _Avoid_: Export, snapshot, archive
 **Active**:
 A Mortgage still accruing interest with jewellery held.
 
-**Ready to Redeem**:
-An Active Mortgage with nothing Outstanding: its jewellery is waiting to go back, and the only Payment it takes is its Redemption's final Payment of any Part-Month Rule charge.
-_Avoid_: Paid off, cleared, settled
-
 **Redeemed**:
 A Mortgage fully repaid with its jewellery returned to the Customer.
 _Avoid_: Settled, paid off
@@ -172,7 +168,7 @@ The end of a Mortgage, by Redemption, Waiver or Forfeiture; after it no interest
 _Avoid_: Closing out, termination
 
 **Waived**:
-A Mortgage closed with the jewellery returned although the Customer's final Payment fell short of the Redemption Amount (or there was none): the Lender, at their discretion, lets off the rest, the Waived Amount.
+A Mortgage closed with the jewellery returned although the Customer's final Payment fell short of its Outstanding on the Closure date (or there was none): the Lender, at their discretion, lets off the rest, the Waived Amount.
 _Avoid_: Written off, settled, discounted
 
 **Forfeited**:
@@ -184,5 +180,5 @@ Undoing a Closure made by mistake, with a reason: the Mortgage is Active again a
 _Avoid_: Undo, unclose, revive
 
 **Recovered Amount**:
-What a Forfeited Mortgage's jewellery fetched (or is worth, if kept); its difference from the Redemption Amount is the Lender's profit or loss.
+What a Forfeited Mortgage's jewellery fetched (or is worth, if kept); its difference from the Outstanding on the Closure date is the Lender's profit or loss.
 _Avoid_: Sale value, realisation
