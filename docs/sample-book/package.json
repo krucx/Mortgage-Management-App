@@ -1,0 +1,12 @@
+{
+  "name": "mortgage-sample-book-shots",
+  "private": true,
+  "type": "module",
+  "description": "Takes the GitHub Pages screenshots from the sample book (see README.md).",
+  "scripts": {
+    "shots": "node shots.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

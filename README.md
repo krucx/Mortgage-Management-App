@@ -173,6 +173,9 @@ checks their decisions with Pester. The `windows` job in `.github/workflows/test
 the setup without Docker end to end on a Windows runner, then the uninstall. `setup.ps1
 -Ref <branch or commit>` sets up code that isn't released yet.
 
+The GitHub Pages screenshots are taken from an invented sample book made through the app's
+own API: `docs/sample-book/run.sh` retakes them all (see its README).
+
 - `backend/`: FastAPI + SQLite (SQLAlchemy, Alembic migrations), managed with [uv](https://docs.astral.sh/uv/).
 - `frontend/`: React + TypeScript + Vite, served by nginx in production.
 

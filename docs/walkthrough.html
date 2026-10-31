@@ -497,8 +497,9 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div>
       <div class="block-title">Show</div>
       <ol class="steps">
-        <li><span>Choose the Customer. Their Active Mortgages are listed with what each owes on the Payment date, so a back-dated Payment sees back-dated figures.</span></li>
-        <li><span>Enter the amount, or click <span class="ui">The full Outstanding on the chosen Mortgages</span>. Split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>; ticked Mortgages stay together at the top.</span></li>
+        <li><span>Choose the Customer. Their Active Mortgages are listed with what each owes on the Payment date and what it would take to Redeem it that day (<span class="ui">To redeem on …</span>), so a back-dated Payment sees back-dated figures.</span></li>
+        <li><span>Enter the amount, or click <span class="ui">The full Outstanding on the chosen Mortgages</span> or <span class="ui">Pay the full Redemption Amount</span>. Split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>; ticked Mortgages stay together at the top, and equal shares fill each up to its Redemption Amount first.</span></li>
+        <li><span>With a whole Redemption Amount in an Allocation, <span class="ui">Record Payment</span> asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment would Redeem it. Press <span class="ui">Go back</span>.</span></li>
         <li><span>Type more than is owed: the Preview gives the reason ("would be more than the ₹… owed then") and Save stays off.</span></li>
         <li><span>Open an existing Payment: each Allocation split into interest and Principal, the <span class="ui">Receipt</span> as it appears in WhatsApp, and <span class="ui">Print or save as PDF</span>.</span></li>
         <li><span>Show <span class="ui">Void…</span>: it needs a reason and previews the effect. Cancel.</span></li>
@@ -530,7 +531,8 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     <div class="nuance rule"><b>Within a Mortgage: interest, then Principal</b><span>Each Allocation pays unpaid interest before it reduces Principal.</span></div>
     <div class="nuance"><b>Voided, never deleted</b><span>A Voided Payment stays on record with its reason but counts in no Ledger. A correction is entered as a new Payment.</span></div>
     <div class="nuance"><b>Receipts speak the Customer's language</b><span>They name each Mortgage by its jewellery ("Gold chain"), never its Mortgage Name, and show what is still owed.</span></div>
-    <div class="nuance"><b>Paid in full? Redeem now</b><span>If a Payment leaves a Mortgage Ready to Redeem, the app offers to Redeem it on the spot, with a Preview, including any part-month charge as the final Payment.</span></div>
+    <div class="nuance rule"><b>A whole Redemption Amount Redeems</b><span>Paying a Mortgage's whole Redemption Amount Redeems it with that Payment, all or none with its other parts, and one Receipt marks what went home. It isn't accepted as an ordinary Allocation.</span></div>
+    <div class="nuance"><b>Paid up to date? Redeem now</b><span>If a Payment clears what a Mortgage owes but a part-month is left, the app offers "Paid up to …: Redeem now?", with that charge as the final Payment and a Preview.</span></div>
   </div>
 </section>
 
@@ -594,7 +596,7 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
       <ol class="steps">
         <li><span>Point to the dot on <span class="ui">Redeem / Forfeit</span> in the menu: a Mortgage is paid off and waiting for its jewellery to go back.</span></li>
         <li><span>On the page, <span class="ui">Ready to Redeem</span> lists it (Mortgage 4 owes ₹0). Below, under <span class="ui">Forfeit or Waive off</span>, Active Mortgages still owing can be ticked and closed together: choose <span class="ui">Forfeit</span> or <span class="ui">Waive off</span> for the chosen. A Preview shows each Closure first, and they close all or none: if one is refused, nothing is closed and the reason names it.</span></li>
-        <li><span>On a Mortgage, press <span class="ui">Redeem…</span>: pick a date to see the Redemption Amount (Principal, unpaid interest, part-month charge). A future date gives a quote only.</span></li>
+        <li><span>On a Mortgage, press <span class="ui">Redeem…</span>: pick a date to see the Redemption Amount (Principal, unpaid interest, part-month charge). A future date gives a quote only. (When the Customer brings it all at once, taking it on New Payment Redeems the Mortgage too: Stop 7.)</span></li>
         <li><span>Switch to <span class="ui">Waive off…</span>: enter what the Customer pays now (₹0 is allowed) and the amount let off appears, with the button reading <span class="ui">Waive off ₹…</span>. Paying the full amount is refused: Redeem instead. Cancel.</span></li>
         <li><span>Switch to <span class="ui">Forfeit…</span>: enter the Recovered Amount and the profit or loss appears. Cancel.</span></li>
         <li><span>On a closed Mortgage, show <span class="ui">Reopen…</span>: it needs a reason, and its Preview shows interest charged for the whole time.</span></li>
@@ -616,7 +618,8 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     <div class="nuance rule"><b>The final Payment includes the part-month charge</b><span>Redeeming records it as a Payment, so the Receipt and the Ledger agree.</span></div>
     <div class="nuance"><b>A Waiver is the Lender's choice</b><span>What the Customer pays is recorded as the final Payment, and their Receipt shows nothing still owed. The rest is let off and counted on the Dashboard's <span class="ui">Waived off</span> tile.</span></div>
     <div class="nuance"><b>No closing before a later Payment</b><span>A Closure can't be dated before a Payment already recorded.</span></div>
-    <div class="nuance"><b>Reopen undoes completely</b><span>The Mortgage is Active as if never closed, and a Redemption's or Waiver's final Payment is Voided.</span></div>
+    <div class="nuance"><b>Reopen undoes completely</b><span>The Mortgage is Active as if never closed, and a Redemption's or Waiver's final Payment is Voided, leaving any other part of the Payment it came in.</span></div>
+    <div class="nuance"><b>"Can't redeem" says why</b><span>When a Redemption Amount can't be worked out, a compact red marker shows instead; hover, focus or tap it for the reason.</span></div>
   </div>
 </section>
 
@@ -651,8 +654,8 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
   <div class="nuances">
     <div class="nuance rule"><b>History is never edited</b><span>Entries can't be changed or removed, by anyone.</span></div>
     <div class="nuance"><b>Runs on the Lender's laptop</b><span>Docker Compose with the published images, reachable only from this machine; the data is a folder on disk (ADR-0004).</span></div>
-    <div class="nuance"><b>Set up by double-click on Windows</b><span><span class="ui">Setup.bat</span> installs the latest release and puts a <span class="ui">Mortgage Management</span> shortcut on the Desktop. With Docker Desktop it runs in Docker; without, it installs Node.js and uv and runs on the PC itself, with plain (no-password) Backup zips. Running Setup again updates it and keeps the data. Every step is in the <a href="install.html">install guide</a>.</span></div>
-    <div class="nuance"><b>Before every update</b><span>Starting a new version backs up first, then brings the database up to date.</span></div>
+    <div class="nuance"><b>Set up by double-click on Windows</b><span><span class="ui">Setup.bat</span> installs the latest release and puts a <span class="ui">Mortgage Management</span> shortcut on the Desktop. With Docker Desktop it runs in Docker; without, it installs uv and the release ready-built and runs on the PC itself, with plain (no-password) Backup zips. The installed app's icon starts it when it isn't running. Every step is in the <a href="install.html">install guide</a>.</span></div>
+    <div class="nuance"><b>Updates that can't break it</b><span>When a release is out the app says so; <span class="ui">Install now</span> (or Setup again) installs it beside the version in use and switches only once it starts, keeping the data. Starting a new version backs up first, then brings the database up to date.</span></div>
   </div>
 </section>
 
