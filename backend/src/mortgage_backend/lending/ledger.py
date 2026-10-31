@@ -44,6 +44,9 @@ class LedgerStep:
     charged_on: int = 0
     # interest_to_date steps: days of the month charged, from its first day through `on`
     part_month_days: int = 0
+    # interest / interest_to_date steps: the part of it Payments had already paid ahead;
+    # payment steps: the part of the Payment that paid the Interest to Date ahead
+    paid_ahead: int = 0
     interest_paid: int = 0  # payment steps: the part that paid interest
     principal_paid: int = 0  # payment steps: the part that paid Principal
     payment_id: int | None = None  # None for a hypothetical Payment in a Projection
@@ -185,6 +188,10 @@ class _Run:
             key=lambda a: (a.on, a.payment_id),
         )
         self.month_start_principal = amount_lent
+        self.paid_ahead = 0  # of the month under way's interest, by Payments in it
+        # Set when a Closure charges the Interest to Date into `unpaid`, so a Payment
+        # that day (its final Payment) is not asked for it a second time.
+        self.to_date_charged_on: date | None = None
         self.n = 1  # the next Accrual Date's number
         self.paid_off_on: date | None = None  # by hypothetical Payments
         self.term_changes: list[tuple[date, Terms]] = []  # as they take effect
@@ -193,13 +200,28 @@ class _Run:
         return terms_on(self.terms, self.changes, day)
 
     def owed(self) -> int:
+        """Principal and the interest charged so far, unpaid."""
         return self.principal + self.unpaid
 
+    def to_date_owed(self, on: date) -> int:
+        """The Interest to Date on `on` not yet paid ahead (nothing once charged)."""
+        if self.to_date_charged_on == on:
+            return 0
+        return self.interest_to_date(on)[0] - self.paid_ahead
+
+    def outstanding(self, on: date) -> int:
+        """What would redeem it on `on`: everything owed, the Interest to Date too."""
+        return self.owed() + self.to_date_owed(on)
+
     def pay(self, on: date, amount: int, payment_id: int | None) -> None:
-        """Interest first, then Principal."""
-        to_interest = min(amount, self.unpaid)
-        self.unpaid -= to_interest
-        self.principal -= amount - to_interest
+        """Unpaid interest first, then the Interest to Date (paid ahead of the month's
+        interest), then Principal."""
+        to_unpaid = min(amount, self.unpaid)
+        ahead = min(amount - to_unpaid, self.to_date_owed(on))
+        to_principal = amount - to_unpaid - ahead
+        self.unpaid -= to_unpaid
+        self.paid_ahead += ahead
+        self.principal -= to_principal
         self.steps.append(
             LedgerStep(
                 on,
@@ -207,8 +229,9 @@ class _Run:
                 amount,
                 self.principal,
                 self.unpaid,
-                interest_paid=to_interest,
-                principal_paid=amount - to_interest,
+                interest_paid=to_unpaid + ahead,
+                principal_paid=to_principal,
+                paid_ahead=ahead,
                 payment_id=payment_id,
             )
         )
@@ -218,8 +241,9 @@ class _Run:
     def pay_through(self, day: date) -> None:
         while self.pending and self.pending[0].on <= day:
             allocation = self.pending.pop(0)
-            if allocation.amount > self.owed():
-                raise Overpayment(allocation, self.owed())
+            owed = self.outstanding(allocation.on)
+            if allocation.amount > owed:
+                raise Overpayment(allocation, owed)
             self.pay(allocation.on, allocation.amount, allocation.payment_id)
 
     def accrue_through(self, day: date) -> None:
@@ -228,7 +252,7 @@ class _Run:
             month_terms = self.terms_from(accrual_date(self.start, self.n - 1))
             self.pay_through(on - timedelta(days=1))  # Payments before this date
             interest = monthly_interest(self.month_start_principal, month_terms)
-            self.unpaid += interest
+            self.unpaid += interest - self.paid_ahead
             self.steps.append(
                 LedgerStep(
                     on,
@@ -237,15 +261,23 @@ class _Run:
                     self.principal,
                     self.unpaid,
                     charged_on=self.month_start_principal,
+                    paid_ahead=self.paid_ahead,
                 )
             )
+            capitalises = _capitalises(month_terms, self.n)
+            # The next month starts now, before this day's Payments (ADR 0006).
+            self.month_start_principal, self.paid_ahead = self.principal, 0
+            self.n += 1
             self.pay_through(on)
             hypothetical = self.hypothetical
-            if hypothetical and on > hypothetical.after and self.owed():
-                self.pay(on, min(hypothetical.amount, self.owed()), None)
-            if _capitalises(month_terms, self.n) and self.unpaid:
-                self.principal, capitalised = self.owed(), self.unpaid
-                self.unpaid = 0
+            if hypothetical and on > hypothetical.after:
+                if owed := self.outstanding(on):
+                    self.pay(on, min(hypothetical.amount, owed), None)
+            # What is still unpaid after them: nothing of it was paid ahead.
+            if capitalises and self.unpaid:
+                capitalised, self.unpaid = self.unpaid, 0
+                self.principal += capitalised
+                self.month_start_principal += capitalised
                 self.steps.append(
                     LedgerStep(on, "capitalised", capitalised, self.principal, 0)
                 )
@@ -261,8 +293,6 @@ class _Run:
                     )
                 )
                 self.term_changes.append((on, new_terms))
-            self.month_start_principal = self.principal  # the next month starts now
-            self.n += 1
 
     def interest_to_date(self, on: date) -> tuple[int, int]:
         """The Interest to Date (and days charged) on `on`, once accrued through it."""
@@ -271,23 +301,27 @@ class _Run:
         return part_month_charge(self.month_start_principal, month_terms, days), days
 
     def charge_interest_to_date(self, on: date, cap: int | None = None) -> None:
-        """Add the Interest to Date on `on` (no more than `cap`) as the Ledger's step."""
+        """Add the Interest to Date on `on` as the Ledger's step, less what was paid
+        ahead (and owing no more than `cap`)."""
         charge, days = self.interest_to_date(on)
+        owed = charge - self.paid_ahead
         if cap is not None:
-            charge = min(charge, cap)
-        if charge:
-            self.unpaid += charge
+            owed = min(owed, cap)
+        if self.paid_ahead + owed:
+            self.unpaid += owed
             self.steps.append(
                 LedgerStep(
                     on,
                     "interest_to_date",
-                    charge,
+                    self.paid_ahead + owed,
                     self.principal,
                     self.unpaid,
                     charged_on=self.month_start_principal,
                     part_month_days=days,
+                    paid_ahead=self.paid_ahead,
                 )
             )
+        self.to_date_charged_on = on
 
 
 def compute_ledger(
@@ -318,10 +352,12 @@ def compute_ledger(
     Outstanding.
 
     Each month's interest is charged on the Principal as it stood at the start of that
-    month (the previous Accrual Date), so paying Principal mid-month lowers interest only
-    from the next month (ADR 0006). On any one date the order is: that day's interest,
-    then Payments, then capitalisation, so paying on an Accrual Date clears that day's
-    interest before it compounds and counts for the month that starts then.
+    month (its Accrual Date, before that day's Payments), so paying Principal lowers
+    interest only from the next month (ADR 0006). Each Payment pays unpaid interest, then
+    the Interest to Date (paid ahead of the month's interest, which it then counts
+    against), then Principal. On any one date the order is: that day's interest, then
+    Payments, then capitalisation of what is still unpaid, so paying on an Accrual Date
+    clears that day's interest before it compounds.
 
     A Term Change on an Accrual Date applies to the months starting then: that day's
     interest and capitalisation still follow the old Terms, so no earlier interest
@@ -395,8 +431,9 @@ def project(
     for on in dates:
         run.accrue_through(on)
         run.pay_through(on)
-        charge, _ = run.interest_to_date(on)
-        snapshots.append(Snapshot(on, run.principal, run.unpaid, run.owed() + charge))
+        snapshots.append(
+            Snapshot(on, run.principal, run.unpaid, run.outstanding(on))
+        )
     in_view = [c for c in run.term_changes if dates[0] < c[0] <= dates[-1]]
     if paid_off_by is not None:
         run.accrue_through(paid_off_by)
@@ -407,15 +444,16 @@ def months_unpaid(steps: Iterable[LedgerStep]) -> int:
     """How many of the latest monthly interest charges the Payments have not covered.
 
     Each Payment covers the interest charged so far, oldest month first; whatever is
-    left pays Principal and cannot cover later months. Capitalised interest still
-    counts as unpaid. A partly covered month counts as unpaid.
+    left pays the Interest to Date (covering that month once charged) or Principal, and
+    cannot cover later months. Capitalised interest still counts as unpaid. A partly
+    covered month counts as unpaid.
     """
     uncovered: list[int] = []  # the unpaid part of each month's interest, oldest first
     for step in steps:
         if step.event == "interest":
-            uncovered.append(step.amount)
+            uncovered.append(step.amount - step.paid_ahead)
         elif step.event == "payment":
-            left = step.amount
+            left = step.amount - step.paid_ahead  # what it paid ahead is the month's
             while uncovered and left:
                 paid = min(left, uncovered[0])
                 uncovered[0] -= paid

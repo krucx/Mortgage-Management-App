@@ -45,6 +45,28 @@ test("an Active pro-rata Mortgage's Ledger ends with its Interest to Date, growi
   ).toBeTruthy()
 })
 
+test('the Ledger says how much of a month was paid ahead', async () => {
+  const step = {
+    on: '2026-10-18',
+    event: 'interest' as const,
+    amount: 75_000,
+    principal: 5_000_000,
+    unpaid_interest: 30_000,
+    charged_on: 5_000_000,
+    part_month_days: 0,
+    paid_ahead: 45_000,
+    interest_paid: 0,
+    principal_paid: 0,
+    payment_id: null,
+    terms: null,
+  }
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger: [step] } }))
+
+  expect(
+    await screen.findByText('Interest: 1.5% of ₹50,000, ₹450 of it paid ahead'),
+  ).toBeTruthy()
+})
+
 test("the Mortgage page shows the backend's reason when it cannot load", async () => {
   showMortgagePage(fakeServer({}))
 

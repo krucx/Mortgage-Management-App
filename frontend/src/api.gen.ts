@@ -1728,6 +1728,11 @@ export interface components {
              */
             on: string;
             /**
+             * Paid Ahead
+             * @default 0
+             */
+            paid_ahead: number;
+            /**
              * Part Month Days
              * @default 0
              */

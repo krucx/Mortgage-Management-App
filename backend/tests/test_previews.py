@@ -327,14 +327,14 @@ def test_a_payment_preview_refuses_what_saving_refuses(client, ramesh, mortgage)
 
 
 def test_a_payment_preview_refuses_more_than_is_owed(client, ramesh, mortgage):
-    too_much = payment_of(ramesh, "2026-04-15", (mortgage, 1_10_000 * RUPEE))
+    too_much = payment_of(ramesh, "2026-04-15", (mortgage, 1_13_000 * RUPEE))
 
     response = client.post("/api/payments/preview", json=too_much)
 
     assert response.status_code == 422
     assert response.json()["detail"] == (
         "2026-Ramesh-GoldChain: the Payment on 15 Apr 2026 would be more than the "
-        "₹1,09,000 owed then"
+        "₹1,12,000 owed then"  # its Interest to Date included
     )
 
 

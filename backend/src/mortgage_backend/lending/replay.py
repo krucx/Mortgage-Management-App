@@ -60,7 +60,7 @@ class Redemption(BaseModel):
     unpaid_interest: int
     last_accrual_on: date  # the last Accrual Date by `on` (the start, before any)
     part_month_days: int  # of the month under way charged, `on` included
-    part_month_charge: int  # the Interest to Date, per the Part-Month Rule
+    part_month_charge: int  # the Interest to Date (per the Part-Month Rule) not paid ahead
     total: int  # the Redemption Amount
 
 
@@ -133,13 +133,17 @@ class MortgageReplay:
         }
 
     def owed_after(self, payment_id: int, on: date) -> int:
-        """What it owed just after its Payment `payment_id` on `on`: with the Interest
-        to Date charged after it that day, but none of that day's later Payments."""
+        """What it owed just after its Payment `payment_id` on `on`: Outstanding at the
+        end of that day, as if none of that day's later Payments (or a write-off) had
+        been made."""
         ledger = self.ledger(on)
         at = next(i for i, s in enumerate(ledger) if s.payment_id == payment_id)
-        step = ledger[at]
-        to_date = sum(s.amount for s in ledger[at:] if s.event == "interest_to_date")
-        return step.principal + step.unpaid_interest + to_date
+        later = sum(
+            s.amount
+            for s in ledger[at + 1 :]
+            if s.event in ("payment", "waived", "forfeited")
+        )
+        return ledger[-1].principal + ledger[-1].unpaid_interest + later
 
     def outstanding(self, on: date) -> Outstanding:
         """What the Mortgage owes on `on`: nothing once closed."""
@@ -169,7 +173,7 @@ class MortgageReplay:
         )
         last = ledger[-1]
         to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
-        charge = to_date.amount if to_date else 0
+        charge = to_date.amount - to_date.paid_ahead if to_date else 0
         days = interest_to_date_days(self.row["start_date"], on)
         return Redemption(
             on=on,

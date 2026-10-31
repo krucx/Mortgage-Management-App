@@ -156,8 +156,9 @@ def test_a_partial_interest_payment_reduces_only_unpaid_interest():
 
 
 def test_a_payment_beyond_the_interest_reduces_principal_from_the_next_month():
-    # Paid 1 Mar: the month 14 Feb–14 Mar started on ₹1,00,000, so it is still charged
-    # on ₹1,00,000; the reduced ₹90,000 is charged from the month starting 14 Mar.
+    # Paid 1 Mar: ₹3,000 charged, then the month 14 Feb–14 Mar's ₹3,000 (Full-month)
+    # paid ahead, then ₹7,000 Principal. That month started on ₹1,00,000, so it is still
+    # charged on ₹1,00,000; the reduced ₹93,000 is charged from the month starting 14 Mar.
     ledger = paid(
         date(2026, 1, 14),
         date(2026, 4, 14),
@@ -165,9 +166,9 @@ def test_a_payment_beyond_the_interest_reduces_principal_from_the_next_month():
     )
 
     assert ledger[2:] == [
-        (date(2026, 3, 1), "payment", 13_000, 90_000, 0, 3_000, 10_000),
-        (date(2026, 3, 14), "interest", 3_000, 90_000, 3_000),
-        (date(2026, 4, 14), "interest", 2_700, 90_000, 5_700),
+        (date(2026, 3, 1), "payment", 13_000, 93_000, 0, 6_000, 7_000),
+        (date(2026, 3, 14), "interest", 3_000, 93_000, 0),  # paid ahead
+        (date(2026, 4, 14), "interest", 2_790, 93_000, 2_790),
     ]
 
 
@@ -188,14 +189,21 @@ def test_paying_principal_the_day_before_an_accrual_date_does_not_skip_that_mont
     )
 
 
-def test_a_payment_on_an_accrual_date_counts_for_the_month_that_starts_then():
+def test_a_payment_on_an_accrual_date_lowers_interest_from_the_next_month():
+    # 14 Feb: ₹3,000 charged and the month starting then paid ahead (₹3,000), then
+    # ₹47,000 Principal. That month started before the Payment, on ₹1,00,000 (ADR 0006).
     ledger = paid(
         date(2026, 1, 14),
-        date(2026, 3, 14),
+        date(2026, 4, 14),
         [Allocation(on=date(2026, 2, 14), amount=53_000_00, payment_id=1)],
     )
 
-    assert ledger[-1] == (date(2026, 3, 14), "interest", 1_500, 50_000, 1_500)
+    assert ledger[1:] == [
+        (date(2026, 2, 14), "interest", 3_000, 100_000, 3_000),
+        (date(2026, 2, 14), "payment", 53_000, 53_000, 0, 6_000, 47_000),
+        (date(2026, 3, 14), "interest", 3_000, 53_000, 0),
+        (date(2026, 4, 14), "interest", 1_590, 53_000, 1_590),
+    ]
 
 
 def test_a_back_dated_payment_is_slotted_in_by_date():
@@ -260,15 +268,15 @@ def test_a_payment_larger_than_what_is_owed_on_its_date_is_an_overpayment():
             LAKH,
             terms(),
             date(2026, 3, 1),
-            [Allocation(on=date(2026, 3, 1), amount=103_000_01, payment_id=7)],
+            [Allocation(on=date(2026, 3, 1), amount=106_000_01, payment_id=7)],
         )
 
     assert raised.value.payment_id == 7
-    assert raised.value.outstanding == 103_000_00
+    assert raised.value.outstanding == 106_000_00  # its Interest to Date included
 
 
-def test_paying_the_principal_and_charged_interest_still_leaves_the_interest_to_date():
-    # Only a Redemption pays the Interest to Date off; this month began on ₹1,00,000.
+def test_paying_the_principal_and_charged_interest_pays_the_interest_to_date_first():
+    # Interest first: ₹3,000 charged, then this month's ₹3,000, leaving ₹3,000 Principal.
     ledger = compute_ledger(
         date(2026, 1, 14),
         LAKH,
@@ -277,9 +285,12 @@ def test_paying_the_principal_and_charged_interest_still_leaves_the_interest_to_
         [Allocation(on=date(2026, 3, 1), amount=103_000_00, payment_id=1)],
     )
 
-    assert [(s.event, s.amount, s.principal, s.unpaid_interest) for s in ledger[-2:]] == [
-        ("payment", 103_000_00, 0, 0),
-        ("interest_to_date", 3_000_00, 0, 3_000_00),
+    assert [
+        (s.event, s.amount, s.paid_ahead, s.principal, s.unpaid_interest)
+        for s in ledger[-2:]
+    ] == [
+        ("payment", 103_000_00, 3_000_00, 3_000_00, 0),  # ₹3,000 of it paid ahead
+        ("interest_to_date", 3_000_00, 3_000_00, 3_000_00, 0),
     ]
 
 
@@ -460,11 +471,12 @@ def test_capitalised_interest_still_counts_as_unpaid(mode):
 
 
 def test_a_payment_cannot_cover_interest_not_yet_charged():
-    # Paying ₹20,000 off the Principal in month one does not pre-pay later interest.
+    # ₹20,000 in month one pays that month's Interest to Date ahead, then Principal:
+    # it covers the month under way, but no later month's interest.
     months = unpaid_months(
         InterestMode.SIMPLE, date(2026, 4, 14), (date(2026, 2, 1), 20_000_00)
     )
-    assert months == 3
+    assert months == 2
 
 
 # Term Changes: each month is charged under the Terms in force at its start.
@@ -577,7 +589,8 @@ def test_hypothetical_payments_fall_on_each_accrual_date_until_paid_off():
     payments = [(s.on, s.amount / 100) for s in ledger if s.event == "payment"]
     assert payments == [
         (date(2026, 2, 14), 6_000),
-        (date(2026, 3, 14), 4_429),  # what was left: ₹4,300 + ₹129 interest
+        # what was left: ₹4,600 and ₹138 for the month starting then, paid ahead
+        (date(2026, 3, 14), 4_738),
     ]
     assert (ledger[-1].principal, ledger[-1].unpaid_interest) == (0, 0)
 
@@ -666,20 +679,46 @@ def test_the_interest_to_date_is_on_the_capitalised_principal_and_never_capitali
     assert owed(ledger) == 3183
 
 
-def test_a_payment_on_an_accrual_date_lowers_the_new_months_interest_to_date():
-    # ₹1,000 on 1 Dec pays November's ₹90 and ₹910 Principal, so December starts on ₹2,090.
+def test_a_payment_on_an_accrual_date_leaves_the_new_month_charged_on_its_start():
+    # ₹1,000 on 1 Dec pays November's ₹90, December's ₹90 ahead and ₹820 Principal;
+    # December started before the Payment, on ₹3,000 (ADR 0006).
     ledger = open_ledger(
         PartMonthRule.FULL_MONTH,
         date(2026, 12, 1),
         allocations=[Allocation(on=date(2026, 12, 1), amount=1_000_00, payment_id=1)],
     )
 
-    assert (ledger[-1].event, ledger[-1].amount, ledger[-1].charged_on) == (
+    to_date = ledger[-1]
+    assert (to_date.event, to_date.amount, to_date.paid_ahead, to_date.charged_on) == (
         "interest_to_date",
-        63_00,
-        2_090_00,
+        90_00,
+        90_00,
+        3_000_00,
     )
-    assert owed(ledger) == 2153
+    assert owed(ledger) == 2180
+
+
+@pytest.mark.parametrize(
+    ("rule", "owed_after"), [(PartMonthRule.FULL_MONTH, 90), (PartMonthRule.PRO_RATA, 3)]
+)
+def test_paying_principal_and_charged_interest_on_an_accrual_date_still_owes_the_new_month(
+    rule, owed_after
+):
+    # ₹3,000 from 1 Oct: ₹3,090 on 1 Nov pays October's ₹90 and November's Interest to
+    # Date first, so what is left of the Principal is still owed (the loophole of #68).
+    rule_terms = Terms(
+        monthly_rate_bps=300, interest_mode=InterestMode.SIMPLE, part_month_rule=rule
+    )
+
+    ledger = compute_ledger(
+        date(2026, 10, 1),
+        3_000_00,
+        rule_terms,
+        date(2026, 11, 1),
+        [Allocation(on=date(2026, 11, 1), amount=3_090_00, payment_id=1)],
+    )
+
+    assert owed(ledger) == owed_after
 
 
 @pytest.mark.parametrize(
@@ -802,13 +841,13 @@ def test_a_projection_owes_the_interest_to_date_on_each_date():
 
 @pytest.mark.parametrize("mode", [InterestMode.SIMPLE, InterestMode.COMPOUNDED_MONTHLY])
 def test_redeeming_after_a_payment_on_the_same_accrual_date_costs_the_outstanding(mode):
-    # ₹1,000 on 1 Dec pays November's ₹90 (so nothing capitalises) and ₹910 Principal:
-    # December starts on ₹2,090, its Interest to Date ₹63, so ₹2,153 is owed.
+    # ₹1,000 on 1 Dec pays November's ₹90 (so nothing capitalises), December's ₹90
+    # ahead and ₹820 Principal, so ₹2,180 is owed.
     rule_terms = Terms(
         monthly_rate_bps=300, interest_mode=mode, part_month_rule=PartMonthRule.FULL_MONTH
     )
     earlier = Allocation(on=date(2026, 12, 1), amount=1_000_00, payment_id=1)
-    final = Allocation(on=date(2026, 12, 1), amount=2_153_00, payment_id=2)
+    final = Allocation(on=date(2026, 12, 1), amount=2_180_00, payment_id=2)
 
     def ledger(allocations, **closing):
         return compute_ledger(
@@ -820,9 +859,92 @@ def test_redeeming_after_a_payment_on_the_same_accrual_date_costs_the_outstandin
         [earlier, final], closed_on=date(2026, 12, 1), closure="redeemed", final_payment=2
     )
 
-    assert owed(ledger([earlier])) == owed(quoted) == 2153
+    assert owed(ledger([earlier])) == owed(quoted) == 2180
     assert [(s.event, s.payment_id) for s in redeemed[-2:]] == [
         ("interest_to_date", None),
         ("payment", 2),
     ]
     assert owed(redeemed) == 0
+
+
+# Payments pay the Interest to Date before Principal (#69).
+
+
+def paid_on(rule, as_of, *payments, mode=InterestMode.SIMPLE):
+    """`open_ledger` with cash Payments of (date, ₹) on ₹3,000 from 1 Nov."""
+    allocations = [
+        Allocation(on=on, amount=rupees * 100, payment_id=i + 1)
+        for i, (on, rupees) in enumerate(payments)
+    ]
+    return open_ledger(rule, as_of, mode, allocations)
+
+
+def split(step):
+    return (step.event, step.interest_paid / 100, step.principal_paid / 100)
+
+
+@pytest.mark.parametrize(
+    ("rule", "rupees", "interest", "principal", "unpaid_on_1_dec"),
+    [
+        (PartMonthRule.PRO_RATA, 45, 45, 0, 45),  # 15 days paid ahead
+        (PartMonthRule.FULL_MONTH, 90, 90, 0, 0),  # the whole month paid ahead
+        (PartMonthRule.PRO_RATA, 1_000, 45, 955, 45),
+    ],
+)
+def test_a_mid_month_payment_pays_the_interest_to_date_before_principal(
+    rule, rupees, interest, principal, unpaid_on_1_dec
+):
+    ledger = paid_on(rule, date(2026, 12, 1), (date(2026, 11, 15), rupees))
+
+    payment = next(s for s in ledger if s.event == "payment")
+    november = next(s for s in ledger if s.event == "interest")
+    assert split(payment) == ("payment", interest, principal)
+    # November is still charged on ₹3,000, what was paid ahead counting against it
+    assert (november.amount, november.charged_on) == (90_00, 3_000_00)
+    assert november.paid_ahead == interest * 100
+    assert november.unpaid_interest == unpaid_on_1_dec * 100
+
+
+def test_a_month_paid_ahead_counts_as_covered_once_charged():
+    full = paid_on(PartMonthRule.FULL_MONTH, date(2026, 12, 1), (date(2026, 11, 15), 90))
+    half = paid_on(PartMonthRule.PRO_RATA, date(2026, 12, 1), (date(2026, 11, 15), 45))
+
+    assert (months_unpaid(full), months_unpaid(half)) == (0, 1)
+
+
+def test_interest_paid_ahead_is_never_capitalised():
+    # Compounded monthly, pro-rata: ₹45 paid ahead on 15 Nov, so only the other ₹45 of
+    # November's ₹90 is capitalised on 1 Dec.
+    ledger = paid_on(
+        PartMonthRule.PRO_RATA,
+        date(2026, 12, 1),
+        (date(2026, 11, 15), 45),
+        mode=InterestMode.COMPOUNDED_MONTHLY,
+    )
+
+    on_1_dec = [s for s in ledger if s.on == date(2026, 12, 1)]
+    assert [(s.event, s.amount, s.principal) for s in on_1_dec] == [
+        ("interest", 90_00, 3_000_00),
+        ("capitalised", 45_00, 3_045_00),
+        ("interest_to_date", 3_00, 3_045_00),  # a day of 3% on ₹3,045: ₹3.05 → ₹3
+    ]
+
+
+def test_interest_paid_ahead_does_not_cover_an_older_capitalised_month():
+    # Compounded monthly from 1 Oct: October's ₹90 is capitalised on 1 Nov, so ₹93 on
+    # 15 Nov all pays November ahead; October's capitalised interest is still unpaid.
+    rule_terms = Terms(
+        monthly_rate_bps=300,
+        interest_mode=InterestMode.COMPOUNDED_MONTHLY,
+        part_month_rule=PartMonthRule.FULL_MONTH,
+    )
+
+    ledger = compute_ledger(
+        date(2026, 10, 1),
+        3_000_00,
+        rule_terms,
+        date(2026, 12, 1),
+        [Allocation(on=date(2026, 11, 15), amount=93_00, payment_id=1)],
+    )
+
+    assert months_unpaid(ledger) == 1

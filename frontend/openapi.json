@@ -1351,6 +1351,11 @@
             "title": "On",
             "type": "string"
           },
+          "paid_ahead": {
+            "default": 0,
+            "title": "Paid Ahead",
+            "type": "integer"
+          },
           "part_month_days": {
             "default": 0,
             "title": "Part Month Days",

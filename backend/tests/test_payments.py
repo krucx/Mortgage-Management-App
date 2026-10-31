@@ -25,7 +25,8 @@ def payment_fields(ramesh, mortgage, amount, paid_on="2026-04-20", **overrides):
 
 
 def test_a_payment_pays_interest_first_then_principal(client, ramesh, mortgage):
-    # Owed on 20 Apr: 3 months' interest (₹9,000) + ₹1,00,000.
+    # Owed on 20 Apr: 3 months' interest (₹9,000), the month starting 14 Apr's ₹3,000
+    # Interest to Date, and ₹1,00,000.
     payment = pay(
         client,
         ramesh,
@@ -45,8 +46,8 @@ def test_a_payment_pays_interest_first_then_principal(client, ramesh, mortgage):
             "mortgage_id": mortgage["id"],
             "mortgage_name": mortgage["name"],
             "amount": 19_000_00,
-            "interest_paid": 9_000_00,
-            "principal_paid": 10_000_00,
+            "interest_paid": 12_000_00,
+            "principal_paid": 7_000_00,
         }
     ]
     assert client.get(f"/api/payments/{payment['id']}").json() == payment
@@ -65,12 +66,14 @@ def test_the_mortgage_ledger_shows_the_payment_and_what_is_left(
         "payment",
         19_000_00,
     )
-    assert (step["interest_paid"], step["principal_paid"]) == (9_000_00, 10_000_00)
+    assert (step["interest_paid"], step["principal_paid"]) == (12_000_00, 7_000_00)
     assert step["payment_id"] == payment["id"]
-    # The month starting 14 Apr is still charged on ₹1,00,000 (ADR 0006).
+    # The month starting 14 Apr, charged on ₹1,00,000 (ADR 0006), is paid ahead.
+    to_date = page["ledger"][-1]
+    assert (to_date["amount"], to_date["paid_ahead"]) == (3_000_00, 3_000_00)
     assert page["outstanding"] == {
-        "principal": 90_000_00,
-        "unpaid_interest": 3_000_00,
+        "principal": 93_000_00,
+        "unpaid_interest": 0,
         "total": 93_000_00,
     }
 
@@ -97,11 +100,11 @@ def test_a_back_dated_payment_is_slotted_into_the_ledger_by_date(
 
 def test_a_payment_larger_than_what_is_owed_is_refused(client, ramesh, mortgage):
     response = client.post(
-        "/api/payments", json=payment_fields(ramesh, mortgage, 109_000_01)
+        "/api/payments", json=payment_fields(ramesh, mortgage, 112_000_01)
     )
 
     assert response.status_code == 422
-    assert "₹1,09,000" in response.json()["detail"]
+    assert "₹1,12,000 owed" in response.json()["detail"]  # its Outstanding
     assert (
         client.get(f"/api/mortgages/{mortgage['id']}").json()["ledger"][-2]["event"]
         == "interest"
@@ -217,10 +220,12 @@ def test_one_payment_can_be_allocated_across_several_mortgages(
         (a["mortgage_name"], a["interest_paid"], a["principal_paid"])
         for a in payment["allocations"]
     ] == [
-        (mortgage["name"], 9_000_00, 3_000_00),
-        (second_mortgage["name"], 3_000_00, 5_000_00),  # 2 months' interest by 20 Apr
+        # 3 months' interest and ₹3,000 Interest to Date: no Principal yet
+        (mortgage["name"], 12_000_00, 0),
+        # 2 months' interest by 20 Apr and ₹1,500 Interest to Date
+        (second_mortgage["name"], 4_500_00, 3_500_00),
     ]
-    for m, principal in [(mortgage, 97_000_00), (second_mortgage, 45_000_00)]:
+    for m, principal in [(mortgage, 100_000_00), (second_mortgage, 46_500_00)]:
         page = client.get(f"/api/mortgages/{m['id']}").json()
         assert page["ledger"][-2]["payment_id"] == payment["id"]
         assert page["outstanding"]["principal"] == principal
@@ -229,10 +234,10 @@ def test_one_payment_can_be_allocated_across_several_mortgages(
 def test_a_lump_sum_larger_than_everything_owed_is_refused(
     client, ramesh, mortgage, second_mortgage
 ):
-    # Owed on 20 Apr: ₹1,09,000 and ₹53,000.
+    # Owed on 20 Apr: ₹1,12,000 and ₹54,500, their Interest to Date included.
     response = client.post(
         "/api/payments",
-        json=lump_sum(ramesh, [(mortgage, 109_000_00), (second_mortgage, 53_000_01)]),
+        json=lump_sum(ramesh, [(mortgage, 109_000_00), (second_mortgage, 54_500_01)]),
     )
 
     assert response.status_code == 422
@@ -333,3 +338,50 @@ def test_an_earlier_payment_does_not_name_a_mortgage_a_later_one_left_ready_to_r
     pay(client, ramesh, {mortgage["id"]: 100_000_00}, on="2026-04-15")
 
     assert client.get(f"/api/payments/{earlier['id']}").json()["ready_to_redeem"] == []
+
+
+# Payments pay the Interest to Date before Principal (#69).
+
+
+def test_a_mid_month_receipt_shows_the_interest_to_date_paid_before_principal(
+    client, ramesh, mortgage
+):
+    # 15 Apr: ₹9,000 charged and ₹3,000 Interest to Date, then Principal.
+    payment = pay(client, ramesh, {mortgage["id"]: 15_000_00}, on="2026-04-15")
+
+    [line] = client.get(f"/api/payments/{payment['id']}/receipt").json()["lines"]
+
+    assert (line["interest_paid"], line["principal_paid"], line["owed_after"]) == (
+        12_000_00,
+        3_000_00,
+        97_000_00,
+    )
+
+
+def test_voiding_a_mid_month_payment_restores_the_ledger(client, ramesh, mortgage):
+    before = client.get(f"/api/mortgages/{mortgage['id']}").json()
+    payment = pay(client, ramesh, {mortgage["id"]: 15_000_00}, on="2026-04-15")
+
+    voided = client.post(
+        f"/api/payments/{payment['id']}/void", json={"reason": "Bounced"}
+    )
+
+    assert voided.status_code == 200, voided.text
+    after = client.get(f"/api/mortgages/{mortgage['id']}").json()
+    assert (after["ledger"], after["outstanding"]) == (
+        before["ledger"],
+        before["outstanding"],
+    )
+
+
+def test_paying_principal_and_charged_interest_on_an_accrual_date_still_owes(
+    client, ramesh
+):
+    # From 20 Mar, accruing today: ₹3,000 charged and the month starting today's ₹3,000
+    # (Full-month) come first, so ₹1,03,000 leaves ₹3,000 of Principal owed.
+    mortgage = lend(client, ramesh, "2026-03-20")
+
+    pay(client, ramesh, {mortgage["id"]: 103_000_00}, on="2026-04-20")
+
+    page = client.get(f"/api/mortgages/{mortgage['id']}").json()
+    assert (page["status"], page["outstanding"]["total"]) == ("active", 3_000_00)

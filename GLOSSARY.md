@@ -49,7 +49,7 @@ _Avoid_: Rate edit, amendment
 The amount on a Mortgage on which interest is charged; grows when unpaid interest is capitalised and shrinks when payments exceed interest.
 
 **Accrual Date**:
-The monthly day on which a month's interest is added, charged on the Principal as it stood at the previous Accrual Date; taken from the start date and clamped to month-end when the month is shorter.
+The monthly day on which a month's interest is added, charged on the Principal as it stood when that month began, at the previous Accrual Date before that day's Payments; taken from the start date and clamped to month-end when the month is shorter.
 _Avoid_: Due date, interest date
 
 **Interest Mode**:
@@ -119,7 +119,7 @@ The acknowledgement of a Payment for the Customer: what each Mortgage was paid a
 _Avoid_: Invoice, bill
 
 **Allocation**:
-The portion of a Payment applied to one Mortgage; within a Mortgage it pays interest before Principal.
+The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month's interest), then Principal.
 _Avoid_: Split, contribution
 
 **Void**:
@@ -133,7 +133,7 @@ A message to a Customer, sent ahead of Accrual Dates, covering every one of thei
 _Avoid_: Reminder, notification
 
 **Months Unpaid**:
-How many of a Mortgage's latest monthly interest charges (never its Interest to Date) its Payments have not yet covered, counting Payments against the oldest interest first; capitalised interest still counts as unpaid.
+How many of a Mortgage's latest monthly interest charges (never its Interest to Date) its Payments have not yet covered, counting Payments against the oldest interest first and interest paid ahead against its own month; capitalised interest still counts as unpaid.
 _Avoid_: Months overdue, arrears
 
 **Call List**:

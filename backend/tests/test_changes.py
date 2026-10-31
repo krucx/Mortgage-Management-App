@@ -81,7 +81,7 @@ def test_a_payment_larger_than_what_is_owed_is_refused(conn: Connection) -> None
     assert refusal(error) == (
         422,
         "2026-Ramesh-Chain: the Payment on 20 Feb 2026 would be more than the "
-        "₹1,03,000 owed then",
+        "₹1,06,000 owed then",  # its Interest to Date included
     )
 
 
@@ -90,8 +90,8 @@ def test_a_back_dated_payment_that_breaks_a_later_one_is_refused(
 ) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    # Paid off on 15 Mar: ₹1,00,000 + ₹6,000.
-    add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_06_000 * RUPEE})
+    # ₹1,09,000 owed on 15 Mar (its Interest to Date included); ₹1,08,500 paid.
+    add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_08_500 * RUPEE})
 
     with pytest.raises(HTTPException) as error:
         changes.record_payment(
@@ -101,11 +101,11 @@ def test_a_back_dated_payment_that_breaks_a_later_one_is_refused(
             NOW,
         )
 
-    # After ₹1,000 on 20 Feb only ₹1,05,000 is owed on 14 Mar.
+    # After ₹1,000 on 20 Feb only ₹1,08,000 is owed on 15 Mar.
     assert refusal(error) == (
         422,
         "2026-Ramesh-Chain: the Payment on 15 Mar 2026 would be more than the "
-        "₹1,05,000 owed then",
+        "₹1,08,000 owed then",
     )
 
 
@@ -209,11 +209,11 @@ def test_an_edit_that_would_make_a_payment_too_large_is_refused(
     with pytest.raises(HTTPException) as error:
         changes.edit_mortgage(conn, chain, edit(amount_lent=50_000 * RUPEE), TODAY, NOW)
 
-    # Lent ₹50,000: only ₹53,000 owed on 15 Mar.
+    # Lent ₹50,000: only ₹54,500 owed on 15 Mar, its Interest to Date included.
     assert refusal(error) == (
         422,
         "2026-Ramesh-Chain: the Payment on 15 Mar 2026 would be more than the "
-        "₹53,000 owed then",
+        "₹54,500 owed then",
     )
 
 

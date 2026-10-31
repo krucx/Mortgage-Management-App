@@ -279,13 +279,21 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
   )
 }
 
+/** What Payments in the month had already paid of its interest, if anything. */
+function paidAhead(step: LedgerStep): string {
+  return step.paid_ahead ? `, ${formatINR(step.paid_ahead)} of it paid ahead` : ''
+}
+
 /** The calculation behind a Ledger step, in words. */
 function describe(step: LedgerStep, mortgage: Mortgage): string {
   switch (step.event) {
     case 'started':
       return 'Mortgage started: Principal lent'
     case 'interest':
-      return `Interest: ${formatRate(mortgage.terms.monthly_rate_bps)} of ${formatINR(step.charged_on)}`
+      return (
+        `Interest: ${formatRate(mortgage.terms.monthly_rate_bps)} of ${formatINR(step.charged_on)}` +
+        paidAhead(step)
+      )
     case 'payment':
       return (
         `Payment: ${formatINR(step.interest_paid)} to interest, ` +
@@ -304,7 +312,8 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
       return (
         `Interest to Date: ${days} of this month, ` +
         `${mortgage.status === 'active' ? 'today' : 'its Closure'} included ` +
-        `(${PART_MONTH_RULES[rule]}) on ${formatINR(step.charged_on)}${toDate}`
+        `(${PART_MONTH_RULES[rule]}) on ${formatINR(step.charged_on)}${toDate}` +
+        paidAhead(step)
       )
     }
     case 'waived':
