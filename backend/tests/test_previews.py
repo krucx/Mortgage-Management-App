@@ -65,8 +65,8 @@ def test_an_edit_preview_shows_both_sides_without_saving(client, mortgage):
 
     assert shown["mortgage_name"] == mortgage["name"]
     assert (shown["before"]["outstanding"], shown["after"]["outstanding"]) == (
-        1_09_000 * RUPEE,
-        54_500 * RUPEE,
+        1_12_000 * RUPEE,
+        56_000 * RUPEE,
     )
     # In 3 months, Redeeming (full-month rule): ₹1,21,000 now, ₹60,500 after.
     assert at(shown["before"], 3)["redemption_amount"] == 1_21_000 * RUPEE
@@ -90,6 +90,7 @@ def test_an_edit_preview_lists_the_ledger_steps_that_change(client, mortgage):
         ("2026-02-14", "interest", 3_000 * RUPEE, 1_500 * RUPEE),
         ("2026-03-14", "interest", 3_000 * RUPEE, 1_500 * RUPEE),
         ("2026-04-14", "interest", 3_000 * RUPEE, 1_500 * RUPEE),
+        ("2026-04-20", "interest_to_date", 3_000 * RUPEE, 1_500 * RUPEE),
     ]
 
 
@@ -120,15 +121,14 @@ def test_a_void_preview_shows_the_payment_leaving_the_ledger(client, mortgage, p
     shown = preview(client, f"payments/{payment['id']}/void-preview")
 
     assert (shown["before"]["outstanding"], shown["after"]["outstanding"]) == (
-        1_04_000 * RUPEE,
-        1_09_000 * RUPEE,
+        1_07_000 * RUPEE,
+        1_12_000 * RUPEE,
     )
-    [change] = shown["ledger_changes"]
-    assert (change["event"], change["before"]["amount"], change["after"]) == (
-        "payment",
-        5_000 * RUPEE,
-        None,
-    )
+    # The Payment leaves; the Interest to Date after it is the same, with more owed.
+    assert changed_steps(shown) == [
+        ("2026-04-15", "payment", 5_000 * RUPEE, None),
+        ("2026-04-20", "interest_to_date", 3_000 * RUPEE, 3_000 * RUPEE),
+    ]
     assert client.get(f"/api/payments/{payment['id']}").json()["voided_at"] is None
 
 
@@ -188,12 +188,11 @@ def test_a_redeem_preview_shows_the_final_payment_closing_the_mortgage(
     )
 
     assert (shown["before"]["outstanding"], shown["after"]["outstanding"]) == (
-        1_09_000 * RUPEE,
+        1_12_000 * RUPEE,
         0,
     )
-    # The Full-month charge for the 6 days since 14 Apr, then the Redemption Amount.
+    # The Interest to Date was already owed; the final Payment pays all of it.
     assert changed_steps(shown) == [
-        ("2026-04-20", "part_month", None, 3_000 * RUPEE),
         ("2026-04-20", "payment", None, 1_12_000 * RUPEE),
     ]
     assert shown["after"]["points"] == []  # a closed Mortgage has no Projection
@@ -219,8 +218,8 @@ def test_a_forfeit_preview_shows_the_jewellery_settling_the_debt(client, mortgag
     )
 
     assert shown["after"]["outstanding"] == 0
+    # The Interest to Date was already owed; the jewellery settles everything.
     assert [(on, event) for on, event, *_ in changed_steps(shown)] == [
-        ("2026-04-20", "part_month"),
         ("2026-04-20", "forfeited"),
     ]
     assert nothing_saved(client, mortgage)
@@ -236,10 +235,10 @@ def test_a_reopen_preview_shows_the_final_payment_voided(client, mortgage):
 
     assert (shown["before"]["outstanding"], shown["after"]["outstanding"]) == (
         0,
-        1_09_000 * RUPEE,
+        1_12_000 * RUPEE,
     )
+    # The Interest to Date stays owed, just no longer fixed by a Closure.
     assert changed_steps(shown) == [
-        ("2026-04-20", "part_month", 3_000 * RUPEE, None),
         ("2026-04-20", "payment", 1_12_000 * RUPEE, None),
     ]
     assert at(shown["after"], 3)["redemption_amount"] == 1_21_000 * RUPEE
@@ -301,13 +300,14 @@ def test_a_payment_preview_covers_every_mortgage_it_is_allocated_to(
     )
 
     assert response.status_code == 200, response.text
-    # Each owed ₹1,09,000; ₹9,000 pays interest, ₹10,000 also ₹1,000 of Principal.
+    # Each owed ₹1,12,000; ₹9,000 pays interest, ₹10,000 also ₹1,000 of Principal,
+    # leaving the Interest to Date (on ₹1,00,000, as the month started).
     assert [
         (p["mortgage_name"], p["before"]["outstanding"], p["after"]["outstanding"])
         for p in response.json()
     ] == [
-        (mortgage["name"], 1_09_000 * RUPEE, 1_00_000 * RUPEE),
-        ("2026-Ramesh-Bangles", 1_09_000 * RUPEE, 99_000 * RUPEE),
+        (mortgage["name"], 1_12_000 * RUPEE, 1_03_000 * RUPEE),
+        ("2026-Ramesh-Bangles", 1_12_000 * RUPEE, 1_02_000 * RUPEE),
     ]
     assert client.get("/api/payments").json()["total"] == 0
 
@@ -349,8 +349,9 @@ def test_a_new_mortgage_preview_shows_its_name_terms_and_what_it_would_owe(
     shown = preview.json()
     assert shown["name"] == "2026-Ramesh-GoldChain"
     assert shown["terms"]["interest_mode"] == "compounded_yearly"  # the Default Terms
-    # Back-dated to 14 Jan: three months of 3% (capitalised only yearly) owed today.
-    assert shown["after"]["outstanding"] == 1_09_000 * RUPEE
+    # Back-dated to 14 Jan: three months of 3% (capitalised only yearly) and the month
+    # under way owed today.
+    assert shown["after"]["outstanding"] == 1_12_000 * RUPEE
     assert len(shown["after"]["points"]) > 1
     assert client.get("/api/mortgages").json()["total"] == 0  # nothing saved
 
@@ -367,7 +368,7 @@ def test_a_collateral_preview_shows_the_loan_to_value_and_call_list_either_side(
     client.put(
         "/api/settings/gold-rates",
         json=[{"purity_karat": 22, "rate_per_gram": 7_000 * RUPEE}],
-    )  # 19 g: ₹1,33,000 of gold, so ₹1,09,000 owed is 82%
+    )  # 19 g: ₹1,33,000 of gold, so ₹1,12,000 owed is 84%
 
     preview = client.post(
         f"/api/mortgages/{mortgage['id']}/collateral-preview",
@@ -376,7 +377,7 @@ def test_a_collateral_preview_shows_the_loan_to_value_and_call_list_either_side(
 
     assert preview["before"]["value"] == 1_33_000 * RUPEE
     assert preview["after"]["value"] == 1_20_000 * RUPEE
-    assert preview["after"]["loan_to_value"] == pytest.approx(109 / 120)
+    assert preview["after"]["loan_to_value"] == pytest.approx(112 / 120)
     assert (preview["listed_before"], preview["listed_after"]) == (False, True)
     stored = client.get(f"/api/mortgages/{mortgage['id']}").json()["collateral"]
     assert stored["source"] == "gold_rate"  # nothing saved

@@ -11,7 +11,7 @@ const HORIZONS = [3, 6, 12]
 const STEP_LABELS: Record<LedgerStep['event'], string> = {
   started: 'Principal lent',
   interest: 'Interest',
-  part_month: 'Part-month interest',
+  interest_to_date: 'Interest to Date',
   payment: 'Payment',
   capitalised: 'Capitalised',
   forfeited: 'Forfeited',

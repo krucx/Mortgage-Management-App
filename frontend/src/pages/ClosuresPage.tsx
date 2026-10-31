@@ -105,7 +105,7 @@ export function ClosuresPage() {
                     {redemption.part_month_charge > 0 && (
                       <span className="hint">
                         {' '}
-                        (part-month charge for {redemption.part_month_days} days)
+                        (Interest to Date for {redemption.part_month_days} days)
                       </span>
                     )}
                   </td>

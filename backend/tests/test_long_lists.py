@@ -3,8 +3,7 @@
 """
 
 import pytest
-from api_seed import RING, lend, nth_person, pay
-from seed import RUPEE
+from api_seed import RING, lend, nth_person
 
 
 def get(client, path, **params):
@@ -85,16 +84,3 @@ def test_notices_come_a_page_at_a_time(client, accruing_customers):
 
     assert (len(first["items"]), len(second["items"]), first["total"]) == (20, 1, 21)
     assert get(client, "dashboard")["notices_to_send"] == 21
-
-
-def test_ready_to_redeem_comes_a_page_at_a_time(client):
-    owner = nth_person(client, 1)
-    for _ in range(21):
-        mortgage = lend(client, owner, **RING)
-        # ₹10,000 at 3% from 14 Jan: ₹900 of interest by 20 Apr, ₹10,900 in all.
-        pay(client, owner, {mortgage["id"]: 10_900 * RUPEE}, on="2026-04-20")
-
-    first = get(client, "closures/ready-to-redeem")
-    second = get(client, "closures/ready-to-redeem", page=2)
-
-    assert (len(first["items"]), len(second["items"]), first["total"]) == (20, 1, 21)

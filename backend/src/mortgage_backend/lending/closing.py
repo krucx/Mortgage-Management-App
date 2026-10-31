@@ -26,7 +26,7 @@ class ReadyToRedeem(BaseModel):
     """An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back."""
 
     mortgage: MortgageRow
-    redemption: Redemption  # redeeming today; may include a Part-Month Rule charge
+    redemption: Redemption  # redeeming today, its Interest to Date included
 
 
 # A column of the Ready to Redeem list to sort it by.

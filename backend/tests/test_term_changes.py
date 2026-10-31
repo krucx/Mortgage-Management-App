@@ -33,7 +33,7 @@ def test_a_term_change_starts_on_the_next_accrual_date_by_default(client, mortga
     assert change["terms"] == {**SIMPLE_3, "monthly_rate_bps": 200}
     assert change["removable"] is True
     assert updated["terms"] == SIMPLE_3  # still in force today
-    assert updated["outstanding"]["total"] == 1_09_000 * RUPEE
+    assert updated["outstanding"]["total"] == 1_12_000 * RUPEE
 
 
 def test_a_term_change_starting_today_shows_in_the_ledger(client, ramesh):
@@ -46,7 +46,11 @@ def test_a_term_change_starting_today_shows_in_the_ledger(client, ramesh):
     assert response.status_code == 201, response.text
     updated = response.json()
     assert updated["terms"]["interest_mode"] == "compounded_monthly"
-    assert updated["ledger"][-1]["event"] == "term_changed"
+    # then the Interest to Date of the month starting today, under the new Terms
+    assert [s["event"] for s in updated["ledger"][-2:]] == [
+        "term_changed",
+        "interest_to_date",
+    ]
     assert updated["term_changes"][0]["removable"] is False
 
 

@@ -43,7 +43,8 @@ def seeded(client, database_url: str) -> Iterator[None]:
         add_mortgage(conn, ramesh, suffix="Ring", start_date=date(2026, 1, 22))
         sita = add_customer(conn, phone="9829054321")
         paid = add_mortgage(conn, sita, suffix="Paid", start_date=date(2026, 4, 1))
-        add_payment(conn, sita, date(2026, 4, 10), {paid: LAKH})  # ready to redeem
+        # Paid down to its Interest to Date, so (since ADR 0011) not ready to redeem
+        add_payment(conn, sita, date(2026, 4, 10), {paid: LAKH})
         old = add_mortgage(conn, sita, suffix="Old", start_date=date(2025, 6, 1))
         redeem(conn, old, date(2026, 4, 5))
     yield
@@ -77,7 +78,7 @@ def test_the_dashboard_replays_each_mortgage_once(client, seeded, replayed_ids):
 def test_ready_to_redeem_replays_each_mortgage_once(client, seeded, replayed_ids):
     ready = client.get("/api/closures/ready-to-redeem").json()["items"]
 
-    assert [r["mortgage"]["name"] for r in ready] == ["2026-Ramesh-Paid"]
+    assert ready == []
     assert once_each(replayed_ids)
 
 

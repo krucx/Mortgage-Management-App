@@ -104,7 +104,7 @@ export function RedeemPaidOff({
                     (sharedLastAccrual ? '' : `Paid up to ${formatDate(quote.last_accrual_on)}. `) +
                     (quote.total === 0
                       ? 'Nothing more to pay.'
-                      : `The final Payment is ${formatINR(quote.total)}: the part-month charge ` +
+                      : `The final Payment is ${formatINR(quote.total)}: the Interest to Date ` +
                         `for ${quote.part_month_days} days (${rules[m.id] ?? 'Part-Month Rule'}).`)
                   )}
                 </div>

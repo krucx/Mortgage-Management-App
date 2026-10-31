@@ -53,9 +53,11 @@ def test_loan_to_value_is_against_todays_collateral_value(client, mortgage):
         json=[{"purity_karat": 22, "rate_per_gram": 6_000 * RUPEE}],
     )
 
-    in_three = at(projection(client, mortgage)["baseline"], 3)
+    baseline = projection(client, mortgage)["baseline"]
 
-    assert in_three["loan_to_value"] == pytest.approx(1_18_000 / 1_14_000)
+    # Each date's Outstanding, its Interest to Date included, as on the Mortgage page
+    assert at(baseline, 0)["loan_to_value"] == pytest.approx(1_12_000 / 1_14_000)
+    assert at(baseline, 3)["loan_to_value"] == pytest.approx(1_21_000 / 1_14_000)
 
 
 def test_what_if_they_pay_every_month(client, mortgage):

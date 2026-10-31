@@ -23,7 +23,7 @@ from mortgage_backend.lending.ledger import (
     Projected,
     TermChange,
     compute_ledger,
-    days_since_accrual,
+    interest_to_date_days,
     project,
     terms_on,
 )
@@ -43,15 +43,9 @@ class MortgageStatus(StrEnum):
     FORFEITED = "forfeited"
 
 
-# What is left owing at a Closure is written off by these, but paid by a Redemption.
-_WRITTEN_OFF: dict[str, Literal["forfeited", "waived"]] = {
-    MortgageStatus.FORFEITED: "forfeited",
-    MortgageStatus.WAIVED: "waived",
-}
-
-
 class Outstanding(BaseModel):
-    """Principal plus unpaid interest on a date, before any Part-Month Rule charge."""
+    """What would redeem it on a date: Principal plus unpaid interest, its Interest to
+    Date included (ADR 0011)."""
 
     principal: int
     unpaid_interest: int
@@ -65,8 +59,8 @@ class Redemption(BaseModel):
     principal: int
     unpaid_interest: int
     last_accrual_on: date  # the last Accrual Date by `on` (the start, before any)
-    part_month_days: int  # since the last Accrual Date
-    part_month_charge: int  # per the Part-Month Rule
+    part_month_days: int  # of the month under way charged, `on` included
+    part_month_charge: int  # the Interest to Date, per the Part-Month Rule
     total: int  # the Redemption Amount
 
 
@@ -75,7 +69,7 @@ class Closure(BaseModel):
 
     kind: Literal["redeemed", "waived", "forfeited"]
     on: date
-    redemption_amount: int  # owed on that date, Part-Month Rule charge included
+    redemption_amount: int  # owed on that date, its Interest to Date included
     payment_id: int | None  # Redeemed or Waived: the final Payment, if any
     payment_amount: int | None  # what that final Payment paid on this Mortgage
     waived_amount: int | None  # Waived: what the Lender let off
@@ -117,7 +111,10 @@ class MortgageReplay:
                 as_of,
                 self.allocations,
                 closed_on=self.row["closed_on"],
-                written_off=_WRITTEN_OFF.get(self.row["status"]),
+                closure=None
+                if self.row["status"] == MortgageStatus.ACTIVE
+                else self.row["status"],
+                final_payment=self.row["redemption_payment_id"],
             )
         return list(self._ledgers[as_of])
 
@@ -134,6 +131,15 @@ class MortgageReplay:
             for step in self.ledger(up_to)
             if step.payment_id is not None
         }
+
+    def owed_after(self, payment_id: int, on: date) -> int:
+        """What it owed just after its Payment `payment_id` on `on`: with the Interest
+        to Date charged after it that day, but none of that day's later Payments."""
+        ledger = self.ledger(on)
+        at = next(i for i, s in enumerate(ledger) if s.payment_id == payment_id)
+        step = ledger[at]
+        to_date = sum(s.amount for s in ledger[at:] if s.event == "interest_to_date")
+        return step.principal + step.unpaid_interest + to_date
 
     def outstanding(self, on: date) -> Outstanding:
         """What the Mortgage owes on `on`: nothing once closed."""
@@ -160,17 +166,16 @@ class MortgageReplay:
             on,
             [a for a in self.allocations if a.payment_id != final_payment],
             closed_on=on,
-            written_off=None,
         )
         last = ledger[-1]
-        part_month = next((s for s in ledger if s.event == "part_month"), None)
-        charge = part_month.amount if part_month else 0
-        days = days_since_accrual(self.row["start_date"], on)
+        to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
+        charge = to_date.amount if to_date else 0
+        days = interest_to_date_days(self.row["start_date"], on)
         return Redemption(
             on=on,
             principal=last.principal,
             unpaid_interest=last.unpaid_interest - charge,
-            last_accrual_on=on - timedelta(days=days),
+            last_accrual_on=on - timedelta(days=days - 1),
             part_month_days=days,
             part_month_charge=charge,
             total=last.principal + last.unpaid_interest,
@@ -231,7 +236,8 @@ class MortgageReplay:
         as_of: date,
         allocations: Sequence[Allocation],
         closed_on: date | None,
-        written_off: Literal["forfeited", "waived"] | None,
+        closure: Literal["redeemed", "waived", "forfeited"] | None = None,
+        final_payment: int | None = None,
     ) -> list[LedgerStep]:
         return compute_ledger(
             self.row["start_date"],
@@ -240,8 +246,9 @@ class MortgageReplay:
             as_of,
             allocations,
             closed_on=closed_on,
-            written_off=written_off,
+            closure=closure,
             term_changes=self.term_changes,
+            final_payment=final_payment,
         )
 
 

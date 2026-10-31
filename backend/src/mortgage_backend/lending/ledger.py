@@ -15,7 +15,7 @@ from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
 LedgerEvent = Literal[
     "started",
     "interest",
-    "part_month",
+    "interest_to_date",
     "payment",
     "capitalised",
     "forfeited",
@@ -40,9 +40,10 @@ class LedgerStep:
     amount: int  # paise moved by this step
     principal: int  # running Principal after the step, in paise
     unpaid_interest: int  # running unpaid interest after the step, in paise
-    # interest / part_month steps: the Principal at the start of that month
+    # interest / interest_to_date steps: the Principal at the start of that month
     charged_on: int = 0
-    part_month_days: int = 0  # part_month steps: days since the last Accrual Date
+    # interest_to_date steps: days of the month charged, from its first day through `on`
+    part_month_days: int = 0
     interest_paid: int = 0  # payment steps: the part that paid interest
     principal_paid: int = 0  # payment steps: the part that paid Principal
     payment_id: int | None = None  # None for a hypothetical Payment in a Projection
@@ -132,8 +133,14 @@ def days_since_accrual(start: date, on: date) -> int:
     return (on - accrual_date(start, n)).days
 
 
+def interest_to_date_days(start: date, on: date) -> int:
+    """Days of the month under way charged by `on`: from its first day (the start or
+    the last Accrual Date) through `on` itself, so today always counts."""
+    return days_since_accrual(start, on) + 1
+
+
 def part_month_charge(principal: int, terms: Terms, days: int) -> int:
-    """The Part-Month Rule charge for closing `days` after the last Accrual Date."""
+    """The Interest to Date for `days` of a month, under its Part-Month Rule."""
     if days <= 0:
         return 0
     match terms.part_month_rule:
@@ -257,12 +264,30 @@ class _Run:
             self.month_start_principal = self.principal  # the next month starts now
             self.n += 1
 
-    def part_month_charge(self, on: date) -> tuple[int, int]:
-        """The Part-Month Rule charge (and days) for closing on `on`, once accrued
-        through it."""
-        days = days_since_accrual(self.start, on)
+    def interest_to_date(self, on: date) -> tuple[int, int]:
+        """The Interest to Date (and days charged) on `on`, once accrued through it."""
+        days = interest_to_date_days(self.start, on)
         month_terms = self.terms_from(accrual_date(self.start, self.n - 1))
         return part_month_charge(self.month_start_principal, month_terms, days), days
+
+    def charge_interest_to_date(self, on: date, cap: int | None = None) -> None:
+        """Add the Interest to Date on `on` (no more than `cap`) as the Ledger's step."""
+        charge, days = self.interest_to_date(on)
+        if cap is not None:
+            charge = min(charge, cap)
+        if charge:
+            self.unpaid += charge
+            self.steps.append(
+                LedgerStep(
+                    on,
+                    "interest_to_date",
+                    charge,
+                    self.principal,
+                    self.unpaid,
+                    charged_on=self.month_start_principal,
+                    part_month_days=days,
+                )
+            )
 
 
 def compute_ledger(
@@ -272,17 +297,25 @@ def compute_ledger(
     as_of: date,
     allocations: Iterable[Allocation] = (),
     closed_on: date | None = None,
-    written_off: Literal["forfeited", "waived"] | None = None,
+    closure: Literal["redeemed", "waived", "forfeited"] | None = None,
     term_changes: Iterable[TermChange] = (),
     hypothetical: HypotheticalPayments | None = None,
+    final_payment: int | None = None,
 ) -> list[LedgerStep]:
     """Replay a Mortgage from its start up to and including `as_of`.
 
-    A Mortgage closed (Redeemed, Waived or Forfeited) on `closed_on` accrues nothing after
-    it; on that date the Part-Month Rule charge for the days since the last Accrual Date is
-    added before that day's Payments, so a final Payment can include it. What a Waived or
-    Forfeited Mortgage still owes after them is then `written_off` (waived by the Lender,
-    or settled by the jewellery), leaving nothing Outstanding.
+    The Ledger ends with the Interest to Date on `as_of`: the month under way so far,
+    today included, under its Part-Month Rule (ADR 0011). On an open Mortgage it changes
+    from day to day, giving way to the month's interest on the next Accrual Date.
+
+    A Mortgage closed on `closed_on` accrues nothing after it; with no `closure` given,
+    that is a quote of closing then. Its Interest to Date on that date is fixed, after
+    that day's other Payments and before its `final_payment` (the Closure's), so a
+    final Payment of everything Outstanding closes it. A Redemption's Interest to Date is
+    no more than its final Payment left for it, so a Redeemed Mortgage never owes
+    anything. What a Waived or Forfeited Mortgage still owes after its final Payment is
+    written off (waived by the Lender, or settled by the jewellery), leaving nothing
+    Outstanding.
 
     Each month's interest is charged on the Principal as it stood at the start of that
     month (the previous Accrual Date), so paying Principal mid-month lowers interest only
@@ -297,29 +330,32 @@ def compute_ledger(
     """
     if closed_on is not None:
         as_of = min(as_of, closed_on)
+    closing = closed_on == as_of
+    # The Closure's final Payment waits for its Interest to Date, so paying all that is
+    # owed closes it; every other Payment comes before, as on any day.
+    allocations = list(allocations)
+    final = [
+        a for a in allocations if closing and a.on == as_of and a.payment_id == final_payment
+    ]
     run = _Run(
-        start, amount_lent, terms, allocations, as_of, term_changes, hypothetical
+        start,
+        amount_lent,
+        terms,
+        [a for a in allocations if a not in final],
+        as_of,
+        term_changes,
+        hypothetical,
     )
     run.accrue_through(as_of)
-    if closed_on is not None and closed_on == as_of:
-        run.pay_through(closed_on - timedelta(days=1))
-        charge, days = run.part_month_charge(closed_on)
-        if charge:
-            run.unpaid += charge
-            run.steps.append(
-                LedgerStep(
-                    closed_on,
-                    "part_month",
-                    charge,
-                    run.principal,
-                    run.unpaid,
-                    charged_on=run.month_start_principal,
-                    part_month_days=days,
-                )
-            )
     run.pay_through(as_of)
-    if written_off and closed_on == as_of:
-        run.steps.append(LedgerStep(closed_on, written_off, run.owed(), 0, 0))
+    cap = None
+    if closing and closure == "redeemed":  # what the final Payment left for it
+        cap = max(0, sum(a.amount for a in final) - run.owed())
+    run.charge_interest_to_date(as_of, cap)
+    run.pending = final
+    run.pay_through(as_of)
+    if closing and closure in ("waived", "forfeited"):
+        run.steps.append(LedgerStep(as_of, closure, run.owed(), 0, 0))
     return run.steps
 
 
@@ -330,7 +366,7 @@ class Snapshot:
     on: date
     principal: int
     unpaid_interest: int
-    redemption_amount: int  # if Redeemed that day: Part-Month Rule charge included
+    redemption_amount: int  # its Outstanding: the Interest to Date included
 
 
 @dataclass(frozen=True)
@@ -359,7 +395,7 @@ def project(
     for on in dates:
         run.accrue_through(on)
         run.pay_through(on)
-        charge, _ = run.part_month_charge(on)
+        charge, _ = run.interest_to_date(on)
         snapshots.append(Snapshot(on, run.principal, run.unpaid, run.owed() + charge))
     in_view = [c for c in run.term_changes if dates[0] < c[0] <= dates[-1]]
     if paid_off_by is not None:

@@ -98,7 +98,9 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
             paid=mortgage["allocated"],
             interest_paid=step.interest_paid,
             principal_paid=step.principal_paid,
-            owed_after=0 if waived else step.principal + step.unpaid_interest,
+            owed_after=0
+            if waived
+            else replayed[mortgage["id"]].owed_after(paid_by, payment["paid_on"]),
             redeemed=closed_by == "redeemed",
         )
         earlier = lines.get(mortgage["id"])

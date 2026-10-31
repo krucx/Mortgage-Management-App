@@ -291,11 +291,22 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
         `Payment: ${formatINR(step.interest_paid)} to interest, ` +
         `${formatINR(step.principal_paid)} to Principal`
       )
-    case 'part_month':
+    case 'interest_to_date': {
+      const days = step.part_month_days === 1 ? '1 day' : `${step.part_month_days} days`
+      const rule = mortgage.terms.part_month_rule
+      // Only while Active is it to date: a Closure fixes it.
+      const toDate =
+        mortgage.status !== 'active'
+          ? ''
+          : rule === 'pro_rata'
+            ? ', to date: grows each day until the next Accrual Date'
+            : ', to date: until the next Accrual Date'
       return (
-        `Part-month interest: ${step.part_month_days} days since the last Accrual Date ` +
-        `(${PART_MONTH_RULES[mortgage.terms.part_month_rule]}) on ${formatINR(step.charged_on)}`
+        `Interest to Date: ${days} of this month, ` +
+        `${mortgage.status === 'active' ? 'today' : 'its Closure'} included ` +
+        `(${PART_MONTH_RULES[rule]}) on ${formatINR(step.charged_on)}${toDate}`
       )
+    }
     case 'waived':
       return 'Waived off: the Lender let off what was left'
     case 'forfeited':

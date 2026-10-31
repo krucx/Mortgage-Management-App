@@ -35,22 +35,22 @@ def redeem(client, mortgage, on="2026-04-20", **extra):
     ("rule", "charge"),
     [
         ("full_month", 3_000_00),
-        ("pro_rata", 600_00),
+        ("pro_rata", 700_00),
         ("nothing", 0),
-    ],  # pro-rata: 6 days of 30
+    ],  # pro-rata: 14 Apr to 20 Apr is 7 days of 30
 )
-def test_the_redemption_amount_includes_the_part_month_rule_charge(
+def test_a_closing_quote_includes_the_interest_to_date(
     client, ramesh, rule, charge
 ):
     mortgage = lend(client, ramesh, terms={**SIMPLE_3, "part_month_rule": rule})
 
-    # Accrued 14 Feb, 14 Mar, 14 Apr (₹9,000); 20 Apr is 6 days into the next month.
+    # Accrued 14 Feb, 14 Mar, 14 Apr (₹9,000); 20 Apr is the 7th day of the next month.
     assert redemption(client, mortgage) == {
         "on": "2026-04-20",
         "principal": LAKH,
         "unpaid_interest": 9_000_00,
         "last_accrual_on": "2026-04-14",
-        "part_month_days": 6,
+        "part_month_days": 7,
         "part_month_charge": charge,
         "total": LAKH + 9_000_00 + charge,
     }
@@ -63,7 +63,7 @@ def test_redeeming_records_the_final_payment_and_closes_the_mortgage(client, mor
     page = response.json()
     assert page["status"] == "redeemed"
     assert page["outstanding"] == {"principal": 0, "unpaid_interest": 0, "total": 0}
-    assert [s["event"] for s in page["ledger"][-2:]] == ["part_month", "payment"]
+    assert [s["event"] for s in page["ledger"][-2:]] == ["interest_to_date", "payment"]
     closure = page["closure"]
     assert (closure["kind"], closure["on"], closure["redemption_amount"]) == (
         "redeemed",
@@ -102,22 +102,23 @@ def test_a_closed_mortgage_takes_no_more_payments(client, ramesh, mortgage):
     assert "reopen it first" in response.json()["detail"]
 
 
-def test_paying_everything_on_an_accrual_date_redeems_with_no_part_month_charge(
+def test_paying_everything_on_an_accrual_date_redeems_with_the_month_starting_then(
     client, ramesh, mortgage
 ):
-    assert redemption(client, mortgage, on="2026-04-14")["total"] == 109_000_00
+    # Three months' interest charged by 14 Apr, and (full month) the one starting then
+    assert redemption(client, mortgage, on="2026-04-14")["total"] == 112_000_00
 
     pay(
         client,
         ramesh,
-        {mortgage["id"]: 109_000_00},
+        {mortgage["id"]: 112_000_00},
         on="2026-04-14",
         redeeming=[mortgage["id"]],
     )
 
     page = client.get(f"/api/mortgages/{mortgage['id']}").json()
     assert page["status"] == "redeemed"
-    assert page["closure"]["payment_amount"] == 109_000_00
+    assert page["closure"]["payment_amount"] == 112_000_00
 
 
 @pytest.mark.parametrize(
@@ -278,15 +279,6 @@ def test_closed_mortgages_can_be_listed_by_status(client, ramesh, mortgage):
     assert statuses(status="active") == ["active"]
 
 
-def test_paying_a_mortgage_down_to_nothing_does_not_redeem_it(client, ramesh, mortgage):
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-15")
-
-    page = client.get(f"/api/mortgages/{mortgage['id']}").json()
-
-    assert page["outstanding"]["total"] == 0
-    assert (page["status"], page["closure"]) == ("active", None)
-
-
 def test_the_redemption_amount_can_be_quoted_for_a_future_date(client, mortgage):
     # 20 May: one more month accrued on 14 May, then 6 days into the next (full month).
     assert (
@@ -299,12 +291,12 @@ def test_the_redemption_amount_can_be_quoted_for_a_future_date(client, mortgage)
     ("start", "on", "last_accrual_on", "days"),
     [
         # 31 Jan: the Accrual Dates are 28 Feb and 31 Mar, clamped to month-end.
-        ("2026-01-31", "2026-03-05", "2026-02-28", 5),
+        ("2026-01-31", "2026-03-05", "2026-02-28", 6),
         # Before the first Accrual Date, the days count from the start.
-        ("2026-01-14", "2026-01-20", "2026-01-14", 6),
+        ("2026-01-14", "2026-01-20", "2026-01-14", 7),
     ],
 )
-def test_the_part_month_days_count_from_the_last_accrual_date(
+def test_the_part_month_days_count_from_the_last_accrual_date_through_today(
     client, ramesh, start, on, last_accrual_on, days
 ):
     quote = redemption(client, lend(client, ramesh, start=start), on=on)
@@ -315,7 +307,8 @@ def test_the_part_month_days_count_from_the_last_accrual_date(
     )
 
 
-# --- Mortgages ready to Redeem: Active, with nothing Outstanding.
+# --- Mortgages ready to Redeem: Active, with nothing Outstanding. With the Interest
+# to Date in Outstanding, only paying all of it leaves nothing, and that Redeems.
 
 
 def ready(client):
@@ -326,46 +319,6 @@ def ready(client):
 
 def test_nothing_is_ready_to_redeem_while_something_is_outstanding(client, mortgage):
     assert ready(client) == []
-
-
-def test_a_paid_off_mortgage_is_ready_to_redeem_with_todays_redemption_amount(
-    client, ramesh, mortgage
-):
-    other = lend(client, ramesh)
-    # Paid off mid-month, on 15 Apr and today: redeeming adds a full month on ₹1,00,000.
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-15")
-    pay(client, ramesh, {other["id"]: 109_000_00}, on="2026-04-20")
-
-    items = ready(client)
-
-    assert [(i["mortgage"]["name"], i["redemption"]["total"]) for i in items] == [
-        (mortgage["name"], 3_000_00),
-        (other["name"], 3_000_00),
-    ]
-    assert items[0]["mortgage"]["customer"]["name"] == "Ramesh Kumar"
-    assert items[0]["redemption"]["on"] == "2026-04-20"
-
-
-def test_a_redeemed_mortgage_is_no_longer_waiting(client, ramesh, mortgage):
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-15")
-
-    redeem(client, mortgage)
-
-    assert ready(client) == []
-
-
-def test_mortgages_can_be_listed_by_whether_anything_is_outstanding(
-    client, ramesh, mortgage
-):
-    other = lend(client, ramesh)
-    pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-15")
-
-    page = client.get(
-        "/api/mortgages", params={"status": "active", "owing": True}
-    ).json()
-
-    assert [row["id"] for row in page["items"]] == [other["id"]]
-    assert page["total"] == 1
 
 
 def forfeit_all(client, recovered, on="2026-04-20", note="Auctioned", preview=False):

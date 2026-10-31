@@ -21,6 +21,30 @@ test('the Mortgage page shows what the Mortgage owes', async () => {
   expect(screen.getByText('₹50,750')).toBeTruthy()
 })
 
+test("an Active pro-rata Mortgage's Ledger ends with its Interest to Date, growing daily", async () => {
+  const toDate = {
+    on: '2026-10-18',
+    event: 'interest_to_date' as const,
+    amount: 22_500,
+    principal: 5_000_000,
+    unpaid_interest: 75_000,
+    charged_on: 5_000_000,
+    part_month_days: 9,
+    interest_paid: 0,
+    principal_paid: 0,
+    payment_id: null,
+    terms: null,
+  }
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger: [toDate] } }))
+
+  expect(
+    await screen.findByText(
+      'Interest to Date: 9 days of this month, today included (Pro-rata by day) on ₹50,000, ' +
+        'to date: grows each day until the next Accrual Date',
+    ),
+  ).toBeTruthy()
+})
+
 test("the Mortgage page shows the backend's reason when it cannot load", async () => {
   showMortgagePage(fakeServer({}))
 

@@ -1,8 +1,9 @@
 """Receipts: what a Payment did, ready to send on WhatsApp or print (today is 20 Apr 2026).
 
 Ramesh owes on two Mortgages from 14 Jan at 3% Simple: a ₹1,00,000 gold chain (₹9,000
-of interest by 15 Apr) and ₹50,000 of bangles (₹4,500). On 15 Apr he pays ₹7,000: ₹5,000
-to the chain and ₹2,000 to the bangles, all of it interest.
+of interest by 15 Apr, and ₹3,000 Interest to Date for the month starting 14 Apr) and
+₹50,000 of bangles (₹4,500 and ₹1,500). On 15 Apr he pays ₹7,000: ₹5,000 to the chain
+and ₹2,000 to the bangles, all of it interest.
 """
 
 from datetime import date
@@ -46,8 +47,9 @@ def test_a_receipt_lists_what_each_mortgage_was_paid_and_still_owes(client, paym
         (r["description"], r["paid"], r["interest_paid"], r["principal_paid"], r["owed_after"])
         for r in shown["lines"]
     ] == [
-        ("Gold chain", 5_000 * RUPEE, 5_000 * RUPEE, 0, 1_04_000 * RUPEE),
-        ("Two bangles", 2_000 * RUPEE, 2_000 * RUPEE, 0, 52_500 * RUPEE),
+        # Still owed: what would redeem it that day, the Interest to Date included
+        ("Gold chain", 5_000 * RUPEE, 5_000 * RUPEE, 0, 1_07_000 * RUPEE),
+        ("Two bangles", 2_000 * RUPEE, 2_000 * RUPEE, 0, 54_000 * RUPEE),
     ]
     assert shown["phones"] == ["9829012345", "9414012345"]
 
@@ -58,7 +60,7 @@ def test_the_receipt_message_shows_items_not_mortgage_names(client, payment):
     assert "Namaste Ramesh Kumar" in text
     assert "*₹7,000* by UPI on 15 Apr 2026" in text
     assert "Gold chain\nPaid              ₹5,000\n" in text
-    assert "Total owed     ₹1,56,500\n```" in text
+    assert "Total owed     ₹1,61,000\n```" in text
     assert "2026-Ramesh" not in text
 
 
@@ -121,8 +123,8 @@ def test_a_receipt_is_loaded_with_its_total_owed(conn: Connection) -> None:
 
     # The chain owed ₹1,09,000 and the bangles ₹54,500 before it.
     assert [line.owed_after for line in receipt.lines] == [
-        1_04_000 * RUPEE,
-        52_500 * RUPEE,
+        1_07_000 * RUPEE,
+        54_000 * RUPEE,
     ]
-    assert receipt.total_owed == 1_56_500 * RUPEE
-    assert "₹1,56,500" in receipt.text
+    assert receipt.total_owed == 1_61_000 * RUPEE
+    assert "₹1,61,000" in receipt.text

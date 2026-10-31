@@ -307,5 +307,5 @@ test('each Mortgage Ready to Redeem shows its Redemption Amount today and the pa
 
   const ready = (await screen.findByRole('link', { name: row.name })).closest('tr')!
   expect(within(ready).getByText('₹600')).toBeTruthy()
-  expect(within(ready).getByText('(part-month charge for 6 days)')).toBeTruthy()
+  expect(within(ready).getByText('(Interest to Date for 6 days)')).toBeTruthy()
 })

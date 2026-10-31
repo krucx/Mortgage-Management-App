@@ -3,7 +3,8 @@ and Redemption Amount, straight against the database (no HTTP). Today is 20 Apr 
 (see conftest).
 
 The Mortgage throughout: ₹1,00,000 at 3% a month, Simple, Full-month rule, from
-14 Jan 2026, so ₹3,000 of interest on each Accrual Date and ₹1,09,000 owed on 20 Apr.
+14 Jan 2026, so ₹3,000 of interest on each Accrual Date and, with the month starting
+14 Apr already charged as its Interest to Date, ₹1,12,000 owed on 20 Apr.
 """
 
 from datetime import date
@@ -20,10 +21,13 @@ from seed import (
     redeem,
     waive,
 )
+from sqlalchemy import update
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.lending.ledger import HypotheticalPayments
 from mortgage_backend.lending.replay import Closure, replay, replays
+from mortgage_backend.lending.terms import Terms
+from mortgage_backend.platform.db import allocation_table, payment_table
 
 
 def test_a_voided_payment_is_in_no_ledger(conn: Connection) -> None:
@@ -34,21 +38,21 @@ def test_a_voided_payment_is_in_no_ledger(conn: Connection) -> None:
 
     mortgage = replay(conn, chain)
 
-    assert mortgage.outstanding(TODAY).total == 1_07_000 * RUPEE
+    assert mortgage.outstanding(TODAY).total == 1_10_000 * RUPEE
     assert [s.amount for s in mortgage.ledger(TODAY) if s.event == "payment"] == [
         2_000 * RUPEE
     ]
 
 
-def test_the_redemption_amount_adds_the_part_month_rule_charge(
+def test_a_closing_quote_adds_the_interest_to_date(
     conn: Connection,
 ) -> None:
     chain = add_mortgage(conn, add_customer(conn))
 
-    # 6 days after the 14 Apr Accrual Date: a full month's ₹3,000 more under Full-month.
+    # 14 to 20 Apr is 7 days of the month: a full month's ₹3,000 under Full-month.
     redemption = replay(conn, chain).redemption(TODAY)
 
-    assert redemption.part_month_days == 6
+    assert redemption.part_month_days == 7
     assert redemption.part_month_charge == 3_000 * RUPEE
     assert redemption.total == 1_12_000 * RUPEE
 
@@ -58,13 +62,36 @@ def test_a_redeemed_mortgage_owes_nothing_and_accrues_nothing_after(
 ) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    # Redeemed on the 14 Mar Accrual Date: two months' interest, no part-month charge.
+    # Redeemed on the 14 Mar Accrual Date: two months' interest and the one starting then.
     redeem(conn, chain, date(2026, 3, 14))
 
     mortgage = replay(conn, chain)
 
     assert mortgage.outstanding(TODAY).total == 0
     assert mortgage.ledger(TODAY)[-1].on == date(2026, 3, 14)
+
+
+def test_a_mortgage_redeemed_under_the_old_day_count_still_owes_nothing(
+    conn: Connection,
+) -> None:
+    pro_rata = Terms(
+        monthly_rate_bps=300, interest_mode="simple", part_month_rule="pro_rata"
+    )
+    chain = add_mortgage(conn, add_customer(conn), terms=pro_rata)
+    final = redeem(conn, chain, date(2026, 3, 20))
+    # Before ADR 0011, 14 to 20 Mar counted 6 days, not 7: the Final Payment was ₹100 less.
+    for table, key in ((payment_table, "id"), (allocation_table, "payment_id")):
+        conn.execute(
+            update(table)
+            .where(table.c[key] == final)
+            .values(amount=table.c.amount - 100 * RUPEE)
+        )
+
+    mortgage = replay(conn, chain)
+
+    assert mortgage.outstanding(TODAY).total == 0
+    to_date = [s for s in mortgage.ledger(TODAY) if s.event == "interest_to_date"]
+    assert [s.amount for s in to_date] == [600 * RUPEE]
 
 
 def test_a_redemption_amount_leaves_out_the_redemptions_own_final_payment(
@@ -75,10 +102,10 @@ def test_a_redemption_amount_leaves_out_the_redemptions_own_final_payment(
     add_payment(conn, ramesh, date(2026, 2, 20), {chain: 1_000 * RUPEE})
     final = redeem(conn, chain, date(2026, 3, 14))
     assert final is not None
-    assert replay(conn, chain).steps_by_payment()[final].amount == 1_05_000 * RUPEE
+    assert replay(conn, chain).steps_by_payment()[final].amount == 1_08_000 * RUPEE
 
-    # Owed on 14 Mar before the final Payment: ₹1,06,000 less the earlier ₹1,000.
-    assert replay(conn, chain).redemption(date(2026, 3, 14)).total == 1_05_000 * RUPEE
+    # Owed on 14 Mar before the final Payment: ₹1,09,000 less the earlier ₹1,000.
+    assert replay(conn, chain).redemption(date(2026, 3, 14)).total == 1_08_000 * RUPEE
 
 
 def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
@@ -150,8 +177,9 @@ def test_term_changes_apply_from_their_accrual_date(conn: Connection) -> None:
 
     mortgage = replay(conn, chain)
 
-    # ₹3,000 on 14 Feb and 14 Mar, then ₹2,000 for the month starting 14 Mar.
-    assert mortgage.outstanding(TODAY).total == 1_08_000 * RUPEE
+    # ₹3,000 on 14 Feb and 14 Mar, then ₹2,000 for the month starting 14 Mar and
+    # ₹2,000 Interest to Date for the one starting 14 Apr.
+    assert mortgage.outstanding(TODAY).total == 1_10_000 * RUPEE
     assert mortgage.terms_on(TODAY).monthly_rate_bps == 200
     assert mortgage.terms_on(date(2026, 3, 13)).monthly_rate_bps == 300
 
@@ -169,9 +197,9 @@ def test_mortgages_are_replayed_together_each_with_only_its_own_facts(
     rows = [replay(conn, chain).row, replay(conn, bangle).row]
     both = replays(conn, rows)
 
-    assert both[chain].outstanding(TODAY).total == 1_05_000 * RUPEE
-    # ₹50,000 with ₹1,500 a month for three months, less ₹1,000.
-    assert both[bangle].outstanding(TODAY).total == 53_500 * RUPEE
+    assert both[chain].outstanding(TODAY).total == 1_08_000 * RUPEE
+    # ₹50,000 with ₹1,500 a month for three months and this one, less ₹1,000.
+    assert both[bangle].outstanding(TODAY).total == 55_000 * RUPEE
 
 
 def test_a_projection_reports_each_chosen_date_in_one_replay(conn: Connection) -> None:
@@ -259,12 +287,12 @@ def test_two_payments_on_one_day_are_applied_in_the_order_made(conn: Connection)
     )
 
 
-def test_a_redemptions_final_payment_is_applied_after_the_part_month_charge(
+def test_a_redemptions_final_payment_is_applied_after_the_interest_to_date(
     conn: Connection,
 ) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    # Redeemed on 20 Apr: ₹1,09,000 owed plus a full month's ₹3,000 (Full-month rule).
+    # Redeemed on 20 Apr: ₹1,09,000 charged plus a full month's ₹3,000 Interest to Date.
     final = redeem(conn, chain, TODAY)
     assert final is not None
 

@@ -46,7 +46,7 @@ def test_a_payment_is_written_replayed_and_recorded(conn: Connection) -> None:
         conn, payment(ramesh, "2026-04-15", **{str(chain): 5_000 * RUPEE}), TODAY, NOW
     )
 
-    assert replay(conn, chain).outstanding(TODAY).total == 1_04_000 * RUPEE
+    assert replay(conn, chain).outstanding(TODAY).total == 1_07_000 * RUPEE
     created = [e for e in mortgage_history(conn, chain) if e.entity == "payment"]
     assert {(e.entity_id, e.action, e.field, e.new_value) for e in created} >= {
         (payment_id, "created", "amount", str(5_000 * RUPEE))
@@ -118,7 +118,7 @@ def test_voiding_a_payment_takes_it_out_of_the_ledger_and_records_why(
 
     changes.void_payment(conn, paid, "Typed the wrong amount", TODAY, NOW)
 
-    assert replay(conn, chain).outstanding(TODAY).total == 1_09_000 * RUPEE
+    assert replay(conn, chain).outstanding(TODAY).total == 1_12_000 * RUPEE
     voided = [e for e in mortgage_history(conn, chain) if e.action == "voided"]
     assert [(e.entity_id, e.new_value) for e in voided] == [
         (paid, "Typed the wrong amount")
@@ -130,10 +130,11 @@ def test_a_redemptions_final_payment_is_voided_only_by_reopening(
 ) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
-    # Redeemed on the 14 Mar Accrual Date: its final Payment is ₹1,06,000.
+    # Redeemed on the 14 Mar Accrual Date: its final Payment is ₹1,09,000, the month
+    # starting then included.
     final = redeem(conn, chain, date(2026, 3, 14))
     assert final is not None
-    assert replay(conn, chain).steps_by_payment()[final].amount == 1_06_000 * RUPEE
+    assert replay(conn, chain).steps_by_payment()[final].amount == 1_09_000 * RUPEE
 
     with pytest.raises(HTTPException) as error:
         changes.void_payment(conn, final, "mistake", TODAY, NOW)
@@ -221,7 +222,7 @@ def test_an_edit_is_written_and_recorded(conn: Connection) -> None:
 
     changes.edit_mortgage(conn, chain, edit(amount_lent=90_000 * RUPEE), TODAY, NOW)
 
-    assert replay(conn, chain).outstanding(TODAY).total == (90_000 + 8_100) * RUPEE
+    assert replay(conn, chain).outstanding(TODAY).total == (90_000 + 10_800) * RUPEE
     edited = [e for e in mortgage_history(conn, chain) if e.action == "edited"]
     assert [(e.field, e.old_value, e.new_value) for e in edited] == [
         ("amount_lent", str(LAKH), str(90_000 * RUPEE))
@@ -419,7 +420,7 @@ def test_reopening_a_redemption_voids_its_final_payment(conn: Connection) -> Non
         "active",
         None,
     )
-    assert mortgage.outstanding(TODAY).total == 1_09_000 * RUPEE
+    assert mortgage.outstanding(TODAY).total == 1_12_000 * RUPEE
     newest = [(e.entity, e.entity_id, e.action) for e in mortgage_history(conn, chain)]
     assert newest[:2] == [("mortgage", chain, "reopened"), ("payment", final, "voided")]
 

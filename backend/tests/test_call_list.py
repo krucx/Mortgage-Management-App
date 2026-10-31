@@ -61,14 +61,15 @@ def test_a_mortgage_with_loan_to_value_too_high_is_listed(client, ramesh):
         "/api/settings/gold-rates",
         json=[{"purity_karat": 22, "rate_per_gram": 6_000 * RUPEE}],
     )
-    lend(client, ramesh, "2026-04-01", net_weight_mg=20_000)  # 1L of 1.2L
+    # Each owes ₹1,03,000 today: ₹1,00,000 and the month under way.
+    lend(client, ramesh, "2026-04-01", net_weight_mg=21_000)  # of 1.26L
     risky = lend(client, ramesh, "2026-04-02", net_weight_mg=16_000)  # of 96k
 
     rows = call_list(client)[0]["rows"]
     assert [(r["mortgage_name"], r["reasons"]) for r in rows] == [
         (risky["name"], ["loan_to_value"])
     ]
-    assert rows[0]["loan_to_value"] == pytest.approx(LAKH / (96_000 * RUPEE))
+    assert rows[0]["loan_to_value"] == pytest.approx(1_03_000 / 96_000)
 
 
 def test_a_mortgage_accruing_today_is_listed_for_information(client, ramesh):

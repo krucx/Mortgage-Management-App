@@ -181,7 +181,7 @@ test('the offer to Redeem gives the final Payment and the Part-Month Rule behind
   expect(within(offer).getByText(/Principal and interest are fully paid/)).toBeTruthy()
   expect(
     await within(offer).findByText(
-      'The final Payment is ₹250: the part-month charge for 10 days (Pro-rata by day).',
+      'The final Payment is ₹250: the Interest to Date for 10 days (Pro-rata by day).',
     ),
   ).toBeTruthy()
 })
@@ -202,7 +202,7 @@ test("the offer to Redeem asks for the Redemption Amount afresh, not the one New
   expect(within(offer).queryByText(/₹51,500/)).toBeNull()
   expect(
     await within(offer).findByText(
-      'The final Payment is ₹750: the part-month charge for 10 days (Pro-rata by day).',
+      'The final Payment is ₹750: the Interest to Date for 10 days (Pro-rata by day).',
     ),
   ).toBeTruthy()
 })
@@ -212,7 +212,7 @@ test("the offer to Redeem asks for the Redemption Amount afresh, not the one New
 const ring = { ...row, id: 8, name: '2026GoldRing', outstanding_total: 2_000_000 }
 
 /** Mortgages 7 (pro-rata) and 8 (Part-Month Rule "nothing") owing ₹50,750 and ₹20,000.
- *  Redeeming 7 adds a part-month charge: ₹250 before 1 Apr 2026, ₹750 after. 8 adds
+ *  Redeeming 7 adds its Interest to Date: ₹250 before 1 Apr 2026, ₹750 after. 8 adds
  *  nothing, and can't be quoted before 1 Apr 2026 (it had not started). */
 function quoting(extra: Record<string, unknown> = {}) {
   const quote = (id: number, request: Request) => {
@@ -358,7 +358,7 @@ test('paying the full Redemption Amount asks to Redeem first, then records the P
   expect(within(asked).getByRole('heading', { name: 'Redeem and hand back the jewellery?' })).toBeTruthy()
   expect(
     within(asked).getByText(
-      `This pays the full Redemption Amount of ${row.name} (₹51,500, including a 15-day part-month charge).`,
+      `This pays the full Redemption Amount of ${row.name} (₹51,500, including 15 days' Interest to Date).`,
     ),
   ).toBeTruthy()
   fireEvent.click(within(asked).getByRole('button', { name: 'Redeem' }))

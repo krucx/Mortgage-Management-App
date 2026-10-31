@@ -16,11 +16,13 @@ def dashboard(client):
 def book(client):
     """
     Ramesh: ₹1,00,000 from 14 Jan, Active; ₹2,000 paid 20 Feb and ₹5,000 on 15 Apr
-      (all interest), and ₹1,000 on 16 Apr that was Voided. Owes ₹1,00,000 + ₹2,000.
+      (all interest), and ₹1,000 on 16 Apr that was Voided. Owes ₹1,00,000 + ₹2,000,
+      and ₹3,000 Interest to Date for the month starting 14 Apr.
     Suresh: ₹50,000 from 10 Mar, Redeemed 12 Apr for ₹53,000 (₹1,500 interest on
       10 Apr, ₹1,500 more under the Full-month rule).
-    Suresh: ₹30,000 from 5 Feb, Forfeited 5 Apr owing ₹31,800; the jewellery
-      fetched ₹40,000, a ₹8,200 profit.
+    Suresh: ₹30,000 from 5 Feb, Forfeited 5 Apr owing ₹32,700 (₹900 on 5 Mar and
+      5 Apr, and the month starting then); the jewellery fetched ₹40,000, a ₹7,300
+      profit.
     22K gold at ₹6,000 a gram: Ramesh's 19 g is worth ₹1,14,000.
     """
     ramesh = person(client)
@@ -56,7 +58,7 @@ def test_what_the_active_mortgages_owe(client, book):
     assert figures["active_mortgages"] == 1
     assert figures["customers_with_active_mortgages"] == 1
     assert figures["principal_outstanding"] == 1_00_000 * RUPEE
-    assert figures["unpaid_interest"] == 2_000 * RUPEE
+    assert figures["unpaid_interest"] == 5_000 * RUPEE
 
 
 def test_interest_collected_this_month_and_this_year(client, book):
@@ -71,7 +73,7 @@ def test_collateral_and_loan_to_value(client, book):
     figures = dashboard(client)
 
     assert figures["collateral_value"] == 1_14_000 * RUPEE
-    assert figures["loan_to_value"] == pytest.approx(1_02_000 / 1_14_000)
+    assert figures["loan_to_value"] == pytest.approx(1_05_000 / 1_14_000)
     # Above the 85% Loan-to-Value line, so Ramesh's Mortgage is on the Call List.
     assert figures["call_list_count"] == 1
 
@@ -81,7 +83,7 @@ def test_closures_this_month(client, book):
 
     assert figures["redeemed_this_month"] == 1
     assert figures["forfeited_this_month"] == 1
-    assert figures["forfeiture_profit_loss_this_month"] == 8_200 * RUPEE
+    assert figures["forfeiture_profit_loss_this_month"] == 7_300 * RUPEE
 
 
 def test_waivers_this_month_and_what_was_let_off(client, book):
@@ -184,7 +186,8 @@ def test_a_voided_payment_is_listed_but_paid_no_interest(client):
 
 @pytest.fixture
 def march_redemption(client, book):
-    """Mahesh: ₹10,000 from 1 Feb, Redeemed 1 Mar for ₹10,300 (one month at 3%)."""
+    """Mahesh: ₹10,000 from 1 Feb, Redeemed 1 Mar for ₹10,600 (a month at 3%, and the
+    month starting then)."""
     owner = person(client, "Mahesh Jain", "9829099999")
     anklet = lend(client, owner, "2026-02-01", 10_000 * RUPEE, "Anklet")
     response = client.post(
@@ -212,7 +215,7 @@ def test_trend_projections_carry_the_last_three_full_months_forward(
 ):
     figures = dashboard(client)
 
-    # January to March (April is not over): Payments ₹2,000 (20 Feb) + ₹10,300
+    # January to March (April is not over): Payments ₹2,000 (20 Feb) + ₹10,600
     # (1 Mar); ₹1,00,000 + ₹30,000 + ₹50,000 + ₹10,000 lent; 1 Redemption.
     assert figures["trend_months"] == ["2026-01", "2026-02", "2026-03"]
     assert [
@@ -224,9 +227,9 @@ def test_trend_projections_carry_the_last_three_full_months_forward(
         )
         for p in figures["projections"]
     ] == [
-        (3, 12_300 * RUPEE, 1_90_000 * RUPEE, 1),
-        (6, 24_600 * RUPEE, 3_80_000 * RUPEE, 2),
-        (12, 49_200 * RUPEE, 7_60_000 * RUPEE, 4),
+        (3, 12_600 * RUPEE, 1_90_000 * RUPEE, 1),
+        (6, 25_200 * RUPEE, 3_80_000 * RUPEE, 2),
+        (12, 50_400 * RUPEE, 7_60_000 * RUPEE, 4),
     ]
 
 
@@ -237,7 +240,7 @@ def test_the_coming_months_continue_the_payments_history(client, march_redemptio
     assert coming[-1]["month"] == "2027-04"
     assert len(coming) == 12
     assert {m["interest_charged"] for m in coming} == {3_000 * RUPEE}
-    assert {m["payments_estimate"] for m in coming} == {4_100 * RUPEE}
+    assert {m["payments_estimate"] for m in coming} == {4_200 * RUPEE}
 
 
 def test_estimates_are_to_the_whole_rupee(client, book):

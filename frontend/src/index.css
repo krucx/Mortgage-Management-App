@@ -748,7 +748,7 @@ button.danger-solid {
   background: var(--bg);
 }
 
-tr.ledger-part_month td {
+tr.ledger-interest_to_date td {
   font-style: italic;
 }
 

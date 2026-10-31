@@ -1696,7 +1696,7 @@ export interface components {
              * Event
              * @enum {string}
              */
-            event: "started" | "interest" | "part_month" | "payment" | "capitalised" | "forfeited" | "waived" | "term_changed";
+            event: "started" | "interest" | "interest_to_date" | "payment" | "capitalised" | "forfeited" | "waived" | "term_changed";
             /**
              * On
              * Format: date
@@ -1716,7 +1716,7 @@ export interface components {
              * Event
              * @enum {string}
              */
-            event: "started" | "interest" | "part_month" | "payment" | "capitalised" | "forfeited" | "waived" | "term_changed";
+            event: "started" | "interest" | "interest_to_date" | "payment" | "capitalised" | "forfeited" | "waived" | "term_changed";
             /**
              * Interest Paid
              * @default 0
@@ -2006,7 +2006,8 @@ export interface components {
         NoticeStatus: "awaiting_approval" | "queued" | "sent" | "skipped";
         /**
          * Outstanding
-         * @description Principal plus unpaid interest on a date, before any Part-Month Rule charge.
+         * @description What would redeem it on a date: Principal plus unpaid interest, its Interest to
+         *     Date included (ADR 0011).
          */
         Outstanding: {
             /** Principal */

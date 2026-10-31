@@ -73,7 +73,7 @@ def test_collateral_value_is_net_weight_at_the_gold_rate_for_its_purity(
     assert collateral["value"] == 1_14_000 * RUPEE  # 19 g × ₹6,000
     assert collateral["source"] == "gold_rate"
     assert collateral["set_on"] == "2026-04-20"
-    assert collateral["loan_to_value"] == pytest.approx(1_09_000 / 1_14_000)
+    assert collateral["loan_to_value"] == pytest.approx(1_12_000 / 1_14_000)
 
 
 def test_changing_a_gold_rate_revalues_the_mortgage_at_once(client, mortgage):

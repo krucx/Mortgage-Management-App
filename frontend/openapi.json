@@ -1291,7 +1291,7 @@
             "enum": [
               "started",
               "interest",
-              "part_month",
+              "interest_to_date",
               "payment",
               "capitalised",
               "forfeited",
@@ -1331,7 +1331,7 @@
             "enum": [
               "started",
               "interest",
-              "part_month",
+              "interest_to_date",
               "payment",
               "capitalised",
               "forfeited",
@@ -1994,7 +1994,7 @@
         "type": "string"
       },
       "Outstanding": {
-        "description": "Principal plus unpaid interest on a date, before any Part-Month Rule charge.",
+        "description": "What would redeem it on a date: Principal plus unpaid interest, its Interest to\nDate included (ADR 0011).",
         "properties": {
           "principal": {
             "title": "Principal",

@@ -226,9 +226,9 @@ export function CloseMortgage({
             ['Principal', formatINR(redemption.principal)],
             ['Unpaid interest', formatINR(redemption.unpaid_interest)],
             [
-              'Part-month',
-              `${formatINR(redemption.part_month_charge)} (${redemption.part_month_days} days since ` +
-                `the last Accrual Date; ${PART_MONTH_RULES[mortgage.terms.part_month_rule]})`,
+              'Interest to Date',
+              `${formatINR(redemption.part_month_charge)} (${redemption.part_month_days} days of ` +
+                `the month, that day included; ${PART_MONTH_RULES[mortgage.terms.part_month_rule]})`,
             ],
             ['Redemption Amount', <strong key="total">{formatINR(redemption.total)}</strong>],
           ]}

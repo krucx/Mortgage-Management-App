@@ -65,7 +65,7 @@ def test_a_voided_payment_stays_on_record_but_leaves_the_ledger(
     client, ramesh, mortgage
 ):
     payment = pay(client, ramesh, {mortgage["id"]: 5_000 * RUPEE})
-    assert outstanding(client, mortgage) == 1_04_000 * RUPEE
+    assert outstanding(client, mortgage) == 1_07_000 * RUPEE
 
     response = void(client, payment)
 
@@ -77,7 +77,7 @@ def test_a_voided_payment_stays_on_record_but_leaves_the_ledger(
         True,
         "Entered twice",
     )
-    assert outstanding(client, mortgage) == 1_09_000 * RUPEE
+    assert outstanding(client, mortgage) == 1_12_000 * RUPEE
     ledger = client.get(f"/api/mortgages/{mortgage['id']}").json()["ledger"]
     assert all(step["event"] != "payment" for step in ledger)
     [listed] = client.get("/api/payments").json()["items"]
@@ -139,7 +139,7 @@ def test_editing_the_principal_replays_the_ledger(client, mortgage):
     response = edit(client, mortgage, amount_lent=50_000 * RUPEE)
 
     assert response.status_code == 200, response.text
-    assert response.json()["outstanding"]["total"] == 54_500 * RUPEE
+    assert response.json()["outstanding"]["total"] == 56_000 * RUPEE
 
 
 def test_an_edit_that_would_leave_a_payment_too_large_is_refused(
@@ -150,7 +150,7 @@ def test_an_edit_that_would_leave_a_payment_too_large_is_refused(
     response = edit(client, mortgage, amount_lent=40_000 * RUPEE)
 
     assert response.status_code == 422
-    assert outstanding(client, mortgage) == 59_000 * RUPEE  # unchanged
+    assert outstanding(client, mortgage) == 62_000 * RUPEE  # unchanged
 
 
 def test_the_start_date_cannot_move_past_a_payment(client, ramesh, mortgage):
@@ -202,7 +202,7 @@ def test_reopening_a_redemption_voids_its_final_payment(client, mortgage):
     assert response.status_code == 200, response.text
     reopened = response.json()
     assert (reopened["status"], reopened["closure"]) == ("active", None)
-    assert reopened["outstanding"]["total"] == 1_09_000 * RUPEE
+    assert reopened["outstanding"]["total"] == 1_12_000 * RUPEE
     final = client.get(f"/api/payments/{redeemed['closure']['payment_id']}").json()
     assert final["void_reason"] == "Not handed back yet"
 
@@ -218,7 +218,7 @@ def test_reopening_a_forfeiture_clears_what_was_recovered(client, mortgage):
     ).json()
 
     assert (reopened["status"], reopened["closure"]) == ("active", None)
-    assert reopened["outstanding"]["total"] == 1_09_000 * RUPEE
+    assert reopened["outstanding"]["total"] == 1_12_000 * RUPEE
 
 
 def test_reopening_a_waiver_voids_its_final_payment_and_the_waiver(client, mortgage):
@@ -232,7 +232,7 @@ def test_reopening_a_waiver_voids_its_final_payment_and_the_waiver(client, mortg
     ).json()
 
     assert (reopened["status"], reopened["closure"]) == ("active", None)
-    assert reopened["outstanding"]["total"] == 1_09_000 * RUPEE
+    assert reopened["outstanding"]["total"] == 1_12_000 * RUPEE
     final = client.get(f"/api/payments/{waived['closure']['payment_id']}").json()
     assert final["void_reason"] == "Not agreed"
 

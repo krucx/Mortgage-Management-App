@@ -5,7 +5,7 @@ conftest). Pages hold 20, so 25 rows make two pages.
 from datetime import date
 
 from api_seed import lend, nth_person, pay
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment
+from seed import LAKH, RUPEE, add_customer, add_mortgage
 
 from mortgage_backend.platform.db import make_engine
 
@@ -174,31 +174,16 @@ def test_mortgages_sort_by_started_and_by_status_in_their_lifecycle_order(client
     assert ids(sort="status") == [active["id"], redeemed["id"], forfeited["id"]]
 
 
-def test_mortgages_owing_something_sort_too(client):
-    owner = nth_person(client, 1)
-    small = lend(client, owner, "2026-01-01", amount=1_000 * RUPEE)
-    large = lend(client, owner, "2026-02-01", amount=9_000 * RUPEE)
-    paid_off = lend(client, owner, "2026-03-01", amount=5_000 * RUPEE)
-    owed = get(client, f"mortgages/{paid_off['id']}")["outstanding"]["total"]
-    pay(client, owner, {paid_off["id"]: owed}, on="2026-04-02")
-
-    listed = get(client, "mortgages", owing=True, sort="lent")["items"]
-
-    assert [m["id"] for m in listed] == [small["id"], large["id"]]
-
-
-def book(database_url, start, paid=False):
+def book(database_url, start):
     """25 Customers, "Customer 01" to "25", each with a Mortgage from `start`, lent
-    ₹1,000 more for each (and paid off on 10 Apr if `paid`)."""
+    ₹1,000 more for each."""
     with make_engine(database_url).begin() as conn:
         for n in range(1, 26):
             owner = add_customer(conn, phone=f"98290{n:05d}", name=f"Customer {n:02d}")
             lent = LAKH + n * 1_000 * RUPEE
-            mortgage = add_mortgage(
+            add_mortgage(
                 conn, owner, suffix=f"{n:02d}", start_date=start, amount_lent=lent
             )
-            if paid:
-                add_payment(conn, owner, date(2026, 4, 10), {mortgage: lent})
 
 
 def test_notices_sort_by_customer_across_pages(client, database_url):
@@ -238,18 +223,6 @@ def test_the_call_list_sorts_by_customer_across_pages(client, database_url):
 
     assert [g["customer"]["name"] for g in groups] == [
         f"Customer {n:02d}" for n in range(1, 26)
-    ]
-
-
-def test_ready_to_redeem_sorts_by_customer_across_pages(client, database_url):
-    book(database_url, date(2026, 4, 1), paid=True)
-
-    ready = every_page(
-        client, "closures/ready-to-redeem", sort="customer", descending=True
-    )
-
-    assert [r["mortgage"]["customer"]["name"] for r in ready] == [
-        f"Customer {n:02d}" for n in range(25, 0, -1)
     ]
 
 

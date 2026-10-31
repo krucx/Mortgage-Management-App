@@ -59,7 +59,7 @@ def test_the_mortgage_ledger_shows_the_payment_and_what_is_left(
 
     page = client.get(f"/api/mortgages/{mortgage['id']}").json()
 
-    step = page["ledger"][-1]
+    step = page["ledger"][-2]  # then the Interest to Date
     assert (step["on"], step["event"], step["amount"]) == (
         "2026-04-20",
         "payment",
@@ -67,10 +67,11 @@ def test_the_mortgage_ledger_shows_the_payment_and_what_is_left(
     )
     assert (step["interest_paid"], step["principal_paid"]) == (9_000_00, 10_000_00)
     assert step["payment_id"] == payment["id"]
+    # The month starting 14 Apr is still charged on ₹1,00,000 (ADR 0006).
     assert page["outstanding"] == {
         "principal": 90_000_00,
-        "unpaid_interest": 0,
-        "total": 90_000_00,
+        "unpaid_interest": 3_000_00,
+        "total": 93_000_00,
     }
 
 
@@ -89,8 +90,9 @@ def test_a_back_dated_payment_is_slotted_into_the_ledger_by_date(
         ("2026-03-14", "interest"),
         ("2026-04-01", "payment"),
         ("2026-04-14", "interest"),
+        ("2026-04-20", "interest_to_date"),
     ]
-    assert page["outstanding"]["unpaid_interest"] == 6_000_00
+    assert page["outstanding"]["unpaid_interest"] == 9_000_00
 
 
 def test_a_payment_larger_than_what_is_owed_is_refused(client, ramesh, mortgage):
@@ -101,7 +103,7 @@ def test_a_payment_larger_than_what_is_owed_is_refused(client, ramesh, mortgage)
     assert response.status_code == 422
     assert "₹1,09,000" in response.json()["detail"]
     assert (
-        client.get(f"/api/mortgages/{mortgage['id']}").json()["ledger"][-1]["event"]
+        client.get(f"/api/mortgages/{mortgage['id']}").json()["ledger"][-2]["event"]
         == "interest"
     )
 
@@ -109,7 +111,7 @@ def test_a_payment_larger_than_what_is_owed_is_refused(client, ramesh, mortgage)
 def test_a_back_dated_payment_that_would_overpay_a_later_one_is_refused(
     client, ramesh, mortgage
 ):
-    # Pays everything off on 20 Apr.
+    # Pays all but the Interest to Date on 20 Apr.
     pay(client, ramesh, {mortgage["id"]: 109_000_00}, on="2026-04-20")
 
     response = client.post(
@@ -119,7 +121,7 @@ def test_a_back_dated_payment_that_would_overpay_a_later_one_is_refused(
 
     assert response.status_code == 422
     page = client.get(f"/api/mortgages/{mortgage['id']}").json()
-    assert page["outstanding"]["total"] == 0
+    assert page["outstanding"]["total"] == 3_000_00
 
 
 @pytest.mark.parametrize(
@@ -220,7 +222,7 @@ def test_one_payment_can_be_allocated_across_several_mortgages(
     ]
     for m, principal in [(mortgage, 97_000_00), (second_mortgage, 45_000_00)]:
         page = client.get(f"/api/mortgages/{m['id']}").json()
-        assert page["ledger"][-1]["payment_id"] == payment["id"]
+        assert page["ledger"][-2]["payment_id"] == payment["id"]
         assert page["outstanding"]["principal"] == principal
 
 
@@ -236,7 +238,7 @@ def test_a_lump_sum_larger_than_everything_owed_is_refused(
     assert response.status_code == 422
     assert (
         client.get(f"/api/mortgages/{mortgage['id']}").json()["outstanding"]["total"]
-        == 109_000_00
+        == 112_000_00
     )
 
 
@@ -249,10 +251,10 @@ def test_outstanding_can_be_read_as_of_an_earlier_date(
     ).json()["items"]
 
     assert {row["name"]: row["outstanding_total"] for row in rows} == {
-        mortgage["name"]: 103_000_00,  # one month's interest by 1 Mar
-        second_mortgage[
-            "name"
-        ]: 51_500_00,  # started 1 Feb; first interest on 1 Mar itself
+        # one month's interest by 1 Mar, and the month starting 14 Feb
+        mortgage["name"]: 106_000_00,
+        # started 1 Feb; first interest on 1 Mar itself, and the month starting then
+        second_mortgage["name"]: 53_000_00,
     }
 
 
@@ -313,20 +315,6 @@ def test_the_payment_methods_are_published_with_their_names(client) -> None:
         {"method": "upi", "name": "UPI"},
         {"method": "bank_transfer", "name": "Bank transfer"},
     ]
-
-
-def test_a_payment_names_the_mortgages_it_left_ready_to_redeem(client, ramesh, mortgage):
-    other = lend(client, ramesh)
-    # ₹1,09,000 owed on each on 15 Apr: this one is paid in full, the other in part.
-    payment = pay(
-        client,
-        ramesh,
-        {mortgage["id"]: 109_000_00, other["id"]: 9_000_00},
-        on="2026-04-15",
-    )
-
-    assert [m["name"] for m in payment["ready_to_redeem"]] == [mortgage["name"]]
-    assert payment["ready_to_redeem"][0]["outstanding_total"] == 0
 
 
 def test_a_payment_that_leaves_something_outstanding_names_none(

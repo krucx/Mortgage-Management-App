@@ -79,7 +79,8 @@ def test_changing_default_terms_later_never_changes_an_existing_mortgage(
 
 
 def test_the_mortgage_page_shows_its_ledger_up_to_today(client, ramesh):
-    # Started 14 Jan; today is 20 Apr → interest on 14 Feb, 14 Mar, 14 Apr.
+    # Started 14 Jan; today is 20 Apr → interest on 14 Feb, 14 Mar, 14 Apr, and the
+    # month starting 14 Apr charged so far (all of it, under Full-month).
     mortgage = create_mortgage(client, ramesh)
 
     page = client.get(f"/api/mortgages/{mortgage['id']}").json()
@@ -90,11 +91,12 @@ def test_the_mortgage_page_shows_its_ledger_up_to_today(client, ramesh):
         ("2026-02-14", "interest", 3_000_00),
         ("2026-03-14", "interest", 3_000_00),
         ("2026-04-14", "interest", 3_000_00),
+        ("2026-04-20", "interest_to_date", 3_000_00),
     ]
     assert page["outstanding"] == {
         "principal": LAKH,
-        "unpaid_interest": 9_000_00,
-        "total": 109_000_00,
+        "unpaid_interest": 12_000_00,
+        "total": 112_000_00,
     }
 
 
@@ -222,7 +224,7 @@ def test_listed_mortgages_show_what_is_outstanding(client, ramesh):
     assert row["customer"]["name"] == "Ramesh Kumar"
     assert row["start_date"] == "2026-01-14"
     assert row["amount_lent"] == LAKH
-    assert row["outstanding_total"] == 109_000_00
+    assert row["outstanding_total"] == 112_000_00
     assert row["status"] == "active"
 
 

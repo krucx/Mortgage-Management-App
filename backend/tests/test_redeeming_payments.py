@@ -92,7 +92,8 @@ def test_one_payment_can_redeem_one_mortgage_and_part_pay_another(
 
     assert response.status_code == 201, response.text
     assert mortgage(client, chain)["status"] == "redeemed"
-    assert mortgage(client, ring)["outstanding"]["total"] == 50_000_00 + 4_500_00 - 8_000_00
+    # ₹1,500 charged on each of three Accrual Dates, and as the Interest to Date
+    assert mortgage(client, ring)["outstanding"]["total"] == 50_000_00 + 6_000_00 - 8_000_00
     recorded = sorted((p["amount"], p["method"], p["reference"]) for p in payments(client))
     assert recorded == [(8_000_00, "upi", "UTR9"), (REDEMPTION_AMOUNT, "upi", "UTR9")]
 
@@ -167,7 +168,7 @@ def test_a_payment_that_redeems_and_part_pays_has_one_receipt_for_all_of_it(
     assert shown[0]["lines"] == shown[1]["lines"]
     assert shown[0]["amount"] == REDEMPTION_AMOUNT + 8_000_00
     assert [(r["description"], r["paid"], r["owed_after"], r["redeemed"]) for r in shown[0]["lines"]] == [
-        ("Gold ring", 8_000_00, 50_000_00 + 4_500_00 - 8_000_00, False),
+        ("Gold ring", 8_000_00, 50_000_00 + 6_000_00 - 8_000_00, False),
         ("Gold chain", REDEMPTION_AMOUNT, 0, True),
     ]
     text = shown[0]["text"]
@@ -196,7 +197,7 @@ def test_once_the_redeemed_mortgage_is_reopened_the_receipt_covers_the_rest(
 def test_one_payment_can_redeem_several_mortgages_with_one_receipt_even_after_a_reopen(
     client, ramesh, chain, ring
 ):
-    ring_amount = 50_000_00 + 4_500_00 + 1_500_00  # with its full-month charge
+    ring_amount = 50_000_00 + 4_500_00 + 1_500_00  # with its Interest to Date (full month)
     pay(
         client,
         ramesh,
@@ -227,7 +228,7 @@ def test_the_ordinary_part_can_be_voided_on_its_own(client, ramesh, chain, ring)
 
     assert response.status_code == 200, response.text
     assert mortgage(client, chain)["status"] == "redeemed"
-    assert mortgage(client, ring)["outstanding"]["total"] == 50_000_00 + 4_500_00
+    assert mortgage(client, ring)["outstanding"]["total"] == 50_000_00 + 6_000_00
 
 
 def test_a_back_dated_payment_that_redeems_before_a_later_payment_is_refused(
