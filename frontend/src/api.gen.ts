@@ -453,6 +453,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mortgages/{mortgage_id}/closing-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Closing Quote
+         * @description What it takes to close the Mortgage on `on`: its Outstanding then.
+         */
+        get: operations["closing_quote_api_mortgages__mortgage_id__closing_quote_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mortgages/{mortgage_id}/collateral": {
         parameters: {
             query?: never;
@@ -627,7 +647,7 @@ export interface paths {
         put?: never;
         /**
          * Post Redeem
-         * @description Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed.
+         * @description Record the final Payment of the Outstanding and mark the Mortgage Redeemed.
          */
         post: operations["post_redeem_api_mortgages__mortgage_id__redeem_post"];
         delete?: never;
@@ -647,26 +667,6 @@ export interface paths {
         put?: never;
         /** Preview Redeem */
         post: operations["preview_redeem_api_mortgages__mortgage_id__redeem_preview_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/mortgages/{mortgage_id}/redemption": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Redemption Amount
-         * @description What it takes to redeem the Mortgage on `on`.
-         */
-        get: operations["redemption_amount_api_mortgages__mortgage_id__redemption_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -795,7 +795,7 @@ export interface paths {
         put?: never;
         /**
          * Post Waive
-         * @description Record a final Payment short of the Redemption Amount, waive the rest, and mark
+         * @description Record a final Payment short of the Outstanding, waive the rest, and mark
          *     the Mortgage Waived.
          */
         post: operations["post_waive_api_mortgages__mortgage_id__waive_post"];
@@ -1408,6 +1408,32 @@ export interface components {
             note: string;
         };
         /**
+         * ClosingQuote
+         * @description What it takes to close a Mortgage on a date: its Outstanding on that Closure date.
+         */
+        ClosingQuote: {
+            /**
+             * Last Accrual On
+             * Format: date
+             */
+            last_accrual_on: string;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Part Month Charge */
+            part_month_charge: number;
+            /** Part Month Days */
+            part_month_days: number;
+            /** Principal */
+            principal: number;
+            /** Total */
+            total: number;
+            /** Unpaid Interest */
+            unpaid_interest: number;
+        };
+        /**
          * Closure
          * @description How and when a Mortgage was closed, and what it came to.
          */
@@ -1424,6 +1450,8 @@ export interface components {
              * Format: date
              */
             on: string;
+            /** Outstanding */
+            outstanding: number;
             /** Payment Amount */
             payment_amount: number | null;
             /** Payment Id */
@@ -1432,8 +1460,6 @@ export interface components {
             profit_loss: number | null;
             /** Recovered Amount */
             recovered_amount: number | null;
-            /** Redemption Amount */
-            redemption_amount: number;
             /** Waived Amount */
             waived_amount: number | null;
         };
@@ -2200,10 +2226,10 @@ export interface components {
              * Format: date
              */
             on: string;
+            /** Outstanding */
+            outstanding: number;
             /** Principal */
             principal: number;
-            /** Redemption Amount */
-            redemption_amount: number;
             /** Unpaid Interest */
             unpaid_interest: number;
         };
@@ -2254,7 +2280,7 @@ export interface components {
          */
         ReadyToRedeem: {
             mortgage: components["schemas"]["MortgageRow"];
-            redemption: components["schemas"]["Redemption"];
+            quote: components["schemas"]["ClosingQuote"];
         };
         /** Receipt */
         Receipt: {
@@ -2329,32 +2355,6 @@ export interface components {
             redeemed_on: string;
             /** Reference */
             reference?: string | null;
-        };
-        /**
-         * Redemption
-         * @description What it takes to close a Mortgage on a date (see Redemption Amount in GLOSSARY.md).
-         */
-        Redemption: {
-            /**
-             * Last Accrual On
-             * Format: date
-             */
-            last_accrual_on: string;
-            /**
-             * On
-             * Format: date
-             */
-            on: string;
-            /** Part Month Charge */
-            part_month_charge: number;
-            /** Part Month Days */
-            part_month_days: number;
-            /** Principal */
-            principal: number;
-            /** Total */
-            total: number;
-            /** Unpaid Interest */
-            unpaid_interest: number;
         };
         /** Release */
         Release: {
@@ -3423,6 +3423,39 @@ export interface operations {
             };
         };
     };
+    closing_quote_api_mortgages__mortgage_id__closing_quote_get: {
+        parameters: {
+            query: {
+                on: string;
+            };
+            header?: never;
+            path: {
+                mortgage_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClosingQuote"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     put_collateral_api_mortgages__mortgage_id__collateral_put: {
         parameters: {
             query?: never;
@@ -3786,39 +3819,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MortgagePreview"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    redemption_amount_api_mortgages__mortgage_id__redemption_get: {
-        parameters: {
-            query: {
-                on: string;
-            };
-            header?: never;
-            path: {
-                mortgage_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Redemption"];
                 };
             };
             /** @description Validation Error */

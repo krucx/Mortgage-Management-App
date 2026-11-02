@@ -7,7 +7,6 @@ import {
   type Payment,
   type PaymentIn,
   type PaymentMethod,
-  type Redemption,
 } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
@@ -16,7 +15,7 @@ import { RedeemPaidOff } from '../components/RedeemPaidOff'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
-import { Owed, type Quote } from '../components/Owed'
+import type { Quote } from '../components/Owed'
 import { ReasonTip } from '../components/ReasonTip'
 import { useQuotes } from '../components/useQuotes'
 import { formatDate, todayIso } from '../format'
@@ -133,27 +132,22 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
   const total = rupeesToPaise(totalText || '0')
 
-  // What each one would take to Redeem on the Payment date, or why it can't be.
+  // Whether each one could be Redeemed on the Payment date (or why not), and its
+  // Interest to Date then.
   const quoteOf = useQuotes(payable, paidOn)
   const quotes = chosen.map((m) => quoteOf(m.id))
-  // The chosen Mortgages' Redemption Amounts, once every one of them has one.
-  const redemptions = quotes.every((q) => typeof q === 'object') ? (quotes as Redemption[]) : null
-  const redemptionTotal = redemptions?.reduce((sum, q) => sum + q.total, 0) ?? null
-  // Why they can't all be paid in full: the first chosen one that has no quote.
+  // Why they can't all be paid in full: the first chosen one that can't be Redeemed then.
   const unquotable = quotes.find((q) => typeof q === 'string')
-  // The most each one can take: its Redemption Amount (paying all of it Redeems it), or
-  // its Outstanding while that is loading or where there is none on the Payment date.
-  const caps = quotes.map((quote, i) => (typeof quote === 'object' ? quote.total : outstanding[i]))
 
   const amounts: number[] | null =
     mode === 'equal'
-      ? suggestEqually(total, caps)
+      ? suggestEqually(total, outstanding)
       : mode === 'amount'
         ? chosen.map((m) => rupeesToPaise(amountText[m.id] || '0'))
         : amountsFromPercentages(
             total,
             chosen.map((m) => Number(percentText[m.id] || '0')),
-            caps,
+            outstanding,
           )
   const allocated = amounts?.reduce((a, b) => a + b, 0) ?? 0
 
@@ -166,13 +160,14 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   if (mode === 'percent' && amounts === null) problems.push('The percentages must add up to 100.')
   if (amounts && total > 0 && allocated !== total)
     problems.push(`The Allocations add up to ${formatINR(allocated)}, not ${formatINR(total)}.`)
-  // Until each one's Redemption Amount is known, paying it in full can't be told apart.
+  // Until each one is known to be Redeemable or not, paying it in full can't be told apart.
   if (quotes.some((quote) => quote === undefined))
-    problems.push('Working out the Redemption Amounts…')
+    problems.push('Checking whether they can be Redeemed on that date…')
 
-  // The chosen Mortgages paid their whole Redemption Amount: paying it Redeems them.
-  const redeeming = chosen.filter((m, i) => {
-    const quote = quoteOf(m.id)
+  // The chosen Mortgages paid their whole Outstanding, as the backend quotes it for
+  // closing then: paying it Redeems them.
+  const redeeming = chosen.filter((_, i) => {
+    const quote = quotes[i]
     return amounts !== null && typeof quote === 'object' && amounts[i] === quote.total
   })
 
@@ -194,7 +189,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 
   /** Switching to a manual mode starts from the current equal Allocations. */
   function switchMode(next: AllocationMode) {
-    const equal = suggestEqually(total, caps)
+    const equal = suggestEqually(total, outstanding)
     if (next === 'amount' && equal)
       setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, String(equal[i] / 100)])))
     if (next === 'percent' && total > 0 && equal)
@@ -204,10 +199,10 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     setMode(next)
   }
 
-  /** Each chosen Mortgage's whole Redemption Amount, by amount. */
-  function fillRedemptionAmounts(redemptions: Redemption[], total: number) {
-    setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, String(redemptions[i].total / 100)])))
-    setTotalText(String(total / 100))
+  /** Each chosen Mortgage's whole Outstanding, by amount. */
+  function fillOutstanding() {
+    setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, String(outstanding[i] / 100)])))
+    setTotalText(String(totalOutstanding / 100))
     setMode('amount')
   }
 
@@ -292,24 +287,10 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
               <button
                 type="button"
                 className="link"
-                onClick={() => setTotalText(String(totalOutstanding / 100))}
+                disabled={!quotes.every((q) => typeof q === 'object')}
+                onClick={fillOutstanding}
               >
-                The full Outstanding on the chosen Mortgages ({formatINR(totalOutstanding)})
-              </button>
-            )}
-            {chosen.length > 0 && (
-              <button
-                type="button"
-                className="link"
-                disabled={!redemptions || redemptionTotal === null}
-                onClick={() =>
-                  redemptions &&
-                  redemptionTotal !== null &&
-                  fillRedemptionAmounts(redemptions, redemptionTotal)
-                }
-              >
-                Pay the full Redemption Amount
-                {redemptionTotal !== null && ` (${formatINR(redemptionTotal)})`}
+                Pay the full Outstanding ({formatINR(totalOutstanding)})
               </button>
             )}
             {chosen.length > 0 && unquotable && (
@@ -360,7 +341,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                     <th aria-label="Include" />
                     <th>Mortgage</th>
                     <th className="num">Outstanding on {formatDate(paidOn)}</th>
-                    <th className="num">To redeem on {formatDate(paidOn)}</th>
                     {mode === 'percent' && <th className="num">%</th>}
                     <th className="num">Allocation</th>
                   </tr>
@@ -384,9 +364,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                           <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
                         </td>
                         <td className="num">{formatINR(m.outstanding_total)}</td>
-                        <td className="num">
-                          <Owed quote={quoteOf(m.id)} />
-                        </td>
                         {mode === 'percent' && (
                           <td className="num">
                             {index >= 0 && (
@@ -434,7 +411,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             </div>
           )}
           <p className="hint">
-            Within each Mortgage the Allocation pays unpaid interest first, then Principal.
+            Within each Mortgage the Allocation pays unpaid interest first, then the Interest
+            to Date, then Principal.
           </p>
           {/* They take only their Redemption's final Payment, made on the Redeem tab. */}
           {awaitingRedemption.length > 0 && (
@@ -492,12 +470,12 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   )
 }
 
-/** What paying a Mortgage's whole Redemption Amount does, for the Redeem question. */
+/** What paying a Mortgage's whole Outstanding does, for the Redeem question. */
 function RedeemedInFull({ name, quote }: { name: string; quote: Quote }) {
   if (typeof quote !== 'object') return null
   const charge =
     quote.part_month_charge > 0
       ? `, including ${quote.part_month_days} days' Interest to Date`
       : ''
-  return `This pays the full Redemption Amount of ${name} (${formatINR(quote.total)}${charge}).`
+  return `This pays the full Outstanding of ${name} (${formatINR(quote.total)}${charge}).`
 }

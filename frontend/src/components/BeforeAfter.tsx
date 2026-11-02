@@ -83,7 +83,7 @@ function MortgageBeforeAfter({ preview }: { preview: MortgagePreview }) {
           <table>
             <thead>
               <tr>
-                <th>Redemption Amount</th>
+                <th>Outstanding</th>
                 <th className="num">Now</th>
                 <th className="num">After the change</th>
                 <th className="num">Difference</th>
@@ -94,14 +94,14 @@ function MortgageBeforeAfter({ preview }: { preview: MortgagePreview }) {
                 const was = at(before.points, months)
                 const will = at(after.points, months)
                 if (!was || !will) return null
-                const difference = will.redemption_amount - was.redemption_amount
+                const difference = will.outstanding - was.outstanding
                 return (
                   <tr key={months}>
                     <td>
                       In {months} months <span className="hint">({formatDate(was.on)})</span>
                     </td>
-                    <td className="num">{formatINR(was.redemption_amount)}</td>
-                    <td className="num">{formatINR(will.redemption_amount)}</td>
+                    <td className="num">{formatINR(was.outstanding)}</td>
+                    <td className="num">{formatINR(will.outstanding)}</td>
                     <td className={`num ${difference ? 'changed' : 'hint'}`}>
                       {formatChange(difference)}
                     </td>

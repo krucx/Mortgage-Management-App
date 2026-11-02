@@ -71,8 +71,8 @@ class PaymentIn(BaseModel):
     method: PaymentMethod
     reference: str | None = None
     allocations: list[AllocationIn] = Field(min_length=1)
-    # Mortgages it Redeems on its date: each one's Allocation is its whole Redemption
-    # Amount, recorded as its final Payment.
+    # Mortgages it Redeems on its date: each one's Allocation is its whole Outstanding,
+    # recorded as its final Payment.
     redeeming: list[int] = []
 
     @model_validator(mode="after")
@@ -322,15 +322,15 @@ def record_payment(
 def _refuse_unredeemed_in_full(
     conn: Connection, allocation: AllocationIn, on: date, today: date
 ) -> None:
-    """Refuse an ordinary Allocation of the Mortgage's whole Redemption Amount: paying
-    all of it Redeems the Mortgage (where it could be Redeemed on that date)."""
+    """Refuse an ordinary Allocation of the Mortgage's whole Outstanding: paying all of
+    it Redeems the Mortgage (where it could be Redeemed on that date)."""
     try:
         mortgage = closable(conn, allocation.mortgage_id, on, today)
     except HTTPException:
         return
-    if allocation.amount == mortgage.redemption(on).total:
+    if allocation.amount == mortgage.closing_quote(on).total:
         raise unprocessable(
-            f"{format_inr(allocation.amount)} is its whole Redemption Amount on "
+            f"{format_inr(allocation.amount)} is its whole Outstanding on "
             f"{on:%d %b %Y}: Redeem it with this Payment instead"
         )
 
@@ -344,12 +344,12 @@ def _redeem_with_allocation(
     now: datetime,
 ) -> int:
     """Redeem the Allocation's Mortgage on the Payment date with the Allocation as its
-    final Payment (or refuse, unless it is the whole Redemption Amount)."""
+    final Payment (or refuse, unless it is the whole Outstanding)."""
     mortgage = closable(conn, allocation.mortgage_id, payment.paid_on, today)
-    owed = mortgage.redemption(payment.paid_on).total
+    owed = mortgage.closing_quote(payment.paid_on).total
     if allocation.amount != owed:
         raise unprocessable(
-            f"{format_inr(allocation.amount)} is not the Redemption Amount on "
+            f"{format_inr(allocation.amount)} is not its Outstanding on "
             f"{payment.paid_on:%d %b %Y} ({format_inr(owed)})"
         )
     payment_id = _close_redeemed(
@@ -683,11 +683,11 @@ def redeem(
     now: datetime,
     received_with: int | None = None,
 ) -> None:
-    """Record the final Payment of the Redemption Amount (unless nothing is owed), as a
+    """Record the final Payment of the Outstanding (unless nothing is owed), as a
     part of the Payment `received_with` if any, and mark the Mortgage Redeemed (or
     refuse)."""
     mortgage = closable(conn, mortgage_id, redeem.redeemed_on, today)
-    owed = mortgage.redemption(redeem.redeemed_on).total
+    owed = mortgage.closing_quote(redeem.redeemed_on).total
     _close_redeemed(
         conn,
         mortgage,
@@ -712,7 +712,7 @@ def _close_redeemed(
     now: datetime,
     received_with: int | None = None,
 ) -> int | None:
-    """Record the final Payment of the Redemption Amount `owed` (unless it is nothing)
+    """Record the final Payment of the Outstanding `owed` (unless it is nothing)
     and mark the Mortgage Redeemed; returns the final Payment's id."""
     payment_id = _close_with_payment(
         conn,
@@ -740,10 +740,10 @@ def _close_redeemed(
 def waive(
     conn: Connection, mortgage_id: int, waive: WaiveIn, today: date, now: datetime
 ) -> None:
-    """Record a final Payment of less than the Redemption Amount (or none), waive the
+    """Record a final Payment of less than the Outstanding (or none), waive the
     rest, and mark the Mortgage Waived: the jewellery goes back (or refuse)."""
     mortgage = closable(conn, mortgage_id, waive.waived_on, today)
-    owed = mortgage.redemption(waive.waived_on).total
+    owed = mortgage.closing_quote(waive.waived_on).total
     if owed == 0:
         raise unprocessable(
             f"{mortgage.row['name']} owes nothing then: Redeem it instead"
@@ -1030,7 +1030,7 @@ def delete_term_change(
 def post_redeem(
     mortgage_id: int, body: RedeemIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Mortgage:
-    """Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed."""
+    """Record the final Payment of the Outstanding and mark the Mortgage Redeemed."""
     with engine.begin() as conn:
         redeem(conn, mortgage_id, body, today, now)
         return load_mortgage(conn, mortgage_id, today)
@@ -1040,7 +1040,7 @@ def post_redeem(
 def post_waive(
     mortgage_id: int, body: WaiveIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Mortgage:
-    """Record a final Payment short of the Redemption Amount, waive the rest, and mark
+    """Record a final Payment short of the Outstanding, waive the rest, and mark
     the Mortgage Waived."""
     with engine.begin() as conn:
         waive(conn, mortgage_id, body, today, now)

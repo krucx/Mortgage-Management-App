@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { Payment } from '../api'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
-import { mortgageQuery, redemptionQuery } from '../requests'
+import { closingQuoteQuery, mortgageQuery } from '../requests'
 import { useServerState } from '../serverState'
 import { PART_MONTH_RULES } from '../terms'
 import { PreviewSection } from './BeforeAfter'
@@ -43,14 +43,14 @@ export function RedeemPaidOff({
     confirm: null, // this dialog is the confirmation
     saved: onDone,
   })
-  // Each one's Redemption Amount on the Payment date (or why there is none), and the
+  // Each one's Outstanding on the Payment date (or why there is none), and the
   // Part-Month Rule behind any charge.
   const quoted = useQueries({
-    queries: mortgages.map((m) => redemptionQuery(client, m.id, payment.paid_on)),
+    queries: mortgages.map((m) => closingQuoteQuery(client, m.id, payment.paid_on)),
   })
   const terms = useQueries({ queries: mortgages.map((m) => mortgageQuery(client, m.id)) })
   // One cached from before the Payment is out of date (New Payment quoted the whole
-  // Redemption Amount): wait for the fresh one.
+  // Outstanding): wait for the fresh one.
   const quotes = Object.fromEntries(
     mortgages.map((m, i) => [
       m.id,
@@ -99,7 +99,7 @@ export function RedeemPaidOff({
                   {typeof quote === 'string' ? (
                     <span className="status error">{quote}</span>
                   ) : !quote ? (
-                    'Working out the Redemption Amount…'
+                    'Working out the Outstanding…'
                   ) : (
                     (sharedLastAccrual ? '' : `Paid up to ${formatDate(quote.last_accrual_on)}. `) +
                     (quote.total === 0

@@ -127,7 +127,7 @@ export type CallListGroup = Schemas['CallListGroup']
 export type CallListPage = Schemas['CallListPage']
 
 /** What it takes to close a Mortgage on a date. */
-export type Redemption = Schemas['Redemption']
+export type ClosingQuote = Schemas['ClosingQuote']
 export type ForfeitAllIn = Schemas['ForfeitAllIn']
 export type RedeemAllIn = Schemas['RedeemAllIn']
 export type WaiveAllIn = Schemas['WaiveAllIn']

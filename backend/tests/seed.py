@@ -127,7 +127,7 @@ def add_term_change(
 
 
 def redeem(conn: Connection, mortgage_id: int, on: date) -> int | None:
-    """Redeem the Mortgage on `on`, paying the Redemption Amount in cash; the final
+    """Redeem the Mortgage on `on`, paying its Outstanding in cash; the final
     Payment's id (None if nothing was owed)."""
     redeemed = RedeemIn(redeemed_on=on, method="cash")
     changes.redeem(conn, mortgage_id, redeemed, on, _at(on))

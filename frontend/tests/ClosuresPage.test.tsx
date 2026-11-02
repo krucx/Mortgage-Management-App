@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ClosuresPage } from '../src/pages/ClosuresPage'
+import { formatDate, todayIso } from '../src/format'
 import { fakeServer } from './fakeServer'
 import { showPage } from './showPage'
 
@@ -14,7 +15,7 @@ const row = {
   id: 3, name: '2025-Arjun-GoldRing', customer: { kind: 'customer', id: 2, name: 'Arjun Patel' },
   start_date: '2025-06-15', amount_lent: 2_000_000, status: 'active', outstanding_total: 2_180_000,
 }
-const redemption = {
+const quote = {
   on: '2026-04-20', principal: 2_000_000, unpaid_interest: 180_000, last_accrual_on: '2026-04-14',
   part_month_days: 6,
   part_month_charge: 60_000, total: 2_240_000,
@@ -26,7 +27,7 @@ async function waivePreview(request: Request) {
   const { mortgages } = (await request.json()) as {
     mortgages: { mortgage_id: number; amount_paid: number }[]
   }
-  const covering = mortgages.find((m) => m.amount_paid >= redemption.total)
+  const covering = mortgages.find((m) => m.amount_paid >= quote.total)
   if (covering)
     return Response.json(
       { detail: '2025-Arjun-GoldRing: ₹22,400 covers the ₹22,400 owed: Redeem it instead' },
@@ -35,10 +36,10 @@ async function waivePreview(request: Request) {
   const closure = (paid: number) => ({
     kind: 'waived',
     on: '2026-04-20',
-    redemption_amount: redemption.total,
+    outstanding: quote.total,
     payment_id: paid > 0 ? 50 : null,
     payment_amount: paid > 0 ? paid : null,
-    waived_amount: redemption.total - paid,
+    waived_amount: quote.total - paid,
     recovered_amount: null,
     profit_loss: null,
     note: null,
@@ -76,7 +77,7 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   const server = fakeServer({
     'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': () => ({ items: listed, total: listed.length, page: 1, page_size: 20 }),
-    'GET /api/mortgages/3/redemption': redemption,
+    'GET /api/mortgages/3/closing-quote': quote,
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
     'POST /api/closures/waive-preview': waivePreview,
     'POST /api/closures/waive': async (request: Request) => {
@@ -88,6 +89,8 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   showPage(server, '/closures', { '/closures': <ClosuresPage /> })
 
   await waiveOff('22000')
+  expect(screen.getByRole('columnheader', { name: `Outstanding on ${formatDate(todayIso())}` })).toBeTruthy()
+  expect(screen.queryByText(/Redemption Amount/)).toBeNull()
   fireEvent.change(screen.getByLabelText('Reference (for all)'), { target: { value: 'UTR9' } })
   expect(await screen.findByText('Total waived off ₹400', {}, { timeout: 2000 })).toBeTruthy()
   await confirmWaiver()
@@ -107,7 +110,7 @@ test("receiving all that is owed cannot be Waived off: the Preview gives the bac
   const server = fakeServer({
     'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
-    'GET /api/mortgages/3/redemption': redemption,
+    'GET /api/mortgages/3/closing-quote': quote,
     'POST /api/closures/waive-preview': waivePreview,
   })
   showPage(server, '/closures', { '/closures': <ClosuresPage /> })
@@ -128,7 +131,7 @@ test("if the backend refuses the Waiver when it is saved, nothing is Waived off 
   const server = fakeServer({
     'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
-    'GET /api/mortgages/3/redemption': redemption,
+    'GET /api/mortgages/3/closing-quote': quote,
     'POST /api/closures/waive-preview': waivePreview,
     'POST /api/closures/waive': () =>
       Response.json({ detail: '2025-Arjun-GoldRing is already forfeited' }, { status: 422 }),
@@ -148,7 +151,7 @@ const second = { ...row, id: 4, name: '2025-Arjun-Bangles' }
 const forfeited = (recovered: number) => ({
   kind: 'forfeited',
   on: '2026-04-20',
-  redemption_amount: 2_240_000,
+  outstanding: 2_240_000,
   payment_id: null,
   payment_amount: null,
   waived_amount: null,
@@ -164,8 +167,8 @@ function forfeitRoutes(extra: Record<string, unknown>) {
   return {
     'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': { items: [row, second], total: 2, page: 1, page_size: 20 },
-    'GET /api/mortgages/3/redemption': redemption,
-    'GET /api/mortgages/4/redemption': redemption,
+    'GET /api/mortgages/3/closing-quote': quote,
+    'GET /api/mortgages/4/closing-quote': quote,
     'POST /api/closures/forfeit-preview': async (request: Request) => {
       const { mortgages } = (await request.json()) as {
         mortgages: { mortgage_id: number; recovered_amount: number }[]
@@ -288,13 +291,13 @@ test("a Forfeiture the Preview says would be refused can't be confirmed, and its
   expect(server.requests).not.toContain('POST /api/closures/forfeit')
 })
 
-test('each Mortgage Ready to Redeem shows its Redemption Amount today and the part-month days behind it', async () => {
+test('each Mortgage Ready to Redeem shows its Outstanding today and the Interest to Date days behind it', async () => {
   const paidOff = { ...row, outstanding_total: 0, ready_to_redeem: true }
-  const charge = { ...redemption, principal: 0, unpaid_interest: 0, total: 60_000 }
+  const charge = { ...quote, principal: 0, unpaid_interest: 0, total: 60_000 }
   showPage(
     fakeServer({
       'GET /api/closures/ready-to-redeem': {
-        items: [{ mortgage: paidOff, redemption: charge }],
+        items: [{ mortgage: paidOff, quote: charge }],
         total: 1,
         page: 1,
         page_size: 20,
@@ -308,4 +311,5 @@ test('each Mortgage Ready to Redeem shows its Redemption Amount today and the pa
   const ready = (await screen.findByRole('link', { name: row.name })).closest('tr')!
   expect(within(ready).getByText('₹600')).toBeTruthy()
   expect(within(ready).getByText('(Interest to Date for 6 days)')).toBeTruthy()
+  expect(screen.getByRole('columnheader', { name: 'Outstanding today' })).toBeTruthy()
 })

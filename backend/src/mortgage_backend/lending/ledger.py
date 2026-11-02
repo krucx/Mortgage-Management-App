@@ -402,7 +402,7 @@ class Snapshot:
     on: date
     principal: int
     unpaid_interest: int
-    redemption_amount: int  # its Outstanding: the Interest to Date included
+    outstanding: int  # the Interest to Date included
 
 
 @dataclass(frozen=True)

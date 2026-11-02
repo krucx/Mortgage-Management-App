@@ -16,9 +16,9 @@ def mortgage(client, ramesh):
     return lend(client, ramesh)
 
 
-def redemption(client, mortgage, on="2026-04-20"):
+def closing_quote(client, mortgage, on="2026-04-20"):
     response = client.get(
-        f"/api/mortgages/{mortgage['id']}/redemption", params={"on": on}
+        f"/api/mortgages/{mortgage['id']}/closing-quote", params={"on": on}
     )
     assert response.status_code == 200, response.text
     return response.json()
@@ -45,7 +45,7 @@ def test_a_closing_quote_includes_the_interest_to_date(
     mortgage = lend(client, ramesh, terms={**SIMPLE_3, "part_month_rule": rule})
 
     # Accrued 14 Feb, 14 Mar, 14 Apr (₹9,000); 20 Apr is the 7th day of the next month.
-    assert redemption(client, mortgage) == {
+    assert closing_quote(client, mortgage) == {
         "on": "2026-04-20",
         "principal": LAKH,
         "unpaid_interest": 9_000_00,
@@ -65,7 +65,7 @@ def test_redeeming_records_the_final_payment_and_closes_the_mortgage(client, mor
     assert page["outstanding"] == {"principal": 0, "unpaid_interest": 0, "total": 0}
     assert [s["event"] for s in page["ledger"][-2:]] == ["interest_to_date", "payment"]
     closure = page["closure"]
-    assert (closure["kind"], closure["on"], closure["redemption_amount"]) == (
+    assert (closure["kind"], closure["on"], closure["outstanding"]) == (
         "redeemed",
         "2026-04-20",
         112_000_00,
@@ -106,7 +106,7 @@ def test_paying_everything_on_an_accrual_date_redeems_with_the_month_starting_th
     client, ramesh, mortgage
 ):
     # Three months' interest charged by 14 Apr, and (full month) the one starting then
-    assert redemption(client, mortgage, on="2026-04-14")["total"] == 112_000_00
+    assert closing_quote(client, mortgage, on="2026-04-14")["total"] == 112_000_00
 
     pay(
         client,
@@ -175,7 +175,7 @@ def test_forfeiting_records_what_was_recovered_and_the_profit_or_loss(
     assert page["closure"] == {
         "kind": "forfeited",
         "on": "2026-04-20",
-        "redemption_amount": 112_000_00,
+        "outstanding": 112_000_00,
         "payment_id": None,
         "payment_amount": None,
         "waived_amount": None,
@@ -229,7 +229,7 @@ def test_waiving_records_the_final_payment_and_lets_off_the_rest(client, mortgag
         ("waived", 500_00),
     ]
     closure = page["closure"]
-    assert (closure["kind"], closure["redemption_amount"], closure["waived_amount"]) == (
+    assert (closure["kind"], closure["outstanding"], closure["waived_amount"]) == (
         "waived",
         112_000_00,
         500_00,
@@ -279,10 +279,10 @@ def test_closed_mortgages_can_be_listed_by_status(client, ramesh, mortgage):
     assert statuses(status="active") == ["active"]
 
 
-def test_the_redemption_amount_can_be_quoted_for_a_future_date(client, mortgage):
+def test_the_outstanding_on_a_closure_date_can_be_quoted_for_a_future_date(client, mortgage):
     # 20 May: one more month accrued on 14 May, then 6 days into the next (full month).
     assert (
-        redemption(client, mortgage, on="2026-05-20")["total"]
+        closing_quote(client, mortgage, on="2026-05-20")["total"]
         == LAKH + 12_000_00 + 3_000_00
     )
 
@@ -299,7 +299,7 @@ def test_the_redemption_amount_can_be_quoted_for_a_future_date(client, mortgage)
 def test_the_part_month_days_count_from_the_last_accrual_date_through_today(
     client, ramesh, start, on, last_accrual_on, days
 ):
-    quote = redemption(client, lend(client, ramesh, start=start), on=on)
+    quote = closing_quote(client, lend(client, ramesh, start=start), on=on)
 
     assert (quote["last_accrual_on"], quote["part_month_days"]) == (
         last_accrual_on,

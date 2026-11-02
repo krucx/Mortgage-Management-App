@@ -42,7 +42,7 @@ def test_the_baseline_projection_assumes_no_more_payments(client, mortgage):
         18_000 * RUPEE,
     )
     # Redeeming then adds the Part-Month Rule charge (full month).
-    assert in_three["redemption_amount"] == 1_21_000 * RUPEE
+    assert in_three["outstanding"] == 1_21_000 * RUPEE
     assert in_three["loan_to_value"] is None  # no Collateral Value yet
     assert baseline["paid_off_on"] is None
 
@@ -73,7 +73,7 @@ def test_what_if_shows_when_it_would_be_paid_off(client, mortgage):
 
     # 14 May: ₹60,000 of ₹1,12,000; 14 Jun: the remaining ₹52,000 + ₹1,560.
     assert what_if["paid_off_on"] == "2026-06-14"
-    assert at(what_if, 3)["redemption_amount"] == 0
+    assert at(what_if, 3)["outstanding"] == 0
 
 
 def test_projections_follow_a_coming_term_change(client, mortgage):
@@ -121,7 +121,7 @@ def test_compounding_capitalises_unpaid_interest_in_the_projection(client, rames
         1_36_000 * RUPEE,
         12_240 * RUPEE,
     )
-    assert in_a_year["redemption_amount"] == (1_36_000 + 12_240 + 4_080) * RUPEE
+    assert in_a_year["outstanding"] == (1_36_000 + 12_240 + 4_080) * RUPEE
 
 
 def test_a_projection_lists_only_the_coming_years_term_changes(client, mortgage):

@@ -1,6 +1,6 @@
-"""The Mortgage replay: a Mortgage's stored facts replayed into its Ledger, Outstanding
-and Redemption Amount, straight against the database (no HTTP). Today is 20 Apr 2026
-(see conftest).
+"""The Mortgage replay: a Mortgage's stored facts replayed into its Ledger and
+Outstanding, straight against the database (no HTTP). Today is 20 Apr 2026 (see
+conftest).
 
 The Mortgage throughout: ₹1,00,000 at 3% a month, Simple, Full-month rule, from
 14 Jan 2026, so ₹3,000 of interest on each Accrual Date and, with the month starting
@@ -50,11 +50,11 @@ def test_a_closing_quote_adds_the_interest_to_date(
     chain = add_mortgage(conn, add_customer(conn))
 
     # 14 to 20 Apr is 7 days of the month: a full month's ₹3,000 under Full-month.
-    redemption = replay(conn, chain).redemption(TODAY)
+    quote = replay(conn, chain).closing_quote(TODAY)
 
-    assert redemption.part_month_days == 7
-    assert redemption.part_month_charge == 3_000 * RUPEE
-    assert redemption.total == 1_12_000 * RUPEE
+    assert quote.part_month_days == 7
+    assert quote.part_month_charge == 3_000 * RUPEE
+    assert quote.total == 1_12_000 * RUPEE
 
 
 def test_a_redeemed_mortgage_owes_nothing_and_accrues_nothing_after(
@@ -94,7 +94,7 @@ def test_a_mortgage_redeemed_under_the_old_day_count_still_owes_nothing(
     assert [s.amount for s in to_date] == [600 * RUPEE]
 
 
-def test_a_redemption_amount_leaves_out_the_redemptions_own_final_payment(
+def test_the_outstanding_on_a_closure_date_leaves_out_its_own_final_payment(
     conn: Connection,
 ) -> None:
     ramesh = add_customer(conn)
@@ -105,7 +105,7 @@ def test_a_redemption_amount_leaves_out_the_redemptions_own_final_payment(
     assert replay(conn, chain).steps_by_payment()[final].amount == 1_08_000 * RUPEE
 
     # Owed on 14 Mar before the final Payment: ₹1,09,000 less the earlier ₹1,000.
-    assert replay(conn, chain).redemption(date(2026, 3, 14)).total == 1_08_000 * RUPEE
+    assert replay(conn, chain).closing_quote(date(2026, 3, 14)).total == 1_08_000 * RUPEE
 
 
 def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
@@ -124,7 +124,7 @@ def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
     forfeited = ledger[-1]
     assert (forfeited.event, forfeited.amount) == ("forfeited", 1_09_000 * RUPEE)
     # What the Mortgage owed when it was Forfeited.
-    assert mortgage.redemption(date(2026, 3, 20)).total == 1_09_000 * RUPEE
+    assert mortgage.closing_quote(date(2026, 3, 20)).total == 1_09_000 * RUPEE
 
 
 def test_a_waived_mortgage_closure_has_its_final_payment_and_what_was_let_off(
@@ -137,7 +137,7 @@ def test_a_waived_mortgage_closure_has_its_final_payment_and_what_was_let_off(
     assert replay(conn, chain).closure() == Closure(
         kind="waived",
         on=date(2026, 3, 20),
-        redemption_amount=1_09_000 * RUPEE,
+        outstanding=1_09_000 * RUPEE,
         payment_id=final,
         payment_amount=1_08_000 * RUPEE,
         waived_amount=1_000 * RUPEE,
@@ -215,11 +215,11 @@ def test_a_projection_reports_each_chosen_date_in_one_replay(conn: Connection) -
         LAKH,
         9_000 * RUPEE,
     )
-    assert today.redemption_amount == 1_12_000 * RUPEE
+    assert today.outstanding == 1_12_000 * RUPEE
     # 14 May and 14 Jun at 3% (each charges the month before), 14 Jul at 2%; and
     # Redeeming on 20 Jul adds a full month at 2%.
     assert july.unpaid_interest == 17_000 * RUPEE
-    assert july.redemption_amount == 1_19_000 * RUPEE
+    assert july.outstanding == 1_19_000 * RUPEE
     assert [(on, terms.monthly_rate_bps) for on, terms in projected.term_changes] == [
         (date(2026, 6, 14), 200)
     ]
@@ -321,7 +321,7 @@ def test_a_closing_quote_leaves_out_interest_to_date_paid_ahead(conn: Connection
     # 15 Apr: ₹9,000 charged, then ₹1,000 of the month starting 14 Apr paid ahead.
     add_payment(conn, ramesh, date(2026, 4, 15), {chain: 10_000 * RUPEE})
 
-    quote = replay(conn, chain).redemption(TODAY)
+    quote = replay(conn, chain).closing_quote(TODAY)
 
     assert (quote.principal, quote.unpaid_interest, quote.part_month_charge) == (
         LAKH,

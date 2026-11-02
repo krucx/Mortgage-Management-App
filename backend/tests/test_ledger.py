@@ -836,7 +836,7 @@ def test_a_projection_owes_the_interest_to_date_on_each_date():
         date(2026, 11, 1), 3_000_00, rule_terms, [date(2026, 11, 1), date(2026, 12, 1)]
     )
 
-    assert [s.redemption_amount for s in projected.snapshots] == [3_003_00, 3_093_00]
+    assert [s.outstanding for s in projected.snapshots] == [3_003_00, 3_093_00]
 
 
 @pytest.mark.parametrize("mode", [InterestMode.SIMPLE, InterestMode.COMPOUNDED_MONTHLY])

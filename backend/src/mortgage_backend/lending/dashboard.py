@@ -68,7 +68,7 @@ class Dashboard(BaseModel):
     waived_this_month: int
     waived_amount_this_month: int  # what the Lender let off on them
     forfeited_this_month: int
-    forfeiture_profit_loss_this_month: int  # Recovered Amount − Redemption Amount
+    forfeiture_profit_loss_this_month: int  # Recovered Amount − Outstanding on the Closure date
     payments_by_month: list[MonthlyPayments]  # oldest first, this month last
     projections: list[ProjectionHorizon]  # 3, 6 and 12 months ahead
     trend_months: list[str]  # the full months the estimates average, YYYY-MM

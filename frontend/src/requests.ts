@@ -47,13 +47,14 @@ export function mortgageQuery(client: ApiClient, id: number) {
   })
 }
 
-/** What it takes to close a Mortgage on a date (quoted, so also a future one). */
-export function redemptionQuery(client: ApiClient, id: number, on: string) {
+/** What it takes to close a Mortgage on a date, its Outstanding then (quoted, so also a
+ *  future one). */
+export function closingQuoteQuery(client: ApiClient, id: number, on: string) {
   return queryOptions({
-    queryKey: [...keys.redemptions, id, on],
+    queryKey: [...keys.closingQuotes, id, on],
     queryFn: () =>
       dataOrThrow(
-        client.GET('/api/mortgages/{mortgage_id}/redemption', {
+        client.GET('/api/mortgages/{mortgage_id}/closing-quote', {
           params: { ...mortgagePath(id), query: { on } },
         }),
       ),

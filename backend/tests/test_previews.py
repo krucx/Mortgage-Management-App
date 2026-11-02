@@ -69,8 +69,8 @@ def test_an_edit_preview_shows_both_sides_without_saving(client, mortgage):
         56_000 * RUPEE,
     )
     # In 3 months, Redeeming (full-month rule): ₹1,21,000 now, ₹60,500 after.
-    assert at(shown["before"], 3)["redemption_amount"] == 1_21_000 * RUPEE
-    assert at(shown["after"], 3)["redemption_amount"] == 60_500 * RUPEE
+    assert at(shown["before"], 3)["outstanding"] == 1_21_000 * RUPEE
+    assert at(shown["after"], 3)["outstanding"] == 60_500 * RUPEE
     assert nothing_saved(client, mortgage)
 
 
@@ -241,7 +241,7 @@ def test_a_reopen_preview_shows_the_final_payment_voided(client, mortgage):
     assert changed_steps(shown) == [
         ("2026-04-20", "payment", 1_12_000 * RUPEE, None),
     ]
-    assert at(shown["after"], 3)["redemption_amount"] == 1_21_000 * RUPEE
+    assert at(shown["after"], 3)["outstanding"] == 1_21_000 * RUPEE
     assert client.get(f"/api/mortgages/{mortgage['id']}").json()["status"] == "redeemed"
 
 

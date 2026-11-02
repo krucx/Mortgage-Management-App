@@ -1,12 +1,13 @@
-import type { Redemption } from '../api'
+import type { ClosingQuote } from '../api'
 import { formatINR } from '../money'
 import { ReasonTip } from './ReasonTip'
 
-/** A Redemption Amount quote: the Redemption, why there is none, or still loading. */
-export type Quote = Redemption | string | undefined
+/** A closing quote: the Outstanding on the Closure date, why there is none, or still
+ *  loading. */
+export type Quote = ClosingQuote | string | undefined
 
-/** The Redemption Amount cell: the amount, still loading, or (kept compact, so the table
- *  stays tidy) a marker whose tooltip says why there is none. */
+/** The Outstanding cell: the amount, still loading, or (kept compact, so the table stays
+ *  tidy) a marker whose tooltip says why it can't be closed then. */
 export function Owed({ quote }: { quote: Quote }) {
   if (typeof quote === 'string')
     return (

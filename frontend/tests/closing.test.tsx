@@ -28,7 +28,7 @@ const forfeiting: Closing = {
 const forfeited = (profitLoss: number) => ({
   kind: 'forfeited',
   on: '2026-04-20',
-  redemption_amount: 2_240_000,
+  outstanding: 2_240_000,
   payment_id: null,
   payment_amount: null,
   waived_amount: null,

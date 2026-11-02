@@ -29,7 +29,7 @@ function giveLeftover(
 
 /**
  * The default Allocations: equal whole-rupee shares, each Mortgage taking at most its cap
- * (its Redemption Amount, or Outstanding). One whose cap is less than its share gets
+ * (its Outstanding). One whose cap is less than its share gets
  * exactly its cap and the excess is shared among the rest, repeating until stable.
  * Leftover rupees (and any paise) go to the first Mortgages. Null if the total is more
  * than all the caps.

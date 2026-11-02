@@ -66,7 +66,7 @@ test('a Ledger change does not ask again for a Preview or quote on screen: the c
   let asked = 0
   const shown = [
     [...keys.previews, 'redeem', 7],
-    [...keys.redemptions, 7, '2026-10-18'],
+    [...keys.closingQuotes, 7, '2026-10-18'],
   ]
   const observers = shown.map(
     (queryKey) => new QueryObserver(queryClient, { queryKey, queryFn: async () => ++asked }),

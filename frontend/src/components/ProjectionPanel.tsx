@@ -112,8 +112,8 @@ function Rows({ label, points }: { label: string; points: ProjectedPoint[] }) {
         {cells((p) => formatINR(p.unpaid_interest))}
       </tr>
       <tr>
-        <td>Redemption Amount</td>
-        {cells((p) => formatINR(p.redemption_amount))}
+        <td>Outstanding</td>
+        {cells((p) => formatINR(p.outstanding))}
       </tr>
       <tr>
         <td>Loan-to-Value</td>

@@ -1,9 +1,10 @@
 """The Mortgage replay: a Mortgage's stored facts replayed into its Ledger (ADR 0001).
 
-Every Ledger, Outstanding and Redemption Amount is read through here, so the rules for
-what a replay includes live in one place: a Voided Payment is in no Ledger, a closed
-Mortgage accrues nothing after its Closure, a Forfeited Mortgage's debt is settled by
-its jewellery and a Waived one's is let off by the Lender, and a Redemption Amount leaves out the Redemption's own final Payment.
+Every Ledger and Outstanding is read through here, so the rules for what a replay
+includes live in one place: a Voided Payment is in no Ledger, a closed Mortgage accrues
+nothing after its Closure, a Forfeited Mortgage's debt is settled by its jewellery and a
+Waived one's is let off by the Lender, and the Outstanding on a Closure date leaves out
+the Closure's own final Payment.
 """
 
 from collections.abc import Sequence
@@ -52,8 +53,8 @@ class Outstanding(BaseModel):
     total: int
 
 
-class Redemption(BaseModel):
-    """What it takes to close a Mortgage on a date (see Redemption Amount in GLOSSARY.md)."""
+class ClosingQuote(BaseModel):
+    """What it takes to close a Mortgage on a date: its Outstanding on that Closure date."""
 
     on: date
     principal: int
@@ -61,7 +62,7 @@ class Redemption(BaseModel):
     last_accrual_on: date  # the last Accrual Date by `on` (the start, before any)
     part_month_days: int  # of the month under way charged, `on` included
     part_month_charge: int  # the Interest to Date (per the Part-Month Rule) not paid ahead
-    total: int  # the Redemption Amount
+    total: int  # the Outstanding on that Closure date
 
 
 class Closure(BaseModel):
@@ -69,12 +70,12 @@ class Closure(BaseModel):
 
     kind: Literal["redeemed", "waived", "forfeited"]
     on: date
-    redemption_amount: int  # owed on that date, its Interest to Date included
+    outstanding: int  # on the Closure date, before its final Payment
     payment_id: int | None  # Redeemed or Waived: the final Payment, if any
     payment_amount: int | None  # what that final Payment paid on this Mortgage
     waived_amount: int | None  # Waived: what the Lender let off
     recovered_amount: int | None  # Forfeited: what the jewellery fetched (or is worth)
-    profit_loss: int | None  # Forfeited: recovered − Redemption Amount
+    profit_loss: int | None  # Forfeited: recovered − Outstanding on the Closure date
     note: str | None
 
 
@@ -162,9 +163,9 @@ class MortgageReplay:
             and self.outstanding(on).total == 0
         )
 
-    def redemption(self, on: date) -> Redemption:
-        """The Redemption Amount if closed on `on`, leaving out the Redemption's own
-        final Payment."""
+    def closing_quote(self, on: date) -> ClosingQuote:
+        """The Outstanding if closed on `on`, leaving out the Closure's own final
+        Payment."""
         final_payment = self.row["redemption_payment_id"]
         ledger = self._replay(
             on,
@@ -175,7 +176,7 @@ class MortgageReplay:
         to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
         charge = to_date.amount - to_date.paid_ahead if to_date else 0
         days = interest_to_date_days(self.row["start_date"], on)
-        return Redemption(
+        return ClosingQuote(
             on=on,
             principal=last.principal,
             unpaid_interest=last.unpaid_interest - charge,
@@ -190,14 +191,14 @@ class MortgageReplay:
         row = self.row
         if row["status"] == MortgageStatus.ACTIVE:
             return None
-        redemption_amount = self.redemption(row["closed_on"]).total
+        outstanding = self.closing_quote(row["closed_on"]).total
         forfeited = row["status"] == MortgageStatus.FORFEITED
         last = self.ledger(row["closed_on"])[-1]
         final_payment_id = row["redemption_payment_id"]
         return Closure(
             kind=row["status"],
             on=row["closed_on"],
-            redemption_amount=redemption_amount,
+            outstanding=outstanding,
             payment_id=final_payment_id,
             payment_amount=next(
                 (
@@ -209,7 +210,7 @@ class MortgageReplay:
             ),
             waived_amount=last.amount if last.event == "waived" else None,
             recovered_amount=row["recovered_amount"],
-            profit_loss=row["recovered_amount"] - redemption_amount
+            profit_loss=row["recovered_amount"] - outstanding
             if forfeited
             else None,
             note=row["closure_note"],

@@ -86,13 +86,13 @@ export function ClosuresPage() {
                   Customer
                 </SortHeading>
                 <SortHeading sorting={readySorting} column="amount" firstDescending className="num">
-                  Redemption Amount today
+                  Outstanding today
                 </SortHeading>
                 <th aria-label="Redeem" />
               </tr>
             </thead>
             <tbody>
-              {ready.map(({ mortgage, redemption }) => (
+              {ready.map(({ mortgage, quote }) => (
                 <tr key={mortgage.id}>
                   <td>
                     <Link to={`/mortgages/${mortgage.id}`}>{mortgage.name}</Link>
@@ -101,11 +101,11 @@ export function ClosuresPage() {
                     <PersonLink person={mortgage.customer} />
                   </td>
                   <td className="num">
-                    {formatINR(redemption.total)}
-                    {redemption.part_month_charge > 0 && (
+                    {formatINR(quote.total)}
+                    {quote.part_month_charge > 0 && (
                       <span className="hint">
                         {' '}
-                        (Interest to Date for {redemption.part_month_days} days)
+                        (Interest to Date for {quote.part_month_days} days)
                       </span>
                     )}
                   </td>
@@ -258,7 +258,7 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
               const closure = closureOf(m.id)
               return [
                 m.name,
-                `Recovered ${formatINR(closure?.recovered_amount ?? 0)} of ${formatINR(closure?.redemption_amount ?? 0)}`,
+                `Recovered ${formatINR(closure?.recovered_amount ?? 0)} of ${formatINR(closure?.outstanding ?? 0)}`,
               ]
             }),
             [total >= 0 ? 'Total profit' : 'Total loss', formatINR(Math.abs(total))],
@@ -297,7 +297,7 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
           <thead>
             <tr>
               <th>Mortgage</th>
-              <th className="num">Redemption Amount</th>
+              <th className="num">Outstanding on {formatDate(on)}</th>
               <th className="num">Recovered Amount (₹)</th>
               <th className="num">Profit / loss</th>
             </tr>
@@ -353,7 +353,7 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
 }
 
 /** Waive off several Mortgages on one date: each takes its own final Payment (or none),
- *  and the rest of its Redemption Amount is let off; all of them, or none if the
+ *  and the rest of its Outstanding is let off; all of them, or none if the
  *  backend refuses any. */
 function WaiveChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void }) {
   const [on, setOn] = useState(todayIso())
@@ -435,7 +435,7 @@ function WaiveChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void 
           <thead>
             <tr>
               <th>Mortgage</th>
-              <th className="num">Redemption Amount</th>
+              <th className="num">Outstanding on {formatDate(on)}</th>
               <th className="num">Received now (₹)</th>
               <th className="num">Waived off</th>
             </tr>

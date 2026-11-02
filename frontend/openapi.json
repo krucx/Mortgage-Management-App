@@ -485,6 +485,52 @@
         "title": "CallNoteIn",
         "type": "object"
       },
+      "ClosingQuote": {
+        "description": "What it takes to close a Mortgage on a date: its Outstanding on that Closure date.",
+        "properties": {
+          "last_accrual_on": {
+            "format": "date",
+            "title": "Last Accrual On",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "part_month_charge": {
+            "title": "Part Month Charge",
+            "type": "integer"
+          },
+          "part_month_days": {
+            "title": "Part Month Days",
+            "type": "integer"
+          },
+          "principal": {
+            "title": "Principal",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "unpaid_interest": {
+            "title": "Unpaid Interest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "principal",
+          "unpaid_interest",
+          "last_accrual_on",
+          "part_month_days",
+          "part_month_charge",
+          "total"
+        ],
+        "title": "ClosingQuote",
+        "type": "object"
+      },
       "Closure": {
         "description": "How and when a Mortgage was closed, and what it came to.",
         "properties": {
@@ -512,6 +558,10 @@
             "format": "date",
             "title": "On",
             "type": "string"
+          },
+          "outstanding": {
+            "title": "Outstanding",
+            "type": "integer"
           },
           "payment_amount": {
             "anyOf": [
@@ -557,10 +607,6 @@
             ],
             "title": "Recovered Amount"
           },
-          "redemption_amount": {
-            "title": "Redemption Amount",
-            "type": "integer"
-          },
           "waived_amount": {
             "anyOf": [
               {
@@ -576,7 +622,7 @@
         "required": [
           "kind",
           "on",
-          "redemption_amount",
+          "outstanding",
           "payment_id",
           "payment_amount",
           "waived_amount",
@@ -2513,12 +2559,12 @@
             "title": "On",
             "type": "string"
           },
-          "principal": {
-            "title": "Principal",
+          "outstanding": {
+            "title": "Outstanding",
             "type": "integer"
           },
-          "redemption_amount": {
-            "title": "Redemption Amount",
+          "principal": {
+            "title": "Principal",
             "type": "integer"
           },
           "unpaid_interest": {
@@ -2531,7 +2577,7 @@
           "on",
           "principal",
           "unpaid_interest",
-          "redemption_amount",
+          "outstanding",
           "loan_to_value"
         ],
         "title": "ProjectedPoint",
@@ -2672,13 +2718,13 @@
           "mortgage": {
             "$ref": "#/components/schemas/MortgageRow"
           },
-          "redemption": {
-            "$ref": "#/components/schemas/Redemption"
+          "quote": {
+            "$ref": "#/components/schemas/ClosingQuote"
           }
         },
         "required": [
           "mortgage",
-          "redemption"
+          "quote"
         ],
         "title": "ReadyToRedeem",
         "type": "object"
@@ -2874,52 +2920,6 @@
           "method"
         ],
         "title": "RedeemIn",
-        "type": "object"
-      },
-      "Redemption": {
-        "description": "What it takes to close a Mortgage on a date (see Redemption Amount in GLOSSARY.md).",
-        "properties": {
-          "last_accrual_on": {
-            "format": "date",
-            "title": "Last Accrual On",
-            "type": "string"
-          },
-          "on": {
-            "format": "date",
-            "title": "On",
-            "type": "string"
-          },
-          "part_month_charge": {
-            "title": "Part Month Charge",
-            "type": "integer"
-          },
-          "part_month_days": {
-            "title": "Part Month Days",
-            "type": "integer"
-          },
-          "principal": {
-            "title": "Principal",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          },
-          "unpaid_interest": {
-            "title": "Unpaid Interest",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "on",
-          "principal",
-          "unpaid_interest",
-          "last_accrual_on",
-          "part_month_days",
-          "part_month_charge",
-          "total"
-        ],
-        "title": "Redemption",
         "type": "object"
       },
       "Release": {
@@ -4708,6 +4708,56 @@
         "summary": "Add Call Note"
       }
     },
+    "/api/mortgages/{mortgage_id}/closing-quote": {
+      "get": {
+        "description": "What it takes to close the Mortgage on `on`: its Outstanding then.",
+        "operationId": "closing_quote_api_mortgages__mortgage_id__closing_quote_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "on",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "On",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClosingQuote"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Closing Quote"
+      }
+    },
     "/api/mortgages/{mortgage_id}/collateral": {
       "put": {
         "description": "Set the Collateral Value by hand, or clear it to value at the Gold Rate again.",
@@ -5162,7 +5212,7 @@
     },
     "/api/mortgages/{mortgage_id}/redeem": {
       "post": {
-        "description": "Record the final Payment of the Redemption Amount and mark the Mortgage Redeemed.",
+        "description": "Record the final Payment of the Outstanding and mark the Mortgage Redeemed.",
         "operationId": "post_redeem_api_mortgages__mortgage_id__redeem_post",
         "parameters": [
           {
@@ -5261,56 +5311,6 @@
           }
         },
         "summary": "Preview Redeem"
-      }
-    },
-    "/api/mortgages/{mortgage_id}/redemption": {
-      "get": {
-        "description": "What it takes to redeem the Mortgage on `on`.",
-        "operationId": "redemption_amount_api_mortgages__mortgage_id__redemption_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "mortgage_id",
-            "required": true,
-            "schema": {
-              "title": "Mortgage Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "on",
-            "required": true,
-            "schema": {
-              "format": "date",
-              "title": "On",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Redemption"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Redemption Amount"
       }
     },
     "/api/mortgages/{mortgage_id}/reopen": {
@@ -5612,7 +5612,7 @@
     },
     "/api/mortgages/{mortgage_id}/waive": {
       "post": {
-        "description": "Record a final Payment short of the Redemption Amount, waive the rest, and mark\nthe Mortgage Waived.",
+        "description": "Record a final Payment short of the Outstanding, waive the rest, and mark\nthe Mortgage Waived.",
         "operationId": "post_waive_api_mortgages__mortgage_id__waive_post",
         "parameters": [
           {

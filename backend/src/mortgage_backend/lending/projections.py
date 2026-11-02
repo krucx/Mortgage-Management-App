@@ -27,7 +27,7 @@ class ProjectedPoint(BaseModel):
     on: date
     principal: int
     unpaid_interest: int
-    redemption_amount: int  # if Redeemed that day: Interest to Date included
+    outstanding: int  # what would redeem it that day: Interest to Date included
     loan_to_value: float | None  # against today's Collateral Value
 
 
@@ -71,9 +71,9 @@ def _series(
                 on=point.on,
                 principal=point.principal,
                 unpaid_interest=point.unpaid_interest,
-                redemption_amount=point.redemption_amount,
+                outstanding=point.outstanding,
                 loan_to_value=(
-                    point.redemption_amount / collateral_value  # its Outstanding
+                    point.outstanding / collateral_value
                     if collateral_value
                     else None
                 ),

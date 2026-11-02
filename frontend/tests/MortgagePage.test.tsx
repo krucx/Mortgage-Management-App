@@ -90,7 +90,7 @@ test('deleting a photo asks first, then shows the Mortgage without it', async ()
 })
 
 // What the Mortgage owes on 20 Apr 2026, whatever the date asked.
-const redemption = {
+const quote = {
   on: '2026-04-20',
   principal: 5_000_000,
   unpaid_interest: 75_000,
@@ -100,7 +100,7 @@ const redemption = {
 }
 const closure = (fields: Record<string, unknown>) => ({
   on: '2026-04-20',
-  redemption_amount: redemption.total,
+  outstanding: quote.total,
   payment_id: null,
   payment_amount: null,
   waived_amount: null,
@@ -124,9 +124,9 @@ const closingPreview =
 const paidOf = (body: Record<string, unknown>) =>
   (body.mortgages as { amount_paid: number }[])[0].amount_paid
 const waivePreview = closingPreview((body) =>
-  paidOf(body) >= redemption.total
+  paidOf(body) >= quote.total
     ? `${mortgage.name}: ₹50,750 covers the ₹50,750 owed: Redeem it instead`
-    : closure({ kind: 'waived', payment_amount: paidOf(body), waived_amount: redemption.total - paidOf(body) }),
+    : closure({ kind: 'waived', payment_amount: paidOf(body), waived_amount: quote.total - paidOf(body) }),
 )
 
 test('waiving off shows what is let off, asks first, then shows the Waiver', async () => {
@@ -144,7 +144,7 @@ test('waiving off shows what is let off, asks first, then shows the Waiver', asy
   let body: unknown = null
   const server = fakeServer({
     'GET /api/mortgages/7': () => (body ? waived : mortgage),
-    'GET /api/mortgages/7/redemption': redemption,
+    'GET /api/mortgages/7/closing-quote': quote,
     'POST /api/closures/waive-preview': waivePreview,
     'POST /api/closures/waive': async (request: Request) => {
       body = await request.json()
@@ -179,7 +179,7 @@ test('a Waived Mortgage shows its final Payment and what was let off', async () 
     closure: {
       kind: 'waived' as const,
       on: '2026-04-20',
-      redemption_amount: 5_075_000,
+      outstanding: 5_075_000,
       payment_id: 12,
       payment_amount: 5_000_000,
       waived_amount: 75_000,
@@ -192,13 +192,57 @@ test('a Waived Mortgage shows its final Payment and what was let off', async () 
 
   const paid = await screen.findByRole('link', { name: '₹50,000 (receipt)' })
   expect(paid.getAttribute('href')).toBe('/payments/12')
+  const owed = screen.getByText('Outstanding on the Closure date').closest('div')!
+  expect(within(owed).getByText('₹50,750')).toBeTruthy()
+  expect(screen.queryByText(/Redemption Amount/)).toBeNull()
 })
 
-test("waiving off the whole Redemption Amount is refused by the backend's Preview", async () => {
+test('a Redeemed Mortgage gives the Outstanding it was Redeemed for', async () => {
+  const redeemed = {
+    ...mortgage,
+    status: 'redeemed' as const,
+    closure: closure({ kind: 'redeemed' as const, payment_id: 12, payment_amount: 5_075_000 }),
+  }
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': redeemed }))
+
+  expect(
+    await screen.findByText((_, el) => el?.textContent === 'Redeemed on 20 Apr 2026, paying its Outstanding of ₹50,750. Final Payment (receipt)'),
+  ).toBeTruthy()
+})
+
+test("the Projection shows one Outstanding per date, the Interest to Date included", async () => {
+  const point = (months: number, on: string, owed: number) => ({
+    months, on, principal: 5_000_000, unpaid_interest: owed - 5_000_000, outstanding: owed + 22_500, loan_to_value: null,
+  })
   showMortgagePage(
     fakeServer({
       'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/redemption': redemption,
+      'GET /api/mortgages/7/projection': {
+        as_of: '2026-04-20',
+        collateral_value: null,
+        monthly_payment: null,
+        baseline: {
+          points: [point(3, '2026-07-20', 5_525_000), point(6, '2026-10-20', 5_975_000), point(12, '2027-04-20', 6_875_000)],
+          term_changes: [],
+          paid_off_on: null,
+        },
+        what_if: null,
+      },
+    }),
+  )
+
+  const owed = (await screen.findByRole('cell', { name: 'Outstanding' })).closest('tr')!
+  expect(within(owed).getAllByRole('cell').map((td) => td.textContent)).toEqual([
+    'Outstanding', '₹55,475', '₹59,975', '₹68,975',
+  ])
+  expect(screen.queryByText(/Redemption Amount/)).toBeNull()
+})
+
+test("waiving off the whole Outstanding is refused by the backend's Preview", async () => {
+  showMortgagePage(
+    fakeServer({
+      'GET /api/mortgages/7': mortgage,
+      'GET /api/mortgages/7/closing-quote': quote,
       'POST /api/closures/waive-preview': waivePreview,
     }),
   )
@@ -215,11 +259,11 @@ test("waiving off the whole Redemption Amount is refused by the backend's Previe
 test('forfeiting shows the profit or loss from the Preview, then Forfeits it alone', async () => {
   let body: unknown = null
   const forfeited = (recovered: number) =>
-    closure({ kind: 'forfeited', recovered_amount: recovered, profit_loss: recovered - redemption.total })
+    closure({ kind: 'forfeited', recovered_amount: recovered, profit_loss: recovered - quote.total })
   const server = fakeServer({
     'GET /api/mortgages/7': () =>
       body ? { ...mortgage, status: 'forfeited', closure: forfeited(4_000_000) } : mortgage,
-    'GET /api/mortgages/7/redemption': redemption,
+    'GET /api/mortgages/7/closing-quote': quote,
     'POST /api/closures/forfeit-preview': closingPreview((body) =>
       forfeited((body.mortgages as { recovered_amount: number }[])[0].recovered_amount),
     ),
@@ -249,7 +293,7 @@ test('a future date is quoted, but the backend refuses to record it', async () =
   showMortgagePage(
     fakeServer({
       'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/redemption': redemption,
+      'GET /api/mortgages/7/closing-quote': quote,
       'POST /api/closures/redeem-preview': closingPreview(
         () => `${mortgage.name}: A Redemption, Waiver or Forfeiture cannot be recorded for a future date`,
       ),
@@ -260,7 +304,9 @@ test('a future date is quoted, but the backend refuses to record it', async () =
   fireEvent.change(await screen.findByLabelText('Redeemed on'), { target: { value: '2099-01-01' } })
 
   // The quote still shows; the backend's refusal keeps it from being saved.
-  expect(await screen.findByText('₹50,750')).toBeTruthy()
+  const owed = (await screen.findByText('Outstanding on 1 Jan 2099')).closest('div')!
+  expect(within(owed).getByText('₹50,750')).toBeTruthy()
+  expect(screen.queryByText(/Redemption Amount/)).toBeNull()
   expect(
     await screen.findByText(/cannot be recorded for a future date/, {}, { timeout: 2000 }),
   ).toBeTruthy()

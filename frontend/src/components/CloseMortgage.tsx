@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 import type { Mortgage, PaymentMethod } from '../api'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
-import { redemptionQuery } from '../requests'
+import { closingQuoteQuery } from '../requests'
 import { useServerState } from '../serverState'
 import { PART_MONTH_RULES } from '../terms'
 import { PreviewSection } from './BeforeAfter'
@@ -59,13 +59,13 @@ export function CloseMortgage({
   const [note, setNote] = useState('')
   const { client } = useServerState()
 
-  // The Redemption Amount on the chosen date: a quote, even for a future date.
-  const quote = useQuery({
-    ...redemptionQuery(client, mortgage.id, on),
+  // The Outstanding on the chosen date: a quote, even for a future date.
+  const quoted = useQuery({
+    ...closingQuoteQuery(client, mortgage.id, on),
     enabled: Boolean(action && on),
   })
-  const redemption = quote.data ?? null
-  const quoteError = quote.error?.message
+  const quote = quoted.data ?? null
+  const quoteError = quoted.error?.message
   const receivedPaise = rupeesToPaise(received || '0')
   const paymentReference = reference.trim() || null
 
@@ -115,7 +115,7 @@ export function CloseMortgage({
                 <Summary
                   rows={[
                     ['Waived on', formatDate(on)],
-                    ['Redemption Amount', formatINR(closure?.redemption_amount ?? 0)],
+                    [`Outstanding on ${formatDate(on)}`, formatINR(closure?.outstanding ?? 0)],
                     [
                       'Final Payment',
                       closure?.payment_amount
@@ -158,7 +158,7 @@ export function CloseMortgage({
                 <Summary
                   rows={[
                     ['Forfeited on', formatDate(on)],
-                    ['Redemption Amount', formatINR(closure?.redemption_amount ?? 0)],
+                    [`Outstanding on ${formatDate(on)}`, formatINR(closure?.outstanding ?? 0)],
                     ['Recovered Amount', formatINR(closure?.recovered_amount ?? 0)],
                     ['Profit / loss', formatINR(closure?.profit_loss ?? 0)],
                     ['Note', note.trim() || '—'],
@@ -220,17 +220,17 @@ export function CloseMortgage({
       </label>
 
       {quoteError && <p className="status error">{quoteError}</p>}
-      {redemption && (
+      {quote && (
         <Summary
           rows={[
-            ['Principal', formatINR(redemption.principal)],
-            ['Unpaid interest', formatINR(redemption.unpaid_interest)],
+            ['Principal', formatINR(quote.principal)],
+            ['Unpaid interest', formatINR(quote.unpaid_interest)],
             [
               'Interest to Date',
-              `${formatINR(redemption.part_month_charge)} (${redemption.part_month_days} days of ` +
+              `${formatINR(quote.part_month_charge)} (${quote.part_month_days} days of ` +
                 `the month, that day included; ${PART_MONTH_RULES[mortgage.terms.part_month_rule]})`,
             ],
-            ['Redemption Amount', <strong key="total">{formatINR(redemption.total)}</strong>],
+            [`Outstanding on ${formatDate(on)}`, <strong key="total">{formatINR(quote.total)}</strong>],
           ]}
         />
       )}
@@ -249,7 +249,7 @@ export function CloseMortgage({
       ) : action === 'waive' ? (
         <>
           <label>
-            Received now (₹): the final Payment; the rest of the Redemption Amount is let off
+            Received now (₹): the final Payment; the rest of the Outstanding is let off
             <input
               type="number"
               required
@@ -322,7 +322,7 @@ export function CloseMortgage({
           disabled={!canSave || !proposedClosure}
         >
           {action === 'redeem'
-            ? `Redeem${redemption ? ` for ${formatINR(redemption.total)}` : ''}`
+            ? `Redeem${quote ? ` for ${formatINR(quote.total)}` : ''}`
             : action === 'waive'
               ? `Waive off${waived !== null && waived > 0 ? ` ${formatINR(waived)}` : ''}`
               : 'Forfeit'}
@@ -348,8 +348,8 @@ export function ClosureSummary({ mortgage }: { mortgage: Mortgage }) {
   if (closure.kind === 'redeemed') {
     return (
       <div className="close-panel">
-        <strong>Redeemed on {formatDate(closure.on)}</strong>, Redemption Amount{' '}
-        {formatINR(closure.redemption_amount)}.{' '}
+        <strong>Redeemed on {formatDate(closure.on)}</strong>, paying its Outstanding of{' '}
+        {formatINR(closure.outstanding)}.{' '}
         {closure.payment_id && (
           <Link to={`/payments/${closure.payment_id}`}>Final Payment (receipt)</Link>
         )}
@@ -362,7 +362,7 @@ export function ClosureSummary({ mortgage }: { mortgage: Mortgage }) {
         <strong>Waived off on {formatDate(closure.on)}</strong>
         <Summary
           rows={[
-            ['Redemption Amount', formatINR(closure.redemption_amount)],
+            ['Outstanding on the Closure date', formatINR(closure.outstanding)],
             [
               'Final Payment',
               closure.payment_id ? (
@@ -385,7 +385,7 @@ export function ClosureSummary({ mortgage }: { mortgage: Mortgage }) {
       <strong>Forfeited on {formatDate(closure.on)}</strong>
       <Summary
         rows={[
-          ['Redemption Amount', formatINR(closure.redemption_amount)],
+          ['Outstanding on the Closure date', formatINR(closure.outstanding)],
           ['Recovered Amount', formatINR(closure.recovered_amount ?? 0)],
           ['Result', <ProfitLoss key="result" amount={closure.profit_loss ?? 0} />],
           ['Note', closure.note ?? '—'],
