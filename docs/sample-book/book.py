@@ -280,14 +280,16 @@ def events(book: Book) -> list[tuple[str, Any]]:
                 "method": "cash", "note": "Pays every month; ₹180 let off"}),
         )),
         # Kavita's anklet, lent in cash on 1 Jul and entered late from the paper book with
-        # its two Payments, the second dated 25 Aug by mistake (it was 25 Sep): together
-        # they leave it owing nothing, Dormant, though she has not had it back.
+        # its three Payments, the last dated 25 Aug by mistake (it was 25 Sep): together
+        # they leave it owing nothing, Dormant, though she has not had it back. (None of
+        # them is its whole Outstanding on its date: that would Redeem it, or be refused.)
         ("2026-10-18", lambda: (
             book.lend("anklet", "kavita", 15_000, "Silver-gold anklet", net_g=4, gross_g=5,
                       terms={"monthly_rate_bps": 200, "interest_mode": "simple", "part_month_rule": "nothing"},
                       lent_through="cash", started="2026-07-01"),
+            book.pay("kavita", {"anklet": 300}, method="cash", on="2026-08-26"),
             book.pay("kavita", {"anklet": 300}, method="cash", on="2026-09-05"),
-            book.pay("kavita", {"anklet": 15_300}, method="upi", on="2026-08-25"),
+            book.pay("kavita", {"anklet": 15_000}, method="upi", on="2026-08-25"),
         )),
         # The day of the story: today's Gold Rates, and Arjun called about his ring.
         ("2026-10-19", lambda: (

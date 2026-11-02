@@ -5,7 +5,12 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
-## Unreleased
+## [3.2.1] - 2026-11-03
+
+New Payment Redeems what it pays in full without waiting on quotes, the Cash Limit's
+warning comes from each change's Preview, photos are kept only when their change is
+saved, and Call Notes follow one set of rules. **No database changes:** updating keeps
+all data and Backups, and 3.2.0 still starts on the same database.
 
 ### Changed
 
@@ -41,6 +46,16 @@ Every release of Mortgage Management, newest first. The format follows
 - **"1 day", not "1 days":** closing a Mortgage on the first day of its month now
   says "1 day of the month". New Payment's full-Outstanding note now reads "including
   N days of Interest to Date".
+
+### Upgrading
+
+On Windows, use the banner's **Install now**. Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
 
 ## [3.2.0] - 2026-11-03
 

@@ -379,7 +379,7 @@ await page.unroute('**/api/**')
 await page.route('**/api/update', (route) =>
   route.fulfill({
     json: {
-      running: '3.2.0',
+      running: '3.2.1',
       available: {
         version: '3.3.0',
         notes: '### Added\n\n- **Example:** what a release adds is listed here, from its changelog.',
