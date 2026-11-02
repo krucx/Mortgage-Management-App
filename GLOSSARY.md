@@ -41,6 +41,10 @@ A Mortgage's rate, Interest Mode and Part-Month Rule: set when it is created, an
 The Terms the Lender has set to be copied into every new Mortgage.
 _Avoid_: Global rate, settings
 
+**Lent Through**:
+How a Mortgage's Principal was handed to the Customer: Cash, UPI or bank transfer.
+_Avoid_: Disbursal mode, payout
+
 **Term Change**:
 A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.
 _Avoid_: Rate edit, amendment
@@ -122,6 +126,10 @@ _Avoid_: Invoice, bill
 The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month's interest), then Principal.
 _Avoid_: Split, contribution
 
+**Cash Limit**:
+The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead.
+_Avoid_: Cash cap, cash ceiling
+
 **Void**:
 Cancelling a recorded Payment with a reason, keeping it on record but excluding it from every Ledger.
 _Avoid_: Delete, reverse
@@ -158,6 +166,10 @@ _Avoid_: Export, snapshot, archive
 
 **Active**:
 A Mortgage still accruing interest with jewellery held.
+
+**Dormant**:
+An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it.
+_Avoid_: Ready to Redeem, paid up
 
 **Redeemed**:
 A Mortgage fully repaid with its jewellery returned to the Customer.

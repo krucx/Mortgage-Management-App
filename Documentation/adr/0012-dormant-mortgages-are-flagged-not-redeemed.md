@@ -1,0 +1,5 @@
+# Dormant Mortgages are flagged, not Redeemed automatically
+
+ADR 0011 retired Ready to Redeem because paying the whole Outstanding Redeems a Mortgage in the same step. An Active Mortgage can still end up owing nothing, for example when it was paid up before 3.0.0, or when a Payment is edited, back-dated or another Payment Voided. We call it Dormant: it is worked out on every Replay (ADR 0001), never stored, so it appears and disappears as Payments change. A Dormant Mortgage gets no Notices and stays off the Call List. It is listed on the Closures page with a red dot on the Closures tab, so the Lender can Redeem it once they have confirmed the jewellery went back.
+
+We considered Redeeming such Mortgages automatically, and storing Dormant as a Status. We rejected automatic Redemption because the Lender must confirm the jewellery was returned before the record says so. We rejected a stored Status because it would fall out of step with the Payments it is derived from. Dormant is therefore a recording slip to put right, not a normal step in a Mortgage's life, and is not a leftover of Ready to Redeem.
