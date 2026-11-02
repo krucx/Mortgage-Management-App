@@ -110,9 +110,9 @@ def test_a_term_change_preview_shows_the_coming_difference(client, mortgage):
         {"monthly_rate_bps": 200},
     )
 
-    # 14 May still 3%; 14 Jun and 14 Jul at 2% instead of 3%.
-    assert at(shown["before"], 3)["unpaid_interest"] == 18_000 * RUPEE
-    assert at(shown["after"], 3)["unpaid_interest"] == 16_000 * RUPEE
+    # 14 May still 3%; 14 Jun and 14 Jul at 2% instead of 3%, and the month from 14 Jul.
+    assert at(shown["before"], 3)["unpaid_interest"] == 21_000 * RUPEE
+    assert at(shown["after"], 3)["unpaid_interest"] == 18_000 * RUPEE
     assert shown["ledger_changes"] == []  # nothing charged so far changes
     assert nothing_saved(client, mortgage)
 
@@ -264,8 +264,8 @@ def test_a_term_change_removal_preview_shows_the_projection_without_it(
         f"mortgages/{mortgage['id']}/term-changes/{change['id']}/remove-preview",
     )
 
-    assert at(shown["before"], 3)["unpaid_interest"] == 16_000 * RUPEE
-    assert at(shown["after"], 3)["unpaid_interest"] == 18_000 * RUPEE
+    assert at(shown["before"], 3)["unpaid_interest"] == 18_000 * RUPEE
+    assert at(shown["after"], 3)["unpaid_interest"] == 21_000 * RUPEE
     assert [
         c["id"]
         for c in client.get(f"/api/mortgages/{mortgage['id']}").json()["term_changes"]

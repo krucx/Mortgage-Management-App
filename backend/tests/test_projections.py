@@ -37,11 +37,12 @@ def test_the_baseline_projection_assumes_no_more_payments(client, mortgage):
     assert [p["months"] for p in baseline["points"]] == list(range(13))
     in_three = at(baseline, 3)
     assert in_three["on"] == "2026-07-20"
+    # ₹18,000 charged by 14 Jul, and the month from then: its Interest to Date (full
+    # month) is unpaid interest too, so Principal and unpaid interest are the Outstanding.
     assert (in_three["principal"], in_three["unpaid_interest"]) == (
         LAKH,
-        18_000 * RUPEE,
+        21_000 * RUPEE,
     )
-    # Redeeming then adds the Part-Month Rule charge (full month).
     assert in_three["outstanding"] == 1_21_000 * RUPEE
     assert in_three["loan_to_value"] is None  # no Collateral Value yet
     assert baseline["paid_off_on"] is None
@@ -63,8 +64,9 @@ def test_loan_to_value_is_against_todays_collateral_value(client, mortgage):
 def test_what_if_they_pay_every_month(client, mortgage):
     what_if = projection(client, mortgage, monthly_payment=5_000 * RUPEE)["what_if"]
 
-    # ₹5,000 on 14 May, Jun and Jul against ₹3,000 a month of interest.
-    assert at(what_if, 3)["unpaid_interest"] == 3_000 * RUPEE
+    # ₹5,000 on 14 May, Jun and Jul against ₹3,000 a month of interest: ₹3,000 left,
+    # and the month from 14 Jul's ₹3,000 Interest to Date.
+    assert at(what_if, 3)["unpaid_interest"] == 6_000 * RUPEE
     assert at(what_if, 3)["principal"] == LAKH
 
 
@@ -81,8 +83,9 @@ def test_projections_follow_a_coming_term_change(client, mortgage):
 
     in_three = at(projection(client, mortgage)["baseline"], 3)
 
-    # 14 May still 3% (the month before it), then 2% on 14 Jun and 14 Jul.
-    assert in_three["unpaid_interest"] == 16_000 * RUPEE
+    # 14 May still 3% (the month before it), then 2% on 14 Jun and 14 Jul, and the
+    # month from 14 Jul at 2% (₹2,000).
+    assert in_three["unpaid_interest"] == 18_000 * RUPEE
 
 
 def test_a_closed_mortgage_has_no_projection(client, mortgage):
@@ -119,7 +122,7 @@ def test_compounding_capitalises_unpaid_interest_in_the_projection(client, rames
     assert in_a_year["on"] == "2027-04-20"
     assert (in_a_year["principal"], in_a_year["unpaid_interest"]) == (
         1_36_000 * RUPEE,
-        12_240 * RUPEE,
+        (12_240 + 4_080) * RUPEE,
     )
     assert in_a_year["outstanding"] == (1_36_000 + 12_240 + 4_080) * RUPEE
 

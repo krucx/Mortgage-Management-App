@@ -14,7 +14,6 @@ const HEIGHT = 240
 const PAD = { left: 74, right: 24, top: 44, bottom: 28 }
 
 const time = (isoDate: string) => new Date(`${isoDate}T00:00:00Z`).getTime()
-const owed = (point: ProjectedPoint) => point.principal + point.unpaid_interest
 
 /** A smooth path through the points that never overshoots them (monotone cubic). */
 function smoothPath(xy: [number, number][]): string {
@@ -36,7 +35,7 @@ function smoothPath(xy: [number, number][]): string {
   return path
 }
 
-/** A year ahead: the amount owed for each series, with coming Term Changes marked. */
+/** A year ahead: the Outstanding of each series, with coming Term Changes marked. */
 export function ProjectionChart({
   series,
   termChanges,
@@ -48,7 +47,7 @@ export function ProjectionChart({
   if (!first || first.length < 2) return null
   const start = time(first[0].on)
   const end = time(first[first.length - 1].on)
-  const max = Math.max(1, ...series.flatMap((s) => s.points.map(owed)))
+  const max = Math.max(1, ...series.flatMap((s) => s.points.map((p) => p.outstanding)))
   const x = (isoDate: string) =>
     PAD.left + ((time(isoDate) - start) / (end - start)) * (WIDTH - PAD.left - PAD.right)
   const y = (paise: number) => PAD.top + (1 - paise / max) * (HEIGHT - PAD.top - PAD.bottom)
@@ -63,7 +62,7 @@ export function ProjectionChart({
 
   return (
     <figure className="chart">
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Amount owed over the next 12 months">
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Outstanding over the next 12 months">
         {ticks.map((tick) => (
           <g key={tick}>
             <line x1={PAD.left} x2={WIDTH - PAD.right} y1={y(tick)} y2={y(tick)} className="grid" />
@@ -104,7 +103,7 @@ export function ProjectionChart({
         {series.map((s) => (
           <path
             key={s.label}
-            d={smoothPath(s.points.map((p) => [x(p.on), y(owed(p))]))}
+            d={smoothPath(s.points.map((p) => [x(p.on), y(p.outstanding)]))}
             className={`series ${s.className}`}
           />
         ))}
@@ -115,7 +114,7 @@ export function ProjectionChart({
             {s.label}
           </span>
         ))}
-        <span className="hint">Amount owed (Principal and unpaid interest)</span>
+        <span className="hint">Outstanding (the Interest to Date included)</span>
       </figcaption>
     </figure>
   )

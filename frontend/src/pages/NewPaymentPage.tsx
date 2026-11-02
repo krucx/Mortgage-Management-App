@@ -451,9 +451,10 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 /** What paying a Mortgage's whole Outstanding does, for the Redeem question. */
 function RedeemedInFull({ name, quote }: { name: string; quote: Quote }) {
   if (typeof quote !== 'object') return null
+  const days = quote.interest_to_date_days
   const charge =
     quote.interest_to_date > 0
-      ? `, including ${quote.interest_to_date_days} days' Interest to Date`
+      ? `, including ${days === 1 ? "1 day's" : `${days} days'`} Interest to Date`
       : ''
   return `This pays the full Outstanding of ${name} (${formatINR(quote.total)}${charge}).`
 }

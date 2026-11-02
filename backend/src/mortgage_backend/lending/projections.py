@@ -70,7 +70,8 @@ def _series(
                 months=months,
                 on=point.on,
                 principal=point.principal,
-                unpaid_interest=point.unpaid_interest,
+                # The Interest to Date included, as in Outstanding (ADR 0011).
+                unpaid_interest=point.outstanding - point.principal,
                 outstanding=point.outstanding,
                 loan_to_value=(
                     point.outstanding / collateral_value
