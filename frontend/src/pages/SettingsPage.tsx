@@ -570,6 +570,7 @@ function BackupSettings() {
               {!backup.encrypted && (
                 <p className="status error">
                   Backups are not password-protected: set BACKUP_PASSWORD in the .env file.
+                  Backups hold Customers' ID Photos: keep the Backup folder private.
                 </p>
               )}
               <div>

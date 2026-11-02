@@ -55,6 +55,20 @@ def portrait(skin: str, shirt: str, hair: str) -> bytes:
     return out.getvalue()
 
 
+def id_card(title: str, number: str, tint: str) -> bytes:
+    """A placeholder ID card, marked SAMPLE, standing in for a Customer's ID Photo."""
+    image = Image.new("RGB", (480, 300), tint)
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((16, 16, 464, 284), outline="#5a5a5a", width=3)
+    draw.text((36, 34), title, fill="#202020")
+    draw.rectangle((36, 80, 136, 200), fill="#c9c2b6")
+    draw.text((160, 100), "SAMPLE - not a real card", fill="#202020")
+    draw.text((160, 140), number, fill="#202020")
+    out = io.BytesIO()
+    image.save(out, "JPEG", quality=90)
+    return out.getvalue()
+
+
 def ring_photo() -> bytes:
     """A gold ring with a ruby, on a jeweller's tray."""
     image = Image.new("RGB", (480, 360), "#2d2a33")
@@ -321,7 +335,13 @@ def write(folder: Path) -> None:
         book.customer(
             "meera", "Meera Sharma", "9810012345", "14 Lajpat Nagar, New Delhi", phone_2="9810099999",
             referrer={"kind": "new", "name": "Ravi Verma", "address": "", "phone": "9811122233"},
+            email="meera.sharma@example.com", aadhaar_last4="4821", pan="ABCPS1234K",
         )
+        meera = book.people["meera"]["id"]
+        book.upload(f"/api/customers/{meera}/id-photos/aadhaar",
+                    id_card("Aadhaar (masked)", "XXXX XXXX 4821", "#eef3e6"), method="put")
+        book.upload(f"/api/customers/{meera}/id-photos/pan",
+                    id_card("Permanent Account Number", "ABCPS1234K", "#e6eef7"), method="put")
         book.upload(f"/api/customers/{book.people['meera']['id']}/photo",
                     portrait("#c68e6a", "#b83a5e", "#2b1d14"), method="put")
         # Stable: events of one day keep the order they are listed in.

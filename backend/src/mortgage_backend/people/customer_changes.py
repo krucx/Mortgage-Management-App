@@ -1,15 +1,16 @@
 """Changes to Customers, each made in one place: creating one, editing one, replacing
-its photo and deleting it.
+its photo or ID Photos and deleting it.
 
 Every change is refused if it isn't allowed, written, then recorded in History. The
 rules live here: a Primary Number identifies a person (ADR 0005), so a number already
-a Customer's is refused, a Standalone Referrer who borrows is promoted to a Customer
+a Customer's is refused, and so is a PAN already another Customer's; a Standalone Referrer who borrows is promoted to a Customer
 with their referrals, and a "new" Referrer whose number is known is that person; nobody
 is their own Referrer; and a Customer with Mortgages is never deleted. The request
 handlers only parse, call and answer.
 """
 
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Response, UploadFile, status
 from sqlalchemy import delete, insert, select, update
@@ -39,7 +40,23 @@ from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.photos import PhotosDirDep
 from mortgage_backend.safekeeping import audit
 
-_AUDITED = ["name", "address", "phone_1", "phone_2", "referrer"]
+_AUDITED = [
+    "name",
+    "address",
+    "phone_1",
+    "phone_2",
+    "referrer",
+    "email",
+    "aadhaar_last4",
+    "pan",
+]
+
+# The ID Photos, by the card each shows: its column, and its name in History.
+IdCard = Literal["aadhaar", "pan"]
+_ID_PHOTOS: dict[IdCard, tuple[str, str]] = {
+    "aadhaar": ("aadhaar_photo", "Aadhaar card"),
+    "pan": ("pan_photo", "PAN card"),
+}
 
 
 def _audited(customer: Customer) -> dict[str, object]:
@@ -55,6 +72,12 @@ def _number_taken(phone: str, owner: PersonSummary) -> HTTPException:
     return HTTPException(
         status.HTTP_409_CONFLICT,
         f"Contact number 1 {phone} already belongs to {label} {owner.name}",
+    )
+
+
+def _pan_taken(pan: str, holder: str) -> HTTPException:
+    return HTTPException(
+        status.HTTP_409_CONFLICT, f"PAN {pan} already belongs to Customer {holder}"
     )
 
 
@@ -161,6 +184,14 @@ def _checked(
             raise _number_taken(customer.phone_1, owner)
     if _is_themselves(conn, customer.referrer, customer_id, customer.phone_1, owner):
         raise unprocessable("A Customer cannot be their own Referrer")
+    if customer.pan is not None:
+        holder = conn.execute(
+            select(customer_table.c.id, customer_table.c.name).where(
+                customer_table.c.pan == customer.pan
+            )
+        ).first()
+        if holder is not None and holder.id != customer_id:
+            raise _pan_taken(customer.pan, holder.name)
     values = {
         **customer.model_dump(exclude={"referrer"}),
         **_referrer_columns(conn, customer.referrer),
@@ -223,13 +254,42 @@ def replace_photo(
     return old
 
 
-def remove_customer(conn: Connection, customer_id: int, now: datetime) -> str | None:
+def replace_id_photo(
+    conn: Connection,
+    customer_id: int,
+    card: IdCard,
+    file_name: str | None,
+    now: datetime,
+) -> str | None:
+    """Make `file_name` (already saved, or None to remove it) the Customer's ID Photo of
+    `card`; the old photo's file, to delete once this is saved."""
+    load_customer(conn, customer_id)  # refused if there is no such Customer
+    column, label = _ID_PHOTOS[card]
+    old: str | None = conn.execute(
+        select(customer_table.c[column]).where(customer_table.c.id == customer_id)
+    ).scalar()
+    if file_name is None and old is None:
+        return None
+    conn.execute(
+        update(customer_table)
+        .where(customer_table.c.id == customer_id)
+        .values({column: file_name})
+    )
+    action: audit.Action = "photo_added" if file_name else "photo_removed"
+    audit.record(conn, now, "customer", customer_id, action, note=label)
+    return old
+
+
+def remove_customer(conn: Connection, customer_id: int, now: datetime) -> list[str]:
     """Delete a Customer without Mortgages (or refuse); anyone they referred keeps their
-    record but loses the link. Their photo's file, to delete once this is saved."""
+    record but loses the link. Their photos' files, to delete once this is saved."""
     customer = conn.execute(
-        select(customer_table.c.name, customer_table.c.photo).where(
-            customer_table.c.id == customer_id
-        )
+        select(
+            customer_table.c.name,
+            customer_table.c.photo,
+            customer_table.c.aadhaar_photo,
+            customer_table.c.pan_photo,
+        ).where(customer_table.c.id == customer_id)
     ).first()
     if customer is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
@@ -246,8 +306,8 @@ def remove_customer(conn: Connection, customer_id: int, now: datetime) -> str | 
     )
     conn.execute(delete(customer_table).where(customer_table.c.id == customer_id))
     audit.record(conn, now, "customer", customer_id, "deleted", note=customer.name)
-    photo: str | None = customer.photo
-    return photo
+    files = (customer.photo, customer.aadhaar_photo, customer.pan_photo)
+    return [file for file in files if file]
 
 
 router = APIRouter(prefix="/api")
@@ -269,7 +329,9 @@ def put_customer(
 
 
 @router.post("/customers/preview", status_code=status.HTTP_204_NO_CONTENT)
-def preview_new_customer(customer: CustomerIn, engine: EngineDep, now: NowDep) -> Response:
+def preview_new_customer(
+    customer: CustomerIn, engine: EngineDep, now: NowDep
+) -> Response:
     """Whether the Customer can be added: they are added, then undone, so it is refused
     here exactly when saving would be."""
     with engine.connect() as conn:
@@ -312,14 +374,52 @@ async def put_customer_photo(
     return saved
 
 
+@router.put("/customers/{customer_id}/id-photos/{card}")
+async def put_id_photo(
+    customer_id: int,
+    card: IdCard,
+    photo: UploadFile,
+    engine: EngineDep,
+    photos_dir: PhotosDirDep,
+    now: NowDep,
+) -> Customer:
+    """Add or replace one of the Customer's ID Photos."""
+    with engine.connect() as conn:
+        load_customer(conn, customer_id)  # refused before saving a file for nothing
+    content = await photo.read()
+    file_name = photos.save_photo(photos_dir, "customer", customer_id, content)
+    with engine.begin() as conn:
+        old = replace_id_photo(conn, customer_id, card, file_name, now)
+        saved = load_customer(conn, customer_id)
+    photos.delete_photo(photos_dir, old)
+    return saved
+
+
+@router.delete("/customers/{customer_id}/id-photos/{card}")
+def delete_id_photo(
+    customer_id: int,
+    card: IdCard,
+    engine: EngineDep,
+    photos_dir: PhotosDirDep,
+    now: NowDep,
+) -> Customer:
+    """Remove one of the Customer's ID Photos."""
+    with engine.begin() as conn:
+        old = replace_id_photo(conn, customer_id, card, None, now)
+        saved = load_customer(conn, customer_id)
+    photos.delete_photo(photos_dir, old)
+    return saved
+
+
 @router.delete("/customers/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_customer(
     customer_id: int, engine: EngineDep, photos_dir: PhotosDirDep, now: NowDep
 ) -> Response:
     """Delete a Customer; anyone they referred keeps their record but loses the link."""
     with engine.begin() as conn:
-        photo = remove_customer(conn, customer_id, now)
-    photos.delete_photo(photos_dir, photo)
+        files = remove_customer(conn, customer_id, now)
+    for file in files:
+        photos.delete_photo(photos_dir, file)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -327,7 +427,9 @@ def delete_customer(
     "/customers/{customer_id}/delete-preview",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def preview_delete_customer(customer_id: int, engine: EngineDep, now: NowDep) -> Response:
+def preview_delete_customer(
+    customer_id: int, engine: EngineDep, now: NowDep
+) -> Response:
     """Whether the Customer can be deleted: the delete is made, then undone, so it is
     refused here exactly when deleting would be."""
     with engine.connect() as conn:

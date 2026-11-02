@@ -9,6 +9,7 @@ import type {
   CollateralPreview,
   CustomerIn,
   CustomerSort,
+  IdCard,
   DormantSort,
   ForfeitAllIn,
   MessageSettings,
@@ -525,6 +526,23 @@ export const customerChanges = {
             params: customerPath(id),
             body: customer,
           }),
+    ),
+  /** Add or replace one of the Customer's ID Photos; the Customer as it now is. */
+  replaceIdPhoto: (client: ApiClient, id: number, card: IdCard, photo: Blob) =>
+    dataOrThrow(
+      client.PUT('/api/customers/{customer_id}/id-photos/{card}', {
+        params: { path: { customer_id: id, card } },
+        // The schema types the file as a string; it is sent as multipart form data.
+        body: { photo: '' },
+        bodySerializer: () => photoForm(photo),
+      }),
+    ),
+  /** Remove one of the Customer's ID Photos; the Customer as it now is. */
+  removeIdPhoto: (client: ApiClient, id: number, card: IdCard) =>
+    dataOrThrow(
+      client.DELETE('/api/customers/{customer_id}/id-photos/{card}', {
+        params: { path: { customer_id: id, card } },
+      }),
     ),
   replacePhoto: (client: ApiClient, id: number, photo: Blob) =>
     dataOrThrow(

@@ -64,3 +64,22 @@ test('the Cash Limit is shown in rupees, and clearing it saves no limit', async 
   expect(await within(section).findByText('Saved.')).toBeTruthy()
   expect(saved).toEqual([{ cash_limit: null }])
 })
+
+test("unprotected Backups warn that they hold Customers' ID Photos", async () => {
+  showPage(
+    fakeServer({
+      'GET /api/backups': {
+        enabled: true, encrypted: false, running: false, last_backup_at: null,
+        last_backup_file: null, last_error: null, keep: 4,
+      },
+    }),
+    '/settings',
+    { '/settings': <SettingsPage /> },
+  )
+
+  expect(
+    await screen.findByText("Backups hold Customers' ID Photos: keep the Backup folder private.", {
+      exact: false,
+    }),
+  ).toBeTruthy()
+})

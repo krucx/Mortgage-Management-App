@@ -132,6 +132,8 @@ export type ForfeitAllIn = Schemas['ForfeitAllIn']
 export type RedeemAllIn = Schemas['RedeemAllIn']
 export type WaiveAllIn = Schemas['WaiveAllIn']
 export type Closure = Schemas['Closure']
+/** Which of a Customer's ID Photos: their Aadhaar card or PAN card. */
+export type IdCard = 'aadhaar' | 'pan'
 /** What importing a filled-in Call Sheet adds, and each filled-in row it leaves out. */
 export type CallNoteImport = Schemas['CallNoteImport']
 export type NotImported = Schemas['NotImported']

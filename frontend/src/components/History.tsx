@@ -9,7 +9,7 @@ import {
   type PaymentMethod,
 } from '../api'
 import { formatRate, INTEREST_MODES, PART_MONTH_RULES } from '../terms'
-import { formatDate, formatDateTime, formatGrams } from '../format'
+import { formatDate, formatDateTime, formatGrams, maskedAadhaar } from '../format'
 import { formatINR } from '../money'
 import { ScrollPopup } from './ScrollPopup'
 
@@ -19,6 +19,9 @@ const FIELD_LABELS: Record<string, string> = {
   phone_1: 'Contact number 1',
   phone_2: 'Contact number 2',
   referrer: 'Referrer',
+  email: 'Email',
+  aadhaar_last4: 'Aadhaar Number',
+  pan: 'PAN',
   start_date: 'Start date',
   amount_lent: 'Principal lent',
   description: 'Jewellery',
@@ -55,6 +58,8 @@ function formatValue(
       return formatGrams(Number(value))
     case 'purity_karat':
       return `${value}K`
+    case 'aadhaar_last4':
+      return maskedAadhaar(value)
     case 'method':
     case 'lent_through':
       return methods?.[value as PaymentMethod] ?? value

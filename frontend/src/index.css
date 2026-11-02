@@ -453,6 +453,18 @@ a.result:hover {
   border: 1px solid var(--border);
 }
 
+/* ID Photos: card-shaped thumbnails, side by side; open full size on click. */
+.id-photos {
+  flex-wrap: wrap;
+}
+
+.id-photos img.photo {
+  width: 220px;
+  aspect-ratio: 1.6;
+  object-fit: contain;
+  background: var(--surface);
+}
+
 .thumb {
   width: 48px;
   height: 48px;

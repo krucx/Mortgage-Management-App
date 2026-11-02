@@ -1,19 +1,42 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import type { Customer, CustomerIn, PersonSummary } from '../api'
+import type { Customer, CustomerIn, IdCard, PersonSummary } from '../api'
 import { PeopleInline, PersonLink } from '../components/PersonLink'
+import { Photo } from '../components/Photo'
 import { PhotoPicker } from '../components/PhotoPicker'
+import { PhotoSource } from '../components/PhotoSource'
 import { ReferrerPicker, type ReferrerSelection } from '../components/ReferrerPicker'
 import { useNumberOwner } from '../components/useNumberOwner'
 import { usePreview } from '../components/usePreview'
 import { Summary } from '../components/ConfirmDialog'
 import { useConfirm } from '../components/useConfirm'
+import { maskedAadhaar } from '../format'
 import { normalisePhone } from '../phone'
 import { customerChanges, customerQuery, searchQuery } from '../requests'
 import { STALE_AFTER, useChange, useServerState } from '../serverState'
 
-const EMPTY = { name: '', address: '', phone_1: '', phone_2: '' }
+const EMPTY = { name: '', address: '', phone_1: '', phone_2: '', email: '', aadhaar_last4: '', pan: '' }
+
+/** An ID Photo as the form will leave it: kept, replaced by a new one, or removed. */
+type IdPhotoChange = { kind: 'keep' } | { kind: 'new'; photo: Blob } | { kind: 'remove' }
+const ID_CARDS: { card: IdCard; label: string; urlOf: (c: Customer) => string | null }[] = [
+  { card: 'aadhaar', label: 'Aadhaar card photo (the masked front)', urlOf: (c) => c.aadhaar_photo_url },
+  { card: 'pan', label: 'PAN card photo', urlOf: (c) => c.pan_photo_url },
+]
+const CARD_NAMES: Record<IdCard, string> = { aadhaar: 'Aadhaar', pan: 'PAN' }
+
+/** The last 4 digits of an Aadhaar Number as typed (whole, masked or the 4 alone). */
+const typedLast4 = (typed: string) => typed.replace(/\D/g, '').slice(-4)
+
+/** What is sent for an Aadhaar Number as typed: only its last 4 digits when it is whole
+ *  or masked, so the full number never leaves the form; anything else as typed, for the
+ *  backend to refuse. */
+function sentAadhaar(typed: string): string | null {
+  const digits = typed.replace(/\D/g, '')
+  if (!typed.trim()) return null
+  return digits.length === 4 || digits.length === 12 ? digits.slice(-4) : typed
+}
 
 /** Create a new Customer, or edit one when the URL has an id. */
 export function CustomerFormPage() {
@@ -45,6 +68,9 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
           address: existing.address,
           phone_1: existing.phone_1,
           phone_2: existing.phone_2 ?? '',
+          email: existing.email ?? '',
+          aadhaar_last4: existing.aadhaar_last4 ?? '',
+          pan: existing.pan ?? '',
         }
       : EMPTY,
   )
@@ -54,6 +80,10 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
   const [referrerName, setReferrerName] = useState(existing?.referrer?.name)
   const [confirm, confirmDialog] = useConfirm()
   const [photo, setPhoto] = useState<Blob | null>(null)
+  const [idPhotos, setIdPhotos] = useState<Record<IdCard, IdPhotoChange>>({
+    aadhaar: { kind: 'keep' },
+    pan: { kind: 'keep' },
+  })
   const [phone2Shared, setPhone2Shared] = useState<PersonSummary[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -66,10 +96,21 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
 
   // What saving would send, checked by the backend as it is typed: a save it would refuse
   // (e.g. someone else's Primary Number) can't be pressed, and its reason is shown.
+  const details = {
+    ...fields,
+    phone_2: fields.phone_2.trim() || null,
+    email: fields.email.trim() || null,
+    aadhaar_last4: sentAadhaar(fields.aadhaar_last4),
+    pan: fields.pan.trim() || null,
+  }
   const asked: CustomerIn | null =
     referrer === 'unpicked' || !fields.name.trim() || !normalisePhone(fields.phone_1)
       ? null
-      : { ...fields, phone_2: fields.phone_2.trim() || null, referrer }
+      : { ...details, referrer }
+  const idPhotoChanges = ID_CARDS.flatMap(({ card }) => {
+    const change = idPhotos[card]
+    return change.kind === 'keep' ? [] : [`${CARD_NAMES[card]} ${change.kind === 'new' ? 'new' : 'removed'}`]
+  })
   const check = usePreview(asked && customerChanges.preview(asked, customerId))
   const unchecked = asked !== null && (check.loading || check.error !== null)
 
@@ -109,6 +150,13 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
                   : referrerName,
             ],
             ['Photo', photo ? 'New photo' : existing?.photo_url ? 'Unchanged' : '—'],
+            ['Email', details.email ?? '—'],
+            [
+              'Aadhaar Number',
+              details.aadhaar_last4 ? maskedAadhaar(typedLast4(details.aadhaar_last4)) : '—',
+            ],
+            ['PAN', details.pan?.toUpperCase() ?? '—'],
+            ['ID Photos', idPhotoChanges.length ? idPhotoChanges.join(' · ') : 'Unchanged'],
           ]}
         />
       ),
@@ -116,7 +164,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
     if (!confirmed) return
     setSaving(true)
     setError(null)
-    const customer = { ...fields, phone_2: fields.phone_2.trim() || null, referrer }
+    const customer = { ...details, referrer }
     try {
       let saved = await changeCustomer((client) =>
         customerChanges.save(client, customer, customerId),
@@ -125,6 +173,16 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
       const savedId = saved.id
       if (photo) {
         saved = await changeCustomer((client) => customerChanges.replacePhoto(client, savedId, photo))
+      }
+      for (const { card } of ID_CARDS) {
+        const change = idPhotos[card]
+        if (change.kind === 'new') {
+          saved = await changeCustomer((client) =>
+            customerChanges.replaceIdPhoto(client, savedId, card, change.photo),
+          )
+        } else if (change.kind === 'remove') {
+          saved = await changeCustomer((client) => customerChanges.removeIdPhoto(client, savedId, card))
+        }
       }
       navigate(
         next === 'mortgage' ? `/mortgages/new?customer=${saved.id}` : `/customers/${saved.id}`,
@@ -202,7 +260,52 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
             </label>
             {phone1Field}
             {phone2Field}
+            <label>
+              Email (optional)
+              <input
+                type="email"
+                value={fields.email}
+                onChange={(event) => setFields({ ...fields, email: event.target.value })}
+              />
+            </label>
           </div>
+        </div>
+
+        <div className="grid-2">
+          <div className="stack">
+            <label>
+              Aadhaar Number: last 4 digits (optional)
+              <input
+                inputMode="numeric"
+                placeholder="1234"
+                aria-describedby="aadhaar-hint"
+                value={fields.aadhaar_last4}
+                onChange={(event) => setFields({ ...fields, aadhaar_last4: event.target.value })}
+              />
+            </label>
+            <span className="hint" id="aadhaar-hint">
+              Only the last 4 digits are kept. Ask for the Customer's masked Aadhaar.
+            </span>
+          </div>
+          <label>
+            PAN (optional)
+            <input
+              placeholder="ABCDE1234F"
+              value={fields.pan}
+              onChange={(event) => setFields({ ...fields, pan: event.target.value.toUpperCase() })}
+            />
+          </label>
+        </div>
+        <div className="grid-2">
+          {ID_CARDS.map(({ card, label, urlOf }) => (
+            <IdPhotoPicker
+              key={card}
+              label={label}
+              currentUrl={existing ? urlOf(existing) : null}
+              change={idPhotos[card]}
+              onChange={(change) => setIdPhotos({ ...idPhotos, [card]: change })}
+            />
+          ))}
         </div>
 
         <ReferrerPicker
@@ -227,5 +330,42 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
       </form>
       {confirmDialog}
     </section>
+  )
+}
+
+/** One ID Photo on the form: the current or newly chosen photo, a way to choose one,
+ *  and Remove. Nothing is uploaded or removed until Save. */
+function IdPhotoPicker({
+  label,
+  currentUrl,
+  change,
+  onChange,
+}: {
+  label: string
+  currentUrl: string | null
+  change: IdPhotoChange
+  onChange: (change: IdPhotoChange) => void
+}) {
+  const [preview, setPreview] = useState<string | null>(null)
+  useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview])
+  const shown = change.kind === 'remove' ? null : change.kind === 'new' ? preview : currentUrl
+  return (
+    <fieldset className="stack">
+      <legend>{label}</legend>
+      <Photo url={shown} alt={label} />
+      <PhotoSource
+        onPhotos={([photo]) => {
+          setPreview(URL.createObjectURL(photo))
+          onChange({ kind: 'new', photo })
+        }}
+      />
+      {shown && (
+        <div>
+          <button type="button" className="secondary small" onClick={() => onChange({ kind: 'remove' })}>
+            Remove
+          </button>
+        </div>
+      )}
+    </fieldset>
   )
 }

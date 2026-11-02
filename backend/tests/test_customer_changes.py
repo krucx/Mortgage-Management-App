@@ -179,9 +179,9 @@ def test_deleting_a_customer_unlinks_those_they_referred_and_is_recorded(
         ),
     )
 
-    photo = customer_changes.remove_customer(conn, ramesh, NOW)
+    photos = customer_changes.remove_customer(conn, ramesh, NOW)
 
-    assert photo is None
+    assert photos == []
     assert load_customer(conn, sita).referrer is None
     assert [(e.action, e.note) for e in customer_history(conn, ramesh)][0] == (
         "deleted",

@@ -183,6 +183,7 @@ await shot('customer', card(), {
   photo: card().locator('img').first(),
   shared: card().getByText('also', { exact: false }),
   referrer: card().getByText('Referred by', { exact: false }),
+  ids: heading('ID Photos'),
   mortgages: heading('Mortgages'),
   history: heading('History'),
 })

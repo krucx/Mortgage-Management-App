@@ -60,6 +60,13 @@ customer_table = Table(
     Column("phone_1", String, nullable=False, unique=True, index=True),
     Column("phone_2", String, index=True),
     Column("photo", String),  # file name under the photos folder
+    Column("email", String),
+    # Aadhaar Number: only the last 4 digits are ever kept (see GLOSSARY.md).
+    Column("aadhaar_last4", String),
+    Column("pan", String, unique=True, index=True),  # PAN: no two Customers share one
+    # ID Photos: file names under the photos folder.
+    Column("aadhaar_photo", String),
+    Column("pan_photo", String),
     # A Referrer is either another Customer or a standalone Referrer; at most one is set.
     Column("referred_by_customer_id", Integer, ForeignKey("customer.id")),
     Column(

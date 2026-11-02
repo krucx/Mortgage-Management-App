@@ -370,6 +370,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/customers/{customer_id}/id-photos/{card}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Id Photo
+         * @description Add or replace one of the Customer's ID Photos.
+         */
+        put: operations["put_id_photo_api_customers__customer_id__id_photos__card__put"];
+        post?: never;
+        /**
+         * Delete Id Photo
+         * @description Remove one of the Customer's ID Photos.
+         */
+        delete: operations["delete_id_photo_api_customers__customer_id__id_photos__card__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/customers/{customer_id}/photo": {
         parameters: {
             query?: never;
@@ -1431,6 +1455,11 @@ export interface components {
             /** Photo */
             photo: string;
         };
+        /** Body_put_id_photo_api_customers__customer_id__id_photos__card__put */
+        Body_put_id_photo_api_customers__customer_id__id_photos__card__put: {
+            /** Photo */
+            photo: string;
+        };
         /**
          * CallListGroup
          * @description One Customer's listed Mortgages.
@@ -1622,12 +1651,22 @@ export interface components {
          * @description A Customer's own page.
          */
         Customer: {
+            /** Aadhaar Last4 */
+            aadhaar_last4: string | null;
+            /** Aadhaar Photo Url */
+            aadhaar_photo_url: string | null;
             /** Address */
             address: string;
+            /** Email */
+            email: string | null;
             /** Id */
             id: number;
             /** Name */
             name: string;
+            /** Pan */
+            pan: string | null;
+            /** Pan Photo Url */
+            pan_photo_url: string | null;
             /** Phone 1 */
             phone_1: string;
             /** Phone 2 */
@@ -1642,10 +1681,16 @@ export interface components {
         };
         /** CustomerIn */
         CustomerIn: {
+            /** Aadhaar Last4 */
+            aadhaar_last4?: string | null;
             /** Address */
             address: string;
+            /** Email */
+            email?: string | null;
             /** Name */
             name: string;
+            /** Pan */
+            pan?: string | null;
             /** Phone 1 */
             phone_1: string;
             /** Phone 2 */
@@ -3288,6 +3333,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_id_photo_api_customers__customer_id__id_photos__card__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+                card: "aadhaar" | "pan";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_put_id_photo_api_customers__customer_id__id_photos__card__put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_id_photo_api_customers__customer_id__id_photos__card__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+                card: "aadhaar" | "pan";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
                 };
             };
             /** @description Validation Error */

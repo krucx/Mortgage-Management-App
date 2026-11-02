@@ -53,6 +53,42 @@ def tidy_name(raw: str) -> str:
 Name = Annotated[str, AfterValidator(tidy_name)]
 
 
+def tidy_email(raw: str) -> str | None:
+    """An email address as typed, trimmed; None if left empty."""
+    email = raw.strip()
+    if not email:
+        return None
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise ValueError("Not an email address")
+    return email
+
+
+def tidy_aadhaar(raw: str) -> str | None:
+    """The last 4 digits of an Aadhaar number, typed whole, masked (XXXX XXXX 1234) or
+    as the 4 digits alone; the rest is never kept. None if left empty."""
+    digits = re.sub(r"\D", "", raw)
+    if not raw.strip():
+        return None
+    if len(digits) not in (4, 12):
+        raise ValueError("An Aadhaar Number is its last 4 digits (or all 12)")
+    return digits[-4:]
+
+
+def tidy_pan(raw: str) -> str | None:
+    """A PAN, uppercased: 5 letters, 4 digits and a letter. None if left empty."""
+    pan = re.sub(r"\s", "", raw).upper()
+    if not pan:
+        return None
+    if not re.fullmatch(r"[A-Z]{5}[0-9]{4}[A-Z]", pan):
+        raise ValueError("A PAN is 5 letters, 4 digits and a letter, e.g. ABCDE1234F")
+    return pan
+
+
+Email = Annotated[str, AfterValidator(tidy_email)]
+AadhaarLast4 = Annotated[str, AfterValidator(tidy_aadhaar)]
+Pan = Annotated[str, AfterValidator(tidy_pan)]
+
+
 # --- Choosing a Referrer: an existing Customer, an existing standalone Referrer, or a new one.
 
 
@@ -85,6 +121,9 @@ class CustomerIn(BaseModel):
     phone_1: Phone
     phone_2: Phone | None = None
     referrer: ReferrerChoice | None = None
+    email: Email | None = None
+    aadhaar_last4: AadhaarLast4 | None = None  # Aadhaar Number
+    pan: Pan | None = None
 
 
 class PersonSummary(BaseModel):
@@ -144,6 +183,12 @@ class Customer(CustomerRow):
     referred: list[PersonSummary]
     # Other Customers using either of this Customer's numbers: a warning, never a block.
     shares_phone_with: list[PersonSummary]
+    email: str | None
+    aadhaar_last4: str | None  # Aadhaar Number
+    pan: str | None
+    # ID Photos, shown only on the Customer's own page.
+    aadhaar_photo_url: str | None
+    pan_photo_url: str | None
 
 
 class SearchHit(BaseModel):
@@ -232,6 +277,11 @@ def load_customer(conn: Connection, customer_id: int) -> Customer:
             customer_id,
             [phone for phone in (row["phone_1"], row["phone_2"]) if phone],
         ),
+        email=row["email"],
+        aadhaar_last4=row["aadhaar_last4"],
+        pan=row["pan"],
+        aadhaar_photo_url=photo_url(row["aadhaar_photo"]),
+        pan_photo_url=photo_url(row["pan_photo"]),
     )
 
 

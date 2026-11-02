@@ -315,6 +315,20 @@
         "title": "Body_put_customer_photo_api_customers__customer_id__photo_put",
         "type": "object"
       },
+      "Body_put_id_photo_api_customers__customer_id__id_photos__card__put": {
+        "properties": {
+          "photo": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Photo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "photo"
+        ],
+        "title": "Body_put_id_photo_api_customers__customer_id__id_photos__card__put",
+        "type": "object"
+      },
       "CallListGroup": {
         "description": "One Customer's listed Mortgages.",
         "properties": {
@@ -807,9 +821,42 @@
       "Customer": {
         "description": "A Customer's own page.",
         "properties": {
+          "aadhaar_last4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aadhaar Last4"
+          },
+          "aadhaar_photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aadhaar Photo Url"
+          },
           "address": {
             "title": "Address",
             "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
           },
           "id": {
             "title": "Id",
@@ -818,6 +865,28 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "pan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pan"
+          },
+          "pan_photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pan Photo Url"
           },
           "phone_1": {
             "title": "Phone 1",
@@ -879,20 +948,58 @@
           "photo_url",
           "referrer",
           "referred",
-          "shares_phone_with"
+          "shares_phone_with",
+          "email",
+          "aadhaar_last4",
+          "pan",
+          "aadhaar_photo_url",
+          "pan_photo_url"
         ],
         "title": "Customer",
         "type": "object"
       },
       "CustomerIn": {
         "properties": {
+          "aadhaar_last4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aadhaar Last4"
+          },
           "address": {
             "title": "Address",
             "type": "string"
           },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "pan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pan"
           },
           "phone_1": {
             "title": "Phone 1",
@@ -4308,6 +4415,120 @@
           }
         },
         "summary": "Read Customer History"
+      }
+    },
+    "/api/customers/{customer_id}/id-photos/{card}": {
+      "delete": {
+        "description": "Remove one of the Customer's ID Photos.",
+        "operationId": "delete_id_photo_api_customers__customer_id__id_photos__card__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card",
+            "required": true,
+            "schema": {
+              "enum": [
+                "aadhaar",
+                "pan"
+              ],
+              "title": "Card",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Id Photo"
+      },
+      "put": {
+        "description": "Add or replace one of the Customer's ID Photos.",
+        "operationId": "put_id_photo_api_customers__customer_id__id_photos__card__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card",
+            "required": true,
+            "schema": {
+              "enum": [
+                "aadhaar",
+                "pan"
+              ],
+              "title": "Card",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_put_id_photo_api_customers__customer_id__id_photos__card__put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Id Photo"
       }
     },
     "/api/customers/{customer_id}/photo": {

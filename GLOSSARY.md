@@ -33,7 +33,7 @@ A Customer's Permanent Account Number, which no two Customers share.
 _Avoid_: PAN number, tax ID
 
 **ID Photos**:
-Photos of a Customer's Aadhaar card (the masked front) and PAN card, kept on the Customer and shown only on their page.
+Photos of a Customer's Aadhaar card (the masked front) and PAN card, kept on the Customer and shown only on their page and form.
 _Avoid_: KYC documents, ID proof
 
 ## Lending

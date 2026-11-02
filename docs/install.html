@@ -266,7 +266,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <tbody>
           <tr><th scope="row">Install first</th><td>Nothing: Setup installs uv itself</td><td><a href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a> (it may ask to restart the PC)</td></tr>
           <tr><th scope="row">While you use it</th><td>Its window stays open; closing it stops the app</td><td>Runs in the background, and starts again with Docker</td></tr>
-          <tr><th scope="row">Backup zips</th><td>Plain zips, no password (Windows has nothing built in to make them)</td><td>Can have a password, asked for during Setup</td></tr>
+          <tr><th scope="row">Backup zips</th><td>Plain zips, no password (Windows has nothing built in to make them). Backups hold Customers' ID Photos: keep the Backup folder private</td><td>Can have a password, asked for during Setup</td></tr>
           <tr><th scope="row">Best for</th><td>Most Lenders: the least to install and look after</td><td>Backups kept in a shared or synced folder, where a password matters</td></tr>
         </tbody>
       </table>
@@ -310,8 +310,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div data-mode="both" class="q" data-note="Press Enter to keep the data with the app. You can choose another folder, including one on another drive. Setup creates it if needed.">Data folder (Enter for C:\Users\you\MortgageManagement\data): <kbd>⏎</kbd></div>
         <div data-mode="both" data-note="Next it asks where Backups should go. Have a Google Drive or OneDrive folder ready if you want them kept off this PC.">Backups can go to a Google Drive or OneDrive folder, so they are kept off this PC.</div>
         <div data-mode="both" class="q" data-note="Press Enter to keep Backups in the app's own folder. Better: paste a folder that Google Drive or OneDrive syncs, so a Backup survives a lost or broken laptop. With Google Drive for desktop that is usually like G:\My Drive\Mortgage Backups; with OneDrive, C:\Users\you\OneDrive\Mortgage Backups. Make the folder first, then paste its path.">Backup folder (Enter for C:\Users\you\MortgageManagement\backups): <kbd>⏎</kbd></div>
-        <div data-mode="local" data-note="Without Docker, Windows has nothing that makes password zips, so no password is asked for.">Without Docker, Backups are plain zips (no password).</div>
-        <div data-mode="docker" class="q" data-note="Type a password for the Backup zips (nothing shows as you type), or press Enter for none. Use one when Backups go to a synced folder. A single quote (') can't be used.">Backup password (Enter for none): <kbd>********</kbd></div>
+        <div data-mode="local" data-note="Without Docker, Windows has nothing that makes password zips, so no password is asked for.">Without Docker, Backups are plain zips (no password). Backups hold Customers' ID Photos: keep the Backup folder private.</div>
+        <div data-mode="docker" class="q" data-note="Type a password for the Backup zips (nothing shows as you type), or press Enter for none. Use one when Backups go to a synced folder: Backups hold Customers' ID Photos. A single quote (') can't be used.">Backup password (Enter for none): <kbd>********</kbd></div>
         <div data-mode="docker" class="q" data-note="The same again, to be sure it was typed right.">The same password again: <kbd>********</kbd></div>
         <div data-mode="docker" class="warn" data-note="Write it down now and keep it somewhere safe: a Backup can't be opened without it, by anyone.">Write the Backup password down somewhere safe: a Backup cannot be opened without it.</div>
         <div data-mode="docker" data-note="If Docker Desktop wasn't already running, Setup starts it and waits.">Starting Docker Desktop (this can take a minute or two)...</div>

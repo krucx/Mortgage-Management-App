@@ -6,6 +6,7 @@ import { History } from '../components/History'
 import { MortgageTable } from '../components/MortgageTable'
 import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
+import { maskedAadhaar } from '../format'
 import { useListPage } from '../components/useListPage'
 import type { Sorting } from '../components/useUrlSort'
 import { customerHistoryQuery, customerQuery, lists } from '../requests'
@@ -56,8 +57,35 @@ export function CustomerPage() {
           </dd>
           <dt>Referred by</dt>
           <dd>{customer.referrer ? <PersonLink person={customer.referrer} /> : '—'}</dd>
+          <dt>Email</dt>
+          <dd>{customer.email ?? '—'}</dd>
+          <dt>Aadhaar Number</dt>
+          <dd>{customer.aadhaar_last4 ? maskedAadhaar(customer.aadhaar_last4) : '—'}</dd>
+          <dt>PAN</dt>
+          <dd>{customer.pan ?? '—'}</dd>
         </dl>
       </div>
+
+      {(customer.aadhaar_photo_url || customer.pan_photo_url) && (
+        <>
+          <h3>ID Photos</h3>
+          <div className="row id-photos">
+            {(
+              [
+                ['Aadhaar card', customer.aadhaar_photo_url],
+                ['PAN card', customer.pan_photo_url],
+              ] as const
+            ).map(
+              ([name, url]) =>
+                url && (
+                  <a key={name} href={url} target="_blank" rel="noreferrer" aria-label={name}>
+                    <img src={url} alt={name} className="photo" />
+                  </a>
+                ),
+            )}
+          </div>
+        </>
+      )}
 
       <div className="row spread">
         <h3>Mortgages</h3>
