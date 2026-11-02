@@ -6,6 +6,10 @@ import { useServerState } from '../serverState'
 /** Each way a Payment can be made, by name. */
 export type PaymentMethodNames = Record<PaymentMethod, string>
 
+/** How a Mortgage was lent, by name: a dash for one made before that was asked. */
+export const lentThroughName = (methods: PaymentMethodNames | null, method: PaymentMethod | null) =>
+  method === null ? '—' : (methods?.[method] ?? '')
+
 const RETRY_MS = 3000
 
 /** The payment method names as the backend gives them (and Receipts use); null until

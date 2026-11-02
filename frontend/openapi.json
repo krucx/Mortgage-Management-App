@@ -485,6 +485,27 @@
         "title": "CallNoteIn",
         "type": "object"
       },
+      "CashLimit": {
+        "properties": {
+          "cash_limit": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Limit"
+          }
+        },
+        "required": [
+          "cash_limit"
+        ],
+        "title": "CashLimit",
+        "type": "object"
+      },
       "Closure": {
         "description": "How and when a Mortgage was closed, and what it came to.",
         "properties": {
@@ -1533,6 +1554,16 @@
             "title": "Ledger",
             "type": "array"
           },
+          "lent_through": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -1599,6 +1630,7 @@
           "gross_weight_mg",
           "net_weight_mg",
           "purity_karat",
+          "lent_through",
           "terms",
           "term_changes",
           "upcoming_accrual_dates",
@@ -1628,6 +1660,16 @@
             "exclusiveMinimum": 0.0,
             "title": "Gross Weight Mg",
             "type": "integer"
+          },
+          "lent_through": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "title": "Name",
@@ -1687,6 +1729,9 @@
             "title": "Gross Weight Mg",
             "type": "integer"
           },
+          "lent_through": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
           "name": {
             "anyOf": [
               {
@@ -1737,6 +1782,7 @@
           "gross_weight_mg",
           "net_weight_mg",
           "purity_karat",
+          "lent_through",
           "customer_id"
         ],
         "title": "MortgageIn",
@@ -6510,6 +6556,60 @@
           }
         },
         "summary": "Update Call List Settings"
+      }
+    },
+    "/api/settings/cash-limit": {
+      "get": {
+        "operationId": "read_cash_limit_api_settings_cash_limit_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashLimit"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Cash Limit"
+      },
+      "put": {
+        "operationId": "update_cash_limit_api_settings_cash_limit_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashLimit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashLimit"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Cash Limit"
       }
     },
     "/api/settings/default-terms": {

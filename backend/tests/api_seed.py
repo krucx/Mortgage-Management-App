@@ -50,10 +50,12 @@ def lend(
     description: str = "Gold chain",
     net_weight_mg: int = 19_000,
     terms: Any = SIMPLE_3,
+    lent_through: str = "upi",
     **fields: Any,
 ) -> Any:
     """A new Mortgage for `owner` (a Customer as the API returns them), of 22K gold
-    with a gram of stones; `fields` adds or overrides anything else (a name…)."""
+    with a gram of stones, lent by UPI; `fields` adds or overrides anything else (a
+    name…)."""
     details = {
         "customer_id": owner["id"],
         "start_date": start,
@@ -63,6 +65,7 @@ def lend(
         "net_weight_mg": net_weight_mg,
         "purity_karat": 22,
         "terms": terms,
+        "lent_through": lent_through,
         **fields,
     }
     return _created(client.post("/api/mortgages", json=details))

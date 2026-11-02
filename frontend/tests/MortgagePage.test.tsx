@@ -21,6 +21,53 @@ test('the Mortgage page shows what the Mortgage owes', async () => {
   expect(screen.getByText('₹50,750')).toBeTruthy()
 })
 
+test('weights are written in grams', async () => {
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': mortgage }))
+
+  expect(await screen.findByText('20 grams gross, 18 grams net, 22K')).toBeTruthy()
+})
+
+test('how the Mortgage was lent is shown, or a dash if it was made before that was asked', async () => {
+  const methods = {
+    'GET /api/payment-methods': [
+      { method: 'cash', name: 'Cash' },
+      { method: 'upi', name: 'UPI' },
+    ],
+  }
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': mortgage, ...methods }))
+  const lent = (await screen.findByText('Lent Through')).nextElementSibling!
+  await vi.waitFor(() => expect(lent.textContent).toBe('UPI'))
+  cleanup()
+
+  showMortgagePage(
+    fakeServer({ 'GET /api/mortgages/7': { ...mortgage, lent_through: null }, ...methods }),
+  )
+  expect((await screen.findByText('Lent Through')).nextElementSibling!.textContent).toBe('—')
+})
+
+test('setting how a Mortgage was lent shows in its History by name', async () => {
+  const entry = {
+    id: 1, at: '2026-10-18T10:00:00', entity: 'mortgage', entity_id: 7, action: 'edited',
+    field: 'lent_through', old_value: null, new_value: 'bank_transfer', note: null,
+    mortgage_name: mortgage.name,
+  }
+  showMortgagePage(
+    fakeServer({
+      'GET /api/mortgages/7': mortgage,
+      'GET /api/mortgages/7/history': [entry],
+      'GET /api/payment-methods': [{ method: 'bank_transfer', name: 'Bank transfer' }],
+    }),
+  )
+
+  const line = (await screen.findByText(/Lent Through/, { selector: 'span' })).textContent
+  await vi.waitFor(() =>
+    expect(screen.getByText(/Lent Through/, { selector: 'span' }).textContent).toContain(
+      'Bank transfer',
+    ),
+  )
+  expect(line).toContain('(none)')
+})
+
 test("an Active pro-rata Mortgage's Ledger ends with its Interest to Date, growing daily", async () => {
   const toDate = {
     on: '2026-10-18',

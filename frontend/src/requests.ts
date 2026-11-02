@@ -368,6 +368,10 @@ export const settings = {
     settingsQuery('call-list', () => dataOrThrow(client.GET('/api/settings/call-list'))),
   saveCallList: (client: ApiClient, thresholds: CallListSettings) =>
     dataOrThrow(client.PUT('/api/settings/call-list', { body: thresholds })),
+  cashLimit: (client: ApiClient) =>
+    settingsQuery('cash-limit', () => dataOrThrow(client.GET('/api/settings/cash-limit'))),
+  saveCashLimit: (client: ApiClient, cashLimit: number | null) =>
+    dataOrThrow(client.PUT('/api/settings/cash-limit', { body: { cash_limit: cashLimit } })),
   messages: (client: ApiClient) =>
     settingsQuery('messages', () => dataOrThrow(client.GET('/api/settings/messages'))),
   saveMessages: (client: ApiClient, messages: MessageSettings) =>

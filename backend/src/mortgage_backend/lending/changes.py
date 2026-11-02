@@ -174,6 +174,7 @@ _AUDITED_EDITS = [
     "gross_weight_mg",
     "net_weight_mg",
     "purity_karat",
+    "lent_through",
 ]
 
 
@@ -452,6 +453,8 @@ def edit_mortgage(
     mortgage = replay(conn, mortgage_id)
     before = mortgage.row
     after = edit.model_dump()
+    if after["lent_through"] is None:  # left out: kept, never cleared
+        after["lent_through"] = before["lent_through"]
     changed = audit.changes(before, after, _AUDITED_EDITS)
     if before["status"] != MortgageStatus.ACTIVE and any(
         c.field in _LOCKED_WHEN_CLOSED for c in changed
@@ -504,6 +507,7 @@ _AUDITED_ON_CREATE = [
     "gross_weight_mg",
     "net_weight_mg",
     "purity_karat",
+    "lent_through",
     "monthly_rate_bps",
     "interest_mode",
     "part_month_rule",

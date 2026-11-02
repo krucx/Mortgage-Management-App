@@ -4,6 +4,8 @@ import { useNavigate, useParams } from 'react-router'
 import { PURITIES, type Mortgage, type MortgageEdit, type Purity } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
+import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
+import { lentThroughName, usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
 import { formatDate, formatGrams, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
@@ -36,7 +38,9 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     gross: mgToGrams(mortgage.gross_weight_mg),
     net: mgToGrams(mortgage.net_weight_mg),
     purity: mortgage.purity_karat as Purity,
+    lentThrough: mortgage.lent_through,
   })
+  const methods = usePaymentMethods()
   const changeMortgage = useMortgageChange()
 
   const edited: MortgageEdit = {
@@ -47,6 +51,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     gross_weight_mg: gramsToMg(fields.gross),
     net_weight_mg: gramsToMg(fields.net),
     purity_karat: fields.purity,
+    lent_through: fields.lentThrough,
   }
   // Only the start date and Principal change what is owed: preview those.
   const numbersChanged =
@@ -62,6 +67,11 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     ['Gross weight', formatGrams(was.gross_weight_mg), formatGrams(edited.gross_weight_mg)],
     ['Net weight', formatGrams(was.net_weight_mg), formatGrams(edited.net_weight_mg)],
     ['Purity', `${was.purity_karat}K`, `${edited.purity_karat}K`],
+    [
+      'Lent Through',
+      lentThroughName(methods, was.lent_through),
+      lentThroughName(methods, edited.lent_through ?? null),
+    ],
   ]
     .filter(([, before, after]) => before !== after)
     .map(([label, before, after]): [string, string] => [label, `${before} → ${after}`])
@@ -73,6 +83,12 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
   const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
     change: edits.length > 0 ? edited : null,
     preview: (edit) => (numbersChanged ? previews.edit(id, edit) : null),
+    // Warned only when the edit makes it cash, or more of it: not again for what was.
+    cash: (edit) =>
+      edit.lent_through &&
+      (edit.lent_through !== was.lent_through || edit.amount_lent > was.amount_lent)
+        ? { amount: edit.amount_lent, method: edit.lent_through }
+        : null,
     confirm: () => ({
       title: `Save changes to ${was.name}?`,
       body: (
@@ -128,6 +144,15 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
           </label>
         </div>
         <label>
+          Lent Through
+          <PaymentMethodSelect
+            methods={methods}
+            value={fields.lentThrough}
+            onChange={(lentThrough) => setFields({ ...fields, lentThrough })}
+            placeholder="—"
+          />
+        </label>
+        <label>
           Description of the jewellery
           <textarea
             rows={2}
@@ -138,7 +163,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
         </label>
         <div className="grid-3">
           <label>
-            Gross weight (g)
+            Gross weight (grams)
             <input
               type="number"
               required
@@ -149,7 +174,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
             />
           </label>
           <label>
-            Net weight, gold only (g)
+            Net weight, gold only (grams)
             <input
               type="number"
               required

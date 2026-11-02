@@ -47,6 +47,7 @@ export const mortgage: Mortgage = {
   gross_weight_mg: 20_000,
   net_weight_mg: 18_000,
   purity_karat: 22,
+  lent_through: 'upi',
   terms: { monthly_rate_bps: 150, interest_mode: 'simple', part_month_rule: 'pro_rata' },
   term_changes: [],
   upcoming_accrual_dates: ['2099-11-10', '2099-12-10'],

@@ -466,6 +466,7 @@ def new_mortgage(customer_id: int, **fields: object) -> MortgageIn:
         "gross_weight_mg": 20_000,
         "net_weight_mg": 19_000,
         "purity_karat": 22,
+        "lent_through": "upi",
     }
     return MortgageIn.model_validate({**values, **fields})
 

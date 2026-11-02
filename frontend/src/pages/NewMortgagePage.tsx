@@ -1,17 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { PURITIES, type Customer, type MortgageIn, type Purity } from '../api'
+import { PURITIES, type Customer, type MortgageIn, type PaymentMethod, type Purity } from '../api'
 import { NewMortgageForecast } from '../components/ChangeForecasts'
 import { CustomerChooser } from '../components/CustomerChooser'
 import { Summary } from '../components/ConfirmDialog'
 import { MortgageTable } from '../components/MortgageTable'
+import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
 import { TermsFields } from '../components/TermsFields'
+import { useCashWarning } from '../components/useCashWarning'
 import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
 import { useDraft } from '../components/useDraft'
+import { usePaymentMethods } from '../components/usePaymentMethods'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import {
@@ -118,7 +121,9 @@ function MortgageForm({ customer }: { customer: Customer }) {
     gross: '',
     net: '',
     purity: 22 as Purity,
+    lentThrough: null as PaymentMethod | null,
   })
+  const methods = usePaymentMethods()
   const { client } = useServerState()
   const changeLedger = useLedgerChange()
   const [terms, setTerms] = useDraft(useQuery(settings.defaultTerms(client)).data, toDraft)
@@ -130,6 +135,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirm, confirmDialog] = useConfirm()
+  const [warnCash, cashDialog] = useCashWarning()
 
   // Suggest the Mortgage Name until the Lender types their own.
   const description = useDebounced(fields.description, 250)
@@ -154,7 +160,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (!terms || !nameReady) return
+    if (!terms || !nameReady || !fields.lentThrough) return
     const chosenTerms = fromDraft(terms)
     const asked: MortgageIn = {
       customer_id: customer.id,
@@ -165,9 +171,11 @@ function MortgageForm({ customer }: { customer: Customer }) {
       gross_weight_mg: gramsToMg(fields.gross),
       net_weight_mg: gramsToMg(fields.net),
       purity_karat: fields.purity,
+      lent_through: fields.lentThrough,
       terms: chosenTerms,
     }
     if (createdId === undefined) {
+      if (!(await warnCash({ amount: asked.amount_lent, method: asked.lent_through }))) return
       const confirmed = await confirm({
         title: `Create Mortgage ${name}?`,
         body: (
@@ -177,8 +185,9 @@ function MortgageForm({ customer }: { customer: Customer }) {
                 ['Customer', customer.name],
                 ['Start date', formatDate(fields.start_date)],
                 ['Amount lent', formatINR(rupeesToPaise(fields.amountLent))],
+                ['Lent Through', methods?.[fields.lentThrough] ?? ''],
                 ['Jewellery', fields.description],
-                ['Weight', `${fields.gross} g gross, ${fields.net} g net, ${fields.purity}K`],
+                ['Weight', `${fields.gross} grams gross, ${fields.net} grams net, ${fields.purity}K`],
                 [
                   'Terms',
                   `${formatRate(chosenTerms.monthly_rate_bps)} a month · ` +
@@ -249,6 +258,16 @@ function MortgageForm({ customer }: { customer: Customer }) {
             onChange={(event) => set('amountLent')(event.target.value)}
           />
         </label>
+        <label>
+          Lent Through
+          <PaymentMethodSelect
+            methods={methods}
+            value={fields.lentThrough}
+            onChange={(lentThrough) => setFields({ ...fields, lentThrough })}
+            placeholder="Choose…"
+            required
+          />
+        </label>
       </div>
       <label>
         Description of the jewellery
@@ -263,7 +282,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
       </label>
       <div className="grid-3">
         <label>
-          Gross weight (g)
+          Gross weight (grams)
           <input
             type="number"
             required
@@ -275,7 +294,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
           />
         </label>
         <label>
-          Net weight, gold only (g)
+          Net weight, gold only (grams)
           <input
             type="number"
             required
@@ -360,11 +379,12 @@ function MortgageForm({ customer }: { customer: Customer }) {
       </fieldset>
 
       <div className="row">
-        <button type="submit" disabled={saving || !terms || !nameReady}>
+        <button type="submit" disabled={saving || !terms || !nameReady || !fields.lentThrough}>
           {saving ? 'Saving…' : locked ? 'Retry photo upload' : 'Create Mortgage'}
         </button>
       </div>
       {error && <p className="status error">{error}</p>}
+      {cashDialog}
       {confirmDialog}
     </form>
   )

@@ -49,21 +49,29 @@ function server(created: unknown[], overrides: Record<string, unknown> = {}) {
       return mortgage
     },
     'GET /api/mortgages/7': mortgage,
+    'GET /api/payment-methods': [
+      { method: 'cash', name: 'Cash' },
+      { method: 'upi', name: 'UPI' },
+    ],
+    'GET /api/settings/cash-limit': { cash_limit: 2_000_000 },
     ...overrides,
   })
 }
 
 const createButton = () => screen.getByRole('button', { name: 'Create Mortgage' }) as HTMLButtonElement
 
-async function fillMortgageForm(backend: FakeServer, description: string) {
+async function fillMortgageForm(backend: FakeServer, description: string, lentThrough = 'upi') {
   showPage(backend, '/mortgages/new?customer=3', { '/mortgages/new': <NewMortgagePage /> })
   fireEvent.change(await screen.findByLabelText('Start date'), { target: { value: '2026-09-23' } })
   fireEvent.change(screen.getByLabelText('Principal lent (₹)'), { target: { value: '25000' } })
-  fireEvent.change(screen.getByLabelText('Gross weight (g)'), { target: { value: '5' } })
-  fireEvent.change(screen.getByLabelText('Net weight, gold only (g)'), { target: { value: '4.5' } })
+  fireEvent.change(screen.getByLabelText('Gross weight (grams)'), { target: { value: '5' } })
+  fireEvent.change(screen.getByLabelText('Net weight, gold only (grams)'), { target: { value: '4.5' } })
   fireEvent.change(screen.getByLabelText('Description of the jewellery'), {
     target: { value: description },
   })
+  const lent = screen.getByLabelText('Lent Through') as HTMLSelectElement
+  await vi.waitFor(() => expect(lent.disabled).toBe(false))
+  fireEvent.change(lent, { target: { value: lentThrough } })
 }
 
 async function confirmCreate() {
@@ -120,4 +128,33 @@ test("if no Mortgage Name can be suggested, it says so and one can be typed", as
 
   expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()
   expect(created.map((m) => m.name)).toEqual(['2026-Asha-Pendant'])
+})
+
+test('a new Mortgage must say how it was lent', async () => {
+  const created: unknown[] = []
+  await fillMortgageForm(server(created), 'gold ring', '')
+
+  await new Promise((resolve) => setTimeout(resolve, 400)) // its Mortgage Name is in
+  expect(createButton().disabled).toBe(true)
+  fireEvent.change(screen.getByLabelText('Lent Through'), { target: { value: 'upi' } })
+  expect(await confirmCreate()).toBe('Create Mortgage 2026-Asha-Gold-Ring?')
+
+  await screen.findByText('Now at /mortgages/7')
+  expect(created).toEqual([expect.objectContaining({ lent_through: 'upi' })])
+})
+
+test('lending in cash at or above the Cash Limit is warned about before the confirmation', async () => {
+  const created: unknown[] = []
+  await fillMortgageForm(server(created), 'gold ring', 'cash') // ₹25,000
+
+  await vi.waitFor(() => expect(createButton().disabled).toBe(false), { timeout: 2000 })
+  fireEvent.click(createButton())
+  const warning = await screen.findByRole('dialog', { name: '₹25,000 in cash' })
+  fireEvent.click(within(warning).getByRole('button', { name: 'Record in cash anyway' }))
+  const confirmation = await screen.findByRole('dialog', { name: /Create Mortgage/ })
+  expect(within(confirmation).getByText('Cash')).toBeTruthy()
+  fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm and save' }))
+
+  await screen.findByText('Now at /mortgages/7')
+  expect(created).toEqual([expect.objectContaining({ lent_through: 'cash', amount_lent: 2_500_000 })])
 })

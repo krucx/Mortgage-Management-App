@@ -12,8 +12,8 @@ export const formatDate = (isoDate: string) => dateFormat.format(new Date(`${iso
 export const formatDateTime = (isoDateTime: string) =>
   `${formatDate(isoDateTime.slice(0, 10))}, ${isoDateTime.slice(11, 16)}`
 
-/** Milligrams → grams with up to 3 decimals, e.g. 25400 → "25.4 g". */
-export const formatGrams = (mg: number) => `${(mg / 1000).toLocaleString('en-IN')} g`
+/** Milligrams → grams with up to 3 decimals, e.g. 25400 → "25.4 grams". */
+export const formatGrams = (mg: number) => `${(mg / 1000).toLocaleString('en-IN')} grams`
 
 /** Today in the browser's time zone as YYYY-MM-DD. */
 export function todayIso(): string {

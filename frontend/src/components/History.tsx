@@ -25,6 +25,7 @@ const FIELD_LABELS: Record<string, string> = {
   gross_weight_mg: 'Gross weight',
   net_weight_mg: 'Net weight',
   purity_karat: 'Purity',
+  lent_through: 'Lent Through',
   collateral_override: 'Collateral Value set by hand',
   status: 'Status',
   monthly_rate_bps: 'Monthly rate',
@@ -38,7 +39,11 @@ const FIELD_LABELS: Record<string, string> = {
 }
 
 /** A stored value as the Lender reads it. */
-function formatValue(field: string, value: string | null): string {
+function formatValue(
+  field: string,
+  value: string | null,
+  methods: PaymentMethodNames | null = null,
+): string {
   if (value === null || value === '') return '(none)'
   switch (field) {
     case 'amount_lent':
@@ -50,6 +55,9 @@ function formatValue(field: string, value: string | null): string {
       return formatGrams(Number(value))
     case 'purity_karat':
       return `${value}K`
+    case 'method':
+    case 'lent_through':
+      return methods?.[value as PaymentMethod] ?? value
     case 'start_date':
     case 'paid_on':
     case 'effective_on':
@@ -127,8 +135,8 @@ function describe(change: Change, showMortgage: boolean, methods: PaymentMethodN
         <span key={e.id}>
           {index === 0 ? ': ' : '; '}
           {FIELD_LABELS[e.field ?? ''] ?? e.field}{' '}
-          <span className="hint">{formatValue(e.field ?? '', e.old_value)}</span> →{' '}
-          {formatValue(e.field ?? '', e.new_value)}
+          <span className="hint">{formatValue(e.field ?? '', e.old_value, methods)}</span> →{' '}
+          {formatValue(e.field ?? '', e.new_value, methods)}
         </span>
       ))
     if (from) detail = <> from {formatDate(from)}{detail}</>

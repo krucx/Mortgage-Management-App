@@ -139,6 +139,7 @@ class Book:
         gross_g: float,
         karat: int = 22,
         terms: Any = None,
+        lent_through: str = "upi",
     ) -> None:
         body = {
             "customer_id": self.people[who]["id"],
@@ -148,6 +149,7 @@ class Book:
             "gross_weight_mg": round(gross_g * G),
             "net_weight_mg": round(net_g * G),
             "purity_karat": karat,
+            "lent_through": lent_through,
             "terms": terms,
         }
         self.mortgages[key] = self.post("/api/mortgages", body)

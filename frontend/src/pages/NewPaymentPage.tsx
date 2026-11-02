@@ -211,6 +211,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
     change: proposed,
     preview: (payment) => previews.payment(payment),
+    cash: (payment) => payment,
     confirm: (payment) => ({
       ...(redeeming.length > 0 && {
         confirmLabel: 'Redeem',

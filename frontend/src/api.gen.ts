@@ -1144,6 +1144,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/cash-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Cash Limit */
+        get: operations["read_cash_limit_api_settings_cash_limit_get"];
+        /** Update Cash Limit */
+        put: operations["update_cash_limit_api_settings_cash_limit_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/default-terms": {
         parameters: {
             query?: never;
@@ -1406,6 +1424,11 @@ export interface components {
              * @default
              */
             note: string;
+        };
+        /** CashLimit */
+        CashLimit: {
+            /** Cash Limit */
+            cash_limit: number | null;
         };
         /**
          * Closure
@@ -1828,6 +1851,7 @@ export interface components {
             id: number;
             /** Ledger */
             ledger: components["schemas"]["LedgerStep"][];
+            lent_through: components["schemas"]["PaymentMethod"] | null;
             /** Name */
             name: string;
             /** Net Weight Mg */
@@ -1860,6 +1884,7 @@ export interface components {
             description: string;
             /** Gross Weight Mg */
             gross_weight_mg: number;
+            lent_through?: components["schemas"]["PaymentMethod"] | null;
             /** Name */
             name: string;
             /** Net Weight Mg */
@@ -1885,6 +1910,7 @@ export interface components {
             description: string;
             /** Gross Weight Mg */
             gross_weight_mg: number;
+            lent_through: components["schemas"]["PaymentMethod"];
             /** Name */
             name?: string | null;
             /** Net Weight Mg */
@@ -4652,6 +4678,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CallListSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_cash_limit_api_settings_cash_limit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashLimit"];
+                };
+            };
+        };
+    };
+    update_cash_limit_api_settings_cash_limit_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CashLimit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashLimit"];
                 };
             };
             /** @description Validation Error */

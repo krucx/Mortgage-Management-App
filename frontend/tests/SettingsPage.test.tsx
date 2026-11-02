@@ -40,3 +40,27 @@ test('the Default Terms are loaded, changed and saved, and the saved ones are sh
   expect(saved).toEqual([{ monthly_rate_bps: 180, interest_mode: 'simple', part_month_rule: 'pro_rata' }])
   expect((within(terms).getByLabelText('Monthly interest rate (%)') as HTMLInputElement).value).toBe('1.75')
 })
+
+test('the Cash Limit is shown in rupees, and clearing it saves no limit', async () => {
+  const saved: unknown[] = []
+  const server = fakeServer({
+    'GET /api/settings/cash-limit': { cash_limit: 2_000_000 },
+    'PUT /api/settings/cash-limit': async (request: Request) => {
+      saved.push(await request.json())
+      return { cash_limit: null }
+    },
+  })
+  showPage(server, '/settings', { '/settings': <SettingsPage /> })
+  const section = (await screen.findByRole('heading', { name: 'Cash Limit' })).closest('section')!
+
+  const limit = await within(section).findByLabelText('Warn at cash of (₹), or more')
+  expect((limit as HTMLInputElement).value).toBe('20000')
+  fireEvent.change(limit, { target: { value: '' } })
+  fireEvent.click(within(section).getByRole('button', { name: 'Save' }))
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByText('Never: no warning for cash')).toBeTruthy()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and save' }))
+
+  expect(await within(section).findByText('Saved.')).toBeTruthy()
+  expect(saved).toEqual([{ cash_limit: null }])
+})

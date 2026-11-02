@@ -24,6 +24,7 @@ from mortgage_backend.lending.changes import (
 from mortgage_backend.lending.mortgages import MortgageIn
 from mortgage_backend.lending.replay import mortgage_row
 from mortgage_backend.lending.terms import Terms
+from mortgage_backend.payments.payments import PaymentMethod
 from mortgage_backend.people import customer_changes
 from mortgage_backend.people.customers import CustomerIn
 
@@ -73,6 +74,7 @@ def add_mortgage(
             gross_weight_mg=20_000,
             net_weight_mg=19_000,
             purity_karat=22,
+            lent_through=PaymentMethod.UPI,
             terms=terms,
         ),
         start_date,

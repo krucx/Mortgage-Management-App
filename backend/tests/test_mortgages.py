@@ -18,6 +18,7 @@ def mortgage_fields(customer, **overrides):
         "gross_weight_mg": 25_400,
         "net_weight_mg": 24_100,
         "purity_karat": 22,
+        "lent_through": "upi",
         **overrides,
     }
 

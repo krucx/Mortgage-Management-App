@@ -15,6 +15,7 @@ import { ReasonDialog } from '../components/ReasonDialog'
 import { ScrollPopup } from '../components/ScrollPopup'
 import { TermsPanel } from '../components/TermsPanel'
 import { useConfirm } from '../components/useConfirm'
+import { lentThroughName, usePaymentMethods } from '../components/usePaymentMethods'
 import { formatDate, formatGrams } from '../format'
 import { formatINR } from '../money'
 import {
@@ -37,6 +38,7 @@ export function MortgagePage() {
   const changeMortgage = useMortgageChange()
   const loaded = useQuery(mortgageQuery(client, id))
   const mortgage = loaded.data
+  const methods = usePaymentMethods()
   // A change that returns the Mortgage (photos, Collateral Value) is in its History too.
   const setMortgage = (changed: Mortgage) => {
     queryClient.setQueryData(keys.mortgage(id), changed)
@@ -129,6 +131,10 @@ export function MortgagePage() {
         <dd>{formatDate(mortgage.start_date)}</dd>
         <dt>Principal lent</dt>
         <dd>{formatINR(mortgage.amount_lent)}</dd>
+        <dt>Lent Through</dt>
+        <dd>
+          {lentThroughName(methods, mortgage.lent_through)}
+        </dd>
         <dt>Jewellery</dt>
         <dd>{mortgage.description}</dd>
         <dt>Weight</dt>

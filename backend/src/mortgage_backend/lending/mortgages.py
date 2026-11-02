@@ -36,6 +36,7 @@ from mortgage_backend.lending.replay import (
     replays,
 )
 from mortgage_backend.lending.terms import Terms
+from mortgage_backend.payments.payments import PaymentMethod
 from mortgage_backend.people.customers import PersonSummary, phone_fragment
 from mortgage_backend.platform.clock import MonthQuery, TodayDep, month_span
 from mortgage_backend.platform.db import (
@@ -65,6 +66,9 @@ class MortgageDetails(BaseModel):
     gross_weight_mg: int = Field(gt=0)
     net_weight_mg: int = Field(gt=0)  # gold only, after stones
     purity_karat: Purity
+    # Lent Through: how the Principal was handed over; None on Mortgages made before
+    # it was asked, until an edit sets it (an edit leaving it out keeps it as it was)
+    lent_through: PaymentMethod | None = None
 
     @model_validator(mode="after")
     def check(self) -> "MortgageDetails":
@@ -81,6 +85,7 @@ class MortgageDetails(BaseModel):
 
 class MortgageIn(MortgageDetails):
     customer_id: int
+    lent_through: PaymentMethod  # required on every new Mortgage
     terms: Terms | None = None  # None: copy the Default Terms
 
 
@@ -132,6 +137,7 @@ class Mortgage(BaseModel):
     gross_weight_mg: int
     net_weight_mg: int
     purity_karat: Purity
+    lent_through: PaymentMethod | None  # None on Mortgages made before it was asked
     terms: Terms  # in force today
     term_changes: list[TermChangeOut]
     upcoming_accrual_dates: list[date]  # when a Term Change could start
@@ -207,6 +213,7 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         gross_weight_mg=row["gross_weight_mg"],
         net_weight_mg=row["net_weight_mg"],
         purity_karat=row["purity_karat"],
+        lent_through=row["lent_through"],
         terms=mortgage.terms_on(today),
         term_changes=[
             TermChangeOut(

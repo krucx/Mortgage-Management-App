@@ -191,8 +191,9 @@ await shot('referrer', card())
 await open('/mortgages/new?customer=1')
 await field('Description of the jewellery').fill('Gold nose pin')
 await field('Principal lent (₹)').fill('20000')
-await field('Gross weight (g)').fill('3.2')
-await field('Net weight, gold only (g)').fill('2.8')
+await field('Lent Through').selectOption('upi')
+await field('Gross weight (grams)').fill('3.2')
+await field('Net weight, gold only (grams)').fill('2.8')
 await settle()
 await shot('mortgage-new', card(), {
   active: heading('Active Mortgages'),

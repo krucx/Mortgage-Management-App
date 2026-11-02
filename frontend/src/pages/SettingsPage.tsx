@@ -18,6 +18,7 @@ export function SettingsPage() {
       <DefaultTermsSettings />
       <GoldRateSettings />
       <CallListThresholds />
+      <CashLimitSettings />
       <MessageSettingsForm />
       <BackupSettings />
     </>
@@ -277,6 +278,78 @@ function CallListThresholds() {
               />
             </label>
           </div>
+          <div>
+            <button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </form>
+      )}
+      {status && <p className={`status ${status.kind}`}>{status.text}</p>}
+      {confirmDialog}
+    </section>
+  )
+}
+
+/** At what amount the Lender is warned before lending or receiving cash; cleared, never. */
+function CashLimitSettings() {
+  const { client, queryClient } = useServerState()
+  const saved = useQuery(settings.cashLimit(client))
+  const [draft, setDraft] = useDraft(saved.data, ({ cash_limit }) =>
+    cash_limit === null ? '' : String(cash_limit / 100),
+  )
+  const [savedStatus, setStatus] = useState<Status>(null)
+  const status = shownStatus(savedStatus, saved.error)
+  const [saving, setSaving] = useState(false)
+  const [confirm, confirmDialog] = useConfirm()
+
+  async function save(event: FormEvent) {
+    event.preventDefault()
+    if (draft === null) return
+    const limit = draft === '' ? null : rupeesToPaise(draft)
+    const confirmed = await confirm({
+      title: 'Change the Cash Limit?',
+      body: (
+        <Summary
+          rows={[
+            ['Warn at cash of', limit === null ? 'Never: no warning for cash' : `${formatINR(limit)} or more`],
+          ]}
+        />
+      ),
+    })
+    if (!confirmed) return
+    setSaving(true)
+    setStatus(null)
+    try {
+      const stored = await settings.saveCashLimit(client, limit)
+      queryClient.setQueryData(settings.cashLimit(client).queryKey, stored)
+      setStatus({ kind: 'saved', text: 'Saved.' })
+    } catch (error) {
+      setStatus({ kind: 'error', text: (error as Error).message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>Cash Limit</h2>
+      <p className="hint">
+        Lending or receiving this much or more in cash asks you first: Government of India rules
+        ask for UPI or bank transfer instead. Nothing is refused. Leave it empty for no warning.
+      </p>
+      {draft !== null && (
+        <form onSubmit={save} className="stack">
+          <label>
+            Warn at cash of (₹), or more
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+          </label>
           <div>
             <button type="submit" disabled={saving}>
               {saving ? 'Saving…' : 'Save'}

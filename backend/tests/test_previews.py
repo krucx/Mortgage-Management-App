@@ -21,6 +21,7 @@ def details(**overrides):
         "gross_weight_mg": 20_000,
         "net_weight_mg": 19_000,
         "purity_karat": 22,
+        "lent_through": "upi",
         **overrides,
     }
 
