@@ -126,8 +126,11 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
   const total = rupeesToPaise(totalText)
 
-  // Why they can't all be paid in full: the first chosen one that can't be Redeemed then.
-  const notRedeemable = chosen.find((m) => m.not_redeemable)?.not_redeemable
+  // Why they can't all be paid in full: the first chosen one that can't be Redeemed then
+  // (not yet known while the rows for a new date load).
+  const notRedeemable = listed.isPlaceholderData
+    ? undefined
+    : chosen.find((m) => m.not_redeemable)?.not_redeemable
 
   const amounts: number[] | null =
     mode === 'equal'
@@ -269,7 +272,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
               <button
                 type="button"
                 className="link"
-                // Not on the last date's figures while the new date's load
+                // Not on the last date's figures while the new date's rows load
                 disabled={!!notRedeemable || listed.isPlaceholderData}
                 onClick={fillOutstanding}
               >

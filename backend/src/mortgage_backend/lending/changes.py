@@ -313,7 +313,7 @@ def record_payment(
                 payment.reference,
                 today,
                 now,
-                first,
+                received_with=first,
             )
         assert final is not None  # an Allocation is more than nothing
         if first is None:
@@ -330,7 +330,11 @@ def _redeemed_by(
     mortgage = replay(conn, allocation.mortgage_id)
     if allocation.amount != mortgage.outstanding_on_closure(on).total:
         return None
-    return closable(conn, allocation.mortgage_id, on, today)
+    # (Not a future date: the Payment's own checks refuse that.)
+    refusal = mortgage.not_closable(on)
+    if refusal is not None:
+        raise unprocessable(refusal)
+    return mortgage
 
 
 def void_payment(
@@ -574,6 +578,7 @@ def closable(
 ) -> MortgageReplay:
     """The Mortgage, if it can be closed on `on` (or, for a quote, could be then)."""
     mortgage = replay(conn, mortgage_id)
+    # A closed Mortgage is refused for being closed, whatever the date.
     if mortgage.row["status"] == MortgageStatus.ACTIVE and on > today and not quote_only:
         raise unprocessable(
             "A Redemption, Waiver or Forfeiture cannot be recorded for a future date"
