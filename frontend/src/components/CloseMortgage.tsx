@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import type { Mortgage, PaymentMethod } from '../api'
-import { formatDate, todayIso } from '../format'
+import { formatDate, formatDays, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import { outstandingOnClosureQuery } from '../requests'
 import { useServerState } from '../serverState'
@@ -66,7 +66,7 @@ export function CloseMortgage({
   })
   const quote = quoted.data ?? null
   const quoteError = quoted.error?.message
-  const receivedPaise = rupeesToPaise(received || '0')
+  const receivedPaise = rupeesToPaise(received)
   const paymentReference = reference.trim() || null
 
   // What saving would send, as a closing of this one Mortgage; re-previewed as it changes.
@@ -227,7 +227,7 @@ export function CloseMortgage({
             ['Unpaid interest', formatINR(quote.unpaid_interest)],
             [
               'Interest to Date',
-              `${formatINR(quote.interest_to_date)} (${quote.interest_to_date_days} days of ` +
+              `${formatINR(quote.interest_to_date)} (${formatDays(quote.interest_to_date_days)} of ` +
                 `the month, that day included; ${PART_MONTH_RULES[mortgage.terms.part_month_rule]})`,
             ],
             [`Outstanding on ${formatDate(on)}`, <strong key="total">{formatINR(quote.total)}</strong>],

@@ -15,6 +15,7 @@ import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
 import { useDraft } from '../components/useDraft'
 import { usePaymentMethods } from '../components/usePaymentMethods'
+import { WeightFields } from '../components/WeightFields'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
 import {
@@ -27,6 +28,7 @@ import {
 } from '../requests'
 import { useLedgerChange, useServerState } from '../serverState'
 import { formatRate, fromDraft, INTEREST_MODES, toDraft } from '../terms'
+import { gramsToMg } from '../weight'
 
 /**
  * Create a Mortgage: pick (or create) the Customer, see their Active Mortgages,
@@ -109,8 +111,6 @@ function CustomerSummary({ customer, onChange }: { customer: Customer; onChange:
     </div>
   )
 }
-
-const gramsToMg = (grams: string) => Math.round(Number(grams) * 1000)
 
 function MortgageForm({ customer }: { customer: Customer }) {
   const navigate = useNavigate()
@@ -281,31 +281,11 @@ function MortgageForm({ customer }: { customer: Customer }) {
         />
       </label>
       <div className="grid-3">
-        <label>
-          Gross weight (grams)
-          <input
-            type="number"
-            required
-            min="0.001"
-            step="0.001"
-            disabled={locked}
-            value={fields.gross}
-            onChange={(event) => set('gross')(event.target.value)}
-          />
-        </label>
-        <label>
-          Net weight, gold only (grams)
-          <input
-            type="number"
-            required
-            min="0.001"
-            step="0.001"
-            max={fields.gross || undefined}
-            disabled={locked}
-            value={fields.net}
-            onChange={(event) => set('net')(event.target.value)}
-          />
-        </label>
+        <WeightFields
+          value={fields}
+          onChange={(weights) => setFields({ ...fields, ...weights })}
+          disabled={locked}
+        />
         <label>
           Purity
           <select

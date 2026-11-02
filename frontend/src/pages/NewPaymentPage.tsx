@@ -16,8 +16,8 @@ import { useProposedChange } from '../components/useProposedChange'
 import type { Quote } from '../components/Owed'
 import { ReasonTip } from '../components/ReasonTip'
 import { useQuotes } from '../components/useQuotes'
-import { formatDate, todayIso } from '../format'
-import { formatINR, rupeesToPaise } from '../money'
+import { formatDate, formatDays, todayIso } from '../format'
+import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
 import { changes, customerQuery, everyMortgageQuery, previews } from '../requests'
 import { useLedgerChange, useServerState } from '../serverState'
@@ -125,7 +125,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const chosen = payable.filter((m) => selected.has(m.id))
   const outstanding = chosen.map((m) => m.outstanding_total)
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
-  const total = rupeesToPaise(totalText || '0')
+  const total = rupeesToPaise(totalText)
 
   // Whether each one could be Redeemed on the Payment date (or why not), and its
   // Interest to Date then.
@@ -138,7 +138,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     mode === 'equal'
       ? suggestEqually(total, outstanding)
       : mode === 'amount'
-        ? chosen.map((m) => rupeesToPaise(amountText[m.id] || '0'))
+        ? chosen.map((m) => rupeesToPaise(amountText[m.id]))
         : amountsFromPercentages(
             total,
             chosen.map((m) => Number(percentText[m.id] || '0')),
@@ -186,7 +186,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   function switchMode(next: AllocationMode) {
     const equal = suggestEqually(total, outstanding)
     if (next === 'amount' && equal)
-      setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, String(equal[i] / 100)])))
+      setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, paiseToRupees(equal[i])])))
     if (next === 'percent' && total > 0 && equal)
       setPercentText(
         Object.fromEntries(percentagesOf(equal, total).map((pct, i) => [chosen[i].id, String(pct)])),
@@ -196,8 +196,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 
   /** Each chosen Mortgage's whole Outstanding, by amount. */
   function fillOutstanding() {
-    setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, String(outstanding[i] / 100)])))
-    setTotalText(String(totalOutstanding / 100))
+    setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, paiseToRupees(outstanding[i])])))
+    setTotalText(paiseToRupees(totalOutstanding))
     setMode('amount')
   }
 
@@ -451,10 +451,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 /** What paying a Mortgage's whole Outstanding does, for the Redeem question. */
 function RedeemedInFull({ name, quote }: { name: string; quote: Quote }) {
   if (typeof quote !== 'object') return null
-  const days = quote.interest_to_date_days
   const charge =
     quote.interest_to_date > 0
-      ? `, including ${days === 1 ? "1 day's" : `${days} days'`} Interest to Date`
+      ? `, including ${formatDays(quote.interest_to_date_days)} of Interest to Date`
       : ''
   return `This pays the full Outstanding of ${name} (${formatINR(quote.total)}${charge}).`
 }

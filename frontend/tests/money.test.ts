@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatChange, formatINR } from '../src/money'
+import { formatChange, formatINR, paiseToRupees, rupeesToPaise } from '../src/money'
 
 describe('formatINR', () => {
   it.each([
@@ -31,5 +31,28 @@ describe('formatChange', () => {
     [0, 'no change'],
   ])('shows a difference with its sign: %i paise → %s', (paise, expected) => {
     expect(formatChange(paise)).toBe(expected)
+  })
+})
+
+describe('rupees in forms', () => {
+  it.each([
+    ['0.5', 50],
+    ['1234.5', 123_450],
+    ['51500', 5_150_000],
+  ])('round-trips typed rupees and paise: %s ↔ %i', (text, paise) => {
+    expect(rupeesToPaise(text)).toBe(paise)
+    expect(paiseToRupees(paise)).toBe(text)
+  })
+
+  it('rounds typed rupees to the nearest paisa', () => {
+    expect(rupeesToPaise('10.005')).toBe(1001)
+  })
+
+  it.each([[''], ['abc']])('reads blank or invalid text %j as no paise', (text) => {
+    expect(rupeesToPaise(text)).toBe(0)
+  })
+
+  it('shows no amount as blank', () => {
+    expect(paiseToRupees(null)).toBe('')
   })
 })

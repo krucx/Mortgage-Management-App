@@ -14,8 +14,11 @@ export function formatINR(paise: number): string {
   return `${sign}₹${formatter.format(absolute / 100)}`
 }
 
-/** What the Lender types in rupees (e.g. "1234.5") → paise. */
-export const rupeesToPaise = (rupees: string) => Math.round(Number(rupees) * 100)
+/** What the Lender types in rupees (e.g. "1234.5") → paise; blank or invalid text is 0. */
+export const rupeesToPaise = (rupees: string) => Math.round(Number(rupees) * 100) || 0
+
+/** Paise → rupees as a form field holds them, e.g. 50 → "0.5"; no amount is blank. */
+export const paiseToRupees = (paise: number | null) => (paise === null ? '' : String(paise / 100))
 
 /** A difference with its sign, e.g. 420000 → "+₹4,200", -420000 → "−₹4,200". */
 export const formatChange = (paise: number) =>

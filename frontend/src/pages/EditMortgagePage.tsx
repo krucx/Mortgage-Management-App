@@ -7,13 +7,12 @@ import { Summary } from '../components/ConfirmDialog'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { lentThroughName, usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
+import { WeightFields } from '../components/WeightFields'
 import { formatDate, formatGrams, todayIso } from '../format'
-import { formatINR, rupeesToPaise } from '../money'
+import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { changes, mortgageQuery, previews } from '../requests'
 import { useMortgageChange, useServerState } from '../serverState'
-
-const gramsToMg = (grams: string) => Math.round(Number(grams) * 1000)
-const mgToGrams = (mg: number) => String(mg / 1000)
+import { gramsToMg, mgToGrams } from '../weight'
 
 /** Correct a Mortgage's details; the Ledger is replayed from them. */
 export function EditMortgagePage() {
@@ -33,7 +32,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
   const [fields, setFields] = useState({
     name: mortgage.name,
     start_date: mortgage.start_date,
-    amountLent: String(mortgage.amount_lent / 100),
+    amountLent: paiseToRupees(mortgage.amount_lent),
     description: mortgage.description,
     gross: mgToGrams(mortgage.gross_weight_mg),
     net: mgToGrams(mortgage.net_weight_mg),
@@ -162,29 +161,10 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
           />
         </label>
         <div className="grid-3">
-          <label>
-            Gross weight (grams)
-            <input
-              type="number"
-              required
-              min="0.001"
-              step="0.001"
-              value={fields.gross}
-              onChange={(e) => set('gross')(e.target.value)}
-            />
-          </label>
-          <label>
-            Net weight, gold only (grams)
-            <input
-              type="number"
-              required
-              min="0.001"
-              step="0.001"
-              max={fields.gross || undefined}
-              value={fields.net}
-              onChange={(e) => set('net')(e.target.value)}
-            />
-          </label>
+          <WeightFields
+            value={fields}
+            onChange={(weights) => setFields({ ...fields, ...weights })}
+          />
           <label>
             Purity
             <select

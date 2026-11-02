@@ -229,7 +229,7 @@ test('paying the full Outstanding asks to Redeem first, then records the Payment
   expect(within(asked).getByRole('heading', { name: 'Redeem and hand back the jewellery?' })).toBeTruthy()
   expect(
     within(asked).getByText(
-      `This pays the full Outstanding of ${row.name} (₹51,500, including 15 days' Interest to Date).`,
+      `This pays the full Outstanding of ${row.name} (₹51,500, including 15 days of Interest to Date).`,
     ),
   ).toBeTruthy()
   fireEvent.click(within(asked).getByRole('button', { name: 'Redeem' }))

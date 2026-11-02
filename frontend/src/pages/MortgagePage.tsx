@@ -16,7 +16,7 @@ import { ScrollPopup } from '../components/ScrollPopup'
 import { TermsPanel } from '../components/TermsPanel'
 import { useConfirm } from '../components/useConfirm'
 import { lentThroughName, usePaymentMethods } from '../components/usePaymentMethods'
-import { formatDate, formatGrams } from '../format'
+import { formatDate, formatDays, formatGrams } from '../format'
 import { formatINR } from '../money'
 import {
   addMortgagePhoto,
@@ -306,7 +306,6 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
         `${formatINR(step.principal_paid)} to Principal`
       )
     case 'interest_to_date': {
-      const days = step.interest_to_date_days === 1 ? '1 day' : `${step.interest_to_date_days} days`
       const rule = mortgage.terms.part_month_rule
       // Only while Active is it to date: a Closure fixes it.
       const toDate =
@@ -316,7 +315,7 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
             ? ', to date: grows each day until the next Accrual Date'
             : ', to date: until the next Accrual Date'
       return (
-        `Interest to Date: ${days} of this month, ` +
+        `Interest to Date: ${formatDays(step.interest_to_date_days)} of this month, ` +
         `${mortgage.status === 'active' ? 'today' : 'its Closure'} included ` +
         `(${PART_MONTH_RULES[rule]}) on ${formatINR(step.charged_on)}${toDate}` +
         paidAhead(step)

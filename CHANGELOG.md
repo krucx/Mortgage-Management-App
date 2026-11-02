@@ -5,6 +5,14 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## Unreleased
+
+### Fixed
+
+- **"1 day", not "1 days":** closing a Mortgage on the first day of its month now
+  says "1 day of the month". New Payment's full-Outstanding note now reads "including
+  N days of Interest to Date".
+
 ## [3.2.0] - 2026-11-03
 
 Customers can have an email, an Aadhaar Number (its last 4 digits only), a PAN and ID

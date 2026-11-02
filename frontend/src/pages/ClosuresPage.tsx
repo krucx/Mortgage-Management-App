@@ -396,7 +396,7 @@ function WaiveChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void 
   const waivedAmounts = chosen.map((m) => closureOf(m.id)?.waived_amount ?? null)
   const previewed = closing !== null && !preview.error && waivedAmounts.every((w) => w !== null)
   const totalWaived = waivedAmounts.reduce<number>((sum, w) => sum + (w ?? 0), 0)
-  const anyPaid = chosen.some((m) => rupeesToPaise(received[m.id] || '0') > 0)
+  const anyPaid = chosen.some((m) => rupeesToPaise(received[m.id]) > 0)
 
   return (
     <form onSubmit={submit} className="stack close-panel">

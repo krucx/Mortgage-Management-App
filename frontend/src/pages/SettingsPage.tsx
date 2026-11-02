@@ -7,7 +7,7 @@ import { useConfirm } from '../components/useConfirm'
 import { useDraft } from '../components/useDraft'
 import { WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
-import { formatINR, rupeesToPaise } from '../money'
+import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { backupsQuery, backUpNow as startBackup, settings } from '../requests'
 import { keys, STALE_AFTER, useChange, useServerState } from '../serverState'
 import { fromDraft, INTEREST_MODES, PART_MONTH_RULES, toDraft } from '../terms'
@@ -101,7 +101,7 @@ function DefaultTermsSettings() {
 /** Each purity's rate in rupees, as typed; blank where none is set. */
 const rateDraft = (rates: GoldRate[]): Record<number, string> =>
   Object.fromEntries(
-    rates.map((r) => [r.purity_karat, r.rate_per_gram === null ? '' : String(r.rate_per_gram / 100)]),
+    rates.map((r) => [r.purity_karat, paiseToRupees(r.rate_per_gram)]),
   )
 
 function GoldRateSettings() {
@@ -295,9 +295,7 @@ function CallListThresholds() {
 function CashLimitSettings() {
   const { client, queryClient } = useServerState()
   const saved = useQuery(settings.cashLimit(client))
-  const [draft, setDraft] = useDraft(saved.data, ({ cash_limit }) =>
-    cash_limit === null ? '' : String(cash_limit / 100),
-  )
+  const [draft, setDraft] = useDraft(saved.data, ({ cash_limit }) => paiseToRupees(cash_limit))
   const [savedStatus, setStatus] = useState<Status>(null)
   const status = shownStatus(savedStatus, saved.error)
   const [saving, setSaving] = useState(false)

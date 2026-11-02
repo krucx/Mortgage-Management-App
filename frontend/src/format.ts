@@ -41,5 +41,8 @@ export function monthName(month: string, short = false): string {
 /** A count with its noun, e.g. "1 Call Note", "2 Call Notes". */
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
+/** A count of days, e.g. Interest to Date's "1 day", "30 days". */
+export const formatDays = (n: number) => plural(n, 'day', 'days')
+
 /** An Aadhaar Number as shown: only its last 4 digits, e.g. "XXXX XXXX 1234". */
 export const maskedAadhaar = (last4: string) => `XXXX XXXX ${last4}`
