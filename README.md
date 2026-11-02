@@ -36,7 +36,8 @@ release:
   Node.js is needed (Setup installs it through winget only to set up unreleased code,
   `-Ref <branch or commit>`). The shortcut's window must stay open while the app is used;
   closing it stops the app. Backups are plain zips, without a password: Windows has
-  nothing built in that makes password zips.
+  nothing built in that makes password zips. They hold Customers' ID Photos, so keep the
+  Backup folder private.
 
 Run `Setup.bat` again to update to the newest release; your `.env`, data and Backups are
 kept. It uses git when it is installed, and otherwise downloads the release from GitHub.
@@ -90,7 +91,8 @@ comes from it too, so an update shows the next time the app is opened.
 ### Backups
 
 Once a week (on the first use of the day it falls due) the app writes
-`mortgage-backup-<date>-<time>.zip` to `BACKUP_DIR`, holding the database and photos,
+`mortgage-backup-<date>-<time>.zip` to `BACKUP_DIR`, holding the database and photos
+(Customers' ID Photos among them: set `BACKUP_PASSWORD`, or keep `BACKUP_DIR` private),
 and keeps the last few (4 by default, see Settings). It also takes one, marked
 `-before-update`, before any database update; if that Backup fails the app does not
 start, so the data is never updated without one (`docker compose logs backend` says why). Settings shows the last Backup and has a

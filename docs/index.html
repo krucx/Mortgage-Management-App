@@ -398,7 +398,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <ul>
           <li>Every change with its old and new values</li>
           <li>Backups weekly and before every update, into a synced folder</li>
-          <li>Password-protected zips when running in Docker</li>
+          <li>Password-protected zips in Docker, when a password is set; they hold Customers' ID Photos</li>
         </ul>
         <div class="more"><a href="walkthrough.html#s10">Walkthrough §10</a><a href="install.html#backups">Install: Backups and restore</a></div>
       </div>
@@ -419,9 +419,9 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <summary><b>Lend against new jewellery</b><span>A new or returning Customer pledges a packet</span></summary>
       <div class="flow-body">
         <ol class="steps">
-          <li><span>New to the book? <span class="ui">Customers → New Customer</span>. Enter their name and contact number 1, and their Referrer if someone introduced them. If the number already belongs to another Customer, the form says whose, and it can't be saved.</span></li>
+          <li><span>New to the book? <span class="ui">Customers → New Customer</span>. Enter their name and contact number 1, and their Referrer if someone introduced them. If the number already belongs to another Customer, the form says whose, and it can't be saved. Optionally add their email, the last 4 digits of their Aadhaar Number, their PAN, and ID Photos of their masked Aadhaar and PAN card: each card's number is read from its photo into its field, if empty, to check.</span></li>
           <li><span>On the Customer, press <span class="ui">New Mortgage</span>. Their Active Mortgages show first, as a reminder of what they already owe.</span></li>
-          <li><span>Enter the start date (back-dating is fine), the Principal lent, a description of the jewellery, gross and net weight, and purity. Add photos.</span></li>
+          <li><span>Enter the start date (back-dating is fine), the Principal lent and how it was Lent Through, a description of the jewellery, gross and net weight in grams, and purity. Add photos.</span></li>
           <li><span>Check the suggested Mortgage Name and the Terms copied from Settings; change either for this Mortgage if needed.</span></li>
           <li><span>Press <span class="ui">Create Mortgage</span>. The confirmation shows what it will owe today and a year from now with no Payments. Confirm.</span></li>
         </ol>
@@ -574,6 +574,9 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <div class="nuances">
         <div class="nuance rule"><b>The Primary Number identifies a person</b><span>Contact number 1 is unique: no two people share it. Number 2 may be shared, such as a family phone; the app warns but allows it.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0005-primary-number-identifies-a-person.md">ADR-0005</a></div>
         <div class="nuance"><b>Referrers grow into Customers</b><span>A Standalone Referrer who later borrows becomes a Customer, keeping everyone they referred. Nobody can refer themselves.</span></div>
+        <div class="nuance rule"><b>The Aadhaar Number is its last 4 digits</b><span>Only they are ever stored or shown (XXXX XXXX 1234); ask for the masked Aadhaar.</span></div>
+        <div class="nuance"><b>A PAN is one person's</b><span>No two Customers share a PAN: saving one that is already another Customer's says whose it is.</span></div>
+        <div class="nuance"><b>ID Photos stay on the Customer</b><span>The Aadhaar and PAN card photos show only on the Customer's page and form, never in lists, Receipts or messages. Their numbers are read on the laptop itself, as a suggestion that never overwrites what was typed.</span></div>
         <div class="nuance"><b>Lending history is never lost</b><span>A Customer can be deleted only while they have no Mortgages.</span></div>
       </div>
     </div>
@@ -593,7 +596,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <div class="nuances">
         <div class="nuance rule"><b>Only this laptop can reach it</b><span>The app listens on the laptop alone, and the data is a folder on its disk.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md">ADR-0004</a></div>
         <div class="nuance"><b>Backups leave the laptop</b><span>A zip of the database and photos, into a folder synced by Google Drive, iCloud or OneDrive.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0003-backup-to-synced-folder.md">ADR-0003</a></div>
-        <div class="nuance"><b>Docker or not</b><span>With Docker Desktop, Backups are password-protected zips. Without it, Setup installs uv and the release ready-built (no Node.js), the app's window must stay open, and Backups are plain zips.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md">ADR-0010</a></div>
+        <div class="nuance"><b>Docker or not</b><span>With Docker Desktop, Backups can have a password. Without it, Setup installs uv and the release ready-built (no Node.js), the app's window must stay open, and Backups are plain zips. Backups hold Customers' ID Photos: without a password, keep the Backup folder private.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md">ADR-0010</a></div>
         <div class="nuance"><b>Started from its icon</b><span>The installed app starts the app when it isn't running, through a link Setup registers (Windows asks once).</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0008-pwa-starts-the-app-through-a-link.md">ADR-0008</a></div>
         <div class="nuance rule"><b>An update never breaks the app</b><span>Each version is installed beside the one in use and switched to only once it starts; if anything fails, the old one keeps running. Starting a new version takes a Backup, then brings the database up to date.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md">ADR-0009</a></div>
         <div class="nuance"><b>Told when a release is out</b><span>The app asks GitHub at most once a day, never sends anything, and stays silent offline.</span></div>
