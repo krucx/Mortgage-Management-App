@@ -5,6 +5,62 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [3.1.0] - 2026-11-02
+
+Dormant Mortgages flagged on the renamed Closures page; Lent Through and a Cash Limit
+warning for cash; the Call List as a Call Sheet to export and import; weights in grams.
+**Updates the database** (each Mortgage records how it was Lent Through): the app takes
+a Backup marked `-before-update` first, and 3.0.0 does not start on the updated
+database.
+
+### Added
+
+- **Dormant:** an Active Mortgage that owes nothing, so its jewellery should already have
+  gone back; usually a recording slip. Worked out afresh, never stored
+  ([ADR 0012](Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md)).
+  Closures lists them with **Redeem…** (no Payment needed), and the menu's Closures
+  shows a red dot while any exist. Dormant Mortgages get no Notices and stay off the
+  Call List.
+- **Lent Through:** how a Mortgage's Principal was handed over (Cash, UPI or bank
+  transfer). Required on new Mortgages, shown on the Mortgage page, editable, and kept in
+  History; Mortgages made before show "—" until edited.
+- **Cash Limit:** a setting, ₹20,000 unless changed. Lending or receiving that much or
+  more in cash asks first ("Government of India rules ask for ₹20,000 or more to be lent
+  or received by UPI or bank transfer, not cash"), with **Go back** or **Record in cash
+  anyway**: on New Payment, a Final Payment when Redeeming or Waiving off, New Mortgage,
+  and an edit that makes a Mortgage cash or lends more of it in cash. It only warns;
+  cleared, it never asks.
+- **Call Sheet:** the Call List exported to Excel or PDF for whoever makes the calls, a
+  row per Mortgage with Called on and Call Note to fill in. **Import Call Notes from
+  Excel** previews the notes a filled sheet adds, then saves all or none; a closed or
+  unknown Mortgage refuses the sheet by name, and importing it twice adds nothing.
+
+### Changed
+
+- **Redeem / Forfeit is now Closures,** in the menu and on the page.
+- **Weights are in grams** everywhere ("21.5 grams gross"), not "g".
+- **Save waits for its Preview** on New Payment, Edit Mortgage, Change Terms, Redeem and
+  Waive off, so the confirmation and the Cash Limit see what would be saved.
+- The Ledger's code speaks of the Interest to Date (`interest_to_date_days`), not a
+  part-month charge.
+- **GitHub Pages:** the walkthrough tours The Gold Chain Story's sample book, every
+  figure and address it quotes filled in from the book when the screenshots are retaken;
+  the pages and all screenshots are retold for the above.
+
+### Upgrading
+
+Existing Mortgages show Lent Through as "—": set it by editing them when convenient. A
+Mortgage that was paid down to nothing before 3.0.0 may now show as Dormant: check it and
+Redeem it.
+
+On Windows, use the banner's **Install now**. Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
+
 ## [3.0.0] - 2026-11-02
 
 Outstanding is now what would redeem a Mortgage today, today's interest included: one
