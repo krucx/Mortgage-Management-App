@@ -209,6 +209,17 @@ class _Run:
             return 0
         return self.interest_to_date(on)[0] - self.paid_ahead
 
+    def interest_charged_on(self, on: date) -> int:
+        """The month's interest charged on `on` (an Accrual Date, else nothing), before
+        any of it is capitalised; `on` must be the last day replayed so far."""
+        charged = 0
+        for step in reversed(self.steps):
+            if step.on < on:
+                break
+            if step.event == "interest":
+                charged += step.amount
+        return charged
+
     def outstanding(self, on: date) -> int:
         """What would redeem it on `on`: everything owed, the Interest to Date too."""
         return self.owed() + self.to_date_owed(on)
@@ -403,6 +414,7 @@ class Snapshot:
     principal: int
     unpaid_interest: int
     outstanding: int  # the Interest to Date included
+    interest_charged: int  # the month's interest charged that day, before capitalising
 
 
 @dataclass(frozen=True)
@@ -432,7 +444,13 @@ def project(
         run.accrue_through(on)
         run.pay_through(on)
         snapshots.append(
-            Snapshot(on, run.principal, run.unpaid, run.outstanding(on))
+            Snapshot(
+                on,
+                run.principal,
+                run.unpaid,
+                run.outstanding(on),
+                run.interest_charged_on(on),
+            )
         )
     in_view = [c for c in run.term_changes if dates[0] < c[0] <= dates[-1]]
     if paid_off_by is not None:

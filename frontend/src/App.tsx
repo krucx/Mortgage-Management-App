@@ -2,7 +2,6 @@ import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router'
 import { StartGate } from './components/StartGate'
 import { ThemeToggle } from './components/ThemeToggle'
 import { UpdateBanner } from './components/UpdateBanner'
-import { useReadyToRedeemCount } from './components/useReadyToRedeem'
 import { CallListPage } from './pages/CallListPage'
 import { ChangeTermsPage } from './pages/ChangeTermsPage'
 import { ClosuresPage } from './pages/ClosuresPage'
@@ -25,7 +24,6 @@ import { SettingsPage } from './pages/SettingsPage'
 import { APP_VERSION } from './version'
 
 function Nav() {
-  const waiting = useReadyToRedeemCount()
   return (
     <nav>
       <NavLink to="/" end>
@@ -36,13 +34,7 @@ function Nav() {
       <NavLink to="/mortgages">Mortgages</NavLink>
       <NavLink to="/call-list">Call List</NavLink>
       <NavLink to="/notices">Notices</NavLink>
-      <NavLink
-        to="/closures"
-        title={waiting ? `${waiting} paid off, waiting to be Redeemed` : undefined}
-      >
-        Redeem / Forfeit
-        {waiting > 0 && <span className="dot" aria-label={`${waiting} waiting to be Redeemed`} />}
-      </NavLink>
+      <NavLink to="/closures">Redeem / Forfeit</NavLink>
       <NavLink to="/settings">Settings</NavLink>
     </nav>
   )

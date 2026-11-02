@@ -103,7 +103,6 @@ class MortgageRow(BaseModel):
     amount_lent: int
     status: MortgageStatus
     outstanding_total: int
-    ready_to_redeem: bool  # Active with nothing Outstanding
 
 
 class TermChangeOut(BaseModel):
@@ -164,7 +163,6 @@ def mortgage_rows(
             amount_lent=row["amount_lent"],
             status=row["status"],
             outstanding_total=replayed[row["id"]].outstanding(as_of).total,
-            ready_to_redeem=replayed[row["id"]].ready_to_redeem(as_of),
         )
         for row in rows
     ]

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { MORTGAGE_SORTS, READY_SORTS, type PaymentMethod } from '../api'
+import { MORTGAGE_SORTS, type PaymentMethod } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
@@ -16,23 +16,13 @@ import { tickedFirst } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
 import { lists } from '../requests'
 
-/**
- * Closures in one place: Mortgages paid off and waiting to be Redeemed, and Active
- * Mortgages the Lender may choose to Forfeit or Waive off.
- */
+/** Active Mortgages the Lender may choose to Forfeit or Waive off, together. */
 export function ClosuresPage() {
-  // Both lists are sorted on the server, across their pages.
-  const {
-    listed: readyList,
-    sorting: readySorting,
-    error: readyError,
-    pager: readyPager,
-  } = useListPage(READY_SORTS, lists.readyToRedeem(), { sortParam: 'ready_sort' })
-  const ready = readyList?.items ?? null
+  // Sorted on the server, across its pages.
   const {
     listed: active,
     sorting,
-    error: forfeitError,
+    error,
     pager: forfeitPager,
   } = useListPage(
     MORTGAGE_SORTS,
@@ -42,7 +32,6 @@ export function ClosuresPage() {
   )
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [closing, setClosing] = useState<'forfeit' | 'waive'>('forfeit')
-  const error = forfeitError ?? readyError
 
   function toggle(id: number) {
     const next = new Set(selected)
@@ -51,7 +40,7 @@ export function ClosuresPage() {
     setSelected(next)
   }
 
-  // Only Mortgages still owing something; paid-off ones are Redeemed (listed above).
+  // Only Mortgages still owing something.
   const forfeitable = active?.items ?? []
   const chosen = forfeitable.filter((m) => selected.has(m.id))
 
@@ -59,68 +48,6 @@ export function ClosuresPage() {
     <section className="card wide">
       <h2>Redeem / Forfeit</h2>
       {error && <p className="status error">{error}</p>}
-
-      <h3>
-        Ready to Redeem{' '}
-        {readyList && readyList.total > 0 && (
-          <span className="badge count">{readyList.total}</span>
-        )}
-      </h3>
-      <p className="hint">
-        Principal and interest fully paid: take any part-month charge as the final Payment, hand
-        the jewellery back and Redeem.
-      </p>
-      {ready === null ? (
-        <p>Loading…</p>
-      ) : readyList?.total === 0 ? (
-        <p className="hint">None waiting.</p>
-      ) : (
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <SortHeading sorting={readySorting} column="mortgage">
-                  Mortgage
-                </SortHeading>
-                <SortHeading sorting={readySorting} column="customer">
-                  Customer
-                </SortHeading>
-                <SortHeading sorting={readySorting} column="amount" firstDescending className="num">
-                  Outstanding today
-                </SortHeading>
-                <th aria-label="Redeem" />
-              </tr>
-            </thead>
-            <tbody>
-              {ready.map(({ mortgage, outstanding }) => (
-                <tr key={mortgage.id}>
-                  <td>
-                    <Link to={`/mortgages/${mortgage.id}`}>{mortgage.name}</Link>
-                  </td>
-                  <td>
-                    <PersonLink person={mortgage.customer} />
-                  </td>
-                  <td className="num">
-                    {formatINR(outstanding.total)}
-                    {outstanding.interest_to_date > 0 && (
-                      <span className="hint">
-                        {' '}
-                        (Interest to Date for {outstanding.interest_to_date_days} days)
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <Link className="button small" to={`/mortgages/${mortgage.id}/redeem`}>
-                      Redeem…
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {readyPager}
 
       <h3>Forfeit or Waive off</h3>
       <p className="hint">

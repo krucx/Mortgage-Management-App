@@ -1,9 +1,11 @@
 """Notices: the daily run queues one per Customer per Accrual Date coming up in N days.
 
-The Mortgages here are ₹1,00,000 at 3% Simple from 14 Jan 2026 unless stated: ₹3,000 is
-added on each 14th, so on 14 May the chain will owe ₹1,12,000.
+The Mortgages here are ₹1,00,000 at 3% Simple, Full month, from 14 Jan 2026 unless
+stated: ₹3,000 is added on each 14th, so on 14 May the chain will owe ₹1,15,000, the new
+month's Interest to Date included.
 """
 
+import re
 from collections.abc import Iterator
 from datetime import date, datetime
 
@@ -25,6 +27,7 @@ from mortgage_backend.follow_up.notices import (
     list_notices,
     sync,
 )
+from mortgage_backend.lending.terms import Terms
 from mortgage_backend.main import create_app
 
 TODAY = date(2026, 5, 12)
@@ -35,6 +38,12 @@ def settings(conn: Connection, today: date = TODAY, **changes: object) -> None:
     MESSAGE_SETTINGS.set(
         conn, MESSAGE_SETTINGS.get(conn).model_copy(update=changes), today
     )
+
+
+def quotes(message: str, interest: str, owed: str) -> bool:
+    """Whether a Notice's `message` has a Mortgage's lines with these amounts."""
+    lines = rf"Interest added\s+{re.escape(interest)}\nOwed after\s+{re.escape(owed)}\n"
+    return re.search(lines, message) is not None
 
 
 def mark_sent(conn: Connection, notice_id: int, now: datetime = NOW) -> None:
@@ -54,7 +63,7 @@ def test_a_notice_is_queued_days_before_the_accrual_date(conn: Connection) -> No
         "queued",
     )
     assert "*₹3,000* will be added" in notice.message
-    assert "Gold chain\nInterest added    ₹3,000\nOwed after     ₹1,12,000" in (
+    assert "Gold chain\nInterest added    ₹3,000\nOwed after     ₹1,15,000" in (
         notice.message
     )
     assert "2026-Ramesh" not in notice.message
@@ -231,10 +240,73 @@ def test_a_queued_notice_shows_what_is_owed_when_it_is_read(conn: Connection) ->
     chain = add_mortgage(conn, ramesh)
     sync(conn, date(2026, 5, 12))
 
-    # Paid after it was queued: ₹1,09,000 owed then, so ₹9,000 clears the interest.
+    # Paid after it was queued: ₹9,000 clears the interest charged so far.
     add_payment(conn, ramesh, date(2026, 5, 12), {chain: 9_000 * RUPEE})
 
-    assert "Owed after     ₹1,03,000" in list_notices(conn)[0].message
+    assert "Owed after     ₹1,06,000" in list_notices(conn)[0].message
+
+
+def test_interest_paid_ahead_is_still_the_months_interest_added(
+    conn: Connection,
+) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    # ₹12,000 on 12 May: ₹9,000 of interest, and the month's ₹3,000 paid ahead.
+    add_payment(conn, ramesh, date(2026, 5, 12), {chain: 12_000 * RUPEE})
+
+    sync(conn, date(2026, 5, 12))
+
+    assert quotes(list_notices(conn)[0].message, "₹3,000", "₹1,03,000")
+
+
+@pytest.mark.parametrize(
+    ("rule", "owed"),
+    [("full_month", "₹3,180"), ("pro_rata", "₹3,093"), ("nothing", "₹3,090")],
+)
+def test_a_notice_quotes_the_months_interest_and_the_outstanding_on_the_accrual_date(
+    conn: Connection, rule: str, owed: str
+) -> None:
+    # ₹3,000 at 3% from 1 Nov: ₹90 charged on 1 Dec, and the new month's Interest to
+    # Date that day (₹90 Full month, ₹3 for one day pro-rata, nothing).
+    terms = Terms(monthly_rate_bps=300, interest_mode="simple", part_month_rule=rule)
+    add_mortgage(
+        conn,
+        add_customer(conn),
+        start_date=date(2026, 11, 1),
+        amount_lent=3_000 * RUPEE,
+        terms=terms,
+    )
+
+    sync(conn, date(2026, 11, 29))
+
+    assert quotes(list_notices(conn)[0].message, "₹90", owed)
+
+
+@pytest.mark.parametrize(
+    ("mode", "start", "sync_on", "owed"),
+    [
+        # ₹90 capitalised on 1 Dec: ₹3,090, plus ₹93 (₹92.70, to the rupee) for the month
+        # starting then.
+        ("compounded_monthly", date(2026, 11, 1), date(2026, 11, 29), "₹3,183"),
+        # A year's ₹1,080 capitalised on 1 Nov: ₹4,080, plus ₹122 (₹122.40, to the rupee).
+        ("compounded_yearly", date(2025, 11, 1), date(2026, 10, 30), "₹4,202"),
+    ],
+)
+def test_a_compounded_notice_quotes_the_interest_before_capitalising_and_the_outstanding_after(
+    conn: Connection, mode: str, start: date, sync_on: date, owed: str
+) -> None:
+    terms = Terms(monthly_rate_bps=300, interest_mode=mode, part_month_rule="full_month")
+    add_mortgage(
+        conn,
+        add_customer(conn),
+        start_date=start,
+        amount_lent=3_000 * RUPEE,
+        terms=terms,
+    )
+
+    sync(conn, sync_on)
+
+    assert quotes(list_notices(conn)[0].message, "₹90", owed)
 
 
 def test_a_queued_notice_covers_a_mortgage_added_later(conn: Connection) -> None:

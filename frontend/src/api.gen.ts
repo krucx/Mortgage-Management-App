@@ -86,27 +86,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/closures/ready-to-redeem": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Ready To Redeem
-         * @description Active Mortgages paid down to nothing Outstanding, oldest first (or by `sort`,
-         *     reversed when `descending`).
-         */
-        get: operations["ready_to_redeem_api_closures_ready_to_redeem_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/closures/redeem": {
         parameters: {
             query?: never;
@@ -1940,8 +1919,6 @@ export interface components {
             name: string;
             /** Outstanding Total */
             outstanding_total: number;
-            /** Ready To Redeem */
-            ready_to_redeem: boolean;
             /**
              * Start Date
              * Format: date
@@ -2081,17 +2058,6 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** Page[ReadyToRedeem] */
-        Page_ReadyToRedeem_: {
-            /** Items */
-            items: components["schemas"]["ReadyToRedeem"][];
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total */
-            total: number;
-        };
         /**
          * PartMonthRule
          * @enum {string}
@@ -2112,8 +2078,6 @@ export interface components {
              * Format: date
              */
             paid_on: string;
-            /** Ready To Redeem */
-            ready_to_redeem: components["schemas"]["MortgageRow"][];
             /** Reference */
             reference: string | null;
             /** Void Reason */
@@ -2274,14 +2238,6 @@ export interface components {
             /** Redemptions Estimate */
             redemptions_estimate: number;
         };
-        /**
-         * ReadyToRedeem
-         * @description An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back.
-         */
-        ReadyToRedeem: {
-            mortgage: components["schemas"]["MortgageRow"];
-            outstanding: components["schemas"]["OutstandingOnClosure"];
-        };
         /** Receipt */
         Receipt: {
             /** Amount */
@@ -2335,8 +2291,6 @@ export interface components {
             method: components["schemas"]["PaymentMethod"];
             /** Mortgage Ids */
             mortgage_ids: number[];
-            /** Received With */
-            received_with?: number | null;
             /**
              * Redeemed On
              * Format: date
@@ -2629,39 +2583,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MortgagePreview"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    ready_to_redeem_api_closures_ready_to_redeem_get: {
-        parameters: {
-            query?: {
-                page?: number;
-                sort?: ("mortgage" | "customer" | "amount") | null;
-                descending?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_ReadyToRedeem_"];
                 };
             };
             /** @description Validation Error */

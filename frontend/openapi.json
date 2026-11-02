@@ -1834,10 +1834,6 @@
             "title": "Outstanding Total",
             "type": "integer"
           },
-          "ready_to_redeem": {
-            "title": "Ready To Redeem",
-            "type": "boolean"
-          },
           "start_date": {
             "format": "date",
             "title": "Start Date",
@@ -1854,8 +1850,7 @@
           "start_date",
           "amount_lent",
           "status",
-          "outstanding_total",
-          "ready_to_redeem"
+          "outstanding_total"
         ],
         "title": "MortgageRow",
         "type": "object"
@@ -2161,37 +2156,6 @@
         "title": "Page[Notice]",
         "type": "object"
       },
-      "Page_ReadyToRedeem_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ReadyToRedeem"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "page": {
-            "title": "Page",
-            "type": "integer"
-          },
-          "page_size": {
-            "title": "Page Size",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "page_size"
-        ],
-        "title": "Page[ReadyToRedeem]",
-        "type": "object"
-      },
       "PartMonthRule": {
         "enum": [
           "pro_rata",
@@ -2228,13 +2192,6 @@
             "format": "date",
             "title": "Paid On",
             "type": "string"
-          },
-          "ready_to_redeem": {
-            "items": {
-              "$ref": "#/components/schemas/MortgageRow"
-            },
-            "title": "Ready To Redeem",
-            "type": "array"
           },
           "reference": {
             "anyOf": [
@@ -2280,8 +2237,7 @@
           "reference",
           "allocations",
           "voided_at",
-          "void_reason",
-          "ready_to_redeem"
+          "void_reason"
         ],
         "title": "Payment",
         "type": "object"
@@ -2712,23 +2668,6 @@
         "title": "ProjectionHorizon",
         "type": "object"
       },
-      "ReadyToRedeem": {
-        "description": "An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back.",
-        "properties": {
-          "mortgage": {
-            "$ref": "#/components/schemas/MortgageRow"
-          },
-          "outstanding": {
-            "$ref": "#/components/schemas/OutstandingOnClosure"
-          }
-        },
-        "required": [
-          "mortgage",
-          "outstanding"
-        ],
-        "title": "ReadyToRedeem",
-        "type": "object"
-      },
       "Receipt": {
         "properties": {
           "amount": {
@@ -2856,17 +2795,6 @@
             "minItems": 1,
             "title": "Mortgage Ids",
             "type": "array"
-          },
-          "received_with": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Received With"
           },
           "redeemed_on": {
             "format": "date",
@@ -3505,79 +3433,6 @@
           }
         },
         "summary": "Preview Forfeit All"
-      }
-    },
-    "/api/closures/ready-to-redeem": {
-      "get": {
-        "description": "Active Mortgages paid down to nothing Outstanding, oldest first (or by `sort`,\nreversed when `descending`).",
-        "operationId": "ready_to_redeem_api_closures_ready_to_redeem_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "default": 1,
-              "minimum": 1,
-              "title": "Page",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "sort",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "mortgage",
-                    "customer",
-                    "amount"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Sort"
-            }
-          },
-          {
-            "in": "query",
-            "name": "descending",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Descending",
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Page_ReadyToRedeem_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Ready To Redeem"
       }
     },
     "/api/closures/redeem": {

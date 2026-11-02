@@ -24,7 +24,6 @@ import type {
   PaymentIn,
   PaymentSort,
   Purity,
-  ReadySort,
   RedeemAllIn,
   TermChangeIn,
   Terms,
@@ -80,16 +79,6 @@ export const removeMortgagePhoto = (client: ApiClient, id: number, photoId: numb
       params: { path: { mortgage_id: id, photo_id: photoId } },
     }),
   )
-
-/** How many Mortgages are paid off and waiting to be Redeemed. */
-export function readyToRedeemCountQuery(client: ApiClient) {
-  return queryOptions({
-    queryKey: keys.readyToRedeem,
-    queryFn: () =>
-      dataOrThrow(client.GET('/api/closures/ready-to-redeem', { params: { query: { page: 1 } } })),
-    select: (ready) => ready.total,
-  })
-}
 
 /** A Preview of an unsaved change: which change it is, and how to ask for it. */
 export interface PreviewRequest<T = MortgagePreview[]> {
@@ -318,16 +307,6 @@ export const lists = {
       load: (client, page, sort) =>
         dataOrThrow(client.GET('/api/call-list', { params: { query: { page, ...sortQuery(sort) } } })),
     }) satisfies ListRequest<CallListSort, unknown>,
-  readyToRedeem: () =>
-    ({
-      key: ['ready-to-redeem'],
-      load: (client, page, sort) =>
-        dataOrThrow(
-          client.GET('/api/closures/ready-to-redeem', {
-            params: { query: { page, ...sortQuery(sort) } },
-          }),
-        ),
-    }) satisfies ListRequest<ReadySort, unknown>,
 }
 
 /** What the Lender does with a queued Notice. */

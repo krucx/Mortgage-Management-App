@@ -31,7 +31,6 @@ const row = {
   amount_lent: mortgage.amount_lent,
   status: 'active',
   outstanding_total: 5_150_000,
-  ready_to_redeem: false,
 }
 const quote = {
   on: '2026-04-20',
@@ -42,170 +41,46 @@ const quote = {
   interest_to_date: 0,
   total: 0,
 }
-const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
-
-/** The backend for recording a ₹50,750 UPI Payment that leaves the Mortgage Ready to
- *  Redeem, which then answers a Redemption with `redeem`; `onClosure` is its
- *  Outstanding on the Payment date. */
-function server(redeem: unknown, onClosure: unknown = quote) {
-  const paid: { paid_on?: string } = {}
-  const backend = fakeServer({
+/** The backend for recording a ₹50,750 UPI Payment, which leaves ₹750 Outstanding. */
+function server() {
+  return fakeServer({
     'GET /api/customers/3': customer,
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 1 },
     'GET /api/payment-methods': [
       { method: 'cash', name: 'Cash' },
       { method: 'upi', name: 'UPI' },
     ],
+    'GET /api/mortgages/7/outstanding-on-closure': quote,
     'POST /api/payments/preview': [],
-    'POST /api/payments': async (request: Request) => {
-      const asked = (await request.json()) as Record<string, unknown>
-      paid.paid_on = asked.paid_on as string
-      return {
-        ...asked,
-        id: 9,
-        customer: { kind: 'customer', id: 3, name: customer.name },
-        allocations: [
-          {
-            mortgage_id: 7,
-            mortgage_name: row.name,
-            amount: 5_075_000,
-            interest_paid: 75_000,
-            principal_paid: 5_000_000,
-          },
-        ],
-        voided_at: null,
-        void_reason: null,
-        ready_to_redeem: [{ ...row, outstanding_total: 0, ready_to_redeem: true }],
-      }
-    },
-    'GET /api/mortgages/7': mortgage,
-    'GET /api/mortgages/7/outstanding-on-closure': onClosure,
-    'POST /api/closures/redeem-preview': [
-      {
-        mortgage_id: 7,
-        mortgage_name: row.name,
-        before: side(null),
-        after: side({
-          kind: 'redeemed',
-          on: '2026-04-20',
-          outstanding: 0,
-          payment_id: null,
-          payment_amount: null,
-          waived_amount: null,
-          recovered_amount: null,
-          profit_loss: null,
-          note: null,
-        }),
-        ledger_changes: [],
-      },
-    ],
-    'POST /api/closures/redeem': redeem,
+    'POST /api/payments': async (request: Request) => ({
+      ...((await request.json()) as Record<string, unknown>),
+      id: 9,
+      customer: { kind: 'customer', id: 3, name: customer.name },
+      allocations: [],
+      voided_at: null,
+      void_reason: null,
+    }),
   })
-  return { ...backend, paid }
 }
 
-/** Records the Payment, confirmed, and waits for the offer to Redeem. */
-async function recordPayment() {
+test('a Payment that leaves something Outstanding goes to its Receipt, offering no Redemption', async () => {
+  const backend = server()
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+
   fireEvent.change(await screen.findByLabelText('Amount received (₹)'), {
     target: { value: '50750' },
   })
-  fireEvent.change(screen.getByLabelText('Method'), { target: { value: 'upi' } })
-  fireEvent.change(screen.getByLabelText('Reference (optional)'), { target: { value: 'UTR7' } })
   const record = screen.getByRole('button', { name: 'Record Payment of ₹50,750' })
   await vi.waitFor(() => expect((record as HTMLButtonElement).disabled).toBe(false), {
     timeout: 2000,
   })
   fireEvent.click(record)
   const confirmation = await screen.findByRole('dialog')
+  expect(within(confirmation).queryByText(/Redeem/)).toBeNull()
   fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm and save' }))
-  return screen.findByRole('heading', { name: 'Paid up to 10 Apr 2026: Redeem now?' })
-}
-
-function showNewPayment(backend: ReturnType<typeof server>) {
-  showPage(backend, '/payments/new?customer=3&mortgage=7', {
-    '/payments/new': <NewPaymentPage />,
-  })
-}
-
-test('a Payment that leaves a Mortgage Ready to Redeem offers to Redeem it, in one request on the Payment date', async () => {
-  const sent: unknown[] = []
-  const backend = server(async (request: Request) => {
-    sent.push(await request.json())
-    return []
-  })
-  showNewPayment(backend)
-  await recordPayment()
-
-  const offer = screen.getByRole('dialog')
-  // The Redemption's Preview, before Redeeming.
-  expect(await within(offer).findByText(/No change to the Ledger so far/, {}, { timeout: 2000 }))
-  const redeem = screen.getByRole('button', { name: 'Redeem 1' }) as HTMLButtonElement
-  await vi.waitFor(() => expect(redeem.disabled).toBe(false), { timeout: 2000 })
-  fireEvent.click(redeem)
 
   expect(await screen.findByText('Now at /payments/9/receipt')).toBeTruthy()
-  expect(sent).toEqual([
-    {
-      redeemed_on: backend.paid.paid_on,
-      method: 'upi',
-      reference: 'UTR7',
-      mortgage_ids: [7],
-      received_with: 9,
-    },
-  ])
-  expect(backend.requests.filter((r) => r.endsWith('/redeem'))).toEqual([
-    'POST /api/closures/redeem',
-  ])
-})
-
-test("if the backend refuses the Redemption, nothing is Redeemed and its reason is shown", async () => {
-  const backend = server(() =>
-    Response.json({ detail: `${row.name} is already redeemed` }, { status: 422 }),
-  )
-  showNewPayment(backend)
-  await recordPayment()
-
-  const redeem = screen.getByRole('button', { name: 'Redeem 1' }) as HTMLButtonElement
-  await vi.waitFor(() => expect(redeem.disabled).toBe(false), { timeout: 2000 })
-  fireEvent.click(redeem)
-
-  expect(await screen.findByText(`${row.name} is already redeemed`)).toBeTruthy()
-  expect(screen.getByRole('heading', { name: 'Paid up to 10 Apr 2026: Redeem now?' })).toBeTruthy()
-})
-
-test('the offer to Redeem gives the final Payment and the Part-Month Rule behind it', async () => {
-  const charged = { ...quote, interest_to_date_days: 10, interest_to_date: 25_000, total: 25_000 }
-  showNewPayment(server([], charged))
-  await recordPayment()
-
-  const offer = screen.getByRole('dialog')
-  expect(within(offer).getByText(/Principal and interest are fully paid/)).toBeTruthy()
-  expect(
-    await within(offer).findByText(
-      'The final Payment is ₹250: the Interest to Date for 10 days (Pro-rata by day).',
-    ),
-  ).toBeTruthy()
-})
-
-test("the offer to Redeem asks for the Outstanding afresh, not the one New Payment had before the Payment", async () => {
-  // Before the Payment, New Payment quoted ₹50,750 + ₹750; after it, only ₹750 is left.
-  let asked = 0
-  const fresh = async () => {
-    if (asked++ === 0)
-      return { ...quote, interest_to_date_days: 10, interest_to_date: 75_000, total: 5_150_000 }
-    await new Promise((resolve) => setTimeout(resolve, 300)) // the fresh one takes a moment
-    return { ...quote, interest_to_date_days: 10, interest_to_date: 75_000, total: 75_000 }
-  }
-  showNewPayment(server([], fresh))
-  await recordPayment()
-
-  const offer = screen.getByRole('dialog')
-  expect(within(offer).queryByText(/₹51,500/)).toBeNull()
-  expect(
-    await within(offer).findByText(
-      'The final Payment is ₹750: the Interest to Date for 10 days (Pro-rata by day).',
-    ),
-  ).toBeTruthy()
+  expect(backend.requests.filter((r) => /redeem/.test(r))).toEqual([])
 })
 
 // --- Each Mortgage's one figure: its Outstanding on the Payment date.
@@ -271,12 +146,14 @@ test('paying the full Outstanding fills each chosen Mortgage with its Outstandin
   expect((screen.getByLabelText(`Amount for ${ring.name}`) as HTMLInputElement).value).toBe('20000')
 })
 
-test("the Customer's Mortgages Ready to Redeem are pointed to the Redeem tab, not offered for a Payment", async () => {
-  const paidOff = { ...ring, outstanding_total: 0, ready_to_redeem: true }
+test('a Mortgage owing nothing is not offered a Payment, but pointed to its Redeem page', async () => {
+  // Paid up before Outstanding included the Interest to Date, under the Part-Month Rule
+  // "nothing": nothing is owed, so no Payment can Redeem it.
+  const paidUp = { ...ring, outstanding_total: 0 }
   showPage(
     fakeServer({
       'GET /api/customers/3': customer,
-      'GET /api/mortgages': { items: [row, paidOff], total: 2, page: 1, page_size: 2 },
+      'GET /api/mortgages': { items: [row, paidUp], total: 2, page: 1, page_size: 2 },
       'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
       'GET /api/mortgages/7/outstanding-on-closure': quote,
     }),
@@ -284,18 +161,10 @@ test("the Customer's Mortgages Ready to Redeem are pointed to the Redeem tab, no
     { '/payments/new': <NewPaymentPage /> },
   )
 
-  const hint = await screen.findByRole('link', {
-    name: "1 of this Customer's Mortgages is Ready to Redeem →",
-  })
-  expect(hint.getAttribute('href')).toBe('/closures')
-  expect(screen.queryByRole('link', { name: ring.name })).toBeNull()
-})
-
-test('with none Ready to Redeem there is no pointer to the Redeem tab', async () => {
-  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
-
-  await screen.findByRole('link', { name: row.name })
-  expect(screen.queryByRole('link', { name: /Ready to Redeem/ })).toBeNull()
+  const redeem = await screen.findByRole('link', { name: `${ring.name} owes nothing: Redeem it →` })
+  expect(redeem.getAttribute('href')).toBe(`/mortgages/${ring.id}/redeem`)
+  expect(screen.queryByLabelText(`Include ${ring.name}`)).toBeNull()
+  expect(screen.getByLabelText(`Include ${row.name}`)).toBeTruthy()
 })
 
 test("when a chosen Mortgage can't be Redeemed then, the full Outstanding can't be filled in and the reason is given", async () => {
@@ -331,7 +200,6 @@ function recording() {
         allocations: [],
         voided_at: null,
         void_reason: null,
-        ready_to_redeem: [],
       }
     },
   })

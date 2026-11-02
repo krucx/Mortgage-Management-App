@@ -277,66 +277,24 @@ def test_paying_the_whole_outstanding_without_redeeming_is_refused(
     )
 
 
-# --- Redeeming after a Payment left a Mortgage Ready to Redeem: its Final Payment
-# (the part-month charge) is a part of that Payment, on its Receipt.
+# --- A Mortgage paid up to its last Accrual Date before ADR 0011 (once Ready to
+# Redeem) owes its Interest to Date, and paying that Redeems it.
 
 
-def redeem_after(client, payment, mortgages, on=ON):
-    return client.post(
-        "/api/closures/redeem",
-        json={
-            "redeemed_on": on,
-            "method": "upi",
-            "reference": "UTR9",
-            "mortgage_ids": [m["id"] for m in mortgages],
-            "received_with": payment["id"],
-        },
+def test_a_mortgage_paid_up_to_its_last_accrual_date_owes_its_interest_to_date(
+    client, ramesh, chain
+):
+    # ₹1,09,000 on 15 Apr paid the Principal and the interest charged by 14 Apr; the
+    # month from 14 Apr is still owed: ₹3,000 under the Full-month rule.
+    pay(client, ramesh, {chain["id"]: 109_000_00}, on="2026-04-15")
+    shown = mortgage(client, chain)
+    assert (shown["status"], shown["outstanding"]["total"]) == ("active", 3_000_00)
+
+    payment = pay(
+        client, ramesh, {chain["id"]: 3_000_00}, on=ON, redeeming=[chain["id"]]
     )
 
-
-def test_the_final_payment_of_a_redemption_after_a_payment_is_on_that_payments_receipt(
-    client, ramesh, chain
-):
-    # ₹1,09,000 clears the Outstanding; Redeeming adds the ₹3,000 part-month charge.
-    paid = pay(client, ramesh, {chain["id"]: 109_000_00}, on=ON)
-
-    response = redeem_after(client, paid, [chain])
-
-    assert response.status_code == 200, response.text
-    shown = receipt(client, paid["id"])
-    assert shown["amount"] == OUTSTANDING
-    # One line for the Mortgage, both parts together: all its interest (₹9,000 and the
-    # ₹3,000 part-month charge) and Principal paid, nothing still owed.
-    assert [
-        (r["description"], r["paid"], r["interest_paid"], r["principal_paid"])
-        for r in shown["lines"]
-    ] == [("Gold chain", OUTSTANDING, 12_000_00, LAKH)]
-    assert [(r["owed_after"], r["redeemed"]) for r in shown["lines"]] == [(0, True)]
-    assert shown["total_owed"] == 0
-
-
-def test_the_payment_redeemed_with_must_be_that_customers_on_the_redemption_date(
-    client, ramesh, chain
-):
-    paid = pay(client, ramesh, {chain["id"]: 109_000_00}, on="2026-04-15")
-
-    response = redeem_after(client, paid, [chain])
-
-    assert response.status_code == 422
-    assert response.json()["detail"] == (
-        "The Payment it came with must be this Customer's, on 20 Apr 2026, and not Voided"
-    )
-
-
-def test_a_voided_payment_or_another_customers_cannot_be_redeemed_with(
-    client, ramesh, chain
-):
-    voided = pay(client, ramesh, {chain["id"]: 1_000_00}, on=ON)
-    client.post(f"/api/payments/{voided['id']}/void", json={"reason": "Bounced"})
-    suresh = person(client, name="Suresh Shah", phone_1="9829099999")
-    theirs = pay(client, suresh, {lend(client, suresh)["id"]: 1_000_00}, on=ON)
-
-    refused = [redeem_after(client, p, [chain]) for p in (voided, theirs)]
-
-    assert [r.status_code for r in refused] == [422, 422]
-    assert all("The Payment it came with must be" in r.json()["detail"] for r in refused)
+    redeemed = mortgage(client, chain)
+    assert (redeemed["status"], redeemed["outstanding"]["total"]) == ("redeemed", 0)
+    assert redeemed["closure"]["payment_id"] == payment["id"]
+    assert receipt(client, payment["id"])["total_owed"] == 0

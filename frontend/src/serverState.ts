@@ -81,7 +81,6 @@ export const keys = {
   /** One list (with any filters, sort and page). */
   list: (name: string) => ['list', name] as const,
   dashboard: ['dashboard'] as const,
-  readyToRedeem: ['ready-to-redeem'] as const,
   /** Every Preview of an unsaved change. */
   previews: ['preview'] as const,
   /** Every Outstanding quoted for closing on a date. */
@@ -102,7 +101,6 @@ const REFRESHED_AFTER_LEDGER_CHANGE = [
   keys.allCustomers,
   keys.lists,
   keys.dashboard,
-  keys.readyToRedeem,
 ]
 /** Stale too, but asked for again only when next shown: one on screen is usually the
  *  Preview or quote of the very change just made, which the backend would now refuse. */
@@ -136,8 +134,8 @@ export function markStale(queryClient: QueryClient, stale: readonly (readonly un
 
 /**
  * Anything that can change what Mortgages owe (Payments, Voids, edits, Term Changes,
- * closing and reopening) makes every Mortgage, list, the Dashboard, the Ready to
- * Redeem count, every Preview and every Outstanding quoted for a Closure stale.
+ * closing and reopening) makes every Mortgage, list, the Dashboard, every Preview and
+ * every Outstanding quoted for a Closure stale.
  */
 export function ledgerChanged(queryClient: QueryClient): void {
   for (const queryKey of REFRESHED_AFTER_LEDGER_CHANGE) {

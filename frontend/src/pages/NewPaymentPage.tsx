@@ -4,14 +4,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   type Customer,
   type MortgageRow,
-  type Payment,
   type PaymentIn,
   type PaymentMethod,
 } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { CustomerChooser } from '../components/CustomerChooser'
-import { RedeemPaidOff } from '../components/RedeemPaidOff'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
@@ -27,9 +25,9 @@ import { tickedFirst } from '../sort'
 
 type AllocationMode = 'equal' | 'amount' | 'percent'
 
-/** A Mortgage Ready to Redeem can't take a Payment: it is offered for Redemption
- *  instead. */
-const canTakePayment = (m: MortgageRow) => !m.ready_to_redeem
+/** Owing nothing (paid up under the Part-Month Rule "nothing" before Outstanding
+ *  included the Interest to Date), a Mortgage can't take a Payment, only be Redeemed. */
+const owesSomething = (m: MortgageRow) => m.outstanding_total > 0
 
 /**
  * Equal shares as a suggestion only, each up to its cap. More than all of them can take
@@ -95,8 +93,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const methods = usePaymentMethods()
   const [reference, setReference] = useState('')
   const changeLedger = useLedgerChange()
-  // After saving: Mortgages this Payment paid off, offered for Redemption.
-  const [paidOff, setPaidOff] = useState<{ payment: Payment; mortgages: MortgageRow[] }>()
 
   // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
   const { client } = useServerState()
@@ -106,7 +102,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     placeholderData: (previous) => previous,
   })
   const mortgages = listed.data?.items ?? null
-  // The ticked Mortgages: at first the preselected one (or all that can take a Payment);
+  // The ticked Mortgages: at first the preselected one (or all owing something);
   // when the list changes (another date), those still in it stay ticked.
   const [selection, setSelection] = useState<{ of: MortgageRow[] | null; ids: Set<number> }>({
     of: null,
@@ -114,7 +110,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   })
   if (mortgages && selection.of !== mortgages) {
     // (Set while rendering, as React allows for a component's own state.)
-    const ids = mortgages.filter(canTakePayment).map((m) => m.id)
+    const ids = mortgages.filter(owesSomething).map((m) => m.id)
     setSelection({
       of: mortgages,
       ids: selection.of
@@ -125,8 +121,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const selected = selection.ids
   const setSelected = (ids: Set<number>) => setSelection({ of: mortgages, ids })
 
-  const payable = (mortgages ?? []).filter(canTakePayment)
-  const awaitingRedemption = (mortgages ?? []).filter((m) => !canTakePayment(m))
+  const payable = (mortgages ?? []).filter(owesSomething)
+  const owingNothing = (mortgages ?? []).filter((m) => !owesSomething(m))
   const chosen = payable.filter((m) => selected.has(m.id))
   const outstanding = chosen.map((m) => m.outstanding_total)
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
@@ -251,12 +247,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       ),
     }),
     save: (asked) => changeLedger((client) => changes.recordPayment(client, asked)),
-    saved: (payment) => {
-      // Any it left Ready to Redeem are offered for Redemption.
-      if (payment.ready_to_redeem.length)
-        setPaidOff({ payment, mortgages: payment.ready_to_redeem })
-      else navigate(`/payments/${payment.id}/receipt`)
-    },
+    saved: (payment) => navigate(`/payments/${payment.id}/receipt`),
   })
 
   return (
@@ -414,16 +405,11 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             Within each Mortgage the Allocation pays unpaid interest first, then the Interest
             to Date, then Principal.
           </p>
-          {/* They take only their Redemption's final Payment, made on the Redeem tab. */}
-          {awaitingRedemption.length > 0 && (
-            <p className="hint">
-              <Link to="/closures">
-                {awaitingRedemption.length === 1
-                  ? "1 of this Customer's Mortgages is Ready to Redeem →"
-                  : `${awaitingRedemption.length} of this Customer's Mortgages are Ready to Redeem →`}
-              </Link>
+          {owingNothing.map((m) => (
+            <p key={m.id} className="hint">
+              <Link to={`/mortgages/${m.id}/redeem`}>{m.name} owes nothing: Redeem it →</Link>
             </p>
-          )}
+          ))}
         </fieldset>
 
         <label>
@@ -458,14 +444,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         )}
         {confirmDialog}
       </form>
-      {/* Its own form, so outside the Payment's: forms cannot nest. */}
-      {paidOff && (
-        <RedeemPaidOff
-          payment={paidOff.payment}
-          mortgages={paidOff.mortgages}
-          onDone={() => navigate(`/payments/${paidOff.payment.id}/receipt`)}
-        />
-      )}
     </>
   )
 }

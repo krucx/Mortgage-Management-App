@@ -53,8 +53,6 @@ export const CALL_LIST_SORTS = columnsOf<CallListSort>({
   why: true,
   outstanding: true,
 })
-export type ReadySort = SortOf<'ready_to_redeem_api_closures_ready_to_redeem_get'>
-export const READY_SORTS = columnsOf<ReadySort>({ mortgage: true, customer: true, amount: true })
 
 export type InterestMode = Schemas['InterestMode']
 export type PartMonthRule = Schemas['PartMonthRule']
@@ -131,8 +129,6 @@ export type OutstandingOnClosure = Schemas['OutstandingOnClosure']
 export type ForfeitAllIn = Schemas['ForfeitAllIn']
 export type RedeemAllIn = Schemas['RedeemAllIn']
 export type WaiveAllIn = Schemas['WaiveAllIn']
-/** An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back. */
-export type ReadyToRedeem = Schemas['ReadyToRedeem']
 export type Closure = Schemas['Closure']
 
 /** The whole lending book at a glance. */

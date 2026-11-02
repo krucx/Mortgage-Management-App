@@ -134,9 +134,6 @@ class RedeemAllIn(BaseModel):
     method: PaymentMethod  # how the final Payments were made
     reference: str | None = None
     mortgage_ids: list[int] = Field(min_length=1)
-    # The Payment they came with (it left them Ready to Redeem): any Final Payments
-    # are parts of it, on its Receipt.
-    received_with: int | None = None
 
 
 class WaivedMortgageIn(BaseModel):
@@ -681,11 +678,9 @@ def redeem(
     redeem: RedeemIn,
     today: date,
     now: datetime,
-    received_with: int | None = None,
 ) -> None:
-    """Record the final Payment of the Outstanding (unless nothing is owed), as a
-    part of the Payment `received_with` if any, and mark the Mortgage Redeemed (or
-    refuse)."""
+    """Record the final Payment of the Outstanding (unless nothing is owed) and mark
+    the Mortgage Redeemed (or refuse)."""
     mortgage = closable(conn, mortgage_id, redeem.redeemed_on, today)
     owed = mortgage.outstanding_on_closure(redeem.redeemed_on).total
     _close_redeemed(
@@ -697,7 +692,6 @@ def redeem(
         redeem.reference,
         today,
         now,
-        received_with,
     )
 
 
@@ -815,35 +809,9 @@ def redeem_all(
         method=redemptions.method,
         reference=redemptions.reference,
     )
-    refusal = (
-        "The Payment it came with must be this Customer's, on "
-        f"{redemptions.redeemed_on:%d %b %Y}, and not Voided"
-    )
-    payment = None  # the Payment it came with, if any
-    first_part = None  # whose Receipt the Final Payments share
-    if redemptions.received_with is not None:
-        payment = (
-            conn.execute(
-                select(payment_table).where(
-                    payment_table.c.id == redemptions.received_with
-                )
-            )
-            .mappings()
-            .first()
-        )
-        if (
-            payment is None
-            or payment["voided_at"] is not None
-            or payment["paid_on"] != redemptions.redeemed_on
-        ):
-            raise unprocessable(refusal)
-        first_part = payment["received_with"] or payment["id"]
     for mortgage_id in redemptions.mortgage_ids:
         with _refusal_names_mortgage(conn, mortgage_id):
-            owner = mortgage_row(conn, mortgage_id)["customer_id"]
-            if payment is not None and payment["customer_id"] != owner:
-                raise unprocessable(refusal)
-            redeem(conn, mortgage_id, each, today, now, received_with=first_part)
+            redeem(conn, mortgage_id, each, today, now)
 
 
 def waive_all(
@@ -970,7 +938,7 @@ def post_payment(
     payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Payment:
     with engine.begin() as conn:
-        return load_payment(conn, record_payment(conn, payment, today, now), today)
+        return load_payment(conn, record_payment(conn, payment, today, now))
 
 
 @router.post("/payments/{payment_id}/void")
@@ -980,7 +948,7 @@ def post_void(
     """Void a Payment entered by mistake; a corrected one is entered as a new Payment."""
     with engine.begin() as conn:
         void_payment(conn, payment_id, body.reason, today, now)
-        return load_payment(conn, payment_id, today)
+        return load_payment(conn, payment_id)
 
 
 @router.post(

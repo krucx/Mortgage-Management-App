@@ -144,14 +144,13 @@ def sync(conn: Connection, today: date) -> None:
 
 
 def _notice_line(mortgage: MortgageReplay, description: str, on: date) -> NoticeLine:
-    """The interest `mortgage` will be charged on `on`, with no further Payments."""
-    before, after = mortgage.projection([on - timedelta(days=1), on]).snapshots
-    owed_before = before.principal + before.unpaid_interest
-    owed_after = after.principal + after.unpaid_interest
+    """The month's interest `mortgage` will be charged on `on`, and its Outstanding
+    then, with no further Payments."""
+    [then] = mortgage.projection([on]).snapshots
     return NoticeLine(
         description=description,
-        interest=owed_after - owed_before,
-        owed_after=owed_after,
+        interest=then.interest_charged,
+        owed_after=then.outstanding,
     )
 
 

@@ -75,7 +75,6 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   const waived: unknown[] = []
   let listed = [row]
   const server = fakeServer({
-    'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': () => ({ items: listed, total: listed.length, page: 1, page_size: 20 }),
     'GET /api/mortgages/3/outstanding-on-closure': quote,
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
@@ -89,6 +88,8 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   showPage(server, '/closures', { '/closures': <ClosuresPage /> })
 
   await waiveOff('22000')
+  expect(screen.queryByText(/Ready to Redeem|waiting/i)).toBeNull()
+  expect(server.requests.filter((r) => r.includes('ready-to-redeem'))).toEqual([])
   expect(screen.getByRole('columnheader', { name: `Outstanding on ${formatDate(todayIso())}` })).toBeTruthy()
   expect(screen.queryByText(/Redemption Amount/)).toBeNull()
   fireEvent.change(screen.getByLabelText('Reference (for all)'), { target: { value: 'UTR9' } })
@@ -108,7 +109,6 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
 
 test("receiving all that is owed cannot be Waived off: the Preview gives the backend's reason", async () => {
   const server = fakeServer({
-    'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
     'GET /api/mortgages/3/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
@@ -129,7 +129,6 @@ test("receiving all that is owed cannot be Waived off: the Preview gives the bac
 
 test("if the backend refuses the Waiver when it is saved, nothing is Waived off and its reason is shown", async () => {
   const server = fakeServer({
-    'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
     'GET /api/mortgages/3/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
@@ -165,7 +164,6 @@ const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: 
  *  Preview works it out from what was sent. */
 function forfeitRoutes(extra: Record<string, unknown>) {
   return {
-    'GET /api/closures/ready-to-redeem': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': { items: [row, second], total: 2, page: 1, page_size: 20 },
     'GET /api/mortgages/3/outstanding-on-closure': quote,
     'GET /api/mortgages/4/outstanding-on-closure': quote,
@@ -289,27 +287,4 @@ test("a Forfeiture the Preview says would be refused can't be confirmed, and its
   ).toBeTruthy()
   expect((screen.getByRole('button', { name: 'Forfeit 2' }) as HTMLButtonElement).disabled).toBe(true)
   expect(server.requests).not.toContain('POST /api/closures/forfeit')
-})
-
-test('each Mortgage Ready to Redeem shows its Outstanding today and the Interest to Date days behind it', async () => {
-  const paidOff = { ...row, outstanding_total: 0, ready_to_redeem: true }
-  const charge = { ...quote, principal: 0, unpaid_interest: 0, total: 60_000 }
-  showPage(
-    fakeServer({
-      'GET /api/closures/ready-to-redeem': {
-        items: [{ mortgage: paidOff, outstanding: charge }],
-        total: 1,
-        page: 1,
-        page_size: 20,
-      },
-      'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 20 },
-    }),
-    '/closures',
-    { '/closures': <ClosuresPage /> },
-  )
-
-  const ready = (await screen.findByRole('link', { name: row.name })).closest('tr')!
-  expect(within(ready).getByText('₹600')).toBeTruthy()
-  expect(within(ready).getByText('(Interest to Date for 6 days)')).toBeTruthy()
-  expect(screen.getByRole('columnheader', { name: 'Outstanding today' })).toBeTruthy()
 })

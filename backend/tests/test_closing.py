@@ -307,20 +307,6 @@ def test_the_interest_to_date_days_count_from_the_last_accrual_date_through_toda
     )
 
 
-# --- Mortgages ready to Redeem: Active, with nothing Outstanding. With the Interest
-# to Date in Outstanding, only paying all of it leaves nothing, and that Redeems.
-
-
-def ready(client):
-    response = client.get("/api/closures/ready-to-redeem")
-    assert response.status_code == 200
-    return response.json()["items"]
-
-
-def test_nothing_is_ready_to_redeem_while_something_is_outstanding(client, mortgage):
-    assert ready(client) == []
-
-
 def forfeit_all(client, recovered, on="2026-04-20", note="Auctioned", preview=False):
     """Forfeit a set of Mortgages on one date: `recovered` is each one's Recovered
     Amount, by Mortgage."""

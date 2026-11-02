@@ -11,14 +11,13 @@ import {
 } from '../src/serverState'
 import { fakeServer } from './fakeServer'
 
-test('a Ledger change makes every Mortgage, list, the Dashboard and the Ready to Redeem count stale', () => {
+test('a Ledger change makes every Mortgage, list and the Dashboard stale', () => {
   const { queryClient } = createServerState()
   const cached = {
     mortgage: keys.mortgage(7),
     mortgageList: [...keys.lists, 'mortgages', { page: 1 }],
     paymentList: [...keys.lists, 'payments', { page: 2 }],
     dashboard: keys.dashboard,
-    readyToRedeem: keys.readyToRedeem,
     goldRates: ['settings', 'gold-rates'],
   }
   for (const key of Object.values(cached)) queryClient.setQueryData(key, {})
@@ -28,7 +27,7 @@ test('a Ledger change makes every Mortgage, list, the Dashboard and the Ready to
   const stale = Object.entries(cached)
     .filter(([, key]) => queryClient.getQueryState(key)?.isInvalidated)
     .map(([name]) => name)
-  expect(stale).toEqual(['mortgage', 'mortgageList', 'paymentList', 'dashboard', 'readyToRedeem'])
+  expect(stale).toEqual(['mortgage', 'mortgageList', 'paymentList', 'dashboard'])
 })
 
 /** How many times the backend is asked for the Dashboard when it answers `status`. */

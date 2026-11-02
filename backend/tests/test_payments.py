@@ -322,22 +322,14 @@ def test_the_payment_methods_are_published_with_their_names(client) -> None:
     ]
 
 
-def test_a_payment_that_leaves_something_outstanding_names_none(
+def test_a_payment_that_leaves_something_outstanding_offers_no_redemption(
     client, ramesh, mortgage
 ):
     payment = pay(client, ramesh, {mortgage["id"]: 19_000_00}, on="2026-04-20")
 
-    assert payment["ready_to_redeem"] == []
-
-
-def test_an_earlier_payment_does_not_name_a_mortgage_a_later_one_left_ready_to_redeem(
-    client, ramesh, mortgage
-):
-    earlier = pay(client, ramesh, {mortgage["id"]: 9_000_00}, on="2026-04-14")
-    # ₹1,00,000 left on 14 Apr; the later Payment, the next day, pays it all.
-    pay(client, ramesh, {mortgage["id"]: 100_000_00}, on="2026-04-15")
-
-    assert client.get(f"/api/payments/{earlier['id']}").json()["ready_to_redeem"] == []
+    assert "ready_to_redeem" not in payment
+    shown = client.get(f"/api/mortgages/{mortgage['id']}").json()
+    assert (shown["status"], shown["outstanding"]["total"]) == ("active", 93_000_00)
 
 
 # Payments pay the Interest to Date before Principal (#69).

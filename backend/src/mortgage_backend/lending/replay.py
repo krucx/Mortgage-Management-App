@@ -155,14 +155,6 @@ class MortgageReplay:
             total=last.principal + last.unpaid_interest,
         )
 
-    def ready_to_redeem(self, on: date) -> bool:
-        """Active with nothing Outstanding on `on`, its jewellery waiting to go back (see
-        Ready to Redeem in GLOSSARY.md)."""
-        return (
-            self.row["status"] == MortgageStatus.ACTIVE
-            and self.outstanding(on).total == 0
-        )
-
     def outstanding_on_closure(self, on: date) -> OutstandingOnClosure:
         """The Outstanding if closed on `on`, leaving out the Closure's own final
         Payment."""
