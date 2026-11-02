@@ -143,6 +143,7 @@ def test_the_preview_shows_the_notes_it_would_add_skipping_empty_rows_and_saves_
                 "note": "No answer",
             }
         ],
+        "not_imported": [],
         "skipped_empty": 1,
         "skipped_duplicates": 0,
     }
@@ -172,70 +173,118 @@ def test_importing_adds_every_note_on_its_date_and_importing_again_adds_nothing(
     assert (again.json()["adding"], again.json()["skipped_duplicates"]) == ([], 2)
 
 
-def test_a_sheet_naming_a_closed_or_unknown_mortgage_is_refused_whole_and_names_them(
-    client, book
-):
-    sheet = filled(client, {book["ring"]["name"]: "No answer"})
-    workbook = load_workbook(BytesIO(sheet))
-    sheet_rows = workbook.active
-    sheet_rows.append(
-        [
-            "Ramesh Kumar",
-            "",
-            "2026-Ramesh-Gone",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            datetime(2026, 4, 20),
-            "Moved away",
-        ]
-    )
-    sheet_rows.append(
-        [
-            "Ramesh Kumar",
-            "",
-            book["bangle"]["name"],
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            datetime(2026, 4, 20),
-            "Thanked",
-        ]
-    )
+def typed_row(name: str | None, called_on: object, note: str) -> list[object]:
+    """A row as staff might add it by hand: Mortgage Name, Called on and Call Note."""
+    return ["", "", name, "", "", "", "", "", "", called_on, note]
+
+
+def with_rows(client, notes: dict[str, str], *rows: list[object]) -> bytes:
+    """The exported sheet with `notes` written in and `rows` added below it."""
+    workbook = load_workbook(BytesIO(filled(client, notes)))
+    for added in rows:
+        workbook.active.append(added)
+    out = BytesIO()
+    workbook.save(out)
+    return out.getvalue()
+
+
+def test_rows_that_cannot_be_imported_are_named_and_the_rest_are_imported(client, book):
     redeemed = client.post(
         f"/api/mortgages/{book['bangle']['id']}/redeem",
         json={"redeemed_on": "2026-04-20", "method": "upi"},
     )
     assert redeemed.status_code == 200, redeemed.text
-    out = BytesIO()
-    workbook.save(out)
+    today = datetime(2026, 4, 20)
+    sheet = with_rows(  # the two exported rows are rows 2 and 3
+        client,
+        {book["ring"]["name"]: "No answer"},
+        typed_row("2026-Ramesh-Gone", today, "Moved away"),  # row 4
+        typed_row(book["bangle"]["name"], today, "Thanked"),  # row 5
+        typed_row(None, today, "Called, busy"),  # row 6
+        typed_row(book["chain"]["name"], None, "Paying Monday"),  # row 7
+        typed_row(
+            book["chain"]["name"], datetime(2026, 4, 21), "Paid tomorrow"
+        ),  # row 8
+    )
 
-    for preview in (True, False):
-        response = upload(client, out.getvalue(), preview=preview)
-        assert response.status_code == 422
-        detail = response.json()["detail"]
-        assert "2026-Ramesh-Gone: no such Mortgage" in detail
-        assert f"{book['bangle']['name']}: it is redeemed" in detail
-    assert notes_of(client, book["ring"]) == []
+    preview = upload(client, sheet, preview=True)
+    saved = upload(client, sheet)
+
+    assert preview.status_code == saved.status_code == 200, saved.text
+    assert preview.json() == saved.json()
+    assert [n["mortgage_name"] for n in saved.json()["adding"]] == [
+        book["ring"]["name"]
+    ]
+    assert saved.json()["not_imported"] == [
+        {
+            "row": 4,
+            "mortgage_name": "2026-Ramesh-Gone",
+            "note": "Moved away",
+            "reason": "no such Mortgage",
+        },
+        {
+            "row": 5,
+            "mortgage_name": book["bangle"]["name"],
+            "note": "Thanked",
+            "reason": "it is redeemed",
+        },
+        {
+            "row": 6,
+            "mortgage_name": None,
+            "note": "Called, busy",
+            "reason": "no Mortgage Name",
+        },
+        {
+            "row": 7,
+            "mortgage_name": book["chain"]["name"],
+            "note": "Paying Monday",
+            "reason": "Called on is not a date",
+        },
+        {
+            "row": 8,
+            "mortgage_name": book["chain"]["name"],
+            "note": "Paid tomorrow",
+            "reason": "Called on is after today",
+        },
+    ]
+    assert saved.json()["skipped_empty"] == 1  # the chain's exported row
+    assert notes_of(client, book["ring"]) == [("2026-04-20", "No answer")]
+    assert notes_of(client, book["chain"]) == [("2026-04-20", "Promised Friday")]
 
 
-def test_a_note_without_a_called_on_date_is_refused(client, book):
+@pytest.mark.parametrize(
+    "typed",
+    [
+        "2026-04-18",
+        "18 Apr 2026",
+        "18/04/2026",
+        "18-04-2026",
+        "18-Apr-2026",
+        "18 Apr 26",
+        "18/04/26",
+    ],
+)
+def test_a_called_on_date_typed_by_hand_is_read(client, book, typed):
     sheet = filled(
-        client, {book["ring"]["name"]: "No answer"}, **{book["ring"]["name"]: None}
+        client, {book["ring"]["name"]: "No answer"}, **{book["ring"]["name"]: typed}
     )
 
     response = upload(client, sheet)
 
-    assert response.status_code == 422
-    assert (
-        f"{book['ring']['name']}: Called on is not a date" in response.json()["detail"]
+    assert response.status_code == 200, response.text
+    assert notes_of(client, book["ring"]) == [("2026-04-18", "No answer")]
+
+
+def test_a_sheet_with_nothing_importable_adds_nothing_and_lists_why(client, book):
+    sheet = with_rows(
+        client, {}, typed_row("2026-Ramesh-Gone", datetime(2026, 4, 20), "Moved")
     )
+
+    response = upload(client, sheet)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["adding"] == []
+    assert [r["row"] for r in response.json()["not_imported"]] == [4]
 
 
 def test_a_file_that_is_not_an_exported_call_list_is_refused(client):
@@ -258,15 +307,3 @@ def test_a_title_row_added_above_the_headings_still_imports(client, book):
 
     assert response.status_code == 200, response.text
     assert notes_of(client, book["ring"]) == [("2026-04-20", "No answer")]
-
-
-def test_a_note_with_no_mortgage_name_is_refused_not_lost(client, book):
-    workbook = load_workbook(BytesIO(filled(client, {})))
-    workbook.active.append([None] * 9 + [datetime(2026, 4, 20), "Rang back later"])
-    out = BytesIO()
-    workbook.save(out)
-
-    response = upload(client, out.getvalue())
-
-    assert response.status_code == 422
-    assert '"Rang back later": no Mortgage Name' in response.json()["detail"]

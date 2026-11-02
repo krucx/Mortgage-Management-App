@@ -116,6 +116,10 @@ const imported = {
       note: 'Paying Monday',
     },
   ],
+  not_imported: [
+    { row: 7, mortgage_name: '2026-Ravi-Gone', note: 'Moved away', reason: 'no such Mortgage' },
+    { row: 9, mortgage_name: null, note: 'Called, busy', reason: 'no Mortgage Name' },
+  ],
   skipped_empty: 2,
   skipped_duplicates: 1,
 }
@@ -127,37 +131,77 @@ function chooseSheet() {
   })
 }
 
-test('an imported sheet shows a Preview of the Call Notes it adds, and adds them once confirmed', async () => {
-  const uploaded: string[] = []
+function showImporting(preview: unknown, saved: unknown = preview) {
   const server = fakeServer({
     'GET /api/call-list': listed,
     'POST /api/call-list/import-preview': async (request: Request) => {
-      uploaded.push(request.headers.get('content-type')?.split(';')[0] ?? '')
-      return imported
+      expect(request.headers.get('content-type')?.split(';')[0]).toBe('multipart/form-data')
+      return preview
     },
-    'POST /api/call-list/import': imported,
+    'POST /api/call-list/import': saved,
   })
   showPage(server, '/call-list', { '/call-list': <CallListPage /> })
+  return server
+}
+
+/** Click the dimmed page around an open pop-up. */
+const clickOutside = (dialog: HTMLElement) =>
+  fireEvent.click(dialog, { clientX: 5000, clientY: 5000 })
+
+test('an imported sheet shows what it adds and each row it leaves out, in a pop-up on the page', async () => {
+  const server = showImporting(imported)
   await screen.findByRole('link', { name: 'Arjun Patel' })
 
   chooseSheet()
-  const preview = await screen.findByRole('dialog', { name: 'Add 1 Call Note?' })
+  const preview = await screen.findByRole('dialog', { name: 'Import Call Notes from call-list.xlsx' })
+  expect(within(preview).getByText('Adding 1 Call Note')).toBeTruthy()
   expect(within(preview).getByText('2026-Arjun-GoldChain · Arjun Patel')).toBeTruthy()
   expect(within(preview).getByText('19 Oct 2026: Paying Monday')).toBeTruthy()
-  expect(within(preview).getByText(/Left out: 2 rows without a Call Note, 1 already there\./)).toBeTruthy()
-  expect(server.requests).not.toContain('POST /api/call-list/import')
-  fireEvent.click(within(preview).getByRole('button', { name: 'Add 1 Call Note' }))
+  expect(within(preview).getByText('Not imported: 2 rows')).toBeTruthy()
+  const ravi = within(preview).getByText('Row 7').closest('tr')!
+  expect(within(ravi).getByText('2026-Ravi-Gone')).toBeTruthy()
+  expect(within(ravi).getByText('no such Mortgage')).toBeTruthy()
+  expect(within(within(preview).getByText('Row 9').closest('tr')!).getByText('“Called, busy”')).toBeTruthy()
+  expect(within(preview).getByText('Left out quietly: 2 rows without a Call Note · 1 already there')).toBeTruthy()
 
-  expect(await screen.findByText('Added 1 Call Note.')).toBeTruthy()
-  expect(server.requests).toContain('POST /api/call-list/import')
-  expect(uploaded).toEqual(['multipart/form-data'])
+  clickOutside(preview)
+  await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(server.requests).not.toContain('POST /api/call-list/import')
 })
 
-test("a sheet the backend refuses imports nothing, and its reasons are shown", async () => {
+test('adding saves the rows it can, and the rows left out can be shown again in a pop-up', async () => {
+  const server = showImporting(imported)
+  await screen.findByRole('link', { name: 'Arjun Patel' })
+
+  chooseSheet()
+  const preview = await screen.findByRole('dialog', { name: 'Import Call Notes from call-list.xlsx' })
+  fireEvent.click(within(preview).getByRole('button', { name: 'Add 1 Call Note' }))
+
+  expect(await screen.findByText(/Added 1 Call Note\. 2 rows not imported/)).toBeTruthy()
+  expect(server.requests).toContain('POST /api/call-list/import')
+  fireEvent.click(screen.getByRole('button', { name: 'Show them' }))
+  const list = await screen.findByRole('dialog', { name: 'Not imported: 2 rows' })
+  expect(within(list).getByText('Row 7')).toBeTruthy()
+  fireEvent.click(within(list).getByRole('button', { name: 'Close' }))
+  await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+})
+
+test('a sheet with nothing to add says so, lists why, and offers no Add', async () => {
+  showImporting({ ...imported, adding: [] })
+  await screen.findByRole('link', { name: 'Arjun Patel' })
+
+  chooseSheet()
+  const preview = await screen.findByRole('dialog', { name: 'Import Call Notes from call-list.xlsx' })
+  expect(within(preview).getByText('Nothing to add')).toBeTruthy()
+  expect(within(preview).getByText('Row 7')).toBeTruthy()
+  expect(within(preview).queryByRole('button', { name: /^Add/ })).toBeNull()
+})
+
+test("a file that isn't a Call Sheet is refused, and the reason shown", async () => {
   const server = fakeServer({
     'GET /api/call-list': listed,
     'POST /api/call-list/import-preview': Response.json(
-      { detail: 'Nothing imported. 2026-Ramesh-Gone: no such Mortgage' },
+      { detail: 'This file is not an Excel sheet (.xlsx)' },
       { status: 422 },
     ),
   })
@@ -166,7 +210,7 @@ test("a sheet the backend refuses imports nothing, and its reasons are shown", a
 
   chooseSheet()
 
-  expect(await screen.findByText('Nothing imported. 2026-Ramesh-Gone: no such Mortgage')).toBeTruthy()
+  expect(await screen.findByText('This file is not an Excel sheet (.xlsx)')).toBeTruthy()
   expect(screen.queryByRole('dialog')).toBeNull()
   expect(server.requests).not.toContain('POST /api/call-list/import')
 })

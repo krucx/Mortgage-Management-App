@@ -132,6 +132,9 @@ export type ForfeitAllIn = Schemas['ForfeitAllIn']
 export type RedeemAllIn = Schemas['RedeemAllIn']
 export type WaiveAllIn = Schemas['WaiveAllIn']
 export type Closure = Schemas['Closure']
+/** What importing a filled-in Call Sheet adds, and each filled-in row it leaves out. */
+export type CallNoteImport = Schemas['CallNoteImport']
+export type NotImported = Schemas['NotImported']
 
 /** The whole lending book at a glance. */
 export type Dashboard = Schemas['Dashboard']

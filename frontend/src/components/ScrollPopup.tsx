@@ -1,7 +1,8 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { Modal } from './Modal'
 
-/** A popup with a long list that scrolls inside it; opens scrolled to `start`. */
+/** A popup with a long list that scrolls inside it; opens scrolled to `start`, and closes
+ *  on Close, Esc or a click outside it. */
 export function ScrollPopup({
   title,
   start = 'top',
@@ -14,6 +15,7 @@ export function ScrollPopup({
   children: ReactNode
 }) {
   const scroller = useRef<HTMLDivElement>(null)
+  const titleId = useId()
 
   useEffect(() => {
     if (start === 'bottom' && scroller.current) {
@@ -22,9 +24,9 @@ export function ScrollPopup({
   }, [start])
 
   return (
-    <Modal onClose={onClose} className="scroll-popup">
+    <Modal onClose={onClose} className="scroll-popup" labelledBy={titleId} closeOnOutsideClick>
       <div className="row spread">
-        <h2>{title}</h2>
+        <h2 id={titleId}>{title}</h2>
         <button type="button" className="secondary small" autoFocus onClick={onClose}>
           Close
         </button>

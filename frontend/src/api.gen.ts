@@ -97,7 +97,7 @@ export interface paths {
         put?: never;
         /**
          * Import Call Notes
-         * @description Add every Call Note a filled-in Call Sheet holds, or none.
+         * @description Add every Call Note a filled-in Call Sheet holds that can be added.
          */
         post: operations["import_call_notes_api_call_list_import_post"];
         delete?: never;
@@ -1514,6 +1514,8 @@ export interface components {
         CallNoteImport: {
             /** Adding */
             adding: components["schemas"]["ImportedCallNote"][];
+            /** Not Imported */
+            not_imported: components["schemas"]["NotImported"][];
             /** Skipped Duplicates */
             skipped_duplicates: number;
             /** Skipped Empty */
@@ -2123,6 +2125,20 @@ export interface components {
             name: string;
             /** Phone */
             phone: string;
+        };
+        /**
+         * NotImported
+         * @description A filled-in row an import leaves out, and why.
+         */
+        NotImported: {
+            /** Mortgage Name */
+            mortgage_name: string | null;
+            /** Note */
+            note: string;
+            /** Reason */
+            reason: string;
+            /** Row */
+            row: number;
         };
         /** Notice */
         Notice: {

@@ -55,8 +55,8 @@ export function ConfirmDialog({
 export function Summary({ rows }: { rows: [string, ReactNode][] }) {
   return (
     <dl className="summary">
-      {rows.map(([label, value]) => (
-        <div key={label} className="summary-row">
+      {rows.map(([label, value], index) => (
+        <div key={`${index}:${label}`} className="summary-row">
           <dt>{label}</dt>
           <dd>{value}</dd>
         </div>

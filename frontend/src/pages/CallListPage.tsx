@@ -1,11 +1,18 @@
-import { Fragment, useState, type ChangeEvent } from 'react'
+import { Fragment, useId, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router'
-import { CALL_LIST_SORTS, type CallListGroup, type CallListRow } from '../api'
+import {
+  CALL_LIST_SORTS,
+  type CallListGroup,
+  type CallListRow,
+  type CallNoteImport,
+  type NotImported,
+} from '../api'
 import { MarkCalled } from '../components/CallNotes'
 import { Summary } from '../components/ConfirmDialog'
 import { PersonLink } from '../components/PersonLink'
+import { Modal } from '../components/Modal'
+import { ScrollPopup } from '../components/ScrollPopup'
 import { SortHeading } from '../components/SortHeading'
-import { useConfirm } from '../components/useConfirm'
 import { useListPage } from '../components/useListPage'
 import { ChatIcon } from '../components/WhatsApp'
 import { formatDate, formatPercent, plural } from '../format'
@@ -142,51 +149,48 @@ export function CallListPage() {
 }
 
 /** The Call Sheet to call from (Excel or PDF), and the Excel sheet imported back with
- *  the Call Notes written in: previewed, then all added or none. */
+ *  the Call Notes written in: a pop-up shows the notes it adds and each filled-in row
+ *  it leaves out, then adds those it can. */
 function CallSheet() {
   const { client } = useServerState()
   const noteCalls = useChange(STALE_AFTER.callNote)
-  const [confirm, confirmDialog] = useConfirm()
-  const [status, setStatus] = useState<{ kind: 'saved' | 'error'; text: string } | null>(null)
+  const [status, setStatus] = useState<{ kind: 'saved' | 'warning' | 'error'; text: string } | null>(null)
   const [importing, setImporting] = useState(false)
+  // The sheet chosen and what importing it would do, while its pop-up is open.
+  const [preview, setPreview] = useState<{ sheet: File; result: CallNoteImport } | null>(null)
+  // The rows the last import left out, and whether their pop-up is open.
+  const [leftOut, setLeftOut] = useState<NotImported[]>([])
+  const [showingLeftOut, setShowingLeftOut] = useState(false)
 
-  async function importSheet(event: ChangeEvent<HTMLInputElement>) {
+  async function chooseSheet(event: ChangeEvent<HTMLInputElement>) {
     const sheet = event.target.files?.[0]
     event.target.value = '' // the same file can be chosen again
     if (!sheet) return
     setStatus(null)
+    setLeftOut([])
     setImporting(true)
     try {
-      const preview = await callSheet.previewImport(client, sheet)
-      const skipped = [
-        preview.skipped_empty > 0 && plural(preview.skipped_empty, 'row without a Call Note', 'rows without a Call Note'),
-        preview.skipped_duplicates > 0 && `${preview.skipped_duplicates} already there`,
-      ].filter(Boolean)
-      const leftOut = skipped.length > 0 ? `Left out: ${skipped.join(', ')}.` : ''
-      const count = plural(preview.adding.length, 'Call Note', 'Call Notes')
-      if (preview.adding.length === 0) {
-        setStatus({ kind: 'saved', text: `Nothing new to add. ${leftOut}`.trim() })
-        return
-      }
-      const confirmed = await confirm({
-        title: `Add ${count}?`,
-        confirmLabel: `Add ${count}`,
-        wide: true,
-        body: (
-          <>
-            <Summary
-              rows={preview.adding.map((note): [string, string] => [
-                `${note.mortgage_name} · ${note.customer_name}`,
-                `${formatDate(note.called_on)}: ${note.note}`,
-              ])}
-            />
-            {leftOut && <p className="hint">{`From ${sheet.name}. ${leftOut}`}</p>}
-          </>
-        ),
-      })
-      if (!confirmed) return
+      setPreview({ sheet, result: await callSheet.previewImport(client, sheet) })
+    } catch (err) {
+      setStatus({ kind: 'error', text: (err as Error).message })
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  async function add(sheet: File) {
+    setPreview(null)
+    setImporting(true)
+    try {
       const added = await noteCalls((client) => callSheet.import(client, sheet))
-      setStatus({ kind: 'saved', text: `Added ${plural(added.adding.length, 'Call Note', 'Call Notes')}.` })
+      const notImported = added.not_imported.length
+      setLeftOut(added.not_imported)
+      setStatus({
+        kind: notImported ? 'warning' : 'saved',
+        text:
+          `Added ${plural(added.adding.length, 'Call Note', 'Call Notes')}.` +
+          (notImported ? ` ${plural(notImported, 'row', 'rows')} not imported:` : ''),
+      })
     } catch (err) {
       setStatus({ kind: 'error', text: (err as Error).message })
     } finally {
@@ -210,18 +214,130 @@ function CallSheet() {
             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             hidden
             disabled={importing}
-            onChange={importSheet}
+            onChange={chooseSheet}
           />
         </label>
       </div>
       <p className="hint">
         Give the Call Sheet to whoever makes the calls: they write what each call came to under
         Call Note (and change Called on if they called another day), and you import the Excel
-        sheet back.
+        sheet back. Rows it can't take are left out and listed; fix them and import it again.
       </p>
-      {status && <p className={`status ${status.kind}`}>{status.text}</p>}
-      {confirmDialog}
+      {status && (
+        <p className={`status ${status.kind}`}>
+          {status.text}
+          {leftOut.length > 0 && (
+            <>
+              {' '}
+              <button type="button" className="secondary small" onClick={() => setShowingLeftOut(true)}>
+                Show them
+              </button>
+            </>
+          )}
+        </p>
+      )}
+      {preview && (
+        <ImportPreview
+          sheet={preview.sheet}
+          result={preview.result}
+          onAdd={() => void add(preview.sheet)}
+          onClose={() => setPreview(null)}
+        />
+      )}
+      {showingLeftOut && (
+        <ScrollPopup
+          title={notImportedTitle(leftOut.length)}
+          onClose={() => setShowingLeftOut(false)}
+        >
+          <NotImportedRows rows={leftOut} />
+        </ScrollPopup>
+      )}
     </div>
+  )
+}
+
+/** What importing `sheet` would add and leave out; closing it (Keep editing, Esc or a
+ *  click outside) saves nothing. */
+function ImportPreview({
+  sheet,
+  result,
+  onAdd,
+  onClose,
+}: {
+  sheet: File
+  result: CallNoteImport
+  onAdd: () => void
+  onClose: () => void
+}) {
+  const titleId = useId()
+  const adding = plural(result.adding.length, 'Call Note', 'Call Notes')
+  const quiet = [
+    result.skipped_empty > 0 &&
+      plural(result.skipped_empty, 'row without a Call Note', 'rows without a Call Note'),
+    result.skipped_duplicates > 0 && `${result.skipped_duplicates} already there`,
+  ].filter(Boolean)
+  return (
+    <Modal onClose={onClose} className="scroll-popup" labelledBy={titleId} closeOnOutsideClick>
+      <h2 id={titleId}>Import Call Notes from {sheet.name}</h2>
+      <div className="scroll-popup-body stack">
+        {result.adding.length > 0 ? (
+          <>
+            <h3>Adding {adding}</h3>
+            <Summary
+              rows={result.adding.map((note): [string, string] => [
+                `${note.mortgage_name} · ${note.customer_name}`,
+                `${formatDate(note.called_on)}: ${note.note}`,
+              ])}
+            />
+          </>
+        ) : (
+          <h3>Nothing to add</h3>
+        )}
+        {result.not_imported.length > 0 && (
+          <>
+            <h3 className="not-imported">{notImportedTitle(result.not_imported.length)}</h3>
+            <NotImportedRows rows={result.not_imported} />
+          </>
+        )}
+        {quiet.length > 0 && <p className="hint">Left out quietly: {quiet.join(' · ')}</p>}
+      </div>
+      <div className="row end">
+        <button type="button" className="secondary" autoFocus onClick={onClose}>
+          Keep editing
+        </button>
+        {result.adding.length > 0 && (
+          <button type="button" onClick={onAdd}>
+            Add {adding}
+          </button>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+const notImportedTitle = (rows: number) => `Not imported: ${plural(rows, 'row', 'rows')}`
+
+/** Each filled-in row an import leaves out: its row number, Mortgage Name and why. */
+function NotImportedRows({ rows }: { rows: NotImported[] }) {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>Row</th>
+          <th>Mortgage Name</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.row}>
+            <td>Row {row.row}</td>
+            <td>{row.mortgage_name ?? `“${row.note}”`}</td>
+            <td>{row.reason}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 

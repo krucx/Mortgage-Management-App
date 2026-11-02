@@ -560,7 +560,7 @@ We have received *₹…* by Cash on <span data-fig="payments.day">19 Oct 2026</
         <li><span>Point to the <span class="ui">Why</span> markers: amber for Months Unpaid ("<span data-fig="follow.months-example">15 mo</span>"), red for Loan-to-Value too high ("<span data-fig="follow.ltv-example">104.9%</span>"), teal for accruing today ("Today"), with the legend above the table. Hover one for the full wording.</span></li>
         <li><span>Click a Customer's <span class="ui">2 Mortgages</span>: the Mortgages page opens with only theirs, and <span class="ui">Show every Customer</span> goes back.</span></li>
         <li><span><span class="ui">Mark called…</span> takes a note of what was said; the row then shows ✓ Called with the note. The Mortgage keeps every Call Note.</span></li>
-        <li><span>For whoever makes the calls: <span class="ui">Export to Excel</span> or <span class="ui">Export to PDF</span> gives the day's Call Sheet, a row per Mortgage with <span class="ui">Called on</span> and <span class="ui">Call Note</span> to fill in. <span class="ui">Import Call Notes from Excel</span> takes the filled sheet back: a Preview of the notes it adds, then all of them or none. (Show the Preview, then <span class="ui">Keep editing</span>.)</span></li>
+        <li><span>For whoever makes the calls: <span class="ui">Export to Excel</span> or <span class="ui">Export to PDF</span> gives the day's Call Sheet, a row per Mortgage with <span class="ui">Called on</span> and <span class="ui">Call Note</span> to fill in. <span class="ui">Import Call Notes from Excel</span> takes the filled sheet back with a Preview, in a pop-up: the notes it adds, and each row it can't take, by row number and why. It adds the rest. (Show the Preview, then <span class="ui">Keep editing</span>.)</span></li>
       </ol>
       <div class="states" aria-label="A Notice's life">
         <span class="state">Queued by the daily run</span><span class="arrow">→</span>
@@ -584,7 +584,7 @@ We have received *₹…* by Cash on <span data-fig="payments.day">19 Oct 2026</
   </div>
   <div class="nuances">
     <div class="nuance rule"><b>Notices always match today</b><span>Until it is sent, a Notice is worded from today's figures each time it is read, so later Payments and edits show. If none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on "approve first" holds those already queued.</span></div>
-    <div class="nuance rule"><b>A Call Sheet imports all or none</b><span>A row naming a closed or unknown Mortgage, or a note without a Called on date, refuses the whole sheet and names it. Empty rows are skipped, and so is a note the Mortgage already has for that date, so importing twice adds nothing.</span></div>
+    <div class="nuance rule"><b>A Call Sheet imports what it can</b><span>A note naming no Mortgage, an unknown or closed one, or without a usable Called on date is left out and listed by its row; the rest are added. Rows without a note are only counted, and so is a note the Mortgage already has for that date, so importing a corrected sheet again adds only what was missing.</span></div>
     <div class="nuance"><b>Months Unpaid counts the oldest first</b><span>Payments clear the oldest interest first; capitalised interest still counts as unpaid.</span></div>
     <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed. Messages arrive exactly as previewed, emoji included.</span></div>
   </div>

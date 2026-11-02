@@ -939,6 +939,15 @@ ul.history {
   gap: 0.3rem;
 }
 
+/* Rows an import left out: a warning, listed under it. */
+h3.not-imported {
+  color: var(--warning);
+}
+
+h3.not-imported::before {
+  content: '⚠ ';
+}
+
 /* A long list in a popup: the popup stays on screen and the list scrolls. */
 dialog.scroll-popup {
   width: min(960px, calc(100vw - 2rem));

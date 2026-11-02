@@ -512,6 +512,13 @@
             "title": "Adding",
             "type": "array"
           },
+          "not_imported": {
+            "items": {
+              "$ref": "#/components/schemas/NotImported"
+            },
+            "title": "Not Imported",
+            "type": "array"
+          },
           "skipped_duplicates": {
             "title": "Skipped Duplicates",
             "type": "integer"
@@ -523,6 +530,7 @@
         },
         "required": [
           "adding",
+          "not_imported",
           "skipped_empty",
           "skipped_duplicates"
         ],
@@ -2052,6 +2060,42 @@
         "title": "NewStandaloneReferrer",
         "type": "object"
       },
+      "NotImported": {
+        "description": "A filled-in row an import leaves out, and why.",
+        "properties": {
+          "mortgage_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mortgage Name"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "mortgage_name",
+          "note",
+          "reason"
+        ],
+        "title": "NotImported",
+        "type": "object"
+      },
       "Notice": {
         "properties": {
           "accrues_on": {
@@ -3511,7 +3555,7 @@
     },
     "/api/call-list/import": {
       "post": {
-        "description": "Add every Call Note a filled-in Call Sheet holds, or none.",
+        "description": "Add every Call Note a filled-in Call Sheet holds that can be added.",
         "operationId": "import_call_notes_api_call_list_import_post",
         "requestBody": {
           "content": {

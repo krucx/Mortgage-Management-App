@@ -4,10 +4,10 @@ imported back in one go.
 
 Each row is one listed Mortgage, its Customer's rows together, ending with two columns
 to fill in: Called on (the export date, to change if called another day) and Call
-Note. An import adds every note or none: a row naming a closed or unknown Mortgage,
-or a note without a Mortgage Name or a Called on date, refuses the whole sheet. Empty
-notes are skipped, and so is a note its Mortgage already has for that date, so
-importing a sheet twice adds nothing.
+Note. An import adds every note it can: a note naming no Mortgage, an unknown or
+closed one, or without a usable Called on date is left out and named by its row.
+Empty notes are only counted, and so is a note its Mortgage already has for that date,
+so importing a sheet twice adds nothing.
 """
 
 from collections import defaultdict
@@ -239,10 +239,20 @@ class ImportedCallNote(BaseModel):
     note: str
 
 
+class NotImported(BaseModel):
+    """A filled-in row an import leaves out, and why."""
+
+    row: int  # as Excel numbers it
+    mortgage_name: str | None  # None when the row names none
+    note: str
+    reason: str
+
+
 class CallNoteImport(BaseModel):
     """What an import adds, and what it leaves out."""
 
     adding: list[ImportedCallNote]
+    not_imported: list[NotImported]  # in sheet order
     skipped_empty: int  # rows with no Call Note written in
     skipped_duplicates: int  # notes their Mortgage already has for that date
 
@@ -254,7 +264,15 @@ def _as_date(value: Any) -> date | None:
     if isinstance(value, date):
         return value
     if isinstance(value, str):
-        for form in ("%Y-%m-%d", "%d %b %Y", "%d/%m/%Y", "%d-%m-%Y"):
+        for form in (
+            "%Y-%m-%d",
+            "%d %b %Y",
+            "%d/%m/%Y",
+            "%d-%m-%Y",
+            "%d-%b-%Y",
+            "%d %b %y",
+            "%d/%m/%y",
+        ):
             try:
                 return datetime.strptime(value.strip(), form).date()
             except ValueError:
@@ -262,9 +280,10 @@ def _as_date(value: Any) -> date | None:
     return None
 
 
-def _filled_rows(data: bytes) -> list[dict[str, Any]]:
-    """Each row below the headings, as Mortgage Name, Called on and Call Note (found
-    by heading, wherever the headings row and those columns now are)."""
+def _filled_rows(data: bytes) -> list[tuple[int, dict[str, Any]]]:
+    """Each row below the headings, with its Excel row number, as Mortgage Name,
+    Called on and Call Note (found by heading, wherever the headings row and those
+    columns now are)."""
     try:
         sheet = load_workbook(BytesIO(data), read_only=True, data_only=True).active
     except (BadZipFile, KeyError, OSError, ValueError):
@@ -279,11 +298,14 @@ def _filled_rows(data: bytes) -> list[dict[str, Any]]:
         if set(wanted) <= set(headings):
             column_of = {name: headings.index(name) for name in wanted}
             return [
-                {
-                    name: row[i] if i < len(row) else None
-                    for name, i in column_of.items()
-                }
-                for row in rows[at + 1 :]
+                (
+                    number,
+                    {
+                        name: row[i] if i < len(row) else None
+                        for name, i in column_of.items()
+                    },
+                )
+                for number, row in enumerate(rows[at + 1 :], start=at + 2)
             ]
     raise unprocessable(
         "This sheet has no Mortgage Name, Called on and Call Note columns: export the "
@@ -291,9 +313,26 @@ def _filled_rows(data: bytes) -> list[dict[str, Any]]:
     )
 
 
+def _left_out_because(
+    name: str, mortgage: Any, called_on: date | None, today: date
+) -> str | None:
+    """Why a row with a Call Note can't be imported, if it can't."""
+    if not name:
+        return "no Mortgage Name"
+    if mortgage is None:
+        return "no such Mortgage"
+    if mortgage.status != MortgageStatus.ACTIVE:
+        return f"it is {mortgage.status}"
+    if called_on is None:
+        return "Called on is not a date"
+    if called_on > today:
+        return "Called on is after today"
+    return None
+
+
 def read_import(conn: Connection, data: bytes, today: date) -> CallNoteImport:
-    """The Call Notes a filled-in sheet would add (or the sheet's refusal, naming each
-    row it cannot take)."""
+    """The Call Notes a filled-in sheet would add, and each filled-in row it would
+    leave out, with why."""
     filled = _filled_rows(data)
     mortgages = {  # by Mortgage Name, unique ignoring case
         row.name.casefold(): row
@@ -311,9 +350,9 @@ def read_import(conn: Connection, data: bytes, today: date) -> CallNoteImport:
         noted[stored.mortgage_id].add((stored.called_on, stored.note))
 
     adding: list[ImportedCallNote] = []
-    refusals: list[str] = []
+    left_out: list[NotImported] = []
     empty = duplicates = 0
-    for row in filled:
+    for number, row in filled:
         name = str(row[_MORTGAGE_NAME] or "").strip()
         note = str(row[_CALL_NOTE] or "").strip()
         if not note:
@@ -321,17 +360,15 @@ def read_import(conn: Connection, data: bytes, today: date) -> CallNoteImport:
             continue
         mortgage = mortgages.get(name.casefold())
         called_on = _as_date(row[_CALLED_ON])
-        if not name:
-            refusals.append(f'"{note}": no Mortgage Name')
-        elif mortgage is None:
-            refusals.append(f"{name}: no such Mortgage")
-        elif mortgage.status != MortgageStatus.ACTIVE:
-            refusals.append(f"{mortgage.name}: it is {mortgage.status}")
-        elif called_on is None:
-            refusals.append(f"{mortgage.name}: Called on is not a date")
-        elif called_on > today:
-            refusals.append(f"{mortgage.name}: Called on is after today")
-        elif (called_on, note) in noted[mortgage.id]:
+        reason = _left_out_because(name, mortgage, called_on, today)
+        if reason is not None:
+            shown = mortgage.name if mortgage is not None else (name or None)
+            left_out.append(
+                NotImported(row=number, mortgage_name=shown, note=note, reason=reason)
+            )
+            continue
+        assert mortgage is not None and called_on is not None  # as checked above
+        if (called_on, note) in noted[mortgage.id]:
             duplicates += 1
         else:
             noted[mortgage.id].add((called_on, note))
@@ -344,10 +381,11 @@ def read_import(conn: Connection, data: bytes, today: date) -> CallNoteImport:
                     note=note,
                 )
             )
-    if refusals:
-        raise unprocessable("Nothing imported. " + "; ".join(refusals))
     return CallNoteImport(
-        adding=adding, skipped_empty=empty, skipped_duplicates=duplicates
+        adding=adding,
+        not_imported=left_out,
+        skipped_empty=empty,
+        skipped_duplicates=duplicates,
     )
 
 
@@ -396,7 +434,7 @@ async def preview_import(
 async def import_call_notes(
     file: UploadFile, engine: EngineDep, today: TodayDep
 ) -> CallNoteImport:
-    """Add every Call Note a filled-in Call Sheet holds, or none."""
+    """Add every Call Note a filled-in Call Sheet holds that can be added."""
     data = await file.read()
     with engine.begin() as conn:
         imported = read_import(conn, data, today)
