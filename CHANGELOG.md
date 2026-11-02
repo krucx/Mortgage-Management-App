@@ -5,6 +5,78 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [3.0.0] - 2026-11-02
+
+Outstanding is now what would redeem a Mortgage today, today's interest included: one
+figure everywhere, from the Mortgage page to New Payment, Closures, Notices and
+Receipts. **No database changes:** updating keeps all data and Backups, and 2.0.0 still
+starts on the same database.
+
+### Added
+
+- **Interest to Date:** a Mortgage's Outstanding includes the interest for the month
+  under way, counted from that month's first day through today under its Part-Month Rule
+  ([ADR 0011](Documentation/adr/0011-outstanding-includes-interest-to-date.md)). A
+  Full-month Mortgage of ₹3,000 at 3% owes ₹3,090 the day it starts; pro-rata, ₹3,003.
+  The Ledger ends with a live Interest to Date step that gives way to the month's
+  interest on the next Accrual Date.
+
+### Changed
+
+- **Outstanding is what would redeem it today** on every screen: lists, the Mortgage
+  page, Loan-to-Value, the Call List, the Dashboard and Receipts' "Still owed". Months
+  Unpaid ignores the Interest to Date.
+- **Payments pay unpaid interest, then the Interest to Date, then Principal.** What a
+  Payment pays of the Interest to Date counts against the month's interest when it is
+  charged. A month starts before its Accrual Date's Payments, so paying the Principal on
+  an Accrual Date does not let off the month starting then.
+- **New Payment shows one figure per Mortgage,** its Outstanding on the Payment date.
+  **Pay the full Outstanding** fills each Allocation with it, or says why it can't. Equal
+  shares fill each Mortgage up to its Outstanding, and an Allocation of the whole
+  Outstanding asks "Redeem and hand back the jewellery?" as before.
+- **Closures speak of the Outstanding on the Closure date:** the Redeem, Waive off and
+  Forfeit quotes, Closure details, the Waived Amount (that Outstanding less the final
+  Payment) and a Forfeiture's profit or loss (the Recovered Amount less it).
+- **Projections and change Previews** show one Outstanding per date, and their chart
+  plots it; their unpaid interest includes the Interest to Date, as on the Mortgage page.
+- **Notices** quote the month's interest charged on the Accrual Date as "Interest added",
+  and the Outstanding that day as "Owed after", the new month's Interest to Date
+  included. For Compounded Mortgages, that is the interest before it is capitalised and
+  the Outstanding after.
+- **A Mortgage that owes nothing** (paid up under the Part-Month Rule "nothing") is left
+  out of New Payment's Allocations, with a link to Redeem it.
+- **The Part-Month Rule** is described on the terms form as how the Interest to Date is
+  charged, not as a charge made on Redemption.
+
+### Removed
+
+- **Redemption Amount:** the separate figure for what Redemption would take, and New
+  Payment's "To redeem on" column. The Outstanding is what Redemption takes.
+- **Ready to Redeem:** the status, the "Paid up to [last Accrual Date]: Redeem now?" offer
+  after a Payment, the Ready to Redeem list on the Closures page and the dot on its tab.
+  A Payment of the whole Outstanding Redeems, so nothing waits to be Redeemed.
+
+### Fixed
+
+- Redeeming with a Payment asked about "1 days' Interest to Date".
+
+### Upgrading
+
+**Figures rise on upgrade:** every Active Mortgage's Outstanding now includes today's
+interest. A Mortgage that was Ready to Redeem shows its Interest to Date as Outstanding,
+and paying it Redeems it. Waived Amounts and Forfeiture profit or loss recorded before
+this release may move by up to one day's interest (pro-rata) or one month's (Full month,
+closed on an Accrual Date), as they are now worked out from the Outstanding on the
+Closure date. Redeemed Mortgages are unaffected: they still owe nothing.
+
+On Windows, use the banner's **Install now**. Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
+
 ## [2.0.0] - 2026-10-30
 
 A Payment of a Mortgage's whole Redemption Amount Redeems it, with one Receipt for

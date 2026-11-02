@@ -136,7 +136,6 @@ await view('dashboard', {
   owed: page.locator('.group.owed > :first-child'),
   ltv: page.locator('.tile').filter({ hasText: 'Loan-to-Value' }),
   follow: page.locator('.tile').filter({ hasText: "On today's Call List" }),
-  dot: page.locator('nav .dot'),
   theme: page.locator('header button').last(),
 })
 await shot('dashboard-chart', await section('Payments received each month, and the year ahead'))
@@ -254,8 +253,8 @@ await shot('payment-new', card(), {
   amount: page.getByLabel('Amount received (₹)'),
   modes: card().getByText('Equally', { exact: false }).first(),
   split: card().locator('table').first(),
-  redeem: card().locator('th').filter({ hasText: 'To redeem on' }),
-  full: page.getByRole('button', { name: /^Pay the full Redemption Amount/ }),
+  owed: card().locator('th').filter({ hasText: 'Outstanding on' }),
+  full: page.getByRole('button', { name: /^Pay the full Outstanding/ }),
   preview: heading('What changes'),
 })
 await page.getByLabel('Amount received (₹)').fill('900000')
@@ -302,17 +301,24 @@ await shot('mortgages-customer', card(), { note: card().getByText('Show every Cu
 
 // How pledges end -------------------------------------------------------------------------
 
+/** What Mortgage `id` would take to close on the day of the story, less `letOff`, in rupees. */
+async function shortOf(id, letOff) {
+  const response = await page.request.get(`${base}/api/mortgages/${id}/outstanding-on-closure?on=2026-10-19`)
+  return String((await response.json()).total / 100 - letOff)
+}
+const shortBy300 = await shortOf(8, 300)
+
 await open('/closures')
-await shot('closures', card(), { ready: card().getByRole('link', { name: '2026-Lakshmi-TempleNecklace' }) })
-await open('/mortgages/4/redeem')
+await shot('closures', card(), { choose: card().locator('tbody input[type=checkbox]').first() })
+await open('/mortgages/9/redeem')
 await shot('redeem', page.locator('.close-panel'), {
   date: field('Redeemed on'),
-  amount: card().getByText('Redemption Amount', { exact: true }).first(),
+  amount: card().getByText('Outstanding on 19 Oct 2026', { exact: true }).first(),
 })
 await open('/mortgages/8')
 await button('Waive off…').click()
 await settle()
-await field('Received now (₹): the final Payment; the rest of the Redemption Amount is let off').fill('46500')
+await field('Received now (₹): the final Payment; the rest of the Outstanding is let off').fill(shortBy300)
 await field('Reason').fill('Pays as he can; ₹300 let off')
 await settle()
 await shot('waive', page.locator('.close-panel'))
@@ -320,7 +326,7 @@ await open('/closures')
 await card().locator('tbody input[type=checkbox]').nth(1).check()
 await page.getByLabel('Waive off', { exact: true }).check()
 await settle()
-await card().getByRole('spinbutton').last().fill('46500')
+await card().getByRole('spinbutton').last().fill(shortBy300)
 await settle()
 // Down to the amounts received: the Preview below is as on any Waive off.
 const top = await rect(card())
@@ -346,9 +352,9 @@ await page.unroute('**/api/**')
 await page.route('**/api/update', (route) =>
   route.fulfill({
     json: {
-      running: '2.0.0',
+      running: '3.0.0',
       available: {
-        version: '2.1.0',
+        version: '3.1.0',
         notes: '### Added\n\n- **Example:** what a release adds is listed here, from its changelog.',
       },
     },
@@ -378,10 +384,10 @@ await page.getByLabel('To send', { exact: true }).click()
 await settle()
 await shot('notices-send', card(), { send: card().getByRole('button', { name: /Send/ }).first() })
 
-// Arjun pays his chain's whole Redemption Amount: it is Redeemed with the Payment.
+// Arjun pays his chain's whole Outstanding: it is Redeemed with the Payment.
 await open('/payments/new?customer=2')
 await card().locator('tbody tr', { hasText: 'GoldRingRuby' }).locator('input[type=checkbox]').uncheck()
-await page.getByRole('button', { name: /^Pay the full Redemption Amount/ }).click()
+await page.getByRole('button', { name: /^Pay the full Outstanding/ }).click()
 await settle()
 await card().locator('button[type=submit]').last().click()
 await settle()
@@ -389,19 +395,6 @@ await shot('payment-redeem', dialog())
 await dialog().getByRole('button', { name: /Redeem/ }).last().click()
 await settle()
 await shot('receipt-redeemed', card())
-
-// Sunita pays off what she owes, leaving a part-month: offered to Redeem it now.
-await open('/payments/new?customer=7')
-await page.getByLabel('Amount received (₹)').fill('35000')
-await settle()
-await card().locator('button[type=submit]').last().click()
-await settle()
-await dialog().getByRole('button', { name: /Record|Confirm/ }).last().click()
-await settle()
-// The offer itself; below it is the Preview of the Redemption.
-const offer = await rect(dialog())
-const owed = await rect(dialog().getByText('Owed today').first().locator('..'))
-await shot('paid-off', { x: offer.x, y: offer.y, width: offer.width, height: owed.y + owed.height - offer.y + 20 })
 
 writeFileSync(`${out}/spots.json`, JSON.stringify(spots))
 await browser.close()

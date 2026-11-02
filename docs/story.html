@@ -201,13 +201,13 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 
 <header class="opening">
   <a class="home" href="index.html">← Mortgage Management docs</a>
-  <div class="eyebrow">Mortgage Management 2.0.0 · the story</div>
+  <div class="eyebrow">Mortgage Management 3.0.0 · the story</div>
   <h1>A year in the life of a gold chain</h1>
   <p class="lede">Meera Sharma pledges a gold chain with a pendant. Over the next year it gathers interest, takes Payments, comes up for a phone call and is nearly paid off. Follow it through the app, together with the other people the Lender lends to.</p>
   <div class="cast" aria-label="The people in this story">
     <div class="person"><b>Meera Sharma</b><span>a gold chain and a pair of bangles; pays most months</span></div>
     <div class="person"><b>Arjun Patel</b><span>a ruby ring, 15 months unpaid; referred by Meera</span></div>
-    <div class="person"><b>Lakshmi Iyer</b><span>a temple necklace, paid in full this week</span></div>
+    <div class="person"><b>Lakshmi Iyer</b><span>a temple necklace, paid in full and Redeemed this week</span></div>
     <div class="person"><b>Kavita Joshi</b><span>a gold coin, Redeemed on 5 October</span></div>
     <div class="person"><b>Imran Qureshi</b><span>a pair of earrings, Forfeited on 10 October</span></div>
     <div class="person"><b>Farida Khan</b><span>a gold nose ring, ₹180 short, Waived off on 16 October</span></div>
@@ -243,13 +243,12 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <p>The Lender opens the app on their laptop. The first page is the whole lending book on one screen: what it is owed, what came in, what the gold behind it is worth, and what needs doing today. None of these figures was typed in. Each is replayed from the Mortgages' Terms and Payments every time the page opens.</p>
   </div>
   <figure class="scene" data-shot="dashboard">
-    <div class="frame short"><div class="canvas"><img src="shots/dashboard.webp" width="1280" height="860" alt="The Dashboard: ₹3,98,431 owed across 6 Mortgages and 4 Customers, interest collected, Collateral Value and Loan-to-Value, and today's follow-up."></div></div>
+    <div class="frame short"><div class="canvas"><img src="shots/dashboard.webp" width="1280" height="860" alt="The Dashboard: ₹4,02,524 owed across 5 Mortgages and 3 Customers, interest collected, Collateral Value and Loan-to-Value, and today's follow-up."></div></div>
     <div class="beats-wrap">
       <ol class="beats">
-        <li data-spot="owed"><button class="beat"><span><b>₹3,98,431 is owed</b> on 6 Active Mortgages by 4 Customers. Click it and the Mortgages list opens.</span></button></li>
-        <li data-spot="ltv"><button class="beat"><span><b>Loan-to-Value 27.3%:</b> what is owed as a share of what the gold is worth (₹14,61,888). Lower is safer.</span></button></li>
+        <li data-spot="owed"><button class="beat"><span><b>₹4,02,524 is owed</b> on 5 Active Mortgages by 3 Customers, today's interest included. Click it and the Mortgages list opens.</span></button></li>
+        <li data-spot="ltv"><button class="beat"><span><b>Loan-to-Value 38.1%:</b> what is owed as a share of what the gold is worth (₹10,55,808). Lower is safer.</span></button></li>
         <li data-spot="follow"><button class="beat"><span><b>2 on today's Call List.</b> We'll meet them with Arjun.</span></button></li>
-        <li data-spot="dot"><button class="beat"><span><b>A red dot on Redeem / Forfeit:</b> someone has paid in full and their jewellery is waiting to go back.</span></button></li>
         <li data-spot="theme"><button class="beat"><span><b>Light or dark:</b> the round switch follows the browser's theme until the Lender picks one, and remembers it.</span></button></li>
       </ol>
       <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
@@ -324,7 +323,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <section class="chapter" id="pledge" aria-labelledby="pledge-h">
   <div class="chapter-head"><div class="eyebrow">Chapter 3</div><h2 id="pledge-h">Weighing the gold</h2></div>
   <div class="prose">
-    <p>In November 2025 Meera pledged a gold chain with a pendant: 21.5 g gross, 20 g of 22K gold, against ₹80,000. One packet of jewellery is one Mortgage. Here the Lender is entering her next one. The app suggests a Mortgage Name and shows what the loan will grow to before anything is saved.</p>
+    <p>In November 2025 Meera pledged a gold chain with a pendant: 21.5 g gross, 20 g of 22K gold, against ₹80,000. One packet of jewellery is one Mortgage. Here the Lender is entering her next one. The app suggests a Mortgage Name and shows what the loan will grow to before anything is saved. It owes something from its first day: the Interest to Date for the month just begun, today included.</p>
   </div>
   <figure class="scene" data-shot="mortgage-new">
     <div class="frame"><div class="canvas"><img src="shots/mortgage-new.webp" width="1068" height="1278" alt="New Mortgage form for Meera: her Active Mortgages, the jewellery details, the suggested name and the Terms." loading="lazy"></div></div>
@@ -339,7 +338,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     </div>
   </figure>
   <div class="duo">
-    <figure class="still"><img src="shots/mortgage-new-confirm.webp" width="520" height="766" alt="Confirmation before creating the Mortgage: details, owed today and a year from now with no Payments, and a chart." loading="lazy"><figcaption>Before it's saved: what it owes today, and in a year with no Payments.</figcaption></figure>
+    <figure class="still"><img src="shots/mortgage-new-confirm.webp" width="520" height="766" alt="Confirmation before creating the Mortgage: details, ₹20,013 owed today and ₹24,817 a year from now with no Payments, and a chart." loading="lazy"><figcaption>Before it's saved: what it owes today, and in a year with no Payments. Lent ₹20,000 today, it already owes ₹20,013, its first day's Interest to Date under the pro-rata Part-Month Rule. Under Full month it would owe the whole first month at once: ₹20,400.</figcaption></figure>
     <div class="model" id="growth" aria-labelledby="growth-h">
       <div class="model-head"><h3 id="growth-h">How the Interest Mode changes what is owed</h3><span class="tag">Try it</span></div>
       <div class="controls">
@@ -363,13 +362,13 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <section class="chapter" id="ledger" aria-labelledby="ledger-h">
   <div class="chapter-head"><div class="eyebrow">Chapter 4</div><h2 id="ledger-h">The life of a pledge</h2></div>
   <div class="prose">
-    <p>Everything about Meera's chain is on one page. Each month on the 10th, 2% of ₹80,000 (₹1,600) is added. She has paid most months, but she missed April, and October's ₹1,600 was added on the 10th, so ₹2,800 of interest is unpaid today.</p>
+    <p>Everything about Meera's chain is on one page. Each month on the 10th, 2% of ₹80,000 (₹1,600) is added. She has paid most months, but she missed April, and October's ₹1,600 was added on the 10th, so ₹2,800 of interest is unpaid. The month under way counts too: its Interest to Date, 10 days of it so far, is ₹533, so what would Redeem the chain today is ₹83,333.</p>
   </div>
   <figure class="scene" data-shot="mortgage">
-    <div class="frame short"><div class="canvas"><img src="shots/mortgage.webp" width="1280" height="860" alt="Meera's gold chain: ₹82,800 outstanding, ₹80,000 Principal, ₹2,800 unpaid interest, Terms and Collateral Value." loading="lazy"></div></div>
+    <div class="frame short"><div class="canvas"><img src="shots/mortgage.webp" width="1280" height="860" alt="Meera's gold chain: ₹83,333 Outstanding, ₹80,000 Principal, ₹3,333 unpaid interest, Terms and Collateral Value." loading="lazy"></div></div>
     <div class="beats-wrap">
       <ol class="beats">
-        <li data-spot="tiles"><button class="beat"><span><b>₹82,800 Outstanding:</b> ₹80,000 Principal plus ₹2,800 unpaid interest.</span></button></li>
+        <li data-spot="tiles"><button class="beat"><span><b>₹83,333 Outstanding:</b> ₹80,000 Principal plus ₹3,333 unpaid interest, the ₹533 Interest to Date included. It is exactly what would Redeem the chain today.</span></button></li>
         <li data-spot="pay"><button class="beat"><span><b>Record a Payment</b> opens with Meera and this Mortgage already chosen.</span></button></li>
         <li data-spot="edit"><button class="beat"><span><b>Edit</b> corrects its details; the Ledger is replayed from them.</span></button></li>
       </ol>
@@ -377,23 +376,23 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     </div>
   </figure>
   <div class="duo">
-    <figure class="still"><img src="shots/mortgage-ledger.webp" width="1020" height="542" alt="The latest Ledger steps: interest of 2% of ₹80,000 each month, and Payments split into interest and Principal." loading="lazy"><figcaption>The Ledger: every step spelled out ("Interest: 2% of ₹80,000"). The latest eight show here; the complete Ledger opens in a popup.</figcaption></figure>
-    <figure class="still"><img src="shots/mortgage-collateral.webp" width="1020" height="161" alt="Collateral Value ₹2,70,720 at the 22K Gold Rate; Loan-to-Value 30.6%." loading="lazy"><figcaption>Collateral Value ₹2,70,720 at the 22K Gold Rate; Loan-to-Value 30.6%. <b>Set by hand…</b> overrides it when a valuer says otherwise.</figcaption></figure>
+    <figure class="still"><img src="shots/mortgage-ledger.webp" width="1020" height="734" alt="The latest Ledger steps: interest of 2% of ₹80,000 each month, Payments split into interest and Principal, and today's Interest to Date." loading="lazy"><figcaption>The Ledger: every step spelled out ("Interest: 2% of ₹80,000"). It ends with today's Interest to Date, in italics: it grows each day until the next Accrual Date charges the month. The latest eight show here; the complete Ledger opens in a popup.</figcaption></figure>
+    <figure class="still"><img src="shots/mortgage-collateral.webp" width="1020" height="161" alt="Collateral Value ₹2,70,720 at the 22K Gold Rate; Loan-to-Value 30.8%." loading="lazy"><figcaption>Collateral Value ₹2,70,720 at the 22K Gold Rate; Loan-to-Value 30.8%. <b>Set by hand…</b> overrides it when a valuer says otherwise.</figcaption></figure>
     <figure class="still"><img src="shots/mortgage-terms.webp" width="1020" height="233" alt="Bangles: Terms in force, and a coming Term Change from 25 Oct 2026 to 1.5% a month, still removable." loading="lazy"><figcaption>On her bangles, a Term Change is <em>coming</em>: 1.5% a month from 25 Oct 2026. It never rewrites interest already charged, and it can be removed until it starts.</figcaption></figure>
     <figure class="still"><img src="shots/mortgage-photos.webp" width="1020" height="319" alt="A photo of Arjun's ruby ring on its Mortgage." loading="lazy"><figcaption>Photos stay with the Mortgage: Arjun's ruby ring.</figcaption></figure>
   </div>
   <figure class="scene" data-shot="mortgage-projection">
-    <div class="frame"><div class="canvas"><img src="shots/mortgage-projection.webp" width="1020" height="837" alt="Projection with a what-if of ₹3,000 every month: owed, Redemption Amount and Loan-to-Value in 3, 6 and 12 months, and when it would be paid off." loading="lazy"></div></div>
+    <div class="frame"><div class="canvas"><img src="shots/mortgage-projection.webp" width="1020" height="837" alt="Projection with a what-if of ₹3,000 every month: Principal, unpaid interest, the Outstanding and Loan-to-Value in 3, 6 and 12 months, and when it would be paid off." loading="lazy"></div></div>
     <div class="beats-wrap">
       <ol class="beats">
-        <li data-spot="whatif"><button class="beat"><span><b>"What if she pays ₹3,000 every month?"</b> The Projection shows owed, the Redemption Amount and Loan-to-Value in 3, 6 and 12 months, against paying nothing, and the date it would be paid off.</span></button></li>
+        <li data-spot="whatif"><button class="beat"><span><b>"What if she pays ₹3,000 every month?"</b> The Projection shows the Principal, unpaid interest, the Outstanding and Loan-to-Value in 3, 6 and 12 months, against paying nothing, and the date it would be paid off.</span></button></li>
       </ol>
       <p class="caption">A Projection is the Ledger carried forward under stated assumptions. It is exact for those assumptions, unlike the Dashboard's Trend.</p>
     </div>
   </figure>
   <div class="rules">
     <div class="rule"><b>Interest on start-of-month Principal</b><span>Each month is charged on the Principal at the previous Accrual Date, so paying Principal a day before an Accrual Date doesn't avoid a month's interest.</span></div>
-    <div class="rule"><b>Nothing owed is stored</b><span>Outstanding, the Ledger and Redemption Amounts are replayed from the facts, so a correction anywhere shows everywhere at once.</span></div>
+    <div class="rule"><b>Nothing owed is stored</b><span>Outstanding, the Interest to Date and the Ledger are replayed from the facts, so a correction anywhere shows everywhere at once.</span></div>
   </div>
 </section>
 
@@ -401,10 +400,10 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <section class="chapter" id="second" aria-labelledby="second-h">
   <div class="chapter-head"><div class="eyebrow">Chapter 5</div><h2 id="second-h">Second thoughts, with a Preview</h2></div>
   <div class="prose">
-    <p>Suppose the chain's Principal was really ₹90,000. Any change that affects money shows its effect before it is saved: what is owed today, the Redemption Amount in 3, 6 and 12 months, and exactly which Ledger steps would change. The Preview is the real change, made by the backend with every check a save runs, then undone, so it can never disagree with saving.</p>
+    <p>Suppose the chain's Principal was really ₹90,000. Any change that affects money shows its effect before it is saved: what is owed today, the Outstanding in 3, 6 and 12 months, and exactly which Ledger steps would change. The Preview is the real change, made by the backend with every check a save runs, then undone, so it can never disagree with saving.</p>
   </div>
   <figure class="scene" data-shot="edit-preview">
-    <div class="frame"><div class="canvas"><img src="shots/edit-preview.webp" width="1068" height="2301" alt="Editing the chain's Principal to ₹90,000: the Preview shows owed today, the Redemption Amount over the next year, a chart and the Ledger steps that change." loading="lazy"></div></div>
+    <div class="frame"><div class="canvas"><img src="shots/edit-preview.webp" width="1068" height="2342" alt="Editing the chain's Principal to ₹90,000: the Preview shows owed today, the Outstanding over the next year, a chart and the Ledger steps that change." loading="lazy"></div></div>
     <div class="beats-wrap">
       <ol class="beats">
         <li data-spot="principal"><button class="beat"><span><b>₹80,000 → ₹90,000.</b> The Preview appears as you type.</span></button></li>
@@ -430,17 +429,17 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <section class="chapter" id="pays" aria-labelledby="pays-h">
   <div class="chapter-head"><div class="eyebrow">Chapter 6</div><h2 id="pays-h">Meera pays</h2></div>
   <div class="prose">
-    <p>Meera often hands over one sum for both her pledges. The Lender enters it once. The app suggests a split, shows what each Mortgage owes and what it would take to Redeem it that day, what each will owe afterwards, and refuses anything more than is owed.</p>
+    <p>Meera often hands over one sum for both her pledges. The Lender enters it once. The app suggests a split, shows what each Mortgage owes, which is what would Redeem it that day, what each will owe afterwards, and refuses anything more than is owed.</p>
   </div>
   <figure class="scene" data-shot="payment-new">
-    <div class="frame"><div class="canvas"><img src="shots/payment-new.webp" width="1068" height="1808" alt="Recording ₹8,000 from Meera, split equally across her chain and bangles, beside each one's Outstanding and Redemption Amount, with a Preview for each Mortgage." loading="lazy"></div></div>
+    <div class="frame"><div class="canvas"><img src="shots/payment-new.webp" width="1068" height="832" alt="Recording ₹8,000 from Meera, split equally across her chain and bangles, beside each one's Outstanding, with a Preview for each Mortgage." loading="lazy"></div></div>
     <div class="beats-wrap">
       <ol class="beats">
         <li data-spot="amount"><button class="beat"><span><b>₹8,000 received.</b> A back-dated Payment sees each Mortgage's Outstanding on that date.</span></button></li>
         <li data-spot="modes"><button class="beat"><span><b>Split equally, by amount, or by percentage.</b></span></button></li>
-        <li data-spot="split"><button class="beat"><span><b>Ticked Mortgages stay together at the top.</b> Equal shares go in whole rupees, each filling its Mortgage up to its Redemption Amount before the rest is shared.</span></button></li>
-        <li data-spot="redeem"><button class="beat"><span><b>To redeem on the Payment date:</b> beside what each Mortgage owes, what it would take to Redeem it that day, part-month charge included.</span></button></li>
-        <li data-spot="full"><button class="beat"><span><b>Pay the full Redemption Amount</b> fills each Allocation with it. Paying a Mortgage's whole Redemption Amount Redeems it (Chapter 8); if one can't be quoted, the shortcut says why.</span></button></li>
+        <li data-spot="split"><button class="beat"><span><b>Ticked Mortgages stay together at the top.</b> Equal shares go in whole rupees, each filling its Mortgage up to its Outstanding before the rest is shared.</span></button></li>
+        <li data-spot="owed"><button class="beat"><span><b>One figure per Mortgage:</b> its Outstanding on the Payment date, the Interest to Date included. Within each Mortgage a Payment pays unpaid interest first, then the Interest to Date, then Principal.</span></button></li>
+        <li data-spot="full"><button class="beat"><span><b>Pay the full Outstanding</b> fills each Allocation with it. Paying a Mortgage's whole Outstanding Redeems it (Chapter 8); if one can't be Redeemed that day, the shortcut says why.</span></button></li>
         <li data-spot="preview"><button class="beat"><span><b>What changes on each Mortgage</b>, before it is recorded.</span></button></li>
       </ol>
       <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
@@ -458,8 +457,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <p class="verdict" id="s-verdict" aria-live="polite"></p>
   </div>
   <div class="duo">
-    <figure class="still"><img src="shots/payment-refused.webp" width="1018" height="572" alt="A Payment of ₹9,00,000: the Preview says it would be more than the ₹1,49,000 owed, and Record Payment is disabled." loading="lazy"><figcaption>₹9,00,000 by mistake: the Preview gives the reason, "would be more than the ₹1,49,000 owed then", and Save stays off.</figcaption></figure>
-    <figure class="still"><img src="shots/paid-off.webp" width="900" height="348" alt="Paid up to 21 Sept 2026: Redeem now? Sunita's mangalsutra, with a final Payment of ₹653, the part-month charge for 28 days." loading="lazy"><figcaption>Sunita pays off the ₹35,000 she owes. Her mangalsutra is paid up to its last Accrual Date, so the app offers to Redeem it now, with the part-month charge since then (₹653) as the final Payment. (Shown here, not saved.)</figcaption></figure>
+    <figure class="still"><img src="shots/payment-refused.webp" width="1018" height="572" alt="A Payment of ₹9,00,000: the Preview says it would be more than the ₹1,51,500 owed, and Record Payment is disabled." loading="lazy"><figcaption>₹9,00,000 by mistake: the Preview gives the reason, "would be more than the ₹1,51,500 owed then", and Save stays off.</figcaption></figure>
   </div>
   <figure class="scene" data-shot="payment">
     <div class="frame"><div class="canvas"><img src="shots/payment.webp" width="1068" height="940" alt="Meera's ₹12,000 Payment of 10 Sept: Allocations to the chain and the bangles, split into interest and Principal, and the Receipt ready for WhatsApp." loading="lazy"></div></div>
@@ -483,15 +481,15 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <section class="chapter" id="arjun" aria-labelledby="arjun-h">
   <div class="chapter-head"><div class="eyebrow">Chapter 7</div><h2 id="arjun-h">Meanwhile, Arjun</h2></div>
   <div class="prose">
-    <p>Arjun pledged a ruby ring in June 2025 at 2.5% a month, Compounded Monthly. He paid once, in August 2025. Fifteen months of compounding later he owes ₹84,831 against gold worth ₹81,216. The app never sends anything by itself: each morning it prepares a Call List and Notices, and the Lender decides.</p>
+    <p>Arjun pledged a ruby ring in June 2025 at 2.5% a month, Compounded Monthly. He paid once, in August 2025. Fifteen months of compounding later he owes ₹85,184, today's interest included, against gold worth ₹81,216. The app never sends anything by itself: each morning it prepares a Call List and Notices, and the Lender decides.</p>
   </div>
   <figure class="scene" data-shot="call-list">
-    <div class="frame short"><div class="canvas"><img src="shots/call-list.webp" width="1068" height="482" alt="Today's Call List: Arjun Patel once beside his two Mortgages, with 2 Mortgages and ₹1,31,631, a Call button and a WhatsApp chat button; reasons as coloured markers (Today; 15 mo and 104.5%) with a legend; his ring already called today." loading="lazy"></div></div>
+    <div class="frame short"><div class="canvas"><img src="shots/call-list.webp" width="1068" height="482" alt="Today's Call List: Arjun Patel once beside his two Mortgages, with 2 Mortgages and ₹1,32,014, a Call button and a WhatsApp chat button; reasons as coloured markers (Today; 15 mo and 104.9%) with a legend; his ring already called today." loading="lazy"></div></div>
     <div class="beats-wrap">
       <ol class="beats">
-        <li data-spot="count"><button class="beat"><span><b>Arjun appears once</b>, beside both his Mortgages: <b>2 Mortgages · ₹1,31,631</b>. The count opens just his on the Mortgages page.</span></button></li>
+        <li data-spot="count"><button class="beat"><span><b>Arjun appears once</b>, beside both his Mortgages: <b>2 Mortgages · ₹1,32,014</b>. The count opens just his on the Mortgages page.</span></button></li>
         <li data-spot="chat"><button class="beat"><span><b>Call</b> shows his number; the chat bubble beside it opens WhatsApp.</span></button></li>
-        <li data-spot="why"><button class="beat"><span><b>Why, as status markers:</b> teal "Today" on his chain, which accrues today; amber "15 mo" and red "104.5%" on his ring. The gold is now worth less than the debt.</span></button></li>
+        <li data-spot="why"><button class="beat"><span><b>Why, as status markers:</b> teal "Today" on his chain, which accrues today; amber "15 mo" and red "104.9%" on his ring. The gold is now worth less than the debt.</span></button></li>
         <li data-spot="legend"><button class="beat"><span><b>The legend</b> uses the same markers. Hover any marker for its full wording.</span></button></li>
         <li data-spot="called"><button class="beat"><span><b>✓ Called today:</b> "Will pay after Diwali". Every Call Note stays on the Mortgage.</span></button></li>
         <li data-spot="mark"><button class="beat"><span><b>Mark called…</b> takes a note of what was said, on its own line under that Mortgage.</span></button></li>
@@ -504,7 +502,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <div class="model-head"><h3 id="ltv-h">When does a Mortgage go on the Call List?</h3><span class="tag">Try it</span></div>
     <div class="controls">
       <label for="l-rate"><span>22K Gold Rate: ₹<output id="l-rate-out">13,536</output> a gram</span><input id="l-rate" type="range" min="9000" max="18000" step="100" value="13536"></label>
-      <label for="l-owed"><span>Arjun owes: ₹<output id="l-owed-out">84,831</output></span><input id="l-owed" type="range" min="40000" max="120000" step="1" value="84831"></label>
+      <label for="l-owed"><span>Arjun owes: ₹<output id="l-owed-out">85,184</output></span><input id="l-owed" type="range" min="40000" max="120000" step="1" value="85184"></label>
       <label for="l-limit"><span>Listed above <output id="l-limit-out">85</output>%</span><input id="l-limit" type="range" min="50" max="120" step="5" value="85"></label>
       <label for="l-months"><span>Months Unpaid: <output id="l-months-out">15</output></span><input id="l-months" type="range" min="0" max="18" value="15"></label>
     </div>
@@ -529,7 +527,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     </div>
   </figure>
   <div class="duo">
-    <figure class="still"><img src="shots/notice.webp" width="640" height="432" alt="Notice to Sunita Rao: interest of ₹700 to be added on 21 Oct 2026, total owed ₹35,700." loading="lazy"><figcaption>The message as Sunita will see it: ₹700 of interest on 21 October, ₹35,700 owed. Approve, then Send on WhatsApp.</figcaption></figure>
+    <figure class="still"><img src="shots/notice.webp" width="640" height="432" alt="Notice to Sunita Rao: interest of ₹700 to be added on 21 Oct 2026, total owed ₹35,723." loading="lazy"><figcaption>The message as Sunita will see it: the month's ₹700 of interest on 21 October, and ₹35,723 owed that day, the new month's first day of Interest to Date included. Approve, then Send on WhatsApp.</figcaption></figure>
     <figure class="still"><img src="shots/notices-send.webp" width="1068" height="374" alt="Notices, To send: Sunita Rao's Notice with a green WhatsApp Send button beside Skip." loading="lazy"><figcaption>Approved, it moves to <b>To send</b>, with a compact green WhatsApp <b>Send</b> in its row beside Skip. It opens the message once more before WhatsApp.</figcaption></figure>
     <div class="model" id="notice-life" aria-labelledby="nl-h">
       <div class="model-head"><h3 id="nl-h">A Notice's life</h3><span class="tag">Click a state</span></div>
@@ -538,7 +536,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
         <button type="button" aria-pressed="true" data-say="With approve-first on, it waits here. The Lender reads it and approves it, or skips it.">To approve</button><span class="to">→</span>
         <button type="button" data-say="Approved. Send on WhatsApp opens the chat with the message ready; the Lender presses Send there, then marks it sent.">To send</button><span class="to">→</span>
         <button type="button" data-say="Sent, with the time, and the message as it was sent kept on record.">Sent</button>
-        <button type="button" data-say="Skipped by the Lender (Lakshmi has paid in full). A Notice never skips itself: if its Mortgages are closed or edited so that none accrues that day, it stays and says Nothing to send.">Skipped</button>
+        <button type="button" data-say="Skipped by the Lender, say for a Customer who has just paid. A Notice never skips itself: if its Mortgages are closed or edited so that none accrues that day, it stays and says Nothing to send.">Skipped</button>
       </div>
       <p class="state-say" id="nl-say" aria-live="polite"></p>
     </div>
@@ -549,47 +547,47 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 <section class="chapter" id="endings" aria-labelledby="endings-h">
   <div class="chapter-head"><div class="eyebrow">Chapter 8</div><h2 id="endings-h">How pledges end</h2></div>
   <div class="prose">
-    <p>Every pledge ends one of three ways. It is paid in full and the jewellery goes home (Redeemed). Or the Customer pays nearly all of it, the Lender lets off the small balance left, and the jewellery goes home all the same (Waived off). Or the Customer defaults and the Lender keeps or sells it (Forfeited). This month has one of each, and one more waiting; and Arjun brings the whole Redemption Amount for his chain.</p>
+    <p>Every pledge ends one of three ways. It is paid in full and the jewellery goes home (Redeemed). Or the Customer pays nearly all of it, the Lender lets off the little that is left, and the jewellery goes home all the same (Waived off). Or the Customer defaults and the Lender keeps or sells it (Forfeited). This month has two Redemptions, one Waiver and one Forfeiture: Lakshmi paid her necklace's whole Outstanding on 16 October, and that Payment Redeemed it. Today Arjun does the same for his chain.</p>
   </div>
   <figure class="scene" data-shot="closures">
-    <div class="frame"><div class="canvas"><img src="shots/closures.webp" width="1068" height="818" alt="Redeem / Forfeit: Lakshmi's temple necklace Ready to Redeem with a ₹3,867 part-month charge; Active Mortgages that can be Forfeited or Waived off." loading="lazy"></div></div>
+    <div class="frame"><div class="canvas"><img src="shots/closures.webp" width="1068" height="543" alt="Redeem / Forfeit: the Active Mortgages, each with its Outstanding today, to tick and Forfeit or Waive off together." loading="lazy"></div></div>
     <div class="beats-wrap">
       <ol class="beats">
-        <li data-spot="ready"><button class="beat"><span><b>Lakshmi paid in full this week.</b> Her necklace waits to go back; Redeeming today adds a ₹3,867 part-month charge as the final Payment. Below, Mortgages still owing can be ticked and closed together, choosing to Forfeit them or Waive them off.</span></button></li>
+        <li data-spot="choose"><button class="beat"><span><b>Tick Mortgages and close them together,</b> choosing to Forfeit them or Waive them off. Nothing waits here to be Redeemed: a Payment of a Mortgage's whole Outstanding Redeems it there and then.</span></button></li>
       </ol>
     </div>
   </figure>
   <figure class="scene" data-shot="redeem">
-    <div class="frame"><div class="canvas"><img src="shots/redeem.webp" width="1018" height="1250" alt="Redeeming the temple necklace: the date, the Redemption Amount broken down, the final Payment method and the Preview." loading="lazy"></div></div>
+    <div class="frame"><div class="canvas"><img src="shots/redeem.webp" width="1018" height="1233" alt="Redeeming Sunita's mangalsutra: the date, its Outstanding on that date broken down, the final Payment method and the Preview." loading="lazy"></div></div>
     <div class="beats-wrap">
       <ol class="beats">
         <li data-spot="date"><button class="beat"><span><b>Pick a date.</b> A future date gives a quote only.</span></button></li>
-        <li data-spot="amount"><button class="beat"><span><b>The Redemption Amount:</b> Principal, unpaid interest and the part-month charge for the days since the last Accrual Date, under the Mortgage's Part-Month Rule.</span></button></li>
+        <li data-spot="amount"><button class="beat"><span><b>The Outstanding on that date:</b> Principal, unpaid interest and the Interest to Date for the days since the last Accrual Date, under the Mortgage's Part-Month Rule. On Sunita's mangalsutra, ₹35,677. (Shown here, not saved.)</span></button></li>
       </ol>
       <div class="nudge"><button type="button" data-prev>← Previous</button><button type="button" data-next>Next →</button></div>
     </div>
   </figure>
   <div class="prose">
-    <p>Most often the jewellery goes home the day the Customer brings the whole Redemption Amount. Arjun does that for his chain: on New Payment, <b>Pay the full Redemption Amount</b> fills in the ₹46,800, and before anything is saved the app asks to Redeem it with this Payment.</p>
+    <p>Most often the jewellery goes home the day the Customer brings the whole Outstanding. Arjun does that for his chain: on New Payment, <b>Pay the full Outstanding</b> fills in the ₹46,830, and before anything is saved the app asks to Redeem it with this Payment.</p>
   </div>
   <div class="duo">
-    <figure class="still"><img src="shots/payment-redeem.webp" width="520" height="359" alt="Redeem and hand back the jewellery? This pays the full Redemption Amount of 2026-Arjun-GoldChain (₹46,800), from Arjun Patel on 19 Oct 2026, in cash." loading="lazy"><figcaption><b>Redeem and hand back the jewellery?</b> The Payment Redeems the chain on its date, with that Allocation as its final Payment. Other Mortgages in the same Payment are paid as usual, all or none.</figcaption></figure>
-    <figure class="still"><img src="shots/receipt-redeemed.webp" width="1068" height="463" alt="Arjun's Receipt for ₹46,800: the gold chain, marked Redeemed, with nothing still owed." loading="lazy"><figcaption>One Receipt for everything handed over, marking the jewellery it Redeemed. Saving opens it, ready to print or send on WhatsApp.</figcaption></figure>
+    <figure class="still"><img src="shots/payment-redeem.webp" width="520" height="359" alt="Redeem and hand back the jewellery? This pays the full Outstanding of 2026-Arjun-GoldChain (₹46,830, including 1 day's Interest to Date), from Arjun Patel on 19 Oct 2026, in cash." loading="lazy"><figcaption><b>Redeem and hand back the jewellery?</b> The Payment Redeems the chain on its date, with that Allocation as its final Payment. Other Mortgages in the same Payment are paid as usual, all or none.</figcaption></figure>
+    <figure class="still"><img src="shots/receipt-redeemed.webp" width="1068" height="463" alt="Arjun's Receipt for ₹46,830: the gold chain, marked Redeemed, with nothing still owed." loading="lazy"><figcaption>One Receipt for everything handed over, marking the jewellery it Redeemed. Saving opens it, ready to print or send on WhatsApp.</figcaption></figure>
   </div>
   <div class="duo">
-    <figure class="still"><img src="shots/waive.webp" width="1018" height="1455" alt="Waiving off Arjun's gold chain on 19 Oct 2026: Redemption Amount ₹46,800, ₹46,500 received, ₹300 waived off, with the reason and the Preview." loading="lazy"><figcaption>Had Arjun come in ₹300 short: on the Mortgage, <b>Waive off…</b> takes the ₹46,500 he brought as the final Payment and shows the ₹300 let off as it is typed, then the Preview. Paying the whole ₹46,800 would be refused here: that is a Redemption. (Shown here, not saved.) Farida, who pays every month, came in ₹180 short on 16 October and had it let off the same way.</figcaption></figure>
-    <figure class="still"><img src="shots/closures-waive.webp" width="1068" height="1100" alt="Redeem / Forfeit: one Mortgage ticked under Forfeit or Waive off, with Waive off chosen, ₹46,500 received of ₹46,800 and ₹300 waived off." loading="lazy"><figcaption>Several at once: on Redeem / Forfeit, tick Mortgages and choose <b>Waive off</b> instead of Forfeit, with what each brought in. They close together, all or none. (Shown here, not saved.)</figcaption></figure>
+    <figure class="still"><img src="shots/waive.webp" width="1018" height="1479" alt="Waiving off Arjun's gold chain on 19 Oct 2026: Outstanding ₹46,830, ₹46,530 received, ₹300 waived off, with the reason and the Preview." loading="lazy"><figcaption>Had Arjun come in ₹300 short: on the Mortgage, <b>Waive off…</b> takes the ₹46,530 he brought as the final Payment and shows the ₹300 let off as it is typed, then the Preview. Paying the whole ₹46,830 would be refused here: that is a Redemption. (Shown here, not saved.) Farida, who pays every month, came in ₹180 short on 16 October and had it let off the same way.</figcaption></figure>
+    <figure class="still"><img src="shots/closures-waive.webp" width="1068" height="825" alt="Redeem / Forfeit: one Mortgage ticked under Forfeit or Waive off, with Waive off chosen, ₹46,530 received of ₹46,830 and ₹300 waived off." loading="lazy"><figcaption>Several at once: on Redeem / Forfeit, tick Mortgages and choose <b>Waive off</b> instead of Forfeit, with what each brought in. They close together, all or none. (Shown here, not saved.)</figcaption></figure>
   </div>
   <div class="duo">
-    <figure class="still"><img src="shots/redeemed.webp" width="1018" height="123" alt="Kavita's gold coin, Redeemed on 5 Oct 2026 for ₹54,567, with a link to the final Payment's Receipt." loading="lazy"><figcaption>Kavita's coin: Redeemed on 5 October for ₹54,567, with the final Payment's Receipt.</figcaption></figure>
-    <figure class="still"><img src="shots/forfeited.webp" width="1018" height="261" alt="Imran's earrings, Forfeited on 10 Oct 2026: Redemption Amount ₹62,800, recovered ₹52,000, a loss of ₹10,800." loading="lazy"><figcaption>Imran's earrings: Forfeited on 10 October. Owed ₹62,800, sold for ₹52,000: a loss of ₹10,800, which the Dashboard counts for the month.</figcaption></figure>
+    <figure class="still"><img src="shots/redeemed.webp" width="1018" height="123" alt="Kavita's gold coin, Redeemed on 5 Oct 2026, paying its Outstanding of ₹54,600, with a link to the final Payment's Receipt." loading="lazy"><figcaption>Kavita's coin: Redeemed on 5 October, paying its Outstanding of ₹54,600, with the final Payment's Receipt.</figcaption></figure>
+    <figure class="still"><img src="shots/forfeited.webp" width="1018" height="285" alt="Imran's earrings, Forfeited on 10 Oct 2026: Outstanding on the Closure date ₹62,840, recovered ₹52,000, a loss of ₹10,840." loading="lazy"><figcaption>Imran's earrings: Forfeited on 10 October. Owed ₹62,840 that day, sold for ₹52,000: a loss of ₹10,840, which the Dashboard counts for the month.</figcaption></figure>
   </div>
   <div class="duo">
-    <figure class="still"><img src="shots/waived.webp" width="1018" height="261" alt="Farida's nose ring, Waived off on 16 Oct 2026: Redemption Amount ₹30,680, final Payment ₹30,500, ₹180 waived off, and the reason." loading="lazy"><figcaption>Farida's nose ring: Waived off on 16 October. ₹30,500 paid, ₹180 let off, and the jewellery went home. Her Receipt shows nothing still owed.</figcaption></figure>
-    <figure class="still"><img src="shots/dashboard-closed.webp" width="1020" height="168" alt="Dashboard, Closed in Oct 2026: 1 Redeemed; 1 Waived off, ₹180 let off; 1 Forfeited, a loss of ₹10,800." loading="lazy"><figcaption>The Dashboard's month: one Redeemed, one Waived off with the ₹180 let off, and one Forfeited at a loss of ₹10,800. Each tile opens those Mortgages.</figcaption></figure>
+    <figure class="still"><img src="shots/waived.webp" width="1018" height="285" alt="Farida's nose ring, Waived off on 16 Oct 2026: Outstanding on the Closure date ₹30,700, final Payment ₹30,520, ₹180 waived off, and the reason." loading="lazy"><figcaption>Farida's nose ring: Waived off on 16 October. ₹30,520 paid of ₹30,700, ₹180 let off, and the jewellery went home. Her Receipt shows nothing still owed.</figcaption></figure>
+    <figure class="still"><img src="shots/dashboard-closed.webp" width="1020" height="168" alt="Dashboard, Closed in Oct 2026: 2 Redeemed; 1 Waived off, ₹180 let off; 1 Forfeited, a loss of ₹10,840." loading="lazy"><figcaption>The Dashboard's month: two Redeemed, one Waived off with the ₹180 let off, and one Forfeited at a loss of ₹10,840. Each tile opens those Mortgages.</figcaption></figure>
   </div>
   <div class="rules">
-    <div class="rule"><b>A whole Redemption Amount Redeems</b><span>A Payment of a Mortgage's whole Redemption Amount is never an ordinary Allocation: it Redeems the Mortgage, so the jewellery's last Payment and its return are one change.</span></div>
+    <div class="rule"><b>A whole Outstanding Redeems</b><span>A Payment of a Mortgage's whole Outstanding is never an ordinary Allocation: it Redeems the Mortgage, so the jewellery's last Payment and its return are one change.</span></div>
     <div class="rule"><b>Waive off a small balance</b><span>On a Mortgage, Waive off takes what the Customer pays now as the final Payment (or nothing) and lets off the rest. Their Receipt shows nothing still owed, and the Dashboard counts what was let off for the month.</span></div>
     <div class="rule"><b>Reopen undoes completely</b><span>With a reason, the Mortgage is Active again as if never closed, and a Redemption's or Waiver's final Payment is Voided.</span></div>
     <div class="rule"><b>No closing before a Payment</b><span>A Closure can't be dated before a Payment already recorded on that Mortgage.</span></div>
@@ -629,7 +627,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
     <span class="go">Open the guide →</span>
   </a>
   <footer>
-    <span>Screenshots from version 2.0.0, taken by <a href="https://github.com/krucx/Mortgage-Management-App/tree/main/docs/sample-book">docs/sample-book</a> from a book made through the app's own API. Sample data: every person and figure on this page is invented, and was worked out by the app itself on 19 Oct 2026.</span>
+    <span>Screenshots from version 3.0.0, taken by <a href="https://github.com/krucx/Mortgage-Management-App/tree/main/docs/sample-book">docs/sample-book</a> from a book made through the app's own API. Sample data: every person and figure on this page is invented, and was worked out by the app itself on 19 Oct 2026.</span>
     <span>Mortgage Management runs on the Lender's own laptop; this page only shows it.</span>
   </footer>
 </section>
@@ -637,7 +635,7 @@ footer { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); display: gri
 </main>
 
 <script>
-const SPOTS = {"dashboard":{"w":1280,"h":860,"b":{"owed":[0.1023,0.2274,0.7953,0.0883],"ltv":[0.5063,0.7082,0.3914,0.1437],"follow":[0.1023,0.9176,0.3914,0.1437],"dot":[0.7483,0.0172,0.0063,0.0093],"theme":[0.955,0.014,0.0262,0.0391]}},"dashboard-chart":{"w":1020,"h":445,"b":{}},"dashboard-ahead":{"w":1020,"h":335,"b":{}},"dashboard-closed":{"w":1020,"h":168,"b":{}},"settings-terms":{"w":1068,"h":461,"b":{"rate":[0.0234,0.37,0.9532,0.0912]}},"settings-gold":{"w":1068,"h":554,"b":{"g22":[0.1864,0.4424,0.1837,0.0758],"updated":[0.7032,0.4271,0.2734,0.1065]}},"settings-calls":{"w":1068,"h":293,"b":{}},"settings-messages":{"w":1068,"h":1116,"b":{"template":[0.0234,0.16,0.4691,0.2312],"preview":[0.5075,0.1335,0.4691,0.1998],"approve":[0.5075,0.8633,0.4691,0.0215]}},"settings-backups":{"w":1068,"h":437,"b":{"last":[0.0234,0.3585,0.9532,0.0549]}},"customers":{"w":1068,"h":757,"b":{"filter":[0.0234,0.107,0.9532,0.0555],"active":[0.0234,0.1836,0.9532,0.0317],"sort":[0.1087,0.247,0.0455,0.0269],"new":[0.8341,0.033,0.1425,0.0528]}},"customer-new":{"w":828,"h":669,"b":{"phone":[0.3249,0.4928,0.6449,0.0628],"warning":[0.3249,0.564,0.6449,0.0359],"referrer":[0.0326,0.7548,0.9348,0.1211]}},"customer":{"w":828,"h":923,"b":{"photo":[0.0302,0.1698,0.2657,0.2383],"shared":[0.0302,0.1265,0.9396,0.026],"referrer":[0.3249,0.2392,0.1516,0.026],"mortgages":[0.0302,0.4168,0.1171,0.0304],"history":[0.0302,0.7131,0.9396,0.0304]}},"referrer":{"w":828,"h":242,"b":{}},"mortgage-new":{"w":1068,"h":1278,"b":{"active":[0.0234,0.1166,0.9532,0.022],"name":[0.0234,0.5468,0.9532,0.0329],"terms":[0.0253,0.6153,0.9494,0.2314],"photos":[0.0253,0.8592,0.9494,0.0774]}},"mortgage-new-confirm":{"w":520,"h":766,"b":{}},"mortgage":{"w":1280,"h":860,"b":{"tiles":[0.1023,0.1949,0.7953,0.1112],"pay":[0.7836,0.1376,0.1141,0.0356],"edit":[0.7333,0.1364,0.0409,0.0379]}},"mortgage-collateral":{"w":1020,"h":161,"b":{}},"mortgage-ledger":{"w":1020,"h":542,"b":{}},"mortgage-history":{"w":1020,"h":241,"b":{}},"mortgage-projection":{"w":1020,"h":837,"b":{"whatif":[0.001,0.088,0.2196,0.0502]}},"mortgage-terms":{"w":1020,"h":233,"b":{"coming":[0.0888,0.6005,0.0781,0.1397]}},"mortgage-photos":{"w":1020,"h":319,"b":{}},"edit-preview":{"w":1068,"h":2301,"b":{"principal":[0.5075,0.1157,0.4691,0.0183],"owed":[0.0234,0.251,0.471,0.053],"ledger":[0.0234,0.5735,0.2953,0.016]}},"terms-preview":{"w":1068,"h":1493,"b":{"from":[0.0234,0.1197,0.9532,0.0255],"owed":[0.0234,0.4097,0.471,0.0817]}},"payment-new":{"w":1068,"h":1808,"b":{"amount":[0.3461,0.0858,0.3077,0.0232],"modes":[0.0412,0.1949,0.1608,0.0133],"split":[0.0412,0.217,0.9176,0.066],"redeem":[0.6278,0.217,0.2283,0.0204],"full":[0.3461,0.1462,0.303,0.0177],"preview":[0.0234,0.394,0.9532,0.0155]}},"payment-refused":{"w":1018,"h":572,"b":{"refusal":[0,0.8182,1,0.042],"save":[0,0.9161,0.2623,0.0699]}},"payment":{"w":1068,"h":940,"b":{"alloc":[0.0225,0.2351,0.9551,0.1867],"receipt":[0.0225,0.4345,0.9551,0.5485],"void":[0.9126,0.0284,0.064,0.0347]}},"receipt":{"w":1068,"h":545,"b":{}},"payment-void":{"w":900,"h":774,"b":{}},"payments":{"w":1068,"h":1389,"b":{"voided":[0.85,0.3063,0.0524,0.0155]}},"call-list":{"w":1068,"h":482,"b":{"customer":[0.0234,0.5389,0.2397,0.3075],"count":[0.0346,0.6268,0.0861,0.0373],"reach":[0.0346,0.6836,0.2168,0.0676],"why":[0.5127,0.7193,0.1446,0.0463],"legend":[0.6176,0.3406,0.359,0.0529],"called":[0.8065,0.6562,0.1588,0.1725],"mark":[0.8065,0.5575,0.1072,0.0634],"chat":[0.1659,0.6836,0.0309,0.0676]}},"mortgages-customer":{"w":1068,"h":454,"b":{"note":[0.0234,0.3017,0.9532,0.0718]}},"closures":{"w":1068,"h":818,"b":{"ready":[0.0346,0.3109,0.2165,0.022]}},"redeem":{"w":1018,"h":1250,"b":{"date":[0.0167,0.0762,0.9666,0.0352],"amount":[0.0167,0.211,0.1729,0.0192]}},"waive":{"w":1018,"h":1455,"b":{}},"closures-waive":{"w":1068,"h":1100,"b":{}},"redeemed":{"w":1018,"h":123,"b":{}},"forfeited":{"w":1018,"h":261,"b":{}},"waived":{"w":1018,"h":261,"b":{}},"start-screen":{"w":860,"h":226,"b":{"start":[0.0291,0.7124,0.3007,0.177]}},"update-banner":{"w":1068,"h":204,"b":{}},"notices":{"w":1068,"h":374,"b":{"tabs":[0.0234,0.4631,0.9532,0.0642],"row":[0.0234,0.6689,0.9532,0.1328]}},"notice":{"w":640,"h":432,"b":{"approve":[0.799,0.8473,0.1619,0.0926]}},"notices-send":{"w":1068,"h":374,"b":{"send":[0.8281,0.6943,0.074,0.0819]}},"payment-redeem":{"w":520,"h":359,"b":{}},"receipt-redeemed":{"w":1068,"h":463,"b":{}},"paid-off":{"w":900,"h":348,"b":{}}}
+const SPOTS = {"dashboard":{"w":1280,"h":860,"b":{"owed":[0.1023,0.2274,0.7953,0.0883],"ltv":[0.5063,0.7082,0.3914,0.1437],"follow":[0.1023,0.9176,0.3914,0.1437],"theme":[0.955,0.014,0.0262,0.0391]}},"dashboard-chart":{"w":1020,"h":445,"b":{}},"dashboard-ahead":{"w":1020,"h":335,"b":{}},"dashboard-closed":{"w":1020,"h":168,"b":{}},"settings-terms":{"w":1068,"h":461,"b":{"rate":[0.0234,0.37,0.9532,0.0912]}},"settings-gold":{"w":1068,"h":554,"b":{"g22":[0.1864,0.4424,0.1837,0.0758],"updated":[0.7032,0.4271,0.2734,0.1065]}},"settings-calls":{"w":1068,"h":293,"b":{}},"settings-messages":{"w":1068,"h":1116,"b":{"template":[0.0234,0.16,0.4691,0.2312],"preview":[0.5075,0.1335,0.4691,0.1998],"approve":[0.5075,0.8633,0.4691,0.0215]}},"settings-backups":{"w":1068,"h":437,"b":{"last":[0.0234,0.3585,0.9532,0.0549]}},"customers":{"w":1068,"h":757,"b":{"filter":[0.0234,0.107,0.9532,0.0555],"active":[0.0234,0.1836,0.9532,0.0317],"sort":[0.1087,0.247,0.0455,0.0269],"new":[0.8341,0.033,0.1425,0.0528]}},"customer-new":{"w":828,"h":669,"b":{"phone":[0.3249,0.4928,0.6449,0.0628],"warning":[0.3249,0.564,0.6449,0.0359],"referrer":[0.0326,0.7548,0.9348,0.1211]}},"customer":{"w":828,"h":923,"b":{"photo":[0.0302,0.1698,0.2657,0.2383],"shared":[0.0302,0.1265,0.9396,0.026],"referrer":[0.3249,0.2392,0.1516,0.026],"mortgages":[0.0302,0.4168,0.1171,0.0304],"history":[0.0302,0.7131,0.9396,0.0304]}},"referrer":{"w":828,"h":242,"b":{}},"mortgage-new":{"w":1068,"h":1278,"b":{"active":[0.0234,0.1166,0.9532,0.022],"name":[0.0234,0.5468,0.9532,0.0329],"terms":[0.0253,0.6153,0.9494,0.2314],"photos":[0.0253,0.8592,0.9494,0.0774]}},"mortgage-new-confirm":{"w":520,"h":766,"b":{}},"mortgage":{"w":1280,"h":860,"b":{"tiles":[0.1023,0.1949,0.7953,0.1112],"pay":[0.7836,0.1376,0.1141,0.0356],"edit":[0.7333,0.1364,0.0409,0.0379]}},"mortgage-collateral":{"w":1020,"h":161,"b":{}},"mortgage-ledger":{"w":1020,"h":734,"b":{}},"mortgage-history":{"w":1020,"h":241,"b":{}},"mortgage-projection":{"w":1020,"h":837,"b":{"whatif":[0.001,0.088,0.2196,0.0502]}},"mortgage-terms":{"w":1020,"h":233,"b":{"coming":[0.0888,0.6005,0.0781,0.1397]}},"mortgage-photos":{"w":1020,"h":319,"b":{}},"edit-preview":{"w":1068,"h":2342,"b":{"principal":[0.5075,0.1137,0.4691,0.0179],"owed":[0.0234,0.2466,0.471,0.0521],"ledger":[0.0234,0.5634,0.3106,0.0158]}},"terms-preview":{"w":1068,"h":1493,"b":{"from":[0.0234,0.1197,0.9532,0.0255],"owed":[0.0234,0.4097,0.471,0.0817]}},"payment-new":{"w":1068,"h":832,"b":{"amount":[0.3461,0.1866,0.3077,0.0505],"modes":[0.0412,0.3496,0.1608,0.0289],"split":[0.0412,0.3976,0.9176,0.1435],"owed":[0.4995,0.3976,0.3226,0.0443],"full":[0.3461,0.2438,0.2473,0.0385],"preview":[0.0234,0.7823,0.9532,0.0338]}},"payment-refused":{"w":1018,"h":572,"b":{"refusal":[0,0.8182,1,0.042],"save":[0,0.9161,0.2623,0.0699]}},"payment":{"w":1068,"h":940,"b":{"alloc":[0.0225,0.2351,0.9551,0.1867],"receipt":[0.0225,0.4345,0.9551,0.5485],"void":[0.9126,0.0284,0.064,0.0347]}},"receipt":{"w":1068,"h":545,"b":{}},"payment-void":{"w":900,"h":774,"b":{}},"payments":{"w":1068,"h":1389,"b":{"voided":[0.85,0.3063,0.0524,0.0155]}},"call-list":{"w":1068,"h":482,"b":{"customer":[0.0234,0.5389,0.2397,0.3075],"count":[0.0346,0.6268,0.0861,0.0373],"reach":[0.0346,0.6836,0.2168,0.0676],"why":[0.5127,0.7193,0.1446,0.0463],"legend":[0.6176,0.3406,0.359,0.0529],"called":[0.8065,0.6562,0.1588,0.1725],"mark":[0.8065,0.5575,0.1072,0.0634],"chat":[0.1659,0.6836,0.0309,0.0676]}},"mortgages-customer":{"w":1068,"h":454,"b":{"note":[0.0234,0.3017,0.9532,0.0718]}},"closures":{"w":1068,"h":543,"b":{"choose":[0.0384,0.5104,0.0122,0.024]}},"redeem":{"w":1018,"h":1233,"b":{"date":[0.0167,0.0772,0.9666,0.0357],"amount":[0.0167,0.2139,0.1729,0.0389]}},"waive":{"w":1018,"h":1479,"b":{}},"closures-waive":{"w":1068,"h":825,"b":{}},"redeemed":{"w":1018,"h":123,"b":{}},"forfeited":{"w":1018,"h":285,"b":{}},"waived":{"w":1018,"h":285,"b":{}},"start-screen":{"w":860,"h":226,"b":{"start":[0.0291,0.7124,0.3007,0.177]}},"update-banner":{"w":1068,"h":204,"b":{}},"notices":{"w":1068,"h":374,"b":{"tabs":[0.0234,0.4631,0.9532,0.0642],"row":[0.0234,0.6689,0.9532,0.1328]}},"notice":{"w":640,"h":432,"b":{"approve":[0.799,0.8473,0.1619,0.0926]}},"notices-send":{"w":1068,"h":374,"b":{"send":[0.8281,0.6943,0.074,0.0819]}},"payment-redeem":{"w":520,"h":359,"b":{}},"receipt-redeemed":{"w":1068,"h":463,"b":{}}}
 
 // Scenes: numbered markers on each screenshot, stepped through by click or ← →.
 for (const scene of document.querySelectorAll('figure.scene')) {
@@ -743,11 +741,12 @@ const rupees = (n) => '₹' + Math.round(n).toLocaleString('en-IN')
   draw()
 })()
 
-// Splitting a Payment across Meera's Mortgages: unpaid interest first, then Principal.
+// Splitting a Payment across Meera's Mortgages: unpaid interest first (the Interest to
+// Date included, as on the Mortgage page), then Principal.
 ;(() => {
   const mortgages = [
-    { name: 'Gold chain with pendant', principal: 80000, interest: 2800 },
-    { name: 'Pair of bangles', principal: 149000, interest: 0 },
+    { name: 'Gold chain with pendant', principal: 80000, interest: 3333 },
+    { name: 'Pair of bangles', principal: 150000, interest: 1500 },
   ]
   const total = document.getElementById('s-total'), pct = document.getElementById('s-pct'), pctOut = document.getElementById('s-pct-out')
   const pctLabel = document.getElementById('s-pct-label'), rows = document.getElementById('s-rows'), verdict = document.getElementById('s-verdict')
@@ -790,7 +789,7 @@ const rupees = (n) => '₹' + Math.round(n).toLocaleString('en-IN')
     }).join('')
     if (over) { verdict.className = 'verdict bad'; verdict.textContent = `The Preview would refuse this: more than the ${rupees(owed(over))} the ${over.name.toLowerCase()} owes. Record Payment stays off.` }
     else if (!sum) { verdict.className = 'verdict'; verdict.textContent = 'Enter the amount received.' }
-    else { verdict.className = 'verdict good'; verdict.textContent = 'Fine to record. Within each Mortgage the Allocation pays unpaid interest first, then Principal.' }
+    else { verdict.className = 'verdict good'; verdict.textContent = 'Fine to record. Within each Mortgage the Allocation pays unpaid interest first, then the Interest to Date, then Principal.' }
   }
   buttons.forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode; buttons.forEach((x) => x.setAttribute('aria-pressed', String(x === b))); draw() }))
   total.addEventListener('input', draw)

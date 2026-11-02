@@ -191,7 +191,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
   <h1>Mortgage Book Walkthrough</h1>
   <p class="lede">One Lender, one laptop, a book of gold-jewellery pledges. This guide follows a pledge through its whole life in the app: the morning view of the book, setting the rules, meeting a Customer, lending against their jewellery, taking Payments, following up, and closing the Mortgage. Each stop says where to click, what to say, and the details worth pointing out.</p>
   <div class="facts">
-    <span>Version: <b>2.0.0</b></span>
+    <span>Version: <b>3.0.0</b></span>
     <span>App: <b>http://127.0.0.1:8080</b></span>
     <span>Figures: <b>the live book on 18 Oct 2026</b></span>
     <span>Money: <b>₹, Indian digit grouping</b></span>
@@ -293,7 +293,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
     </div>
   </div>
   <div class="nuances">
-    <div class="nuance rule"><b>Nothing owed is stored</b><span>Outstanding, the Ledger and Redemption Amounts are replayed from the Terms and Payments every time, so a correction anywhere shows everywhere at once.</span></div>
+    <div class="nuance rule"><b>Nothing owed is stored</b><span>Outstanding, the Interest to Date and the Ledger are replayed from the Terms and Payments every time, so a correction anywhere shows everywhere at once. Outstanding is what would Redeem a Mortgage that day (ADR-0011).</span></div>
     <div class="nuance"><b>Exact versus estimate</b><span>Projections (exact) and Trend (estimate) are labelled in different colours, so nobody mistakes a guess for a promise.</span></div>
     <div class="nuance"><b>Back from another page</b><span>Figures you saw earlier show at once, dimmed, until the fresh ones arrive.</span></div>
     <div class="nuance"><b>Light or dark</b><span>The round switch at the top right follows the browser's theme until the Lender picks one, and remembers the choice on the laptop.</span></div>
@@ -402,7 +402,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <dt>Compounded Monthly</dt><dd>capitalised every month</dd>
         <dt>Part-Month Rule</dt><dd>pro-rata · full month · nothing</dd>
       </dl>
-      <p class="note">The Part-Month Rule decides what is charged for the days since the last Accrual Date when a Mortgage is redeemed.</p>
+      <p class="note">The Part-Month Rule decides how the Interest to Date is charged for the month under way: pro-rata, the full month once it starts, or nothing. It is part of what is owed every day, not only at Redemption.</p>
     </div>
   </div>
   <div class="nuances">
@@ -424,7 +424,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div>
       <div class="block-title">Show, top to bottom</div>
       <ol class="steps">
-        <li><span>The three tiles: <span class="ui">Outstanding</span>, <span class="ui">Principal</span>, <span class="ui">Unpaid interest</span>. Mortgage 10 lent ₹1,20,000 in April 2025 and owes ₹1,98,342 today.</span></li>
+        <li><span>The three tiles: <span class="ui">Outstanding</span>, <span class="ui">Principal</span>, <span class="ui">Unpaid interest</span>. Outstanding is what would Redeem it today: unpaid interest includes the Interest to Date for the month under way, shown in italics at the foot of the Ledger. Mortgage 10 lent ₹1,20,000 in April 2025 and owes ₹1,98,342 today.</span></li>
         <li><span><span class="ui">Terms</span>: on Mortgage 3, a Term Change is <em>coming</em> from 1 Mar 2027 (10% a month) and can still be removed.</span></li>
         <li><span><span class="ui">Collateral Value</span> and Loan-to-Value, with <span class="ui">Set by hand…</span>. The confirmation says whether that puts it on or off the Call List.</span></li>
         <li><span><span class="ui">Ledger</span>: the latest 8 steps; <span class="ui">Show complete Ledger</span> opens all of them. Each line spells out its calculation ("Interest: 3% of ₹…").</span></li>
@@ -456,7 +456,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <h2 id="s6-title">Changes, with a Preview first</h2>
     <p class="open">From a Mortgage: <span class="ui">Edit</span> (<span class="path">/mortgages/10/edit</span>) and <span class="ui">Change Terms…</span> (<span class="path">/mortgages/10/terms</span>)</p>
   </div>
-  <p class="say">"Any change that affects money shows its effect before it is saved: what is owed today, the Redemption Amount in 3, 6 and 12 months, and exactly which Ledger lines would change. If the change isn't allowed, the Preview says why and Save stays off."</p>
+  <p class="say">"Any change that affects money shows its effect before it is saved: what is owed today, the Outstanding in 3, 6 and 12 months, and exactly which Ledger lines would change. If the change isn't allowed, the Preview says why and Save stays off."</p>
   <div class="cols">
     <div>
       <div class="block-title">Show</div>
@@ -497,9 +497,9 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div>
       <div class="block-title">Show</div>
       <ol class="steps">
-        <li><span>Choose the Customer. Their Active Mortgages are listed with what each owes on the Payment date and what it would take to Redeem it that day (<span class="ui">To redeem on …</span>), so a back-dated Payment sees back-dated figures.</span></li>
-        <li><span>Enter the amount, or click <span class="ui">The full Outstanding on the chosen Mortgages</span> or <span class="ui">Pay the full Redemption Amount</span>. Split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>; ticked Mortgages stay together at the top, and equal shares fill each up to its Redemption Amount first.</span></li>
-        <li><span>With a whole Redemption Amount in an Allocation, <span class="ui">Record Payment</span> asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment would Redeem it. Press <span class="ui">Go back</span>.</span></li>
+        <li><span>Choose the Customer. Their Active Mortgages are listed with one figure each, the Outstanding on the Payment date, which is what would Redeem it that day, so a back-dated Payment sees back-dated figures.</span></li>
+        <li><span>Enter the amount, or click <span class="ui">Pay the full Outstanding</span>. Split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>; ticked Mortgages stay together at the top, and equal shares fill each up to its Outstanding first.</span></li>
+        <li><span>With a whole Outstanding in an Allocation, <span class="ui">Record Payment</span> asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment would Redeem it. Press <span class="ui">Go back</span>.</span></li>
         <li><span>Type more than is owed: the Preview gives the reason ("would be more than the ₹… owed then") and Save stays off.</span></li>
         <li><span>Open an existing Payment: each Allocation split into interest and Principal, the <span class="ui">Receipt</span> as it appears in WhatsApp, and <span class="ui">Print or save as PDF</span>.</span></li>
         <li><span>Show <span class="ui">Void…</span>: it needs a reason and previews the effect. Cancel.</span></li>
@@ -514,7 +514,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <dt>Split across Mortgages</dt><dd>2 Payments (2 and 3 ways)</dd>
       </dl>
       <div class="split" aria-label="How an Allocation is applied">
-        <div class="legend"><span><i style="background: var(--owed)"></i>unpaid interest first</span><span><i style="background: var(--money-in)"></i>then Principal</span></div>
+        <div class="legend"><span><i style="background: var(--owed)"></i>unpaid interest first, the Interest to Date included</span><span><i style="background: var(--money-in)"></i>then Principal</span></div>
         <div class="split-row"><span>Allocation A</span><div class="split-bar" style="--i: 100%"></div><span class="num muted">all interest</span></div>
         <div class="split-row"><span>Allocation B</span><div class="split-bar" style="--i: 40%"></div><span class="num muted">part Principal</span></div>
       </div>
@@ -528,11 +528,10 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     </div>
   </div>
   <div class="nuances">
-    <div class="nuance rule"><b>Within a Mortgage: interest, then Principal</b><span>Each Allocation pays unpaid interest before it reduces Principal.</span></div>
+    <div class="nuance rule"><b>Within a Mortgage: interest, then Principal</b><span>Each Allocation pays unpaid interest, then the Interest to Date, then Principal.</span></div>
     <div class="nuance"><b>Voided, never deleted</b><span>A Voided Payment stays on record with its reason but counts in no Ledger. A correction is entered as a new Payment.</span></div>
     <div class="nuance"><b>Receipts speak the Customer's language</b><span>They name each Mortgage by its jewellery ("Gold chain"), never its Mortgage Name, and show what is still owed.</span></div>
-    <div class="nuance rule"><b>A whole Redemption Amount Redeems</b><span>Paying a Mortgage's whole Redemption Amount Redeems it with that Payment, all or none with its other parts, and one Receipt marks what went home. It isn't accepted as an ordinary Allocation.</span></div>
-    <div class="nuance"><b>Paid up to date? Redeem now</b><span>If a Payment clears what a Mortgage owes but a part-month is left, the app offers "Paid up to …: Redeem now?", with that charge as the final Payment and a Preview.</span></div>
+    <div class="nuance rule"><b>A whole Outstanding Redeems</b><span>Paying a Mortgage's whole Outstanding Redeems it with that Payment, all or none with its other parts, and one Receipt marks what went home. It isn't accepted as an ordinary Allocation.</span></div>
   </div>
 </section>
 
@@ -589,14 +588,13 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     <h2 id="s9-title">Closing a Mortgage: Redeem, Waive off or Forfeit</h2>
     <p class="open">Open <span class="path">/closures</span> (Redeem / Forfeit), and <span class="ui">Close this Mortgage</span> on <span class="path">/mortgages/4</span></p>
   </div>
-  <p class="say">"Every pledge ends one of three ways: the Customer pays in full and takes the jewellery home; they pay nearly all of it and the Lender, at their discretion, lets off the small balance left and hands the jewellery back; or they default and the Lender keeps or sells it. The app works out the exact Redemption Amount for any date, records what was let off on a Waiver, and the profit or loss on a Forfeiture."</p>
+  <p class="say">"Every pledge ends one of three ways: the Customer pays in full and takes the jewellery home; they pay nearly all of it and the Lender, at their discretion, lets off the little that is left and hands the jewellery back; or they default and the Lender keeps or sells it. The app works out the exact Outstanding for any Closure date, records what was let off on a Waiver, and the profit or loss on a Forfeiture."</p>
   <div class="cols">
     <div>
       <div class="block-title">Show</div>
       <ol class="steps">
-        <li><span>Point to the dot on <span class="ui">Redeem / Forfeit</span> in the menu: a Mortgage is paid off and waiting for its jewellery to go back.</span></li>
-        <li><span>On the page, <span class="ui">Ready to Redeem</span> lists it (Mortgage 4 owes ₹0). Below, under <span class="ui">Forfeit or Waive off</span>, Active Mortgages still owing can be ticked and closed together: choose <span class="ui">Forfeit</span> or <span class="ui">Waive off</span> for the chosen. A Preview shows each Closure first, and they close all or none: if one is refused, nothing is closed and the reason names it.</span></li>
-        <li><span>On a Mortgage, press <span class="ui">Redeem…</span>: pick a date to see the Redemption Amount (Principal, unpaid interest, part-month charge). A future date gives a quote only. (When the Customer brings it all at once, taking it on New Payment Redeems the Mortgage too: Stop 7.)</span></li>
+        <li><span>Open <span class="ui">Redeem / Forfeit</span>. Under <span class="ui">Forfeit or Waive off</span>, Active Mortgages still owing can be ticked and closed together: choose <span class="ui">Forfeit</span> or <span class="ui">Waive off</span> for the chosen. A Preview shows each Closure first, and they close all or none: if one is refused, nothing is closed and the reason names it.</span></li>
+        <li><span>On a Mortgage, press <span class="ui">Redeem…</span>: pick a date to see its Outstanding then (Principal, unpaid interest, the Interest to Date). A future date gives a quote only. (When the Customer brings it all at once, taking it on New Payment Redeems the Mortgage too: Stop 7.)</span></li>
         <li><span>Switch to <span class="ui">Waive off…</span>: enter what the Customer pays now (₹0 is allowed) and the amount let off appears, with the button reading <span class="ui">Waive off ₹…</span>. Paying the full amount is refused: Redeem instead. Cancel.</span></li>
         <li><span>Switch to <span class="ui">Forfeit…</span>: enter the Recovered Amount and the profit or loss appears. Cancel.</span></li>
         <li><span>On a closed Mortgage, show <span class="ui">Reopen…</span>: it needs a reason, and its Preview shows interest charged for the whole time.</span></li>
@@ -606,7 +604,6 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
       <div class="block-title">In the book</div>
       <dl>
         <dt>Active</dt><dd>10</dd>
-        <dt>Ready to Redeem</dt><dd>1 (Mortgage 4)</dd>
         <dt>Redeemed this month</dt><dd>2</dd>
         <dt>Waived off</dt><dd>0</dd>
         <dt>Forfeited</dt><dd>0</dd>
@@ -615,11 +612,11 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     </div>
   </div>
   <div class="nuances">
-    <div class="nuance rule"><b>The final Payment includes the part-month charge</b><span>Redeeming records it as a Payment, so the Receipt and the Ledger agree.</span></div>
+    <div class="nuance rule"><b>The final Payment includes the Interest to Date</b><span>Redeeming records the Outstanding on the Closure date as a Payment, so the Receipt and the Ledger agree.</span></div>
     <div class="nuance"><b>A Waiver is the Lender's choice</b><span>What the Customer pays is recorded as the final Payment, and their Receipt shows nothing still owed. The rest is let off and counted on the Dashboard's <span class="ui">Waived off</span> tile.</span></div>
     <div class="nuance"><b>No closing before a later Payment</b><span>A Closure can't be dated before a Payment already recorded.</span></div>
     <div class="nuance"><b>Reopen undoes completely</b><span>The Mortgage is Active as if never closed, and a Redemption's or Waiver's final Payment is Voided, leaving any other part of the Payment it came in.</span></div>
-    <div class="nuance"><b>"Can't redeem" says why</b><span>When a Redemption Amount can't be worked out, a compact red marker shows instead; hover, focus or tap it for the reason.</span></div>
+    <div class="nuance"><b>"Can't redeem" says why</b><span>When a Mortgage can't be closed on the date chosen, a compact red marker shows instead of its Outstanding; hover, focus or tap it for the reason.</span></div>
   </div>
 </section>
 

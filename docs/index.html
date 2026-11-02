@@ -166,11 +166,11 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
 <main class="page">
 
 <header class="intro">
-  <div class="eyebrow">Mortgage Management 2.0.0 · documentation</div>
+  <div class="eyebrow">Mortgage Management 3.0.0 · documentation</div>
   <h1>Mortgage Management</h1>
   <p class="lede">A lending book for a jeweller who lends against gold. One Lender keeps every Customer, every pledged packet of jewellery, every Payment and every follow-up in one app on their own laptop. The app works out what each Mortgage owes on any date, prepares the day's Notices and phone calls, and keeps every change.</p>
   <div class="facts">
-    <span>Version: <b>2.0.0</b></span>
+    <span>Version: <b>3.0.0</b></span>
     <span>Runs on: <b>the Lender's laptop, Windows or anywhere with Docker</b></span>
     <span>Opens at: <b>http://localhost:8080</b></span>
     <span>Money: <b>₹, Indian digit grouping</b></span>
@@ -313,7 +313,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </article>
 
     <article class="feature" style="--tone: var(--accent)">
-      <img src="shots/edit-preview.webp" width="1068" height="2301" alt="Editing a Mortgage's Principal: the Preview shows owed today, the Redemption Amount over the next year, a chart and the Ledger steps that change." loading="lazy">
+      <img src="shots/edit-preview.webp" width="1068" height="2342" alt="Editing a Mortgage's Principal: the Preview shows owed today, the Outstanding over the next year, a chart and the Ledger steps that change." loading="lazy">
       <div class="feature-body">
         <h3>Previews and Term Changes</h3>
         <p>Any change that affects money shows what it would do before it is saved, or says why it isn't allowed.</p>
@@ -327,15 +327,14 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </article>
 
     <article class="feature" style="--tone: var(--money-in)">
-      <img src="shots/payment-new.webp" width="1068" height="1808" alt="Recording a Payment split equally across two Mortgages, beside each one's Outstanding and Redemption Amount, with a Preview for each." loading="lazy">
+      <img src="shots/payment-new.webp" width="1068" height="832" alt="Recording a Payment split equally across two Mortgages, beside each one's Outstanding, with a Preview for each." loading="lazy">
       <div class="feature-body">
         <h3>Payments and Receipts</h3>
         <p>One sum entered once and split across a Customer's Mortgages, with a Receipt for WhatsApp or print.</p>
         <ul>
           <li>Split equally, by amount or by percentage</li>
-          <li>Each Mortgage's Redemption Amount on the Payment date, beside what it owes</li>
-          <li>A whole Redemption Amount Redeems the Mortgage, with one Receipt</li>
-          <li>Paid up to the last Accrual Date? The app offers to Redeem on the spot</li>
+          <li>One figure per Mortgage: its Outstanding on the Payment date, what would Redeem it</li>
+          <li>A whole Outstanding Redeems the Mortgage, with one Receipt</li>
           <li>Void with a reason; never deleted</li>
         </ul>
         <div class="more"><a href="walkthrough.html#s7">Walkthrough §7</a><a href="story.html#pays">Story: Meera pays</a></div>
@@ -371,12 +370,12 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </article>
 
     <article class="feature" style="--tone: var(--closed)">
-      <img src="shots/closures.webp" width="1068" height="818" alt="Redeem / Forfeit: a Mortgage Ready to Redeem, and Active Mortgages that can be Forfeited or Waived off." loading="lazy">
+      <img src="shots/closures.webp" width="1068" height="543" alt="Redeem / Forfeit: Active Mortgages, each with its Outstanding today, that can be Forfeited or Waived off together." loading="lazy">
       <div class="feature-body">
         <h3>Redeem, Waive off, Forfeit</h3>
         <p>Every Mortgage ends with an exact amount: paid in full, the small rest let off, or the jewellery kept.</p>
         <ul>
-          <li>The Redemption Amount for any date, broken down</li>
+          <li>The Outstanding on any Closure date, broken down</li>
           <li>Redeemed by the Payment that brings it in full</li>
           <li>The amount let off on a Waiver; profit or loss on a Forfeiture</li>
           <li>Several Mortgages closed together</li>
@@ -430,11 +429,10 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <div class="flow-body">
         <ol class="steps">
           <li><span><span class="ui">Payments → New Payment</span>, and choose the Customer. Set the date the money came in; the figures shown are as of that date.</span></li>
-          <li><span>Enter the amount and the method (Cash, UPI or bank transfer), or press <span class="ui">The full Outstanding on the chosen Mortgages</span> or <span class="ui">Pay the full Redemption Amount</span>.</span></li>
-          <li><span>Tick the Mortgages it is for and split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>. Each row shows what the Mortgage owes and what it would take to Redeem it on that date; the Preview shows what each will owe afterwards.</span></li>
-          <li><span>If an Allocation is its Mortgage's whole Redemption Amount, the app asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment Redeems it, alongside any other parts, all or none.</span></li>
+          <li><span>Enter the amount and the method (Cash, UPI or bank transfer), or press <span class="ui">Pay the full Outstanding</span>.</span></li>
+          <li><span>Tick the Mortgages it is for and split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>. Each row shows the Mortgage's Outstanding on that date, which is what would Redeem it; the Preview shows what each will owe afterwards.</span></li>
+          <li><span>If an Allocation is its Mortgage's whole Outstanding, the app asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment Redeems it, alongside any other parts, all or none.</span></li>
           <li><span>Record it: the Receipt opens, covering everything handed over and marking what was Redeemed. <span class="ui">Send on WhatsApp</span> or <span class="ui">Print or save as PDF</span>.</span></li>
-          <li><span>If it paid a Mortgage up to its last Accrual Date, the app offers <span class="ui">Paid up to …: Redeem now?</span>, with the part-month charge as the final Payment and a Preview.</span></li>
         </ol>
         <p class="tip">Entered the wrong amount? Open the Payment, press <span class="ui">Void…</span> with a reason, and record it again.</p>
       </div>
@@ -480,8 +478,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <summary><b>Close a Mortgage</b><span>Redeem, Waive off or Forfeit</span></summary>
       <div class="flow-body">
         <ol class="steps">
-          <li><span><span class="ui">Redeem / Forfeit</span> in the menu shows a dot when a Mortgage is paid off and waiting for its jewellery to go back.</span></li>
-          <li><span><b>Redeem</b>: take the whole Redemption Amount as a Payment (it Redeems the Mortgage), or on the Mortgage press <span class="ui">Redeem…</span>, pick the date and record the Redemption Amount (Principal, unpaid interest and any part-month charge) as the final Payment.</span></li>
+          <li><span><b>Redeem</b>: take the whole Outstanding as a Payment (it Redeems the Mortgage), or on the Mortgage press <span class="ui">Redeem…</span>, pick the date and record its Outstanding then (Principal, unpaid interest and the Interest to Date) as the final Payment.</span></li>
           <li><span><b>Waive off</b>: when the Customer pays nearly all and the Lender lets the rest go, enter what they paid now (₹0 is allowed). The amount let off is shown and recorded.</span></li>
           <li><span><b>Forfeit</b>: when the Customer has defaulted, enter the Recovered Amount the jewellery fetched or is worth. The profit or loss is shown.</span></li>
           <li><span>To close several at once, tick them under <span class="ui">Forfeit or Waive off</span> on the Redeem / Forfeit page. They close together, all or none, after a Preview of each.</span></li>
@@ -533,7 +530,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div class="nuance rule"><b>Charged on start-of-month Principal</b><span>Each month's interest is on the Principal as it stood at the previous Accrual Date, so paying Principal the day before an Accrual Date doesn't skip a month.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR-0006</a></div>
         <div class="nuance"><b>Accrual Dates follow the start date</b><span>A Mortgage started on the 31st accrues on the 31st, or on the month's last day when it is shorter.</span></div>
         <div class="nuance"><b>Three Interest Modes</b><span>Simple: interest never earns interest. Compounded Yearly: simple each month, unpaid interest moved into Principal every year. Compounded Monthly: moved in every month.</span></div>
-        <div class="nuance"><b>The Part-Month Rule</b><span>What is charged for the days since the last Accrual Date when a Mortgage is redeemed: pro-rata, a full month, or nothing.</span></div>
+        <div class="nuance"><b>The Part-Month Rule</b><span>How the Interest to Date is charged for the month under way: pro-rata (each day started, out of 30), the full month once it starts, or nothing.</span></div>
+        <div class="nuance rule"><b>Outstanding includes today's interest</b><span>What a Mortgage owes on a date is what would Redeem it that day: Principal, unpaid interest and the Interest to Date, counted from the month's first day through that date. A Full-month Mortgage of ₹3,000 at 3% owes ₹3,090 the day it starts.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR-0011</a></div>
         <div class="nuance rule"><b>Term Changes never rewrite the past</b><span>They start on an Accrual Date and apply from then on. Changing the Default Terms never touches existing Mortgages.</span></div>
         <div class="nuance"><b>Capitalised interest still counts as unpaid</b><span>For Months Unpaid, interest moved into Principal is still interest the Customer hasn't paid. Payments clear the oldest first.</span></div>
       </div>
@@ -542,10 +540,10 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <div class="group">
       <h3>Payments and Closures</h3>
       <div class="nuances">
-        <div class="nuance rule"><b>Interest first, then Principal</b><span>Within each Mortgage, an Allocation pays unpaid interest before it reduces Principal.</span></div>
+        <div class="nuance rule"><b>Interest first, then Principal</b><span>Within each Mortgage, an Allocation pays unpaid interest, then the Interest to Date, then Principal. What it pays of the Interest to Date counts against the month's interest when it is charged.</span></div>
         <div class="nuance"><b>No paying more than is owed</b><span>A Payment larger than a Mortgage owes on its date is refused, with the reason.</span></div>
-        <div class="nuance rule"><b>A whole Redemption Amount Redeems</b><span>Paying a Mortgage's whole Redemption Amount (when it could be Redeemed that day) Redeems it with that Payment; it isn't accepted as an ordinary Allocation. Equal shares fill each Mortgage up to its Redemption Amount, then share the rest.</span></div>
-        <div class="nuance"><b>The final Payment includes the part-month charge</b><span>Redeeming records the Redemption Amount as a Payment, so the Receipt and the Ledger agree.</span></div>
+        <div class="nuance rule"><b>A whole Outstanding Redeems</b><span>Paying a Mortgage's whole Outstanding (when it could be Redeemed that day) Redeems it with that Payment; it isn't accepted as an ordinary Allocation. Equal shares fill each Mortgage up to its Outstanding, then share the rest.</span></div>
+        <div class="nuance"><b>The final Payment includes the Interest to Date</b><span>Redeeming records the Outstanding on the Closure date as a Payment, so the Receipt and the Ledger agree. A Waived Amount and a Forfeiture's profit or loss are worked out from that Outstanding too.</span></div>
         <div class="nuance"><b>A Waiver is the Lender's choice</b><span>What the Customer pays is the final Payment; the rest is let off and counted on the Dashboard. Paying the full amount is a Redemption, not a Waiver.</span></div>
         <div class="nuance"><b>No closing before a later Payment</b><span>A Closure can't be dated before a Payment already recorded on that Mortgage.</span></div>
         <div class="nuance"><b>Closed means locked</b><span>A closed Mortgage takes no Payments, accrues nothing, and its start date and Principal can't be edited until it is Reopened.</span></div>
@@ -555,7 +553,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <div class="group">
       <h3>The figures you can trust</h3>
       <div class="nuances">
-        <div class="nuance rule"><b>Nothing owed is stored</b><span>Outstanding, the Ledger and Redemption Amounts are replayed from the Terms and Payments every time, so a correction anywhere shows everywhere at once.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR-0001</a></div>
+        <div class="nuance rule"><b>Nothing owed is stored</b><span>Outstanding, the Interest to Date and the Ledger are replayed from the Terms and Payments every time, so a correction anywhere shows everywhere at once.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR-0001</a></div>
         <div class="nuance rule"><b>A Preview is the real change, undone</b><span>The change is made with every check a save would run, read, then rolled back. A Preview can't disagree with the save.</span></div>
         <div class="nuance"><b>Exact versus estimate</b><span>Projections replay the Mortgages and are exact; Trends carry the last three months forward and are labelled as estimates.</span></div>
         <div class="nuance"><b>History is never edited</b><span>Every change to a Customer, Mortgage or Payment is kept, with old and new values, and can't be changed or removed.</span></div>
@@ -612,8 +610,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <div><dt>Principal</dt><dd>What interest is charged on; grows when unpaid interest is capitalised, shrinks when Payments exceed interest.</dd></div>
     <div><dt>Accrual Date</dt><dd>The monthly day a month's interest is added.</dd></div>
     <div><dt>Ledger</dt><dd>The step-by-step history of a Mortgage's interest, capitalisations and Payments.</dd></div>
-    <div><dt>Outstanding</dt><dd>What a Mortgage owes on a date: Principal plus unpaid interest.</dd></div>
-    <div><dt>Redemption Amount</dt><dd>What must be paid on a date to redeem: the Outstanding plus any part-month charge.</dd></div>
+    <div><dt>Interest to Date</dt><dd>The interest for the month under way, as of a date, under its Part-Month Rule; it grows each day until the month's interest is charged on the next Accrual Date.</dd></div>
+    <div><dt>Outstanding</dt><dd>What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would Redeem it that day.</dd></div>
     <div><dt>Collateral Value</dt><dd>What the jewellery is worth now: its net weight at the Gold Rate, unless set by hand.</dd></div>
     <div><dt>Loan-to-Value</dt><dd>The Outstanding as a share of the Collateral Value.</dd></div>
     <div><dt>Allocation</dt><dd>The part of a Payment applied to one Mortgage.</dd></div>
@@ -643,6 +641,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <li><span class="no">0008</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0008-pwa-starts-the-app-through-a-link.md">The installed app starts and updates the app through a link</a></li>
     <li><span class="no">0009</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md">Each version in a folder of its own, switched to once it starts</a></li>
     <li><span class="no">0010</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md">Without Docker, the backend serves the app's screens</a></li>
+    <li><span class="no">0011</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">Outstanding includes the Interest to Date, today included</a></li>
   </ul>
 </section>
 
@@ -664,7 +663,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <span class="go">Read the story →</span>
     </a>
   </div>
-  <footer>Written for version 2.0.0. What changed in each version is in the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md">changelog</a>; the details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>. Screenshots use invented sample data.</footer>
+  <footer>Written for version 3.0.0. What changed in each version is in the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md">changelog</a>; the details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>. Screenshots use invented sample data.</footer>
 </section>
 
 </main>

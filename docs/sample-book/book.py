@@ -174,11 +174,11 @@ class Book:
     def mortgage_id(self, key: str) -> int:
         return int(self.mortgages[key]["id"])
 
-    def skip_notices_of(self, name: str) -> None:
-        for status in ("awaiting_approval", "queued"):
-            for notice in self.get("/api/notices", status=status)["items"]:
-                if notice["customer"]["name"] == name:
-                    self.post(f"/api/notices/{notice['id']}/skip")
+    def owed(self, key: str) -> int:
+        """What the Mortgage would take to close today: its Outstanding, in paise."""
+        quote = self.get(f"/api/mortgages/{self.mortgage_id(key)}/outstanding-on-closure",
+                         on=self.clock.day.isoformat())
+        return int(quote["total"])
 
 
 def events(book: Book) -> list[tuple[str, Any]]:
@@ -250,12 +250,14 @@ def events(book: Book) -> list[tuple[str, Any]]:
         # The bangles go to 1.5% a month from their next Accrual Date.
         ("2026-10-12", lambda: book.post(f"/api/mortgages/{book.mortgage_id('bangles')}/term-changes",
                                          {"effective_on": "2026-10-25", "monthly_rate_bps": 150})),
-        # Lakshmi pays off her necklace; Farida comes in ₹180 short and it is let off.
+        # Lakshmi pays her necklace's whole Outstanding, which Redeems it; Farida comes in
+        # ₹180 short and it is let off.
         ("2026-10-16", lambda: (
-            book.pay("lakshmi", {"necklace": 2_00_000}, method="bank_transfer", reference="NEFT final"),
+            book.pay("lakshmi", {"necklace": book.owed("necklace") / RUPEE}, method="bank_transfer",
+                     reference="NEFT final", redeeming=["necklace"]),
             book.post(f"/api/mortgages/{book.mortgage_id('nosering')}/waive", {
-                "waived_on": "2026-10-16", "amount_paid": rupees(30_500), "method": "cash",
-                "note": "Pays every month; ₹180 let off"}),
+                "waived_on": "2026-10-16", "amount_paid": book.owed("nosering") - rupees(180),
+                "method": "cash", "note": "Pays every month; ₹180 let off"}),
         )),
         # The day of the story: today's Gold Rates, and Arjun called about his ring.
         ("2026-10-19", lambda: (
@@ -267,7 +269,6 @@ def events(book: Book) -> list[tuple[str, Any]]:
                 {"purity_karat": 14, "rate_per_gram": rupees(8_601)},
             ]),
             book.post(f"/api/mortgages/{book.mortgage_id('ring')}/call-notes", {"note": "Will pay after Diwali"}),
-            book.skip_notices_of("Lakshmi Iyer"),  # she has paid in full
         )),
     ]
     # The monthly Payments.
