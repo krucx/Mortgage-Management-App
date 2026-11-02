@@ -1,7 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { PURITIES, type Customer, type MortgageIn, type PaymentMethod, type Purity } from '../api'
+import {
+  PURITIES,
+  type Customer,
+  type MortgageIn,
+  type NewMortgagePreview,
+  type PaymentMethod,
+  type Purity,
+} from '../api'
 import { NewMortgageForecast } from '../components/ChangeForecasts'
 import { CustomerChooser } from '../components/CustomerChooser'
 import { Summary } from '../components/ConfirmDialog'
@@ -14,6 +21,7 @@ import { useCashWarning } from '../components/useCashWarning'
 import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
 import { useDraft } from '../components/useDraft'
+import { previewQuery } from '../components/usePreview'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { WeightFields } from '../components/WeightFields'
 import { formatDate, todayIso } from '../format'
@@ -23,6 +31,7 @@ import {
   createMortgage,
   customerQuery,
   everyMortgageQuery,
+  previews,
   settings,
   suggestedNameQuery,
 } from '../requests'
@@ -124,7 +133,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
     lentThrough: null as PaymentMethod | null,
   })
   const methods = usePaymentMethods()
-  const { client } = useServerState()
+  const { client, queryClient } = useServerState()
   const changeLedger = useLedgerChange()
   const [terms, setTerms] = useDraft(useQuery(settings.defaultTerms(client)).data, toDraft)
   const [typedName, setName] = useState('')
@@ -175,7 +184,15 @@ function MortgageForm({ customer }: { customer: Customer }) {
       terms: chosenTerms,
     }
     if (createdId === undefined) {
-      if (!(await warnCash({ amount: asked.amount_lent, method: asked.lent_through }))) return
+      // Warned from its Preview, as every change is: what it would lend in cash.
+      let preview: NewMortgagePreview
+      try {
+        preview = await queryClient.fetchQuery(previewQuery(client, previews.newMortgage(asked)))
+      } catch (err) {
+        setError((err as Error).message)
+        return
+      }
+      if (!(await warnCash(preview.cash))) return
       const confirmed = await confirm({
         title: `Create Mortgage ${name}?`,
         body: (

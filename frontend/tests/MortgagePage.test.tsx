@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MortgagePage } from '../src/pages/MortgagePage'
-import { fakeServer, type FakeServer } from './fakeServer'
+import { changePreview, fakeServer, type FakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -164,9 +164,9 @@ const closingPreview =
     const body = (await request.json()) as Record<string, unknown>
     const made = closureOf(body)
     if (typeof made === 'string') return Response.json({ detail: made }, { status: 422 })
-    return [
+    return changePreview([
       { mortgage_id: 7, mortgage_name: mortgage.name, before: side(null), after: side(made), ledger_changes: [] },
-    ]
+    ])
   }
 const paidOf = (body: Record<string, unknown>) =>
   (body.mortgages as { amount_paid: number }[])[0].amount_paid

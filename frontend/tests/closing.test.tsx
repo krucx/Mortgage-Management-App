@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { useClosing, type Closing } from '../src/components/useClosing'
 import { formatINR } from '../src/money'
-import { fakeServer, type FakeServer } from './fakeServer'
+import { changePreview, fakeServer, type FakeServer } from './fakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -37,13 +37,15 @@ const forfeited = (profitLoss: number) => ({
   note: 'Auctioned',
 })
 const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
-const preview = [3, 4].map((id, i) => ({
+const preview = changePreview(
+  [3, 4].map((id, i) => ({
   mortgage_id: id,
   mortgage_name: `Mortgage ${id}`,
   before: side(null),
   after: side(forfeited(i === 0 ? 60_000 : -1_340_000)),
   ledger_changes: [],
-}))
+  })),
+)
 
 const confirming = () => ({ title: 'Forfeit 2?', confirmLabel: 'Confirm Forfeiture' })
 
@@ -176,45 +178,4 @@ test('a closing whose own dialog already asked saves without asking again', asyn
 
   expect(await screen.findByText('Closed')).toBeTruthy()
   expect(screen.queryByRole('dialog')).toBeNull()
-})
-
-test('a Final Payment in cash at or above the Cash Limit is warned about before the confirmation', async () => {
-  const waiving: Closing = {
-    kind: 'waive',
-    waive: {
-      waived_on: '2026-04-20',
-      method: 'cash',
-      reference: null,
-      note: '',
-      mortgages: [
-        { mortgage_id: 3, amount_paid: 2_200_000 },
-        { mortgage_id: 4, amount_paid: 500_000 },
-      ],
-    },
-  }
-  // Each Final Payment as the Preview has it: the largest decides the warning.
-  const waived = (paid: number) => ({ ...forfeited(0), kind: 'waived', payment_amount: paid })
-  const server = fakeServer({
-    'GET /api/settings/cash-limit': { cash_limit: 2_000_000 },
-    'POST /api/closures/waive-preview': [3, 4].map((id) => ({
-      ...preview[0],
-      mortgage_id: id,
-      after: side(waived(id === 3 ? 2_200_000 : 500_000)),
-    })),
-    'POST /api/closures/waive': [],
-  })
-  showForm(server, <Form closing={waiving} />)
-
-  const submit = (await screen.findByRole('button', { name: 'Forfeit' })) as HTMLButtonElement
-  await vi.waitFor(() => expect(submit.disabled).toBe(false), { timeout: 2000 })
-  fireEvent.click(submit)
-  const warning = await screen.findByRole('dialog', { name: '₹22,000 in cash' })
-  fireEvent.click(within(warning).getByRole('button', { name: 'Record in cash anyway' }))
-  fireEvent.click(
-    within(await screen.findByRole('dialog', { name: 'Forfeit 2?' })).getByRole('button', {
-      name: 'Confirm Forfeiture',
-    }),
-  )
-
-  expect(await screen.findByText('Closed')).toBeTruthy()
 })

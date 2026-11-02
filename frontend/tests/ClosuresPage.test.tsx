@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ClosuresPage } from '../src/pages/ClosuresPage'
 import { formatDate, todayIso } from '../src/format'
-import { fakeServer } from './fakeServer'
+import { changePreview, fakeServer } from './fakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -49,13 +49,15 @@ async function waivePreview(request: Request) {
     note: null,
   })
   const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
-  return mortgages.map((m) => ({
+  return changePreview(
+mortgages.map((m) => ({
     mortgage_id: m.mortgage_id,
     mortgage_name: row.name,
     before: side(null),
     after: side(closure(m.amount_paid)),
     ledger_changes: [],
-  }))
+  })),
+  )
 }
 
 async function waiveOff(rupees: string) {
@@ -179,13 +181,15 @@ function forfeitRoutes(extra: Record<string, unknown>) {
       const { mortgages } = (await request.json()) as {
         mortgages: { mortgage_id: number; recovered_amount: number }[]
       }
-      return mortgages.map((m) => ({
+      return changePreview(
+mortgages.map((m) => ({
         mortgage_id: m.mortgage_id,
         mortgage_name: m.mortgage_id === 3 ? row.name : second.name,
         before: side(null),
         after: side(forfeited(m.recovered_amount)),
         ledger_changes: [],
-      }))
+      })),
+      )
     },
     ...extra,
   }

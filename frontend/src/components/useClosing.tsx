@@ -2,9 +2,7 @@ import type { Closure, ForfeitAllIn, Mortgage, RedeemAllIn, WaiveAllIn } from '.
 import { changes, previews, type PreviewRequest } from '../requests'
 import { keys, useLedgerChange, useServerState, type ApiClient } from '../serverState'
 import type { ConfirmOptions } from './ConfirmDialog'
-import type { Cash } from './useCashWarning'
 import { useProposedChange } from './useProposedChange'
-import type { Preview } from './usePreview'
 
 /** A Closure the Lender proposes: Redeeming, Waiving off or Forfeiting one or more
  *  Mortgages on a date. */
@@ -39,15 +37,6 @@ function requestsFor(closing: Closing): Requests {
   }
 }
 
-/** The largest Final Payment a Redemption or Waiver takes, as its Preview has it, and
- *  how: each Final Payment is its own Payment, so each is judged on its own. */
-function finalPaymentCash(closing: Closing, preview: Preview): Cash | null {
-  if (closing.kind === 'forfeit') return null
-  const method = closing.kind === 'redeem' ? closing.redeem.method : closing.waive.method
-  const paid = (preview.previews ?? []).map((p) => p.after.closure?.payment_amount ?? 0)
-  return { amount: Math.max(0, ...paid), method }
-}
-
 /**
  * Closing Mortgages, one or several at once: the Preview of `closing` as it is drafted,
  * the confirmation, and one save that closes all of them or (if the backend refuses
@@ -74,7 +63,6 @@ export function useClosing({
     change: closing,
     preview: (closing) => requestsFor(closing).preview(),
     confirm,
-    cash: finalPaymentCash,
     save: (closing) =>
       changeLedger(
         (client) => requestsFor(closing).save(client),
@@ -83,7 +71,7 @@ export function useClosing({
     saved,
   })
   // Only the Preview of this draft: while a newer one loads, nothing is shown.
-  const current = proposed.preview.loading ? [] : (proposed.preview.previews ?? [])
+  const current = proposed.preview.loading ? [] : (proposed.preview.previews?.mortgages ?? [])
   const closures = new Map(current.map((p) => [p.mortgage_id, p.after.closure]))
   return {
     ...proposed,

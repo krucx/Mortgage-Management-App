@@ -104,6 +104,8 @@ export type LedgerChange = Schemas['LedgerChange']
 export type PreviewSide = Schemas['PreviewSide']
 /** One Mortgage before and after a change that has not been saved. */
 export type MortgagePreview = Schemas['MortgagePreview']
+/** Each Mortgage a change touches, before and after, and the sums it would write in cash. */
+export type PreviewOfChange = Schemas['PreviewOfChange']
 export type NewMortgagePreview = Schemas['NewMortgagePreview']
 export type CollateralPreview = Schemas['CollateralPreview']
 /** What a Term Change says; anything left out carries over. */

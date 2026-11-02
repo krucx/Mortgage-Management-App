@@ -16,7 +16,6 @@ import type {
   Mortgage,
   MortgageEdit,
   MortgageIn,
-  MortgagePreview,
   MortgageSort,
   MortgageStatus,
   NewMortgagePreview,
@@ -25,6 +24,7 @@ import type {
   Payment,
   PaymentIn,
   PaymentSort,
+  PreviewOfChange,
   Purity,
   RedeemAllIn,
   TermChangeIn,
@@ -93,7 +93,7 @@ export const removeMortgagePhoto = (client: ApiClient, id: number, photoId: numb
   )
 
 /** A Preview of an unsaved change: which change it is, and how to ask for it. */
-export interface PreviewRequest<T = MortgagePreview[]> {
+export interface PreviewRequest<T = PreviewOfChange> {
   key: readonly unknown[]
   load: (client: ApiClient) => Promise<T>
 }

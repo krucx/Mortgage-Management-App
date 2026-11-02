@@ -27,3 +27,7 @@ export function fakeServer(routes: Record<string, Answer>): FakeServer {
     },
   }
 }
+
+/** A change's Preview as the backend answers it: each Mortgage it touches, and the sums
+ *  it would write in cash (none, unless given). */
+export const changePreview = (mortgages: unknown[], cash: number[] = []) => ({ mortgages, cash })

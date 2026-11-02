@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Payment, Receipt } from '../src/api'
 import { PaymentPage } from '../src/pages/PaymentPage'
-import { fakeServer } from './fakeServer'
+import { changePreview, fakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -50,7 +50,7 @@ test('after a Void, the Payment shows as voided and its Receipt, which no longer
     'GET /api/payments/9': () => (voided ? voidedPayment : payment),
     'GET /api/payments/9/receipt': () =>
       voided ? Response.json({ detail: 'Voided' }, { status: 409 }) : receipt,
-    'POST /api/payments/9/void-preview': [],
+    'POST /api/payments/9/void-preview': changePreview([]),
     'POST /api/payments/9/void': () => {
       voided = true
       return voidedPayment

@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { MortgagePreview, TermChangeIn } from '../src/api'
 import { ChangeTermsPage } from '../src/pages/ChangeTermsPage'
 import { MortgagePage } from '../src/pages/MortgagePage'
-import { fakeServer } from './fakeServer'
+import { changePreview, fakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -28,7 +28,7 @@ test('a new rate is previewed, then saved as a Term Change from the chosen Accru
     'GET /api/mortgages/7': mortgage,
     'POST /api/mortgages/7/term-changes/preview': async (request: Request) => {
       previewed.push(await request.json())
-      return [preview]
+      return changePreview([preview])
     },
     'POST /api/mortgages/7/term-changes': async (request: Request) => {
       saved.push(await request.json())
@@ -68,7 +68,7 @@ test('back on the Mortgage page, the saved Term Change shows at once, before the
   const server = fakeServer({
     // Once saved, asking again never answers: only what the save returned can be shown.
     'GET /api/mortgages/7': () => (saved ? new Promise(() => {}) : mortgage),
-    'POST /api/mortgages/7/term-changes/preview': [preview],
+    'POST /api/mortgages/7/term-changes/preview': changePreview([preview]),
     'POST /api/mortgages/7/term-changes': () => {
       saved = true
       return changed

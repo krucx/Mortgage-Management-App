@@ -51,6 +51,7 @@ from mortgage_backend.lending.projections import (
 )
 from mortgage_backend.lending.replay import Closure, MortgageStatus, replay
 from mortgage_backend.lending.terms import Terms
+from mortgage_backend.payments.cash_limit import before_change, cash_sums
 from mortgage_backend.payments.payments import mortgages_of
 from mortgage_backend.platform.clock import NowDep, TodayDep
 from mortgage_backend.platform.db import EngineDep
@@ -79,6 +80,14 @@ class MortgagePreview(BaseModel):
     before: PreviewSide
     after: PreviewSide
     ledger_changes: list[LedgerChange]
+
+
+class PreviewOfChange(BaseModel):
+    """Each Mortgage a change touches, before and after it, and the sums it would write
+    in cash, for the Cash Limit's warning."""
+
+    mortgages: list[MortgagePreview]
+    cash: list[int]  # paise; each judged on its own against the Cash Limit
 
 
 # The order steps happen in on one day, as the ledger engine lists them.
@@ -142,15 +151,18 @@ def _preview(
     mortgage_ids: Sequence[int],
     today: date,
     change: Callable[[], object],
-) -> list[MortgagePreview]:
-    """Each Mortgage before and after `change`, which is then undone."""
+) -> PreviewOfChange:
+    """Each Mortgage before and after `change`, which is then undone, and what it
+    would write in cash."""
     try:
         before = _snapshot(conn, mortgage_ids, today)
+        written = before_change(conn)
         change()
         after = _snapshot(conn, mortgage_ids, today)
+        cash = cash_sums(conn, written)
     finally:
         conn.rollback()
-    return [
+    mortgages = [
         MortgagePreview(
             mortgage_id=mortgage_id,
             mortgage_name=after[mortgage_id].name,
@@ -162,6 +174,7 @@ def _preview(
         )
         for mortgage_id in mortgage_ids
     ]
+    return PreviewOfChange(mortgages=mortgages, cash=cash)
 
 
 router = APIRouter(prefix="/api")
@@ -174,7 +187,7 @@ def preview_edit(
     engine: EngineDep,
     today: TodayDep,
     now: NowDep,
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     with engine.connect() as conn:
         return _preview(
             conn,
@@ -191,7 +204,7 @@ def preview_term_change(
     engine: EngineDep,
     today: TodayDep,
     now: NowDep,
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     with engine.connect() as conn:
         return _preview(
             conn,
@@ -204,7 +217,7 @@ def preview_term_change(
 @router.post("/payments/{payment_id}/void-preview")
 def preview_void(
     payment_id: int, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     """Every Mortgage the Payment was allocated to, before and after Voiding it."""
     with engine.connect() as conn:
         mortgage_ids = [m["id"] for m in mortgages_of(conn, payment_id)]
@@ -219,7 +232,7 @@ def preview_void(
 @router.post("/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview")
 def preview_term_change_removal(
     mortgage_id: int, change_id: int, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     with engine.connect() as conn:
         return _preview(
             conn,
@@ -232,7 +245,7 @@ def preview_term_change_removal(
 @router.post("/mortgages/{mortgage_id}/redeem-preview")
 def preview_redeem(
     mortgage_id: int, body: RedeemIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     with engine.connect() as conn:
         return _preview(
             conn,
@@ -245,7 +258,7 @@ def preview_redeem(
 @router.post("/mortgages/{mortgage_id}/waive-preview")
 def preview_waive(
     mortgage_id: int, body: WaiveIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     with engine.connect() as conn:
         return _preview(
             conn,
@@ -258,7 +271,7 @@ def preview_waive(
 @router.post("/mortgages/{mortgage_id}/forfeit-preview")
 def preview_forfeit(
     mortgage_id: int, body: ForfeitIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     with engine.connect() as conn:
         return _preview(
             conn,
@@ -271,7 +284,7 @@ def preview_forfeit(
 @router.post("/closures/redeem-preview")
 def preview_redeem_all(
     body: RedeemAllIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     """Each of the Mortgages before and after Redeeming them all."""
     with engine.connect() as conn:
         return _preview(
@@ -285,7 +298,7 @@ def preview_redeem_all(
 @router.post("/closures/waive-preview")
 def preview_waive_all(
     body: WaiveAllIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     """Each of the Mortgages before and after Waiving them all off."""
     with engine.connect() as conn:
         return _preview(
@@ -299,7 +312,7 @@ def preview_waive_all(
 @router.post("/closures/forfeit-preview")
 def preview_forfeit_all(
     body: ForfeitAllIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     """Each of the Mortgages before and after Forfeiting them all."""
     with engine.connect() as conn:
         return _preview(
@@ -313,7 +326,7 @@ def preview_forfeit_all(
 @router.post("/mortgages/{mortgage_id}/reopen-preview")
 def preview_reopen(
     mortgage_id: int, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     """The Mortgage Active again; a Redemption's final Payment Voided."""
     with engine.connect() as conn:
         return _preview(
@@ -327,7 +340,7 @@ def preview_reopen(
 @router.post("/payments/preview")
 def preview_payment(
     payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
-) -> list[MortgagePreview]:
+) -> PreviewOfChange:
     """Every Mortgage the Payment is allocated to, before and after recording it."""
     with engine.connect() as conn:
         return _preview(
@@ -345,6 +358,7 @@ class NewMortgagePreview(BaseModel):
     name: str
     terms: Terms
     after: PreviewSide
+    cash: list[int]  # paise: its Principal, if lent in cash
 
 
 @router.post("/mortgages/preview")
@@ -353,9 +367,11 @@ def preview_new_mortgage(
 ) -> NewMortgagePreview:
     with engine.connect() as conn:
         try:
+            written = before_change(conn)
             mortgage_id = create_mortgage(conn, mortgage, today, now)
             created = _snapshot(conn, [mortgage_id], today)[mortgage_id]
             row = replay(conn, mortgage_id).row
+            cash = cash_sums(conn, written)
         finally:
             conn.rollback()
     return NewMortgagePreview(
@@ -366,6 +382,7 @@ def preview_new_mortgage(
             part_month_rule=row["part_month_rule"],
         ),
         after=created.side,
+        cash=cash,
     )
 
 

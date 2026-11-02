@@ -2144,6 +2144,13 @@
           "after": {
             "$ref": "#/components/schemas/PreviewSide"
           },
+          "cash": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cash",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -2155,7 +2162,8 @@
         "required": [
           "name",
           "terms",
-          "after"
+          "after",
+          "cash"
         ],
         "title": "NewMortgagePreview",
         "type": "object"
@@ -2752,6 +2760,31 @@
           "name"
         ],
         "title": "PersonSummary",
+        "type": "object"
+      },
+      "PreviewOfChange": {
+        "description": "Each Mortgage a change touches, before and after it, and the sums it would write\nin cash, for the Cash Limit's warning.",
+        "properties": {
+          "cash": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cash",
+            "type": "array"
+          },
+          "mortgages": {
+            "items": {
+              "$ref": "#/components/schemas/MortgagePreview"
+            },
+            "title": "Mortgages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mortgages",
+          "cash"
+        ],
+        "title": "PreviewOfChange",
         "type": "object"
       },
       "PreviewSide": {
@@ -3886,11 +3919,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Forfeit All Api Closures Forfeit Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -3972,11 +4001,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Redeem All Api Closures Redeem Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -4058,11 +4083,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Waive All Api Closures Waive Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -5280,11 +5301,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Edit Api Mortgages  Mortgage Id  Edit Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -5383,11 +5400,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Forfeit Api Mortgages  Mortgage Id  Forfeit Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -5733,11 +5746,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Redeem Api Mortgages  Mortgage Id  Redeem Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -5827,11 +5836,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Reopen Api Mortgages  Mortgage Id  Reopen Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -5929,11 +5934,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Term Change Api Mortgages  Mortgage Id  Term Changes Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -6030,11 +6031,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Term Change Removal Api Mortgages  Mortgage Id  Term Changes  Change Id  Remove Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -6133,11 +6130,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Waive Api Mortgages  Mortgage Id  Waive Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -6573,11 +6566,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Payment Api Payments Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },
@@ -6745,11 +6734,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MortgagePreview"
-                  },
-                  "title": "Response Preview Void Api Payments  Payment Id  Void Preview Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PreviewOfChange"
                 }
               }
             },

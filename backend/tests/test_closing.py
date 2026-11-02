@@ -359,7 +359,7 @@ def test_the_preview_of_forfeiting_several_shows_each_closure_and_saves_nothing(
     )
 
     assert response.status_code == 200, response.text
-    previews = response.json()
+    previews = response.json()["mortgages"]
     assert [p["mortgage_id"] for p in previews] == [mortgage["id"], other["id"]]
     assert [p["before"]["closure"] for p in previews] == [None, None]
     assert [
@@ -452,7 +452,7 @@ def test_the_preview_of_waiving_off_several_shows_each_closure_and_saves_nothing
     )
 
     assert response.status_code == 200, response.text
-    assert [p["after"]["closure"]["waived_amount"] for p in response.json()] == [
+    assert [p["after"]["closure"]["waived_amount"] for p in response.json()["mortgages"]] == [
         500_00,
         2_000_00,
     ]
@@ -506,7 +506,7 @@ def test_if_any_one_cannot_be_redeemed_none_are_and_the_preview_saves_nothing(
     preview = redeem_all(client, [mortgage], preview=True)
     refused = redeem_all(client, [mortgage, other])
 
-    assert [p["after"]["closure"]["payment_amount"] for p in preview.json()] == [3_000_00]
+    assert [p["after"]["closure"]["payment_amount"] for p in preview.json()["mortgages"]] == [3_000_00]
     assert refused.status_code == 422
     assert refused.json()["detail"] == f"{other['name']} is already redeemed"
     assert client.get(f"/api/mortgages/{mortgage['id']}").json()["status"] == "active"

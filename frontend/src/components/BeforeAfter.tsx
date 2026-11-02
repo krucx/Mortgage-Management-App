@@ -184,7 +184,7 @@ export function PreviewSection({ preview }: { preview: Preview }) {
   if (!preview.previews) return <p className="hint">Working out what changes…</p>
   return (
     <div className={preview.loading ? 'refreshing' : undefined}>
-      <BeforeAfter previews={preview.previews} />
+      <BeforeAfter previews={preview.previews.mortgages} />
     </div>
   )
 }

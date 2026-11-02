@@ -197,10 +197,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
     change: proposed,
     preview: (payment) => previews.payment(payment),
-    cash: (payment) => payment,
     confirm: (payment, preview) => {
       // The Mortgages it pays their whole Outstanding: the Preview has them Redeemed.
-      const redeemed = (preview.previews ?? []).flatMap((p) =>
+      const redeemed = (preview.previews?.mortgages ?? []).flatMap((p) =>
         p.after.closure?.kind === 'redeemed' ? [{ ...p, closure: p.after.closure }] : [],
       )
       return {

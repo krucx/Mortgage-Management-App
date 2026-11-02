@@ -2159,6 +2159,8 @@ export interface components {
          */
         NewMortgagePreview: {
             after: components["schemas"]["PreviewSide"];
+            /** Cash */
+            cash: number[];
             /** Name */
             name: string;
             terms: components["schemas"]["Terms"];
@@ -2398,6 +2400,17 @@ export interface components {
             kind: "customer" | "referrer";
             /** Name */
             name: string;
+        };
+        /**
+         * PreviewOfChange
+         * @description Each Mortgage a change touches, before and after it, and the sums it would write
+         *     in cash, for the Cash Limit's warning.
+         */
+        PreviewOfChange: {
+            /** Cash */
+            cash: number[];
+            /** Mortgages */
+            mortgages: components["schemas"]["MortgagePreview"][];
         };
         /** PreviewSide */
         PreviewSide: {
@@ -2947,7 +2960,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -3013,7 +3026,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -3079,7 +3092,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -3868,7 +3881,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -3938,7 +3951,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -4172,7 +4185,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -4238,7 +4251,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -4308,7 +4321,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -4372,7 +4385,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -4442,7 +4455,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -4692,7 +4705,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -4820,7 +4833,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MortgagePreview"][];
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */

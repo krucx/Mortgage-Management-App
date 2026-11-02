@@ -149,7 +149,7 @@ def test_the_preview_of_a_payment_that_redeems_shows_the_redemption_and_saves_no
     response = client.post("/api/payments/preview", json=asked)
 
     assert response.status_code == 200, response.text
-    [preview] = response.json()
+    [preview] = response.json()["mortgages"]
     closure = preview["after"]["closure"]
     # 14 to 20 Apr, both included, of a month charged in full
     assert (closure["kind"], closure["interest_to_date_days"]) == ("redeemed", 7)

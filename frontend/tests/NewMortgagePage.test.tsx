@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { MortgageIn } from '../src/api'
 import { NewMortgagePage } from '../src/pages/NewMortgagePage'
 import { fakeServer, type FakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
@@ -39,10 +40,14 @@ function server(created: unknown[], overrides: Record<string, unknown> = {}) {
       const words = description.split(/\s+/).filter(Boolean)
       return { name: ['2026-Asha', ...words.map((w) => w[0].toUpperCase() + w.slice(1))].join('-') }
     },
-    'POST /api/mortgages/preview': {
-      name: '',
-      terms: mortgage.terms,
-      after: { outstanding: 2_500_000, points: [], term_changes: [], closure: null },
+    'POST /api/mortgages/preview': async (request: Request) => {
+      const asked = (await request.json()) as MortgageIn
+      return {
+        name: '',
+        terms: mortgage.terms,
+        after: { outstanding: 2_500_000, points: [], term_changes: [], closure: null },
+        cash: asked.lent_through === 'cash' ? [asked.amount_lent] : [],
+      }
     },
     'POST /api/mortgages': async (request: Request) => {
       created.push(await request.json())
@@ -143,7 +148,7 @@ test('a new Mortgage must say how it was lent', async () => {
   expect(created).toEqual([expect.objectContaining({ lent_through: 'upi' })])
 })
 
-test('lending in cash at or above the Cash Limit is warned about before the confirmation', async () => {
+test('lending in cash is warned about from its Preview, before the confirmation', async () => {
   const created: unknown[] = []
   await fillMortgageForm(server(created), 'gold ring', 'cash') // ₹25,000
 

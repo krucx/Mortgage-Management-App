@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import type { PreviewRequest } from '../requests'
 import type { ConfirmOptions } from './ConfirmDialog'
-import { useCashWarning, type Cash } from './useCashWarning'
+import { useCashWarning } from './useCashWarning'
 import { useConfirm } from './useConfirm'
 import { usePreview, type Preview } from './usePreview'
 
@@ -9,17 +9,16 @@ import { usePreview, type Preview } from './usePreview'
  * A change the Lender drafts in a form, seeing its Preview as they go. `change` is what
  * saving would send, or null while the draft can't be saved; Save stays disabled then,
  * while its Preview loads, and while the Preview says the backend would refuse it.
- * Save first warns if `cash` reaches the Cash Limit, then asks to `confirm`
- * (unless that is null: the change's own dialog has asked already), then saves
- * (through useLedgerChange or useMortgageChange, which make stale what it changes)
- * and hands what was saved to `saved`. A refused save shows the
+ * Save first warns if a sum its Preview says it writes in cash reaches the Cash Limit,
+ * then asks to `confirm` (unless that is null: the change's own dialog has asked
+ * already), then saves (through useLedgerChange or useMortgageChange, which make stale
+ * what it changes) and hands what was saved to `saved`. A refused save shows the
  * backend's reason and can be tried again; after a save, Save stays disabled.
  */
 export function useProposedChange<Change, Saved>({
   change,
   preview: previewOf,
   confirm: confirmationOf,
-  cash: cashOf,
   save,
   saved,
 }: {
@@ -29,9 +28,6 @@ export function useProposedChange<Change, Saved>({
   /** The confirmation asked for when Save is pressed, from `change` and its Preview;
    *  null to save straight away. */
   confirm: ((change: Change, preview: Preview) => ConfirmOptions) | null
-  /** What `change` lends or receives, and how, for the Cash Limit's warning (worked out
-   *  when Save is pressed, from its Preview if need be); null when it is not money. */
-  cash?: (change: Change, preview: Preview) => Cash | null
   save: (change: Change) => Promise<Saved>
   /** What happens once it is saved: usually going to what changed. */
   saved: (result: Saved) => void
@@ -57,7 +53,7 @@ export function useProposedChange<Change, Saved>({
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (change === null || !canSave) return
-    if (cashOf && !(await warnCash(cashOf(change, preview)))) return
+    if (!(await warnCash(preview.previews?.cash ?? []))) return
     if (confirmationOf && !(await confirm(confirmationOf(change, preview)))) return
     setSaving(true)
     setError(null)

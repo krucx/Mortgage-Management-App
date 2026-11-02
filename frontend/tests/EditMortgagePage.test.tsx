@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { MortgageEdit } from '../src/api'
 import { EditMortgagePage } from '../src/pages/EditMortgagePage'
-import { fakeServer } from './fakeServer'
+import { changePreview, fakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -11,7 +12,8 @@ afterEach(() => {
 })
 
 /** The backend for editing Mortgage 7 (₹50,000 lent) as `stored`, with a ₹20,000 Cash
- *  Limit; what is sent to be saved goes into `sent`. */
+ *  Limit; what is sent to be saved goes into `sent`. Its Preview says an edit lent in
+ *  cash writes its Principal in cash. */
 function server(stored: object, sent: unknown[]) {
   return fakeServer({
     'GET /api/mortgages/7': stored,
@@ -20,7 +22,10 @@ function server(stored: object, sent: unknown[]) {
       { method: 'upi', name: 'UPI' },
     ],
     'GET /api/settings/cash-limit': { cash_limit: 2_000_000 },
-    'POST /api/mortgages/7/edit-preview': [],
+    'POST /api/mortgages/7/edit-preview': async (request: Request) => {
+      const edit = (await request.json()) as MortgageEdit
+      return changePreview([], edit.lent_through === 'cash' ? [edit.amount_lent] : [])
+    },
     'PUT /api/mortgages/7': async (request: Request) => {
       sent.push(await request.json())
       return stored
@@ -39,7 +44,7 @@ async function save() {
   fireEvent.click(button)
 }
 
-test('a Mortgage made before Lent Through shows none, and setting it to Cash over the Cash Limit warns first', async () => {
+test('a Mortgage made before Lent Through shows none, and setting it to Cash is previewed, so warned about first', async () => {
   const sent: unknown[] = []
   showEdit({ ...mortgage, lent_through: null }, sent)
 
@@ -56,32 +61,4 @@ test('a Mortgage made before Lent Through shows none, and setting it to Cash ove
 
   await screen.findByText('Now at /mortgages/7')
   expect(sent).toEqual([expect.objectContaining({ lent_through: 'cash' })])
-})
-
-test('an edit that leaves the cash lent as it was is not warned about again', async () => {
-  const sent: unknown[] = []
-  showEdit({ ...mortgage, lent_through: 'cash' }, sent)
-
-  fireEvent.change(await screen.findByLabelText('Description of the jewellery'), {
-    target: { value: 'Gold chain with pendant' },
-  })
-  await save()
-
-  const confirmation = await screen.findByRole('dialog')
-  expect(within(confirmation).queryByText(/in cash/)).toBeNull()
-  fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm and save' }))
-  await screen.findByText('Now at /mortgages/7')
-})
-
-test('lending less in cash is not warned about again', async () => {
-  const sent: unknown[] = []
-  showEdit({ ...mortgage, lent_through: 'cash' }, sent) // ₹50,000
-
-  fireEvent.change(await screen.findByLabelText('Principal lent (₹)'), {
-    target: { value: '40000' },
-  })
-  await save()
-
-  const confirmation = await screen.findByRole('dialog')
-  expect(within(confirmation).queryByText(/in cash/)).toBeNull()
 })

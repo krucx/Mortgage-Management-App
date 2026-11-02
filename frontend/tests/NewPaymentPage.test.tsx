@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { NewPaymentPage } from '../src/pages/NewPaymentPage'
 import { formatDate, todayIso } from '../src/format'
-import { fakeServer } from './fakeServer'
+import { changePreview, fakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
 import type { PaymentIn } from '../src/api'
 
@@ -43,7 +43,7 @@ function server(extra: Record<string, unknown> = {}) {
       { method: 'cash', name: 'Cash' },
       { method: 'upi', name: 'UPI' },
     ],
-    'POST /api/payments/preview': [],
+    'POST /api/payments/preview': changePreview([]),
     'POST /api/payments': async (request: Request) => ({
       ...((await request.json()) as Record<string, unknown>),
       id: 9,
@@ -112,7 +112,7 @@ function quoting(extra: Record<string, unknown> = {}) {
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
     'POST /api/payments/preview': async (request: Request) => {
       const asked = (await request.json()) as PaymentIn
-      return asked.allocations.map((a) => ({
+      const mortgages = asked.allocations.map((a) => ({
         mortgage_id: a.mortgage_id,
         mortgage_name: a.mortgage_id === 8 ? ring.name : row.name,
         before: side(null),
@@ -123,6 +123,7 @@ function quoting(extra: Record<string, unknown> = {}) {
         ),
         ledger_changes: [],
       }))
+      return changePreview(mortgages)
     },
     ...extra,
   })
@@ -276,80 +277,4 @@ test('equal shares fill the smaller Mortgages up to their Outstanding, and the r
   const ringRow = screen.getByRole('link', { name: ring.name }).closest('tr')!
   expect(within(chain).getAllByText('₹51,500')).toHaveLength(2) // Outstanding, and allocated
   expect(within(ringRow).getAllByText('₹20,000')).toHaveLength(2)
-})
-
-// --- The Cash Limit: a warning (never a refusal) before receiving that much in cash.
-
-/** The backend, with the Cash Limit at `limit` (null: cleared). */
-const cashServer = (limit: number | null) =>
-  server({ 'GET /api/settings/cash-limit': { cash_limit: limit } })
-
-async function recordWith(rupees: string, method = 'Cash') {
-  fireEvent.change(await screen.findByLabelText('Amount received (₹)'), {
-    target: { value: rupees },
-  })
-  fireEvent.change(screen.getByRole('combobox', { name: 'Method' }), {
-    target: { value: method === 'Cash' ? 'cash' : 'upi' },
-  })
-  const button = await screen.findByRole('button', { name: /^Record Payment of/ })
-  await vi.waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false), {
-    timeout: 2000,
-  })
-  fireEvent.click(button)
-  return screen.findByRole('dialog')
-}
-
-test('cash at or above the Cash Limit is warned about first, and Go back records nothing', async () => {
-  const backend = cashServer(2_000_000)
-  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
-
-  const warning = await recordWith('25000')
-  expect(within(warning).getByRole('heading', { name: '₹25,000 in cash' })).toBeTruthy()
-  expect(
-    within(warning).getByText(
-      'Government of India rules ask for ₹20,000 or more to be lent or received by UPI or bank transfer, not cash.',
-    ),
-  ).toBeTruthy()
-  fireEvent.click(within(warning).getByRole('button', { name: 'Go back' }))
-
-  await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  expect(backend.requests).not.toContain('POST /api/payments')
-  expect((screen.getByLabelText('Amount received (₹)') as HTMLInputElement).value).toBe('25000')
-})
-
-test('the Lender can record the cash anyway, then confirms the Payment as usual', async () => {
-  const backend = cashServer(2_000_000)
-  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
-
-  const warning = await recordWith('20000') // exactly the limit: warned too
-  fireEvent.click(within(warning).getByRole('button', { name: 'Record in cash anyway' }))
-  const confirmation = await screen.findByRole('dialog', { name: /Record/ })
-  fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm and save' }))
-
-  expect(await screen.findByText('Now at /payments/9/receipt')).toBeTruthy()
-  expect(backend.requests).toContain('POST /api/payments')
-})
-
-test.each([
-  ['below the Cash Limit', 2_000_000, '19999', 'Cash'],
-  ['by UPI', 2_000_000, '25000', 'UPI'],
-  ['with the Cash Limit cleared', null, '25000', 'Cash'],
-])('no warning %s', async (_, limit, rupees, method) => {
-  showPage(cashServer(limit), '/payments/new?customer=3&mortgage=7', {
-    '/payments/new': <NewPaymentPage />,
-  })
-
-  const dialog = await recordWith(rupees, method)
-  expect(within(dialog).queryByText(/in cash/)).toBeNull()
-  expect(within(dialog).getByRole('button', { name: 'Confirm and save' })).toBeTruthy()
-})
-
-test("the warning quotes the rules' ₹20,000 whatever Cash Limit the Lender has set", async () => {
-  showPage(cashServer(1_000_000), '/payments/new?customer=3&mortgage=7', {
-    '/payments/new': <NewPaymentPage />,
-  })
-
-  const warning = await recordWith('15000')
-  expect(within(warning).getByRole('heading', { name: '₹15,000 in cash' })).toBeTruthy()
-  expect(within(warning).getByText(/rules ask for ₹20,000 or more/)).toBeTruthy()
 })

@@ -39,7 +39,7 @@ def payment(client, ramesh, mortgage):
 def preview(client, path, body=None):
     response = client.post(f"/api/{path}", json=body or {})
     assert response.status_code == 200, response.text
-    [only] = response.json()
+    [only] = response.json()["mortgages"]
     return only
 
 
@@ -160,7 +160,7 @@ def test_a_void_preview_covers_every_mortgage_the_payment_went_to(
     assert response.status_code == 200, response.text
     assert [
         (p["mortgage_name"], p["after"]["outstanding"] - p["before"]["outstanding"])
-        for p in response.json()
+        for p in response.json()["mortgages"]
     ] == [
         (mortgage["name"], 3_000 * RUPEE),
         (second["name"], 1_000 * RUPEE),
@@ -305,7 +305,7 @@ def test_a_payment_preview_covers_every_mortgage_it_is_allocated_to(
     # leaving the Interest to Date (on ₹1,00,000, as the month started).
     assert [
         (p["mortgage_name"], p["before"]["outstanding"], p["after"]["outstanding"])
-        for p in response.json()
+        for p in response.json()["mortgages"]
     ] == [
         (mortgage["name"], 1_12_000 * RUPEE, 1_03_000 * RUPEE),
         ("2026-Ramesh-Bangles", 1_12_000 * RUPEE, 1_02_000 * RUPEE),
