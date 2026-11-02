@@ -5,6 +5,44 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [3.2.0] - 2026-11-03
+
+Customers can have an email, an Aadhaar Number (its last 4 digits only), a PAN and ID
+Photos of their cards, with the numbers read from the photos as a suggestion.
+**Updates the database** (the new Customer details): the app takes a Backup marked
+`-before-update` first, and 3.1.1 does not start on the updated database.
+
+### Added
+
+- **Email, Aadhaar Number and PAN** on the New and Edit Customer forms and the Customer
+  page, all optional. Only the last 4 Aadhaar digits are ever sent, kept or shown
+  (`XXXX XXXX 1234`): ask for the Customer's masked Aadhaar. A PAN is checked as 5
+  letters, 4 digits and a letter, and one already on another Customer is refused,
+  naming them.
+- **ID Photos:** a photo of the masked Aadhaar front and of the PAN card, added,
+  replaced or removed on the form, shown only on the Customer's page and form, and kept
+  in History.
+- **Numbers read from the photos:** adding an ID Photo reads its number into the empty
+  field, marked "Read from the photo: check it". It reads on the laptop itself, never
+  sending the photo anywhere, and never overwrites a number already typed.
+
+### Changed
+
+- **Backups hold the ID Photos:** wherever Backups aren't password-protected, Settings
+  and the install guide say to keep the Backup folder private.
+
+### Upgrading
+
+Existing Customers have none of the new details until edited.
+
+On Windows, use the banner's **Install now**. Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
+
 ## [3.1.1] - 2026-11-02
 
 A Call Sheet with some rows the app can't take no longer fails: it imports the rest
