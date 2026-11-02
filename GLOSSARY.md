@@ -24,6 +24,18 @@ _Avoid_: External referrer, contact
 The 10-digit mobile number that identifies a person: a Customer's contact number 1 or a Standalone Referrer's phone. No two people share one.
 _Avoid_: Customer ID, main phone
 
+**Aadhaar Number**:
+The last 4 digits of a Customer's Aadhaar, as their masked Aadhaar shows them; the full number is never kept.
+_Avoid_: UID, Aadhaar ID
+
+**PAN**:
+A Customer's Permanent Account Number, which no two Customers share.
+_Avoid_: PAN number, tax ID
+
+**ID Photos**:
+Photos of a Customer's Aadhaar card (the masked front) and PAN card, kept on the Customer and shown only on their page.
+_Avoid_: KYC documents, ID proof
+
 ## Lending
 
 **Mortgage**:
