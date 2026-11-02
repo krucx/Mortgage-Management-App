@@ -1346,6 +1346,11 @@
             "title": "Interest Paid",
             "type": "integer"
           },
+          "interest_to_date_days": {
+            "default": 0,
+            "title": "Interest To Date Days",
+            "type": "integer"
+          },
           "on": {
             "format": "date",
             "title": "On",
@@ -1354,11 +1359,6 @@
           "paid_ahead": {
             "default": 0,
             "title": "Paid Ahead",
-            "type": "integer"
-          },
-          "part_month_days": {
-            "default": 0,
-            "title": "Part Month Days",
             "type": "integer"
           },
           "payment_id": {
@@ -3347,6 +3347,78 @@
           }
         },
         "summary": "Read Call List"
+      }
+    },
+    "/api/closures/dormant": {
+      "get": {
+        "description": "Dormant Mortgages, Active yet owing nothing today, oldest first (or by `sort`,\nreversed when `descending`).",
+        "operationId": "dormant_api_closures_dormant_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "mortgage",
+                    "customer"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "descending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Descending",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_MortgageRow_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dormant"
       }
     },
     "/api/closures/forfeit": {

@@ -128,6 +128,8 @@ def call_list(
 
     listed = []
     for row in rows:
+        if replayed[row["id"]].dormant(today):
+            continue  # owes nothing: listed on Closures instead (ADR 0012)
         ledger = replayed[row["id"]].ledger(today)
         outstanding = replayed[row["id"]].outstanding(today).total
         months = months_unpaid(ledger)

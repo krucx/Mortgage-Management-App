@@ -25,8 +25,7 @@ import { tickedFirst } from '../sort'
 
 type AllocationMode = 'equal' | 'amount' | 'percent'
 
-/** Owing nothing (paid up under the Part-Month Rule "nothing" before Outstanding
- *  included the Interest to Date), a Mortgage can't take a Payment, only be Redeemed. */
+/** Owing nothing (Dormant, ADR 0012), a Mortgage can't take a Payment, only be Redeemed. */
 const owesSomething = (m: MortgageRow) => m.outstanding_total > 0
 
 /**

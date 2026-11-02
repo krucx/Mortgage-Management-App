@@ -9,6 +9,7 @@ import type {
   CollateralPreview,
   CustomerIn,
   CustomerSort,
+  DormantSort,
   ForfeitAllIn,
   MessageSettings,
   Mortgage,
@@ -36,6 +37,16 @@ const mortgagePath = (id: number) => ({ path: { mortgage_id: id } })
 const paymentPath = (id: number) => ({ path: { payment_id: id } })
 const customerPath = (id: number) => ({ path: { customer_id: id } })
 const noticePath = (id: number) => ({ path: { notice_id: id } })
+
+/** How many Mortgages are Dormant: Active yet owing nothing, to be Redeemed. */
+export function dormantCountQuery(client: ApiClient) {
+  return queryOptions({
+    queryKey: keys.dormant,
+    queryFn: () =>
+      dataOrThrow(client.GET('/api/closures/dormant', { params: { query: { page: 1 } } })),
+    select: (dormant) => dormant.total,
+  })
+}
 
 /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
 export function mortgageQuery(client: ApiClient, id: number) {
@@ -307,6 +318,14 @@ export const lists = {
       load: (client, page, sort) =>
         dataOrThrow(client.GET('/api/call-list', { params: { query: { page, ...sortQuery(sort) } } })),
     }) satisfies ListRequest<CallListSort, unknown>,
+  dormant: () =>
+    ({
+      key: ['dormant'],
+      load: (client, page, sort) =>
+        dataOrThrow(
+          client.GET('/api/closures/dormant', { params: { query: { page, ...sortQuery(sort) } } }),
+        ),
+    }) satisfies ListRequest<DormantSort, unknown>,
 }
 
 /** What the Lender does with a queued Notice. */

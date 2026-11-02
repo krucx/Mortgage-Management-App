@@ -644,7 +644,7 @@ def _close_with_payment(
     Payment `received_with` if any, and close the Mortgage as `closure` says; returns
     the final Payment's id."""
     row = mortgage.row
-    # The final Payment may include the part-month charge, owed only once the Mortgage
+    # The final Payment may include the Interest to Date, owed only once the Mortgage
     # closes, so it is replayed after closing rather than as an ordinary Payment.
     final = None
     payment_id = None

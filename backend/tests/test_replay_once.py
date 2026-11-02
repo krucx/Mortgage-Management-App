@@ -1,5 +1,5 @@
-"""Each request replays a Mortgage once: the Dashboard, Notices, Call List and Ready to
-Redeem share the replays they need instead of each working them out again (today is
+"""Each request replays a Mortgage once: the Dashboard, Notices, Call List and Dormant
+list share the replays they need instead of each working them out again (today is
 20 Apr 2026, see conftest)."""
 
 from collections import Counter
@@ -47,6 +47,8 @@ def seeded(client, database_url: str) -> Iterator[None]:
         add_payment(conn, sita, date(2026, 4, 10), {paid: LAKH})
         old = add_mortgage(conn, sita, suffix="Old", start_date=date(2025, 6, 1))
         redeem(conn, old, date(2026, 4, 5))
+    # Today's daily run, which syncs the Notices on its own, before any request counted.
+    client.get("/api/settings/messages")
     yield
 
 
@@ -139,7 +141,7 @@ def test_the_call_list_uses_the_replays_it_is_given(
     assert replayed_ids == []
 
 
-def test_notices_with_something_to_send_are_counted_without_a_replay(
+def test_notices_with_something_to_send_are_counted_from_the_replays_already_made(
     conn: Connection, replayed_ids: list[int]
 ) -> None:
     ramesh = add_customer(conn)
@@ -148,9 +150,11 @@ def test_notices_with_something_to_send_are_counted_without_a_replay(
     gone = add_mortgage(conn, sita, suffix="Gone", start_date=date(2026, 1, 22))
     notices.sync(conn, TODAY)
     redeem(conn, gone, TODAY)  # nothing left to say
-    replayed_ids.clear()  # redeeming replays it; counting must not
+    rows = conn.execute(select(mortgage_table)).mappings().all()
+    replayed = replays(conn, rows)
+    replayed_ids.clear()  # the caller's replays: counting must not make more
 
-    assert notices.unsent_counts(conn) == {
+    assert notices.unsent_counts(conn, replayed) == {
         notices.NoticeStatus.QUEUED: 1,
         notices.NoticeStatus.AWAITING_APPROVAL: 0,
     }

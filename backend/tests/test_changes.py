@@ -343,7 +343,7 @@ def test_redeeming_records_the_final_payment_closes_and_is_recorded(
     mortgage = replay(conn, chain)
     final = mortgage.row["redemption_payment_id"]
     assert (mortgage.row["status"], mortgage.row["closed_on"]) == ("redeemed", TODAY)
-    # ₹1,09,000 owed plus a Full-month charge of ₹3,000 for the part-month.
+    # ₹1,09,000 owed plus ₹3,000 Interest to Date (a full month, under Full month).
     assert [(a.payment_id, a.amount) for a in mortgage.allocations] == [
         (final, 1_12_000 * RUPEE)
     ]

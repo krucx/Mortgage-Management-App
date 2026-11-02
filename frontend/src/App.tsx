@@ -1,4 +1,5 @@
-import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router'
+import { BrowserRouter, Link, Route, Routes } from 'react-router'
+import { Nav } from './components/Nav'
 import { StartGate } from './components/StartGate'
 import { ThemeToggle } from './components/ThemeToggle'
 import { UpdateBanner } from './components/UpdateBanner'
@@ -22,23 +23,6 @@ import { ReceiptPage } from './pages/ReceiptPage'
 import { ReferrerPage } from './pages/ReferrerPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { APP_VERSION } from './version'
-
-function Nav() {
-  return (
-    <nav>
-      <NavLink to="/" end>
-        Dashboard
-      </NavLink>
-      <NavLink to="/payments">Payments</NavLink>
-      <NavLink to="/customers">Customers</NavLink>
-      <NavLink to="/mortgages">Mortgages</NavLink>
-      <NavLink to="/call-list">Call List</NavLink>
-      <NavLink to="/notices">Notices</NavLink>
-      <NavLink to="/closures">Redeem / Forfeit</NavLink>
-      <NavLink to="/settings">Settings</NavLink>
-    </nav>
-  )
-}
 
 export default function App() {
   return (

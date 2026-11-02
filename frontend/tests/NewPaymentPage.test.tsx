@@ -147,8 +147,7 @@ test('paying the full Outstanding fills each chosen Mortgage with its Outstandin
 })
 
 test('a Mortgage owing nothing is not offered a Payment, but pointed to its Redeem page', async () => {
-  // Paid up before Outstanding included the Interest to Date, under the Part-Month Rule
-  // "nothing": nothing is owed, so no Payment can Redeem it.
+  // Dormant (ADR 0012): nothing is owed, so no Payment can Redeem it.
   const paidUp = { ...ring, outstanding_total: 0 }
   showPage(
     fakeServer({

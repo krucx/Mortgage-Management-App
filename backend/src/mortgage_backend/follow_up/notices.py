@@ -32,7 +32,12 @@ from mortgage_backend.follow_up.messages import (
     notice_text,
 )
 from mortgage_backend.lending.ledger import accrual_date, is_accrual_date
-from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus, replays
+from mortgage_backend.lending.replay import (
+    MortgageReplay,
+    MortgageStatus,
+    active_replays,
+    replays,
+)
 from mortgage_backend.payments.payments import MortgageLink
 from mortgage_backend.people.customers import PersonSummary, phones_of
 from mortgage_backend.platform.clock import NowDep, TodayDep
@@ -64,7 +69,7 @@ class Notice(BaseModel):
     created_on: date
     status: NoticeStatus
     # As it stands now, or as it was sent or skipped; empty if no Active Mortgage of
-    # the Customer accrues that day any more
+    # the Customer accrues that day any more, or each that does is Dormant
     message: str
     mortgages: list[MortgageLink]
     sent_at: datetime | None
@@ -81,16 +86,22 @@ def _coming_accrual_dates(start: date, after: date, until: date) -> list[date]:
     return found
 
 
-def sync(conn: Connection, today: date) -> None:
+def sync(
+    conn: Connection,
+    today: date,
+    replayed: Mapping[int, MortgageReplay] | None = None,
+) -> None:
     """Make the unsent Notices what they should be today under the current settings.
 
     A Notice for each Customer with Active Mortgages accruing in the coming
     `notice_days_before` days and none yet; days the app was off are made up this way,
     but never for an Accrual Date already past. Unsent Notices further ahead (queued
     before `notice_days_before` was lowered) are withdrawn: until sent or skipped a
-    Notice is only its Customer and date, so it is queued again in time. Every unsent
-    Notice then awaits approval if "approve first" is on and the Lender has not approved
-    it, and is queued otherwise; while it is off, approvals are forgotten, so turning it
+    Notice is only its Customer and date, so it is queued again in time. Dormant
+    Mortgages, owing nothing, get no Notice (ADR 0012); they are worked out from
+    `replayed` (covering every Active Mortgage) when the caller has replayed them.
+    Every unsent Notice then awaits approval if "approve first" is on and the Lender
+    has not approved it, and is queued otherwise; while it is off, approvals are forgotten, so turning it
     on again holds every unsent Notice. Syncing twice changes nothing."""
     settings = MESSAGE_SETTINGS.get(conn)
     until = today + timedelta(days=settings.notice_days_before)
@@ -99,14 +110,21 @@ def sync(conn: Connection, today: date) -> None:
             notice_table.c.status.in_(_UNSENT), notice_table.c.accrues_on > until
         )
     )
-    accruing = {
-        (row.customer_id, on)
+    coming = [
+        (row, _coming_accrual_dates(row["start_date"], today, until))
         for row in conn.execute(
-            select(mortgage_table.c.customer_id, mortgage_table.c.start_date).where(
+            select(mortgage_table).where(
                 mortgage_table.c.status == MortgageStatus.ACTIVE
             )
-        )
-        for on in _coming_accrual_dates(row.start_date, today, until)
+        ).mappings()
+    ]
+    if replayed is None:
+        replayed = replays(conn, [row for row, dates in coming if dates])
+    accruing = {
+        (row["customer_id"], on)
+        for row, dates in coming
+        for on in dates
+        if not replayed[row["id"]].dormant(on)
     }
     already = {
         (row.customer_id, row.accrues_on)
@@ -155,40 +173,56 @@ def _notice_line(mortgage: MortgageReplay, description: str, on: date) -> Notice
 
 
 def _accruing(
-    conn: Connection, unsent: Sequence[RowMapping]
-) -> dict[int, list[RowMapping]]:
+    conn: Connection,
+    unsent: Sequence[RowMapping],
+    replayed: Mapping[int, MortgageReplay] | None = None,
+) -> dict[int, list[MortgageReplay]]:
     """Each unsent Notice's Mortgages, by Notice id: its Customer's Active ones accruing
-    that day, by name; loaded in one query."""
-    by_customer: dict[int, list[RowMapping]] = defaultdict(list)
-    for mortgage in conn.execute(
-        select(mortgage_table)
-        .where(
-            mortgage_table.c.customer_id.in_([row["customer_id"] for row in unsent]),
-            mortgage_table.c.status == MortgageStatus.ACTIVE,
+    that day and not Dormant then, by name; loaded in one query, and replayed unless
+    `replayed` has them already."""
+    mortgages = (
+        conn.execute(
+            select(mortgage_table)
+            .where(
+                mortgage_table.c.customer_id.in_(
+                    [row["customer_id"] for row in unsent]
+                ),
+                mortgage_table.c.status == MortgageStatus.ACTIVE,
+            )
+            .order_by(mortgage_table.c.name)
         )
-        .order_by(mortgage_table.c.name)
-    ).mappings():
-        by_customer[mortgage["customer_id"]].append(mortgage)
+        .mappings()
+        .all()
+    )
+    if replayed is None:
+        replayed = replays(conn, mortgages)
+    by_customer: dict[int, list[MortgageReplay]] = defaultdict(list)
+    for mortgage in mortgages:
+        by_customer[mortgage["customer_id"]].append(replayed[mortgage["id"]])
     return {
         row["id"]: [
             m
             for m in by_customer[row["customer_id"]]
-            if is_accrual_date(m["start_date"], row["accrues_on"])
+            if is_accrual_date(m.row["start_date"], row["accrues_on"])
+            and not m.dormant(row["accrues_on"])
         ]
         for row in unsent
     }
 
 
-def unsent_counts(conn: Connection) -> dict[NoticeStatus, int]:
+def unsent_counts(
+    conn: Connection, replayed: Mapping[int, MortgageReplay] | None = None
+) -> dict[NoticeStatus, int]:
     """Unsent Notices that still have something to say, by status (one whose Mortgages
-    no longer accrue that day has not); nothing is replayed or worded."""
+    no longer accrue that day, or are Dormant, has not); nothing is worded, and only
+    what `replayed` lacks is replayed."""
     unsent = (
         conn.execute(select(notice_table).where(notice_table.c.status.in_(_UNSENT)))
         .mappings()
         .all()
     )
     by_status = dict.fromkeys(_UNSENT, 0)
-    accruing = _accruing(conn, unsent)
+    accruing = _accruing(conn, unsent, replayed)
     for row in unsent:
         if accruing[row["id"]]:
             by_status[row["status"]] += 1
@@ -197,24 +231,20 @@ def unsent_counts(conn: Connection) -> dict[NoticeStatus, int]:
 
 def _message(
     row: RowMapping,
-    mortgages: Sequence[RowMapping],
-    replayed: Mapping[int, MortgageReplay],
+    mortgages: Sequence[MortgageReplay],
     template: str,
 ) -> str:
     """An unsent Notice's message, worked out now; empty without Mortgages."""
     if not mortgages:
         return ""
     on = row["accrues_on"]
-    described = descriptions(mortgages)
+    described = descriptions([m.row for m in mortgages])
     return notice_text(
         template,
         NoticeMessage(
             customer_name=row["name"],
             accrues_on=on,
-            lines=[
-                _notice_line(replayed[m["id"]], described[m["id"]], on)
-                for m in mortgages
-            ],
+            lines=[_notice_line(m, described[m.row["id"]], on) for m in mortgages],
         ),
     )
 
@@ -223,8 +253,11 @@ def list_notices(
     conn: Connection,
     status_filter: NoticeStatus | None = None,
     notice_id: int | None = None,
+    replayed: Mapping[int, MortgageReplay] | None = None,
 ) -> list[Notice]:
-    """Notices by Accrual Date, then Customer; optionally one status, or one Notice."""
+    """Notices by Accrual Date, then Customer; optionally one status, or one Notice.
+    Unsent ones are worded from `replayed` (covering every Active Mortgage) when the
+    caller has replayed them already."""
     query = (
         select(
             notice_table,
@@ -255,15 +288,17 @@ def list_notices(
         .order_by(mortgage_table.c.name)
     ):
         kept[link.notice_id].append(MortgageLink(id=link.id, name=link.name))
-    accruing = _accruing(conn, [row for row in rows if row["status"] in _UNSENT])
-    involved = {m["id"]: m for mortgages in accruing.values() for m in mortgages}
-    replayed = replays(conn, list(involved.values()))
+    accruing = _accruing(
+        conn, [row for row in rows if row["status"] in _UNSENT], replayed
+    )
     notices = []
     for row in rows:
         if row["id"] in accruing:
             mortgages = accruing[row["id"]]
-            message = _message(row, mortgages, replayed, template)
-            links = [MortgageLink(id=m["id"], name=m["name"]) for m in mortgages]
+            message = _message(row, mortgages, template)
+            links = [
+                MortgageLink(id=m.row["id"], name=m.row["name"]) for m in mortgages
+            ]
         else:
             message, links = row["message"], kept[row["id"]]
         notices.append(
@@ -342,7 +377,7 @@ def act(
         )
     if action == NoticeAction.SEND and not notice.mortgages:
         raise NoticeRefused(
-            "None of their Active Mortgages accrues that day any more: skip it"
+            "None of their Mortgages accruing that day still owes anything: skip it"
         )
     values: dict[str, object] = {"status": becomes}
     if action == NoticeAction.APPROVE:
@@ -366,7 +401,6 @@ def act(
     return list_notices(conn, notice_id=notice_id)[0]
 
 
-
 router = APIRouter(prefix="/api")
 
 
@@ -383,8 +417,9 @@ def read_notices(
     `descending`), synced first: a Mortgage added today or a reopened Mortgage shows at
     once, not after the next daily run."""
     with engine.begin() as conn:
-        sync(conn, today)
-        notices = list_notices(conn, status)
+        replayed = active_replays(conn)
+        sync(conn, today, replayed)
+        notices = list_notices(conn, status, replayed=replayed)
     return rows_page(notices, page, _SORT_KEYS, sort=sort, descending=descending)
 
 

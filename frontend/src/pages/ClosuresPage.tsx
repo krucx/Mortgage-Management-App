@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { MORTGAGE_SORTS, type PaymentMethod } from '../api'
+import { DORMANT_SORTS, MORTGAGE_SORTS, type PaymentMethod } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
@@ -16,13 +16,22 @@ import { tickedFirst } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
 import { lists } from '../requests'
 
-/** Active Mortgages the Lender may choose to Forfeit or Waive off, together. */
+/**
+ * Closures in one place: Dormant Mortgages, owing nothing, to be Redeemed (ADR 0012),
+ * and Active Mortgages the Lender may choose to Forfeit or Waive off, together.
+ */
 export function ClosuresPage() {
-  // Sorted on the server, across its pages.
+  // Both lists are sorted on the server, across their pages.
+  const {
+    listed: dormant,
+    sorting: dormantSorting,
+    error: dormantError,
+    pager: dormantPager,
+  } = useListPage(DORMANT_SORTS, lists.dormant(), { sortParam: 'dormant_sort' })
   const {
     listed: active,
     sorting,
-    error,
+    error: forfeitError,
     pager: forfeitPager,
   } = useListPage(
     MORTGAGE_SORTS,
@@ -32,6 +41,7 @@ export function ClosuresPage() {
   )
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [closing, setClosing] = useState<'forfeit' | 'waive'>('forfeit')
+  const error = forfeitError ?? dormantError
 
   function toggle(id: number) {
     const next = new Set(selected)
@@ -46,8 +56,56 @@ export function ClosuresPage() {
 
   return (
     <section className="card wide">
-      <h2>Redeem / Forfeit</h2>
+      <h2>Closures</h2>
       {error && <p className="status error">{error}</p>}
+
+      <h3>
+        Dormant{' '}
+        {dormant && dormant.total > 0 && <span className="badge count">{dormant.total}</span>}
+      </h3>
+      <p className="hint">
+        Active Mortgages that owe nothing, so their jewellery should already have gone back:
+        usually a recording slip. Once you have checked, Redeem them; no Payment is needed.
+      </p>
+      {dormant === null ? (
+        <p>Loading…</p>
+      ) : dormant.total === 0 ? (
+        <p className="hint">None: every Active Mortgage owes something.</p>
+      ) : (
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <SortHeading sorting={dormantSorting} column="mortgage">
+                  Mortgage
+                </SortHeading>
+                <SortHeading sorting={dormantSorting} column="customer">
+                  Customer
+                </SortHeading>
+                <th aria-label="Redeem" />
+              </tr>
+            </thead>
+            <tbody>
+              {dormant.items.map((mortgage) => (
+                <tr key={mortgage.id}>
+                  <td>
+                    <Link to={`/mortgages/${mortgage.id}`}>{mortgage.name}</Link>
+                  </td>
+                  <td>
+                    <PersonLink person={mortgage.customer} />
+                  </td>
+                  <td>
+                    <Link className="button small" to={`/mortgages/${mortgage.id}/redeem`}>
+                      Redeem…
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {dormantPager}
 
       <h3>Forfeit or Waive off</h3>
       <p className="hint">

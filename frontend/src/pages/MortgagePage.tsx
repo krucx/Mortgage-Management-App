@@ -300,7 +300,7 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
         `${formatINR(step.principal_paid)} to Principal`
       )
     case 'interest_to_date': {
-      const days = step.part_month_days === 1 ? '1 day' : `${step.part_month_days} days`
+      const days = step.interest_to_date_days === 1 ? '1 day' : `${step.interest_to_date_days} days`
       const rule = mortgage.terms.part_month_rule
       // Only while Active is it to date: a Closure fixes it.
       const toDate =

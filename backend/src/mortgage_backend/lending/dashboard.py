@@ -6,6 +6,7 @@ up from the stored Payments. Looking ahead there are two kinds of figure: Projec
 (estimates: the average of the last 3 full months carried forward, nothing cleverer).
 """
 
+from collections.abc import Mapping
 from datetime import date
 from itertools import pairwise
 
@@ -182,9 +183,21 @@ def _payments_by_month(conn: Connection, today: date) -> list[MonthlyPayments]:
     ]
 
 
-def dashboard(conn: Connection, today: date) -> Dashboard:
-    rows = conn.execute(select(mortgage_table)).mappings().all()
-    replayed = replays(conn, rows)
+def all_replays(conn: Connection) -> dict[int, MortgageReplay]:
+    """Every Mortgage, replayed: what the Dashboard is worked out from."""
+    return replays(conn, conn.execute(select(mortgage_table)).mappings().all())
+
+
+def dashboard(
+    conn: Connection,
+    today: date,
+    replayed: Mapping[int, MortgageReplay] | None = None,
+) -> Dashboard:
+    """The Dashboard today, from `replayed` (every Mortgage) when the caller has
+    replayed them already."""
+    if replayed is None:
+        replayed = all_replays(conn)
+    rows = [mortgage.row for mortgage in replayed.values()]
     rates = gold_rates(conn)
     this_month = (today.year, today.month)
 
@@ -225,7 +238,7 @@ def dashboard(conn: Connection, today: date) -> Dashboard:
                 profit_loss += closure.profit_loss or 0
 
     projections, trend_months, coming_months = _projections(conn, active, today)
-    to_send = notices.unsent_counts(conn)
+    to_send = notices.unsent_counts(conn, replayed)
     return Dashboard(
         as_of=today,
         active_mortgages=len(active),
@@ -259,6 +272,7 @@ router = APIRouter(prefix="/api")
 @router.get("/dashboard")
 def read_dashboard(engine: EngineDep, today: TodayDep) -> Dashboard:
     with engine.begin() as conn:
+        replayed = all_replays(conn)
         # As the Notices page does, so the two always agree.
-        notices.sync(conn, today)
-        return dashboard(conn, today)
+        notices.sync(conn, today, replayed)
+        return dashboard(conn, today, replayed)

@@ -329,7 +329,7 @@ def test_closing_between_accrual_dates_adds_the_interest_to_date(rule, charge):
         assert last.event == "interest"
         assert last.unpaid_interest == 3_000_00
     else:
-        assert (last.on, last.event, last.amount, last.part_month_days) == (
+        assert (last.on, last.event, last.amount, last.interest_to_date_days) == (
             date(2026, 2, 24),
             "interest_to_date",
             charge,
@@ -663,7 +663,7 @@ def test_an_open_ledger_ends_with_the_interest_to_date_on_its_date():
         (date(2026, 12, 1), "interest", 90_00),  # November's, charged
         (date(2026, 12, 15), "interest_to_date", 45_00),  # 1-15 Dec
     ]
-    assert (ledger[-1].part_month_days, ledger[-1].charged_on) == (15, 3_000_00)
+    assert (ledger[-1].interest_to_date_days, ledger[-1].charged_on) == (15, 3_000_00)
 
 
 def test_the_interest_to_date_is_on_the_capitalised_principal_and_never_capitalised():

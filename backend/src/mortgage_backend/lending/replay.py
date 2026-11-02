@@ -155,6 +155,14 @@ class MortgageReplay:
             total=last.principal + last.unpaid_interest,
         )
 
+    def dormant(self, on: date) -> bool:
+        """Active, yet owing nothing on `on`: its jewellery should already have gone
+        back (see Dormant in GLOSSARY.md, ADR 0012)."""
+        return (
+            self.row["status"] == MortgageStatus.ACTIVE
+            and self.outstanding(on).total == 0
+        )
+
     def outstanding_on_closure(self, on: date) -> OutstandingOnClosure:
         """The Outstanding if closed on `on`, leaving out the Closure's own final
         Payment."""
@@ -290,6 +298,20 @@ def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageR
         row["id"]: MortgageReplay(row, allocations[row["id"]], changes[row["id"]])
         for row in rows
     }
+
+
+def active_replays(conn: Connection) -> dict[int, MortgageReplay]:
+    """Every Active Mortgage, replayed."""
+    return replays(
+        conn,
+        conn.execute(
+            select(mortgage_table).where(
+                mortgage_table.c.status == MortgageStatus.ACTIVE
+            )
+        )
+        .mappings()
+        .all(),
+    )
 
 
 def mortgage_row(conn: Connection, mortgage_id: int) -> RowMapping:

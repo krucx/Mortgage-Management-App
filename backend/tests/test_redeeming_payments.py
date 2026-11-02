@@ -7,7 +7,7 @@ from api_seed import SIMPLE_3, lend, pay, person
 from seed import LAKH
 
 # 20 Apr 2026, for a Mortgage of ₹1 lakh from 14 Jan at 3% (full-month Part-Month
-# Rule): ₹9,000 accrued, plus ₹3,000 for the part-month.
+# Rule): ₹9,000 accrued, plus ₹3,000 Interest to Date.
 ON = "2026-04-20"
 OUTSTANDING = LAKH + 12_000_00
 

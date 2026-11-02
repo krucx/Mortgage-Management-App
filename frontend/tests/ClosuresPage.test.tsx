@@ -21,6 +21,10 @@ const quote = {
   interest_to_date: 60_000, total: 2_240_000,
 }
 
+const noneDormant = {
+  'GET /api/closures/dormant': { items: [], total: 0, page: 1, page_size: 20 },
+}
+
 /** Waiving off a Mortgage owing ₹22,400, as the backend's Preview would answer: what is
  *  let off, or (if what is paid covers it) a refusal. */
 async function waivePreview(request: Request) {
@@ -75,6 +79,7 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   const waived: unknown[] = []
   let listed = [row]
   const server = fakeServer({
+    ...noneDormant,
     'GET /api/mortgages': () => ({ items: listed, total: listed.length, page: 1, page_size: 20 }),
     'GET /api/mortgages/3/outstanding-on-closure': quote,
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
@@ -109,6 +114,7 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
 
 test("receiving all that is owed cannot be Waived off: the Preview gives the backend's reason", async () => {
   const server = fakeServer({
+    ...noneDormant,
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
     'GET /api/mortgages/3/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
@@ -129,6 +135,7 @@ test("receiving all that is owed cannot be Waived off: the Preview gives the bac
 
 test("if the backend refuses the Waiver when it is saved, nothing is Waived off and its reason is shown", async () => {
   const server = fakeServer({
+    ...noneDormant,
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
     'GET /api/mortgages/3/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
@@ -164,6 +171,7 @@ const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: 
  *  Preview works it out from what was sent. */
 function forfeitRoutes(extra: Record<string, unknown>) {
   return {
+    ...noneDormant,
     'GET /api/mortgages': { items: [row, second], total: 2, page: 1, page_size: 20 },
     'GET /api/mortgages/3/outstanding-on-closure': quote,
     'GET /api/mortgages/4/outstanding-on-closure': quote,
@@ -287,4 +295,32 @@ test("a Forfeiture the Preview says would be refused can't be confirmed, and its
   ).toBeTruthy()
   expect((screen.getByRole('button', { name: 'Forfeit 2' }) as HTMLButtonElement).disabled).toBe(true)
   expect(server.requests).not.toContain('POST /api/closures/forfeit')
+})
+
+test('Dormant Mortgages, owing nothing, are listed each with Redeem… and none to Forfeit', async () => {
+  const dormant = { ...row, outstanding_total: 0 }
+  const server = fakeServer({
+    'GET /api/closures/dormant': { items: [dormant], total: 1, page: 1, page_size: 20 },
+    'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 20 },
+  })
+  showPage(server, '/closures', { '/closures': <ClosuresPage /> })
+
+  expect(screen.getByRole('heading', { level: 2, name: 'Closures' })).toBeTruthy()
+  const listed = (await screen.findByRole('link', { name: row.name })).closest('tr')!
+  expect(within(listed).getByRole('link', { name: 'Arjun Patel' })).toBeTruthy()
+  expect(within(listed).getByRole('link', { name: 'Redeem…' }).getAttribute('href')).toBe(
+    '/mortgages/3/redeem',
+  )
+  expect(screen.getByRole('heading', { level: 3, name: /Dormant/ })).toBeTruthy()
+  expect(screen.queryByText(/Ready to Redeem/)).toBeNull()
+})
+
+test('with nothing Dormant, the page says so', async () => {
+  showPage(
+    fakeServer({ ...noneDormant, 'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 } }),
+    '/closures',
+    { '/closures': <ClosuresPage /> },
+  )
+
+  expect(await screen.findByText('None: every Active Mortgage owes something.')).toBeTruthy()
 })

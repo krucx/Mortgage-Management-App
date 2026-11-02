@@ -45,7 +45,7 @@ export function CloseMortgage({
 }: {
   mortgage: Mortgage
   onClosed: (updated: Mortgage) => void
-  /** Open straight into Redeem or Forfeit (e.g. from the Redeem / Forfeit page). */
+  /** Open straight into Redeem or Forfeit (e.g. from the Closures page). */
   initialAction?: Action | null
   onCancel?: () => void
 }) {

@@ -46,6 +46,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/closures/dormant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dormant
+         * @description Dormant Mortgages, Active yet owing nothing today, oldest first (or by `sort`,
+         *     reversed when `descending`).
+         */
+        get: operations["dormant_api_closures_dormant_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/closures/forfeit": {
         parameters: {
             query?: never;
@@ -1702,6 +1723,11 @@ export interface components {
              */
             interest_paid: number;
             /**
+             * Interest To Date Days
+             * @default 0
+             */
+            interest_to_date_days: number;
+            /**
              * On
              * Format: date
              */
@@ -1711,11 +1737,6 @@ export interface components {
              * @default 0
              */
             paid_ahead: number;
-            /**
-             * Part Month Days
-             * @default 0
-             */
-            part_month_days: number;
             /** Payment Id */
             payment_id?: number | null;
             /** Principal */
@@ -2517,6 +2538,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CallListPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dormant_api_closures_dormant_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                sort?: ("mortgage" | "customer") | null;
+                descending?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_MortgageRow_"];
                 };
             };
             /** @description Validation Error */

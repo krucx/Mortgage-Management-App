@@ -53,6 +53,8 @@ export const CALL_LIST_SORTS = columnsOf<CallListSort>({
   why: true,
   outstanding: true,
 })
+export type DormantSort = SortOf<'dormant_api_closures_dormant_get'>
+export const DORMANT_SORTS = columnsOf<DormantSort>({ mortgage: true, customer: true })
 
 export type InterestMode = Schemas['InterestMode']
 export type PartMonthRule = Schemas['PartMonthRule']
@@ -85,7 +87,7 @@ export type PaymentPage = Schemas['PaymentPage']
 export type Payment = Schemas['Payment']
 
 export type MortgageStatus = Schemas['MortgageStatus']
-/** Principal plus unpaid interest on a date, before any Part-Month Rule charge. */
+/** What a Mortgage owes on a date: Principal, unpaid interest and the Interest to Date. */
 export type Outstanding = Schemas['Outstanding']
 export type Mortgage = Schemas['Mortgage']
 export type MortgageRow = Schemas['MortgageRow']

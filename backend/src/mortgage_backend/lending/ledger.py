@@ -43,7 +43,7 @@ class LedgerStep:
     # interest / interest_to_date steps: the Principal at the start of that month
     charged_on: int = 0
     # interest_to_date steps: days of the month charged, from its first day through `on`
-    part_month_days: int = 0
+    interest_to_date_days: int = 0
     # interest / interest_to_date steps: the part of it Payments had already paid ahead;
     # payment steps: the part of the Payment that paid the Interest to Date ahead
     paid_ahead: int = 0
@@ -142,7 +142,7 @@ def interest_to_date_days(start: date, on: date) -> int:
     return days_since_accrual(start, on) + 1
 
 
-def part_month_charge(principal: int, terms: Terms, days: int) -> int:
+def interest_to_date_charge(principal: int, terms: Terms, days: int) -> int:
     """The Interest to Date for `days` of a month, under its Part-Month Rule."""
     if days <= 0:
         return 0
@@ -309,7 +309,8 @@ class _Run:
         """The Interest to Date (and days charged) on `on`, once accrued through it."""
         days = interest_to_date_days(self.start, on)
         month_terms = self.terms_from(accrual_date(self.start, self.n - 1))
-        return part_month_charge(self.month_start_principal, month_terms, days), days
+        charge = interest_to_date_charge(self.month_start_principal, month_terms, days)
+        return charge, days
 
     def charge_interest_to_date(self, on: date, cap: int | None = None) -> None:
         """Add the Interest to Date on `on` as the Ledger's step, less what was paid
@@ -328,7 +329,7 @@ class _Run:
                     self.principal,
                     self.unpaid,
                     charged_on=self.month_start_principal,
-                    part_month_days=days,
+                    interest_to_date_days=days,
                     paid_ahead=self.paid_ahead,
                 )
             )
