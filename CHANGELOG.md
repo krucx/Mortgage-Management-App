@@ -5,6 +5,34 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [3.1.1] - 2026-11-02
+
+A Call Sheet with some rows the app can't take no longer fails: it imports the rest
+and lists those rows. **No database changes:** updating keeps all data and Backups, and
+3.1.0 still starts on the same database.
+
+### Changed
+
+- **Importing a Call Sheet adds the rows it can.** A note naming no Mortgage, an
+  unknown or closed one, or without a usable Called on date is left out and listed by
+  its Excel row number, Mortgage Name and why; rows without a note are only counted.
+  Fix those rows and import the sheet again: notes already added are skipped.
+- **The import's Preview is a pop-up** on the Call List page: what it adds, what it
+  leaves out, and Add. After saving, **Show them** lists the rows left out. Both close
+  on Esc or a click outside, saving nothing; so do the Ledger and History lists.
+- **Called on reads more hand-typed dates:** 19/10/2026, 19-10-2026, 19-Oct-2026,
+  19 Oct 26 and 19/10/26.
+
+### Upgrading
+
+On Windows, use the banner's **Install now**. Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
+
 ## [3.1.0] - 2026-11-02
 
 Dormant Mortgages flagged on the renamed Closures page; Lent Through and a Cash Limit
