@@ -7,8 +7,8 @@ import { STALE_AFTER, useChange, useServerState } from '../serverState'
 import { Summary } from './ConfirmDialog'
 import { useConfirm } from './useConfirm'
 
-/** Mark a Mortgage as called today, with a note of what was said; the Call List and
- *  Call Notes show it. */
+/** Mark a Mortgage as called today, with a note of what was said (one is needed); the
+ *  Call List and Call Notes show it. */
 export function MarkCalled({
   mortgageId,
   mortgageName,
@@ -30,7 +30,7 @@ export function MarkCalled({
     event.preventDefault()
     const confirmed = await confirm({
       title: `Mark ${mortgageName} as called?`,
-      body: <Summary rows={[['Note', note.trim() || '—']]} />,
+      body: <Summary rows={[['Note', note.trim()]]} />,
       confirmLabel: 'Save Call Note',
     })
     if (!confirmed) return
@@ -54,7 +54,7 @@ export function MarkCalled({
         value={note}
         onChange={(event) => setNote(event.target.value)}
       />
-      <button type="submit" className="small" disabled={saving}>
+      <button type="submit" className="small" disabled={saving || !note.trim()}>
         {saving ? 'Saving…' : 'Called'}
       </button>
       {onCancel && (

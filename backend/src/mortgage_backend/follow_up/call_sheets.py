@@ -29,8 +29,8 @@ from pydantic import BaseModel
 from sqlalchemy import insert, select
 from sqlalchemy.engine import Connection
 
+from mortgage_backend.follow_up import call_notes
 from mortgage_backend.follow_up.call_list import CallListRow, call_list
-from mortgage_backend.lending.replay import MortgageStatus
 from mortgage_backend.platform.clock import TodayDep
 from mortgage_backend.platform.db import (
     EngineDep,
@@ -314,20 +314,17 @@ def _filled_rows(data: bytes) -> list[tuple[int, dict[str, Any]]]:
 
 
 def _left_out_because(
-    name: str, mortgage: Any, called_on: date | None, today: date
+    name: str, mortgage: Any, called_on: date | None, note: str, today: date
 ) -> str | None:
-    """Why a row with a Call Note can't be imported, if it can't."""
+    """Why a row with a Call Note can't be imported, if it can't: the sheet's own
+    reasons, then the rules for every Call Note."""
     if not name:
         return "no Mortgage Name"
     if mortgage is None:
         return "no such Mortgage"
-    if mortgage.status != MortgageStatus.ACTIVE:
-        return f"it is {mortgage.status}"
     if called_on is None:
         return "Called on is not a date"
-    if called_on > today:
-        return "Called on is after today"
-    return None
+    return call_notes.left_out_because(mortgage, called_on, note, today)
 
 
 def read_import(conn: Connection, data: bytes, today: date) -> CallNoteImport:
@@ -341,6 +338,7 @@ def read_import(conn: Connection, data: bytes, today: date) -> CallNoteImport:
                 mortgage_table.c.id,
                 mortgage_table.c.name,
                 mortgage_table.c.status,
+                mortgage_table.c.start_date,
                 customer_table.c.name.label("customer_name"),
             ).join(customer_table, customer_table.c.id == mortgage_table.c.customer_id)
         )
@@ -360,7 +358,7 @@ def read_import(conn: Connection, data: bytes, today: date) -> CallNoteImport:
             continue
         mortgage = mortgages.get(name.casefold())
         called_on = _as_date(row[_CALLED_ON])
-        reason = _left_out_because(name, mortgage, called_on, today)
+        reason = _left_out_because(name, mortgage, called_on, note, today)
         if reason is not None:
             shown = mortgage.name if mortgage is not None else (name or None)
             left_out.append(

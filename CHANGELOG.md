@@ -13,6 +13,12 @@ Every release of Mortgage Management, newest first. The format follows
   Payment Redeems each Mortgage it pays in full by itself, and the Redeem question and
   each Allocation's "Redeems it" come from the Preview. "Can't pay it in full" shows
   its reason straight away.
+- **One set of rules for Call Notes:** a Call Note added on its own now follows the
+  same rules as one imported from a Call Sheet. It is refused, with the reason shown,
+  on a Mortgage that isn't Active (a Dormant one is Active) or with nothing written,
+  and Called stays greyed out until a note is typed. The same note twice the same day
+  is kept once. An imported Call Note dated before its Mortgage started is now left
+  out too. Call Notes already stored are left as they are.
 - **The Cash Limit's warning comes from the Preview:** the backend works out the sums
   each change would write in cash (each Payment one sum with its Final Payments, each
   Principal lent in cash), so every page warns alike. Still only a warning.
