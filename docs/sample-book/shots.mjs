@@ -1,17 +1,18 @@
 // Takes the GitHub Pages screenshots from the sample book, as served by serve.py, and the
 // place of each numbered marker on them (story.html's SPOTS): see README.md.
 //
-//   node shots.mjs <out folder> [base url]
+//   node shots.mjs <out folder> [base url] [filled Call Sheet]
 //
+// (The filled Call Sheet, made by call_sheet.py, is imported as far as its Preview.)
 // Writes <out>/<name>.png for each screenshot and <out>/spots.json; publish.py turns them
 // into docs/shots/*.webp and story.html's SPOTS. Scenes that change the book (approving a
 // Notice, Payments) come last, so every other screenshot shows the book as built.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright'
 
-const [, , out, base = 'http://127.0.0.1:8765'] = process.argv
+const [, , out, base = 'http://127.0.0.1:8765', callSheet] = process.argv
 if (!out) {
-  console.error('node shots.mjs <out folder> [base url]')
+  console.error('node shots.mjs <out folder> [base url] [filled Call Sheet]')
   process.exit(1)
 }
 mkdirSync(out, { recursive: true })
@@ -137,6 +138,7 @@ await view('dashboard', {
   ltv: page.locator('.tile').filter({ hasText: 'Loan-to-Value' }),
   follow: page.locator('.tile').filter({ hasText: "On today's Call List" }),
   theme: page.locator('header button').last(),
+  dot: page.locator('nav .dot'),
 })
 await shot('dashboard-chart', await section('Payments received each month, and the year ahead'))
 await shot('dashboard-ahead', await section('Looking ahead'))
@@ -151,12 +153,13 @@ await shot('settings-gold', card(1), {
   updated: card(1).locator('tr', { hasText: '22K' }).locator('td').last(),
 })
 await shot('settings-calls', card(2))
-await shot('settings-messages', card(3), {
-  template: card(3).locator('textarea').first(),
-  preview: card(3).locator('.whatsapp, .bubble, [class*=preview]').first(),
-  approve: card(3).getByText('Approve each Notice', { exact: false }),
+await shot('settings-cash', card(3), { limit: field('Warn at cash of (₹), or more') })
+await shot('settings-messages', card(4), {
+  template: card(4).locator('textarea').first(),
+  preview: card(4).locator('.whatsapp, .bubble, [class*=preview]').first(),
+  approve: card(4).getByText('Approve each Notice', { exact: false }),
 })
-await shot('settings-backups', card(4), { last: card(4).locator('dl, table, p').filter({ hasText: 'mortgage-backup' }) })
+await shot('settings-backups', card(5), { last: card(5).locator('dl, table, p').filter({ hasText: 'mortgage-backup' }) })
 
 // Meera ------------------------------------------------------------------------------------
 
@@ -191,12 +194,13 @@ await shot('referrer', card())
 await open('/mortgages/new?customer=1')
 await field('Description of the jewellery').fill('Gold nose pin')
 await field('Principal lent (₹)').fill('20000')
-await field('Lent Through').selectOption('upi')
+await page.getByLabel(/^Lent Through/).selectOption('upi')
 await field('Gross weight (grams)').fill('3.2')
 await field('Net weight, gold only (grams)').fill('2.8')
 await settle()
 await shot('mortgage-new', card(), {
   active: heading('Active Mortgages'),
+  lent: page.getByLabel(/^Lent Through/),
   name: page.getByLabel('Mortgage Name'),
   terms: card().locator('fieldset').filter({ hasText: 'Monthly interest rate' }),
   photos: card().locator('fieldset').filter({ hasText: 'Upload photos' }),
@@ -205,6 +209,14 @@ await button('Create Mortgage').click()
 await settle()
 await shot('mortgage-new-confirm', dialog())
 await dialog().getByRole('button', { name: 'Keep editing' }).click()
+// Lent in cash above the Cash Limit: a warning first, never a refusal.
+await field('Principal lent (₹)').fill('25000')
+await page.getByLabel(/^Lent Through/).selectOption('cash')
+await settle()
+await button('Create Mortgage').click()
+await settle()
+await shot('cash-warning', dialog(), { anyway: dialog().getByRole('button', { name: 'Record in cash anyway' }) })
+await dialog().getByRole('button', { name: 'Go back' }).click()
 
 // The life of a pledge -------------------------------------------------------------------
 
@@ -231,6 +243,7 @@ await shot('mortgage-photos', await section('Photos'))
 
 await open('/mortgages/2/edit')
 await field('Principal lent (₹)').fill('90000')
+await card().getByText('Ledger steps that change').first().waitFor()
 await settle()
 await shot('edit-preview', card(), {
   principal: field('Principal lent (₹)'),
@@ -239,6 +252,7 @@ await shot('edit-preview', card(), {
 })
 await open('/mortgages/2/terms')
 await field('Monthly interest rate (%)').fill('1.5')
+await card().getByText('Interest over the next 12 months').first().waitFor()
 await settle()
 await shot('terms-preview', card(), {
   from: card().locator('select').first(),
@@ -294,11 +308,18 @@ await shot('call-list', card(), {
   legend: card().locator('.reason-legend'),
   called: card().locator('.called-cell'),
   mark: button('Mark called…'),
+  sheet: card().getByRole('link', { name: 'Export to Excel' }),
   chat: card().locator('.call-who .reach a, .call-who .reach button').last(),
 })
 await card().locator('.call-who a').filter({ hasText: /2 Mortgages/ }).click()
 await settle()
 await shot('mortgages-customer', card(), { note: card().getByText('Show every Customer').locator('..') })
+// The Call Sheet back from whoever made the calls: its Preview, not saved.
+await open('/call-list')
+await page.getByLabel('Import Call Notes from Excel').setInputFiles(callSheet)
+await settle()
+await shot('call-sheet-import', dialog())
+await dialog().getByRole('button', { name: 'Keep editing' }).click()
 
 // How pledges end -------------------------------------------------------------------------
 
@@ -310,7 +331,10 @@ async function shortOf(id, letOff) {
 const shortBy300 = await shortOf(8, 300)
 
 await open('/closures')
-await shot('closures', card(), { choose: card().locator('tbody input[type=checkbox]').first() })
+await shot('closures', card(), {
+  dormant: card().getByRole('link', { name: 'Redeem…' }),
+  choose: card().locator('tbody input[type=checkbox]').first(),
+})
 await open('/mortgages/9/redeem')
 await shot('redeem', page.locator('.close-panel'), {
   date: field('Redeemed on'),
@@ -389,6 +413,7 @@ await shot('notices-send', card(), { send: card().getByRole('button', { name: /S
 await open('/payments/new?customer=2')
 await card().locator('tbody tr', { hasText: 'GoldRingRuby' }).locator('input[type=checkbox]').uncheck()
 await page.getByRole('button', { name: /^Pay the full Outstanding/ }).click()
+await page.getByLabel(/^Method/).selectOption('upi') // in cash, the Cash Limit would ask first
 await settle()
 await card().locator('button[type=submit]').last().click()
 await settle()

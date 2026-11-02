@@ -211,7 +211,8 @@ nav.bar > ol { flex: 1; min-width: 0; }
   <ul>
     <li>Everything you open, search, sort or preview is safe. A Preview works out the change and throws it away.</li>
     <li>Every save asks first. To show a save without making it, stop at the confirmation and press <span class="ui">Keep editing</span> or <span class="ui">Cancel</span>.</li>
-    <li>This guide points to Mortgages and Payments by their page address (for example <code>/mortgages/10</code>) rather than naming Customers, so it can be shared.</li>
+    <li>The addresses and figures below are from the sample book of <a href="story.html">The Gold Chain Story</a>, as it stood on <span data-fig="book.day">19 Oct 2026</span>, worked out from it each time the screenshots are retaken. On a live app the addresses point elsewhere and the figures are its own.</li>
+    <li>This guide points to Mortgages and Payments by their page address (for example <code data-fig="mortgage.monthly">/mortgages/1</code>) rather than naming Customers, so it can be shared.</li>
   </ul>
 </section>
 
@@ -225,7 +226,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <li><a href="#s6"><span class="n">6</span>Changes and Previews</a></li>
     <li><a href="#s7"><span class="n">7</span>Payments</a></li>
     <li><a href="#s8"><span class="n">8</span>Follow-up</a></li>
-    <li><a href="#s9"><span class="n">9</span>Redeem / Forfeit</a></li>
+    <li><a href="#s9"><span class="n">9</span>Closures</a></li>
     <li><a href="#s10"><span class="n">10</span>Safekeeping</a></li>
   </ol>
   <button type="button" class="theme-toggle" id="theme-toggle"></button>
@@ -251,44 +252,46 @@ nav.bar > ol { flex: 1; min-width: 0; }
   </div>
   <p class="say">"This is the first thing the Lender sees each morning: what the whole lending book is owed, what came in, how safe it is against the gold, and what needs doing today. Every figure is worked out fresh from the Payments and Terms. Nothing here is typed in by hand."</p>
   <div class="board" aria-label="Dashboard figures today">
-    <div class="tile" style="--tone: var(--owed)"><span>Owed on Active Mortgages</span><strong>₹7,73,872</strong><small>across 10 Mortgages and 4 Customers</small></div>
-    <div class="tile" style="--tone: var(--owed)"><span>Principal Outstanding</span><strong>₹7,28,591</strong><small>plus ₹45,281 unpaid interest</small></div>
-    <div class="tile" style="--tone: var(--money-in)"><span>Interest collected</span><strong>₹30,287</strong><small>this month · ₹59,087 this year</small></div>
-    <div class="tile" style="--tone: var(--collateral)"><span>Collateral Value</span><strong>₹39,19,279</strong><small>Loan-to-Value 19.7%</small></div>
-    <div class="tile" style="--tone: var(--accent)"><span>Follow-up</span><strong>4 · 2</strong><small>on today's Call List · Notices to send</small></div>
-    <div class="tile" style="--tone: var(--closed)"><span>Closed in October</span><strong>2 Redeemed</strong><small>0 Waived off · 0 Forfeited</small></div>
+    <div class="tile" style="--tone: var(--owed)"><span>Owed on Active Mortgages</span><strong data-fig="dashboard.owed">₹4,02,524</strong><small data-fig="dashboard.spread">across 6 Mortgages and 4 Customers</small></div>
+    <div class="tile" style="--tone: var(--owed)"><span>Principal Outstanding</span><strong data-fig="dashboard.principal">₹3,94,831</strong><small data-fig="dashboard.unpaid">plus ₹7,693 unpaid interest</small></div>
+    <div class="tile" style="--tone: var(--money-in)"><span>Interest collected</span><strong data-fig="dashboard.collected">₹14,900</strong><small data-fig="dashboard.collected-year">this month · ₹74,100 this year</small></div>
+    <div class="tile" style="--tone: var(--collateral)"><span>Collateral Value</span><strong data-fig="dashboard.collateral">₹11,09,952</strong><small data-fig="dashboard.ltv-tile">Loan-to-Value 36.3%</small></div>
+    <div class="tile" style="--tone: var(--accent)"><span>Follow-up</span><strong data-fig="dashboard.follow">2 · 1</strong><small>on today's Call List · Notices to approve or send</small></div>
+    <div class="tile" style="--tone: var(--closed)"><span>Closed in October</span><strong data-fig="dashboard.redeemed">2 Redeemed</strong><small data-fig="dashboard.closed">1 Waived off · 1 Forfeited</small></div>
   </div>
   <div class="cols">
     <div>
       <div class="block-title">Show</div>
       <ol class="steps">
+        <li><span>Point to the red dot on <span class="ui">Closures</span> in the menu: a Mortgage is Dormant, owing nothing with its jewellery still held (Stop 9).</span></li>
         <li><span>Read the headline <span class="ui">Owed on Active Mortgages</span>. Click it: it opens the Mortgages list. Every tile is a link to the list behind it.</span></li>
-        <li><span>Point to <span class="ui">Loan-to-Value</span>: what is owed as a share of what the gold is worth. At 19.7% the book is well covered.</span></li>
+        <li><span>Point to <span class="ui">Loan-to-Value</span>: what is owed as a share of what the gold is worth. At <span data-fig="dashboard.ltv">36.3%</span> the book is well covered.</span></li>
         <li><span>Scroll to <span class="ui">Payments received each month, and the year ahead</span>: the past twelve months as bars, the coming twelve as interest charged against expected Payments.</span></li>
         <li><span>Show <span class="ui">Looking ahead</span>: the book in 3, 6 and 12 months. Projections are exact (replayed from today's Mortgages); estimates are a Trend from the last three months.</span></li>
       </ol>
     </div>
     <div class="live">
       <div class="block-title">Payments received, last 12 months</div>
-      <div class="bars" aria-label="Payments received each month">
+      <div class="bars" aria-label="Payments received each month"><!-- fig:dashboard.bars -->
         <div class="bar"><div style="height:0%"></div><span>N</span></div>
-        <div class="bar"><div style="height:0%"></div><span>D</span></div>
-        <div class="bar"><div style="height:0%"></div><span>J</span></div>
-        <div class="bar"><div style="height:0%"></div><span>F</span></div>
-        <div class="bar"><div style="height:0%"></div><span>M</span></div>
-        <div class="bar"><div style="height:0%"></div><span>A</span></div>
-        <div class="bar"><em>50k</em><div style="height:22.8%"></div><span>M</span></div>
-        <div class="bar"><div style="height:0%"></div><span>J</span></div>
-        <div class="bar"><div style="height:0%"></div><span>J</span></div>
-        <div class="bar"><div style="height:0%"></div><span>A</span></div>
-        <div class="bar"><em>50k</em><div style="height:22.8%"></div><span>S</span></div>
-        <div class="bar"><em>2.19L</em><div style="height:100%"></div><span>O</span></div>
+        <div class="bar"><em>1.6k</em><div style="height:0.5%"></div><span>D</span></div>
+        <div class="bar"><em>1.6k</em><div style="height:0.5%"></div><span>J</span></div>
+        <div class="bar"><em>1.6k</em><div style="height:0.5%"></div><span>F</span></div>
+        <div class="bar"><em>6.6k</em><div style="height:2.2%"></div><span>M</span></div>
+        <div class="bar"><em>5k</em><div style="height:1.7%"></div><span>A</span></div>
+        <div class="bar"><em>6.6k</em><div style="height:2.2%"></div><span>M</span></div>
+        <div class="bar"><em>6.2k</em><div style="height:2.1%"></div><span>J</span></div>
+        <div class="bar"><em>6.2k</em><div style="height:2.1%"></div><span>J</span></div>
+        <div class="bar"><em>23.5k</em><div style="height:8%"></div><span>A</span></div>
+        <div class="bar"><em>16.9k</em><div style="height:5.7%"></div><span>S</span></div>
+        <div class="bar"><em>2.95L</em><div style="height:100%"></div><span>O</span></div>
+      <!-- /fig:dashboard.bars -->
       </div>
-      <p class="note">Nov 2025 – Oct 2026 · ₹50,000 in May, ₹50,000 in September, ₹2,19,124 in October.</p>
+      <p class="note" data-fig="dashboard.bars-note">Nov 2025 – Oct 2026 · ₹1,600 in Dec, ₹1,600 in Jan, ₹1,600 in Feb, ₹6,600 in Mar, ₹5,000 in Apr, ₹6,600 in May, ₹6,200 in Jun, ₹6,200 in Jul, ₹23,500 in Aug, ₹16,900 in Sep, ₹2,94,720 in Oct.</p>
       <dl>
-        <dt>Interest accruing, next 3 months</dt><dd>₹74,564</dd>
-        <dt>next 6 months</dt><dd>₹1,55,822</dd>
-        <dt>next 12 months</dt><dd>₹3,32,418</dd>
+        <dt>Interest accruing, next 3 months</dt><dd data-fig="dashboard.ahead-3">₹22,799</dd>
+        <dt>next 6 months</dt><dd data-fig="dashboard.ahead-6">₹46,437</dd>
+        <dt>next 12 months</dt><dd data-fig="dashboard.ahead-12">₹96,973</dd>
       </dl>
     </div>
   </div>
@@ -315,6 +318,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <li><span><span class="ui">Default Terms</span>: copied into every new Mortgage. Changing them never touches existing Mortgages.</span></li>
         <li><span><span class="ui">Gold Rates</span>: price per gram for each purity, with the date last updated. Saving revalues every Mortgage that uses them.</span></li>
         <li><span><span class="ui">Call List</span>: how many Months Unpaid, or how high a Loan-to-Value, puts a Mortgage on the day's Call List.</span></li>
+        <li><span><span class="ui">Cash Limit</span>: lending or receiving this much or more in cash asks first, since Government of India rules ask for UPI or bank transfer instead (₹20,000 unless changed; empty for no warning). It only warns.</span></li>
         <li><span><span class="ui">WhatsApp messages</span>: the Receipt and Notice templates with their placeholders, a live preview, how many days ahead Notices are queued, and whether each needs approving first.</span></li>
         <li><span><span class="ui">Backups</span>: when the last one was taken, <span class="ui">Back up now</span>, and how many to keep.</span></li>
       </ol>
@@ -322,13 +326,13 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div class="live">
       <div class="block-title">The live settings</div>
       <dl>
-        <dt>Default Terms</dt><dd>4% a month, Compounded Yearly, full month</dd>
-        <dt>Gold Rate 24K / 22K</dt><dd>₹14,766 / ₹13,536 a gram</dd>
-        <dt>Gold Rate 20K / 18K / 14K</dt><dd>₹12,332 / ₹11,075 / ₹8,601</dd>
-        <dt>Rates last updated</dt><dd>17 Oct 2026</dd>
-        <dt>Call List</dt><dd>1+ Months Unpaid, or Loan-to-Value above 85%</dd>
-        <dt>Notices</dt><dd>5 days before, sent without approval</dd>
-        <dt>Last Backup</dt><dd>18 Oct 2026, 05:27</dd>
+        <dt>Default Terms</dt><dd data-fig="settings.terms">2% a month, Compounded Yearly, pro-rata</dd>
+        <dt>Gold Rate 24K / 22K</dt><dd data-fig="settings.gold-24-22">₹14,766 / ₹13,536 a gram</dd>
+        <dt>Gold Rate 20K / 18K / 14K</dt><dd data-fig="settings.gold-rest">₹12,332 / ₹11,075 / ₹8,601</dd>
+        <dt>Rates last updated</dt><dd data-fig="settings.gold-updated">19 Oct 2026</dd>
+        <dt>Call List</dt><dd data-fig="settings.call-list">3+ Months Unpaid, or Loan-to-Value above 85%</dd>
+        <dt>Notices</dt><dd data-fig="settings.notices">2 days before, approved first</dd>
+        <dt>Last Backup</dt><dd data-fig="settings.backup">19 Oct 2026, 11:00</dd>
       </dl>
     </div>
   </div>
@@ -361,9 +365,9 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div class="live">
       <div class="block-title">In the book</div>
       <dl>
-        <dt>Customers</dt><dd>5</dd>
-        <dt>with an Active Mortgage</dt><dd>4</dd>
-        <dt>with a photo</dt><dd>2</dd>
+        <dt>Customers</dt><dd data-fig="customers.count">7</dd>
+        <dt>with an Active Mortgage</dt><dd data-fig="customers.active">4</dd>
+        <dt>with a photo</dt><dd data-fig="customers.photo">2</dd>
       </dl>
       <p class="note">Delete works only while a Customer has no Mortgages: for one with Mortgages it says why, before asking anything. Lending history is never lost.</p>
     </div>
@@ -388,10 +392,11 @@ nav.bar > ol { flex: 1; min-width: 0; }
       <div class="block-title">Show</div>
       <ol class="steps">
         <li><span>Choose a Customer. Their <span class="ui">Active Mortgages</span> appear first, as a reminder of what they already owe.</span></li>
-        <li><span>Enter the start date (it may be back-dated), Principal lent, a description, gross and net weight, and purity.</span></li>
+        <li><span>Enter the start date (it may be back-dated), Principal lent and how it was <span class="ui">Lent Through</span> (Cash, UPI or bank transfer), a description, gross and net weight in grams, and purity.</span></li>
         <li><span>Watch the <span class="ui">Mortgage Name</span> fill itself: year, the Customer's first name, and the jewellery (for example <code>2026-Name-GoldNecklace</code>). Type your own and it stops suggesting. <span class="ui">Create Mortgage</span> waits until the name matches what you typed.</span></li>
         <li><span>The Terms arrive from Settings and can be changed for this one Mortgage. Add photos from the camera or files.</span></li>
         <li><span>Press <span class="ui">Create Mortgage</span>: the confirmation shows what it would owe today and over a year with no Payments. Press <span class="ui">Keep editing</span>.</span></li>
+        <li><span>Choose <span class="ui">Cash</span> for ₹20,000 or more and Create again: the Cash Limit asks first, with <span class="ui">Go back</span> or <span class="ui">Record in cash anyway</span>. Press <span class="ui">Go back</span>.</span></li>
       </ol>
     </div>
     <div class="live">
@@ -408,6 +413,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
   <div class="nuances">
     <div class="nuance rule"><b>Accrual Dates follow the start date</b><span>Started on the 31st? Interest is added on the 31st, or the month's last day when it is shorter.</span></div>
     <div class="nuance"><b>Names are unique</b><span>A second necklace the same year becomes <code>…-GoldNecklace-2</code> automatically.</span></div>
+    <div class="nuance"><b>Cash is warned about, never refused</b><span>The same question comes before a Payment, a Final Payment or an edit in cash at or above the Cash Limit. Mortgages made before Lent Through was asked show "—" until edited.</span></div>
     <div class="nuance"><b>Collateral Value from the weight</b><span>Net weight at the Gold Rate for its purity; the Lender can set a value by hand later.</span></div>
   </div>
 </section>
@@ -417,15 +423,16 @@ nav.bar > ol { flex: 1; min-width: 0; }
   <div class="stop-head">
     <div class="stop-no">5</div>
     <h2 id="s5-title">One Mortgage, explained</h2>
-    <p class="open">Open <span class="path">/mortgages/10</span> (Compounded Monthly), then <span class="path">/mortgages/3</span> (a coming Term Change)</p>
+    <p class="open">Open <span class="path" data-fig="mortgage.monthly">/mortgages/1</span> (Compounded Monthly), then <span class="path" data-fig="mortgage.coming">/mortgages/5</span> (a coming Term Change)</p>
   </div>
   <p class="say">"Everything about one pledge is on one page: what it owes now, the Terms and any coming changes, what the gold is worth, every call made, the photos, and the full step-by-step Ledger showing how the number was reached."</p>
   <div class="cols">
     <div>
       <div class="block-title">Show, top to bottom</div>
       <ol class="steps">
-        <li><span>The three tiles: <span class="ui">Outstanding</span>, <span class="ui">Principal</span>, <span class="ui">Unpaid interest</span>. Outstanding is what would Redeem it today: unpaid interest includes the Interest to Date for the month under way, shown in italics at the foot of the Ledger. Mortgage 10 lent ₹1,20,000 in April 2025 and owes ₹1,98,342 today.</span></li>
-        <li><span><span class="ui">Terms</span>: on Mortgage 3, a Term Change is <em>coming</em> from 1 Mar 2027 (10% a month) and can still be removed.</span></li>
+        <li><span>The three tiles: <span class="ui">Outstanding</span>, <span class="ui">Principal</span>, <span class="ui">Unpaid interest</span>. Outstanding is what would Redeem it today: unpaid interest includes the Interest to Date for the month under way, shown in italics at the foot of the Ledger. <span data-fig="mortgage.monthly-story">Mortgage 1 lent ₹60,000 in June 2025 and owes ₹85,184 today</span>.</span></li>
+        <li><span><span class="ui">Terms</span>: <span data-fig="mortgage.coming-story">on Mortgage 5, a Term Change is coming from 25 Oct 2026 (1.5% a month)</span>, and can still be removed.</span></li>
+        <li><span>Beside the details, <span class="ui">Lent Through</span>, and the weight in grams.</span></li>
         <li><span><span class="ui">Collateral Value</span> and Loan-to-Value, with <span class="ui">Set by hand…</span>. The confirmation says whether that puts it on or off the Call List.</span></li>
         <li><span><span class="ui">Ledger</span>: the latest 8 steps; <span class="ui">Show complete Ledger</span> opens all of them. Each line spells out its calculation ("Interest: 3% of ₹…").</span></li>
         <li><span><span class="ui">Projection</span>: type a monthly amount in "What if they pay every month" to see when it would be paid off.</span></li>
@@ -435,11 +442,10 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div class="live">
       <div class="block-title">What compounding does</div>
       <dl>
-        <dt>Mortgage 10 · Compounded Monthly</dt><dd>₹1,20,000 → ₹1,98,342</dd>
-        <dt>Mortgage 6 · Compounded Yearly</dt><dd>₹60,000 → ₹1,40,937</dd>
-        <dt>Mortgage 3 · Simple, 4%</dt><dd>₹40,000 → ₹27,044</dd>
+        <dt data-fig="mortgage.monthly-name">Mortgage 1 · Compounded Monthly, 2.5%</dt><dd data-fig="mortgage.monthly-owes">₹60,000 → ₹85,184</dd>
+        <dt data-fig="mortgage.yearly-name">Mortgage 2 · Compounded Yearly, 2%</dt><dd data-fig="mortgage.yearly-owes">₹80,000 → ₹83,333</dd>
       </dl>
-      <p class="note">Mortgage 3 owes less than it lent: Payments have reduced its Principal. Mortgage 6 dates from January 2024.</p>
+      <p class="note" data-fig="mortgage.paid-down">Mortgage 2 has had 9 Payments; Mortgage 1 has had 1, the last in August 2025.</p>
     </div>
   </div>
   <div class="nuances">
@@ -454,7 +460,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
   <div class="stop-head">
     <div class="stop-no">6</div>
     <h2 id="s6-title">Changes, with a Preview first</h2>
-    <p class="open">From a Mortgage: <span class="ui">Edit</span> (<span class="path">/mortgages/10/edit</span>) and <span class="ui">Change Terms…</span> (<span class="path">/mortgages/10/terms</span>)</p>
+    <p class="open">From a Mortgage: <span class="ui">Edit</span> (<span class="path" data-fig="mortgage.edit">/mortgages/2/edit</span>) and <span class="ui">Change Terms…</span> (<span class="path" data-fig="mortgage.terms">/mortgages/2/terms</span>)</p>
   </div>
   <p class="say">"Any change that affects money shows its effect before it is saved: what is owed today, the Outstanding in 3, 6 and 12 months, and exactly which Ledger lines would change. If the change isn't allowed, the Preview says why and Save stays off."</p>
   <div class="cols">
@@ -490,7 +496,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
   <div class="stop-head">
     <div class="stop-no">7</div>
     <h2 id="s7-title">Payments, Receipts and Voids</h2>
-    <p class="open">Open <span class="path">/payments/new</span>, then <span class="path">/payments</span> and a Payment (<span class="path">/payments/4</span> is split three ways)</p>
+    <p class="open">Open <span class="path">/payments/new</span>, then <span class="path">/payments</span> and a Payment (<span class="path" data-fig="payments.split-path">/payments/23</span> is <span data-fig="payments.split-ways">split 2 ways</span>)</p>
   </div>
   <p class="say">"A Customer often hands over one sum for several pledges. The Lender enters it once, the app suggests how to split it, shows what each Mortgage will owe afterwards, and sends the Customer a Receipt on WhatsApp."</p>
   <div class="cols">
@@ -500,6 +506,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <li><span>Choose the Customer. Their Active Mortgages are listed with one figure each, the Outstanding on the Payment date, which is what would Redeem it that day, so a back-dated Payment sees back-dated figures.</span></li>
         <li><span>Enter the amount, or click <span class="ui">Pay the full Outstanding</span>. Split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>; ticked Mortgages stay together at the top, and equal shares fill each up to its Outstanding first.</span></li>
         <li><span>With a whole Outstanding in an Allocation, <span class="ui">Record Payment</span> asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment would Redeem it. Press <span class="ui">Go back</span>.</span></li>
+        <li><span>In <span class="ui">Cash</span>, ₹20,000 or more asks first (the Cash Limit): <span class="ui">Go back</span>, or <span class="ui">Record in cash anyway</span>.</span></li>
         <li><span>Type more than is owed: the Preview gives the reason ("would be more than the ₹… owed then") and Save stays off.</span></li>
         <li><span>Open an existing Payment: each Allocation split into interest and Principal, the <span class="ui">Receipt</span> as it appears in WhatsApp, and <span class="ui">Print or save as PDF</span>.</span></li>
         <li><span>Show <span class="ui">Void…</span>: it needs a reason and previews the effect. Cancel.</span></li>
@@ -509,9 +516,9 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div class="live">
       <div class="block-title">In the book</div>
       <dl>
-        <dt>Payments</dt><dd>12 (3 Voided)</dd>
-        <dt>Cash · UPI · bank transfer</dt><dd>6 · 5 · 1</dd>
-        <dt>Split across Mortgages</dt><dd>2 Payments (2 and 3 ways)</dd>
+        <dt>Payments</dt><dd data-fig="payments.count">32 (1 Voided)</dd>
+        <dt>Cash · UPI · bank transfer</dt><dd data-fig="payments.methods">12 · 11 · 8</dd>
+        <dt>Split across Mortgages</dt><dd data-fig="payments.split">1 Payment (2 ways)</dd>
       </dl>
       <div class="split" aria-label="How an Allocation is applied">
         <div class="legend"><span><i style="background: var(--owed)"></i>unpaid interest first, the Interest to Date included</span><span><i style="background: var(--money-in)"></i>then Principal</span></div>
@@ -522,7 +529,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <pre>*Payment received* ✅
 
 Namaste {customer name},
-We have received *₹…* by Cash on 18 Oct 2026. Thank you!
+We have received *₹…* by Cash on <span data-fig="payments.day">19 Oct 2026</span>. Thank you!
 …</pre>
       </div>
     </div>
@@ -550,9 +557,10 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
         <li><span><span class="ui">Notices</span>: one per Customer for each coming Accrual Date, covering all their Mortgages accruing that day. Tabs: To approve, To send, Sent, Skipped, All.</span></li>
         <li><span>Open a Notice to read the message, then <span class="ui">Send on WhatsApp</span>, mark it sent, or <span class="ui">Skip</span>. On the To send tab, each row has a compact green WhatsApp <span class="ui">Send</span> beside <span class="ui">Skip</span>. (Show, don't send.)</span></li>
         <li><span><span class="ui">Call List</span>: one table, a row per Mortgage, grouped by Customer. The Customer appears once beside their rows, with how many Mortgages are listed, their total, and a <span class="ui">Call</span> button showing each number next to a WhatsApp chat button.</span></li>
-        <li><span>Point to the <span class="ui">Why</span> markers: amber for Months Unpaid ("15 mo"), red for Loan-to-Value too high ("104.5%"), teal for accruing today ("Today"), with the legend above the table. Hover one for the full wording.</span></li>
+        <li><span>Point to the <span class="ui">Why</span> markers: amber for Months Unpaid ("<span data-fig="follow.months-example">15 mo</span>"), red for Loan-to-Value too high ("<span data-fig="follow.ltv-example">104.9%</span>"), teal for accruing today ("Today"), with the legend above the table. Hover one for the full wording.</span></li>
         <li><span>Click a Customer's <span class="ui">2 Mortgages</span>: the Mortgages page opens with only theirs, and <span class="ui">Show every Customer</span> goes back.</span></li>
         <li><span><span class="ui">Mark called…</span> takes a note of what was said; the row then shows ✓ Called with the note. The Mortgage keeps every Call Note.</span></li>
+        <li><span>For whoever makes the calls: <span class="ui">Export to Excel</span> or <span class="ui">Export to PDF</span> gives the day's Call Sheet, a row per Mortgage with <span class="ui">Called on</span> and <span class="ui">Call Note</span> to fill in. <span class="ui">Import Call Notes from Excel</span> takes the filled sheet back: a Preview of the notes it adds, then all of them or none. (Show the Preview, then <span class="ui">Keep editing</span>.)</span></li>
       </ol>
       <div class="states" aria-label="A Notice's life">
         <span class="state">Queued by the daily run</span><span class="arrow">→</span>
@@ -564,36 +572,38 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     <div class="live">
       <div class="block-title">Today</div>
       <dl>
-        <dt>Notices to send</dt><dd>2</dd>
-        <dt>Notices sent</dt><dd>1</dd>
-        <dt>On the Call List</dt><dd>4 Mortgages, 3 Customers</dd>
-        <dt>listed for Months Unpaid</dt><dd>4</dd>
-        <dt>also for Loan-to-Value</dt><dd>3</dd>
-        <dt>Call Notes so far</dt><dd>2</dd>
+        <dt>Notices to approve or send</dt><dd data-fig="follow.to-send">1</dd>
+        <dt>Notices sent</dt><dd data-fig="follow.sent">57</dd>
+        <dt>On the Call List</dt><dd data-fig="follow.listed">2 Mortgages, 1 Customer</dd>
+        <dt>listed for Months Unpaid</dt><dd data-fig="follow.months-unpaid">1</dd>
+        <dt>for Loan-to-Value</dt><dd data-fig="follow.ltv">1</dd>
+        <dt>Call Notes so far</dt><dd data-fig="follow.call-notes">1</dd>
       </dl>
-      <p class="note">The Call List threshold is set to 1 Month Unpaid, so it is busy. The usual setting is 3.</p>
+      <p class="note">A Dormant Mortgage, owing nothing, gets no Notices and stays off the Call List.</p>
     </div>
   </div>
   <div class="nuances">
     <div class="nuance rule"><b>Notices always match today</b><span>Until it is sent, a Notice is worded from today's figures each time it is read, so later Payments and edits show. If none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on "approve first" holds those already queued.</span></div>
+    <div class="nuance rule"><b>A Call Sheet imports all or none</b><span>A row naming a closed or unknown Mortgage, or a note without a Called on date, refuses the whole sheet and names it. Empty rows are skipped, and so is a note the Mortgage already has for that date, so importing twice adds nothing.</span></div>
     <div class="nuance"><b>Months Unpaid counts the oldest first</b><span>Payments clear the oldest interest first; capitalised interest still counts as unpaid.</span></div>
     <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed. Messages arrive exactly as previewed, emoji included.</span></div>
   </div>
 </section>
 
-<!-- 9 · Redeem / Forfeit -->
+<!-- 9 · Closures -->
 <section class="stop" id="s9" aria-labelledby="s9-title">
   <div class="stop-head">
     <div class="stop-no">9</div>
     <h2 id="s9-title">Closing a Mortgage: Redeem, Waive off or Forfeit</h2>
-    <p class="open">Open <span class="path">/closures</span> (Redeem / Forfeit), and <span class="ui">Close this Mortgage</span> on <span class="path">/mortgages/4</span></p>
+    <p class="open">Open <span class="path">/closures</span>, and <span class="ui">Close this Mortgage</span> on <span class="path" data-fig="closures.close-path">/mortgages/9</span></p>
   </div>
   <p class="say">"Every pledge ends one of three ways: the Customer pays in full and takes the jewellery home; they pay nearly all of it and the Lender, at their discretion, lets off the little that is left and hands the jewellery back; or they default and the Lender keeps or sells it. The app works out the exact Outstanding for any Closure date, records what was let off on a Waiver, and the profit or loss on a Forfeiture."</p>
   <div class="cols">
     <div>
       <div class="block-title">Show</div>
       <ol class="steps">
-        <li><span>Open <span class="ui">Redeem / Forfeit</span>. Under <span class="ui">Forfeit or Waive off</span>, Active Mortgages still owing can be ticked and closed together: choose <span class="ui">Forfeit</span> or <span class="ui">Waive off</span> for the chosen. A Preview shows each Closure first, and they close all or none: if one is refused, nothing is closed and the reason names it.</span></li>
+        <li><span>Open <span class="ui">Closures</span>. <span class="ui">Dormant</span> lists Active Mortgages that owe nothing (<span class="path" data-fig="closures.dormant-path">/mortgages/10</span>): the jewellery should already have gone back, usually a recording slip. Once checked, <span class="ui">Redeem…</span> closes it with no Payment. While any is Dormant, the menu's <span class="ui">Closures</span> shows a red dot.</span></li>
+        <li><span>Under <span class="ui">Forfeit or Waive off</span>, Active Mortgages still owing can be ticked and closed together: choose <span class="ui">Forfeit</span> or <span class="ui">Waive off</span> for the chosen. A Preview shows each Closure first, and they close all or none: if one is refused, nothing is closed and the reason names it.</span></li>
         <li><span>On a Mortgage, press <span class="ui">Redeem…</span>: pick a date to see its Outstanding then (Principal, unpaid interest, the Interest to Date). A future date gives a quote only. (When the Customer brings it all at once, taking it on New Payment Redeems the Mortgage too: Stop 7.)</span></li>
         <li><span>Switch to <span class="ui">Waive off…</span>: enter what the Customer pays now (₹0 is allowed) and the amount let off appears, with the button reading <span class="ui">Waive off ₹…</span>. Paying the full amount is refused: Redeem instead. Cancel.</span></li>
         <li><span>Switch to <span class="ui">Forfeit…</span>: enter the Recovered Amount and the profit or loss appears. Cancel.</span></li>
@@ -603,12 +613,13 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     <div class="live">
       <div class="block-title">In the book</div>
       <dl>
-        <dt>Active</dt><dd>10</dd>
-        <dt>Redeemed this month</dt><dd>2</dd>
-        <dt>Waived off</dt><dd>0</dd>
-        <dt>Forfeited</dt><dd>0</dd>
+        <dt>Active</dt><dd data-fig="closures.active">6</dd>
+        <dt>of them Dormant</dt><dd data-fig="closures.dormant">1</dd>
+        <dt>Redeemed this month</dt><dd data-fig="closures.redeemed">2</dd>
+        <dt>Waived off</dt><dd data-fig="closures.waived">1</dd>
+        <dt>Forfeited</dt><dd data-fig="closures.forfeited">1</dd>
       </dl>
-      <p class="note">History shows two Reopens: closures made by mistake were undone, and every step is kept.</p>
+      <p class="note">Dormant is worked out, never stored: a Payment Voided or edited so the Mortgage owes again takes it off the list (ADR-0012).</p>
     </div>
   </div>
   <div class="nuances">
@@ -640,11 +651,11 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     <div class="live">
       <div class="block-title">History so far</div>
       <dl>
-        <dt>Records created</dt><dd>71</dd>
-        <dt>Term Changes added · removed</dt><dd>11 · 3</dd>
-        <dt>Edits</dt><dd>7</dd>
-        <dt>Voids · Reopens</dt><dd>3 · 2</dd>
-        <dt>Photos added</dt><dd>3</dd>
+        <dt>Records created</dt><dd data-fig="history.created">49</dd>
+        <dt>Term Changes added · removed</dt><dd data-fig="history.term-changes">1 · 0</dd>
+        <dt>Edits</dt><dd data-fig="history.edits">1</dd>
+        <dt>Voids · Reopens</dt><dd data-fig="history.voids">1 · 0</dd>
+        <dt>Photos added</dt><dd data-fig="history.photos">3</dd>
       </dl>
     </div>
   </div>
@@ -671,7 +682,7 @@ We have received *₹…* by Cash on 18 Oct 2026. Thank you!
     <span><span class="label">Next</span><b>The Gold Chain Story</b><span class="what">Every page above, on screen, as one Customer's year.</span></span>
     <span class="go">Read the story →</span>
   </a>
-  <footer>Figures were worked out from a read-only copy of the database on 18 Oct 2026; the live app shows today's. No Customer names or numbers appear in this guide.</footer>
+  <footer>Figures and addresses are worked out from The Gold Chain Story's sample book as it stood on <span data-fig="book.day">19 Oct 2026</span>, each time the screenshots are retaken; a live app shows its own. No Customer names or numbers appear in this guide.</footer>
 </section>
 
 </main>

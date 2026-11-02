@@ -140,10 +140,11 @@ class Book:
         karat: int = 22,
         terms: Any = None,
         lent_through: str = "upi",
+        started: str | None = None,
     ) -> None:
         body = {
             "customer_id": self.people[who]["id"],
-            "start_date": self.clock.day.isoformat(),
+            "start_date": started or self.clock.day.isoformat(),
             "amount_lent": rupees(amount),
             "description": description,
             "gross_weight_mg": round(gross_g * G),
@@ -155,7 +156,8 @@ class Book:
         self.mortgages[key] = self.post("/api/mortgages", body)
 
     def pay(self, who: str, split: dict[str, float], method: str = "cash", reference: str | None = None,
-            redeeming: list[str] | None = None) -> Any:
+            redeeming: list[str] | None = None, on: str | None = None) -> Any:
+        """A Payment received today (or on `on`, when entered late)."""
         allocations = [
             {"mortgage_id": self.mortgages[key]["id"], "amount": rupees(amount)}
             for key, amount in split.items()
@@ -164,7 +166,7 @@ class Book:
             "/api/payments",
             {
                 "customer_id": self.people[who]["id"],
-                "paid_on": self.clock.day.isoformat(),
+                "paid_on": on or self.clock.day.isoformat(),
                 "amount": sum(a["amount"] for a in allocations),
                 "method": method,
                 "reference": reference,
@@ -200,8 +202,9 @@ def events(book: Book) -> list[tuple[str, Any]]:
         )),
         ("2025-08-14", lambda: book.pay(arjun, {"ring": 3_000}, method="upi")),  # his only one
         # Meera's chain, the story's pledge: 2% a month on ₹80,000, accruing on the 10th.
+        # Lent in cash: above the Cash Limit, which only warns.
         ("2025-11-10", lambda: book.lend("chain", meera, 80_000, "Gold chain with pendant",
-                                         net_g=20, gross_g=21.5)),
+                                         net_g=20, gross_g=21.5, lent_through="cash")),
         ("2026-01-15", lambda: book.put(f"/api/mortgages/{book.mortgage_id('chain')}", {
             **{k: book.get(f"/api/mortgages/{book.mortgage_id('chain')}")[k] for k in (
                 "name", "start_date", "amount_lent", "gross_weight_mg", "net_weight_mg", "purity_karat")},
@@ -214,11 +217,12 @@ def events(book: Book) -> list[tuple[str, Any]]:
         )),
         ("2026-02-20", lambda: (
             book.customer("lakshmi", "Lakshmi Iyer", "9830034567", "5 Mylapore, Chennai"),
-            book.lend("necklace", "lakshmi", 2_00_000, "Temple necklace", net_g=30, gross_g=34),
+            book.lend("necklace", "lakshmi", 2_00_000, "Temple necklace", net_g=30, gross_g=34,
+                      lent_through="bank_transfer"),
         )),
         # Meera's bangles.
         ("2026-04-25", lambda: book.lend("bangles", meera, 1_50_000, "Pair of bangles",
-                                         net_g=30, gross_g=32)),
+                                         net_g=30, gross_g=32, lent_through="bank_transfer")),
         # Farida, who pays every month, on the 12th.
         ("2026-05-12", lambda: (
             book.customer("farida", "Farida Khan", "9870078901", "7 Park Street, Kolkata"),
@@ -260,6 +264,16 @@ def events(book: Book) -> list[tuple[str, Any]]:
             book.post(f"/api/mortgages/{book.mortgage_id('nosering')}/waive", {
                 "waived_on": "2026-10-16", "amount_paid": book.owed("nosering") - rupees(180),
                 "method": "cash", "note": "Pays every month; ₹180 let off"}),
+        )),
+        # Kavita's anklet, lent in cash on 1 Jul and entered late from the paper book with
+        # its two Payments, the second dated 25 Aug by mistake (it was 25 Sep): together
+        # they leave it owing nothing, Dormant, though she has not had it back.
+        ("2026-10-18", lambda: (
+            book.lend("anklet", "kavita", 15_000, "Silver-gold anklet", net_g=4, gross_g=5,
+                      terms={"monthly_rate_bps": 200, "interest_mode": "simple", "part_month_rule": "nothing"},
+                      lent_through="cash", started="2026-07-01"),
+            book.pay("kavita", {"anklet": 300}, method="cash", on="2026-09-05"),
+            book.pay("kavita", {"anklet": 15_300}, method="upi", on="2026-08-25"),
         )),
         # The day of the story: today's Gold Rates, and Arjun called about his ring.
         ("2026-10-19", lambda: (
