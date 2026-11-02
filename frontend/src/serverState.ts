@@ -119,6 +119,9 @@ export const STALE_AFTER = {
   notice: [keys.list('notices'), keys.dashboard],
   /** Marking a Mortgage called: the Call List, the Call Notes and the Dashboard's count. */
   callNote: [keys.list('call-list'), keys.allCallNotes, keys.dashboard],
+  /** Adding or removing a Mortgage's photo: the Mortgage and its History, and the
+   *  Customer's History, which holds it. */
+  mortgagePhoto: [keys.allMortgages, keys.allCustomers],
   /** Saving or deleting a Customer: everything that shows their name or numbers. */
   customer: [keys.allCustomers, keys.allMortgages, keys.allPayments, keys.lists, keys.dashboard],
   /** A Collateral Value set by hand. */

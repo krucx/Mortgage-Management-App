@@ -363,15 +363,10 @@ async def put_customer_photo(
     photos_dir: PhotosDirDep,
     now: NowDep,
 ) -> Customer:
-    with engine.connect() as conn:
-        load_customer(conn, customer_id)  # refused before saving a file for nothing
-    content = await photo.read()
-    file_name = photos.save_photo(photos_dir, "customer", customer_id, content)
-    with engine.begin() as conn:
-        old = replace_photo(conn, customer_id, file_name, now)
-        saved = load_customer(conn, customer_id)
-    photos.delete_photo(photos_dir, old)
-    return saved
+    new = photos.NewPhoto("customer", customer_id, await photo.read())
+    with photos.photo_change(engine, photos_dir, new) as change:
+        change.remove_when_saved(replace_photo(change.conn, customer_id, change.file, now))
+        return load_customer(change.conn, customer_id)
 
 
 @router.put("/customers/{customer_id}/id-photos/{card}")
@@ -384,15 +379,12 @@ async def put_id_photo(
     now: NowDep,
 ) -> Customer:
     """Add or replace one of the Customer's ID Photos."""
-    with engine.connect() as conn:
-        load_customer(conn, customer_id)  # refused before saving a file for nothing
-    content = await photo.read()
-    file_name = photos.save_photo(photos_dir, "customer", customer_id, content)
-    with engine.begin() as conn:
-        old = replace_id_photo(conn, customer_id, card, file_name, now)
-        saved = load_customer(conn, customer_id)
-    photos.delete_photo(photos_dir, old)
-    return saved
+    new = photos.NewPhoto("customer", customer_id, await photo.read())
+    with photos.photo_change(engine, photos_dir, new) as change:
+        change.remove_when_saved(
+            replace_id_photo(change.conn, customer_id, card, change.file, now)
+        )
+        return load_customer(change.conn, customer_id)
 
 
 @router.delete("/customers/{customer_id}/id-photos/{card}")
@@ -404,11 +396,9 @@ def delete_id_photo(
     now: NowDep,
 ) -> Customer:
     """Remove one of the Customer's ID Photos."""
-    with engine.begin() as conn:
-        old = replace_id_photo(conn, customer_id, card, None, now)
-        saved = load_customer(conn, customer_id)
-    photos.delete_photo(photos_dir, old)
-    return saved
+    with photos.photo_change(engine, photos_dir) as change:
+        change.remove_when_saved(replace_id_photo(change.conn, customer_id, card, None, now))
+        return load_customer(change.conn, customer_id)
 
 
 @router.delete("/customers/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -416,10 +406,9 @@ def delete_customer(
     customer_id: int, engine: EngineDep, photos_dir: PhotosDirDep, now: NowDep
 ) -> Response:
     """Delete a Customer; anyone they referred keeps their record but loses the link."""
-    with engine.begin() as conn:
-        files = remove_customer(conn, customer_id, now)
-    for file in files:
-        photos.delete_photo(photos_dir, file)
+    with photos.photo_change(engine, photos_dir) as change:
+        for file in remove_customer(change.conn, customer_id, now):
+            change.remove_when_saved(file)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

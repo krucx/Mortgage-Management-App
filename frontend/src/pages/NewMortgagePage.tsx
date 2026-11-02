@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   PURITIES,
   type Customer,
+  type Mortgage,
   type MortgageIn,
   type NewMortgagePreview,
   type PaymentMethod,
@@ -21,6 +22,7 @@ import { useCashWarning } from '../components/useCashWarning'
 import { useConfirm } from '../components/useConfirm'
 import { useDebounced } from '../components/useDebounced'
 import { useDraft } from '../components/useDraft'
+import { useSaveWithPhotos } from '../components/useSaveWithPhotos'
 import { previewQuery } from '../components/usePreview'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { WeightFields } from '../components/WeightFields'
@@ -35,7 +37,7 @@ import {
   settings,
   suggestedNameQuery,
 } from '../requests'
-import { useLedgerChange, useServerState } from '../serverState'
+import { STALE_AFTER, useLedgerChange, useServerState } from '../serverState'
 import { formatRate, fromDraft, INTEREST_MODES, toDraft } from '../terms'
 import { gramsToMg } from '../weight'
 
@@ -139,10 +141,15 @@ function MortgageForm({ customer }: { customer: Customer }) {
   const [typedName, setName] = useState('')
   const [nameEdited, setNameEdited] = useState(false)
   const [photos, setPhotos] = useState<{ blob: Blob; url: string }[]>([])
-  // Set once created, so a retried Save (e.g. after a failed photo upload) doesn't duplicate it.
-  const [createdId, setCreatedId] = useState<number>()
+  // Created once: a retried Save (after a failed photo) sends only the photos left.
+  const created = useSaveWithPhotos<Mortgage>({
+    noun: 'Mortgage',
+    stale: STALE_AFTER.mortgagePhoto,
+  })
+  const createdId = created.savedId
+  const saving = created.saving
+  // Why its Preview was refused, before anything is saved
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
   const [confirm, confirmDialog] = useConfirm()
   const [warnCash, cashDialog] = useCashWarning()
 
@@ -219,31 +226,17 @@ function MortgageForm({ customer }: { customer: Customer }) {
       })
       if (!confirmed) return
     }
-    setSaving(true)
     setError(null)
-    const pending = [...photos] // photos still to upload
-    try {
-      let id = createdId
-      if (id === undefined) {
-        // A new Mortgage changes what the lending book is owed.
-        const created = await changeLedger((client) => createMortgage(client, asked))
-        id = created.id
-        setCreatedId(id)
-      }
-      while (pending.length) {
-        await addMortgagePhoto(client, id, pending[0].blob)
-        pending.shift()
-      }
-      navigate(`/mortgages/${id}`)
-    } catch (err) {
-      setPhotos(pending) // keep only the photos that didn't upload
-      setError(
-        createdId === undefined
-          ? (err as Error).message
-          : `Mortgage saved, but a photo failed: ${(err as Error).message}`,
-      )
-      setSaving(false)
-    }
+    const id = await created.run(
+      // A new Mortgage changes what the lending book is owed.
+      () => changeLedger((client) => createMortgage(client, asked)),
+      photos.map(({ blob }) => ({
+        key: blob,
+        send: (client, id) => addMortgagePhoto(client, id, blob),
+      })),
+    )
+    if (id !== undefined) navigate(`/mortgages/${id}`)
+    else setPhotos((all) => all.filter(({ blob }) => !created.isSent(blob))) // the ones left
   }
 
   const locked = createdId !== undefined
@@ -380,7 +373,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
           {saving ? 'Saving…' : locked ? 'Retry photo upload' : 'Create Mortgage'}
         </button>
       </div>
-      {error && <p className="status error">{error}</p>}
+      {(error ?? created.error) && <p className="status error">{error ?? created.error}</p>}
       {cashDialog}
       {confirmDialog}
     </form>

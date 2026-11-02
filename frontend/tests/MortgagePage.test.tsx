@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MortgagePage } from '../src/pages/MortgagePage'
+import { customerHistoryQuery } from '../src/requests'
 import { changePreview, fakeServer, type FakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
 
@@ -121,10 +122,10 @@ test("the Mortgage page shows the backend's reason when it cannot load", async (
 })
 
 test('deleting a photo asks first, then shows the Mortgage without it', async () => {
-  const withPhoto = { ...mortgage, photos: [{ id: 5, url: '/api/photos/mortgage-7-a.jpg' }] }
+  let stored = { ...mortgage, photos: [{ id: 5, url: '/api/photos/mortgage-7-a.jpg' }] }
   const server = fakeServer({
-    'GET /api/mortgages/7': withPhoto,
-    'DELETE /api/mortgages/7/photos/5': mortgage,
+    'GET /api/mortgages/7': () => stored,
+    'DELETE /api/mortgages/7/photos/5': () => (stored = mortgage),
   })
   showMortgagePage(server)
 
@@ -134,6 +135,25 @@ test('deleting a photo asks first, then shows the Mortgage without it', async ()
 
   expect(await screen.findByText('No photos yet.')).toBeTruthy()
   expect(server.requests).toContain('DELETE /api/mortgages/7/photos/5')
+})
+
+test("adding a photo shows it, and makes the Mortgage's and its Customer's History stale", async () => {
+  let stored = mortgage
+  const server = fakeServer({
+    'GET /api/mortgages/7': () => stored,
+    'POST /api/mortgages/7/photos': () =>
+      (stored = { ...mortgage, photos: [{ id: 5, url: '/api/photos/mortgage-7-a.jpg' }] }),
+  })
+  const state = showMortgagePage(server)
+  const customerHistory = customerHistoryQuery(state.client, 3).queryKey
+  state.queryClient.setQueryData(customerHistory, [])
+
+  fireEvent.change(await screen.findByLabelText('Upload photos'), {
+    target: { files: [new File(['x'], 'ring.jpg', { type: 'image/jpeg' })] },
+  })
+
+  expect(await screen.findByRole('img', { name: 'Photo 1' })).toBeTruthy()
+  expect(state.queryClient.getQueryState(customerHistory)?.isInvalidated).toBe(true)
 })
 
 // What the Mortgage owes on 20 Apr 2026, whatever the date asked.

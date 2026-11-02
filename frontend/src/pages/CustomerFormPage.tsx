@@ -9,6 +9,7 @@ import { PhotoSource } from '../components/PhotoSource'
 import { ReferrerPicker, type ReferrerSelection } from '../components/ReferrerPicker'
 import { useNumberOwner } from '../components/useNumberOwner'
 import { usePreview } from '../components/usePreview'
+import { useSaveWithPhotos, type PhotoUpload } from '../components/useSaveWithPhotos'
 import { Summary } from '../components/ConfirmDialog'
 import { useConfirm } from '../components/useConfirm'
 import { maskedAadhaar } from '../format'
@@ -16,7 +17,7 @@ import { findAadhaarLast4, findPan } from '../idNumbers'
 import { readText } from '../ocr'
 import { normalisePhone } from '../phone'
 import { customerChanges, customerQuery, searchQuery } from '../requests'
-import { STALE_AFTER, useChange, useServerState } from '../serverState'
+import { STALE_AFTER, useChange, useServerState, type ApiClient } from '../serverState'
 
 const EMPTY = { name: '', address: '', phone_1: '', phone_2: '', email: '', aadhaar_last4: '', pan: '' }
 
@@ -60,10 +61,11 @@ export function CustomerFormPage() {
 
 function CustomerForm({ existing }: { existing: Customer | null }) {
   const id = existing?.id
-  // Set once a new Customer is created, so a retried Save (e.g. after a failed photo upload)
-  // updates that Customer instead of creating a duplicate.
-  const [createdId, setCreatedId] = useState<number>()
-  const customerId = id ?? createdId
+  // Saved once: a retried Save (after a failed photo) sends only the photos left, and
+  // the Customer's details are locked, as they are already saved.
+  const saved = useSaveWithPhotos<Customer>({ noun: 'Customer', stale: STALE_AFTER.customer })
+  const customerId = id ?? saved.savedId
+  const locked = saved.savedId !== undefined
   const navigate = useNavigate()
   // ?next=mortgage: after saving a new Customer, carry on to their new Mortgage.
   const next = useSearchParams()[0].get('next')
@@ -132,7 +134,6 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
     )
   const [phone2Shared, setPhone2Shared] = useState<PersonSummary[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
   const { client, queryClient } = useServerState()
   const changeCustomer = useChange(STALE_AFTER.customer)
 
@@ -179,64 +180,71 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
       setError('Pick the Referrer from the search results, or choose "None".')
       return
     }
-    const confirmed = await confirm({
-      title: customerId === undefined ? 'Add this Customer?' : `Save changes to ${fields.name}?`,
-      body: (
-        <Summary
-          rows={[
-            ['Name', fields.name],
-            ['Address', fields.address || '—'],
-            ['Contact numbers', [fields.phone_1, fields.phone_2].filter(Boolean).join(', ')],
-            [
-              'Referrer',
-              referrer === null
-                ? '—'
-                : referrer.kind === 'new'
-                  ? `${referrerName} (new Referrer, ${referrer.phone})`
-                  : referrerName,
-            ],
-            ['Photo', photo ? 'New photo' : existing?.photo_url ? 'Unchanged' : '—'],
-            ['Email', details.email ?? '—'],
-            [
-              'Aadhaar Number',
-              details.aadhaar_last4 ? maskedAadhaar(typedLast4(details.aadhaar_last4)) : '—',
-            ],
-            ['PAN', details.pan?.toUpperCase() ?? '—'],
-            ['ID Photos', idPhotoChanges.length ? idPhotoChanges.join(' · ') : 'Unchanged'],
-          ]}
-        />
-      ),
-    })
-    if (!confirmed) return
-    setSaving(true)
+    // Once saved, a retry only sends the photos left: nothing more to confirm.
+    if (!locked) {
+      const confirmed = await confirm({
+        title: customerId === undefined ? 'Add this Customer?' : `Save changes to ${fields.name}?`,
+        body: (
+          <Summary
+            rows={[
+              ['Name', fields.name],
+              ['Address', fields.address || '—'],
+              ['Contact numbers', [fields.phone_1, fields.phone_2].filter(Boolean).join(', ')],
+              [
+                'Referrer',
+                referrer === null
+                  ? '—'
+                  : referrer.kind === 'new'
+                    ? `${referrerName} (new Referrer, ${referrer.phone})`
+                    : referrerName,
+              ],
+              ['Photo', photo ? 'New photo' : existing?.photo_url ? 'Unchanged' : '—'],
+              ['Email', details.email ?? '—'],
+              [
+                'Aadhaar Number',
+                details.aadhaar_last4 ? maskedAadhaar(typedLast4(details.aadhaar_last4)) : '—',
+              ],
+              ['PAN', details.pan?.toUpperCase() ?? '—'],
+              ['ID Photos', idPhotoChanges.length ? idPhotoChanges.join(' · ') : 'Unchanged'],
+            ]}
+          />
+        ),
+      })
+      if (!confirmed) return
+    }
     setError(null)
     const customer = { ...details, referrer }
-    try {
-      let saved = await changeCustomer((client) =>
-        customerChanges.save(client, customer, customerId),
-      )
-      setCreatedId(saved.id)
-      const savedId = saved.id
-      if (photo) {
-        saved = await changeCustomer((client) => customerChanges.replacePhoto(client, savedId, photo))
-      }
-      for (const { card } of ID_CARDS) {
+    const uploads: PhotoUpload[] = [
+      ...(photo
+        ? [
+            {
+              key: photo,
+              send: (c: ApiClient, id: number) => customerChanges.replacePhoto(c, id, photo),
+            },
+          ]
+        : []),
+      ...ID_CARDS.flatMap(({ card }): PhotoUpload[] => {
         const change = idPhotos[card]
-        if (change.kind === 'new') {
-          saved = await changeCustomer((client) =>
-            customerChanges.replaceIdPhoto(client, savedId, card, change.photo),
-          )
-        } else if (change.kind === 'remove') {
-          saved = await changeCustomer((client) => customerChanges.removeIdPhoto(client, savedId, card))
-        }
-      }
-      navigate(
-        next === 'mortgage' ? `/mortgages/new?customer=${saved.id}` : `/customers/${saved.id}`,
-      )
-    } catch (err) {
-      setError((err as Error).message)
-      setSaving(false)
-    }
+        if (change.kind === 'new')
+          return [
+            {
+              key: change.photo,
+              send: (c, id) => customerChanges.replaceIdPhoto(c, id, card, change.photo),
+            },
+          ]
+        if (change.kind === 'remove')
+          return [
+            { key: `${card} removed`, send: (c, id) => customerChanges.removeIdPhoto(c, id, card) },
+          ]
+        return []
+      }),
+    ]
+    const savedId = await saved.run(
+      () => changeCustomer((client) => customerChanges.save(client, customer, customerId)),
+      uploads,
+    )
+    if (savedId === undefined) return
+    navigate(next === 'mortgage' ? `/mortgages/new?customer=${savedId}` : `/customers/${savedId}`)
   }
 
   const editing = id !== undefined
@@ -287,71 +295,81 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
       <form onSubmit={save}>
         <div className="with-photo">
           <PhotoPicker currentUrl={existing?.photo_url ?? null} onChange={setPhoto} />
-          <div className="stack">
-            <label>
-              Name
-              <input
-                required
-                value={fields.name}
-                onChange={(event) => setFields({ ...fields, name: event.target.value })}
-              />
-            </label>
-            <label>
-              Address
-              <textarea
-                rows={2}
-                value={fields.address}
-                onChange={(event) => setFields({ ...fields, address: event.target.value })}
-              />
-            </label>
-            {phone1Field}
-            {phone2Field}
-            <label>
-              Email (optional)
-              <input
-                type="email"
-                value={fields.email}
-                onChange={(event) => setFields({ ...fields, email: event.target.value })}
-              />
-            </label>
-          </div>
+          <fieldset className="unframed" disabled={locked}>
+            <div className="stack">
+              <label>
+                Name
+                <input
+                  required
+                  value={fields.name}
+                  onChange={(event) =>
+                    setFields({ ...fields, name: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Address
+                <textarea
+                  rows={2}
+                  value={fields.address}
+                  onChange={(event) =>
+                    setFields({ ...fields, address: event.target.value })
+                  }
+                />
+              </label>
+              {phone1Field}
+              {phone2Field}
+              <label>
+                Email (optional)
+                <input
+                  type="email"
+                  value={fields.email}
+                  onChange={(event) =>
+                    setFields({ ...fields, email: event.target.value })
+                  }
+                />
+              </label>
+            </div>
+          </fieldset>
         </div>
 
-        <div className="grid-2">
-          <div className="stack">
-            <label>
-              Aadhaar Number: last 4 digits (optional)
-              <input
-                inputMode="numeric"
-                placeholder="1234"
-                aria-describedby="aadhaar-hint"
-                value={fields.aadhaar_last4}
-                onChange={(event) => {
-                  setFields({ ...fields, aadhaar_last4: event.target.value })
-                  typedOver('aadhaar')
-                }}
-              />
-            </label>
-            {readHint('aadhaar')}
-            <span className="hint" id="aadhaar-hint">
-              Only the last 4 digits are kept. Ask for the Customer's masked Aadhaar.
-            </span>
+        <fieldset className="unframed" disabled={locked}>
+          <div className="grid-2">
+            <div className="stack">
+              <label>
+                Aadhaar Number: last 4 digits (optional)
+                <input
+                  inputMode="numeric"
+                  placeholder="1234"
+                  aria-describedby="aadhaar-hint"
+                  value={fields.aadhaar_last4}
+                  onChange={(event) => {
+                    setFields({ ...fields, aadhaar_last4: event.target.value })
+                    typedOver('aadhaar')
+                  }}
+                />
+              </label>
+              {readHint('aadhaar')}
+              <span className="hint" id="aadhaar-hint">
+                Only the last 4 digits are kept. Ask for the Customer's masked Aadhaar.
+              </span>
+            </div>
+            <div className="stack">
+              <label>
+                PAN (optional)
+                <input
+                  placeholder="ABCDE1234F"
+                  value={fields.pan}
+                  onChange={(event) => {
+                    setFields({ ...fields, pan: event.target.value.toUpperCase() })
+                    typedOver('pan')
+                  }}
+                />
+              </label>
+              {readHint('pan')}
+            </div>
           </div>
-          <div className="stack">
-            <label>
-              PAN (optional)
-              <input
-                placeholder="ABCDE1234F"
-                value={fields.pan}
-                onChange={(event) => {
-                  setFields({ ...fields, pan: event.target.value.toUpperCase() })
-                  typedOver('pan')
-                }}
-              />
-            </label>
-            {readHint('pan')}
-          </div>
-        </div>
+        </fieldset>
         <div className="grid-2">
           {ID_CARDS.map(({ card, label, urlOf }) => (
             <IdPhotoPicker
@@ -371,25 +389,27 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
           ))}
         </div>
 
-        <ReferrerPicker
-          initial={existing?.referrer ?? null}
-          excludeCustomerId={customerId}
-          onChange={(selection, name) => {
-            setReferrer(selection)
-            setReferrerName(name)
-          }}
-        />
+        <fieldset className="unframed" disabled={locked}>
+          <ReferrerPicker
+            initial={existing?.referrer ?? null}
+            excludeCustomerId={customerId}
+            onChange={(selection, name) => {
+              setReferrer(selection)
+              setReferrerName(name)
+            }}
+          />
+        </fieldset>
 
         <div className="row">
-          <button type="submit" disabled={saving || unchecked}>
-            {saving ? 'Saving…' : 'Save'}
+          <button type="submit" disabled={saved.saving || unchecked}>
+            {saved.saving ? 'Saving…' : locked ? 'Retry photo upload' : 'Save'}
           </button>
           <button type="button" className="secondary" onClick={() => navigate(-1)}>
             Cancel
           </button>
         </div>
         {check.error && <p className="status error">{check.error}</p>}
-        {error && <p className="status error">{error}</p>}
+        {(error ?? saved.error) && <p className="status error">{error ?? saved.error}</p>}
       </form>
       {confirmDialog}
     </section>

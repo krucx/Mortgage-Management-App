@@ -22,7 +22,16 @@ Every release of Mortgage Management, newest first. The format follows
 - **A whole Outstanding that can't Redeem is refused:** paying a Mortgage's whole
   Outstanding on a date it can't be Redeemed (a later Payment) used to be recorded as
   an ordinary Payment, leaving it Dormant. It is now refused with the reason.
-
+- **No photo file is left behind by a change that isn't saved:** a Mortgage photo, a
+  Customer photo or an ID Photo whose change was refused or failed used to leave its
+  file in the photos folder, and so in every Backup.
+- **"Mortgage saved, but a photo failed"** now shows from the first failed photo on
+  New Mortgage, instead of the bare error.
+- **Retrying a Customer's save no longer uploads their photos again:** each retry used
+  to add the Customer photo and ID Photos once more, with a History entry each time.
+  Once the Customer is saved, the form keeps their details as saved and sends only the
+  photos left.
+- **Adding or removing a Mortgage photo updates the Customer's History** at once.
 - **"1 day", not "1 days":** closing a Mortgage on the first day of its month now
   says "1 day of the month". New Payment's full-Outstanding note now reads "including
   N days of Interest to Date".

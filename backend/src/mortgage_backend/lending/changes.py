@@ -1070,12 +1070,10 @@ async def post_photo(
     today: TodayDep,
     now: NowDep,
 ) -> Mortgage:
-    with engine.connect() as conn:
-        mortgage_row(conn, mortgage_id)  # refused before saving a file for nothing
-    file_name = photos.save_photo(photos_dir, "mortgage", mortgage_id, await photo.read())
-    with engine.begin() as conn:
-        add_photo(conn, mortgage_id, file_name, now)
-        return load_mortgage(conn, mortgage_id, today)
+    new = photos.NewPhoto("mortgage", mortgage_id, await photo.read())
+    with photos.photo_change(engine, photos_dir, new) as change:
+        add_photo(change.conn, mortgage_id, change.file, now)
+        return load_mortgage(change.conn, mortgage_id, today)
 
 
 @router.delete("/mortgages/{mortgage_id}/photos/{photo_id}")
@@ -1087,8 +1085,6 @@ def delete_photo(
     today: TodayDep,
     now: NowDep,
 ) -> Mortgage:
-    with engine.begin() as conn:
-        file_name = remove_photo(conn, mortgage_id, photo_id, now)
-        mortgage = load_mortgage(conn, mortgage_id, today)
-    photos.delete_photo(photos_dir, file_name)
-    return mortgage
+    with photos.photo_change(engine, photos_dir) as change:
+        change.remove_when_saved(remove_photo(change.conn, mortgage_id, photo_id, now))
+        return load_mortgage(change.conn, mortgage_id, today)

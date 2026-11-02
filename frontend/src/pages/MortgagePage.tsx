@@ -16,6 +16,7 @@ import { ScrollPopup } from '../components/ScrollPopup'
 import { TermsPanel } from '../components/TermsPanel'
 import { useConfirm } from '../components/useConfirm'
 import { lentThroughName, usePaymentMethods } from '../components/usePaymentMethods'
+import { useSaveWithPhotos } from '../components/useSaveWithPhotos'
 import { formatDate, formatDays, formatGrams } from '../format'
 import { formatINR } from '../money'
 import {
@@ -26,7 +27,7 @@ import {
   previews,
   removeMortgagePhoto,
 } from '../requests'
-import { keys, useMortgageChange, useServerState } from '../serverState'
+import { keys, STALE_AFTER, useChange, useMortgageChange, useServerState } from '../serverState'
 import { describeTerms, formatRate, PART_MONTH_RULES } from '../terms'
 
 /** Ledger steps shown on the page; the rest are in the complete Ledger popup. */
@@ -49,13 +50,22 @@ export function MortgagePage() {
   const [reopening, setReopening] = useState(false)
   const [fullLedger, setFullLedger] = useState(false)
 
+  const photos = useSaveWithPhotos<Mortgage>({
+    noun: 'Mortgage',
+    stale: STALE_AFTER.mortgagePhoto,
+    id,
+  })
+  const changePhotos = useChange(STALE_AFTER.mortgagePhoto)
+
   async function addPhotos(blobs: Blob[]) {
     setError(null)
-    try {
-      for (const blob of blobs) setMortgage(await addMortgagePhoto(client, id, blob))
-    } catch (err) {
-      setError((err as Error).message)
-    }
+    await photos.run(
+      null,
+      blobs.map((blob) => ({
+        key: blob,
+        send: (client, id) => addMortgagePhoto(client, id, blob),
+      })),
+    )
   }
 
   async function removePhoto(photoId: number) {
@@ -66,8 +76,10 @@ export function MortgagePage() {
       danger: true,
     })
     if (!confirmed) return
+    setError(null)
+    photos.clearError()
     try {
-      setMortgage(await removeMortgagePhoto(client, id, photoId))
+      await changePhotos((client) => removeMortgagePhoto(client, id, photoId))
     } catch (err) {
       setError((err as Error).message)
     }
@@ -109,7 +121,7 @@ export function MortgagePage() {
           )}
         </div>
       </div>
-      {error && <p className="status error">{error}</p>}
+      {(error ?? photos.error) && <p className="status error">{error ?? photos.error}</p>}
 
       <div className="tiles">
         <div className="tile">

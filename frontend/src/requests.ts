@@ -77,9 +77,7 @@ export function addMortgagePhoto(client: ApiClient, id: number, photo: Blob) {
   return dataOrThrow(
     client.POST('/api/mortgages/{mortgage_id}/photos', {
       params: mortgagePath(id),
-      // The schema types the file as a string; it is sent as multipart form data.
-      body: { photo: '' },
-      bodySerializer: () => photoForm(photo),
+      ...photoBody(photo),
     }),
   )
 }
@@ -532,9 +530,7 @@ export const customerChanges = {
     dataOrThrow(
       client.PUT('/api/customers/{customer_id}/id-photos/{card}', {
         params: { path: { customer_id: id, card } },
-        // The schema types the file as a string; it is sent as multipart form data.
-        body: { photo: '' },
-        bodySerializer: () => photoForm(photo),
+        ...photoBody(photo),
       }),
     ),
   /** Remove one of the Customer's ID Photos; the Customer as it now is. */
@@ -548,9 +544,7 @@ export const customerChanges = {
     dataOrThrow(
       client.PUT('/api/customers/{customer_id}/photo', {
         params: customerPath(id),
-        // The schema types the file as a string; it is sent as multipart form data.
-        body: { photo: '' },
-        bodySerializer: () => photoForm(photo),
+        ...photoBody(photo),
       }),
     ),
 }
@@ -577,10 +571,12 @@ function importSheet(
   )
 }
 
-/** A photo as the multipart form the backend takes. */
-function photoForm(photo: Blob): FormData {
-  return fileForm('photo', photo, 'photo.jpg')
-}
+/** A photo as the request body the backend takes: the schema types the file as a
+ *  string, but it is sent as multipart form data. */
+const photoBody = (photo: Blob) => ({
+  body: { photo: '' },
+  bodySerializer: () => fileForm('photo', photo, 'photo.jpg'),
+})
 
 /** A file as the multipart form field `field`. */
 function fileForm(field: string, file: Blob, name: string): FormData {
