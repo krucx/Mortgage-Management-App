@@ -49,12 +49,12 @@ export function mortgageQuery(client: ApiClient, id: number) {
 
 /** What it takes to close a Mortgage on a date, its Outstanding then (quoted, so also a
  *  future one). */
-export function closingQuoteQuery(client: ApiClient, id: number, on: string) {
+export function outstandingOnClosureQuery(client: ApiClient, id: number, on: string) {
   return queryOptions({
-    queryKey: [...keys.closingQuotes, id, on],
+    queryKey: [...keys.outstandingOnClosure, id, on],
     queryFn: () =>
       dataOrThrow(
-        client.GET('/api/mortgages/{mortgage_id}/closing-quote', {
+        client.GET('/api/mortgages/{mortgage_id}/outstanding-on-closure', {
           params: { ...mortgagePath(id), query: { on } },
         }),
       ),

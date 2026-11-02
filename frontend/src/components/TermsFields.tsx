@@ -38,7 +38,7 @@ export function TermsFields({
         </select>
       </label>
       <label>
-        Part-Month Rule (charged on redemption)
+        Part-Month Rule (Interest to Date for the month under way)
         <select
           value={value.part_month_rule}
           onChange={(event) =>

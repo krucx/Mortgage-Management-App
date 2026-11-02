@@ -16,9 +16,9 @@ def mortgage(client, ramesh):
     return lend(client, ramesh)
 
 
-def closing_quote(client, mortgage, on="2026-04-20"):
+def outstanding_on_closure(client, mortgage, on="2026-04-20"):
     response = client.get(
-        f"/api/mortgages/{mortgage['id']}/closing-quote", params={"on": on}
+        f"/api/mortgages/{mortgage['id']}/outstanding-on-closure", params={"on": on}
     )
     assert response.status_code == 200, response.text
     return response.json()
@@ -39,19 +39,19 @@ def redeem(client, mortgage, on="2026-04-20", **extra):
         ("nothing", 0),
     ],  # pro-rata: 14 Apr to 20 Apr is 7 days of 30
 )
-def test_a_closing_quote_includes_the_interest_to_date(
+def test_a_outstanding_on_closure_includes_the_interest_to_date(
     client, ramesh, rule, charge
 ):
     mortgage = lend(client, ramesh, terms={**SIMPLE_3, "part_month_rule": rule})
 
     # Accrued 14 Feb, 14 Mar, 14 Apr (₹9,000); 20 Apr is the 7th day of the next month.
-    assert closing_quote(client, mortgage) == {
+    assert outstanding_on_closure(client, mortgage) == {
         "on": "2026-04-20",
         "principal": LAKH,
         "unpaid_interest": 9_000_00,
         "last_accrual_on": "2026-04-14",
-        "part_month_days": 7,
-        "part_month_charge": charge,
+        "interest_to_date_days": 7,
+        "interest_to_date": charge,
         "total": LAKH + 9_000_00 + charge,
     }
 
@@ -106,7 +106,7 @@ def test_paying_everything_on_an_accrual_date_redeems_with_the_month_starting_th
     client, ramesh, mortgage
 ):
     # Three months' interest charged by 14 Apr, and (full month) the one starting then
-    assert closing_quote(client, mortgage, on="2026-04-14")["total"] == 112_000_00
+    assert outstanding_on_closure(client, mortgage, on="2026-04-14")["total"] == 112_000_00
 
     pay(
         client,
@@ -282,7 +282,7 @@ def test_closed_mortgages_can_be_listed_by_status(client, ramesh, mortgage):
 def test_the_outstanding_on_a_closure_date_can_be_quoted_for_a_future_date(client, mortgage):
     # 20 May: one more month accrued on 14 May, then 6 days into the next (full month).
     assert (
-        closing_quote(client, mortgage, on="2026-05-20")["total"]
+        outstanding_on_closure(client, mortgage, on="2026-05-20")["total"]
         == LAKH + 12_000_00 + 3_000_00
     )
 
@@ -296,12 +296,12 @@ def test_the_outstanding_on_a_closure_date_can_be_quoted_for_a_future_date(clien
         ("2026-01-14", "2026-01-20", "2026-01-14", 7),
     ],
 )
-def test_the_part_month_days_count_from_the_last_accrual_date_through_today(
+def test_the_interest_to_date_days_count_from_the_last_accrual_date_through_today(
     client, ramesh, start, on, last_accrual_on, days
 ):
-    quote = closing_quote(client, lend(client, ramesh, start=start), on=on)
+    quote = outstanding_on_closure(client, lend(client, ramesh, start=start), on=on)
 
-    assert (quote["last_accrual_on"], quote["part_month_days"]) == (
+    assert (quote["last_accrual_on"], quote["interest_to_date_days"]) == (
         last_accrual_on,
         days,
     )

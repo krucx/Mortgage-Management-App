@@ -38,16 +38,16 @@ const quote = {
   principal: 0,
   unpaid_interest: 0,
   last_accrual_on: '2026-04-10',
-  part_month_days: 0,
-  part_month_charge: 0,
+  interest_to_date_days: 0,
+  interest_to_date: 0,
   total: 0,
 }
 const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
 
 /** The backend for recording a ₹50,750 UPI Payment that leaves the Mortgage Ready to
- *  Redeem, which then answers a Redemption with `redeem`; `closingQuote` is its
+ *  Redeem, which then answers a Redemption with `redeem`; `onClosure` is its
  *  Outstanding on the Payment date. */
-function server(redeem: unknown, closingQuote: unknown = quote) {
+function server(redeem: unknown, onClosure: unknown = quote) {
   const paid: { paid_on?: string } = {}
   const backend = fakeServer({
     'GET /api/customers/3': customer,
@@ -79,7 +79,7 @@ function server(redeem: unknown, closingQuote: unknown = quote) {
       }
     },
     'GET /api/mortgages/7': mortgage,
-    'GET /api/mortgages/7/closing-quote': closingQuote,
+    'GET /api/mortgages/7/outstanding-on-closure': onClosure,
     'POST /api/closures/redeem-preview': [
       {
         mortgage_id: 7,
@@ -174,7 +174,7 @@ test("if the backend refuses the Redemption, nothing is Redeemed and its reason 
 })
 
 test('the offer to Redeem gives the final Payment and the Part-Month Rule behind it', async () => {
-  const charged = { ...quote, part_month_days: 10, part_month_charge: 25_000, total: 25_000 }
+  const charged = { ...quote, interest_to_date_days: 10, interest_to_date: 25_000, total: 25_000 }
   showNewPayment(server([], charged))
   await recordPayment()
 
@@ -192,9 +192,9 @@ test("the offer to Redeem asks for the Outstanding afresh, not the one New Payme
   let asked = 0
   const fresh = async () => {
     if (asked++ === 0)
-      return { ...quote, part_month_days: 10, part_month_charge: 75_000, total: 5_150_000 }
+      return { ...quote, interest_to_date_days: 10, interest_to_date: 75_000, total: 5_150_000 }
     await new Promise((resolve) => setTimeout(resolve, 300)) // the fresh one takes a moment
-    return { ...quote, part_month_days: 10, part_month_charge: 75_000, total: 75_000 }
+    return { ...quote, interest_to_date_days: 10, interest_to_date: 75_000, total: 75_000 }
   }
   showNewPayment(server([], fresh))
   await recordPayment()
@@ -218,7 +218,7 @@ const ring = { ...row, id: 8, name: '2026GoldRing', outstanding_total: 2_000_000
 function quoting(extra: Record<string, unknown> = {}) {
   const owed = (id: number, on: string) =>
     id === 8 ? 2_000_000 : on < '2026-04-01' ? 5_100_000 : 5_150_000
-  const closingQuote = (id: number, request: Request) => {
+  const onClosure = (id: number, request: Request) => {
     const on = new URL(request.url).searchParams.get('on') ?? ''
     if (id === 8 && on < '2026-04-01')
       return Response.json(
@@ -226,7 +226,7 @@ function quoting(extra: Record<string, unknown> = {}) {
         { status: 422 },
       )
     const charge = id === 8 ? 0 : on < '2026-04-01' ? 25_000 : 75_000
-    return { ...quote, on, part_month_days: 15, part_month_charge: charge, total: owed(id, on) }
+    return { ...quote, on, interest_to_date_days: 15, interest_to_date: charge, total: owed(id, on) }
   }
   return fakeServer({
     'GET /api/customers/3': customer,
@@ -237,8 +237,8 @@ function quoting(extra: Record<string, unknown> = {}) {
     },
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
     'POST /api/payments/preview': [],
-    'GET /api/mortgages/7/closing-quote': (request: Request) => closingQuote(7, request),
-    'GET /api/mortgages/8/closing-quote': (request: Request) => closingQuote(8, request),
+    'GET /api/mortgages/7/outstanding-on-closure': (request: Request) => onClosure(7, request),
+    'GET /api/mortgages/8/outstanding-on-closure': (request: Request) => onClosure(8, request),
     ...extra,
   })
 }
@@ -278,7 +278,7 @@ test("the Customer's Mortgages Ready to Redeem are pointed to the Redeem tab, no
       'GET /api/customers/3': customer,
       'GET /api/mortgages': { items: [row, paidOff], total: 2, page: 1, page_size: 2 },
       'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
-      'GET /api/mortgages/7/closing-quote': quote,
+      'GET /api/mortgages/7/outstanding-on-closure': quote,
     }),
     '/payments/new?customer=3',
     { '/payments/new': <NewPaymentPage /> },

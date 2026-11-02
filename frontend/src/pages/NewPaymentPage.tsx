@@ -474,8 +474,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 function RedeemedInFull({ name, quote }: { name: string; quote: Quote }) {
   if (typeof quote !== 'object') return null
   const charge =
-    quote.part_month_charge > 0
-      ? `, including ${quote.part_month_days} days' Interest to Date`
+    quote.interest_to_date > 0
+      ? `, including ${quote.interest_to_date_days} days' Interest to Date`
       : ''
   return `This pays the full Outstanding of ${name} (${formatINR(quote.total)}${charge}).`
 }

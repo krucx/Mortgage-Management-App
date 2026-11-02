@@ -328,7 +328,7 @@ def _refuse_unredeemed_in_full(
         mortgage = closable(conn, allocation.mortgage_id, on, today)
     except HTTPException:
         return
-    if allocation.amount == mortgage.closing_quote(on).total:
+    if allocation.amount == mortgage.outstanding_on_closure(on).total:
         raise unprocessable(
             f"{format_inr(allocation.amount)} is its whole Outstanding on "
             f"{on:%d %b %Y}: Redeem it with this Payment instead"
@@ -346,7 +346,7 @@ def _redeem_with_allocation(
     """Redeem the Allocation's Mortgage on the Payment date with the Allocation as its
     final Payment (or refuse, unless it is the whole Outstanding)."""
     mortgage = closable(conn, allocation.mortgage_id, payment.paid_on, today)
-    owed = mortgage.closing_quote(payment.paid_on).total
+    owed = mortgage.outstanding_on_closure(payment.paid_on).total
     if allocation.amount != owed:
         raise unprocessable(
             f"{format_inr(allocation.amount)} is not its Outstanding on "
@@ -687,7 +687,7 @@ def redeem(
     part of the Payment `received_with` if any, and mark the Mortgage Redeemed (or
     refuse)."""
     mortgage = closable(conn, mortgage_id, redeem.redeemed_on, today)
-    owed = mortgage.closing_quote(redeem.redeemed_on).total
+    owed = mortgage.outstanding_on_closure(redeem.redeemed_on).total
     _close_redeemed(
         conn,
         mortgage,
@@ -743,7 +743,7 @@ def waive(
     """Record a final Payment of less than the Outstanding (or none), waive the
     rest, and mark the Mortgage Waived: the jewellery goes back (or refuse)."""
     mortgage = closable(conn, mortgage_id, waive.waived_on, today)
-    owed = mortgage.closing_quote(waive.waived_on).total
+    owed = mortgage.outstanding_on_closure(waive.waived_on).total
     if owed == 0:
         raise unprocessable(
             f"{mortgage.row['name']} owes nothing then: Redeem it instead"

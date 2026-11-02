@@ -85,7 +85,7 @@ export const keys = {
   /** Every Preview of an unsaved change. */
   previews: ['preview'] as const,
   /** Every Outstanding quoted for closing on a date. */
-  closingQuotes: ['closing-quote'] as const,
+  outstandingOnClosure: ['outstanding-on-closure'] as const,
   /** Every settings group. */
   settings: ['settings'] as const,
   backups: ['backups'] as const,
@@ -106,7 +106,7 @@ const REFRESHED_AFTER_LEDGER_CHANGE = [
 ]
 /** Stale too, but asked for again only when next shown: one on screen is usually the
  *  Preview or quote of the very change just made, which the backend would now refuse. */
-const OUTDATED_BY_LEDGER_CHANGE = [keys.previews, keys.closingQuotes]
+const OUTDATED_BY_LEDGER_CHANGE = [keys.previews, keys.outstandingOnClosure]
 
 
 /** A change to what Collateral is worth: Loan-to-Value, so the Call List, everywhere. */
@@ -137,7 +137,7 @@ export function markStale(queryClient: QueryClient, stale: readonly (readonly un
 /**
  * Anything that can change what Mortgages owe (Payments, Voids, edits, Term Changes,
  * closing and reopening) makes every Mortgage, list, the Dashboard, the Ready to
- * Redeem count, every Preview and every closing quote stale.
+ * Redeem count, every Preview and every Outstanding quoted for a Closure stale.
  */
 export function ledgerChanged(queryClient: QueryClient): void {
   for (const queryKey of REFRESHED_AFTER_LEDGER_CHANGE) {

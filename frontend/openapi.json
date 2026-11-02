@@ -485,52 +485,6 @@
         "title": "CallNoteIn",
         "type": "object"
       },
-      "ClosingQuote": {
-        "description": "What it takes to close a Mortgage on a date: its Outstanding on that Closure date.",
-        "properties": {
-          "last_accrual_on": {
-            "format": "date",
-            "title": "Last Accrual On",
-            "type": "string"
-          },
-          "on": {
-            "format": "date",
-            "title": "On",
-            "type": "string"
-          },
-          "part_month_charge": {
-            "title": "Part Month Charge",
-            "type": "integer"
-          },
-          "part_month_days": {
-            "title": "Part Month Days",
-            "type": "integer"
-          },
-          "principal": {
-            "title": "Principal",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          },
-          "unpaid_interest": {
-            "title": "Unpaid Interest",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "on",
-          "principal",
-          "unpaid_interest",
-          "last_accrual_on",
-          "part_month_days",
-          "part_month_charge",
-          "total"
-        ],
-        "title": "ClosingQuote",
-        "type": "object"
-      },
       "Closure": {
         "description": "How and when a Mortgage was closed, and what it came to.",
         "properties": {
@@ -2068,6 +2022,52 @@
         "title": "Outstanding",
         "type": "object"
       },
+      "OutstandingOnClosure": {
+        "description": "What it takes to close a Mortgage on a date: its Outstanding on that Closure date.",
+        "properties": {
+          "interest_to_date": {
+            "title": "Interest To Date",
+            "type": "integer"
+          },
+          "interest_to_date_days": {
+            "title": "Interest To Date Days",
+            "type": "integer"
+          },
+          "last_accrual_on": {
+            "format": "date",
+            "title": "Last Accrual On",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "principal": {
+            "title": "Principal",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "unpaid_interest": {
+            "title": "Unpaid Interest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "principal",
+          "unpaid_interest",
+          "last_accrual_on",
+          "interest_to_date_days",
+          "interest_to_date",
+          "total"
+        ],
+        "title": "OutstandingOnClosure",
+        "type": "object"
+      },
       "Page_CustomerRow_": {
         "properties": {
           "items": {
@@ -2718,13 +2718,13 @@
           "mortgage": {
             "$ref": "#/components/schemas/MortgageRow"
           },
-          "quote": {
-            "$ref": "#/components/schemas/ClosingQuote"
+          "outstanding": {
+            "$ref": "#/components/schemas/OutstandingOnClosure"
           }
         },
         "required": [
           "mortgage",
-          "quote"
+          "outstanding"
         ],
         "title": "ReadyToRedeem",
         "type": "object"
@@ -4708,56 +4708,6 @@
         "summary": "Add Call Note"
       }
     },
-    "/api/mortgages/{mortgage_id}/closing-quote": {
-      "get": {
-        "description": "What it takes to close the Mortgage on `on`: its Outstanding then.",
-        "operationId": "closing_quote_api_mortgages__mortgage_id__closing_quote_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "mortgage_id",
-            "required": true,
-            "schema": {
-              "title": "Mortgage Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "on",
-            "required": true,
-            "schema": {
-              "format": "date",
-              "title": "On",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClosingQuote"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Closing Quote"
-      }
-    },
     "/api/mortgages/{mortgage_id}/collateral": {
       "put": {
         "description": "Set the Collateral Value by hand, or clear it to value at the Gold Rate again.",
@@ -5054,6 +5004,56 @@
           }
         },
         "summary": "Read Mortgage History"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/outstanding-on-closure": {
+      "get": {
+        "description": "What it takes to close the Mortgage on `on`: its Outstanding then.",
+        "operationId": "outstanding_on_closure_api_mortgages__mortgage_id__outstanding_on_closure_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "on",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "On",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutstandingOnClosure"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Outstanding On Closure"
       }
     },
     "/api/mortgages/{mortgage_id}/photos": {

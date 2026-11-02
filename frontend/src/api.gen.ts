@@ -453,26 +453,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/mortgages/{mortgage_id}/closing-quote": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Closing Quote
-         * @description What it takes to close the Mortgage on `on`: its Outstanding then.
-         */
-        get: operations["closing_quote_api_mortgages__mortgage_id__closing_quote_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/mortgages/{mortgage_id}/collateral": {
         parameters: {
             query?: never;
@@ -573,6 +553,26 @@ export interface paths {
         };
         /** Read Mortgage History */
         get: operations["read_mortgage_history_api_mortgages__mortgage_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/{mortgage_id}/outstanding-on-closure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Outstanding On Closure
+         * @description What it takes to close the Mortgage on `on`: its Outstanding then.
+         */
+        get: operations["outstanding_on_closure_api_mortgages__mortgage_id__outstanding_on_closure_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1408,32 +1408,6 @@ export interface components {
             note: string;
         };
         /**
-         * ClosingQuote
-         * @description What it takes to close a Mortgage on a date: its Outstanding on that Closure date.
-         */
-        ClosingQuote: {
-            /**
-             * Last Accrual On
-             * Format: date
-             */
-            last_accrual_on: string;
-            /**
-             * On
-             * Format: date
-             */
-            on: string;
-            /** Part Month Charge */
-            part_month_charge: number;
-            /** Part Month Days */
-            part_month_days: number;
-            /** Principal */
-            principal: number;
-            /** Total */
-            total: number;
-            /** Unpaid Interest */
-            unpaid_interest: number;
-        };
-        /**
          * Closure
          * @description How and when a Mortgage was closed, and what it came to.
          */
@@ -2048,6 +2022,32 @@ export interface components {
             /** Unpaid Interest */
             unpaid_interest: number;
         };
+        /**
+         * OutstandingOnClosure
+         * @description What it takes to close a Mortgage on a date: its Outstanding on that Closure date.
+         */
+        OutstandingOnClosure: {
+            /** Interest To Date */
+            interest_to_date: number;
+            /** Interest To Date Days */
+            interest_to_date_days: number;
+            /**
+             * Last Accrual On
+             * Format: date
+             */
+            last_accrual_on: string;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Principal */
+            principal: number;
+            /** Total */
+            total: number;
+            /** Unpaid Interest */
+            unpaid_interest: number;
+        };
         /** Page[CustomerRow] */
         Page_CustomerRow_: {
             /** Items */
@@ -2280,7 +2280,7 @@ export interface components {
          */
         ReadyToRedeem: {
             mortgage: components["schemas"]["MortgageRow"];
-            quote: components["schemas"]["ClosingQuote"];
+            outstanding: components["schemas"]["OutstandingOnClosure"];
         };
         /** Receipt */
         Receipt: {
@@ -3423,39 +3423,6 @@ export interface operations {
             };
         };
     };
-    closing_quote_api_mortgages__mortgage_id__closing_quote_get: {
-        parameters: {
-            query: {
-                on: string;
-            };
-            header?: never;
-            path: {
-                mortgage_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClosingQuote"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     put_collateral_api_mortgages__mortgage_id__collateral_put: {
         parameters: {
             query?: never;
@@ -3649,6 +3616,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    outstanding_on_closure_api_mortgages__mortgage_id__outstanding_on_closure_get: {
+        parameters: {
+            query: {
+                on: string;
+            };
+            header?: never;
+            path: {
+                mortgage_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutstandingOnClosure"];
                 };
             };
             /** @description Validation Error */

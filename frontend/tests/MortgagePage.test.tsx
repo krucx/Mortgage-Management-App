@@ -94,8 +94,8 @@ const quote = {
   on: '2026-04-20',
   principal: 5_000_000,
   unpaid_interest: 75_000,
-  part_month_days: 6,
-  part_month_charge: 0,
+  interest_to_date_days: 6,
+  interest_to_date: 0,
   total: 5_075_000,
 }
 const closure = (fields: Record<string, unknown>) => ({
@@ -144,7 +144,7 @@ test('waiving off shows what is let off, asks first, then shows the Waiver', asy
   let body: unknown = null
   const server = fakeServer({
     'GET /api/mortgages/7': () => (body ? waived : mortgage),
-    'GET /api/mortgages/7/closing-quote': quote,
+    'GET /api/mortgages/7/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
     'POST /api/closures/waive': async (request: Request) => {
       body = await request.json()
@@ -242,7 +242,7 @@ test("waiving off the whole Outstanding is refused by the backend's Preview", as
   showMortgagePage(
     fakeServer({
       'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/closing-quote': quote,
+      'GET /api/mortgages/7/outstanding-on-closure': quote,
       'POST /api/closures/waive-preview': waivePreview,
     }),
   )
@@ -263,7 +263,7 @@ test('forfeiting shows the profit or loss from the Preview, then Forfeits it alo
   const server = fakeServer({
     'GET /api/mortgages/7': () =>
       body ? { ...mortgage, status: 'forfeited', closure: forfeited(4_000_000) } : mortgage,
-    'GET /api/mortgages/7/closing-quote': quote,
+    'GET /api/mortgages/7/outstanding-on-closure': quote,
     'POST /api/closures/forfeit-preview': closingPreview((body) =>
       forfeited((body.mortgages as { recovered_amount: number }[])[0].recovered_amount),
     ),
@@ -293,7 +293,7 @@ test('a future date is quoted, but the backend refuses to record it', async () =
   showMortgagePage(
     fakeServer({
       'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/closing-quote': quote,
+      'GET /api/mortgages/7/outstanding-on-closure': quote,
       'POST /api/closures/redeem-preview': closingPreview(
         () => `${mortgage.name}: A Redemption, Waiver or Forfeiture cannot be recorded for a future date`,
       ),

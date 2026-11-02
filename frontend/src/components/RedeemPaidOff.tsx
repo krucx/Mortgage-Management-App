@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { Payment } from '../api'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
-import { closingQuoteQuery, mortgageQuery } from '../requests'
+import { outstandingOnClosureQuery, mortgageQuery } from '../requests'
 import { useServerState } from '../serverState'
 import { PART_MONTH_RULES } from '../terms'
 import { PreviewSection } from './BeforeAfter'
@@ -46,7 +46,7 @@ export function RedeemPaidOff({
   // Each one's Outstanding on the Payment date (or why there is none), and the
   // Part-Month Rule behind any charge.
   const quoted = useQueries({
-    queries: mortgages.map((m) => closingQuoteQuery(client, m.id, payment.paid_on)),
+    queries: mortgages.map((m) => outstandingOnClosureQuery(client, m.id, payment.paid_on)),
   })
   const terms = useQueries({ queries: mortgages.map((m) => mortgageQuery(client, m.id)) })
   // One cached from before the Payment is out of date (New Payment quoted the whole
@@ -105,7 +105,7 @@ export function RedeemPaidOff({
                     (quote.total === 0
                       ? 'Nothing more to pay.'
                       : `The final Payment is ${formatINR(quote.total)}: the Interest to Date ` +
-                        `for ${quote.part_month_days} days (${rules[m.id] ?? 'Part-Month Rule'}).`)
+                        `for ${quote.interest_to_date_days} days (${rules[m.id] ?? 'Part-Month Rule'}).`)
                   )}
                 </div>
               </li>

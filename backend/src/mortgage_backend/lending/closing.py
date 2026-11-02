@@ -16,7 +16,11 @@ from mortgage_backend.lending.mortgages import (
     mortgage_rows,
     select_with_customer,
 )
-from mortgage_backend.lending.replay import ClosingQuote, MortgageStatus, replays
+from mortgage_backend.lending.replay import (
+    MortgageStatus,
+    OutstandingOnClosure,
+    replays,
+)
 from mortgage_backend.platform.clock import TodayDep
 from mortgage_backend.platform.db import EngineDep, mortgage_table
 from mortgage_backend.platform.paging import Page, PageNumber, rows_page
@@ -26,7 +30,7 @@ class ReadyToRedeem(BaseModel):
     """An Active Mortgage with nothing Outstanding: the jewellery is waiting to go back."""
 
     mortgage: MortgageRow
-    quote: ClosingQuote  # redeeming today, its Interest to Date included
+    outstanding: OutstandingOnClosure  # redeeming today, its Interest to Date included
 
 
 # A column of the Ready to Redeem list to sort it by.
@@ -35,20 +39,21 @@ ReadySort = Literal["mortgage", "customer", "amount"]
 _SORT_KEYS: dict[ReadySort, Callable[[ReadyToRedeem], Any]] = {
     "mortgage": lambda ready: ready.mortgage.name.casefold(),
     "customer": lambda ready: ready.mortgage.customer.name.casefold(),
-    "amount": lambda ready: ready.quote.total,
+    "amount": lambda ready: ready.outstanding.total,
 }
 
 
 router = APIRouter(prefix="/api")
 
 
-@router.get("/mortgages/{mortgage_id}/closing-quote")
-def closing_quote(
+@router.get("/mortgages/{mortgage_id}/outstanding-on-closure")
+def outstanding_on_closure(
     mortgage_id: int, on: date, engine: EngineDep, today: TodayDep
-) -> ClosingQuote:
+) -> OutstandingOnClosure:
     """What it takes to close the Mortgage on `on`: its Outstanding then."""
     with engine.connect() as conn:
-        return closable(conn, mortgage_id, on, today, quote_only=True).closing_quote(on)
+        mortgage = closable(conn, mortgage_id, on, today, quote_only=True)
+        return mortgage.outstanding_on_closure(on)
 
 
 @router.get("/closures/ready-to-redeem")
@@ -75,7 +80,8 @@ def ready_to_redeem(
         listed = mortgage_rows(conn, rows, today, replayed)
         ready = [
             ReadyToRedeem(
-                mortgage=mortgage, quote=replayed[mortgage.id].closing_quote(today)
+                mortgage=mortgage,
+                outstanding=replayed[mortgage.id].outstanding_on_closure(today),
             )
             for mortgage in listed
             if mortgage.ready_to_redeem

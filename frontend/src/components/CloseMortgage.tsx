@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 import type { Mortgage, PaymentMethod } from '../api'
 import { formatDate, todayIso } from '../format'
 import { formatINR, rupeesToPaise } from '../money'
-import { closingQuoteQuery } from '../requests'
+import { outstandingOnClosureQuery } from '../requests'
 import { useServerState } from '../serverState'
 import { PART_MONTH_RULES } from '../terms'
 import { PreviewSection } from './BeforeAfter'
@@ -61,7 +61,7 @@ export function CloseMortgage({
 
   // The Outstanding on the chosen date: a quote, even for a future date.
   const quoted = useQuery({
-    ...closingQuoteQuery(client, mortgage.id, on),
+    ...outstandingOnClosureQuery(client, mortgage.id, on),
     enabled: Boolean(action && on),
   })
   const quote = quoted.data ?? null
@@ -227,7 +227,7 @@ export function CloseMortgage({
             ['Unpaid interest', formatINR(quote.unpaid_interest)],
             [
               'Interest to Date',
-              `${formatINR(quote.part_month_charge)} (${quote.part_month_days} days of ` +
+              `${formatINR(quote.interest_to_date)} (${quote.interest_to_date_days} days of ` +
                 `the month, that day included; ${PART_MONTH_RULES[mortgage.terms.part_month_rule]})`,
             ],
             [`Outstanding on ${formatDate(on)}`, <strong key="total">{formatINR(quote.total)}</strong>],

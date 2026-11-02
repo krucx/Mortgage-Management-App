@@ -44,16 +44,16 @@ def test_a_voided_payment_is_in_no_ledger(conn: Connection) -> None:
     ]
 
 
-def test_a_closing_quote_adds_the_interest_to_date(
+def test_a_outstanding_on_closure_adds_the_interest_to_date(
     conn: Connection,
 ) -> None:
     chain = add_mortgage(conn, add_customer(conn))
 
     # 14 to 20 Apr is 7 days of the month: a full month's ₹3,000 under Full-month.
-    quote = replay(conn, chain).closing_quote(TODAY)
+    quote = replay(conn, chain).outstanding_on_closure(TODAY)
 
-    assert quote.part_month_days == 7
-    assert quote.part_month_charge == 3_000 * RUPEE
+    assert quote.interest_to_date_days == 7
+    assert quote.interest_to_date == 3_000 * RUPEE
     assert quote.total == 1_12_000 * RUPEE
 
 
@@ -105,7 +105,7 @@ def test_the_outstanding_on_a_closure_date_leaves_out_its_own_final_payment(
     assert replay(conn, chain).steps_by_payment()[final].amount == 1_08_000 * RUPEE
 
     # Owed on 14 Mar before the final Payment: ₹1,09,000 less the earlier ₹1,000.
-    assert replay(conn, chain).closing_quote(date(2026, 3, 14)).total == 1_08_000 * RUPEE
+    assert replay(conn, chain).outstanding_on_closure(date(2026, 3, 14)).total == 1_08_000 * RUPEE
 
 
 def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
@@ -124,7 +124,7 @@ def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
     forfeited = ledger[-1]
     assert (forfeited.event, forfeited.amount) == ("forfeited", 1_09_000 * RUPEE)
     # What the Mortgage owed when it was Forfeited.
-    assert mortgage.closing_quote(date(2026, 3, 20)).total == 1_09_000 * RUPEE
+    assert mortgage.outstanding_on_closure(date(2026, 3, 20)).total == 1_09_000 * RUPEE
 
 
 def test_a_waived_mortgage_closure_has_its_final_payment_and_what_was_let_off(
@@ -315,15 +315,15 @@ def test_payments_up_to_a_date_and_a_mortgage_never_paid(conn: Connection) -> No
     assert replay(conn, unpaid).steps_by_payment() == {}
 
 
-def test_a_closing_quote_leaves_out_interest_to_date_paid_ahead(conn: Connection) -> None:
+def test_a_outstanding_on_closure_leaves_out_interest_to_date_paid_ahead(conn: Connection) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
     # 15 Apr: ₹9,000 charged, then ₹1,000 of the month starting 14 Apr paid ahead.
     add_payment(conn, ramesh, date(2026, 4, 15), {chain: 10_000 * RUPEE})
 
-    quote = replay(conn, chain).closing_quote(TODAY)
+    quote = replay(conn, chain).outstanding_on_closure(TODAY)
 
-    assert (quote.principal, quote.unpaid_interest, quote.part_month_charge) == (
+    assert (quote.principal, quote.unpaid_interest, quote.interest_to_date) == (
         LAKH,
         0,
         2_000 * RUPEE,

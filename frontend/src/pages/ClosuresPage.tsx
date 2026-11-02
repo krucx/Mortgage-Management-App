@@ -92,7 +92,7 @@ export function ClosuresPage() {
               </tr>
             </thead>
             <tbody>
-              {ready.map(({ mortgage, quote }) => (
+              {ready.map(({ mortgage, outstanding }) => (
                 <tr key={mortgage.id}>
                   <td>
                     <Link to={`/mortgages/${mortgage.id}`}>{mortgage.name}</Link>
@@ -101,11 +101,11 @@ export function ClosuresPage() {
                     <PersonLink person={mortgage.customer} />
                   </td>
                   <td className="num">
-                    {formatINR(quote.total)}
-                    {quote.part_month_charge > 0 && (
+                    {formatINR(outstanding.total)}
+                    {outstanding.interest_to_date > 0 && (
                       <span className="hint">
                         {' '}
-                        (Interest to Date for {quote.part_month_days} days)
+                        (Interest to Date for {outstanding.interest_to_date_days} days)
                       </span>
                     )}
                   </td>
