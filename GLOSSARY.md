@@ -139,7 +139,7 @@ The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpa
 _Avoid_: Split, contribution
 
 **Cash Limit**:
-The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead.
+The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage's Principal lent.
 _Avoid_: Cash cap, cash ceiling
 
 **Void**:

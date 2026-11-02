@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Architecture review: Mortgage-Management-App</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+</script>
+<style>
+  .seam { border-left: 2px dashed #64748b; }
+  .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+  .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+</style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+
+<header class="space-y-4">
+  <h1 class="font-serif text-4xl">Architecture review, pass 6</h1>
+  <p class="text-sm text-slate-600">Mortgage-Management-App · 3 Nov 2026 · scope: what changed since pass 5 (3.0.0 Outstanding with the Interest to Date, Dormant, Lent Through and the Cash Limit, grams, the Call Sheet, Customer IDs and ID Photos)</p>
+  <p class="text-sm text-slate-700 max-w-3xl">Every pass-5 candidate landed. Replay and Ledger are deep (53 + 18 tests) and Dormant is decided in one place. The new friction comes from rules that were added later and that callers now carry: paying in full, photos, the Cash Limit and Call Notes.</p>
+  <div class="flex flex-wrap gap-4 text-xs text-slate-600">
+    <span class="flex items-center gap-2"><span class="inline-block w-5 h-4 border border-slate-400 bg-white"></span>module</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-5 h-4 seam"></span>seam</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-6 h-0.5 bg-red-600"></span>leak / duplicated rule</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-5 h-4 deep rounded-sm"></span>deep module</span>
+  </div>
+</header>
+
+<section id="candidates" class="space-y-10">
+
+<!-- 01 -->
+<article id="c1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <h2 class="font-serif text-2xl">01 · The Payment decides which Mortgages it Redeems</h2>
+    <span class="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-semibold">Strong</span>
+    <span class="rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 leading-6">
+    <li>frontend/src/pages/NewPaymentPage.tsx <span class="text-slate-400">(hottest file: 9 of the last 30 commits)</span></li>
+    <li>frontend/src/components/useQuotes.ts</li>
+    <li>backend/src/mortgage_backend/lending/changes.py <span class="text-slate-400">PaymentIn.redeeming, _refuse_unredeemed_in_full, _redeem_with_allocation</span></li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · the rule written in both tiers</div>
+      <pre class="mermaid">
+flowchart TB
+  P[NewPaymentPage]:::shallow -->|N requests| Q[useQuotes<br/>outstanding-on-closure × N]
+  P -->|"amounts[i] === quote.total"| R["redeeming: ids"]:::leak
+  R --> B[Payment save]
+  B --> C1["refuse full Allocation<br/>not in redeeming"]:::leak
+  B --> C2["refuse redeeming<br/>not paid in full"]:::leak
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  classDef shallow fill:#fff;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After · one rule, behind the Payment's interface</div>
+      <pre class="mermaid">
+flowchart TB
+  P[NewPaymentPage] -->|Payment, no redeeming| V[Payment Preview]
+  V --> M["Payment changes module<br/>paid the whole Outstanding<br/>⇒ Redeems"]:::deep
+  V -.->|"after.closure per Mortgage"| P
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-x-4 gap-y-2 text-sm">
+    <dt class="font-semibold">Problem</dt><dd>"Paying the whole Outstanding Redeems" (ADR 0011) is worked out by the page from N extra quote requests, sent as <code>redeeming</code>, and then checked again by the backend in both directions. Save is blocked with "Checking whether they can be Redeemed…" until the quotes come back. The caps come from <code>outstanding_total</code> while the quote comes from <code>outstanding_on_closure</code>, so the page has two sources for the same number.</dd>
+    <dt class="font-semibold">Solution</dt><dd>The Payment changes module decides the Redemptions itself: an Allocation of the whole Outstanding on <code>paid_on</code> Redeems. The page reads the Redeem confirmation and the Interest to Date wording from the Payment Preview, which already returns each Mortgage's Closure. <code>redeeming</code> and <code>useQuotes</code> are deleted.</dd>
+    <dt class="font-semibold">Wins</dt><dd><ul class="list-disc ml-5">
+      <li>locality: the paid-in-full rule in one module</li>
+      <li>interface shrinks: <code>redeeming</code> field deleted</li>
+      <li>N quote requests and one blocking state gone</li>
+      <li>page tests fake only the Preview</li>
+      <li>no two refusals to keep consistent</li>
+    </ul></dd>
+    <dt class="font-semibold">Tests</dt><dd>test_redeeming_payments.py (14) stops passing <code>redeeming=</code> and asserts the outcome. NewPaymentPage tests (11) stop faking <code>/outstanding-on-closure</code>.</dd>
+  </dl>
+</article>
+
+<!-- 02 -->
+<article id="c2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <h2 class="font-serif text-2xl">02 · One module for saving with photos</h2>
+    <span class="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-semibold">Strong</span>
+    <span class="rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs">local-substitutable</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 leading-6">
+    <li>frontend/src/pages/NewMortgagePage.tsx :207-230</li>
+    <li>frontend/src/pages/CustomerFormPage.tsx :211-238</li>
+    <li>frontend/src/pages/MortgagePage.tsx :52-72</li>
+    <li>frontend/src/requests.ts <span class="text-slate-400">multipart workaround ×3</span></li>
+    <li>backend/…/people/customer_changes.py :358-410 · lending/changes.py :1099-1129 · platform/photos.py</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-3">Before · photo handling copied around one shared store</div>
+      <div class="space-y-2 text-xs">
+        <div class="grid grid-cols-3 gap-2">
+          <div class="border border-red-400 rounded p-2"><div class="lbl">New Mortgage</div>create → upload loop<br/><span class="text-red-700">catch reads stale createdId</span></div>
+          <div class="border border-red-400 rounded p-2"><div class="lbl">Customer form</div>save → photo → ID Photos<br/><span class="text-red-700">retry re-uploads all</span></div>
+          <div class="border border-slate-300 rounded p-2"><div class="lbl">Mortgage page</div>add photo<br/><span class="text-slate-500">own way of marking stale</span></div>
+        </div>
+        <div class="h-px bg-red-500"></div>
+        <div class="grid grid-cols-6 gap-1">
+          <div class="border border-red-300 rounded p-1 text-center">save</div><div class="border border-red-300 rounded p-1 text-center">save</div><div class="border border-red-300 rounded p-1 text-center">save</div><div class="border border-red-300 rounded p-1 text-center">save</div><div class="border border-red-300 rounded p-1 text-center">save</div><div class="border border-red-300 rounded p-1 text-center">save</div>
+        </div>
+        <div class="text-slate-500">6 hand-written "check owner → save_photo → transaction → delete old" sequences; a rollback leaves the file behind</div>
+        <div class="deep rounded p-2 text-center lbl">platform/photos.py · one store · one route · one Backup folder</div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-3">After · the photo lifecycle in one module per tier</div>
+      <div class="space-y-2 text-xs">
+        <div class="grid grid-cols-3 gap-2 opacity-70">
+          <div class="border border-slate-300 rounded p-2 text-center">New Mortgage</div>
+          <div class="border border-slate-300 rounded p-2 text-center">Customer form</div>
+          <div class="border border-slate-300 rounded p-2 text-center">Mortgage page</div>
+        </div>
+        <div class="seam pl-3 py-1 text-slate-500">save(record), uploads[] → only what's left</div>
+        <div class="deep rounded p-3"><div class="lbl text-slate-300">save with photos (frontend)</div><div class="text-slate-400 mt-1">remembers what went up · retries the rest · marks caches stale once</div></div>
+        <div class="seam pl-3 py-1 text-slate-500">replace(owner, write) → file kept only if committed</div>
+        <div class="deep rounded p-3"><div class="lbl text-slate-300">photos.replace (backend)</div><div class="text-slate-400 mt-1">owner check · write · commit or remove · delete the old one</div></div>
+      </div>
+    </div>
+  </div>
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-x-4 gap-y-2 text-sm">
+    <dt class="font-semibold">Problem</dt><dd>Storage is shared, but every caller writes its own save-and-attach sequence, and the copies have different bugs. On a new Mortgage, the catch reads the <code>createdId</code> from that render, so a failed photo shows the raw error, not "Mortgage saved, but a photo failed". On the Customer form, a retry uploads the photo and ID Photos again, which adds a file and a History entry each time.</dd>
+    <dt class="font-semibold">Solution</dt><dd>In the backend, one <code>photos.replace</code> owns the file's whole lifecycle, including the rollback. In the frontend, one save-with-photos hook keeps track of what has already uploaded and marks caches stale in one way.</dd>
+    <dt class="font-semibold">Wins</dt><dd><ul class="list-disc ml-5">
+      <li>locality: a retry bug fixed once</li>
+      <li>leverage: 3 pages, 6 backend sequences</li>
+      <li>no orphan files after a rollback</li>
+      <li>no duplicate History rows</li>
+    </ul></dd>
+    <dt class="font-semibold">Tests</dt><dd>One backend file for the photo lifecycle (failed transaction leaves no file; replace deletes the old one) instead of checks scattered over three files. One hook test: "a retry uploads only what failed".</dd>
+  </dl>
+</article>
+
+<!-- 03 -->
+<article id="c3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <h2 class="font-serif text-2xl">03 · The Preview says what is cash</h2>
+    <span class="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-semibold">Worth exploring</span>
+    <span class="rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 leading-6">
+    <li>frontend/src/components/useCashWarning.tsx · useProposedChange.tsx · useClosing.tsx</li>
+    <li>frontend/src/pages/NewMortgagePage.tsx · EditMortgagePage.tsx · NewPaymentPage.tsx</li>
+    <li>backend/…/payments/cash_limit.py</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · each caller decides what one cash sum is</div>
+      <pre class="mermaid">
+flowchart LR
+  A[Closing<br/>max of Final Payments]:::leak --> W[useCashWarning]
+  B[New Payment<br/>whole Payment]:::leak --> W
+  C[Edit Mortgage<br/>only if it grows]:::leak --> W
+  D[New Mortgage<br/>bypasses hook]:::leak --> W
+  W -.-|"₹20,000 copied"| L[cash_limit.py]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After · the Preview reports it</div>
+      <pre class="mermaid">
+flowchart LR
+  A[Closing] --> H[useProposedChange]
+  B[New Payment] --> H
+  C[Edit Mortgage] --> H
+  D[New Mortgage] --> H
+  H -->|Preview| X["changes modules<br/>cash: amount, method"]:::deep
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-x-4 gap-y-2 text-sm">
+    <dt class="font-semibold">Problem</dt><dd><code>useCashWarning</code> is shallow. The Cash Limit rule is really decided by its 4 callers, and they disagree about what counts as one cash sum. The ₹20,000 figure is written in both tiers.</dd>
+    <dt class="font-semibold">Solution</dt><dd>Each Preview returns <code>cash</code>, worked out by one backend rule. <code>useProposedChange</code> warns from it, and pages pass nothing.</dd>
+    <dt class="font-semibold">Wins</dt><dd><ul class="list-disc ml-5">
+      <li>locality: one definition of a cash sum</li>
+      <li>4 page tests become 1 hook test</li>
+      <li>New Mortgage joins the shared hook</li>
+    </ul></dd>
+  </dl>
+  <p class="rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm px-3 py-2">ADR 0007: Preview routes stay hand-written. This adds a field to what they return; it doesn't generate them.</p>
+</article>
+
+<!-- 04 -->
+<article id="c4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <h2 class="font-serif text-2xl">04 · One way in for Call Notes</h2>
+    <span class="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-semibold">Worth exploring</span>
+    <span class="rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs">local-substitutable</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 leading-6">
+    <li>backend/…/follow_up/call_notes.py :38-57</li>
+    <li>backend/…/follow_up/call_sheets.py :316-453</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4 text-xs">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · two writers, two rule sets</div>
+      <table class="w-full border-collapse">
+        <tr class="text-slate-500"><th class="text-left py-1">rule</th><th>single note</th><th>Call Sheet import</th></tr>
+        <tr class="border-t"><td class="py-1">closed Mortgage</td><td class="text-center text-red-700">accepted</td><td class="text-center">refused</td></tr>
+        <tr class="border-t"><td class="py-1">empty note</td><td class="text-center text-red-700">accepted</td><td class="text-center">skipped</td></tr>
+        <tr class="border-t"><td class="py-1">duplicate</td><td class="text-center text-red-700">added</td><td class="text-center">deduped</td></tr>
+        <tr class="border-t"><td class="py-1">date</td><td class="text-center">always today</td><td class="text-center">any past</td></tr>
+        <tr class="border-t"><td class="py-1">tests</td><td class="text-center text-red-700">none</td><td class="text-center">test_call_list_sheets</td></tr>
+      </table>
+      <div class="mt-2 text-slate-500">both insert into <code>call_note_table</code> directly</div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3 flex flex-col justify-center gap-2">
+      <div class="lbl text-slate-500">After</div>
+      <div class="grid grid-cols-2 gap-2 opacity-70"><div class="border rounded p-2 text-center">POST a Call Note</div><div class="border rounded p-2 text-center">import a Call Sheet</div></div>
+      <div class="seam pl-3 text-slate-500">add_call_notes(conn, notes, today) → added, refused</div>
+      <div class="deep rounded p-3"><div class="lbl text-slate-300">Call Note module</div><div class="text-slate-400 mt-1">Active only · not empty · not future · deduped</div></div>
+    </div>
+  </div>
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-x-4 gap-y-2 text-sm">
+    <dt class="font-semibold">Problem</dt><dd>A Call Note follows different rules depending on how it arrives, and the single-note path has no tests.</dd>
+    <dt class="font-semibold">Solution</dt><dd>Both paths go through one function that holds the rules and reports what it refused. The import's pop-up already lists refused rows.</dd>
+    <dt class="font-semibold">Wins</dt><dd><ul class="list-disc ml-5"><li>locality: Call Note rules once</li><li>one test file covers both paths</li></ul></dd>
+  </dl>
+</article>
+
+<!-- 05 -->
+<article id="c5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <h2 class="font-serif text-2xl">05 · Paired form-text conversions for rupees and grams</h2>
+    <span class="rounded-full bg-slate-200 text-slate-700 px-2 py-0.5 text-xs font-semibold">Speculative</span>
+    <span class="rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 leading-6">
+    <li>frontend/src/money.ts · format.ts · terms.ts <span class="text-slate-400">(the toDraft/fromDraft model)</span></li>
+    <li>NewMortgagePage.tsx :113, :285-300 · EditMortgagePage.tsx :15-16, :166-180</li>
+    <li><code>String(x / 100)</code> inline: NewPaymentPage ×3, SettingsPage ×2</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4 text-xs">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · interface vs implementation mass</div>
+      <div class="flex items-end gap-6 h-28">
+        <div class="flex flex-col items-center gap-1"><div class="w-10 bg-red-200 border border-red-400" style="height:80px"></div><span>call sites</span></div>
+        <div class="flex flex-col items-center gap-1"><div class="w-10 bg-slate-300" style="height:24px"></div><span>helpers</span></div>
+      </div>
+      <div class="mt-2 text-slate-500"><code>gramsToMg</code> ×2, paise→text open-coded ×5, weight fields' JSX ×2</div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After</div>
+      <div class="flex items-end gap-6 h-28">
+        <div class="flex flex-col items-center gap-1"><div class="w-10 bg-white border border-slate-400" style="height:16px"></div><span>call sites</span></div>
+        <div class="flex flex-col items-center gap-1"><div class="w-10 deep" style="height:72px"></div><span>units + WeightFields</span></div>
+      </div>
+    </div>
+  </div>
+  <dl class="grid md:grid-cols-[8rem_1fr] gap-x-4 gap-y-2 text-sm">
+    <dt class="font-semibold">Problem</dt><dd>Converting rupees and grams to form text and back is repeated at each call site. There are no tests of the grams conversion.</dd>
+    <dt class="font-semibold">Solution</dt><dd>Add <code>toDraft</code>/<code>fromDraft</code> pairs for rupees and grams, as <code>terms.ts</code> already does, and one weight-fields component.</dd>
+    <dt class="font-semibold">Wins</dt><dd><ul class="list-disc ml-5"><li>round-trip tests in one place</li><li>small; do it between features</li></ul></dd>
+  </dl>
+</article>
+
+<aside class="rounded-xl border border-slate-200 bg-white p-6 text-sm space-y-3">
+  <h3 class="font-serif text-xl">Checked and fine</h3>
+  <ul class="list-disc ml-5 space-y-1 text-slate-700">
+    <li><b>Dormant</b> is decided once (replay.py) and reused by Notices, the Call List and Closures.</li>
+    <li><b>Replay and the Ledger</b> are deep and well tested.</li>
+    <li><b>requests.ts</b> is mostly a typed list of one-line calls; the deletion test says keep it. Only its multipart workaround moves, in 02.</li>
+    <li><b>Aadhaar Number and PAN</b>: the backend validates them. idNumbers.ts is a pure, well-tested finder, and ocr.ts is a shallow adapter, as it should be.</li>
+    <li><b>Call Sheet export</b> is built on the Call List itself.</li>
+    <li><b>Hand-written Previews</b> follow ADR 0007.</li>
+  </ul>
+  <h3 class="font-serif text-xl pt-2">Plain bugs found on the way (no redesign needed)</h3>
+  <ul class="list-disc ml-5 space-y-1 text-slate-700">
+    <li>CloseMortgage.tsx:230 still says "1 days of the month", the bug commit 6736b03 fixed elsewhere. "N days" is built by hand in 3 places.</li>
+    <li>The two photo retry bugs in 02 can be fixed directly if 02 waits.</li>
+  </ul>
+</aside>
+
+</section>
+
+<section id="top-recommendation" class="rounded-2xl deep p-8 space-y-3">
+  <div class="lbl text-emerald-300">Top recommendation</div>
+  <h2 class="font-serif text-3xl"><a href="#c1" class="underline decoration-emerald-400">01 · The Payment decides which Mortgages it Redeems</a></h2>
+  <p class="text-slate-300 max-w-3xl">NewPaymentPage is the file that keeps changing. This candidate removes a rule that is written in both tiers, a field on the interface, N requests and a blocking state from it. Afterwards the next change to paying in full happens in one module, with tests at the Payment Preview. If the two photo bugs matter more right now, fix them directly first. They are small.</p>
+</section>
+
+</main>
+</body>
+</html>
