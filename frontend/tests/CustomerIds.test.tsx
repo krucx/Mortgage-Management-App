@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
 // A Customer's email, Aadhaar Number (last 4 digits), PAN and ID Photos.
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { readText } from '../src/ocr'
 import { CustomerFormPage } from '../src/pages/CustomerFormPage'
 import { CustomerPage } from '../src/pages/CustomerPage'
 import { fakeServer } from './fakeServer'
 import { showPage } from './showPage'
 
+// The text reader (Tesseract, in the browser) stands in for what a card's photo reads as.
+vi.mock('../src/ocr', () => ({ readText: vi.fn() }))
+const reads = (text: string) => vi.mocked(readText).mockResolvedValue(text)
+
+beforeEach(() => reads(''))
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
@@ -101,4 +107,89 @@ test("the Customer page shows them, the Aadhaar Number masked, and the ID Photos
     '/api/photos/customer-5-aadhaar.jpg',
   )
   expect(screen.getByRole('img', { name: 'PAN card' })).toBeTruthy()
+})
+
+const valueOf = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).value
+
+function addPhoto(group: string) {
+  const fieldset = screen.getByRole('group', { name: group })
+  fireEvent.change(within(fieldset).getByLabelText('Upload photo'), {
+    target: { files: [new File(['jpg'], 'card.jpg', { type: 'image/jpeg' })] },
+  })
+}
+
+test('a PAN card photo fills in an empty PAN, marked as read from the photo', async () => {
+  reads('INCOME TAX DEPARTMENT\nPermanent Account Number Card\nABCP5I234K\nSURESH KUMAR')
+  form([])
+  await screen.findByLabelText('PAN (optional)')
+
+  addPhoto('PAN card photo')
+
+  expect(await screen.findByText('Read from the photo: check it.')).toBeTruthy()
+  expect(valueOf('PAN (optional)')).toBe('ABCPS1234K')
+})
+
+test('a masked Aadhaar photo fills in its last 4 digits', async () => {
+  reads('Government of India\nSuresh Kumar\nXXXX XXXX 9012\nVID : 9123 4567 8901 2345')
+  form([])
+  await screen.findByLabelText('PAN (optional)')
+
+  addPhoto('Aadhaar card photo (the masked front)')
+
+  await vi.waitFor(() => expect(valueOf('Aadhaar Number: last 4 digits (optional)')).toBe('9012'))
+  expect(screen.getByText('Read from the photo: check it.')).toBeTruthy()
+})
+
+test('a number typed while the photo is being read is kept', async () => {
+  let finish: (text: string) => void = () => {}
+  vi.mocked(readText).mockReturnValue(new Promise((resolve) => (finish = resolve)))
+  form([])
+  await screen.findByLabelText('PAN (optional)')
+
+  addPhoto('PAN card photo')
+  expect(await screen.findByText('Reading the photo…')).toBeTruthy()
+  fireEvent.change(screen.getByLabelText('PAN (optional)'), { target: { value: 'ZZZZZ9999Z' } })
+  finish('Permanent Account Number\nABCPS1234K')
+
+  await vi.waitFor(() => expect(screen.queryByText('Reading the photo…')).toBeNull())
+  expect(valueOf('PAN (optional)')).toBe('ZZZZZ9999Z')
+})
+
+test('a reading that finishes after its photo was removed fills in nothing', async () => {
+  let finish: (text: string) => void = () => {}
+  vi.mocked(readText).mockReturnValue(new Promise((resolve) => (finish = resolve)))
+  form([])
+  await screen.findByLabelText('PAN (optional)')
+
+  addPhoto('PAN card photo')
+  await screen.findByText('Reading the photo…')
+  const pan = screen.getByRole('group', { name: 'PAN card photo' })
+  fireEvent.click(within(pan).getByRole('button', { name: 'Remove' }))
+  finish('Permanent Account Number\nABCPS1234K')
+
+  await vi.waitFor(() => expect(screen.queryByText('Reading the photo…')).toBeNull())
+  expect(valueOf('PAN (optional)')).toBe('')
+})
+
+test('a number already typed is never overwritten', async () => {
+  reads('Permanent Account Number\nABCPS1234K')
+  form([])
+  fireEvent.change(await screen.findByLabelText('PAN (optional)'), { target: { value: 'ZZZZZ9999Z' } })
+
+  addPhoto('PAN card photo')
+  await vi.waitFor(() => expect(readText).toHaveBeenCalled())
+  await vi.waitFor(() => expect(screen.queryByText('Reading the photo…')).toBeNull())
+  expect(valueOf('PAN (optional)')).toBe('ZZZZZ9999Z')
+})
+
+test('a photo with no number read leaves its field as it was', async () => {
+  reads('a blurred photo')
+  form([])
+  await screen.findByLabelText('PAN (optional)')
+
+  addPhoto('Aadhaar card photo (the masked front)')
+  await vi.waitFor(() => expect(readText).toHaveBeenCalled())
+  await vi.waitFor(() => expect(screen.queryByText('Reading the photo…')).toBeNull())
+  expect(valueOf('Aadhaar Number: last 4 digits (optional)')).toBe('')
+  expect(screen.queryByText('Read from the photo: check it.')).toBeNull()
 })

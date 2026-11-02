@@ -37,6 +37,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png}'],
+        // The text reader's files (several MB) load only when an ID Photo is read.
+        globIgnores: ['ocr/**'],
         // Pages come from the server whenever it answers, so the first start after an
         // update runs the new app; the cached one is only for when it can't be reached.
         navigateFallback: null,

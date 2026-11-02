@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import type { Customer, CustomerIn, IdCard, PersonSummary } from '../api'
 import { PeopleInline, PersonLink } from '../components/PersonLink'
@@ -12,6 +12,8 @@ import { usePreview } from '../components/usePreview'
 import { Summary } from '../components/ConfirmDialog'
 import { useConfirm } from '../components/useConfirm'
 import { maskedAadhaar } from '../format'
+import { findAadhaarLast4, findPan } from '../idNumbers'
+import { readText } from '../ocr'
 import { normalisePhone } from '../phone'
 import { customerChanges, customerQuery, searchQuery } from '../requests'
 import { STALE_AFTER, useChange, useServerState } from '../serverState'
@@ -24,6 +26,11 @@ const ID_CARDS: { card: IdCard; label: string; urlOf: (c: Customer) => string | 
   { card: 'aadhaar', label: 'Aadhaar card photo (the masked front)', urlOf: (c) => c.aadhaar_photo_url },
   { card: 'pan', label: 'PAN card photo', urlOf: (c) => c.pan_photo_url },
 ]
+/** The field each card's number goes in, and how it is found in the card's text. */
+const READ_FROM: Record<IdCard, { field: 'aadhaar_last4' | 'pan'; find: (text: string) => string | null }> = {
+  aadhaar: { field: 'aadhaar_last4', find: findAadhaarLast4 },
+  pan: { field: 'pan', find: findPan },
+}
 const CARD_NAMES: Record<IdCard, string> = { aadhaar: 'Aadhaar', pan: 'PAN' }
 
 /** The last 4 digits of an Aadhaar Number as typed (whole, masked or the 4 alone). */
@@ -84,6 +91,45 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
     aadhaar: { kind: 'keep' },
     pan: { kind: 'keep' },
   })
+  // Each card's number: being read from its new ID Photo, or filled in from it (until
+  // edited); and the photo each card's reading is for, so a superseded one is dropped.
+  const [read, setRead] = useState<Record<IdCard, 'reading' | 'read' | null>>({
+    aadhaar: null,
+    pan: null,
+  })
+  const readingFor = useRef<Record<IdCard, Blob | null>>({ aadhaar: null, pan: null })
+  // The fields as they now stand, for a reading that finishes after more typing.
+  const typed = useRef(fields)
+  useEffect(() => {
+    typed.current = fields
+  }, [fields])
+
+  /** Read the number on a new ID Photo into its field, only if the field is still empty
+   *  when the reading is done: a suggestion, never over what was typed. */
+  async function readNumber(card: IdCard, photo: Blob) {
+    const { field, find } = READ_FROM[card]
+    readingFor.current[card] = photo
+    setRead((now) => ({ ...now, [card]: 'reading' }))
+    let found: string | null = null
+    try {
+      found = find(await readText(photo))
+    } catch {
+      // Unreadable or the reader unavailable: the field stays as it was.
+    }
+    if (readingFor.current[card] !== photo) return // replaced or removed meanwhile
+    readingFor.current[card] = null
+    const fill = found !== null && !typed.current[field].trim()
+    if (fill) setFields((now) => ({ ...now, [field]: found }))
+    setRead((now) => ({ ...now, [card]: fill ? 'read' : null }))
+  }
+  /** Typing in a card's number field: it is the Lender's own from then on. */
+  const typedOver = (card: IdCard) => setRead((now) => ({ ...now, [card]: null }))
+  const readHint = (card: IdCard) =>
+    read[card] === 'reading' ? (
+      <span className="hint">Reading the photo…</span>
+    ) : (
+      read[card] === 'read' && <span className="status warning">Read from the photo: check it.</span>
+    )
   const [phone2Shared, setPhone2Shared] = useState<PersonSummary[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -280,21 +326,31 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
                 placeholder="1234"
                 aria-describedby="aadhaar-hint"
                 value={fields.aadhaar_last4}
-                onChange={(event) => setFields({ ...fields, aadhaar_last4: event.target.value })}
+                onChange={(event) => {
+                  setFields({ ...fields, aadhaar_last4: event.target.value })
+                  typedOver('aadhaar')
+                }}
               />
             </label>
+            {readHint('aadhaar')}
             <span className="hint" id="aadhaar-hint">
               Only the last 4 digits are kept. Ask for the Customer's masked Aadhaar.
             </span>
           </div>
-          <label>
-            PAN (optional)
-            <input
-              placeholder="ABCDE1234F"
-              value={fields.pan}
-              onChange={(event) => setFields({ ...fields, pan: event.target.value.toUpperCase() })}
-            />
-          </label>
+          <div className="stack">
+            <label>
+              PAN (optional)
+              <input
+                placeholder="ABCDE1234F"
+                value={fields.pan}
+                onChange={(event) => {
+                  setFields({ ...fields, pan: event.target.value.toUpperCase() })
+                  typedOver('pan')
+                }}
+              />
+            </label>
+            {readHint('pan')}
+          </div>
         </div>
         <div className="grid-2">
           {ID_CARDS.map(({ card, label, urlOf }) => (
@@ -303,7 +359,14 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
               label={label}
               currentUrl={existing ? urlOf(existing) : null}
               change={idPhotos[card]}
-              onChange={(change) => setIdPhotos({ ...idPhotos, [card]: change })}
+              onChange={(change) => {
+                setIdPhotos({ ...idPhotos, [card]: change })
+                if (change.kind === 'new') void readNumber(card, change.photo)
+                else {
+                  readingFor.current[card] = null // a reading under way is dropped
+                  setRead((now) => ({ ...now, [card]: null }))
+                }
+              }}
             />
           ))}
         </div>
@@ -350,7 +413,7 @@ function IdPhotoPicker({
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview])
   const shown = change.kind === 'remove' ? null : change.kind === 'new' ? preview : currentUrl
   return (
-    <fieldset className="stack">
+    <fieldset className="stack id-photo-picker">
       <legend>{label}</legend>
       <Photo url={shown} alt={label} />
       <PhotoSource

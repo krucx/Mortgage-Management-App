@@ -264,6 +264,7 @@ await shot('terms-preview', card(), {
 
 await open('/payments/new?customer=1')
 await page.getByLabel('Amount received (₹)').fill('8000')
+await heading('What changes').waitFor()
 await settle()
 await shot('payment-new', card(), {
   amount: page.getByLabel('Amount received (₹)'),

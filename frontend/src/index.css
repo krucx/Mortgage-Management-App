@@ -458,6 +458,7 @@ a.result:hover {
   flex-wrap: wrap;
 }
 
+.id-photo-picker .photo,
 .id-photos img.photo {
   width: 220px;
   aspect-ratio: 1.6;
