@@ -108,6 +108,8 @@ class MortgageRow(BaseModel):
     amount_lent: int
     status: MortgageStatus
     outstanding_total: int
+    # Why it can't be Redeemed (paid in full) on the date it is listed as of, if not
+    not_redeemable: str | None
 
 
 class TermChangeOut(BaseModel):
@@ -169,6 +171,7 @@ def mortgage_rows(
             amount_lent=row["amount_lent"],
             status=row["status"],
             outstanding_total=replayed[row["id"]].outstanding(as_of).total,
+            not_redeemable=replayed[row["id"]].not_closable(as_of),
         )
         for row in rows
     ]

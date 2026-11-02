@@ -113,7 +113,6 @@ def test_paying_everything_on_an_accrual_date_redeems_with_the_month_starting_th
         ramesh,
         {mortgage["id"]: 112_000_00},
         on="2026-04-14",
-        redeeming=[mortgage["id"]],
     )
 
     page = client.get(f"/api/mortgages/{mortgage['id']}").json()
@@ -176,6 +175,8 @@ def test_forfeiting_records_what_was_recovered_and_the_profit_or_loss(
         "kind": "forfeited",
         "on": "2026-04-20",
         "outstanding": 112_000_00,
+        "interest_to_date": 3_000_00,  # 14 to 20 Apr, a month charged in full
+        "interest_to_date_days": 7,
         "payment_id": None,
         "payment_amount": None,
         "waived_amount": None,

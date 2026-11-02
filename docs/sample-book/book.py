@@ -170,8 +170,9 @@ class Book:
         self.mortgages[key] = self.post("/api/mortgages", body)
 
     def pay(self, who: str, split: dict[str, float], method: str = "cash", reference: str | None = None,
-            redeeming: list[str] | None = None, on: str | None = None) -> Any:
-        """A Payment received today (or on `on`, when entered late)."""
+            on: str | None = None) -> Any:
+        """A Payment received today (or on `on`, when entered late); an Allocation of a
+        Mortgage's whole Outstanding Redeems it."""
         allocations = [
             {"mortgage_id": self.mortgages[key]["id"], "amount": rupees(amount)}
             for key, amount in split.items()
@@ -185,7 +186,6 @@ class Book:
                 "method": method,
                 "reference": reference,
                 "allocations": allocations,
-                "redeeming": [self.mortgages[key]["id"] for key in redeeming or []],
             },
         )
 
@@ -274,7 +274,7 @@ def events(book: Book) -> list[tuple[str, Any]]:
         # ₹180 short and it is let off.
         ("2026-10-16", lambda: (
             book.pay("lakshmi", {"necklace": book.owed("necklace") / RUPEE}, method="bank_transfer",
-                     reference="NEFT final", redeeming=["necklace"]),
+                     reference="NEFT final"),
             book.post(f"/api/mortgages/{book.mortgage_id('nosering')}/waive", {
                 "waived_on": "2026-10-16", "amount_paid": book.owed("nosering") - rupees(180),
                 "method": "cash", "note": "Pays every month; ₹180 let off"}),

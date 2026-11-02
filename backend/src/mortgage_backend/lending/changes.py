@@ -71,9 +71,6 @@ class PaymentIn(BaseModel):
     method: PaymentMethod
     reference: str | None = None
     allocations: list[AllocationIn] = Field(min_length=1)
-    # Mortgages it Redeems on its date: each one's Allocation is its whole Outstanding,
-    # recorded as its final Payment.
-    redeeming: list[int] = []
 
     @model_validator(mode="after")
     def allocations_add_up(self) -> "PaymentIn":
@@ -81,8 +78,6 @@ class PaymentIn(BaseModel):
             raise ValueError("Allocations must add up to the Payment amount")
         if len({a.mortgage_id for a in self.allocations}) != len(self.allocations):
             raise ValueError("Each Mortgage can appear only once in a Payment")
-        if not set(self.redeeming) <= {a.mortgage_id for a in self.allocations}:
-            raise ValueError("A Mortgage it Redeems must have an Allocation")
         self.reference = (self.reference or "").strip() or None
         return self
 
@@ -207,7 +202,7 @@ def _write_payment(
     payment_id: int = conn.execute(
         insert(payment_table)
         .values(
-            **payment.model_dump(exclude={"allocations", "redeeming"}),
+            **payment.model_dump(exclude={"allocations"}),
             received_with=received_with,
         )
         .returning(payment_table.c.id)
@@ -287,82 +282,55 @@ def _refuse_payment(
 def record_payment(
     conn: Connection, payment: PaymentIn, today: date, now: datetime
 ) -> int:
-    """Record a Payment (or refuse); returns its id. The Mortgages it is `redeeming` are
-    each Redeemed with their Final Payment kept as a part of its own: the id is then the
-    Payment's first part."""
+    """Record a Payment (or refuse); returns its id. Each Mortgage it pays its whole
+    Outstanding on the Payment date is Redeemed (ADR 0011), with its Final Payment kept
+    as a part of its own: the id is then the Payment's first part."""
     rows = _refuse_payment(conn, payment, today)
-    redeemed = [a for a in payment.allocations if a.mortgage_id in payment.redeeming]
-    ordinary = [a for a in payment.allocations if a not in redeemed]
-    for allocation in ordinary:
+    redeemed = []
+    for allocation in payment.allocations:
         with _refusal_names_mortgage(conn, allocation.mortgage_id):
-            _refuse_unredeemed_in_full(conn, allocation, payment.paid_on, today)
+            mortgage = _redeemed_by(conn, allocation, payment.paid_on, today)
+        if mortgage is not None:
+            redeemed.append((allocation, mortgage))
+    redeemed_ids = {allocation.mortgage_id for allocation, _ in redeemed}
+    ordinary = [a for a in payment.allocations if a.mortgage_id not in redeemed_ids]
     first = None
     if ordinary:
         paid = payment.model_copy(
-            update={
-                "amount": sum(a.amount for a in ordinary),
-                "allocations": ordinary,
-                "redeeming": [],
-            }
+            update={"amount": sum(a.amount for a in ordinary), "allocations": ordinary}
         )
         first = _write_payment(conn, paid)
-        check_replays(conn, [r for r in rows if r["id"] not in payment.redeeming], today)
+        check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
         _record_payment_history(conn, first, paid, now)
-    for allocation in redeemed:
+    for allocation, mortgage in redeemed:
         with _refusal_names_mortgage(conn, allocation.mortgage_id):
-            final = _redeem_with_allocation(conn, allocation, payment, first, today, now)
+            final = _close_redeemed(
+                conn,
+                mortgage,
+                payment.paid_on,
+                allocation.amount,
+                payment.method,
+                payment.reference,
+                today,
+                now,
+                first,
+            )
+        assert final is not None  # an Allocation is more than nothing
         if first is None:
             first = final
     assert first is not None  # there is at least one Allocation
     return first
 
 
-def _refuse_unredeemed_in_full(
+def _redeemed_by(
     conn: Connection, allocation: AllocationIn, on: date, today: date
-) -> None:
-    """Refuse an ordinary Allocation of the Mortgage's whole Outstanding: paying all of
-    it Redeems the Mortgage (where it could be Redeemed on that date)."""
-    try:
-        mortgage = closable(conn, allocation.mortgage_id, on, today)
-    except HTTPException:
-        return
-    if allocation.amount == mortgage.outstanding_on_closure(on).total:
-        raise unprocessable(
-            f"{format_inr(allocation.amount)} is its whole Outstanding on "
-            f"{on:%d %b %Y}: Redeem it with this Payment instead"
-        )
-
-
-def _redeem_with_allocation(
-    conn: Connection,
-    allocation: AllocationIn,
-    payment: PaymentIn,
-    received_with: int | None,
-    today: date,
-    now: datetime,
-) -> int:
-    """Redeem the Allocation's Mortgage on the Payment date with the Allocation as its
-    final Payment (or refuse, unless it is the whole Outstanding)."""
-    mortgage = closable(conn, allocation.mortgage_id, payment.paid_on, today)
-    owed = mortgage.outstanding_on_closure(payment.paid_on).total
-    if allocation.amount != owed:
-        raise unprocessable(
-            f"{format_inr(allocation.amount)} is not its Outstanding on "
-            f"{payment.paid_on:%d %b %Y} ({format_inr(owed)})"
-        )
-    payment_id = _close_redeemed(
-        conn,
-        mortgage,
-        payment.paid_on,
-        owed,
-        payment.method,
-        payment.reference,
-        today,
-        now,
-        received_with,
-    )
-    assert payment_id is not None  # an Allocation is more than nothing
-    return payment_id
+) -> MortgageReplay | None:
+    """The Mortgage, if the Allocation is its whole Outstanding on `on`: paying all of
+    it Redeems it, so it is refused if the Mortgage can't be Redeemed then."""
+    mortgage = replay(conn, allocation.mortgage_id)
+    if allocation.amount != mortgage.outstanding_on_closure(on).total:
+        return None
+    return closable(conn, allocation.mortgage_id, on, today)
 
 
 def void_payment(
@@ -606,21 +574,13 @@ def closable(
 ) -> MortgageReplay:
     """The Mortgage, if it can be closed on `on` (or, for a quote, could be then)."""
     mortgage = replay(conn, mortgage_id)
-    row = mortgage.row
-    if row["status"] != MortgageStatus.ACTIVE:
-        raise unprocessable(f"{row['name']} is already {row['status']}")
-    if on > today and not quote_only:
+    if mortgage.row["status"] == MortgageStatus.ACTIVE and on > today and not quote_only:
         raise unprocessable(
             "A Redemption, Waiver or Forfeiture cannot be recorded for a future date"
         )
-    if on < row["start_date"]:
-        raise unprocessable(f"{row['name']} had not started on that date")
-    later = max((a.on for a in mortgage.allocations if a.on > on), default=None)
-    if later is not None:
-        raise unprocessable(
-            f"There are Payments after that date (latest {later:%d %b %Y}); "
-            "close it on or after then"
-        )
+    refusal = mortgage.not_closable(on)
+    if refusal is not None:
+        raise unprocessable(refusal)
     return mortgage
 
 

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
+  type Closure,
   type Customer,
   type MortgageRow,
   type PaymentIn,
@@ -13,9 +14,7 @@ import { CustomerChooser } from '../components/CustomerChooser'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
-import type { Quote } from '../components/Owed'
 import { ReasonTip } from '../components/ReasonTip'
-import { useQuotes } from '../components/useQuotes'
 import { formatDate, formatDays, todayIso } from '../format'
 import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
@@ -127,12 +126,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
   const total = rupeesToPaise(totalText)
 
-  // Whether each one could be Redeemed on the Payment date (or why not), and its
-  // Interest to Date then.
-  const quoteOf = useQuotes(payable, paidOn)
-  const quotes = chosen.map((m) => quoteOf(m.id))
   // Why they can't all be paid in full: the first chosen one that can't be Redeemed then.
-  const unquotable = quotes.find((q) => typeof q === 'string')
+  const notRedeemable = chosen.find((m) => m.not_redeemable)?.not_redeemable
 
   const amounts: number[] | null =
     mode === 'equal'
@@ -155,17 +150,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   if (mode === 'percent' && amounts === null) problems.push('The percentages must add up to 100.')
   if (amounts && total > 0 && allocated !== total)
     problems.push(`The Allocations add up to ${formatINR(allocated)}, not ${formatINR(total)}.`)
-  // Until each one is known to be Redeemable or not, paying it in full can't be told apart.
-  if (quotes.some((quote) => quote === undefined))
-    problems.push('Checking whether they can be Redeemed on that date…')
-
-  // The chosen Mortgages paid their whole Outstanding, as the backend quotes it for
-  // closing then: paying it Redeems them.
-  const redeeming = chosen.filter((_, i) => {
-    const quote = quotes[i]
-    return amounts !== null && typeof quote === 'object' && amounts[i] === quote.total
-  })
-
   // What saving would send; previewed (and refused, if it would be) by the backend.
   const proposed: PaymentIn | null =
     problems.length || !amounts
@@ -179,7 +163,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           allocations: chosen
             .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i] }))
             .filter((allocation) => allocation.amount > 0),
-          redeeming: redeeming.map((m) => m.id),
         }
 
   /** Switching to a manual mode starts from the current equal Allocations. */
@@ -212,40 +195,48 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     change: proposed,
     preview: (payment) => previews.payment(payment),
     cash: (payment) => payment,
-    confirm: (payment) => ({
-      ...(redeeming.length > 0 && {
-        confirmLabel: 'Redeem',
-        cancelLabel: 'Go back',
-      }),
-      title:
-        redeeming.length > 0
-          ? 'Redeem and hand back the jewellery?'
-          : `Record a Payment of ${formatINR(payment.amount)}?`,
-      body: (
-        <>
-          {redeeming.map((m) => (
-            <p key={m.id}>
-              <RedeemedInFull name={m.name} quote={quoteOf(m.id)} />
-            </p>
-          ))}
-          <Summary
-            rows={[
-              ['From', customer.name],
-              ['Received', formatDate(paidOn)],
-              [
-                'Method',
-                (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : ''),
-              ],
-              ...payment.allocations.map((a): [string, string] => [
-                chosen.find((m) => m.id === a.mortgage_id)?.name ?? '',
-                formatINR(a.amount) +
-                  (redeeming.some((m) => m.id === a.mortgage_id) ? ' · Redeems it' : ' · paid'),
-              ]),
-            ]}
-          />
-        </>
-      ),
-    }),
+    confirm: (payment, preview) => {
+      // The Mortgages it pays their whole Outstanding: the Preview has them Redeemed.
+      const redeemed = (preview.previews ?? []).flatMap((p) =>
+        p.after.closure?.kind === 'redeemed' ? [{ ...p, closure: p.after.closure }] : [],
+      )
+      return {
+        ...(redeemed.length > 0 && {
+          confirmLabel: 'Redeem',
+          cancelLabel: 'Go back',
+        }),
+        title:
+          redeemed.length > 0
+            ? 'Redeem and hand back the jewellery?'
+            : `Record a Payment of ${formatINR(payment.amount)}?`,
+        body: (
+          <>
+            {redeemed.map((p) => (
+              <p key={p.mortgage_id}>
+                <RedeemedInFull name={p.mortgage_name} closure={p.closure} />
+              </p>
+            ))}
+            <Summary
+              rows={[
+                ['From', customer.name],
+                ['Received', formatDate(paidOn)],
+                [
+                  'Method',
+                  (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : ''),
+                ],
+                ...payment.allocations.map((a): [string, string] => [
+                  chosen.find((m) => m.id === a.mortgage_id)?.name ?? '',
+                  formatINR(a.amount) +
+                    (redeemed.some((p) => p.mortgage_id === a.mortgage_id)
+                      ? ' · Redeems it'
+                      : ' · paid'),
+                ]),
+              ]}
+            />
+          </>
+        ),
+      }
+    },
     save: (asked) => changeLedger((client) => changes.recordPayment(client, asked)),
     saved: (payment) => navigate(`/payments/${payment.id}/receipt`),
   })
@@ -278,15 +269,16 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
               <button
                 type="button"
                 className="link"
-                disabled={!quotes.every((q) => typeof q === 'object')}
+                // Not on the last date's figures while the new date's load
+                disabled={!!notRedeemable || listed.isPlaceholderData}
                 onClick={fillOutstanding}
               >
                 Pay the full Outstanding ({formatINR(totalOutstanding)})
               </button>
             )}
-            {chosen.length > 0 && unquotable && (
+            {chosen.length > 0 && notRedeemable && (
               <span>
-                <ReasonTip reason={unquotable}>Can't pay it in full</ReasonTip>
+                <ReasonTip reason={notRedeemable}>Can't pay it in full</ReasonTip>
               </span>
             )}
           </label>
@@ -449,11 +441,10 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 }
 
 /** What paying a Mortgage's whole Outstanding does, for the Redeem question. */
-function RedeemedInFull({ name, quote }: { name: string; quote: Quote }) {
-  if (typeof quote !== 'object') return null
+function RedeemedInFull({ name, closure }: { name: string; closure: Closure }) {
   const charge =
-    quote.interest_to_date > 0
-      ? `, including ${formatDays(quote.interest_to_date_days)} of Interest to Date`
+    closure.interest_to_date > 0
+      ? `, including ${formatDays(closure.interest_to_date_days)} of Interest to Date`
       : ''
-  return `This pays the full Outstanding of ${name} (${formatINR(quote.total)}${charge}).`
+  return `This pays the full Outstanding of ${name} (${formatINR(closure.outstanding)}${charge}).`
 }

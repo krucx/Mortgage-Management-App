@@ -1568,6 +1568,10 @@ export interface components {
          * @description How and when a Mortgage was closed, and what it came to.
          */
         Closure: {
+            /** Interest To Date */
+            interest_to_date: number;
+            /** Interest To Date Days */
+            interest_to_date_days: number;
             /**
              * Kind
              * @enum {string}
@@ -2132,6 +2136,8 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /** Not Redeemable */
+            not_redeemable: string | null;
             /** Outstanding Total */
             outstanding_total: number;
             /**
@@ -2328,11 +2334,6 @@ export interface components {
              * Format: date
              */
             paid_on: string;
-            /**
-             * Redeeming
-             * @default []
-             */
-            redeeming: number[];
             /** Reference */
             reference?: string | null;
         };

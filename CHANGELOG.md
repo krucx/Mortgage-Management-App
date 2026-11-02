@@ -7,7 +7,18 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Changed
+
+- **New Payment no longer waits on "Checking whether they can be Redeemed…":** the
+  Payment Redeems each Mortgage it pays in full by itself, and the Redeem question and
+  each Allocation's "Redeems it" come from the Preview. "Can't pay it in full" shows
+  its reason straight away.
+
 ### Fixed
+
+- **A whole Outstanding that can't Redeem is refused:** paying a Mortgage's whole
+  Outstanding on a date it can't be Redeemed (a later Payment) used to be recorded as
+  an ordinary Payment, leaving it Dormant. It is now refused with the reason.
 
 - **"1 day", not "1 days":** closing a Mortgage on the first day of its month now
   says "1 day of the month". New Payment's full-Outstanding note now reads "including

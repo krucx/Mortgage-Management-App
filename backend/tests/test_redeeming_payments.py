@@ -32,7 +32,7 @@ def test_a_payment_of_the_whole_outstanding_redeems_the_mortgage_on_its_date(
     client, ramesh, chain
 ):
     payment = pay(
-        client, ramesh, {chain["id"]: OUTSTANDING}, on=ON, redeeming=[chain["id"]]
+        client, ramesh, {chain["id"]: OUTSTANDING}, on=ON
     )
 
     closure = mortgage(client, chain)["closure"]
@@ -57,7 +57,7 @@ def test_the_outstanding_listed_for_a_back_dated_payment_is_what_redeems_it(
     ).json()["items"]
     owed = next(m["outstanding_total"] for m in listed if m["id"] == pro_rata["id"])
 
-    pay(client, ramesh, {pro_rata["id"]: owed}, on="2026-03-05", redeeming=[pro_rata["id"]])
+    pay(client, ramesh, {pro_rata["id"]: owed}, on="2026-03-05")
 
     redeemed = mortgage(client, pro_rata)
     assert (redeemed["status"], redeemed["closure"]["outstanding"]) == ("redeemed", owed)
@@ -80,20 +80,12 @@ def payments(client):
     return client.get("/api/payments").json()["items"]
 
 
-def test_an_amount_other_than_the_outstanding_is_refused_and_nothing_recorded(
-    client, ramesh, chain
-):
-    asked = payment_of(ramesh, {chain["id"]: LAKH}, redeeming=[chain["id"]])
+def test_a_payment_of_less_than_the_outstanding_does_not_redeem(client, ramesh, chain):
+    response = client.post("/api/payments", json=payment_of(ramesh, {chain["id"]: LAKH}))
 
-    response = client.post("/api/payments", json=asked)
-
-    assert response.status_code == 422
-    assert response.json()["detail"] == (
-        f"{chain['name']}: ₹1,00,000 is not its Outstanding on 20 Apr 2026 "
-        "(₹1,12,000)"
-    )
-    assert payments(client) == []
-    assert mortgage(client, chain)["status"] == "active"
+    assert response.status_code == 201, response.text
+    shown = mortgage(client, chain)
+    assert (shown["status"], shown["outstanding"]["total"]) == ("active", 12_000_00)
 
 
 @pytest.fixture
@@ -105,7 +97,7 @@ def test_one_payment_can_redeem_one_mortgage_and_part_pay_another(
     client, ramesh, chain, ring
 ):
     asked = payment_of(
-        ramesh, {chain["id"]: OUTSTANDING, ring["id"]: 8_000_00}, redeeming=[chain["id"]]
+        ramesh, {chain["id"]: OUTSTANDING, ring["id"]: 8_000_00}
     )
 
     response = client.post("/api/payments", json=asked)
@@ -121,12 +113,13 @@ def test_one_payment_can_redeem_one_mortgage_and_part_pay_another(
 def test_if_the_redemption_is_refused_the_ordinary_part_is_not_recorded_either(
     client, ramesh, chain, ring
 ):
+    pay(client, ramesh, {chain["id"]: 1_000_00}, on="2026-04-18")
     asked = payment_of(
-        ramesh, {chain["id"]: LAKH, ring["id"]: 8_000_00}, redeeming=[chain["id"]]
+        ramesh, {chain["id"]: OUTSTANDING, ring["id"]: 8_000_00}, paid_on="2026-04-16"
     )
 
     assert client.post("/api/payments", json=asked).status_code == 422
-    assert payments(client) == []
+    assert [p["amount"] for p in payments(client)] == [1_000_00]
 
 
 def test_reopening_the_redeemed_mortgage_voids_only_its_final_payment(
@@ -137,7 +130,6 @@ def test_reopening_the_redeemed_mortgage_voids_only_its_final_payment(
         ramesh,
         {chain["id"]: OUTSTANDING, ring["id"]: 8_000_00},
         on=ON,
-        redeeming=[chain["id"]],
     )
 
     response = client.post(
@@ -152,13 +144,16 @@ def test_reopening_the_redeemed_mortgage_voids_only_its_final_payment(
 def test_the_preview_of_a_payment_that_redeems_shows_the_redemption_and_saves_nothing(
     client, ramesh, chain
 ):
-    asked = payment_of(ramesh, {chain["id"]: OUTSTANDING}, redeeming=[chain["id"]])
+    asked = payment_of(ramesh, {chain["id"]: OUTSTANDING})
 
     response = client.post("/api/payments/preview", json=asked)
 
     assert response.status_code == 200, response.text
     [preview] = response.json()
-    assert preview["after"]["closure"]["kind"] == "redeemed"
+    closure = preview["after"]["closure"]
+    # 14 to 20 Apr, both included, of a month charged in full
+    assert (closure["kind"], closure["interest_to_date_days"]) == ("redeemed", 7)
+    assert closure["interest_to_date"] == 3_000_00
     assert payments(client) == []
 
 
@@ -179,7 +174,6 @@ def test_a_payment_that_redeems_and_part_pays_has_one_receipt_for_all_of_it(
         ramesh,
         {chain["id"]: OUTSTANDING, ring["id"]: 8_000_00},
         on=ON,
-        redeeming=[chain["id"]],
     )
     ids = [p["id"] for p in payments(client)]
 
@@ -204,7 +198,6 @@ def test_once_the_redeemed_mortgage_is_reopened_the_receipt_covers_the_rest(
         ramesh,
         {chain["id"]: OUTSTANDING, ring["id"]: 8_000_00},
         on=ON,
-        redeeming=[chain["id"]],
     )
     client.post(f"/api/mortgages/{chain['id']}/reopen", json={"reason": "Mistake"})
 
@@ -223,7 +216,6 @@ def test_one_payment_can_redeem_several_mortgages_with_one_receipt_even_after_a_
         ramesh,
         {chain["id"]: OUTSTANDING, ring["id"]: ring_amount},
         on=ON,
-        redeeming=[chain["id"], ring["id"]],
     )
     assert [mortgage(client, m)["status"] for m in (chain, ring)] == ["redeemed"] * 2
     ids = sorted(p["id"] for p in payments(client))
@@ -241,7 +233,6 @@ def test_the_ordinary_part_can_be_voided_on_its_own(client, ramesh, chain, ring)
         ramesh,
         {chain["id"]: OUTSTANDING, ring["id"]: 8_000_00},
         on=ON,
-        redeeming=[chain["id"]],
     )
 
     response = client.post(f"/api/payments/{first['id']}/void", json={"reason": "Bounced"})
@@ -251,29 +242,21 @@ def test_the_ordinary_part_can_be_voided_on_its_own(client, ramesh, chain, ring)
     assert mortgage(client, ring)["outstanding"]["total"] == 50_000_00 + 6_000_00
 
 
-def test_a_back_dated_payment_that_redeems_before_a_later_payment_is_refused(
+def test_the_whole_outstanding_on_a_date_it_cannot_be_redeemed_is_refused_with_why(
     client, ramesh, chain
 ):
+    # Paying all of it Redeems, so it is refused rather than left owing nothing
+    # (Dormant, ADR 0012): ₹1,12,000 was the whole Outstanding on 16 Apr too.
     pay(client, ramesh, {chain["id"]: 1_000_00}, on="2026-04-18")
-    asked = payment_of(ramesh, {chain["id"]: 1}, paid_on="2026-04-16", redeeming=[chain["id"]])
+    asked = payment_of(ramesh, {chain["id"]: OUTSTANDING}, paid_on="2026-04-16")
 
-    response = client.post("/api/payments/preview", json=asked)
+    previewed = client.post("/api/payments/preview", json=asked)
+    saved = client.post("/api/payments", json=asked)
 
-    assert response.status_code == 422
-    assert "There are Payments after that date" in response.json()["detail"]
-
-
-def test_paying_the_whole_outstanding_without_redeeming_is_refused(
-    client, ramesh, chain
-):
-    asked = payment_of(ramesh, {chain["id"]: OUTSTANDING})
-
-    response = client.post("/api/payments", json=asked)
-
-    assert response.status_code == 422
-    assert response.json()["detail"] == (
-        f"{chain['name']}: ₹1,12,000 is its whole Outstanding on 20 Apr 2026: "
-        "Redeem it with this Payment instead"
+    assert previewed.status_code == saved.status_code == 422
+    assert saved.json()["detail"] == (
+        f"{chain['name']}: There are Payments after that date (latest 18 Apr 2026); "
+        "close it on or after then"
     )
 
 
@@ -291,10 +274,35 @@ def test_a_mortgage_paid_up_to_its_last_accrual_date_owes_its_interest_to_date(
     assert (shown["status"], shown["outstanding"]["total"]) == ("active", 3_000_00)
 
     payment = pay(
-        client, ramesh, {chain["id"]: 3_000_00}, on=ON, redeeming=[chain["id"]]
+        client, ramesh, {chain["id"]: 3_000_00}, on=ON
     )
 
     redeemed = mortgage(client, chain)
     assert (redeemed["status"], redeemed["outstanding"]["total"]) == ("redeemed", 0)
     assert redeemed["closure"]["payment_id"] == payment["id"]
     assert receipt(client, payment["id"])["total_owed"] == 0
+
+
+# --- Why New Payment can't offer to pay a Mortgage in full, as its rows say.
+
+
+def listed_on(client, ramesh, on):
+    response = client.get(
+        "/api/mortgages",
+        params={"customer_id": ramesh["id"], "status": "active", "as_of": on},
+    )
+    assert response.status_code == 200, response.text
+    return {m["id"]: m for m in response.json()["items"]}
+
+
+def test_a_row_says_why_it_cannot_be_redeemed_on_its_date(client, ramesh, chain, ring):
+    pay(client, ramesh, {chain["id"]: 1_000_00}, on="2026-04-18")
+
+    rows = listed_on(client, ramesh, "2026-04-16")
+
+    assert rows[chain["id"]]["not_redeemable"] == (
+        "There are Payments after that date (latest 18 Apr 2026); "
+        "close it on or after then"
+    )
+    assert rows[ring["id"]]["not_redeemable"] is None
+    assert listed_on(client, ramesh, ON)[chain["id"]]["not_redeemable"] is None

@@ -26,8 +26,9 @@ export function useProposedChange<Change, Saved>({
   change: Change | null
   /** The Preview of `change`; null for a change that changes nothing to preview. */
   preview: (change: Change) => PreviewRequest | null
-  /** The confirmation asked for when Save is pressed; null to save straight away. */
-  confirm: ((change: Change) => ConfirmOptions) | null
+  /** The confirmation asked for when Save is pressed, from `change` and its Preview;
+   *  null to save straight away. */
+  confirm: ((change: Change, preview: Preview) => ConfirmOptions) | null
   /** What `change` lends or receives, and how, for the Cash Limit's warning (worked out
    *  when Save is pressed, from its Preview if need be); null when it is not money. */
   cash?: (change: Change, preview: Preview) => Cash | null
@@ -57,7 +58,7 @@ export function useProposedChange<Change, Saved>({
     event.preventDefault()
     if (change === null || !canSave) return
     if (cashOf && !(await warnCash(cashOf(change, preview)))) return
-    if (confirmationOf && !(await confirm(confirmationOf(change)))) return
+    if (confirmationOf && !(await confirm(confirmationOf(change, preview)))) return
     setSaving(true)
     setError(null)
     let result: Saved

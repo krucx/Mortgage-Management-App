@@ -5,6 +5,7 @@ import { NewPaymentPage } from '../src/pages/NewPaymentPage'
 import { formatDate, todayIso } from '../src/format'
 import { fakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
+import type { PaymentIn } from '../src/api'
 
 afterEach(() => {
   cleanup()
@@ -31,15 +32,7 @@ const row = {
   amount_lent: mortgage.amount_lent,
   status: 'active',
   outstanding_total: 5_150_000,
-}
-const quote = {
-  on: '2026-04-20',
-  principal: 0,
-  unpaid_interest: 0,
-  last_accrual_on: '2026-04-10',
-  interest_to_date_days: 0,
-  interest_to_date: 0,
-  total: 0,
+  not_redeemable: null as string | null,
 }
 /** The backend for recording a ₹50,750 UPI Payment, which leaves ₹750 Outstanding. */
 function server(extra: Record<string, unknown> = {}) {
@@ -50,7 +43,6 @@ function server(extra: Record<string, unknown> = {}) {
       { method: 'cash', name: 'Cash' },
       { method: 'upi', name: 'UPI' },
     ],
-    'GET /api/mortgages/7/outstanding-on-closure': quote,
     'POST /api/payments/preview': [],
     'POST /api/payments': async (request: Request) => ({
       ...((await request.json()) as Record<string, unknown>),
@@ -88,33 +80,50 @@ test('a Payment that leaves something Outstanding goes to its Receipt, offering 
 
 const ring = { ...row, id: 8, name: '2026GoldRing', outstanding_total: 2_000_000 }
 
+const LATER_PAYMENT =
+  'There are Payments after that date (latest 01 Apr 2026); close it on or after then'
+
 /** Mortgages 7 (pro-rata) and 8 (Part-Month Rule "nothing") owing ₹51,500 and ₹20,000,
  *  Interest to Date included; 7 owes ₹51,000 before 1 Apr 2026. 8 has a Payment on
- *  1 Apr 2026, so it can't be Redeemed before then. */
+ *  1 Apr 2026, so it can't be Redeemed before then. The Preview Redeems each Mortgage
+ *  paid its whole Outstanding, as the backend does. */
 function quoting(extra: Record<string, unknown> = {}) {
   const owed = (id: number, on: string) =>
     id === 8 ? 2_000_000 : on < '2026-04-01' ? 5_100_000 : 5_150_000
-  const onClosure = (id: number, request: Request) => {
-    const on = new URL(request.url).searchParams.get('on') ?? ''
-    if (id === 8 && on < '2026-04-01')
-      return Response.json(
-        { detail: 'There are Payments after that date (latest 01 Apr 2026); close it on or after then' },
-        { status: 422 },
-      )
-    const charge = id === 8 ? 0 : on < '2026-04-01' ? 25_000 : 75_000
-    return { ...quote, on, interest_to_date_days: 15, interest_to_date: charge, total: owed(id, on) }
-  }
+  const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
+  const redeemed = (id: number, on: string) => ({
+    kind: 'redeemed',
+    on,
+    outstanding: owed(id, on),
+    interest_to_date: id === 8 ? 0 : on < '2026-04-01' ? 25_000 : 75_000,
+    interest_to_date_days: 15,
+  })
   return fakeServer({
     'GET /api/customers/3': customer,
     'GET /api/mortgages': (request: Request) => {
       const on = new URL(request.url).searchParams.get('as_of') ?? ''
-      const items = [row, ring].map((m) => ({ ...m, outstanding_total: owed(m.id, on) }))
+      const items = [row, ring].map((m) => ({
+        ...m,
+        outstanding_total: owed(m.id, on),
+        not_redeemable: m.id === 8 && on < '2026-04-01' ? LATER_PAYMENT : null,
+      }))
       return { items, total: 2, page: 1, page_size: 2 }
     },
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
-    'POST /api/payments/preview': [],
-    'GET /api/mortgages/7/outstanding-on-closure': (request: Request) => onClosure(7, request),
-    'GET /api/mortgages/8/outstanding-on-closure': (request: Request) => onClosure(8, request),
+    'POST /api/payments/preview': async (request: Request) => {
+      const asked = (await request.json()) as PaymentIn
+      return asked.allocations.map((a) => ({
+        mortgage_id: a.mortgage_id,
+        mortgage_name: a.mortgage_id === 8 ? ring.name : row.name,
+        before: side(null),
+        after: side(
+          a.amount === owed(a.mortgage_id, asked.paid_on)
+            ? redeemed(a.mortgage_id, asked.paid_on)
+            : null,
+        ),
+        ledger_changes: [],
+      }))
+    },
     ...extra,
   })
 }
@@ -155,7 +164,6 @@ test('a Mortgage owing nothing is not offered a Payment, but pointed to its Rede
       'GET /api/customers/3': customer,
       'GET /api/mortgages': { items: [row, paidUp], total: 2, page: 1, page_size: 2 },
       'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
-      'GET /api/mortgages/7/outstanding-on-closure': quote,
     }),
     '/payments/new?customer=3',
     { '/payments/new': <NewPaymentPage /> },
@@ -173,15 +181,11 @@ test("when a chosen Mortgage can't be Redeemed then, the full Outstanding can't 
 
   fireEvent.change(screen.getByLabelText('Date received'), { target: { value: '2026-03-15' } })
 
-  const full = (await screen.findByRole('button', {
-    name: /^Pay the full Outstanding/,
-  })) as HTMLButtonElement
-  expect(full.disabled).toBe(true)
   // Compact too: the reason is in the marker's tooltip.
   fireEvent.mouseEnter(await screen.findByText("Can't pay it in full"))
-  expect(screen.getByRole('tooltip').textContent).toBe(
-    'There are Payments after that date (latest 01 Apr 2026); close it on or after then',
-  )
+  expect(screen.getByRole('tooltip').textContent).toBe(LATER_PAYMENT)
+  const full = screen.getByRole('button', { name: /^Pay the full Outstanding/ })
+  expect((full as HTMLButtonElement).disabled).toBe(true)
 })
 
 // --- Paying the full Outstanding Redeems: asked before anything is recorded.
@@ -222,7 +226,7 @@ async function record(amounts: Record<string, string>) {
   return screen.findByRole('dialog')
 }
 
-test('paying the full Outstanding asks to Redeem first, then records the Payment as Redeeming', async () => {
+test('paying the full Outstanding asks to Redeem first, as the Preview says, then records the Payment', async () => {
   const saved = recording()
   const asked = await record({ [row.name]: '51500', [ring.name]: '20000' })
 
@@ -235,7 +239,18 @@ test('paying the full Outstanding asks to Redeem first, then records the Payment
   fireEvent.click(within(asked).getByRole('button', { name: 'Redeem' }))
 
   expect(await screen.findByText('Now at /payments/9/receipt')).toBeTruthy()
-  expect(saved.map((p) => p.redeeming)).toEqual([[7, 8]])
+  // The backend Redeems what is paid in full: the Payment says nothing of it.
+  expect(saved.map((p) => 'redeeming' in p)).toEqual([false])
+})
+
+test("each Allocation says whether it Redeems, and the page asks for no quotes", async () => {
+  const backend = quoting()
+  showPage(backend, '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  const asked = await record({ [row.name]: '51500', [ring.name]: '5000' })
+
+  expect(within(asked).getByText('₹51,500 · Redeems it')).toBeTruthy()
+  expect(within(asked).getByText('₹5,000 · paid')).toBeTruthy()
+  expect(backend.requests.filter((r) => /outstanding-on-closure/.test(r))).toEqual([])
 })
 
 test('only the Mortgages paid in full are Redeemed, and Go back records nothing', async () => {

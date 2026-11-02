@@ -1,6 +1,8 @@
 """Dormant Mortgages: Active ones that owe nothing, so their jewellery should already
 have gone back (ADR 0012). Worked out afresh, never stored (today is 20 Apr 2026)."""
 
+from datetime import date, timedelta
+
 import pytest
 from api_seed import SIMPLE_3, lend, pay, person
 
@@ -33,11 +35,16 @@ def owe_nothing(
     owed_before=106_000_00,
 ):
     """Leave a Mortgage of ₹1 lakh at 3% (Part-Month Rule "nothing") owing nothing, as
-    only a back-dated Payment can now: ₹3,000 `after` its latest Accrual Date for the
-    month charged then, then `owed_before` dated `before` it for the Principal and the
-    interest charged by then. Returns the back-dated Payment."""
+    only back-dated Payments can now: ₹3,000 `after` its latest Accrual Date for the
+    month charged then, then `owed_before` (the Principal and the interest charged by
+    `before`) in two back-dated parts, neither of them all that was owed on its date,
+    which would Redeem it or be refused. Returns the last back-dated Payment."""
     pay(client, owner, {mortgage["id"]: 3_000_00}, on=after)
-    back_dated = pay(client, owner, {mortgage["id"]: owed_before}, on=before)
+    pay(client, owner, {mortgage["id"]: 50_000_00}, on=before)
+    day_before = (date.fromisoformat(before) - timedelta(days=1)).isoformat()
+    back_dated = pay(
+        client, owner, {mortgage["id"]: owed_before - 50_000_00}, on=day_before
+    )
     shown = client.get(f"/api/mortgages/{mortgage['id']}").json()
     assert (shown["status"], shown["outstanding"]["total"]) == ("active", 0)
     return back_dated

@@ -586,6 +586,14 @@
       "Closure": {
         "description": "How and when a Mortgage was closed, and what it came to.",
         "properties": {
+          "interest_to_date": {
+            "title": "Interest To Date",
+            "type": "integer"
+          },
+          "interest_to_date_days": {
+            "title": "Interest To Date Days",
+            "type": "integer"
+          },
           "kind": {
             "enum": [
               "redeemed",
@@ -675,6 +683,8 @@
           "kind",
           "on",
           "outstanding",
+          "interest_to_date",
+          "interest_to_date_days",
           "payment_id",
           "payment_amount",
           "waived_amount",
@@ -2081,6 +2091,17 @@
             "title": "Name",
             "type": "string"
           },
+          "not_redeemable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Redeemable"
+          },
           "outstanding_total": {
             "title": "Outstanding Total",
             "type": "integer"
@@ -2101,7 +2122,8 @@
           "start_date",
           "amount_lent",
           "status",
-          "outstanding_total"
+          "outstanding_total",
+          "not_redeemable"
         ],
         "title": "MortgageRow",
         "type": "object"
@@ -2555,14 +2577,6 @@
             "format": "date",
             "title": "Paid On",
             "type": "string"
-          },
-          "redeeming": {
-            "default": [],
-            "items": {
-              "type": "integer"
-            },
-            "title": "Redeeming",
-            "type": "array"
           },
           "reference": {
             "anyOf": [

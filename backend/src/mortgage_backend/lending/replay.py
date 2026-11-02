@@ -71,6 +71,8 @@ class Closure(BaseModel):
     kind: Literal["redeemed", "waived", "forfeited"]
     on: date
     outstanding: int  # on the Closure date, before its final Payment
+    interest_to_date: int  # of that Outstanding: the month under way, as yet unpaid
+    interest_to_date_days: int  # days of that month, the Closure date included
     payment_id: int | None  # Redeemed or Waived: the final Payment, if any
     payment_amount: int | None  # what that final Payment paid on this Mortgage
     waived_amount: int | None  # Waived: what the Lender let off
@@ -163,6 +165,21 @@ class MortgageReplay:
             and self.outstanding(on).total == 0
         )
 
+    def not_closable(self, on: date) -> str | None:
+        """Why it can't be closed on `on`, a date not in the future; None if it can."""
+        row = self.row
+        if row["status"] != MortgageStatus.ACTIVE:
+            return f"{row['name']} is already {row['status']}"
+        if on < row["start_date"]:
+            return f"{row['name']} had not started on that date"
+        later = max((a.on for a in self.allocations if a.on > on), default=None)
+        if later is not None:
+            return (
+                f"There are Payments after that date (latest {later:%d %b %Y}); "
+                "close it on or after then"
+            )
+        return None
+
     def outstanding_on_closure(self, on: date) -> OutstandingOnClosure:
         """The Outstanding if closed on `on`, leaving out the Closure's own final
         Payment."""
@@ -191,7 +208,8 @@ class MortgageReplay:
         row = self.row
         if row["status"] == MortgageStatus.ACTIVE:
             return None
-        outstanding = self.outstanding_on_closure(row["closed_on"]).total
+        on_closure = self.outstanding_on_closure(row["closed_on"])
+        outstanding = on_closure.total
         forfeited = row["status"] == MortgageStatus.FORFEITED
         last = self.ledger(row["closed_on"])[-1]
         final_payment_id = row["redemption_payment_id"]
@@ -199,6 +217,8 @@ class MortgageReplay:
             kind=row["status"],
             on=row["closed_on"],
             outstanding=outstanding,
+            interest_to_date=on_closure.interest_to_date,
+            interest_to_date_days=on_closure.interest_to_date_days,
             payment_id=final_payment_id,
             payment_amount=next(
                 (
