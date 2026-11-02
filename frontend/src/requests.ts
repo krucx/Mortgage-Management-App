@@ -537,10 +537,37 @@ export const customerChanges = {
     ),
 }
 
+/** The Call Sheet: where to download it, and importing the Excel sheet back with the
+ *  Call Notes written in (previewed first; all of them or none). */
+export const callSheet = {
+  exportUrl: (kind: 'xlsx' | 'pdf') => `/api/call-list/export.${kind}`,
+  previewImport: (client: ApiClient, sheet: File) => importSheet(client, sheet, '/api/call-list/import-preview'),
+  import: (client: ApiClient, sheet: File) => importSheet(client, sheet, '/api/call-list/import'),
+}
+
+function importSheet(
+  client: ApiClient,
+  sheet: File,
+  path: '/api/call-list/import-preview' | '/api/call-list/import',
+) {
+  return dataOrThrow(
+    client.POST(path, {
+      // The schema types the file as a string; it is sent as multipart form data.
+      body: { file: '' },
+      bodySerializer: () => fileForm('file', sheet, sheet.name),
+    }),
+  )
+}
+
 /** A photo as the multipart form the backend takes. */
 function photoForm(photo: Blob): FormData {
+  return fileForm('photo', photo, 'photo.jpg')
+}
+
+/** A file as the multipart form field `field`. */
+function fileForm(field: string, file: Blob, name: string): FormData {
   const form = new FormData()
-  form.append('photo', photo, 'photo.jpg')
+  form.append(field, file, name)
   return form
 }
 

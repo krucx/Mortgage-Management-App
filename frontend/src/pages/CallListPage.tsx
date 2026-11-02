@@ -1,15 +1,18 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router'
 import { CALL_LIST_SORTS, type CallListGroup, type CallListRow } from '../api'
 import { MarkCalled } from '../components/CallNotes'
+import { Summary } from '../components/ConfirmDialog'
 import { PersonLink } from '../components/PersonLink'
 import { SortHeading } from '../components/SortHeading'
+import { useConfirm } from '../components/useConfirm'
 import { useListPage } from '../components/useListPage'
 import { ChatIcon } from '../components/WhatsApp'
-import { formatPercent } from '../format'
+import { formatDate, formatPercent, plural } from '../format'
 import { sender } from '../messaging'
 import { formatINR } from '../money'
-import { lists } from '../requests'
+import { callSheet, lists } from '../requests'
+import { STALE_AFTER, useChange, useServerState } from '../serverState'
 
 type Reason = CallListRow['reasons'][number]
 
@@ -80,6 +83,7 @@ export function CallListPage() {
         The thresholds are in <Link to="/settings">Settings</Link>.
       </p>
       {error && <p className="status error">{error}</p>}
+      <CallSheet />
       {listed && listed.total > 0 && (
         <div className="row spread">
           <p>
@@ -134,6 +138,90 @@ export function CallListPage() {
       )}
       {pager}
     </section>
+  )
+}
+
+/** The Call Sheet to call from (Excel or PDF), and the Excel sheet imported back with
+ *  the Call Notes written in: previewed, then all added or none. */
+function CallSheet() {
+  const { client } = useServerState()
+  const noteCalls = useChange(STALE_AFTER.callNote)
+  const [confirm, confirmDialog] = useConfirm()
+  const [status, setStatus] = useState<{ kind: 'saved' | 'error'; text: string } | null>(null)
+  const [importing, setImporting] = useState(false)
+
+  async function importSheet(event: ChangeEvent<HTMLInputElement>) {
+    const sheet = event.target.files?.[0]
+    event.target.value = '' // the same file can be chosen again
+    if (!sheet) return
+    setStatus(null)
+    setImporting(true)
+    try {
+      const preview = await callSheet.previewImport(client, sheet)
+      const skipped = [
+        preview.skipped_empty > 0 && plural(preview.skipped_empty, 'row without a Call Note', 'rows without a Call Note'),
+        preview.skipped_duplicates > 0 && `${preview.skipped_duplicates} already there`,
+      ].filter(Boolean)
+      const leftOut = skipped.length > 0 ? `Left out: ${skipped.join(', ')}.` : ''
+      const count = plural(preview.adding.length, 'Call Note', 'Call Notes')
+      if (preview.adding.length === 0) {
+        setStatus({ kind: 'saved', text: `Nothing new to add. ${leftOut}`.trim() })
+        return
+      }
+      const confirmed = await confirm({
+        title: `Add ${count}?`,
+        confirmLabel: `Add ${count}`,
+        wide: true,
+        body: (
+          <>
+            <Summary
+              rows={preview.adding.map((note): [string, string] => [
+                `${note.mortgage_name} · ${note.customer_name}`,
+                `${formatDate(note.called_on)}: ${note.note}`,
+              ])}
+            />
+            {leftOut && <p className="hint">{`From ${sheet.name}. ${leftOut}`}</p>}
+          </>
+        ),
+      })
+      if (!confirmed) return
+      const added = await noteCalls((client) => callSheet.import(client, sheet))
+      setStatus({ kind: 'saved', text: `Added ${plural(added.adding.length, 'Call Note', 'Call Notes')}.` })
+    } catch (err) {
+      setStatus({ kind: 'error', text: (err as Error).message })
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  return (
+    <div className="stack">
+      <div className="row">
+        <a className="button secondary small" href={callSheet.exportUrl('xlsx')} download>
+          Export to Excel
+        </a>
+        <a className="button secondary small" href={callSheet.exportUrl('pdf')} download>
+          Export to PDF
+        </a>
+        <label className="button secondary small">
+          {importing ? 'Importing…' : 'Import Call Notes from Excel'}
+          <input
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            hidden
+            disabled={importing}
+            onChange={importSheet}
+          />
+        </label>
+      </div>
+      <p className="hint">
+        Give the Call Sheet to whoever makes the calls: they write what each call came to under
+        Call Note (and change Called on if they called another day), and you import the Excel
+        sheet back.
+      </p>
+      {status && <p className={`status ${status.kind}`}>{status.text}</p>}
+      {confirmDialog}
+    </div>
   )
 }
 

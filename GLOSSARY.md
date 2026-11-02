@@ -152,6 +152,10 @@ _Avoid_: Due list, payments due
 The Lender's record of phoning a Customer about a Mortgage, with what was said.
 _Avoid_: Follow-up, contact log
 
+**Call Sheet**:
+The day's Call List as a printable or Excel sheet, a row per Mortgage, for whoever makes the calls to write each Call Note on; the Excel sheet is imported back to record them all at once.
+_Avoid_: Export, call report
+
 ## Safekeeping
 
 **History**:

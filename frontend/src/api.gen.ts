@@ -46,6 +46,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/call-list/export.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Pdf
+         * @description Today's Call Sheet to print, with room to write what each call came to.
+         */
+        get: operations["export_pdf_api_call_list_export_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/call-list/export.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Excel
+         * @description Today's Call Sheet in Excel, with Called on and Call Note to fill in.
+         */
+        get: operations["export_excel_api_call_list_export_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/call-list/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Call Notes
+         * @description Add every Call Note a filled-in Call Sheet holds, or none.
+         */
+        post: operations["import_call_notes_api_call_list_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/call-list/import-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Import
+         * @description The Call Notes a filled-in Call Sheet would add, saving nothing.
+         */
+        post: operations["preview_import_api_call_list_import_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/closures/dormant": {
         parameters: {
             query?: never;
@@ -1331,10 +1411,20 @@ export interface components {
             /** Running */
             running: boolean;
         };
+        /** Body_import_call_notes_api_call_list_import_post */
+        Body_import_call_notes_api_call_list_import_post: {
+            /** File */
+            file: string;
+        };
         /** Body_post_photo_api_mortgages__mortgage_id__photos_post */
         Body_post_photo_api_mortgages__mortgage_id__photos_post: {
             /** Photo */
             photo: string;
+        };
+        /** Body_preview_import_api_call_list_import_preview_post */
+        Body_preview_import_api_call_list_import_preview_post: {
+            /** File */
+            file: string;
         };
         /** Body_put_customer_photo_api_customers__customer_id__photo_put */
         Body_put_customer_photo_api_customers__customer_id__photo_put: {
@@ -1416,6 +1506,18 @@ export interface components {
             id: number;
             /** Note */
             note: string;
+        };
+        /**
+         * CallNoteImport
+         * @description What an import adds, and what it leaves out.
+         */
+        CallNoteImport: {
+            /** Adding */
+            adding: components["schemas"]["ImportedCallNote"][];
+            /** Skipped Duplicates */
+            skipped_duplicates: number;
+            /** Skipped Empty */
+            skipped_empty: number;
         };
         /** CallNoteIn */
         CallNoteIn: {
@@ -1702,6 +1804,25 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * ImportedCallNote
+         * @description A Call Note an import adds.
+         */
+        ImportedCallNote: {
+            /**
+             * Called On
+             * Format: date
+             */
+            called_on: string;
+            /** Customer Name */
+            customer_name: string;
+            /** Mortgage Id */
+            mortgage_id: number;
+            /** Mortgage Name */
+            mortgage_name: string;
+            /** Note */
+            note: string;
         };
         /**
          * InterestMode
@@ -2564,6 +2685,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CallListPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_pdf_api_call_list_export_pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    export_excel_api_call_list_export_xlsx_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    import_call_notes_api_call_list_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_call_notes_api_call_list_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallNoteImport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_import_api_call_list_import_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_import_api_call_list_import_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallNoteImport"];
                 };
             };
             /** @description Validation Error */

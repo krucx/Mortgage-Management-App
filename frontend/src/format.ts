@@ -37,3 +37,6 @@ export function monthName(month: string, short = false): string {
   const name = MONTHS[Number(number) - 1]
   return short ? name : `${name} ${year}`
 }
+
+/** A count with its noun, e.g. "1 Call Note", "2 Call Notes". */
+export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`

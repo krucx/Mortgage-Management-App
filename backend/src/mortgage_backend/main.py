@@ -10,7 +10,13 @@ from fastapi import FastAPI, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from mortgage_backend.collateral import collateral
-from mortgage_backend.follow_up import call_list, call_notes, message_settings, notices
+from mortgage_backend.follow_up import (
+    call_list,
+    call_notes,
+    call_sheets,
+    message_settings,
+    notices,
+)
 from mortgage_backend.lending import (
     changes,
     closing,
@@ -114,6 +120,7 @@ def create_app(
     app.include_router(collateral.router)
     app.include_router(call_list.router)
     app.include_router(call_notes.router)
+    app.include_router(call_sheets.router)
     app.include_router(dashboard.router)
     app.include_router(backups.router)
     app.include_router(audit.router)

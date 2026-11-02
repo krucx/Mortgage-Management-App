@@ -259,6 +259,20 @@
         "title": "BackupStatus",
         "type": "object"
       },
+      "Body_import_call_notes_api_call_list_import_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_call_notes_api_call_list_import_post",
+        "type": "object"
+      },
       "Body_post_photo_api_mortgages__mortgage_id__photos_post": {
         "properties": {
           "photo": {
@@ -271,6 +285,20 @@
           "photo"
         ],
         "title": "Body_post_photo_api_mortgages__mortgage_id__photos_post",
+        "type": "object"
+      },
+      "Body_preview_import_api_call_list_import_preview_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_preview_import_api_call_list_import_preview_post",
         "type": "object"
       },
       "Body_put_customer_photo_api_customers__customer_id__photo_put": {
@@ -472,6 +500,33 @@
           "created_at"
         ],
         "title": "CallNote",
+        "type": "object"
+      },
+      "CallNoteImport": {
+        "description": "What an import adds, and what it leaves out.",
+        "properties": {
+          "adding": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedCallNote"
+            },
+            "title": "Adding",
+            "type": "array"
+          },
+          "skipped_duplicates": {
+            "title": "Skipped Duplicates",
+            "type": "integer"
+          },
+          "skipped_empty": {
+            "title": "Skipped Empty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "adding",
+          "skipped_empty",
+          "skipped_duplicates"
+        ],
+        "title": "CallNoteImport",
         "type": "object"
       },
       "CallNoteIn": {
@@ -1274,6 +1329,41 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImportedCallNote": {
+        "description": "A Call Note an import adds.",
+        "properties": {
+          "called_on": {
+            "format": "date",
+            "title": "Called On",
+            "type": "string"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          },
+          "mortgage_name": {
+            "title": "Mortgage Name",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mortgage_id",
+          "mortgage_name",
+          "customer_name",
+          "called_on",
+          "note"
+        ],
+        "title": "ImportedCallNote",
         "type": "object"
       },
       "InterestMode": {
@@ -3393,6 +3483,108 @@
           }
         },
         "summary": "Read Call List"
+      }
+    },
+    "/api/call-list/export.pdf": {
+      "get": {
+        "description": "Today's Call Sheet to print, with room to write what each call came to.",
+        "operationId": "export_pdf_api_call_list_export_pdf_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Export Pdf"
+      }
+    },
+    "/api/call-list/export.xlsx": {
+      "get": {
+        "description": "Today's Call Sheet in Excel, with Called on and Call Note to fill in.",
+        "operationId": "export_excel_api_call_list_export_xlsx_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Export Excel"
+      }
+    },
+    "/api/call-list/import": {
+      "post": {
+        "description": "Add every Call Note a filled-in Call Sheet holds, or none.",
+        "operationId": "import_call_notes_api_call_list_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_call_notes_api_call_list_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallNoteImport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Call Notes"
+      }
+    },
+    "/api/call-list/import-preview": {
+      "post": {
+        "description": "The Call Notes a filled-in Call Sheet would add, saving nothing.",
+        "operationId": "preview_import_api_call_list_import_preview_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_preview_import_api_call_list_import_preview_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallNoteImport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Import"
       }
     },
     "/api/closures/dormant": {
