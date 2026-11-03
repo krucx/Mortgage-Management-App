@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2 · One day inside the replay</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="kicker">Lesson 2 · The Ledger engine</p>
+<h1>One day inside the replay</h1>
+<p class="lede">Most of the engine's rules come down to one question: on an Accrual Date, what happens first?
+Get the order right and you can predict every interest line and every Capitalisation by hand.</p>
+
+<div class="callout win"><strong>By the end:</strong> you can say the order of events on an Accrual Date, and use
+it to predict which Principal a month's interest is charged on.</div>
+
+<h2>The order on an Accrual Date</h2>
+
+<p>This is <code>accrue_through</code>
+(<a href="../backend/src/mortgage_backend/lending/ledger.py">ledger.py:260</a>), trimmed to its steps. It runs
+once for each Accrual Date up to the date being replayed to:</p>
+
+<pre><code>while (on := accrual_date(start, n)) &lt;= day:
+    month_terms = terms_from(previous Accrual Date)   # the month just ending
+    ① pay_through(on - 1 day)                         # Payments before today
+    ② interest = monthly_interest(month_start_principal, month_terms)
+       unpaid += interest
+    ③ month_start_principal = principal               # next month starts NOW,
+                                                      # before today's Payments
+    ④ pay_through(on)                                 # today's Payments
+    ⑤ if month_terms capitalise: principal += unpaid  # what's still unpaid
+    ⑥ if Terms change from today: record term_changed step</code></pre>
+
+<p>Two rules come out of this. Everything else in this lesson follows from them.</p>
+
+<div class="callout">
+<p><strong>Rule A.</strong> A month's interest is charged on the Principal <em>as it stood when that month began</em>
+(step ②). It does not matter what happened to the Principal during the month
+(<a href="../Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a>).</p>
+<p><strong>Rule B.</strong> On an Accrual Date the order is interest, then new month, then that day's Payments, then
+Capitalisation (②③④⑤). So a Payment that day <em>does</em> stop that day's interest from compounding, but it
+<em>does not</em> lower the Principal for the month that has just started.</p>
+</div>
+
+<p class="aside">To keep the numbers clean, every example below uses the <em>nothing</em> Part-Month Rule, so no
+Interest to Date appears. That is lesson 3. All figures come from running the real <code>compute_ledger</code>.</p>
+
+<h2>Rule A: paying Principal mid-month</h2>
+
+<p>Lesson 1 left a puzzle. Principal fell to ₹50,733 on 20 Jan, yet February's interest was still ₹2,000. Rule A
+explains it. February's interest is for the month that began on 10 Jan, when the Principal was ₹1,00,000. The lower
+Principal only counts from the month that began on 10 Feb.</p>
+
+<p>ADR 0006 gives the reason for this rule. If interest were charged on the Principal at the Accrual Date, a Customer
+could pay off Principal the day before and avoid almost a whole month's interest. The rule matches the lending
+habit of "a month started is a month charged". The other option, weighting interest by days, was rejected
+because it turns every interest line into a calculation with several parts.</p>
+
+<h2>Rule B: one day makes a month's difference</h2>
+
+<p>₹1,00,000 lent on 10 Jan at 2% a month, simple interest. The Customer pays ₹52,000. Case 1 pays it on
+<strong>9 Mar</strong>, the day before an Accrual Date:</p>
+
+<table>
+<tr><th>Date</th><th>Step</th><th>Amount</th><th>Charged on</th><th>Principal</th><th>Unpaid interest</th></tr>
+<tr><td>10 Feb</td><td>interest</td><td>2,000</td><td>1,00,000</td><td>1,00,000</td><td>2,000</td></tr>
+<tr><td>9 Mar</td><td>payment</td><td>52,000 <span class="cite">(2,000 int · 50,000 Principal)</span></td><td></td><td>50,000</td><td>0</td></tr>
+<tr><td>10 Mar</td><td>interest</td><td>2,000</td><td>1,00,000</td><td>50,000</td><td>2,000</td></tr>
+<tr><td>10 Apr</td><td>interest</td><td>1,000</td><td>50,000</td><td>50,000</td><td>3,000</td></tr>
+</table>
+
+<div class="reveal">
+  <p><strong>Predict:</strong> Case 2 pays the same ₹52,000 one day later, on <strong>10 Mar</strong>, which is the
+  Accrual Date. Using Rule B, what will 10 Apr's interest be, and which Principal is it charged on?</p>
+  <button class="show">I've made my prediction, so show case 2</button>
+  <div class="reveal-body">
+<table>
+<tr><th>Date</th><th>Step</th><th>Amount</th><th>Charged on</th><th>Principal</th><th>Unpaid interest</th></tr>
+<tr><td>10 Feb</td><td>interest</td><td>2,000</td><td>1,00,000</td><td>1,00,000</td><td>2,000</td></tr>
+<tr><td>10 Mar</td><td>interest</td><td>2,000</td><td>1,00,000</td><td>1,00,000</td><td>4,000</td></tr>
+<tr><td>10 Mar</td><td>payment</td><td>52,000 <span class="cite">(4,000 int · 48,000 Principal)</span></td><td></td><td>52,000</td><td>0</td></tr>
+<tr class="changed"><td>10 Apr</td><td>interest</td><td>2,000</td><td>1,00,000</td><td>52,000</td><td>2,000</td></tr>
+<tr><td>10 May</td><td>interest</td><td>1,040</td><td>52,000</td><td>52,000</td><td>3,040</td></tr>
+</table>
+<p>The month from 10 Mar to 10 Apr started at step ③, before the Payment at step ④. So it began with ₹1,00,000 of
+Principal and is charged ₹2,000. Paying one day later cost the Customer a whole month at the old Principal.
+The Payment also had to clear that morning's ₹2,000 of interest first, so ₹2,000 less of it reached
+Principal.</p>
+<p class="aside">This is deliberate. ADR 0006 records that until ADR 0011, a Payment on an Accrual Date counted for
+the month starting that day. That was changed so that paying off the Principal on an Accrual Date cannot let the
+Customer off the month that has just begun.</p>
+  </div>
+</div>
+
+<h2>Rule B again: Capitalisation</h2>
+
+<p>The same loan, but compounded monthly. The Customer pays the ₹2,000 of interest either on the Accrual Date or
+a day late:</p>
+
+<table>
+<tr><th>Paid on</th><th>Step ⑤ on 10 Feb</th><th>Principal after 10 Feb</th><th>10 Mar interest</th><th>Principal after 10 Mar</th></tr>
+<tr><td>10 Feb</td><td>nothing unpaid, no Capitalisation</td><td>1,00,000</td><td>2,000</td><td>1,02,000</td></tr>
+<tr><td>11 Feb</td><td>2,000 capitalised</td><td>1,02,000 → 1,00,000 on the 11th</td><td>2,040 <span class="cite">on 1,02,000</span></td><td>1,02,040</td></tr>
+</table>
+
+<p>In the first row, step ④ (the Payment) comes before step ⑤ (Capitalisation), so the interest is paid before it
+can compound. In the second row it has already been capitalised by the 11th, so the whole Payment goes to
+Principal. Rule A then means March is still charged on ₹1,02,000.</p>
+
+<h3>Two smaller rules from the same loop</h3>
+<p><strong>Term Changes.</strong> <code>month_terms</code> is read from the <em>previous</em> Accrual Date. So a
+Term Change effective 10 Apr does not affect the interest charged on 10 Apr, or whether that day capitalises. It
+applies from the month that begins on 10 Apr (glossary: "it never rewrites earlier interest").</p>
+<p><strong>Month-end.</strong> <code>accrual_date(start, n)</code>
+(<a href="../backend/src/mortgage_backend/lending/ledger.py">ledger.py:106</a>) always counts from the start
+date and clamps to the end of the month. A loan started on 31 Jan accrues on 28 Feb, then 31 Mar, then 30 Apr. It
+never slips to the 28th for good.</p>
+
+<h2>Check yourself</h2>
+<p><span class="score"></span></p>
+
+<div class="quiz" data-answer="1">
+  <p class="q">1. What is the order of events on an Accrual Date when a Payment is made that day?</p>
+  <button class="opt">Payments, interest, new month, capitalise</button>
+  <button class="opt">Interest, new month, Payments, capitalise</button>
+  <button class="opt">Interest, Payments, capitalise, new month</button>
+  <button class="opt">New month, interest, capitalise, Payments</button>
+  <div class="why">Steps ②③④⑤. Interest is charged for the month ending, the new month opens on the Principal
+  before any Payments, then the day's Payments are applied, then whatever is still unpaid is capitalised.</div>
+</div>
+
+<div class="quiz" data-answer="3">
+  <p class="q">2. Simple interest, ₹1,00,000 at 2%, Accrual Date the 10th, nothing unpaid. The Customer pays ₹50,000 of
+  Principal on 25 Apr. What is 10 May's interest?</p>
+  <button class="opt">₹1,000, on ₹50,000</button>
+  <button class="opt">₹1,500, day-weighted average</button>
+  <button class="opt">₹1,250, half-month split</button>
+  <button class="opt">₹2,000, on ₹1,00,000</button>
+  <div class="why">This is Rule A. The month ending on 10 May began on 10 Apr with ₹1,00,000. The ₹50,000 counts from
+  the month that begins on 10 May, so 10 Jun's interest is ₹1,000.</div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">3. Compounded monthly: why does paying the interest <em>on</em> the Accrual Date stop it compounding?</p>
+  <button class="opt">Capitalisation runs before that day's Payments</button>
+  <button class="opt">Payments on Accrual Dates skip interest</button>
+  <button class="opt">Capitalisation runs after that day's Payments</button>
+  <button class="opt">Capitalisation only happens at year end</button>
+  <div class="why">Step ④ comes before step ⑤. Only what is <em>still</em> unpaid after that day's Payments is moved
+  into Principal.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">4. A Term Change from 2% to 1.5% takes effect on 10 Apr. Which rate charges the interest on 10 Apr?</p>
+  <button class="opt">The old 2% rate</button>
+  <button class="opt">The new 1.5% rate</button>
+  <button class="opt">A blend of both</button>
+  <button class="opt">Whichever is lower, automatically</button>
+  <div class="why">The interest on 10 Apr is for the month that began on 10 Mar, and <code>month_terms</code> is read
+  from that date. The new rate first appears in the interest charged on 10 May.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">5. (From lesson 1) Case 1's ₹52,000 on 9 Mar is first entered on 20 May. What happens to the stored
+  April interest line?</p>
+  <button class="opt">Stays ₹2,000; history is frozen</button>
+  <button class="opt">None stored; replay derives it</button>
+  <button class="opt">Nightly job rewrites it later</button>
+  <button class="opt">Refused; April is already charged</button>
+  <div class="why">This was a trick question. No interest line is stored. The next replay includes the 9 Mar
+  Payment and charges April ₹1,000, on ₹50,000.</div>
+</div>
+
+<h2>Read next</h2>
+<p><strong>Primary source:</strong> <a href="../Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR
+0006: Each month's interest is charged on the Principal at the start of that month</a>. It names the two options
+that were rejected and says why. Then read the docstring of <code>compute_ledger</code>
+(<a href="../backend/src/mortgage_backend/lending/ledger.py">ledger.py:351</a>). Its third and fourth paragraphs
+should now make sense on first reading.</p>
+<p>Keep for later: <a href="../reference/ledger-cheatsheet.html">Ledger cheat sheet</a> (now includes the day order) ·
+<a href="../reference/glossary.html">Glossary</a></p>
+
+<footer>Anything unclear? Ask your teacher (the agent), for example "what happens with two Payments on the same
+Accrual Date?" or "show this with yearly compounding".</footer>
+
+<nav class="lessons"><a href="0001-the-ledger-is-a-replay.html">← 1 · The Ledger is a replay</a><span>Next: 3 · Interest to Date and paying ahead (coming)</span></nav>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
