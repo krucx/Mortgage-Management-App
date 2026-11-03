@@ -1,0 +1,65 @@
+/* Shared look for every lesson and reference sheet: Tufte-ish, prints cleanly. */
+:root {
+  --ink: #1d1d1b; --muted: #6b6a66; --rule: #d9d6cf; --paper: #fffff8;
+  --accent: #8a3b12; --good: #2e6b34; --bad: #9b2226; --tint: #f4f1e8;
+}
+* { box-sizing: border-box; }
+html { font-size: 18px; }
+body {
+  margin: 0 auto; padding: 3rem 1.5rem 5rem; max-width: 46rem;
+  background: var(--paper); color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  line-height: 1.55;
+}
+h1 { font-weight: 400; font-size: 2.1rem; line-height: 1.15; margin: 0 0 .3rem; }
+h2 { font-weight: 400; font-style: italic; font-size: 1.4rem; margin: 2.4rem 0 .6rem; }
+h3 { font-weight: 600; font-size: 1rem; margin: 1.6rem 0 .4rem; }
+.kicker { font-variant: small-caps; letter-spacing: .06em; color: var(--muted); margin: 0; }
+.lede { font-size: 1.15rem; color: #3a3935; }
+a { color: var(--accent); }
+code, pre, .mono { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .8rem; }
+code { background: var(--tint); padding: .05rem .25rem; border-radius: 3px; }
+pre { background: var(--tint); padding: .9rem 1rem; overflow-x: auto; border-left: 3px solid var(--rule); line-height: 1.45; }
+pre code { background: none; padding: 0; }
+.term { font-variant: small-caps; letter-spacing: .02em; }
+.aside { color: var(--muted); font-size: .85rem; border-left: 2px solid var(--rule); padding-left: .8rem; }
+.callout { background: var(--tint); padding: .9rem 1.1rem; margin: 1.2rem 0; border-radius: 4px; }
+.win { border-left: 4px solid var(--good); }
+cite, .cite { font-size: .8rem; color: var(--muted); font-style: normal; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .8rem; }
+th, td { text-align: right; padding: .3rem .5rem; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+th { font-weight: 600; border-bottom: 1.5px solid var(--ink); }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+tr.changed td { background: #fbeee4; }
+.flow { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: 1.2rem 0; }
+.flow .box { border: 1px solid var(--ink); padding: .5rem .8rem; border-radius: 4px; background: #fff; font-size: .85rem; }
+.flow .box.store { border-style: solid; }
+.flow .box.derived { border-style: dashed; }
+.flow .arrow { color: var(--muted); }
+nav.lessons { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: .85rem; display: flex; justify-content: space-between; gap: 1rem; }
+footer { margin-top: 2rem; font-size: .85rem; color: var(--muted); }
+
+/* quiz.js */
+.quiz { margin: 1.4rem 0; padding: 1rem 1.1rem; border: 1px solid var(--rule); border-radius: 6px; background: #fff; }
+.quiz .q { margin: 0 0 .6rem; font-weight: 600; }
+.quiz button.opt { display: block; width: 100%; text-align: left; margin: .3rem 0; padding: .5rem .7rem;
+  font: inherit; font-size: .9rem; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; cursor: pointer; }
+.quiz button.opt:hover:not(:disabled) { border-color: var(--ink); }
+.quiz button.opt.right { border-color: var(--good); background: #e9f3ea; }
+.quiz button.opt.wrong { border-color: var(--bad); background: #f8e7e7; }
+.quiz .why { display: none; margin-top: .6rem; font-size: .88rem; }
+.quiz.answered .why { display: block; }
+.score { font-variant: small-caps; color: var(--muted); }
+
+/* reveal: hide content until the learner commits */
+.reveal-body { display: none; }
+.reveal.open .reveal-body { display: block; }
+.reveal button.show { font: inherit; font-size: .85rem; padding: .35rem .8rem; cursor: pointer; background: var(--tint); border: 1px solid var(--rule); border-radius: 4px; }
+.reveal.open button.show { display: none; }
+
+@media print {
+  body { background: #fff; padding: 0; max-width: none; }
+  .quiz button.opt { break-inside: avoid; }
+  .reveal-body, .quiz .why { display: block !important; }
+  .reveal button.show, nav.lessons { display: none; }
+}

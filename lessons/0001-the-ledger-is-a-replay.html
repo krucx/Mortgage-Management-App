@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1 · The Ledger is a replay</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="kicker">Lesson 1 · The Ledger engine</p>
+<h1>The Ledger is a replay</h1>
+<p class="lede">There is no ledger table. Every interest line, every Payment split and every Outstanding is
+replayed from a handful of stored facts each time something asks for it. That one choice is why a
+back-dated Payment is easy to handle.</p>
+
+<div class="callout win"><strong>By the end:</strong> you can say exactly what is stored, what is derived,
+and why adding a Payment dated three months ago rewrites later lines that nobody edited.</div>
+
+<h2>What is stored, and what isn't</h2>
+
+<p>Here is everything a <span class="term">Replay</span> reads from the database
+(<a href="../backend/src/mortgage_backend/lending/replay.py">replay.py:278</a>, two queries for any number of Mortgages):</p>
+
+<div class="flow">
+  <div class="box store"><b>mortgage</b><br>start date, amount lent,<br>Terms, Closure</div>
+  <div class="box store"><b>term_change</b><br>effective_on, new Terms</div>
+  <div class="box store"><b>allocation ⋈ payment</b><br>mortgage, amount, paid_on<br><span class="aside">where voided_at is null</span></div>
+  <span class="arrow">→</span>
+  <div class="box derived"><code>compute_ledger()</code></div>
+  <span class="arrow">→</span>
+  <div class="box derived">Ledger steps → Outstanding,<br>Months Unpaid, Receipts…</div>
+</div>
+<p class="aside">Solid boxes are stored. Dashed boxes exist only in memory.</p>
+
+<p>The thing to notice: an <span class="term">Allocation</span> stores only <em>how much</em> of a Payment went
+to a Mortgage. It does <em>not</em> store how much of it was interest and how much was Principal. That split is
+worked out by the replay every time, from everything that came before it
+(<a href="../backend/src/mortgage_backend/payments/payments.py">payments.py:138</a> says so in a comment).</p>
+
+<h2>How a replay runs</h2>
+
+<p><code>compute_ledger</code> (<a href="../backend/src/mortgage_backend/lending/ledger.py">ledger.py:339</a>) is a
+pure function, with no database access. It starts on the start date with the amount lent as Principal, then walks forward one
+<span class="term">Accrual Date</span> at a time. On each one it applies the Payments made before that date,
+charges the month's interest, applies that day's Payments, and capitalises if the Terms say so. It finishes with the
+<span class="term">Interest to Date</span> for the month under way. Each action appends one immutable
+<code>LedgerStep</code>, which records the running Principal and unpaid interest after it.</p>
+
+<p class="aside">The exact order inside a day is lesson 2. For now, all you need is that the replay walks forward from
+the start, and only the stored facts above go into it.</p>
+
+<h2>A back-dated Payment, replayed</h2>
+
+<p>₹1,00,000 lent on 10 Jan at 2% a month, simple interest, pro-rata Part-Month Rule. The Customer paid
+₹4,000 on 12 Mar. Here is the Ledger as of 15 Apr. These figures were produced by running the real
+<code>compute_ledger</code>, not worked out by hand.</p>
+
+<table>
+<tr><th>Date</th><th>Step</th><th>Amount</th><th>Paid to interest</th><th>Paid to Principal</th><th>Principal</th><th>Unpaid interest</th></tr>
+<tr><td>10 Jan</td><td>started</td><td>1,00,000</td><td></td><td></td><td>1,00,000</td><td>0</td></tr>
+<tr><td>10 Feb</td><td>interest</td><td>2,000</td><td></td><td></td><td>1,00,000</td><td>2,000</td></tr>
+<tr><td>10 Mar</td><td>interest</td><td>2,000</td><td></td><td></td><td>1,00,000</td><td>4,000</td></tr>
+<tr><td>12 Mar</td><td>payment</td><td>4,000</td><td>4,000</td><td>0</td><td>1,00,000</td><td>0</td></tr>
+<tr><td>10 Apr</td><td>interest</td><td>2,000</td><td></td><td></td><td>1,00,000</td><td>2,000</td></tr>
+<tr><td>15 Apr</td><td>interest to date</td><td>400</td><td></td><td></td><td>1,00,000</td><td>2,400</td></tr>
+</table>
+
+<p>On 15 Apr the Lender finds a receipt they forgot to enter: <strong>₹50,000 paid on 20 Jan</strong>. They record it
+with that date. No other row is touched.</p>
+
+<div class="reveal">
+  <p><strong>Predict before you reveal:</strong> the ₹4,000 on 12 Mar was recorded weeks ago and nobody edits it.
+  Does its split between interest and Principal change? If it does, roughly how?</p>
+  <button class="show">I've made my prediction, so show the new Ledger</button>
+  <div class="reveal-body">
+<table>
+<tr><th>Date</th><th>Step</th><th>Amount</th><th>Paid to interest</th><th>Paid to Principal</th><th>Principal</th><th>Unpaid interest</th></tr>
+<tr><td>10 Jan</td><td>started</td><td>1,00,000</td><td></td><td></td><td>1,00,000</td><td>0</td></tr>
+<tr class="changed"><td>20 Jan</td><td>payment</td><td>50,000</td><td>733</td><td>49,267</td><td>50,733</td><td>0</td></tr>
+<tr class="changed"><td>10 Feb</td><td>interest</td><td>2,000</td><td></td><td></td><td>50,733</td><td>1,267</td></tr>
+<tr class="changed"><td>10 Mar</td><td>interest</td><td>1,015</td><td></td><td></td><td>50,733</td><td>2,282</td></tr>
+<tr class="changed"><td>12 Mar</td><td>payment</td><td>4,000</td><td>2,383</td><td>1,617</td><td>49,116</td><td>0</td></tr>
+<tr class="changed"><td>10 Apr</td><td>interest</td><td>1,015</td><td></td><td></td><td>49,116</td><td>914</td></tr>
+<tr class="changed"><td>15 Apr</td><td>interest to date</td><td>196</td><td></td><td></td><td>49,116</td><td>1,110</td></tr>
+</table>
+<p>Every line after 20 Jan is different. The 12 Mar Payment, which nobody touched, now pays ₹1,617 of Principal,
+because there was less interest waiting for it. Outstanding fell from ₹1,02,400 to ₹50,226.</p>
+<p>Nothing had to find and fix those rows, because they were never stored. The next request replays the
+facts, and the new fact is now one of them.</p>
+<p class="aside">Two puzzles to bring to lesson 2: why is February's interest still ₹2,000 when the Principal fell
+on 20 Jan, and why did the 20 Jan Payment pay ₹733 of interest when nothing was due yet?
+(<a href="../Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a> and
+<a href="../Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>.)</p>
+  </div>
+</div>
+
+<p>The general name for this is a <em>retroactive event</em>. Martin Fowler describes finding the "branch point"
+where the right and wrong histories split, then replaying forward from it
+(<a href="https://martinfowler.com/eaaDev/RetroactiveEvent.html">Fowler, "Retroactive Event"</a>). This app
+takes the simplest version: the branch point is always the start date, because replaying a few hundred
+Mortgages takes milliseconds (<a href="../Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>).</p>
+
+<h2>Refusing a bad change</h2>
+
+<p>The cost of replaying is that a back-dated fact can make history impossible. Suppose the Payment on 20 Jan were
+₹2,00,000. Only ₹1,00,733 was owed that day. So every change follows the same three steps in one
+transaction (<a href="../backend/src/mortgage_backend/lending/changes.py">changes.py:184</a>):</p>
+
+<pre><code>with engine.begin() as conn:            # one transaction
+    write the Payment / Void / Term Change / Closure
+    check_replays(conn, rows, today)    # replay each touched Mortgage
+        # compute_ledger raises Overpayment if any Allocation
+        # is more than was owed on its date
+        # → 422, and the transaction rolls back</code></pre>
+
+<p>The engine refuses: <em>"the Payment on 20 Jan 2026 would be more than the ₹1,00,733 owed then"</em>. This
+applies to <em>every</em> kind of change. Voiding an earlier Payment or adding a Term Change can make a
+<em>later</em> Payment an overpayment, and the same check catches it.</p>
+
+<p><span class="term">Voids</span> follow the same idea. A Voided Payment stays in the <code>payment</code> table with
+<code>voided_at</code> and a reason, and the replay's query leaves it out
+(<a href="../backend/src/mortgage_backend/lending/replay.py">replay.py:292</a>). Nothing is deleted, and no reversing
+entry is needed.</p>
+
+<h3>Isn't replaying everything slow?</h3>
+<p>Within one request, <code>MortgageReplay</code> keeps each Ledger it builds, keyed by date
+(<a href="../backend/src/mortgage_backend/lending/replay.py">replay.py:112</a>). Across requests nothing is cached,
+so nothing can go stale. The original spec had a startup "catch-up" job that wrote interest into a stored table.
+That job no longer exists.</p>
+
+<h2>Check yourself</h2>
+<p><span class="score"></span></p>
+
+<div class="quiz" data-answer="2">
+  <p class="q">1. Where is the interest/Principal split of a recorded Payment stored?</p>
+  <button class="opt">In the allocations table</button>
+  <button class="opt">In a ledger table</button>
+  <button class="opt">Nowhere; replay computes it</button>
+  <button class="opt">In the payments table</button>
+  <div class="why">An Allocation is just (payment, mortgage, amount). The split comes from the <code>payment</code>
+  step the replay makes, which is why it can change when an earlier fact arrives.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">2. A Payment dated 20 Jan is recorded on 15 Apr. What updates March's interest line?</p>
+  <button class="opt">A nightly catch-up job</button>
+  <button class="opt">The next replay, automatically</button>
+  <button class="opt">An update cascade trigger</button>
+  <button class="opt">Nothing; March stays unchanged</button>
+  <div class="why">March's interest line is not stored anywhere. The next time any screen asks, the replay runs over
+  the new set of facts and charges March on the lower Principal.</div>
+</div>
+
+<div class="quiz" data-answer="3">
+  <p class="q">3. How is a Payment larger than what was owed on its date refused?</p>
+  <button class="opt">Checks a stored balance column</button>
+  <button class="opt">Frontend validates the amount first</button>
+  <button class="opt">Database CHECK constraint rejects it</button>
+  <button class="opt">Writes, replays, then rolls back</button>
+  <div class="why"><code>check_replays</code> replays inside the same <code>engine.begin()</code> transaction.
+  <code>Overpayment</code> becomes a 422, and leaving the block with an exception rolls the write back.</div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">4. How does Voiding a Payment remove it from the Ledger?</p>
+  <button class="opt">Deletes its allocation rows outright</button>
+  <button class="opt">Writes a reversing negative Payment</button>
+  <button class="opt">Replay's query filters it out</button>
+  <button class="opt">Marks later ledger rows stale</button>
+  <div class="why">The query in <code>replays()</code> has <code>voided_at IS NULL</code>. The Payment and its reason
+  stay on record for History. The Ledger simply never sees it.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">5. Why did ADR 0001 reject a stored <code>MortgageLedger</code> table?</p>
+  <button class="opt">Earlier changes leave later rows wrong</button>
+  <button class="opt">SQLite cannot store that many rows</button>
+  <button class="opt">Customers cannot read a ledger table</button>
+  <button class="opt">Rows would need encryption at rest</button>
+  <div class="why">A back-dated Payment, a corrected amount or a rate edit would each need every later row rewritten.
+  A pure replay can't drift, because it has no copy that could fall out of date.</div>
+</div>
+
+<h2>Read next</h2>
+<p><strong>Primary source:</strong> <a href="../Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR 0001: The
+Ledger is derived, not stored</a>. It is one paragraph and it is the decision itself. Then read
+<a href="https://martinfowler.com/eaaDev/RetroactiveEvent.html">Fowler's "Retroactive Event"</a> to see the same
+problem solved the harder way, with a branch point and snapshots, and why this app doesn't need to.</p>
+<p>Keep for later: <a href="../reference/ledger-cheatsheet.html">Ledger cheat sheet</a> ·
+<a href="../reference/glossary.html">Glossary</a></p>
+
+<footer>Anything unclear? Ask your teacher (the agent) a follow-up question, for example "show me the replay for
+my own Mortgage X" or "what happens if the back-dated Payment lands on an Accrual Date?"</footer>
+
+<nav class="lessons"><span></span><span>Next: 2 · One day inside the replay (coming)</span></nav>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

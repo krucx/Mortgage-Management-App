@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Glossary · Ledger engine</title>
+<link rel="stylesheet" href="../assets/course.css"></head><body>
+<p class="kicker">Reference</p>
+<h1>Glossary</h1>
+<p class="aside">Quoted from the project's <a href="../GLOSSARY.md">GLOSSARY.md</a>, which wins if the two ever differ. Words to avoid are in grey.</p>
+<dl>
+<dt class="term">Ledger</dt><dd>The step-by-step history of a Mortgage (interest added, capitalisations, payments), derived from its terms and payments. <span class="cite">avoid: Statement, MortgageLedger</span></dd>
+<dt class="term">Replay</dt><dd>Working out a Mortgage's Ledger or Outstanding from its stored facts (its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments) rather than storing them (ADR 0001). <span class="cite">avoid: Recalculation, recompute, refresh</span></dd>
+<dt class="term">Allocation</dt><dd>The portion of a Payment applied to one Mortgage. Within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month's interest), then Principal. <span class="cite">avoid: Split, contribution</span></dd>
+<dt class="term">Void</dt><dd>Cancelling a recorded Payment with a reason, keeping it on record but excluding it from every Ledger. <span class="cite">avoid: Delete, reverse</span></dd>
+<dt class="term">Term Change</dt><dd>A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on. It never rewrites earlier interest.</dd>
+<dt class="term">Principal</dt><dd>The amount on a Mortgage on which interest is charged. It grows when unpaid interest is capitalised and shrinks when payments exceed interest.</dd>
+<dt class="term">Accrual Date</dt><dd>The monthly day on which a month's interest is added, charged on the Principal as it stood when that month began (at the previous Accrual Date, before that day's Payments). It is taken from the start date and clamped to month-end when the month is shorter. <span class="cite">avoid: Due date, interest date</span></dd>
+<dt class="term">Interest to Date</dt><dd>The interest for the month under way, as of a date, under its Part-Month Rule. It is counted from the month's first day through that date, so today is always charged. It is fixed at a Closure. <span class="cite">avoid: Accrued interest, pending interest</span></dd>
+<dt class="term">Outstanding</dt><dd>What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day. Nothing once closed. <span class="cite">avoid: Redemption Amount, balance, payoff</span></dd>
+</dl>
+</body></html>
