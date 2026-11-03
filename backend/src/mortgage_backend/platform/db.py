@@ -288,20 +288,29 @@ def migrate(
     """Create the database if needed and bring its schema up to date.
 
     `before_update` runs first when an existing database is about to be migrated
-    (never on a fresh install); if it raises, nothing is migrated.
+    (never on a fresh install); if it raises, nothing is migrated. A database that a
+    newer version has migrated is refused before anything runs, so an older version
+    started on it again and again never fills the backup folder with Backups it
+    can't open.
     """
     database_file(database_url).parent.mkdir(parents=True, exist_ok=True)
     alembic_config = Config()
     alembic_config.set_main_option("script_location", str(MIGRATIONS_DIR))
     alembic_config.set_main_option("sqlalchemy.url", database_url)
-    if before_update is not None:
-        head = ScriptDirectory.from_config(alembic_config).get_current_head()
-        engine = create_engine(database_url)
-        try:
-            with engine.connect() as conn:
-                current = MigrationContext.configure(conn).get_current_revision()
-        finally:
-            engine.dispose()
-        if current is not None and current != head:
-            before_update()
+    script = ScriptDirectory.from_config(alembic_config)
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as conn:
+            current = MigrationContext.configure(conn).get_current_revision()
+    finally:
+        engine.dispose()
+    known_revisions = {revision.revision for revision in script.walk_revisions()}
+    if current is not None and current not in known_revisions:
+        raise RuntimeError(
+            f"The database is at revision {current}, from a newer version of the app;"
+            " this version can't open it."
+        )
+    updating = current is not None and current != script.get_current_head()
+    if before_update is not None and updating:
+        before_update()
     command.upgrade(alembic_config, "head")
