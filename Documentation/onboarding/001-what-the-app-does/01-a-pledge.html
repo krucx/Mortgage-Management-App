@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.1 · A pledge, in plain words</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 001 · Lesson 1</p>
+<h1>A pledge, in plain words</h1>
+<p class="lede">Meera needs ₹80,000 and owns a gold chain. By the end of the afternoon she has the money and the Lender has the chain. What exactly did the two of them agree, and what does the app have to remember about it?</p>
+
+<div class="callout win"><strong>By the end</strong> you can say who lends what to whom, against what, and on which Terms.</div>
+
+<h2>The problem</h2>
+<p>In many Indian towns, when a family needs cash quickly, they don't go to a bank. They go to a local moneylender and leave a piece of gold jewellery as security. The jewellery stays in the Lender's safe. The family pays interest every month. When they repay what they owe, they get their jewellery back.</p>
+<p>A busy Lender may hold a hundred packets of jewellery for sixty families, some for years. For each one they must remember who brought it, what is in the packet, how much was handed over and when, the rate agreed, and what has been paid since. Traditionally this lives in a paper book. Paper books get smudged, sums get added wrongly, and nobody can say quickly what a family owes today.</p>
+<p>This app is that book, kept on the Lender's own laptop. Everything else in the codebase exists to keep this book right.</p>
+
+<div class="callout warn"><strong>"Mortgage" doesn't mean a house loan here.</strong> In everyday English a mortgage is a loan secured on a house. In this codebase a <em>Mortgage</em> is one loan against one packet of pledged jewellery. The word is the Lender's own, so the code uses it.</div>
+
+<h2>The idea</h2>
+<p>One visit to the Lender creates one <a href="../reference/glossary.html#mortgage"><dfn class="term" title="One loan against one pledged packet of jewellery, which may contain several pieces described together.">Mortgage</dfn></a>: one packet of jewellery, one sum of money handed over, one set of rules for interest, belonging to one person. Everything the app later works out about that money starts from those few facts.</p>
+
+<h2>The people</h2>
+<ul>
+  <li>The <a href="../reference/glossary.html#lender"><dfn class="term" title="The single person who runs the app and lends money against pledged jewellery.">Lender</dfn></a> is the one person who runs the app and lends the money. There is exactly one Lender, so the app has no logins, users or roles.</li>
+  <li>A <a href="../reference/glossary.html#customer"><dfn class="term" title="A person who has borrowed from the Lender by pledging jewellery.">Customer</dfn></a> is someone who has borrowed by pledging jewellery. Meera Sharma is our Customer.</li>
+  <li>A <a href="../reference/glossary.html#referrer"><dfn class="term" title="A person who introduced one or more Customers to the Lender; either an existing Customer or a person known only as a Referrer.">Referrer</dfn></a> is whoever introduced a Customer. Lenders care, because trust travels through introductions. A Referrer can be an existing Customer, or a <a href="../reference/glossary.html#standalone-referrer"><dfn class="term" title="A Referrer who is not a Customer, known only by name, address and phone.">Standalone Referrer</dfn></a>: someone known only by name, address and phone, who has never borrowed. Meera was introduced by Ravi Verma, a Standalone Referrer.</li>
+</ul>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  Ravi["Ravi Verma<br/>Standalone Referrer"] -->|introduces| Meera["Meera Sharma<br/>Customer"]
+  Meera -->|pledges the chain| Mortgage["Mortgage<br/>2025-Meera-GoldChainPendant"]
+  Lender["Lender"] -->|hands over the Principal, ₹80,000,<br/>Lent Through cash| Meera
+  Defaults["Default Terms<br/>in Settings"] -->|copied in once| Mortgage
+  Lender -->|keeps the chain in the safe| Mortgage
+</pre>
+<figcaption>One afternoon, one Mortgage. The Terms are copied from the Default Terms when the Mortgage is created.</figcaption>
+</figure>
+<p>Notice that the Mortgage, not the Customer, is the centre. Money, jewellery and interest rules all hang off the Mortgage. A Customer is just the person it belongs to.</p>
+
+<h2>What a Mortgage records</h2>
+<ul>
+  <li>The <a href="../reference/glossary.html#principal"><dfn class="term" title="The amount on a Mortgage on which interest is charged; grows when unpaid interest is capitalised and shrinks when payments exceed interest.">Principal</dfn></a>: the amount on which interest is charged. On the first day it is the sum handed over. Later lessons show it can grow and shrink.</li>
+  <li>How the Principal was handed over, its <a href="../reference/glossary.html#lent-through"><dfn class="term" title="How a Mortgage's Principal was handed to the Customer: Cash, UPI or bank transfer.">Lent Through</dfn></a>: cash, UPI (India's instant phone-to-phone bank payments) or bank transfer.</li>
+  <li>The jewellery: a description such as "Gold chain with Lakshmi pendant", its weights in grams, and its purity in karats (24K is pure gold, 22K is the usual jewellery gold).</li>
+  <li>A <a href="../reference/glossary.html#mortgage-name"><dfn class="term" title="A human-readable label for a Mortgage, beginning with the year it started.">Mortgage Name</dfn></a>: a readable label beginning with the year it started, such as <code>2025-Meera-GoldChainPendant</code>. The app suggests one; the Lender can type their own.</li>
+  <li>Its <a href="../reference/glossary.html#terms"><dfn class="term" title="A Mortgage's rate, Interest Mode and Part-Month Rule: set when it is created, and changed only by a Term Change; each month is charged under the Terms in force when it starts.">Terms</dfn></a>: the rate, the Interest Mode and the Part-Month Rule. For now, read them as "the rules for how interest grows"; lesson 2 explains each part.</li>
+</ul>
+<p>Where do the Terms come from? The Lender sets <a href="../reference/glossary.html#default-terms"><dfn class="term" title="The Terms the Lender has set to be copied into every new Mortgage.">Default Terms</dfn></a> once in Settings, and they are copied into every new Mortgage. The Lender can change them for one Mortgage while creating it. Copying matters: when the Lender later changes the Default Terms, existing Mortgages keep the Terms they were given.</p>
+
+<div class="callout"><strong>The sample book's Default Terms are not the app's.</strong> In the sample book, the Lender set the Default Terms to <em>2% a month, Compounded Yearly, pro-rata</em>, and Meera's chain got those. A fresh, empty database starts with different Default Terms: 3% a month, Compounded Yearly, full month. When this course says "Meera's Terms", it means the 2% ones.</div>
+
+<h2>Run-through: Meera's chain</h2>
+<p>Here is what the Lender entered on 10 Nov 2025. You'll meet this chain in every lesson of the course.</p>
+<table class="steps">
+<tr><th>Fact</th><th>Value</th></tr>
+<tr><td>Customer</td><td>Meera Sharma, introduced by Ravi Verma (a Standalone Referrer)</td></tr>
+<tr><td>Jewellery</td><td>Gold chain with Lakshmi pendant: 21.5 g gross, 20 g of 22K gold</td></tr>
+<tr><td>Mortgage Name</td><td>2025-Meera-GoldChainPendant</td></tr>
+<tr><td>Started</td><td>10 Nov 2025</td></tr>
+<tr><td>Principal</td><td>₹80,000</td></tr>
+<tr><td>Lent Through</td><td>Cash</td></tr>
+<tr><td>Terms</td><td>2% a month, Compounded Yearly, pro-rata (the sample book's Default Terms)</td></tr>
+</table>
+<p class="cite">Facts from <code>docs/sample-book/book.py</code>; see also <a href="../../../docs/story.html#pledge">The Gold Chain Story, chapter 3 ("Weighing the gold")</a>.</p>
+<p>"Gross" weight includes stones, clasps and anything that isn't gold. "Net" is the gold alone, and the net weight is what the gold is worth.</p>
+<p>In April 2026 Meera came back with a pair of bangles and borrowed ₹1,50,000 against them. That is a <em>second</em> Mortgage, with its own Principal, Terms and Mortgage Name. One Customer can have many Mortgages, one per packet.</p>
+
+<h2>Nuances</h2>
+
+<h3>₹1,00,000 is one lakh</h3>
+<p>The app writes money the Indian way. After the first three digits from the right, commas come every two digits: ₹1,50,000 is one hundred and fifty thousand rupees (1.5 lakh), and ₹10,00,000 is a million (10 lakh). The same figure in Western grouping would be ₹150,000. Don't "fix" this in a screen or test: it is how the Lender reads numbers.</p>
+
+<div class="reveal">
+  <p><strong>Predict:</strong> the Terms say "2%". Meera borrowed ₹80,000. How much interest is added in one month?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>₹1,600.</strong> The rate is <em>per month</em>, not per year: 2% of ₹80,000 is ₹1,600, every month. That's 24% a year before any compounding. Pledge lending is short and risky, so monthly rates like this are normal. If you read "2%" as yearly you would be off by a factor of twelve, so always read a rate here as per month.</p>
+  </div>
+</div>
+
+<h3>What the gold is worth</h3>
+<p>The Lender keeps a <a href="../reference/glossary.html#gold-rate"><dfn class="term" title="The Lender's current price per gram of gold of one purity.">Gold Rate</dfn></a> for each purity: today's price per gram. From that the app works out each Mortgage's <a href="../reference/glossary.html#collateral-value"><dfn class="term" title="The current estimated worth of a Mortgage's jewellery: its net weight at the Gold Rate for its purity, unless the Lender sets a value by hand.">Collateral Value</dfn></a>, and its <a href="../reference/glossary.html#loan-to-value"><dfn class="term" title="A Mortgage's Outstanding as a share of its Collateral Value.">Loan-to-Value</dfn></a>: what is owed as a share of what the gold is worth. Lower is safer. On 19 Oct 2026, 20 g of 22K at ₹13,536 a gram makes the chain worth ₹2,70,720, so the ₹80,000-odd Meera owes is a comfortable share of it.</p>
+<p class="check">Check it: <a href="../../../docs/story.html#pledge">The Gold Chain Story, chapter 3</a> gives the ₹2,70,720, and <a href="../../../docs/story.html#ledger">chapter 4</a> its Loan-to-Value.</p>
+<p>That's all you need for now. Chapter 008 covers Gold Rates and Loan-to-Value properly.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">Meera pledges her chain in November and her bangles in April. How many Mortgages does she have?</p>
+  <button class="opt">One, because she is one Customer</button>
+  <button class="opt">Two, one for each packet pledged</button>
+  <button class="opt">One, and the bangles are added to it</button>
+  <div class="why">Two. A Mortgage is one packet of jewellery with its own Principal and Terms. A Customer can have many Mortgages. The bangles are never folded into the chain's Mortgage: they have their own start date and Mortgage Name.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">The Lender changes the Default Terms from 2% to 2.5% a month. What happens to Meera's chain?</p>
+  <button class="opt">It moves to 2.5% from the next month</button>
+  <button class="opt">It moves to 2.5% for every month so far</button>
+  <button class="opt">Nothing: it keeps the 2% it was given</button>
+  <div class="why">Nothing. Default Terms are copied into a Mortgage once, when it is created. Changing them later affects only new Mortgages. Changing an existing Mortgage's Terms is a separate, dated step (a Term Change, in lesson 3).</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Ravi Verma introduced Meera but has never borrowed. What is he?</p>
+  <button class="opt">A Standalone Referrer, known by name and phone</button>
+  <button class="opt">A Customer, with no Mortgages yet</button>
+  <button class="opt">Nobody, since only Customers are recorded</button>
+  <div class="why">A Standalone Referrer: a Referrer who isn't a Customer. If Ravi ever borrows, he becomes a Customer and keeps the people he referred. He isn't a Customer until he has pledged something.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read the <em>People</em> and <em>Lending</em> sections of <a href="../../../GLOSSARY.md"><code>GLOSSARY.md</code></a>, from <strong>Lender</strong> down to <strong>Principal</strong>. Then read <a href="../../../docs/story.html#meera">The Gold Chain Story, chapters 2 and 3</a>, which show Meera being entered on the real screens.</p>
+
+<nav class="lessons">
+  <a href="index.html">← Chapter overview</a>
+  <a href="02-how-whats-owed-grows.html">Next: How what's owed grows →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

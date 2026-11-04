@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · Glossary</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Reference sheet</p>
+<h1>Glossary</h1>
+<p class="lede">The words this codebase uses for its business, copied word for word from <a href="../../../GLOSSARY.md"><code>GLOSSARY.md</code></a>, which is the canonical source. Each term links to the lesson that teaches it.</p>
+<p>The code, the screens, the tests and the issues all use these words with exactly these meanings. When you write code or an issue, use them too, and never a word from a term's <em>Avoid</em> list: "Outstanding", not "balance"; "Customer", not "borrower". This sheet grows as chapters are written; it holds the terms taught so far.</p>
+<h2>People</h2>
+<dl class="terms">
+<dt id="lender">Lender</dt>
+<dd>The single person who runs the app and lends money against pledged jewellery.
+  <span class="avoid">Avoid: Loaner, loanee, user, admin</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="customer">Customer</dt>
+<dd>A person who has borrowed from the Lender by pledging jewellery.
+  <span class="avoid">Avoid: Borrower, loanee, client</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="referrer">Referrer</dt>
+<dd>A person who introduced one or more Customers to the Lender; either an existing Customer or a person known only as a Referrer.
+  <span class="avoid">Avoid: Reference</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="standalone-referrer">Standalone Referrer</dt>
+<dd>A Referrer who is not a Customer, known only by name, address and phone.
+  <span class="avoid">Avoid: External referrer, contact</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+</dl>
+<h2>Lending</h2>
+<dl class="terms">
+<dt id="mortgage">Mortgage</dt>
+<dd>One loan against one pledged packet of jewellery, which may contain several pieces described together.
+  <span class="avoid">Avoid: Loan, pledge, item</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="mortgage-name">Mortgage Name</dt>
+<dd>A human-readable label for a Mortgage, beginning with the year it started.
+  <span class="avoid">Avoid: Pledge number, mortgage ID</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="terms">Terms</dt>
+<dd>A Mortgage&#x27;s rate, Interest Mode and Part-Month Rule: set when it is created, and changed only by a Term Change; each month is charged under the Terms in force when it starts.
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="default-terms">Default Terms</dt>
+<dd>The Terms the Lender has set to be copied into every new Mortgage.
+  <span class="avoid">Avoid: Global rate, settings</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="lent-through">Lent Through</dt>
+<dd>How a Mortgage&#x27;s Principal was handed to the Customer: Cash, UPI or bank transfer.
+  <span class="avoid">Avoid: Disbursal mode, payout</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="term-change">Term Change</dt>
+<dd>A dated change to some of a Mortgage&#x27;s Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.
+  <span class="avoid">Avoid: Rate edit, amendment</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+<dt id="principal">Principal</dt>
+<dd>The amount on a Mortgage on which interest is charged; grows when unpaid interest is capitalised and shrinks when payments exceed interest.
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="accrual-date">Accrual Date</dt>
+<dd>The monthly day on which a month&#x27;s interest is added, charged on the Principal as it stood when that month began, at the previous Accrual Date before that day&#x27;s Payments; taken from the start date and clamped to month-end when the month is shorter.
+  <span class="avoid">Avoid: Due date, interest date</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/02-how-whats-owed-grows.html">001 · Lesson 2</a></span></dd>
+<dt id="interest-mode">Interest Mode</dt>
+<dd>How a Mortgage&#x27;s interest grows: Simple, Compounded Yearly (simple monthly, capitalised every year), or Compounded Monthly.
+  <span class="taught">Taught in <a href="../001-what-the-app-does/02-how-whats-owed-grows.html">001 · Lesson 2</a></span></dd>
+<dt id="capitalisation">Capitalisation</dt>
+<dd>Moving unpaid interest into Principal at the end of a compounding period.
+  <span class="avoid">Avoid: Compounding event, rollover</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/02-how-whats-owed-grows.html">001 · Lesson 2</a></span></dd>
+<dt id="part-month-rule">Part-Month Rule</dt>
+<dd>How the Interest to Date is charged for a month under way: pro-rata (each day started, out of 30), full month (the whole month once it starts), or nothing.
+  <span class="taught">Taught in <a href="../001-what-the-app-does/02-how-whats-owed-grows.html">001 · Lesson 2</a></span></dd>
+<dt id="interest-to-date">Interest to Date</dt>
+<dd>The interest for the month under way, as of a date, under its Part-Month Rule: counted from its first day (the start or an Accrual Date) through that date, so today is always charged; it changes from day to day until the month&#x27;s interest is charged on the next Accrual Date, and is fixed at a Closure.
+  <span class="avoid">Avoid: Accrued interest, part-month charge, pending interest</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/02-how-whats-owed-grows.html">001 · Lesson 2</a></span></dd>
+<dt id="ledger">Ledger</dt>
+<dd>The step-by-step history of a Mortgage — interest added, capitalisations, payments — derived from its terms and payments.
+  <span class="avoid">Avoid: Statement, MortgageLedger</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+<dt id="replay">Replay</dt>
+<dd>Working out a Mortgage&#x27;s Ledger or Outstanding from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).
+  <span class="avoid">Avoid: Recalculation, recompute, refresh</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+<dt id="preview">Preview</dt>
+<dd>What a change would do, shown before it is saved: the change is made and then undone, so a Preview is refused exactly when saving would be.
+  <span class="avoid">Avoid: Dry run, simulation</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+<dt id="outstanding">Outstanding</dt>
+<dd>What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day; nothing once closed.
+  <span class="avoid">Avoid: Redemption Amount, balance, dues, payoff</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/02-how-whats-owed-grows.html">001 · Lesson 2</a></span></dd>
+</dl>
+<h2>Collateral</h2>
+<dl class="terms">
+<dt id="gold-rate">Gold Rate</dt>
+<dd>The Lender&#x27;s current price per gram of gold of one purity.
+  <span class="avoid">Avoid: Market rate, price</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="collateral-value">Collateral Value</dt>
+<dd>The current estimated worth of a Mortgage&#x27;s jewellery: its net weight at the Gold Rate for its purity, unless the Lender sets a value by hand.
+  <span class="avoid">Avoid: Product value, current_product_value</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+<dt id="loan-to-value">Loan-to-Value</dt>
+<dd>A Mortgage&#x27;s Outstanding as a share of its Collateral Value.
+  <span class="avoid">Avoid: LTV ratio, coverage</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+</dl>
+<h2>Payments</h2>
+<dl class="terms">
+<dt id="payment">Payment</dt>
+<dd>A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt.
+  <span class="avoid">Avoid: Receipt (that is the acknowledgement of a Payment), collection</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+<dt id="final-payment">Final Payment</dt>
+<dd>What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.
+  <span class="avoid">Avoid: Settlement, closing payment</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+<dt id="receipt">Receipt</dt>
+<dd>The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
+  <span class="avoid">Avoid: Invoice, bill</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+<dt id="allocation">Allocation</dt>
+<dd>The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month&#x27;s interest), then Principal.
+  <span class="avoid">Avoid: Split, contribution</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+<dt id="cash-limit">Cash Limit</dt>
+<dd>The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage&#x27;s Principal lent.
+  <span class="avoid">Avoid: Cash cap, cash ceiling</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+<dt id="void">Void</dt>
+<dd>Cancelling a recorded Payment with a reason, keeping it on record but excluding it from every Ledger.
+  <span class="avoid">Avoid: Delete, reverse</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+</dl>
+<h2>Follow-up</h2>
+<dl class="terms">
+<dt id="notice">Notice</dt>
+<dd>A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped.
+  <span class="avoid">Avoid: Reminder, notification</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+<dt id="months-unpaid">Months Unpaid</dt>
+<dd>How many of a Mortgage&#x27;s latest monthly interest charges (never its Interest to Date) its Payments have not yet covered, counting Payments against the oldest interest first and interest paid ahead against its own month; capitalised interest still counts as unpaid.
+  <span class="avoid">Avoid: Months overdue, arrears</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+<dt id="call-list">Call List</dt>
+<dd>The day&#x27;s Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today.
+  <span class="avoid">Avoid: Due list, payments due</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+<dt id="call-note">Call Note</dt>
+<dd>The Lender&#x27;s record of phoning a Customer about a Mortgage, with what was said.
+  <span class="avoid">Avoid: Follow-up, contact log</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+<dt id="call-sheet">Call Sheet</dt>
+<dd>The day&#x27;s Call List as a printable or Excel sheet, a row per Mortgage, for whoever makes the calls to write each Call Note on; the Excel sheet is imported back to record them all at once.
+  <span class="avoid">Avoid: Export, call report</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+</dl>
+<h2>Safekeeping</h2>
+<dl class="terms">
+<dt id="history">History</dt>
+<dd>The record of every change to a Customer, Mortgage or Payment — when, what, and the old and new values — which is never edited or removed.
+  <span class="avoid">Avoid: Log, changelog, activity</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+<dt id="backup">Backup</dt>
+<dd>A copy of all the Lender&#x27;s data — the database and photos — kept in a folder outside the app, from which everything can be restored.
+  <span class="avoid">Avoid: Export, snapshot, archive</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+</dl>
+<h2>Status</h2>
+<dl class="terms">
+<dt id="active">Active</dt>
+<dd>A Mortgage still accruing interest with jewellery held.
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+<dt id="dormant">Dormant</dt>
+<dd>An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it.
+  <span class="avoid">Avoid: Ready to Redeem, paid up</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+<dt id="redeemed">Redeemed</dt>
+<dd>A Mortgage fully repaid with its jewellery returned to the Customer.
+  <span class="avoid">Avoid: Settled, paid off</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+<dt id="closure">Closure</dt>
+<dd>The end of a Mortgage, by Redemption, Waiver or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened.
+  <span class="avoid">Avoid: Closing out, termination</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+<dt id="waived">Waived</dt>
+<dd>A Mortgage closed with the jewellery returned although the Customer&#x27;s final Payment fell short of its Outstanding on the Closure date (or there was none): the Lender, at their discretion, lets off the rest, the Waived Amount.
+  <span class="avoid">Avoid: Written off, settled, discounted</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+<dt id="forfeited">Forfeited</dt>
+<dd>A Mortgage on which the Customer defaulted and the Lender kept or sold the jewellery.
+  <span class="avoid">Avoid: Defaulted, auctioned</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+<dt id="reopen">Reopen</dt>
+<dd>Undoing a Closure made by mistake, with a reason: the Mortgage is Active again as if it had never been closed, and a Redemption&#x27;s or Waiver&#x27;s final Payment is Voided.
+  <span class="avoid">Avoid: Undo, unclose, revive</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+<dt id="recovered-amount">Recovered Amount</dt>
+<dd>What a Forfeited Mortgage&#x27;s jewellery fetched (or is worth, if kept); its difference from the Outstanding on the Closure date is the Lender&#x27;s profit or loss.
+  <span class="avoid">Avoid: Sale value, realisation</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+</dl>
+<footer>
+  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
+  · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a>
+</footer>
+</body>
+</html>

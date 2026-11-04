@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onboarding · Mortgage Management</title>
+<link rel="stylesheet" href="assets/course.css">
+</head>
+<body>
+<p class="kicker">Developer onboarding</p>
+<h1>Mortgage Management, for new developers</h1>
+<p class="lede">Mortgage Management is the lending book of a single Lender who lends money against pledged gold jewellery. It runs on the Lender's own laptop and keeps track of who borrowed, against what, how interest grows, what has been paid, and how each pledge ended. This course takes you from never having seen the repo to making your first safe change in it.</p>
+
+<h2>How to use the course</h2>
+<ul>
+  <li>Read the chapters in order. Each one assumes only the ones before it. A chapter takes about an hour.</li>
+  <li>Each lesson ends with a short quiz, and each chapter with a check-yourself page and a hands-on exercise. Answer before you look: recalling is what makes it stick.</li>
+  <li>Every example uses the same invented sample book, The Gold Chain Story's, on 19 Oct 2026. The <a href="reference/cast.html">cast sheet</a> lists everyone in it.</li>
+  <li>The code is the source of truth. Each chapter records the commit it was written against; if the code has moved on, trust the code, and open an issue about the chapter.</li>
+  <li>Stuck? Ask an agent in this repo to explain anything that's unclear.</li>
+</ul>
+
+<h2>The chapters</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  A["001 · The business"] --> B["002 · Find your way<br/>and run it"]
+  B --> C["003 · One Payment,<br/>end to end"]
+  C --> D["004–006 · The engine<br/>Ledger, Closures, changes"]
+  D --> E["007–009 · Features<br/>Payments, people, follow-up"]
+  E --> F["010 · Platform<br/>and database"]
+  F --> G["011–012 · Frontend"]
+  G --> H["013 · Testing"]
+  H --> I["014–015 · Shipping<br/>laptop, releases, Backups"]
+  I --> J["016 · Your first change"]
+</pre>
+<figcaption>The business first, then one shallow journey through every layer, then each layer in depth, ending with a real change.</figcaption>
+</figure>
+
+<ol class="chapters">
+  <li><a href="001-what-the-app-does/index.html">001 · What the app does, in plain words</a><span class="sum">Mortgages, Payments, Closures and the Lender's day, with no code.</span></li>
+  <li class="planned">002 · Find your way and run it<span class="sum">The repo's parts; serve the sample book on scratch data. Coming.</span></li>
+  <li class="planned">003 · One Payment, end to end<span class="sum">From form to Preview, API, Ledger and Receipt. Coming.</span></li>
+  <li class="planned">004 · The Ledger engine<span class="sum">Hand-trace interest, Capitalisation and Payment order. Coming.</span></li>
+  <li class="planned">005 · Replay and Closures<span class="sum">Outstanding, Redeem, Waive, Forfeit, Reopen and Dormant. Coming.</span></li>
+  <li class="planned">006 · Changes and Previews<span class="sum">A change route that refuses, writes, checks and records History. Coming.</span></li>
+  <li class="planned">007 · Payments and Receipts<span class="sum">Allocations, Final Payments, Voids, the Cash Limit and Receipts. Coming.</span></li>
+  <li class="planned">008 · People and Collateral<span class="sum">The Primary Number, Referrers, ID Photos, Gold Rates and Loan-to-Value. Coming.</span></li>
+  <li class="planned">009 · Follow-up<span class="sum">Notices, the Call List, Call Notes and Call Sheets. Coming.</span></li>
+  <li class="planned">010 · Platform, database and migrations<span class="sum">The clock, the daily run, the composition root and migrations. Coming.</span></li>
+  <li class="planned">011 · The frontend's data layer<span class="sum">Fetch, preview and propose a change from a page. Coming.</span></li>
+  <li class="planned">012 · Frontend pages and the PWA<span class="sum">Pages from components; the installed app. Coming.</span></li>
+  <li class="planned">013 · Testing<span class="sum">Backend and frontend tests, type checks and Pester. Coming.</span></li>
+  <li class="planned">014 · How it runs on the Lender's laptop<span class="sum">Docker, running without Docker, and the Windows installer. Coming.</span></li>
+  <li class="planned">015 · Releases, updates and Backups<span class="sum">Cutting a release, updates and restoring Backups. Coming.</span></li>
+  <li class="planned">016 · Your first change<span class="sum">One small change, test-first, through every layer. Coming.</span></li>
+</ol>
+
+<h2>Reference sheets</h2>
+<ul>
+  <li><a href="reference/glossary.html">Glossary</a>: the app's words, word for word from <code>GLOSSARY.md</code>, with the lesson that teaches each.</li>
+  <li><a href="reference/cast.html">The cast</a>: the sample book's people, Mortgages and figures on 19 Oct 2026.</li>
+</ul>
+
+<footer>
+  <a href="MISSION.md">Mission</a> · <a href="SYLLABUS.md">Syllabus</a> · <a href="RESOURCES.md">Resources</a>
+</footer>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/diagrams.js"></script>
+</body>
+</html>

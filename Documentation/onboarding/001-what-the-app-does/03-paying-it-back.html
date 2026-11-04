@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.3 · Paying it back</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 001 · Lesson 3</p>
+<h1>Paying it back</h1>
+<p class="lede">On 10 Sep 2026 Meera sends ₹12,000 by UPI for both her pledges. A month later the Lender types ₹16,000 when she paid ₹6,000. What does the app record each time, and what does the money actually pay off?</p>
+
+<div class="callout win"><strong>By the end</strong> you can say what one Payment does to one or more Mortgages: how it is split, what it pays first, what the Customer is sent, and how a mistake is put right.</div>
+
+<h2>The problem</h2>
+<p>Customers don't pay neatly. Meera owes interest on two Mortgages and hands over one sum for both. Someone else pays a little more than the month's interest, hoping to bring the Principal down. The Lender, busy at the counter, sometimes types the wrong figure. Each of these must end up in the book correctly, and the Customer needs a written acknowledgement they can trust.</p>
+<p>A naive book would note "Meera paid ₹12,000" and leave the rest to memory. Then nobody can say later how much of it was interest, which Mortgage it was for, or whether a crossed-out line was ever real money.</p>
+
+<h2>The idea</h2>
+<p>A Payment is one sum from one Customer on one date. It is split into Allocations, one per Mortgage it pays. Inside each Mortgage, an Allocation pays the oldest unpaid interest first, then the Interest to Date, then Principal. The Customer gets one Receipt per Payment. A wrong Payment is never edited or deleted: it is Voided, with a reason, and the right one is recorded.</p>
+
+<h2>The words</h2>
+<ul>
+  <li>A <a href="../reference/glossary.html#payment"><dfn class="term" title="A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt.">Payment</dfn></a>: a single sum received from a Customer on one date, possibly covering several Mortgages.</li>
+  <li>An <a href="../reference/glossary.html#allocation"><dfn class="term" title="The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month's interest), then Principal.">Allocation</dfn></a>: the portion of a Payment applied to one Mortgage.</li>
+  <li>A <a href="../reference/glossary.html#receipt"><dfn class="term" title="The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.">Receipt</dfn></a>: the acknowledgement of a Payment for the Customer, sent on WhatsApp or printed. A Receipt is not the Payment; it is the message <em>about</em> the Payment.</li>
+  <li>A <a href="../reference/glossary.html#void"><dfn class="term" title="Cancelling a recorded Payment with a reason, keeping it on record but excluding it from every Ledger.">Void</dfn></a>: cancelling a recorded Payment with a reason, keeping it on record but excluding it from every figure.</li>
+</ul>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  P["Payment<br/>₹12,000 UPI, 10 Sep 2026<br/>from Meera"] -->|"Allocation ₹2,000"| C["Chain"]
+  P -->|"Allocation ₹10,000"| B["Bangles"]
+  C -->|"1. unpaid interest<br/>2. Interest to Date<br/>3. Principal"| CL["Chain's figures"]
+  B -->|"1. unpaid interest<br/>2. Interest to Date<br/>3. Principal"| BL["Bangles' figures"]
+  P -->|"one message"| R["Receipt<br/>WhatsApp or print"]
+</pre>
+<figcaption>One Payment, two Allocations, one Receipt. Each Allocation pays its own Mortgage in the same fixed order.</figcaption>
+</figure>
+<p>Notice that the split is decided by the Lender (the app suggests one), but the order <em>inside</em> each Mortgage is fixed. Nobody chooses to pay Principal while interest is unpaid.</p>
+
+<h2>Run-through: Meera's 10 Sep Payment</h2>
+<p>By 10 Sep, after that morning's interest, here is what each Mortgage had unpaid. Work them out from the Terms if you like: the chain from lesson 2, and the bangles at 2% of ₹1,50,000 = ₹3,000 on each 25th since 25 Apr, with nothing paid yet.</p>
+<table class="steps">
+<tr><th>Mortgage</th><th>Before</th><th>Allocation</th><th>Pays</th><th>Unpaid interest after</th></tr>
+<tr><td>Chain</td><td>₹3,200 unpaid: April's and September's ₹1,600</td><td>2,000</td><td>2,000 of interest</td><td>1,200</td></tr>
+<tr><td>Bangles</td><td>₹12,000 unpaid: 25 May, Jun, Jul, Aug</td><td>10,000</td><td>10,000 of interest</td><td>2,000</td></tr>
+<tr class="changed"><td colspan="2">One Payment of ₹12,000</td><td>12,000</td><td colspan="2">one Receipt for both</td></tr>
+</table>
+<p>Neither Allocation reached the Principal: there was more unpaid interest than money. Both Principals stay where they were (₹80,000 and ₹1,50,000), so next month's interest on each is unchanged.</p>
+<p class="check">Check it: <a href="../../../docs/story.html#pays">The Gold Chain Story, chapter 6 ("Meera pays")</a> shows this Payment and its Receipt.</p>
+
+<h3>Why a missed month stays missed</h3>
+<p>Remember Meera's missed April. In May she paid ₹1,600, exactly a month's interest. It paid the <em>oldest</em> unpaid interest first: April's. May's ₹1,600 stayed unpaid. The same happened in June, July and August. Paying "this month" every month never catches up a missed one; only paying extra does. Lesson 5 shows how the app counts this, as Months Unpaid.</p>
+
+<h2>Nuances</h2>
+
+<h3>Paying ahead: a Payment can reach the Interest to Date</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on 10 Oct the bangles had ₹5,000 unpaid (the ₹2,000 left in September, plus ₹3,000 added on 25 Sep), and 16 days of Interest to Date had built up (25 Sep to 10 Oct, pro-rata: ₹1,600). Meera pays ₹6,000 to the bangles. What does it pay?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Order</th><th>Part</th><th>Owed</th><th>Paid</th><th>Left</th></tr>
+    <tr><td>1</td><td>Unpaid interest</td><td>5,000</td><td>5,000</td><td>0</td></tr>
+    <tr class="changed"><td>2</td><td>Interest to Date</td><td>1,600</td><td>1,000</td><td>600</td></tr>
+    <tr><td>3</td><td>Principal</td><td>1,50,000</td><td>0</td><td>1,50,000</td></tr>
+    </table>
+    <p>₹5,000 clears the unpaid interest, and the last ₹1,000 goes to the Interest to Date. That ₹1,000 is <em>paid ahead</em>: it counts against the month's interest when 25 Oct adds it. None reaches the Principal.</p>
+  </div>
+</div>
+
+<h3>A typo is Voided, not deleted</h3>
+<p>That same 10 Oct, the Lender first typed ₹16,000 instead of ₹6,000. They Voided it with the reason "Typed ₹16,000 instead of ₹6,000", then recorded the ₹6,000 above.</p>
+<table class="steps">
+<tr><th>Payment</th><th>Amount</th><th>Status</th><th>Counts in the figures?</th></tr>
+<tr class="changed"><td>10 Oct, bangles</td><td>16,000</td><td>Voided: "Typed ₹16,000 instead of ₹6,000"</td><td>No</td></tr>
+<tr><td>10 Oct, bangles</td><td>6,000</td><td>Recorded</td><td>Yes</td></tr>
+</table>
+<p>The Voided Payment stays on the list, marked, so anyone can see what happened and why. Payments are never edited either: to change one, the Lender Voids it and enters the right one. A book where old lines silently change is a book nobody can audit.</p>
+<p class="check">Check it: <a href="../../../docs/story.html#pays">The Gold Chain Story, chapter 6</a>, the Void dialog.</p>
+
+<h3>One Receipt, on WhatsApp, sent by the Lender</h3>
+<p>The Receipt lists each piece of jewellery with what it was paid and what it still owes. It names each Mortgage by its description ("Gold chain with Lakshmi pendant"), never by its Mortgage Name, which is the Lender's internal label. Chapter 007 covers what a Receipt says.</p>
+<p>The app doesn't send it. It opens WhatsApp with the message already typed, and the Lender presses Send. <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a> explains why: driving WhatsApp automatically breaks whenever WhatsApp changes its screens, and breaks WhatsApp's terms, which could get the Lender's own phone number banned.</p>
+
+<h3>The Cash Limit warns, it never refuses</h3>
+<p>Government of India rules ask for large sums to go by UPI or bank transfer rather than cash. The <a href="../reference/glossary.html#cash-limit"><dfn class="term" title="The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage's Principal lent.">Cash Limit</dfn></a> is the amount (₹20,000 unless the Lender changes it) at or above which the app warns before lending or receiving that much in cash.</p>
+<div class="reveal">
+  <p><strong>Predict:</strong> Meera's chain was lent ₹80,000 in cash. Did the app refuse it?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>No. ₹80,000 is above the ₹20,000 Cash Limit, so the app asked first, with "Go back" as the default. The Lender confirmed, and it was saved. The Cash Limit only ever warns: the Lender decides. Her ₹1,600 cash Payments were well under the limit and asked nothing. Each Payment is judged as one sum, and so is each Mortgage's Principal.</p>
+  </div>
+</div>
+
+<h3>Changing the Terms: a Term Change</h3>
+<p>Meera asked for a better rate on the bangles, and the Lender agreed to 1.5% a month from 25 Oct 2026. That is a <a href="../reference/glossary.html#term-change"><dfn class="term" title="A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.">Term Change</dfn></a>: a dated change to some of a Mortgage's Terms, starting on an Accrual Date.</p>
+<table class="steps">
+<tr><th>Month starting</th><th>Rate</th><th>Interest</th><th>Added on</th></tr>
+<tr><td>25 Sep 2026</td><td>2%</td><td>3,000</td><td>25 Oct</td></tr>
+<tr class="changed"><td>25 Oct 2026</td><td>1.5%</td><td>2,250</td><td>25 Nov</td></tr>
+</table>
+<p>Each month is charged under the Terms in force when it <em>starts</em>. The month that began on 25 Sep is still charged at 2%, even though its interest is added on 25 Oct. A Term Change never rewrites interest already charged, and it can be removed until it starts.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">A Customer pays ₹5,000 to a Mortgage with ₹3,000 unpaid interest and ₹400 Interest to Date. How much reaches the Principal?</p>
+  <button class="opt">₹5,000, since the Customer chose to pay Principal</button>
+  <button class="opt">₹1,600, after the interest and Interest to Date</button>
+  <button class="opt">₹2,000, after only the unpaid interest is paid</button>
+  <div class="why">₹1,600. The order is fixed: ₹3,000 to unpaid interest, ₹400 to the Interest to Date, and the remaining ₹1,600 to Principal. The Customer can't choose to skip interest. ₹2,000 forgets the Interest to Date, which is paid before Principal.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">The Lender recorded a Payment for the wrong Mortgage. What should happen?</p>
+  <button class="opt">Edit the Payment's Mortgage and save it again</button>
+  <button class="opt">Delete the Payment and enter it once more</button>
+  <button class="opt">Void it with a reason, then record the right one</button>
+  <div class="why">Void it, with a reason, and record the right Payment. Payments are never edited or deleted: a Voided Payment stays on record and simply counts in no figure, so the book always shows what happened and why.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Meera pays one sum covering both her Mortgages. How many Receipts does she get?</p>
+  <button class="opt">One, listing each piece of jewellery</button>
+  <button class="opt">Two, one for each Mortgage paid</button>
+  <button class="opt">None, unless she asks the Lender</button>
+  <div class="why">One. A Receipt acknowledges a Payment, and this is one Payment with two Allocations. The Receipt lists each piece of jewellery by its description, with what it was paid and what it still owes.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read the <em>Payments</em> section of <a href="../../../GLOSSARY.md"><code>GLOSSARY.md</code></a> (Payment to Void) and <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>. Then <a href="../../../docs/story.html#pays">The Gold Chain Story, chapter 6</a>, which has a small widget for splitting a Payment.</p>
+
+<nav class="lessons">
+  <a href="02-how-whats-owed-grows.html">← How what's owed grows</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="04-how-a-mortgage-ends.html">Next: How a Mortgage ends →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

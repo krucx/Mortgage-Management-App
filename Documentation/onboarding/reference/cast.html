@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · The cast</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Reference sheet</p>
+<h1>The cast: the sample book on 19 Oct 2026</h1>
+<p class="lede">Every example in the course uses the same invented lending book: the one <a href="../../../docs/story.html">The Gold Chain Story</a> tells. It is built by <code>docs/sample-book/book.py</code> through the app's own API, one dated change after another, and ends on 19 Oct 2026, the day the story is told. Nobody in it is real.</p>
+
+<h2>The Lender's settings</h2>
+<table class="wide">
+<tr><th>Setting</th><th>In the sample book</th><th>Note</th></tr>
+<tr><td>Default Terms</td><td>2% a month, Compounded Yearly, pro-rata</td><td>Set by <code>book.py</code>. A fresh database starts at 3%, Compounded Yearly, full month.</td></tr>
+<tr><td>Call List</td><td>3 Months Unpaid, or Loan-to-Value above 85%</td><td>Or accruing today.</td></tr>
+<tr><td>Notices</td><td>2 days before each Accrual Date, approved first</td><td></td></tr>
+<tr><td>Cash Limit</td><td>₹20,000</td><td>The app's default; it warns, never refuses.</td></tr>
+<tr><td>Gold Rate, 22K</td><td>₹13,536 a gram</td><td>Set on 19 Oct 2026.</td></tr>
+</table>
+
+<h2>People</h2>
+<table class="wide">
+<tr><th>Person</th><th>Who they are</th><th>Introduced by</th></tr>
+<tr><td>Meera Sharma</td><td>Customer: the gold chain and the bangles. Pays most months.</td><td>Ravi Verma</td></tr>
+<tr><td>Ravi Verma</td><td>Standalone Referrer: known only by name and phone, not a Customer.</td><td>—</td></tr>
+<tr><td>Arjun Patel</td><td>Customer: a ruby ring, 15 Months Unpaid, and a gold chain.</td><td>Meera</td></tr>
+<tr><td>Kavita Joshi</td><td>Customer: a gold coin (Redeemed) and an anklet (Dormant).</td><td>—</td></tr>
+<tr><td>Lakshmi Iyer</td><td>Customer: a temple necklace, paid in full and Redeemed on 16 Oct.</td><td>—</td></tr>
+<tr><td>Farida Khan</td><td>Customer: a gold nose ring, pays every month, Waived ₹180 short.</td><td>—</td></tr>
+<tr><td>Imran Qureshi</td><td>Customer: gold earrings, one Payment, then Forfeited.</td><td>—</td></tr>
+<tr><td>Sunita Rao</td><td>Customer: a mangalsutra, accruing on 21 Oct. Shares a family phone with Meera.</td><td>Meera</td></tr>
+</table>
+
+<h2>Mortgages</h2>
+<p>Terms are the sample book's Default Terms (2% a month, Compounded Yearly, pro-rata) unless the row says otherwise.</p>
+<table class="wide">
+<tr><th>Mortgage Name</th><th>Jewellery</th><th>Lent</th><th>Terms</th><th>On 19 Oct 2026</th></tr>
+<tr><td>2025-Meera-GoldChainPendant</td><td>Gold chain with Lakshmi pendant, 20 g of 22K</td><td>₹80,000 cash, 10 Nov 2025</td><td>Default</td><td>Active. Outstanding ₹83,333 (<a href="../../../docs/story.html#ledger">story, ch. 4</a>)</td></tr>
+<tr><td>2026-Meera-PairBangles</td><td>Pair of bangles, 30 g of 22K</td><td>₹1,50,000 bank transfer, 25 Apr 2026</td><td>Default; Term Change to 1.5% from 25 Oct 2026</td><td>Active</td></tr>
+<tr><td>2025-Arjun-GoldRingRuby</td><td>Gold ring with ruby, 6 g of 22K</td><td>₹60,000 UPI, 15 Jun 2025</td><td>2.5%, Compounded Monthly, pro-rata</td><td>Active. Owes ₹85,184; 15 Months Unpaid; Loan-to-Value 104.9% (<a href="../../../docs/story.html#arjun">story, ch. 7</a>)</td></tr>
+<tr><td>2026-Arjun-GoldChain</td><td>Gold chain, 12 g of 22K</td><td>₹45,000 UPI, 19 Aug 2026</td><td>Default</td><td>Active, accrues today (the 19th)</td></tr>
+<tr><td>2026-Kavita-GoldCoin</td><td>Gold coin, 10 g of 24K</td><td>₹50,000 UPI, 18 Feb 2026</td><td>Default</td><td>Redeemed on 5 Oct, paying ₹54,600 (<a href="../../../docs/story.html#endings">story, ch. 8</a>)</td></tr>
+<tr><td>2026-Kavita-SilverGoldAnklet</td><td>Silver-gold anklet, 4 g</td><td>₹15,000 cash, 1 Jul 2026, entered on 18 Oct</td><td>2%, Simple, Part-Month Rule nothing</td><td>Active and Dormant: owes nothing, still held</td></tr>
+<tr><td>2026-Lakshmi-TempleNecklace</td><td>Temple necklace, 30 g of 22K</td><td>₹2,00,000 bank transfer, 20 Feb 2026</td><td>Default</td><td>Redeemed on 16 Oct by a Payment of its whole Outstanding</td></tr>
+<tr><td>2026-Farida-GoldNoseRing</td><td>Gold nose ring, 2.5 g of 22K</td><td>₹30,000 UPI, 12 May 2026</td><td>Default</td><td>Waived on 16 Oct: ₹30,520 paid of ₹30,700, ₹180 let off (<a href="../../../docs/story.html#endings">story, ch. 8</a>)</td></tr>
+<tr><td>2026-Imran-GoldEarrings</td><td>Gold earrings, 8 g of 22K</td><td>₹60,000 UPI, 10 Jun 2026</td><td>Default</td><td>Forfeited on 10 Oct: owed ₹62,840, sold for ₹52,000, a loss of ₹10,840 (<a href="../../../docs/story.html#endings">story, ch. 8</a>)</td></tr>
+<tr><td>2026-Sunita-Mangalsutra</td><td>Mangalsutra, 10 g of 22K</td><td>₹35,000 UPI, 21 Sep 2026</td><td>Default</td><td>Active; its first Notice waits for approval</td></tr>
+</table>
+
+<h2>Meera's Payments on the chain and bangles</h2>
+<table class="wide">
+<tr><th>Date</th><th>What happened</th></tr>
+<tr><td>10th of Dec 2025 to Aug 2026</td><td>₹1,600 to the chain each month, except April, which she missed</td></tr>
+<tr><td>10 Sep 2026</td><td>One Payment of ₹12,000 by UPI: ₹2,000 to the chain, ₹10,000 to the bangles</td></tr>
+<tr><td>10 Oct 2026</td><td>₹16,000 typed instead of ₹6,000: Voided ("Typed ₹16,000 instead of ₹6,000"), then ₹6,000 recorded for the bangles</td></tr>
+<tr><td>15 Jan 2026</td><td>The chain's description corrected: "Gold chain with pendant" → "Gold chain with Lakshmi pendant" (in its History)</td></tr>
+</table>
+
+<footer>
+  Facts from <code>docs/sample-book/book.py</code>; figures from The Gold Chain Story, checked against the app by <code>001-what-the-app-does/scripts/check_figures.py</code> at commit <code>61bbea2</code>.
+  · <a href="../index.html">Course home</a> · <a href="glossary.html">Glossary</a>
+</footer>
+</body>
+</html>
