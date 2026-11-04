@@ -58,7 +58,7 @@ flowchart TD
 </code></pre>
 </figure>
 <ol class="marks">
-  <li><code>engine.connect()</code>, not <code>engine.begin()</code>: a read, with no transaction to commit. <code>EngineDep</code> and <code>TodayDep</code> are FastAPI dependencies; <code>today</code> is the app's clock, held on 19 Oct 2026 for the sample book (chapter 010 owns the clock).</li>
+  <li><code>engine.connect()</code>, not <code>engine.begin()</code>: a read, with no transaction to commit. <code>EngineDep</code> and <code>TodayDep</code> are FastAPI dependencies; <code>today</code> is the app's clock, held on 19 Oct 2026 for the sample book (<a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">chapter 010, lesson 2</a> owns the clock).</li>
 </ol>
 
 <h3>2. The guard: <code>closable</code> and <code>not_closable</code></h3>

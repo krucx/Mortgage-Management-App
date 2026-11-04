@@ -42,7 +42,7 @@
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_default_terms.py</code></td><td>One test file (002's check-yourself exercise)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_ledger.py</code></td><td>The Ledger engine's 84 tests, pure and database-free (004's check-yourself exercise)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../Documentation/onboarding/004-the-ledger-engine/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 004 quotes</td></tr>
-<tr><td><code>backend/</code></td><td><code>uv run pytest -q</code></td><td>All 607 backend tests, one line of dots (005's check-yourself exercise: 6 fail when the quote counts its own Final Payment)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest -q</code></td><td>All 607 backend tests, one line of dots (005's check-yourself exercise: 6 fail when the quote counts its own Final Payment; 010's: 422 break when <code>db.py</code> declares a column the migrations don't make)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../Documentation/onboarding/005-replay-and-closures/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 005 quotes, making its Closures, Reopens and refusals on throwaway copies</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run mypy src</code></td><td>Strict type check of the backend</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm test</code></td><td>All frontend tests (vitest), against a fake server</td></tr>
@@ -76,8 +76,21 @@
 <tr><td>anywhere</td><td><code>curl -s -X POST http://127.0.0.1:8765/api/notices/58/approve</code> (then <code>…/sent</code> or <code>…/skip</code>)</td><td>Acts on Sunita's Notice (009 · Lesson 4)</td></tr>
 </table>
 
+<h2 id="platform">Platform and migrations</h2>
+<p>Taught in <a href="../010-platform-database-and-migrations/index.html">chapter 010</a>. Start the app only on copies (<code>mktemp -d</code>), never on <code>$BOOK</code> while a new migration exists, and never on real data (<a href="traps.html#t9">trap #9</a>).</p>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td>anywhere</td><td><code>sqlite3 "$BOOK/data/mortgage.db" "SELECT key, substr(value, 1, 22) FROM config ORDER BY rowid"</code></td><td>The settings and the app's own records (<code>last_daily_run</code>, <code>backup_last_at</code>); read-only (010 · Lessons 2, 3)</td></tr>
+<tr><td>anywhere</td><td><code>sqlite3 "$BOOK/data/mortgage.db" "SELECT * FROM alembic_version"</code></td><td>The database's revision: <code>0015</code>, the head, at commit b34526a (010 · Lesson 5)</td></tr>
+<tr><td>anywhere</td><td><code>export COPY=$(mktemp -d) &amp;&amp; cp -R "$BOOK/data" "$COPY/"</code></td><td>A copy of the book's data to start the app on, so <code>$BOOK</code> is never migrated (010 · Lessons 5, 6)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python ../docs/sample-book/serve.py "$COPY" 8766</code></td><td>Starts the app on the copy, beside your served book; Backups into <code>$COPY/backups</code>. A <code>-before-update</code> Backup there means it migrated</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python - "$COPY" &lt;&lt;'EOF'</code> … <code>command.downgrade(config, "0014")</code> … <code>EOF</code></td><td>Makes the copy look like it came from an older version (there's no <code>alembic.ini</code>, so the script builds Alembic's <code>Config</code> as <code>migrate()</code> does). Scratch copies only; the Lender never downgrades (010 · Lesson 5)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_migrations.py</code></td><td>The chain runs, settings survive a restart, and <code>db.py</code>'s Tables match the migrated schema (the drift test, 010 · Lesson 6)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python ../Documentation/onboarding/010-platform-database-and-migrations/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 010 quotes, starting the app on throwaway copies (some on later days, one with a temporary migration 0016)</td></tr>
+</table>
+
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

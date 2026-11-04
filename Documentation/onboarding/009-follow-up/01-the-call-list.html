@@ -78,7 +78,7 @@ flowchart TD
   <li>A Mortgage with no Collateral Value (no Gold Rate for its purity, chapter 008) has no Loan-to-Value, so this reason can't apply to it.</li>
   <li><code>&gt;</code>, not <code>&gt;=</code>. A Mortgage at exactly 85% is <strong>not</strong> listed. Months Unpaid uses <code>&gt;=</code> (below), so the two limits read differently: "at 3 months" but "above 85%".</li>
 </ol>
-<p>The limits are stored as two rows in the <code>config</code> table, <code>call_list_months_unpaid</code> and <code>call_list_loan_to_value_pct</code>. <code>ConfigGroup.prefixed</code> reads and writes them as one Pydantic model (chapter 010 covers <code>ConfigGroup</code>). <code>Field(ge=1)</code> means "greater than or equal to 1", so <code>PUT /api/settings/call-list</code> with a Months Unpaid of 0 is a 422.</p>
+<p>The limits are stored as two rows in the <code>config</code> table, <code>call_list_months_unpaid</code> and <code>call_list_loan_to_value_pct</code>. <code>ConfigGroup.prefixed</code> reads and writes them as one Pydantic model (<a href="../010-platform-database-and-migrations/03-settings-in-the-config-table.html">chapter 010, lesson 3</a> covers <code>ConfigGroup</code>). <code>Field(ge=1)</code> means "greater than or equal to 1", so <code>PUT /api/settings/call-list</code> with a Months Unpaid of 0 is a 422.</p>
 
 <h3>2. Checking each Mortgage</h3>
 <figure class="snippet">

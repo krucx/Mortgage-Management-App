@@ -34,7 +34,7 @@ flowchart TD
 <p>The names on each box are real: search for them and you land on the line. Lessons later in the course open each box. Today you only learn to walk the path.</p>
 
 <h2>The backend: <code>main.py</code> is the map</h2>
-<p><code>create_app</code> builds the whole FastAPI app. It is the backend's <em>composition root</em>: the one place where every part is created and plugged together. Chapter 010 explains it properly; for finding your way, only its end matters.</p>
+<p><code>create_app</code> builds the whole FastAPI app. It is the backend's <em>composition root</em>: the one place where every part is created and plugged together. <a href="../010-platform-database-and-migrations/01-the-composition-root.html">Chapter 010, lesson 1</a> explains it properly; for finding your way, only its end matters.</p>
 <figure class="snippet">
 <figcaption><a href="../../../backend/src/mortgage_backend/main.py">backend/src/mortgage_backend/main.py</a> · <code>create_app()</code> · lines 53–135, trimmed</figcaption>
 <pre data-file="backend/src/mortgage_backend/main.py"><code>53  def create_app(
@@ -71,7 +71,7 @@ flowchart TD
 <tr><td><code>safekeeping/</code></td><td>History and Backups</td><td><code>audit.py</code>, <code>backups.py</code></td></tr>
 <tr><td><code>platform/</code></td><td>What every section stands on: the database, settings, paging, the clock, photos, money and the daily run</td><td><code>db.py</code>, <code>clock.py</code>, <code>daily_run.py</code></td></tr>
 </table>
-<p>Two more files sit beside <code>main.py</code>: <code>openapi.py</code> writes the API's schema to <code>frontend/openapi.json</code>, from which the frontend's types are generated, and <code>migrations/</code> holds the database's Alembic revisions (chapter 010).</p>
+<p>Two more files sit beside <code>main.py</code>: <code>openapi.py</code> writes the API's schema to <code>frontend/openapi.json</code>, from which the frontend's types are generated, and <code>migrations/</code> holds the database's Alembic revisions (<a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">chapter 010, lesson 5</a>).</p>
 
 <h2>The frontend: <code>App.tsx</code> is the map</h2>
 <p>The frontend is a single-page app: the browser loads it once and React Router swaps pages as the address changes. <code>App.tsx</code> lists every address.</p>

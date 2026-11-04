@@ -197,7 +197,7 @@ flowchart TD
 </code></pre>
 </figure>
 <ol class="marks">
-  <li><code>DailyRun</code> runs its jobs once per business day, on the first <code>/api/</code> request of that day, from middleware. How it does that is chapter 010's; here it's enough that <code>sync_notices</code> is one of its two jobs.</li>
+  <li><code>DailyRun</code> runs its jobs once per business day, on the first <code>/api/</code> request of that day, from middleware. How it does that is <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">chapter 010, lesson 2</a>'s; here it's enough that <code>sync_notices</code> is one of its two jobs.</li>
   <li>The Dashboard counts Notices to send and to approve. Syncing first means those counts match what the Notices page will show.</li>
   <li>So a Mortgage added this morning, or one just Reopened, gets its Notice the moment anyone looks.</li>
   <li><code>after_set</code> is a list of functions <code>ConfigGroup.set</code> calls after saving, on the same connection. The import sits inside the function because <code>notices.py</code> imports this module: importing it at the top would make a circle.</li>

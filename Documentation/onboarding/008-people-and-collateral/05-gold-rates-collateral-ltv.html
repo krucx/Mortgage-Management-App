@@ -66,7 +66,7 @@ flowchart LR
 51  }
 </code></pre>
 </figure>
-<p><code>Literal[24, 22, 20, 18, 14]</code> means the field may hold only those five numbers; a request with 23K is a 422. Each rate is stored as two rows in the <code>config</code> key–value table, <code>gold_rate_22</code> (paise per gram) and <code>gold_rate_22_updated_on</code>. <code>ConfigGroup</code> reads and writes such a group of settings as one Pydantic model; chapter 010 covers it. A fresh database has no rows, so every rate starts as <code>None</code>.</p>
+<p><code>Literal[24, 22, 20, 18, 14]</code> means the field may hold only those five numbers; a request with 23K is a 422. Each rate is stored as two rows in the <code>config</code> key–value table, <code>gold_rate_22</code> (paise per gram) and <code>gold_rate_22_updated_on</code>. <code>ConfigGroup</code> reads and writes such a group of settings as one Pydantic model; <a href="../010-platform-database-and-migrations/03-settings-in-the-config-table.html">chapter 010, lesson 3</a> covers it. A fresh database has no rows, so every rate starts as <code>None</code>.</p>
 
 <h3>2. The valuation: <code>collateral_of</code></h3>
 <figure class="snippet">

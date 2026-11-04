@@ -162,7 +162,7 @@ FAILED tests/test_default_terms.py::test_invalid_default_terms_are_rejected_and_
 uv run pytest tests/test_default_terms.py   # 8 passed again
 git status                                  # clean</code></pre>
 <p>(From <code>backend/</code>. From the repo root, the path is <code>backend/src/mortgage_backend/migrations/versions/0001_config_table.py</code>.)</p>
-<div class="callout warn"><strong>Never edit a released migration for real.</strong> Every Lender's database has already run migration 0001; editing it changes nothing for them and makes new databases differ from old ones. To change the Default Terms of new databases, you'd add a new revision. Chapter 010 explains migrations and why.</div>
+<div class="callout warn"><strong>Never edit a released migration for real.</strong> Every Lender's database has already run migration 0001; editing it changes nothing for them and makes new databases differ from old ones. To change the Default Terms of new databases, you'd add a new revision. <a href="../010-platform-database-and-migrations/06-adding-a-migration-safely.html">Chapter 010, lesson 6</a> explains migrations and why.</div>
 
 <h2>Recap</h2>
 <ul>

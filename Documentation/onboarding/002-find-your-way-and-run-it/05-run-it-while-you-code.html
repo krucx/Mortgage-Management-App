@@ -150,7 +150,7 @@ npm run dev</code></pre>
 109          return await call_next(request)
 </code></pre>
     </figure>
-    <p>On the first <code>/api/</code> request of each day. A <em>middleware</em> is a function FastAPI runs around every request; this one runs the daily jobs first if they haven't run today. The jobs are: take a Backup into <code>BACKUP_DIR</code> if the last is a week old, and queue Notices. The app also tries a Backup when it starts. So simply opening your dev app writes a Backup zip into <code>BACKUP_DIR</code>, which is one more reason that must be a scratch folder, not the Lender's synced folder. Chapter 010 explains the daily run.</p>
+    <p>On the first <code>/api/</code> request of each day. A <em>middleware</em> is a function FastAPI runs around every request; this one runs the daily jobs first if they haven't run today. The jobs are: take a Backup into <code>BACKUP_DIR</code> if the last is a week old, and queue Notices. The app also tries a Backup when it starts. So simply opening your dev app writes a Backup zip into <code>BACKUP_DIR</code>, which is one more reason that must be a scratch folder, not the Lender's synced folder. <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">Chapter 010, lesson 2</a> explains the daily run.</p>
   </div>
 </div>
 <h3>(d) Docker, in one box</h3>
@@ -164,7 +164,7 @@ DATA_DIR="$DEV/data" BACKUP_DIR="$DEV/backups" \
   docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml down</code></pre>
   <ul>
     <li><strong>Scratch <code>DATA_DIR</code> and <code>BACKUP_DIR</code> on every <code>docker compose</code> command, including <code>down</code>.</strong> Compose otherwise reads them from a <code>.env</code> file in the repo root. If you've set the app up for real from this clone, that <code>.env</code> points at the real data.</li>
-    <li><strong>Migrations run on every start, against whatever <code>DATA_DIR</code> they get,</strong> and there is no way back to the old schema. Unreleased code started on real data migrates it for good (chapter 010).</li>
+    <li><strong>Migrations run on every start, against whatever <code>DATA_DIR</code> they get,</strong> and there is no way back to the old schema. Unreleased code started on real data migrates it for good (<a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">chapter 010, lesson 5</a>).</li>
     <li><code>-p mortgage-dev</code> gives your containers their own project name, and <code>APP_PORT=8081</code> their own port, so they never replace or collide with a copy of the app already running from this folder on 8080.</li>
   </ul>
   <p>Nothing in this chapter needs Docker. Chapter 014 covers it properly.</p>
