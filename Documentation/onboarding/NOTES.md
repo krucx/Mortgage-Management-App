@@ -27,3 +27,14 @@
 - On the owner's laptop the real app runs from this clone as Compose project `mortgage-management-app` on :8080, with a `.env` pointing at real data. Lesson 5 (and `commands.html`) therefore add `-p mortgage-dev` and `APP_PORT=8081` to the README's dev compose command. Chapter 014 should keep that.
 - Vite listens on `localhost` (IPv6 on macOS); curl `localhost:5173`, not `127.0.0.1:5173`.
 - Chapter 001's promise ("chapter 002 has you check" Lakshmi's ₹2,03,600) is kept in lesson 4.
+
+## Chapter 003 (written at 361c7fa)
+
+- `003-one-payment-end-to-end/scripts/run_throughs.py` makes the reader's Payment through the API (₹6,600 UPI on 19 Oct: ₹5,000 bangles, ₹1,600 chain) and prints the list, the Preview, the saved rows, the Receipt and its WhatsApp text, a back-dated variation and the over-by-₹1 refusal.
+- On a fresh book the new Payment is **id 34**; its Allocations are rows 35 (bangles, Mortgage 5) and 36 (chain, Mortgage 2). Meera is Customer 1. Her 10 Sep Payment is id 23. Later chapters can rely on these.
+- **The form's date is the browser's real today**, not the served clock: on `/payments/new` the list request 422s ("The date cannot be in the future") until the reader sets 19 Oct 2026. Any later lesson that has the reader fill in a dated form on the served book must say so.
+- The form lists the bangles before the chain (newest first), so the body's Allocations are bangles then chain.
+- After the save, Payment 34 divides as: bangles ₹1,500 interest + ₹3,500 Principal; chain ₹1,600 + ₹0. A back-dated ₹2,000 on 15 Oct to the chain makes Payment 34's chain line ₹1,333 + ₹267 (useful for 004).
+- The check-yourself exercise (commenting out `check_replays` at `changes.py:303`) fails exactly the 5 tests issue #134 named. Without it the overpayment raises `Overpayment` in the next replay of the same request, giving a **500** (not a 422); the transaction still rolls back.
+- `reference/traps.html` lists only traps met so far (by number, with fixed ids `t1`…), and never links to unwritten chapters. Add rows as chapters meet them.
+- Don't let readers press Send in WhatsApp: the sample book's numbers are invented but realistic.

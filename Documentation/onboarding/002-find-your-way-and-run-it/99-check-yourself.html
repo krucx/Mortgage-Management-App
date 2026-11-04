@@ -147,7 +147,7 @@ uv run pytest tests/test_default_terms.py</code></pre>
 FAILED tests/test_default_terms.py::test_invalid_default_terms_are_rejected_and_nothing_changes[bad_change0]
 … the same for bad_change1 to bad_change5 …
 7 failed, 1 passed</code></pre>
-    <table class="steps">
+    <table class="steps text">
     <tr><th>Test</th><th>Result</th><th>Why</th></tr>
     <tr class="changed"><td><code>test_new_database_has_default_terms_…</code></td><td>fails</td><td>A new database now says 200; line 16 expects <code>DEFAULTS</code>, 300.</td></tr>
     <tr class="changed"><td><code>test_invalid_default_terms_…</code> × 6</td><td>fail</td><td>Each bad change is still refused with 422 (line 49 passes), but line 50 then checks that nothing changed by comparing with <code>DEFAULTS</code>, and the database started at 200: <code>{'monthly_rate_bps': 200} != {'monthly_rate_bps': 300}</code>.</td></tr>
@@ -179,7 +179,7 @@ git status                                  # clean</code></pre>
 <nav class="lessons">
   <a href="05-run-it-while-you-code.html">← Run it while you code</a>
   <a href="index.html">Chapter overview</a>
-  <a href="../index.html">Course home →</a>
+  <a href="../003-one-payment-end-to-end/index.html">Next: chapter 003 →</a>
 </nav>
 <script src="../assets/quiz.js"></script>
 <script src="../assets/snippet.js"></script>

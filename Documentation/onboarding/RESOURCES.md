@@ -11,13 +11,15 @@
 - [ADR 0001: The Ledger is derived, not stored](../adr/0001-ledger-is-derived-not-stored.md)
   Why nothing owed is stored. Use for: 001.05, the Ledger and Replay chapters.
 - [ADR 0002: WhatsApp messages are click-to-send](../adr/0002-whatsapp-click-to-send.md)
-  Why the Lender presses Send. Use for: 001.03, Receipts and Follow-up.
+  Why the Lender presses Send. Use for: 001.03, 003.05, Receipts and Follow-up.
 - [ADR 0003: Backups go to a cloud-synced folder](../adr/0003-backup-to-synced-folder.md)
   Where Backups go and when. Use for: 001.05, Releases and Backups.
 - [ADR 0004: The app ships as a Docker Compose stack](../adr/0004-docker-compose-on-lender-laptop.md)
   Why the Lender runs Docker. Use for: 002.01 (named only), chapter 014.
 - [ADR 0005: A person is identified by their Primary Number](../adr/0005-primary-number-identifies-a-person.md)
   Why one phone number is one person. Use for: 002.04 (why `book.py` refuses a used folder), People and Collateral.
+- [ADR 0007: Each change's Preview route is written out by hand](../adr/0007-preview-routes-written-out-by-hand.md)
+  Why Previews run the real change and roll back, with a thin route each. Use for: 003.02, Changes and Previews.
 - [ADR 0010: Without Docker, the backend serves the built screens](../adr/0010-backend-serves-screens-without-docker.md)
   Why `serve.py` and the Windows app need no Node.js. Use for: 002.01, 002.04, chapter 014.
 - [README.md, Development](../../README.md)
@@ -43,6 +45,13 @@
   How the dev server passes `/api` on. Use for: 002.05.
 - [FastAPI: Bigger applications, multiple files](https://fastapi.tiangolo.com/tutorial/bigger-applications/)
   Routers and `include_router`. Use for: 002.02.
+
+- [TanStack Query: Query invalidation](https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation)
+  How `invalidateQueries` marks cached answers stale and refetches those on screen. Use for: 003.05, chapter 011.
+- [Pydantic: Models](https://docs.pydantic.dev/latest/concepts/models/)
+  The classes FastAPI parses request bodies into, such as `PaymentIn`. Use for: 003.03.
+- [Chrome DevTools: Inspect network activity](https://developer.chrome.com/docs/devtools/network)
+  Filtering and reading requests in the Network tab. Use for: 003.01.
 
 ## Where to get help
 

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · Routes</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Reference sheet</p>
+<h1>Routes</h1>
+<p class="lede">Every API route the course has taught so far: where its code lives, what it changes, its Preview twin, when it refuses, and the History <code>Action</code> it records. All paths start with <code>/api</code>. This sheet grows as chapters are written; so far it holds the routes one Payment uses.</p>
+
+<div class="callout warn"><strong>Find a route by its path, not its folder.</strong> Every change that moves a Ledger, Payments included, is in <code>lending/changes.py</code>, not in <code>payments/</code> (<a href="traps.html#t1">trap #1</a>).</div>
+
+<h2>Changes</h2>
+<table class="wide">
+<tr><th>Route</th><th>File · function</th><th>What it changes</th><th>Preview twin</th><th>Refused when</th><th>History <code>Action</code></th></tr>
+<tr id="post-payments"><td><code>POST /payments</code> → 201</td><td><code>lending/changes.py</code> · <code>post_payment</code> → <code>record_payment</code></td><td>Writes one <code>payment</code> row and an <code>allocation</code> row per Mortgage; Redeems any Mortgage paid its whole Outstanding (its Final Payment kept as a part of its own)</td><td><code>POST /payments/preview</code></td><td>422: body invalid (<code>PaymentIn</code>: Allocations don't add up, a Mortgage twice, an amount not above 0); date in the future; Customer not found; a Mortgage not the Customer's or not started then; a Payment larger than what was owed on its date (<code>check_replays</code>); a whole Outstanding that can't Redeem. 409: a Mortgage not Active</td><td><code>created</code> on the Payment (<code>paid_on</code>, <code>amount</code>, <code>method</code>, <code>reference</code>)</td></tr>
+<tr id="post-payments-preview"><td><code>POST /payments/preview</code> → 200</td><td><code>lending/previews.py</code> · <code>preview_payment</code> → <code>_preview</code></td><td>Nothing: runs <code>record_payment</code>, reads, rolls back</td><td>—</td><td>Exactly when saving would be</td><td>none</td></tr>
+</table>
+
+<h2>Reads</h2>
+<table class="wide">
+<tr><th>Route</th><th>File · function</th><th>What it returns</th><th>Used by</th></tr>
+<tr><td><code>GET /mortgages?customer_id=&amp;status=&amp;as_of=&amp;paged=false</code></td><td><code>lending/mortgages.py</code> · <code>list_mortgages</code></td><td>Mortgages with each Outstanding on <code>as_of</code>; 422 if <code>as_of</code> is after today</td><td>The Payment form's list (<code>everyMortgageQuery</code>)</td></tr>
+<tr><td><code>GET /mortgages/{mortgage_id}</code></td><td><code>lending/mortgages.py</code> · <code>read_mortgage</code></td><td>One Mortgage: Ledger, Outstanding, Collateral, photos</td><td>The Mortgage screen (<code>mortgageQuery</code>)</td></tr>
+<tr><td><code>GET /payments/{payment_id}</code></td><td><code>payments/payments.py</code> · <code>load_payment</code></td><td>The Payment; each Allocation's interest and Principal paid, replayed</td><td>The Payment screen (<code>paymentQuery</code>)</td></tr>
+<tr><td><code>GET /payments/{payment_id}/receipt</code></td><td><code>payments/receipts.py</code> · <code>load_receipt</code></td><td>The Receipt: a line per Mortgage (by description), still owed, phones, WhatsApp <code>text</code>; 409 if Voided</td><td>The Receipt and Payment screens (<code>receiptQuery</code>)</td></tr>
+</table>
+
+<footer>
+  Checked at commit <code>361c7fa</code>; taught in <a href="../003-one-payment-end-to-end/index.html">chapter 003</a>.
+  · <a href="../index.html">Course home</a> · <a href="traps.html">Traps</a> · <a href="commands.html">Commands</a>
+</footer>
+</body>
+</html>

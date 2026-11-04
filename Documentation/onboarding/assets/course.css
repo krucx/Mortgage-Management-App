@@ -110,3 +110,7 @@ dl.terms dt { font-weight: 600; margin-top: 1rem; }
 dl.terms dd { margin: .2rem 0 0 0; }
 dl.terms .avoid, dl.terms .taught { font-size: .8rem; color: var(--muted); display: block; }
 table.wide td, table.wide th { text-align: left; }
+
+/* step tables whose later columns are words, not figures: <table class="steps text"> */
+table.steps.text td, table.steps.text th { text-align: left; }
+table.steps.text td:nth-child(n+3) { font-family: inherit; font-size: .8rem; }

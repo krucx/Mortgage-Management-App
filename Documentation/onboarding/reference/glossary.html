@@ -79,15 +79,18 @@
 <dt id="ledger">Ledger</dt>
 <dd>The step-by-step history of a Mortgage — interest added, capitalisations, payments — derived from its terms and payments.
   <span class="avoid">Avoid: Statement, MortgageLedger</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">003 · Lesson 4</a></span></dd>
 <dt id="replay">Replay</dt>
 <dd>Working out a Mortgage&#x27;s Ledger or Outstanding from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).
   <span class="avoid">Avoid: Recalculation, recompute, refresh</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">003 · Lesson 4</a></span></dd>
 <dt id="preview">Preview</dt>
 <dd>What a change would do, shown before it is saved: the change is made and then undone, so a Preview is refused exactly when saving would be.
   <span class="avoid">Avoid: Dry run, simulation</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/02-the-form-and-the-preview.html">003 · Lesson 2</a></span></dd>
 <dt id="outstanding">Outstanding</dt>
 <dd>What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day; nothing once closed.
   <span class="avoid">Avoid: Redemption Amount, balance, dues, payoff</span>
@@ -113,7 +116,8 @@
 <dt id="payment">Payment</dt>
 <dd>A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt.
   <span class="avoid">Avoid: Receipt (that is the acknowledgement of a Payment), collection</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/03-saving-it.html">003 · Lesson 3</a></span></dd>
 <dt id="final-payment">Final Payment</dt>
 <dd>What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.
   <span class="avoid">Avoid: Settlement, closing payment</span>
@@ -121,11 +125,13 @@
 <dt id="receipt">Receipt</dt>
 <dd>The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
   <span class="avoid">Avoid: Invoice, bill</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/05-back-to-the-customer.html">003 · Lesson 5</a></span></dd>
 <dt id="allocation">Allocation</dt>
 <dd>The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month&#x27;s interest), then Principal.
   <span class="avoid">Avoid: Split, contribution</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">003 · Lesson 4</a></span></dd>
 <dt id="cash-limit">Cash Limit</dt>
 <dd>The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage&#x27;s Principal lent.
   <span class="avoid">Avoid: Cash cap, cash ceiling</span>
@@ -163,7 +169,8 @@
 <dt id="history">History</dt>
 <dd>The record of every change to a Customer, Mortgage or Payment — when, what, and the old and new values — which is never edited or removed.
   <span class="avoid">Avoid: Log, changelog, activity</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/03-saving-it.html">003 · Lesson 3</a></span></dd>
 <dt id="backup">Backup</dt>
 <dd>A copy of all the Lender&#x27;s data — the database and photos — kept in a folder outside the app, from which everything can be restored.
   <span class="avoid">Avoid: Export, snapshot, archive</span>
@@ -204,7 +211,7 @@
   <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
 </dl>
 <footer>
-  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>; unchanged at <code>55ee8cb</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
+  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>; unchanged at <code>361c7fa</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a>
 </footer>
 </body>

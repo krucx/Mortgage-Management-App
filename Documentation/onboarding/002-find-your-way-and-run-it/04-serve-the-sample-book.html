@@ -112,7 +112,7 @@ uv run python ../docs/sample-book/serve.py "$BOOK"</code></pre>
 </table>
 <p>Now recheck chapter 001's figures for Meera's chain. Open <a href="http://127.0.0.1:8765/mortgages/2">http://127.0.0.1:8765/mortgages/2</a> (lesson 2 showed why <code>/mortgages/2</code> is the chain's page), or ask the API directly in a second terminal:</p>
 <pre><code>curl -s http://127.0.0.1:8765/api/mortgages/2</code></pre>
-<table class="steps">
+<table class="steps text">
 <tr><th>Figure</th><th>Chapter 001 said</th><th>Where in the JSON</th><th>Served book</th></tr>
 <tr><td>A month's interest</td><td>₹1,600</td><td>last <code>"event": "interest"</code> step, 10 Oct, <code>"amount"</code></td><td>160000 paise</td></tr>
 <tr><td>Interest to Date</td><td>₹533</td><td>last step, <code>"event": "interest_to_date"</code>, 10 days</td><td>53300 paise</td></tr>

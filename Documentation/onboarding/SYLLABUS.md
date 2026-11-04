@@ -6,7 +6,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | --- | --- | --- | --- | --- |
 | 001 | [What the app does, in plain words](https://github.com/krucx/Mortgage-Management-App/issues/122) | `001-what-the-app-does/` | explain Mortgages, Payments, Closures and the Lender's day in plain words, with no code | written (61bbea2) |
 | 002 | [Find your way and run it](https://github.com/krucx/Mortgage-Management-App/issues/128) | `002-find-your-way-and-run-it/` | name the repo's parts, run it locally on scratch data, find a glossary term or ADR | written (55ee8cb) |
-| 003 | [One Payment, end to end](https://github.com/krucx/Mortgage-Management-App/issues/134) | `003-one-payment-end-to-end/` | follow one Payment from form → Preview → API → Ledger → Receipt | planned |
+| 003 | [One Payment, end to end](https://github.com/krucx/Mortgage-Management-App/issues/134) | `003-one-payment-end-to-end/` | follow one Payment from form → Preview → API → Ledger → Receipt | written (361c7fa) |
 | 004 | [The Ledger engine](https://github.com/krucx/Mortgage-Management-App/issues/140) | `004-the-ledger-engine/` | hand-trace any Mortgage's interest, Capitalisation and Payment order | planned |
 | 005 | [Replay and Closures](https://github.com/krucx/Mortgage-Management-App/issues/146) | `005-replay-and-closures/` | explain Outstanding, Redeem/Waive/Forfeit/Reopen and Dormant | planned |
 | 006 | [Changes and Previews](https://github.com/krucx/Mortgage-Management-App/issues/152) | `006-changes-and-previews/` | add a change route that refuses, writes, checks and records History | planned |
@@ -37,6 +37,13 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 4. Serve the sample book ([#132](https://github.com/krucx/Mortgage-Management-App/issues/132))
 5. Run it while you code ([#133](https://github.com/krucx/Mortgage-Management-App/issues/133))
 
+### 003 One Payment, end to end (written)
+1. The journey on one page ([#135](https://github.com/krucx/Mortgage-Management-App/issues/135))
+2. The form and the Preview ([#136](https://github.com/krucx/Mortgage-Management-App/issues/136))
+3. Saving it ([#137](https://github.com/krucx/Mortgage-Management-App/issues/137))
+4. What the Ledger says back ([#138](https://github.com/krucx/Mortgage-Management-App/issues/138))
+5. Back to the Customer ([#139](https://github.com/krucx/Mortgage-Management-App/issues/139))
+
 ## Reference sheets
 
 Seven shared sheets in `reference/`, decided in [#121](https://github.com/krucx/Mortgage-Management-App/issues/121). They grow chapter by chapter, name files and symbols but never line numbers, and record in their footer the commit they were last checked against.
@@ -47,6 +54,6 @@ Seven shared sheets in `reference/`, decided in [#121](https://github.com/krucx/
 | `cast.html` | The sample book on 19 Oct 2026: people, Mortgages, items, Terms, key figures; later the tests' cast | 001 |
 | `commands.html` | Every command a developer runs | 002 |
 | `routes.html` | Every route: what it changes, its Preview twin, when it refuses, its History `Action` | 003 |
-| `traps.html` | The 20 newcomer surprises, each linked to the chapter that owns it | 003 |
+| `traps.html` | The newcomer surprises met so far (of 20), each linked to the chapter that owns it | 003 |
 | `ledger.html` | The order inside a day, one month's interest, Capitalisation, Outstanding, the Closure rules | 004 |
 | `frontend.html` | The data hooks, cache keys, what goes stale, each page and the routes it calls | 011 |

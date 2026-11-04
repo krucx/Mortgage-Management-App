@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.4 · What the Ledger says back</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 003 · Lesson 4</p>
+<h1>What the Ledger says back</h1>
+<p class="lede">The save answered with Meera's Payment, and it knows something the request never said: of the bangles' ₹5,000, ₹1,500 paid interest and ₹3,500 paid Principal. The tables from lesson 3 have no column for that. So where did it come from?</p>
+
+<div class="callout win"><strong>By the end</strong> you can explain why nothing owed is stored, and where the interest/Principal division comes from.</div>
+
+<h2>The problem</h2>
+<p>How a Payment divides between interest and <a href="../reference/glossary.html#principal"><dfn class="term" title="The amount on a Mortgage on which interest is charged; grows when unpaid interest is capitalised and shrinks when payments exceed interest.">Principal</dfn></a> depends on what was owed when it arrived. That depends on every earlier Payment, the Mortgage's Terms, and the dates. If the app stored "₹1,500 interest, ₹3,500 Principal" on the Payment, any later correction would quietly make it wrong: a back-dated Payment, a Void, a Term Change. Chapter 001 called this the one big idea; here it is in code.</p>
+
+<h2>The idea</h2>
+<p>Store only the facts: a Payment, its date, and how much went to each Mortgage. Whenever anyone asks how a Payment was applied, or what a Mortgage owes, <a href="../reference/glossary.html#replay"><dfn class="term" title="Working out a Mortgage's Ledger or Outstanding from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).">Replay</dfn></a> the Mortgage from its start: rebuild its <a href="../reference/glossary.html#ledger"><dfn class="term" title="The step-by-step history of a Mortgage — interest added, capitalisations, payments — derived from its terms and payments.">Ledger</dfn></a> step by step and read the answer off it. A few hundred Mortgages replay in milliseconds (<a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>).</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  LP["load_payment(34)<br/>payments/payments.py"] -->|"its Mortgages' rows"| RS["replays()<br/>lending/replay.py"]
+  RS -->|"SELECT allocations,<br/>not Voided"| DB[("payment, allocation")]
+  RS --> MR["MortgageReplay<br/>per Mortgage"]
+  MR -->|"steps_by_payment()"| CL["compute_ledger()<br/>lending/ledger.py"]
+  CL -->|"LedgerStep per event:<br/>interest, payment, …"| MR
+  MR -->|"the step for Payment 34:<br/>interest_paid, principal_paid"| LP
+</pre>
+<figcaption>Read facts, replay, pick out the one step you need. Treat everything right of <code>load_payment</code> as a black box until chapters 004 and 005.</figcaption>
+</figure>
+
+<h2>The code</h2>
+<h3>1. <code>load_payment</code>: the facts, then the replay</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/payments/payments.py">backend/src/mortgage_backend/payments/payments.py</a> · <code>load_payment()</code> · lines 127–152, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/payments.py"><code>127  def load_payment(conn: Connection, payment_id: int) -&gt; Payment:
+128      payment = conn.execute(                    # the payment row, with the Customer's name
+⋮
+136      mortgages = mortgages_of(conn, payment_id)  # its Mortgages, each with its Allocation
+137      voided = payment.voided_at is not None
+138      # How it was applied comes from the replay, so it reflects every earlier Payment; a
+139      # Voided Payment is in no Ledger, so only its amounts remain.
+140      replayed = {} if voided else replays(conn, mortgages)   ◀
+141      allocations = []
+142      for mortgage in mortgages:
+143          step = None if voided else replayed[mortgage["id"]].steps_by_payment()[payment_id]
+144          allocations.append(
+145              AllocationOut(
+146                  mortgage_id=mortgage["id"],
+147                  mortgage_name=mortgage["name"],
+148                  amount=mortgage["allocated"],               # stored
+149                  interest_paid=step.interest_paid if step else None,    # replayed
+150                  principal_paid=step.principal_paid if step else None,  # replayed
+151              )
+152          )
+</code></pre>
+</figure>
+<p>Lines 148–150 are the whole lesson in three lines: the amount is a stored fact; the interest and Principal it paid are replayed.</p>
+
+<h3>2. The black boxes, by name</h3>
+<p>You don't need to read these yet. Know their names and what they promise.</p>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">backend/src/mortgage_backend/lending/replay.py</a> · <code>replays()</code>, <code>replay()</code> · lines 278–351, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>278  def replays(conn: Connection, rows: Sequence[RowMapping]) -&gt; dict[int, MortgageReplay]:
+279      """A replay for each Mortgage row, loading all their facts in two queries."""
+⋮
+292              payment_table.c.voided_at.is_(None),  # a Voided Payment is in no Ledger
+⋮
+349  def replay(conn: Connection, mortgage_id: int) -&gt; MortgageReplay:
+350      """One Mortgage's replay; 404 if there is no such Mortgage."""
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/ledger.py">backend/src/mortgage_backend/lending/ledger.py</a> · <code>compute_ledger()</code> · lines 339–351, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>339  def compute_ledger(
+340      start: date,
+341      amount_lent: int,
+342      terms: Terms,
+343      as_of: date,
+344      allocations: Iterable[Allocation] = (),
+⋮
+350  ) -&gt; list[LedgerStep]:
+351      """Replay a Mortgage from its start up to and including `as_of`.
+</code></pre>
+</figure>
+<p><code>compute_ledger</code> is a pure function: dates, amounts and Terms in, a list of <code>LedgerStep</code>s out, no database. That's what makes the money rules easy to test (chapter 004).</p>
+
+<h3>3. Inside the box, one rule you already know</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/ledger.py">backend/src/mortgage_backend/lending/ledger.py</a> · <code>pay()</code>, <code>pay_through()</code> · lines 227–258, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>227      def pay(self, on: date, amount: int, payment_id: int | None) -&gt; None:
+228          """Unpaid interest first, then the Interest to Date (paid ahead of the month's
+229          interest), then Principal."""
+230          to_unpaid = min(amount, self.unpaid)                  ①
+231          ahead = min(amount - to_unpaid, self.to_date_owed(on))  ②
+232          to_principal = amount - to_unpaid - ahead            ③
+⋮
+252      def pay_through(self, day: date) -&gt; None:
+253          while self.pending and self.pending[0].on &lt;= day:
+254              allocation = self.pending.pop(0)
+255              owed = self.outstanding(allocation.on)
+256              if allocation.amount &gt; owed:
+257                  raise Overpayment(allocation, owed)            ◀ lesson 3's check
+258              self.pay(allocation.on, allocation.amount, allocation.payment_id)
+</code></pre>
+</figure>
+<p>This is the Allocation rule from the glossary, in code: ① unpaid interest first, ② then the <a href="../reference/glossary.html#interest-to-date"><dfn class="term" title="The interest for the month under way, as of a date, under its Part-Month Rule: counted from its first day (the start or an Accrual Date) through that date, so today is always charged; it changes from day to day until the month's interest is charged on the next Accrual Date, and is fixed at a Closure.">Interest to Date</dfn></a>, ③ the rest to Principal. And line 257 is where <code>Overpayment</code>, which <code>check_replays</code> turned into a 422 in lesson 3, comes from.</p>
+
+<h2>Run-through: how Meera's ₹6,600 was applied</h2>
+<p>Click <strong>← Back to the Payment</strong> on the Receipt page (or open <code>/payments/34</code>). The Network tab shows <code>GET /api/payments/34</code>, which is <code>load_payment</code>. Its <em>Allocations</em> table:</p>
+<table class="steps text">
+<tr><th>Mortgage</th><th>Allocation (stored)</th><th>Owed before, on 19 Oct</th><th>① unpaid interest</th><th>② Interest to Date</th><th>③ Principal</th></tr>
+<tr><td>2025-Meera-GoldChainPendant</td><td>₹1,600</td><td>₹80,000 + ₹2,800 unpaid + ₹533 to date</td><td>₹1,600</td><td>₹0</td><td>₹0</td></tr>
+<tr class="changed"><td>2026-Meera-PairBangles</td><td>₹5,000</td><td>₹1,50,000 + ₹0 unpaid + ₹1,500 to date still to pay</td><td>₹0</td><td>₹1,500</td><td>₹3,500</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (steps 3 and 4), which reads the Preview's Ledger steps and <code>GET /api/payments/34</code> on the served book, at commit 361c7fa.</p>
+<ul>
+  <li><strong>The chain</strong> still had ₹2,800 of unpaid interest from earlier months (chapter 001: she missed April, overpaid ₹400 in September, and hadn't yet paid October's ₹1,600). The whole ₹1,600 went to it, leaving ₹1,200 unpaid. Owed now: ₹80,000 + ₹1,200 + ₹533 = ₹81,733.</li>
+  <li><strong>The bangles</strong> had no unpaid interest. This month's Interest to Date was ₹2,500, of which ₹1,000 had been paid ahead on 10 Oct; so ₹1,500 went to it, and the remaining ₹3,500 to Principal. Owed now: ₹1,46,500.</li>
+</ul>
+<p>Those are the "after" figures you read off the Preview in lesson 2. They were never stored anywhere.</p>
+
+<h2>Nuances</h2>
+<h3>(a) The division can change after it's saved</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> after saving Payment 34, the Lender finds a slip of paper: Meera also paid ₹2,000 on the chain on <strong>15 Oct</strong>, and records it now. Payment 34's stored rows don't change. Does the chain's line on Payment 34 still say "₹1,600 to interest, ₹0 to Principal"?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Payment 34, chain</th><th>Stored Allocation</th><th>To interest</th><th>To Principal</th></tr>
+    <tr><td>Before the 15 Oct Payment</td><td>₹1,600</td><td>₹1,600</td><td>₹0</td></tr>
+    <tr class="changed"><td>After it</td><td>₹1,600 (row unchanged)</td><td>₹1,333</td><td>₹267</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (step 5b), which records the 15 Oct Payment, re-reads Payment 34 and its <code>allocation</code> rows, then Voids the 15 Oct Payment again.</p>
+    <p>The 15 Oct ₹2,000 now comes first in the replay and pays ₹2,000 of the ₹2,800 unpaid. On 19 Oct, Payment 34's ₹1,600 finds only ₹800 unpaid, then ₹533 of Interest to Date, and pays the last ₹267 off the Principal. Nobody rewrote Payment 34. The replay simply saw a different history. This is intended, not a bug: it's why corrections are safe. Chapter 004 owns the details.</p>
+    <p>Voiding the 15 Oct Payment puts Payment 34 back to ₹1,600 / ₹0, for the same reason.</p>
+  </div>
+</div>
+<div class="callout warn"><strong>Newcomer trap #4: nothing owed is stored.</strong> There's no ledger table, no stored Outstanding, no stored interest-paid. Don't add one "for speed"; you'd reintroduce exactly the bug ADR 0001 removed. See the <a href="../reference/traps.html#t4">traps sheet</a>.</div>
+
+<h3>(b) Paying exactly what's owed closes the Mortgage</h3>
+<p>Lesson 2's nuance (c) showed it in the Preview: an Allocation equal to the Mortgage's whole Outstanding on its date Redeems it, in the same request (<a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>). That's the branch of <code>record_payment</code> Meera's Payment skipped. A whole Outstanding that <em>can't</em> Redeem is refused instead. Chapter 005 explains Redemption and when it's refused.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="0">
+  <p class="q">Where is "₹3,500 to Principal" for the bangles stored?</p>
+  <button class="opt">Nowhere: it's replayed each time it's asked for</button>
+  <button class="opt">In the <code>allocation</code> row, beside the amount</button>
+  <button class="opt">In <code>audit_entry</code>, written when it was saved</button>
+  <div class="why">The <code>allocation</code> row holds only the ₹5,000. History records the Payment's fields, not how it was applied. <code>load_payment</code> replays the bangles and reads <code>principal_paid</code> off the Payment's Ledger step.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">A Payment is Voided. What does <code>load_payment</code> return for its interest and Principal paid?</p>
+  <button class="opt">The figures it had just before it was Voided</button>
+  <button class="opt">Zero for both, since a Void refunds the money</button>
+  <button class="opt"><code>None</code> for both: it's in no Ledger now</button>
+  <div class="why">A Voided Payment is excluded from every replay (<code>voided_at.is_(None)</code>), so there's no Ledger step to read. Only its stored amounts remain.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">What does <code>compute_ledger</code> need from the database?</p>
+  <button class="opt">A connection, to read the Payments as it goes</button>
+  <button class="opt">Nothing: it takes plain values and returns steps</button>
+  <button class="opt">A transaction, so it can write the Ledger rows</button>
+  <div class="why">It's a pure function. <code>replays</code> does the reading (two queries) and hands it dates, amounts and Terms. There are no Ledger rows to write.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Re-read <a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>, now that you've seen <code>load_payment</code>. Then skim <code>compute_ledger</code>'s docstring in <a href="../../../backend/src/mortgage_backend/lending/ledger.py"><code>lending/ledger.py</code></a> (lines 351–366), the door into chapter 004.</p>
+
+<nav class="lessons">
+  <a href="03-saving-it.html">← Saving it</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="05-back-to-the-customer.html">Next: Back to the Customer →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>
