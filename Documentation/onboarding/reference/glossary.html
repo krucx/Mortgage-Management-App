@@ -20,15 +20,34 @@
 <dt id="customer">Customer</dt>
 <dd>A person who has borrowed from the Lender by pledging jewellery.
   <span class="avoid">Avoid: Borrower, loanee, client</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span>
+  <span class="taught">In the code: <a href="../008-people-and-collateral/03-changing-a-customer.html">008 · Lesson 3</a></span></dd>
 <dt id="referrer">Referrer</dt>
 <dd>A person who introduced one or more Customers to the Lender; either an existing Customer or a person known only as a Referrer.
   <span class="avoid">Avoid: Reference</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span>
+  <span class="taught">In the code: <a href="../008-people-and-collateral/02-referrers.html">008 · Lesson 2</a></span></dd>
 <dt id="standalone-referrer">Standalone Referrer</dt>
 <dd>A Referrer who is not a Customer, known only by name, address and phone.
   <span class="avoid">Avoid: External referrer, contact</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span>
+  <span class="taught">In the code: <a href="../008-people-and-collateral/02-referrers.html">008 · Lesson 2</a></span></dd>
+<dt id="primary-number">Primary Number</dt>
+<dd>The 10-digit mobile number that identifies a person: a Customer&#x27;s contact number 1 or a Standalone Referrer&#x27;s phone. No two people share one.
+  <span class="avoid">Avoid: Customer ID, main phone</span>
+  <span class="taught">Taught in <a href="../008-people-and-collateral/01-the-primary-number.html">008 · Lesson 1</a></span></dd>
+<dt id="aadhaar-number">Aadhaar Number</dt>
+<dd>The last 4 digits of a Customer&#x27;s Aadhaar, as their masked Aadhaar shows them; the full number is never kept.
+  <span class="avoid">Avoid: UID, Aadhaar ID</span>
+  <span class="taught">Taught in <a href="../008-people-and-collateral/03-changing-a-customer.html">008 · Lesson 3</a></span></dd>
+<dt id="pan">PAN</dt>
+<dd>A Customer&#x27;s Permanent Account Number, which no two Customers share.
+  <span class="avoid">Avoid: PAN number, tax ID</span>
+  <span class="taught">Taught in <a href="../008-people-and-collateral/03-changing-a-customer.html">008 · Lesson 3</a></span></dd>
+<dt id="id-photos">ID Photos</dt>
+<dd>Photos of a Customer&#x27;s Aadhaar card (the masked front) and PAN card, kept on the Customer and shown only on their page and form.
+  <span class="avoid">Avoid: KYC documents, ID proof</span>
+  <span class="taught">Taught in <a href="../008-people-and-collateral/04-photos-and-id-photos.html">008 · Lesson 4</a></span></dd>
 </dl>
 <h2>Lending</h2>
 <dl class="terms">
@@ -121,16 +140,19 @@
 <dt id="gold-rate">Gold Rate</dt>
 <dd>The Lender&#x27;s current price per gram of gold of one purity.
   <span class="avoid">Avoid: Market rate, price</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span>
+  <span class="taught">In the code: <a href="../008-people-and-collateral/05-gold-rates-collateral-ltv.html">008 · Lesson 5</a></span></dd>
 <dt id="collateral-value">Collateral Value</dt>
 <dd>The current estimated worth of a Mortgage&#x27;s jewellery: its net weight at the Gold Rate for its purity, unless the Lender sets a value by hand.
   <span class="avoid">Avoid: Product value, current_product_value</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span>
-  <span class="taught">In the code: <a href="../006-changes-and-previews/05-adding-a-change-route.html">006 · Lesson 5</a></span></dd>
+  <span class="taught">In the code: <a href="../006-changes-and-previews/05-adding-a-change-route.html">006 · Lesson 5</a></span>
+  <span class="taught">In the code: <a href="../008-people-and-collateral/05-gold-rates-collateral-ltv.html">008 · Lesson 5</a></span></dd>
 <dt id="loan-to-value">Loan-to-Value</dt>
 <dd>A Mortgage&#x27;s Outstanding as a share of its Collateral Value.
   <span class="avoid">Avoid: LTV ratio, coverage</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span>
+  <span class="taught">In the code: <a href="../008-people-and-collateral/05-gold-rates-collateral-ltv.html">008 · Lesson 5</a></span></dd>
 </dl>
 <h2>Payments</h2>
 <dl class="terms">
@@ -245,7 +267,7 @@
   <span class="taught">In the code: <a href="../005-replay-and-closures/04-waived-and-forfeited.html">005 · Lesson 4</a></span></dd>
 </dl>
 <footer>
-  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>; unchanged at <code>15df77d</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
+  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>; unchanged at <code>575437c</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a>
 </footer>
 </body>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.5 · Gold Rates, Collateral Value and Loan-to-Value</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 008 · Lesson 5</p>
+<h1>Gold Rates, Collateral Value and Loan-to-Value</h1>
+<p class="lede">What is Arjun's ruby ring worth today, and is it still worth more than he owes? This lesson works both out by hand, then shows the 40 lines of code that do the same, and the one value the Lender can override.</p>
+
+<div class="callout win"><strong>By the end</strong> you can hand-work any Mortgage's Collateral Value and Loan-to-Value.</div>
+
+<h2>The problem</h2>
+<p>The Lender lends against gold. If a Customer never comes back, the gold is all the Lender has. So the Lender wants to know, for every Mortgage, two things: what the jewellery would fetch now, and how much of that is already owed.</p>
+<p>Gold's price moves every day, and the price depends on purity. Pure gold is 24 karat; most Indian jewellery is 22K (22 parts gold in 24); cheaper pieces are 18K or 14K. And a piece's weight includes stones and solder that aren't gold: its <em>net</em> weight is the gold alone.</p>
+<p>The obvious design is to store each Mortgage's value when it's lent. It goes stale at once: a value stored in June says nothing about October's gold price, and nobody is going to re-type a hundred values every time the price moves.</p>
+
+<h2>The idea</h2>
+<p>The Lender keeps one <a href="../reference/glossary.html#gold-rate"><dfn class="term" title="The Lender's current price per gram of gold of one purity.">Gold Rate</dfn></a> per purity, five in all, and updates them when the price moves. A Mortgage's <a href="../reference/glossary.html#collateral-value"><dfn class="term" title="The current estimated worth of a Mortgage's jewellery: its net weight at the Gold Rate for its purity, unless the Lender sets a value by hand.">Collateral Value</dfn></a> is computed whenever it's asked for: net weight × the Gold Rate for its purity. If a piece is worth more or less than its gold (an antique, a big stone), the Lender can set its value by hand instead. Its <a href="../reference/glossary.html#loan-to-value"><dfn class="term" title="A Mortgage's Outstanding as a share of its Collateral Value.">Loan-to-Value</dfn></a> is Outstanding ÷ Collateral Value.</p>
+<p>It's the same rule as the Ledger (<a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>, <a href="../reference/traps.html#t4">trap #4</a>): store the facts (rates, weights, a value set by hand), work out the rest when asked. Change one Gold Rate and every Mortgage of that purity is revalued at once.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  S["Settings: Gold Rates<br/>PUT /settings/gold-rates"] -->|"gold_rate_22, …_updated_on"| CFG[("config rows")]
+  M[("mortgage row<br/>net_weight_mg, purity_karat,<br/>collateral_override")] --> CO["collateral_of"]
+  CFG -->|"gold_rates()"| CO
+  R["replay: Outstanding"] -->|"outstanding"| CO
+  CO -->|"Collateral or None"| MP["Mortgage page<br/>load_mortgage"]
+  CO --> D["Dashboard total (012)"]
+  CO --> CL["Call List: LTV too high (009)"]
+  CO --> P["Projection's LTV (004)"]
+  H["Mortgage page: set by hand<br/>PUT /mortgages/{id}/collateral"] -->|"set_collateral"| M
+</pre>
+<figcaption>One function, <code>collateral_of</code>, feeds four screens. Only the rates and a value set by hand are stored.</figcaption>
+</figure>
+<p>Notice <code>collateral_of</code> needs the Outstanding passed in. It does no replay itself; each caller already has one.</p>
+
+<h2>The code</h2>
+<h3>1. Five purities, five stored rates</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/collateral/collateral.py">collateral/collateral.py</a> · <code>Purity</code>, <code>Collateral</code>, <code>_GOLD_RATES</code> · lines 14–51, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/collateral/collateral.py"><code>14  Purity = Literal[24, 22, 20, 18, 14]
+15  PURITIES: tuple[int, ...] = get_args(Purity)
+⋮
+29  class Collateral(BaseModel):
+30      value: int  # paise
+31      source: Literal["gold_rate", "manual"]
+32      set_on: date  # when the Gold Rate or the manual value was last set
+33      loan_to_value: float  # Outstanding ÷ Collateral Value          ◀
+⋮
+41  # One group per purity, unset until the Lender sets it.
+42  _GOLD_RATES = {
+43      purity: ConfigGroup(
+44          _StoredGoldRate,
+45          {
+46              "rate_per_gram": f"gold_rate_{purity}",
+47              "updated_on": f"gold_rate_{purity}_updated_on",
+48          },
+49      )
+50      for purity in PURITIES
+51  }
+</code></pre>
+</figure>
+<p><code>Literal[24, 22, 20, 18, 14]</code> means the field may hold only those five numbers; a request with 23K is a 422. Each rate is stored as two rows in the <code>config</code> key–value table, <code>gold_rate_22</code> (paise per gram) and <code>gold_rate_22_updated_on</code>. <code>ConfigGroup</code> reads and writes such a group of settings as one Pydantic model; chapter 010 covers it. A fresh database has no rows, so every rate starts as <code>None</code>.</p>
+
+<h3>2. The valuation: <code>collateral_of</code></h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/collateral/collateral.py">collateral/collateral.py</a> · <code>collateral_of()</code> · lines 61–86</figcaption>
+<pre data-file="backend/src/mortgage_backend/collateral/collateral.py"><code>61  def collateral_of(
+62      row: RowMapping, rates: dict[int, GoldRate], outstanding: int
+63  ) -&gt; Collateral | None:
+64      """A Mortgage's Collateral Value: set by hand, else net weight at its Gold Rate."""
+65      if row["collateral_override"] is not None:                        # ① by hand wins
+66          value, source, set_on = (
+67              row["collateral_override"],
+68              "manual",
+69              row["collateral_override_on"],
+70          )
+71      else:
+72          rate = rates[row["purity_karat"]]
+73          if rate.rate_per_gram is None or rate.updated_on is None:
+74              return None                                               # ② no rate, no value
+75          milligrams_per_gram = 1000
+76          # rounded half-up to the paisa
+77          value = (
+78              2 * row["net_weight_mg"] * rate.rate_per_gram + milligrams_per_gram
+79          ) // (2 * milligrams_per_gram)                                ③  ◀
+80          source, set_on = "gold_rate", rate.updated_on
+81      return Collateral(
+82          value=value,
+83          source=source,
+84          set_on=set_on,
+85          loan_to_value=outstanding / value,                            # ④ a float
+86      )
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>A value set by hand replaces the Gold Rate entirely; weight and purity aren't looked at.</li>
+  <li>No Gold Rate for this purity means no Collateral Value and so no Loan-to-Value. The API shows <code>"collateral": null</code>.</li>
+  <li>Weights are in milligrams and rates in paise per gram (<a href="../reference/traps.html#t6">trap #6</a>, owned by chapter 004), so the exact value is <code>mg × rate ÷ 1000</code> paise, which can have a fraction. <code>//</code> is integer division, which rounds down. Doubling everything and adding 1000 before dividing by 2000 is the same as adding ½ before rounding down: rounding half-up, with no floating point.</li>
+  <li>Loan-to-Value is the one float. It's a ratio for display and comparison, never money.</li>
+</ol>
+
+<h3>3. Setting the rates: <code>update_gold_rates</code></h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/collateral/collateral.py">collateral/collateral.py</a> · <code>update_gold_rates()</code> · lines 98–112</figcaption>
+<pre data-file="backend/src/mortgage_backend/collateral/collateral.py"><code>98  @router.put("/settings/gold-rates")
+99  def update_gold_rates(
+100      rates: list[GoldRateIn], engine: EngineDep, today: TodayDep
+101  ) -&gt; list[GoldRate]:
+102      """Set the given Gold Rates; a rate's date moves only when the rate changes."""
+103      with engine.begin() as conn:
+104          current = gold_rates(conn)
+105          for rate in rates:
+106              if current[rate.purity_karat].rate_per_gram != rate.rate_per_gram:   ◀
+107                  _GOLD_RATES[rate.purity_karat].set(
+108                      conn,
+109                      _StoredGoldRate(rate_per_gram=rate.rate_per_gram, updated_on=today),
+110                      today,
+111                  )
+112          return list(gold_rates(conn).values())
+</code></pre>
+</figure>
+<p>The Settings page sends every rate that's filled in, changed or not. Only the ones that differ are written, so each rate's <code>updated_on</code> says when <em>that</em> price last moved, not when someone last pressed Save. <code>GoldRateIn</code> (line 24) refuses a rate that isn't above 0. Gold Rates aren't recorded in History: they're settings, not changes to a Customer, Mortgage or Payment.</p>
+
+<h3>4. A value set by hand: <code>set_collateral</code></h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>set_collateral()</code> · lines 518–539</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>518  def set_collateral(
+519      conn: Connection, mortgage_id: int, value: int | None, today: date, now: datetime
+520  ) -&gt; None:
+521      """Set the Collateral Value by hand, or clear it (None) to value the jewellery at
+522      the Gold Rate again; only while the jewellery is held (Active)."""
+523      before = mortgage_row(conn, mortgage_id)            # 404 if missing
+524      _refuse_unless_active(before)                       # 409 if closed  ◀
+525      if value is not None and value &lt;= 0:
+526          raise unprocessable("A Collateral Value must be more than ₹0")
+527      conn.execute(
+528          update(mortgage_table)
+529          .where(mortgage_table.c.id == mortgage_id)
+530          .values(
+531              collateral_override=value,
+532              collateral_override_on=None if value is None else today,
+533          )
+534      )
+535      changed = audit.changes(
+536          before, {"collateral_override": value}, ["collateral_override"]
+537      )
+538      if changed:
+539          audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
+</code></pre>
+</figure>
+<p>It lives in <code>lending/changes.py</code> because it changes a <code>mortgage</code> row, with the same refuse → write → History shape (chapter 006). It has no <code>check_replays</code>: a Collateral Value doesn't touch the Ledger. The route <code>PUT /mortgages/{id}/collateral</code> (line 1050) takes <code>{"value": paise}</code> or <code>{"value": null}</code>; its body model <code>CollateralIn</code> (line 1046) already refuses 0, so line 525 is a second guard for other callers. Its Preview, <code>POST /mortgages/{id}/collateral-preview</code>, shows the value before and after and whether the Mortgage would be on the Call List.</p>
+
+<h3>5. Who asks</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/follow_up/call_list.py">follow_up/call_list.py</a> · <code>call_list()</code> · lines 134–137</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/call_list.py"><code>134          outstanding = replayed[row["id"]].outstanding(today).total
+135          months = months_unpaid(ledger)
+136          collateral = collateral_of(row, rates, outstanding)
+137          loan_to_value = collateral.loan_to_value if collateral else None
+</code></pre>
+</figure>
+<p>The same call appears in <code>load_mortgage</code> (<code>lending/mortgages.py</code>, line 238) for the Mortgage page, in the Dashboard (<code>lending/dashboard.py</code>, lines 223–227) and in the Projection (<code>lending/projections.py</code>, line 91). The Call List puts an Active Mortgage on the list when its Loan-to-Value is above a threshold, 85% in the sample book (<code>loan_to_value_too_high</code>; chapter 009). The Dashboard adds up the Collateral Values of the Active Mortgages that have one (chapter 012). The Projection divides each future month's Outstanding by <em>today's</em> Collateral Value (chapter 004, lesson 5).</p>
+
+<h2>Run-through: Arjun's ruby ring</h2>
+<p>The sample book's Gold Rates on 19 Oct 2026: <code>curl -s http://127.0.0.1:8765/api/settings/gold-rates</code>.</p>
+<table class="steps">
+<tr><th>Purity</th><th>24K</th><th>22K</th><th>20K</th><th>18K</th><th>14K</th></tr>
+<tr><td>₹ per gram</td><td>14,766</td><td class="changed">13,536</td><td>12,332</td><td>11,075</td><td>8,601</td></tr>
+</table>
+<p>Arjun's ruby ring (Mortgage 1) weighs 6.8 g gross and 6 g net, at 22K. Work it out first, then check against <code>curl -s http://127.0.0.1:8765/api/mortgages/1</code>:</p>
+<table class="steps">
+<tr><th>Step</th><th>Working</th><th>Result</th></tr>
+<tr><td>Net weight</td><td><code>net_weight_mg</code> 6000</td><td>6 g</td></tr>
+<tr><td>Gold Rate</td><td>22K: <code>rate_per_gram</code> 1353600 paise</td><td>₹13,536 per gram</td></tr>
+<tr><td>Collateral Value</td><td>6 × ₹13,536 (exact: 6000 × 1353600 ÷ 1000 = 8121600 paise)</td><td>₹81,216</td></tr>
+<tr><td>Outstanding on 19 Oct</td><td>from the replay (chapter 005)</td><td>₹85,184</td></tr>
+<tr class="changed"><td>Loan-to-Value</td><td>85,184 ÷ 81,216</td><td>1.0489, about 104.9%</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5), at commit 575437c: <code>"collateral": {"value": 8121600, "source": "gold_rate", "set_on": "2026-10-19", "loan_to_value": 1.0488573680063042}</code>.</p>
+<p>Arjun owes more than his ring's gold is worth. Nothing stops that: Loan-to-Value has no upper limit. It's exactly what the Call List is for, and on 19 Oct the ring is on it for both Months Unpaid and Loan-to-Value. Every Mortgage in the book, the same way:</p>
+<table class="steps">
+<tr><th>Mortgage</th><th>Status</th><th>Net, purity</th><th>Collateral Value</th><th>Outstanding</th><th>Loan-to-Value</th></tr>
+<tr class="changed"><td>1 · 2025-Arjun-GoldRingRuby</td><td>Active</td><td>6 g, 22K</td><td>₹81,216</td><td>₹85,184</td><td>104.9%</td></tr>
+<tr><td>2 · 2025-Meera-GoldChainPendant</td><td>Active</td><td>20 g, 22K</td><td>₹2,70,720</td><td>₹83,333</td><td>30.8%</td></tr>
+<tr><td>3 · 2026-Kavita-GoldCoin</td><td>Redeemed</td><td>10 g, 24K</td><td>₹1,47,660</td><td>₹0</td><td>0%</td></tr>
+<tr><td>4 · 2026-Lakshmi-TempleNecklace</td><td>Redeemed</td><td>30 g, 22K</td><td>₹4,06,080</td><td>₹0</td><td>0%</td></tr>
+<tr><td>5 · 2026-Meera-PairBangles</td><td>Active</td><td>30 g, 22K</td><td>₹4,06,080</td><td>₹1,51,500</td><td>37.3%</td></tr>
+<tr><td>6 · 2026-Farida-GoldNoseRing</td><td>Waived</td><td>2.5 g, 22K</td><td>₹33,840</td><td>₹0</td><td>0%</td></tr>
+<tr><td>7 · 2026-Imran-GoldEarrings</td><td>Forfeited</td><td>8 g, 22K</td><td>₹1,08,288</td><td>₹0</td><td>0%</td></tr>
+<tr><td>8 · 2026-Arjun-GoldChain</td><td>Active</td><td>12 g, 22K</td><td>₹1,62,432</td><td>₹46,830</td><td>28.8%</td></tr>
+<tr><td>9 · 2026-Sunita-Mangalsutra</td><td>Active</td><td>10 g, 22K</td><td>₹1,35,360</td><td>₹35,677</td><td>26.4%</td></tr>
+<tr><td>10 · 2026-Kavita-SilverGoldAnklet</td><td>Active</td><td>4 g, 22K</td><td>₹54,144</td><td>₹0</td><td>0%</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5): <code>GET /api/mortgages/{1…10}</code>. The Dashboard's <code>collateral_value</code> is ₹11,09,952: the six Active rows added up.</p>
+<p>The Mortgage page values closed Mortgages too (<code>collateral_of</code> doesn't look at status), with a Loan-to-Value of 0. The Dashboard and the Call List only use Active ones.</p>
+
+<h3>Set it by hand, then clear it</h3>
+<p>Say the Lender has the ring looked at by a jeweller, who values the ruby too: ₹90,000. <strong>Save</strong> it on your served book, then clear it:</p>
+<pre><code>curl -s -X PUT -H 'content-type: application/json' -d '{"value": 9000000}' \
+  http://127.0.0.1:8765/api/mortgages/1/collateral
+curl -s -X PUT -H 'content-type: application/json' -d '{"value": null}' \
+  http://127.0.0.1:8765/api/mortgages/1/collateral</code></pre>
+<table class="steps">
+<tr><th>Step</th><th><code>collateral_override</code>, <code>_on</code></th><th>Collateral Value</th><th><code>source</code></th><th>Loan-to-Value</th><th>History</th></tr>
+<tr><td>before</td><td>NULL, NULL</td><td>₹81,216</td><td>gold_rate</td><td>104.9%</td><td>—</td></tr>
+<tr class="changed"><td>set ₹90,000</td><td>9000000, 2026-10-19</td><td>₹90,000</td><td>manual</td><td>94.6%</td><td><code>edited</code> · <code>collateral_override</code> · (empty) → 9000000</td></tr>
+<tr><td>cleared</td><td>NULL, NULL</td><td>₹81,216</td><td>gold_rate</td><td>104.9%</td><td><code>edited</code> · <code>collateral_override</code> · 9000000 → (empty)</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5). History stores the paise, as text.</p>
+<p>Its Preview said the same before the save, plus <code>listed_before: true, listed_after: true</code>: at 94.6% the ring is still above the 85% threshold, so it stays on the Call List.</p>
+
+<h2>Nuances</h2>
+<h3>(a) A Gold Rate moves while a value is set by hand</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> with the ring set by hand to ₹90,000, the 22K rate moves to ₹14,000. What's the ring's Collateral Value? And once the hand value is cleared?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Step</th><th>Collateral Value</th><th><code>source</code></th><th>Loan-to-Value</th></tr>
+    <tr><td>22K → ₹14,000, hand value still set</td><td>₹90,000</td><td>manual</td><td>94.6%</td></tr>
+    <tr class="changed"><td>hand value cleared</td><td>₹84,000 (6 g × ₹14,000)</td><td>gold_rate</td><td>101.4%</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L5), on a copy.</p>
+    <p>The hand value ignores the Gold Rate completely, so it doesn't follow the price. Clearing goes back to whatever the Gold Rate is <em>now</em>, not what it was when the value was set.</p>
+  </div>
+</div>
+
+<h3>(b) Rounding half-up to the paisa</h3>
+<p>Whole grams at whole rupees never have a fraction. Odd weights and rates do. Calling <code>collateral_of</code> directly:</p>
+<table class="steps">
+<tr><th>Net</th><th>Rate per gram</th><th>Exact, in paise</th><th>Stored</th></tr>
+<tr><td>6,000 mg</td><td>₹13,536</td><td>8,121,600</td><td>₹81,216</td></tr>
+<tr><td>6,001 mg</td><td>₹13,536.50</td><td>8,123,253.65</td><td>₹81,232.54</td></tr>
+<tr class="changed"><td>6,001 mg</td><td>₹13,535</td><td>8,122,353.5</td><td>₹81,223.54 (the half goes up)</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5).</p>
+
+<h3>(c) No Gold Rate yet</h3>
+<p>On a fresh database every rate is <code>null</code>, so every Mortgage's <code>collateral</code> is <code>null</code>, its Loan-to-Value too, and it's never on the Call List for Loan-to-Value. If only some purities have a rate, the Dashboard total skips the Mortgages of the others: they count neither in the value nor in what's owed against it (<code>dashboard.py</code>, line 225).</p>
+
+<h3>(d) A rate's date moves only when the rate changes</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on 1 Oct the Lender sets all five rates. On 19 Oct the Settings page sends all five again, with only 22K changed. What is each <code>updated_on</code>?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>22K says 19 Oct; the other four still say 1 Oct.</strong> That's the comparison at line 106. On the sample book all five say 19 Oct, because <code>book.py</code> changed all five that day. The Mortgage page's <code>CollateralPanel</code> shows <code>set_on</code> ("at the 22K Gold Rate of …"), so the Lender can see when a rate is stale. (From <code>scripts/run_throughs.py</code>, section L5, on a fresh database.)</p>
+  </div>
+</div>
+
+<h3>(e) Only while the jewellery is held</h3>
+<table class="steps text">
+<tr><th>Request</th><th>Answer</th></tr>
+<tr><td><code>PUT /api/mortgages/3/collateral</code>, ₹50,000 (Kavita's coin, Redeemed)</td><td>409 · 2026-Kavita-GoldCoin is redeemed: reopen it first</td></tr>
+<tr><td><code>PUT /api/mortgages/1/collateral</code>, <code>{"value": 0}</code></td><td>422 · Input should be greater than 0</td></tr>
+<tr><td><code>PUT /api/mortgages/99/collateral</code></td><td>404 · Mortgage not found</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5).</p>
+<p>Once a Mortgage is closed, the jewellery has gone back to the Customer (or been sold), so there's nothing left to value by hand.</p>
+
+<p class="aside">On screen, the Collateral Value is the <code>CollateralPanel</code> component on the Mortgage page, and the Gold Rates are a section of <code>SettingsPage</code>. Chapters 011 and 012 cover them.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">Sunita's mangalsutra is 10 g net at 22K and owes ₹35,677. What is its Loan-to-Value on 19 Oct?</p>
+  <button class="opt">About 2.6%, as 35,677 ÷ 13,53,600</button>
+  <button class="opt">About 26.4%, as 35,677 ÷ 1,35,360</button>
+  <button class="opt">About 379%, as 1,35,360 ÷ 35,677</button>
+  <div class="why">Collateral Value = 10 g × ₹13,536 = ₹1,35,360. Loan-to-Value is Outstanding ÷ Collateral Value = 0.2636. The first option used paise for one side and rupees for the other (trap #6); the third divided the wrong way round.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">The Lender raises the 22K Gold Rate. Which Mortgage's Collateral Value does <em>not</em> change?</p>
+  <button class="opt">A Redeemed 22K Mortgage, since it's closed</button>
+  <button class="opt">A 22K Mortgage whose rate was set a month ago</button>
+  <button class="opt">A 22K Mortgage with a value set by hand</button>
+  <div class="why">A value set by hand wins over the Gold Rate (line 65). A closed Mortgage is still valued at the Gold Rate on its page. Nothing remembers an older rate: the current one is always used.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Where is Arjun's ring's ₹81,216 stored?</p>
+  <button class="opt">Nowhere: <code>collateral_of</code> works it out</button>
+  <button class="opt">In <code>mortgage.collateral_override</code></button>
+  <button class="opt">In the <code>config</code> table, as <code>gold_rate_22</code></button>
+  <div class="why"><code>config</code> holds the rate per gram (1353600), not any Mortgage's value. <code>collateral_override</code> is NULL unless the Lender sets a value by hand. The ₹81,216 is computed each time from the weight and the rate.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read all of <a href="../../../backend/src/mortgage_backend/collateral/collateral.py"><code>collateral/collateral.py</code></a> (112 lines), then <a href="../../../backend/tests/test_collateral.py"><code>tests/test_collateral.py</code></a> from line 60 to the end: one test per rule in this lesson.</p>
+
+<nav class="lessons">
+  <a href="04-photos-and-id-photos.html">← Photos and ID Photos</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Next: Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

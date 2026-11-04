@@ -35,7 +35,7 @@ uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</
 <tr><td>Call List</td><td>3 Months Unpaid, or Loan-to-Value above 85%</td><td>Or accruing today.</td></tr>
 <tr><td>Notices</td><td>2 days before each Accrual Date, approved first</td><td></td></tr>
 <tr><td>Cash Limit</td><td>₹20,000</td><td>The app's default; it warns, never refuses.</td></tr>
-<tr><td>Gold Rate, 22K</td><td>₹13,536 a gram</td><td>Set on 19 Oct 2026.</td></tr>
+<tr><td>Gold Rates</td><td>24K ₹14,766 · 22K ₹13,536 · 20K ₹12,332 · 18K ₹11,075 · 14K ₹8,601 a gram</td><td>All five changed on 19 Oct 2026, so each says <code>updated_on</code> 19 Oct.</td></tr>
 </table>
 
 <h2>People</h2>
@@ -50,6 +50,21 @@ uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</
 <tr><td>Imran Qureshi</td><td>Customer: gold earrings, one Payment, then Forfeited.</td><td>—</td></tr>
 <tr><td>Sunita Rao</td><td>Customer: a mangalsutra, accruing on 21 Oct. Shares a family phone with Meera.</td><td>Meera</td></tr>
 </table>
+
+<h2>People, by id</h2>
+<p>Their rows on a freshly built book (<a href="../008-people-and-collateral/index.html">chapter 008</a>). The Primary Number is contact number 1, or a Standalone Referrer's phone.</p>
+<table class="wide">
+<tr><th>Person</th><th>id</th><th>Primary Number</th><th>Contact number 2</th><th>Referrer row</th><th>Also on file</th></tr>
+<tr><td>Meera Sharma</td><td>Customer 1</td><td>9810012345</td><td>9810099999 (family phone)</td><td><code>referred_by_standalone_referrer_id</code> 1</td><td>email, Aadhaar Number 4821, PAN ABCPS1234K, a photo, both ID Photos</td></tr>
+<tr><td>Arjun Patel</td><td>Customer 2</td><td>9820023456</td><td>—</td><td><code>referred_by_customer_id</code> 1</td><td>a photo</td></tr>
+<tr><td>Kavita Joshi</td><td>Customer 3</td><td>9850056789</td><td>—</td><td>—</td><td></td></tr>
+<tr><td>Lakshmi Iyer</td><td>Customer 4</td><td>9830034567</td><td>—</td><td>—</td><td></td></tr>
+<tr><td>Farida Khan</td><td>Customer 5</td><td>9870078901</td><td>—</td><td>—</td><td></td></tr>
+<tr><td>Imran Qureshi</td><td>Customer 6</td><td>9840045678</td><td>—</td><td>—</td><td></td></tr>
+<tr><td>Sunita Rao</td><td>Customer 7</td><td>9860067890</td><td>9810099999 (Meera's family phone)</td><td><code>referred_by_customer_id</code> 1</td><td></td></tr>
+<tr><td>Ravi Verma</td><td>Standalone Referrer 1</td><td>9811122233</td><td>—</td><td>—</td><td>no address</td></tr>
+</table>
+<p>The photos folder holds five files: Meera's three, Arjun's photo and the ruby ring's. The next Customer saved is 8. On 19 Oct the ruby ring is worth ₹81,216 at the Gold Rate and owes ₹85,184: Loan-to-Value 104.9%, the book's only Mortgage above 85%.</p>
 
 <h2>Mortgages</h2>
 <p>Terms are the sample book's Default Terms (2% a month, Compounded Yearly, pro-rata) unless the row says otherwise.</p>
@@ -89,7 +104,7 @@ uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</
 <p>The only Voided Payment is 27, Meera's mistyped ₹16,000 on the bangles. The first Payment you save on a fresh book is 34.</p>
 
 <footer>
-  Facts from <code>docs/sample-book/book.py</code>; figures from The Gold Chain Story, checked against the app by <code>001-what-the-app-does/scripts/check_figures.py</code> at commit <code>61bbea2</code>, and the served-book figures and ids by <code>002-find-your-way-and-run-it/scripts/run_throughs.py</code> at commit <code>55ee8cb</code>, and the Closures by <code>005-replay-and-closures/scripts/run_throughs.py</code> at commit <code>16b855c</code>.
+  Facts from <code>docs/sample-book/book.py</code>; figures from The Gold Chain Story, checked against the app by <code>001-what-the-app-does/scripts/check_figures.py</code> at commit <code>61bbea2</code>, and the served-book figures and ids by <code>002-find-your-way-and-run-it/scripts/run_throughs.py</code> at commit <code>55ee8cb</code>, the Closures by <code>005-replay-and-closures/scripts/run_throughs.py</code> at commit <code>16b855c</code>, and the people, Gold Rates and Collateral Values by <code>008-people-and-collateral/scripts/run_throughs.py</code> at commit <code>575437c</code>.
   · <a href="commands.html">Commands</a>
   · <a href="../index.html">Course home</a> · <a href="glossary.html">Glossary</a>
 </footer>

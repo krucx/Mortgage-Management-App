@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.4 · Photos and ID Photos</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 008 · Lesson 4</p>
+<h1>Photos and ID Photos</h1>
+<p class="lede">A photo is a file on disk, and the row that names it is in the database. A database transaction can roll back; a file on disk can't. This lesson shows the one function that makes a photo change all-or-nothing anyway.</p>
+
+<div class="callout win"><strong>By the end</strong> you can add a change that writes a file, keeping the file and the database consistent.</div>
+
+<h2>The problem</h2>
+<p>The app keeps three kinds of photo: a picture of each Customer, the Customer's <a href="../reference/glossary.html#id-photos"><dfn class="term" title="Photos of a Customer's Aadhaar card (the masked front) and PAN card, kept on the Customer and shown only on their page and form.">ID Photos</dfn></a> (their masked Aadhaar card and their PAN card), and pictures of each Mortgage's jewellery. They're stored as JPEG files in a <code>photos</code> folder beside the database, and the database stores only each file's name. Backups zip up the database and the folder together (chapter 015).</p>
+<p>Replacing Meera's Aadhaar photo means three steps: write the new file, point her row at it, delete the old file. Now imagine any step going wrong:</p>
+<table class="steps text">
+<tr><th>If it fails…</th><th>…in this order: write file, update row, delete old</th></tr>
+<tr><td>after writing the new file, the update is refused (no such Customer)</td><td>An orphan file nobody points at, kept forever and copied into every Backup</td></tr>
+<tr><td>after deleting the old file, the transaction rolls back</td><td>The row still names the old file, which is gone: a broken image</td></tr>
+</table>
+<p>The database can undo its half. It can't undo a file.</p>
+
+<h2>The idea</h2>
+<p>Do the file work on either side of the transaction, never inside it. Write the new file <em>before</em> the transaction; if the transaction fails for any reason, delete that new file. Delete the old file only <em>after</em> the transaction has committed. Either way, the folder ends up matching the database. <code>photo_change</code> in <code>platform/photos.py</code> does this for every photo change in the app, Customer and Mortgage alike.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  U["upload: NewPhoto(owner, id, bytes)"] -->|"_save_photo"| W["new file written<br/>customer-1-‹uuid›.jpg"]
+  W --> T["engine.begin(): the change runs<br/>yields PhotoChange(conn, new_file, remove_when_saved)"]
+  T -->|"refused or raises"| RB["rollback, then delete the NEW file"]
+  T -->|"commits"| C["delete each file passed to remove_when_saved<br/>(the OLD file)"]
+  RB --> E["error to the caller: nothing changed"]
+  C --> OK["200: row and folder agree"]
+</pre>
+<figcaption>New files are created before the transaction; old files are deleted after it. Nothing touches the disk in the middle.</figcaption>
+</figure>
+<p>Notice there's no path where the old file is gone but the row still names it, or where a new file is kept that no row names.</p>
+
+<h2>The code</h2>
+<h3>1. Saving a file: <code>_save_photo</code></h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/platform/photos.py">platform/photos.py</a> · <code>MAX_EDGE_PX</code>, <code>_save_photo()</code> · lines 24–55, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/photos.py"><code>24  MAX_EDGE_PX = 1600
+25  _FILE_NAME = re.compile(r"^[a-z]+-\d+-[0-9a-f]{32}\.jpg$")
+⋮
+41  def _save_photo(
+42      photos_dir: Path, owner: Literal["mortgage", "customer"], owner_id: int, data: bytes
+43  ) -&gt; str:
+⋮
+45      try:
+46          # Phone photos carry their rotation in EXIF; bake it in.
+47          image = ImageOps.exif_transpose(Image.open(BytesIO(data))).convert("RGB")   # ①
+48      except (UnidentifiedImageError, OSError):
+49          raise unprocessable("Not an image file")
+50      image.thumbnail((MAX_EDGE_PX, MAX_EDGE_PX))                                     # ②
+51
+52      file_name = f"{owner}-{owner_id}-{uuid.uuid4().hex}.jpg"                       # ③  ◀
+53      photos_dir.mkdir(parents=True, exist_ok=True)
+54      image.save(photos_dir / file_name, "JPEG", quality=85)
+55      return file_name
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>A phone stores a portrait photo as a landscape image plus an EXIF tag (EXIF is metadata inside the JPEG) saying "rotate me". Browsers don't all honour it. <a href="https://pillow.readthedocs.io/en/stable/reference/ImageOps.html#PIL.ImageOps.exif_transpose"><code>exif_transpose</code></a> rotates the pixels for real, so the photo looks right everywhere. <code>.convert("RGB")</code> lets a PNG with transparency be saved as JPEG.</li>
+  <li><code>thumbnail</code> shrinks the image, keeping its shape, so its longer side is at most 1,600 px. It never enlarges. Smaller files keep Backups small.</li>
+  <li>The name is the owner, their id and a random <a href="https://docs.python.org/3/library/uuid.html#uuid.uuid4">UUID</a>, as 32 hex characters. A replacement always gets a <em>new</em> name, so the old and new files exist side by side until the change is decided.</li>
+</ol>
+
+<h3>2. The change: <code>photo_change</code></h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/platform/photos.py">platform/photos.py</a> · <code>PhotoChange</code>, <code>photo_change()</code> · lines 71–106, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/photos.py"><code>71  @dataclass
+72  class PhotoChange:
+⋮
+77      conn: Connection
+78      new_file: str | None
+79      remove_when_saved: Callable[[str | None], None]
+⋮
+88  @contextmanager
+89  def photo_change(
+90      engine: Engine, photos_dir: Path, new: NewPhoto | None = None
+91  ) -&gt; Iterator[PhotoChange]:
+⋮
+95      file_name = (
+96          _save_photo(photos_dir, new.owner, new.owner_id, new.data) if new else None   # ① before
+97      )
+98      replaced: list[str | None] = []
+99      try:
+100          with engine.begin() as conn:
+101              yield PhotoChange(conn, file_name, replaced.append)                       # ② the change runs here
+102      except BaseException:
+103          _delete_photo(photos_dir, file_name)                                          # ③ failed: drop the new file
+104          raise
+105      for old in replaced:
+106          _delete_photo(photos_dir, old)                                                # ④ saved: drop the old files  ◀
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The new file, if there is one, is written first. A file that isn't an image is refused here with 422, before any transaction opens.</li>
+  <li><code>@contextmanager</code> turns this generator into something used with <code>with</code>. Everything inside the caller's <code>with photo_change(…) as change:</code> block runs at the <code>yield</code>, inside <code>engine.begin()</code>. The caller gets the connection, the new file's name, and <code>remove_when_saved</code>, which just appends to <code>replaced</code>.</li>
+  <li>If the caller's block raises (a 404, a 409, a bug), <code>engine.begin()</code> rolls back and the exception arrives here. The new file is deleted and the exception goes on to FastAPI. <code>BaseException</code> also catches the rare cancellations that aren't <code>Exception</code>s.</li>
+  <li>Only after <code>engine.begin()</code> has committed are the replaced files deleted. Asking for a file to be removed doesn't remove it; it's a promise to remove it if the change is saved.</li>
+</ol>
+
+<h3>3. Using it: an ID Photo</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/people/customer_changes.py">people/customer_changes.py</a> · <code>put_id_photo()</code> · lines 372–387</figcaption>
+<pre data-file="backend/src/mortgage_backend/people/customer_changes.py"><code>372  @router.put("/customers/{customer_id}/id-photos/{card}")
+373  async def put_id_photo(
+374      customer_id: int,
+375      card: IdCard,                                       # "aadhaar" or "pan"
+376      photo: UploadFile,                                  # a multipart form upload
+377      engine: EngineDep,
+378      photos_dir: PhotosDirDep,
+379      now: NowDep,
+380  ) -&gt; Customer:
+381      """Add or replace one of the Customer's ID Photos."""
+382      new = photos.NewPhoto("customer", customer_id, await photo.read())
+383      with photos.photo_change(engine, photos_dir, new) as change:
+384          change.remove_when_saved(
+385              replace_id_photo(change.conn, customer_id, card, change.file, now)   ◀
+386          )
+387          return load_customer(change.conn, customer_id)
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/people/customer_changes.py">people/customer_changes.py</a> · <code>replace_id_photo()</code> · lines 257–280, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/people/customer_changes.py"><code>257  def replace_id_photo(
+⋮
+264      """Make `file_name` (already saved, or None to remove it) the Customer's ID Photo of
+265      `card`; the old photo's file, to delete once this is saved."""
+266      load_customer(conn, customer_id)  # refused if there is no such Customer
+267      column, label = _ID_PHOTOS[card]                     # ("aadhaar_photo", "Aadhaar card")
+268      old: str | None = conn.execute(
+269          select(customer_table.c[column]).where(customer_table.c.id == customer_id)
+270      ).scalar()
+271      if file_name is None and old is None:
+272          return None                                      # nothing to remove: no History
+273      conn.execute(
+274          update(customer_table)
+275          .where(customer_table.c.id == customer_id)
+276          .values({column: file_name})
+277      )
+278      action: audit.Action = "photo_added" if file_name else "photo_removed"
+279      audit.record(conn, now, "customer", customer_id, action, note=label)   # the card, never the file
+280      return old                                           # for remove_when_saved
+</code></pre>
+</figure>
+<p>The change function knows nothing about files: it's handed a file name, and hands back the one it replaced. That split is what to copy. <code>replace_photo</code> (line 239) is the same for the Customer's own photo, and <code>delete_id_photo</code> (line 390) calls <code>replace_id_photo</code> with <code>None</code> and no <code>NewPhoto</code>. <code>delete_customer</code> (line 404) passes every file <code>remove_customer</code> returns (lesson 3) to <code>remove_when_saved</code>. Mortgage photos use the same pattern from <code>lending/changes.py</code>: <code>add_photo</code> (line 542) and <code>remove_photo</code> (line 556), called by <code>post_photo</code> and <code>delete_photo</code> (lines 1064–1090).</p>
+
+<h3>4. Serving a file: <code>read_photo</code></h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/platform/photos.py">platform/photos.py</a> · <code>read_photo()</code> · lines 112–117</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/photos.py"><code>112  @router.get("/photos/{file_name}")
+113  def read_photo(file_name: str, photos_dir: PhotosDirDep) -&gt; FileResponse:
+114      path = photos_dir / file_name
+115      if not _FILE_NAME.match(file_name) or not path.is_file():   ◀
+116          raise HTTPException(status.HTTP_404_NOT_FOUND, "Photo not found")
+117      return FileResponse(path, media_type="image/jpeg")
+</code></pre>
+</figure>
+<p>The regex at line 25 accepts only names <code>_save_photo</code> could have made: lowercase letters, a dash, digits, a dash, 32 hex characters, <code>.jpg</code>. So <code>/api/photos/mortgage.db</code> can't hand out the database, and no <code>../</code> can climb out of the folder.</p>
+
+<h2>Run-through: Meera's Aadhaar photo</h2>
+<p>On your served book, list the folder and Meera's row:</p>
+<pre><code>ls "$BOOK/data/photos"
+sqlite3 -header -column "$BOOK/data/mortgage.db" \
+  "SELECT id, photo, aadhaar_photo, pan_photo FROM customer WHERE id = 1;"</code></pre>
+<p>Five files: Meera's three (<code>photo</code>, <code>aadhaar_photo</code>, <code>pan_photo</code>), Arjun's photo and the ruby ring's. Now make a big "phone photo" and <strong>save</strong> it as her Aadhaar photo (this changes your book):</p>
+<pre><code>cd backend
+uv run python -c "from PIL import Image; Image.new('RGB', (4000, 3000), '#d4a017').save('$BOOK/card.jpg')"
+curl -s -X PUT -F photo=@"$BOOK/card.jpg" http://127.0.0.1:8765/api/customers/1/id-photos/aadhaar
+ls "$BOOK/data/photos"</code></pre>
+<p><code>-F photo=@file</code> makes curl send a multipart form upload, with the file in the field named <code>photo</code>, which is what <code>UploadFile</code> expects.</p>
+<table class="steps text">
+<tr><th>Step</th><th>Aadhaar file in the folder</th><th><code>aadhaar_photo</code> in the row</th></tr>
+<tr><td>before</td><td><code>customer-1-24f2…</code></td><td><code>customer-1-24f2…</code></td></tr>
+<tr><td>① <code>_save_photo</code></td><td><code>customer-1-24f2…</code> and <code>customer-1-e682…</code> (1600 × 1200)</td><td><code>customer-1-24f2…</code></td></tr>
+<tr><td>② inside the transaction</td><td>both</td><td><code>customer-1-e682…</code>; History <code>photo_added</code>, note "Aadhaar card"</td></tr>
+<tr class="changed"><td>④ after the commit</td><td><code>customer-1-e682…</code> only</td><td><code>customer-1-e682…</code></td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L4), at commit 575437c. Your uuids will differ: they're random.</p>
+<p>Still five files. The 4000 × 3000 upload is stored at 1600 × 1200.</p>
+
+<h2>Nuances</h2>
+<h3>(a) A refused change leaves no file</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> the same upload, to <code>/api/customers/99/id-photos/pan</code>. There's no Customer 99. What answers, and is a <code>customer-99-…</code> file left in the folder?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>404 "Customer not found", and no file.</strong> <code>_save_photo</code> did write <code>customer-99-….jpg</code> at step ①. Then <code>replace_id_photo</code>'s <code>load_customer</code> raised, the transaction rolled back, and step ③ deleted it. The folder held 5 files before and after (from <code>scripts/run_throughs.py</code>, section L4; <code>test_photo_lifecycle.py::test_a_refused_change_leaves_no_new_file</code>).</p>
+  </div>
+</div>
+
+<h3>(b) Uploads that never reach the transaction</h3>
+<table class="steps text">
+<tr><th>Upload</th><th>Answer</th><th>Refused by</th></tr>
+<tr><td>A PDF to <code>…/id-photos/pan</code></td><td>422 · Not an image file</td><td><code>_save_photo</code>, before the transaction</td></tr>
+<tr><td>A JPEG to <code>…/id-photos/passport</code></td><td>422 · Input should be 'aadhaar' or 'pan'</td><td>FastAPI, from <code>IdCard</code>, before the route runs</td></tr>
+<tr class="changed"><td>A 4000 × 3000 JPEG tagged "rotate 90°" as Meera's photo</td><td>200, stored 1200 × 1600</td><td>accepted: <code>exif_transpose</code> turned it upright</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L4).</p>
+
+<h3>(c) Removing an ID Photo, and removing it again</h3>
+<p><code>DELETE /api/customers/1/id-photos/pan</code> clears <code>pan_photo</code>, records <code>photo_removed</code> with note "PAN card", and, after the commit, deletes the file. Sending it a second time answers 200 again but writes nothing: line 271 returns early when there's nothing to remove, so History doesn't fill with removals of nothing.</p>
+
+<h3>(d) Where ID Photos are shown</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> which of <code>GET /api/customers</code> (the list) and <code>GET /api/customers/1</code> (her page) include <code>aadhaar_photo_url</code>?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>Only her page.</strong> A list row (<code>CustomerRow</code>) has <code>photo_url</code>, the Customer's own picture, but no ID Photos. They're added only in <code>Customer</code> (line 180), which <code>load_customer</code> builds for one Customer. The glossary says ID Photos are "shown only on their page and form"; <code>test_customer_ids.py::test_id_photos_are_never_in_the_customers_list</code> holds the code to it. A list of everyone's ID cards on one screen is exactly what shouldn't exist.</p>
+  </div>
+</div>
+
+<h3>(e) History never names a file</h3>
+<p>Photo changes write <code>photo_added</code> or <code>photo_removed</code>, with the card's name ("Aadhaar card", "PAN card") for ID Photos and nothing for the Customer's own photo or a Mortgage's. A file name would be meaningless in History, and would point at a file that may since have been deleted.</p>
+
+<h3>(f) A deleted Customer takes their files</h3>
+<p>Deleting a Customer with a photo and an Aadhaar photo removed both <code>customer-8-…</code> files after the commit (from <code>scripts/run_throughs.py</code>, section L4; <code>test_customer_ids.py::test_a_deleted_customer_takes_their_id_photos_with_them</code>). Had the delete been refused, they'd still be there: <code>remove_when_saved</code> only promises.</p>
+
+<p class="aside">The Customer form saves the details first and uploads the photos afterwards, one request each, so a photo that fails to upload doesn't lose the details. Chapter 012 covers the pages.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">When is the old Aadhaar file deleted, when Meera's is replaced?</p>
+  <button class="opt">Before the new file is written, to save space</button>
+  <button class="opt">Inside the transaction, just after the update</button>
+  <button class="opt">After the transaction commits, by <code>photo_change</code></button>
+  <div class="why"><code>replace_id_photo</code> only returns the old name; <code>remove_when_saved</code> appends it to a list; <code>photo_change</code> deletes it after <code>engine.begin()</code> has committed (lines 105–106). Deleting it any earlier could leave the row naming a missing file if the change rolled back.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">You add a "signature photo" change for Customers. What should your change function do with files?</p>
+  <button class="opt">Nothing: take a name, return the old one</button>
+  <button class="opt">Write the new file, then update the row</button>
+  <button class="opt">Delete the old file once the row is updated</button>
+  <div class="why">Keep file work out of the change function. The route wraps it in <code>photo_change</code>, which writes the new file before and removes the old after, and passes the old name to <code>remove_when_saved</code>. That's exactly how <code>replace_photo</code> and <code>replace_id_photo</code> work.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Why can't <code>GET /api/photos/mortgage.db</code> download the database?</p>
+  <button class="opt">The photos folder has no database file in it</button>
+  <button class="opt">The name fails the <code>_FILE_NAME</code> regex</button>
+  <button class="opt">FileResponse only sends files ending in .jpg</button>
+  <div class="why">The database is beside the folder, not in it, but a name like <code>..%2Fmortgage.db</code> could reach it if names weren't checked. <code>read_photo</code> refuses any name <code>_save_photo</code> couldn't have made, so both answer 404. <code>FileResponse</code> itself sends any file it's given.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../../backend/tests/test_photo_lifecycle.py"><code>tests/test_photo_lifecycle.py</code></a> from line 42: five short tests, one per path through <code>photo_change</code>. The second (line 52) makes a change fail <em>after</em> writing, which is the case that's easiest to get wrong.</p>
+
+<nav class="lessons">
+  <a href="03-changing-a-customer.html">← Changing a Customer</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="05-gold-rates-collateral-ltv.html">Next: Gold Rates, Collateral Value and Loan-to-Value →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

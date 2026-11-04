@@ -52,6 +52,12 @@
   The classes FastAPI parses request bodies into, such as `PaymentIn`. Use for: 003.03.
 - [Chrome DevTools: Inspect network activity](https://developer.chrome.com/docs/devtools/network)
   Filtering and reading requests in the Network tab. Use for: 003.01.
+- [Pydantic: Discriminated unions](https://docs.pydantic.dev/latest/concepts/unions/#discriminated-unions)
+  How `ReferrerChoice` picks one model by its `kind` field. Use for: 008.02.
+- [Pillow: `ImageOps.exif_transpose`](https://pillow.readthedocs.io/en/stable/reference/ImageOps.html#PIL.ImageOps.exif_transpose)
+  Why a phone photo is rotated before it's saved. Use for: 008.04.
+- [Python: `uuid.uuid4`](https://docs.python.org/3/library/uuid.html#uuid.uuid4)
+  The random part of every photo's file name. Use for: 008.04.
 
 ## Where to get help
 
@@ -63,3 +69,4 @@
 
 - No ADR explains the three Interest Modes or the Part-Month Rules; the glossary is the only source. Chapter 004 teaches them from `ledger.py`.
 - No ADR covers the Cash Limit; `payments/cash_limit.py` and the glossary are the sources.
+- No ADR covers how photo files are kept in step with the database, or how Collateral Value is rounded; `platform/photos.py`, `collateral/collateral.py` and their tests are the sources. Chapter 008 teaches both from the code.
