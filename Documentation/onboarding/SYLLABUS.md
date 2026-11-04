@@ -7,7 +7,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 001 | [What the app does, in plain words](https://github.com/krucx/Mortgage-Management-App/issues/122) | `001-what-the-app-does/` | explain Mortgages, Payments, Closures and the Lender's day in plain words, with no code | written (61bbea2) |
 | 002 | [Find your way and run it](https://github.com/krucx/Mortgage-Management-App/issues/128) | `002-find-your-way-and-run-it/` | name the repo's parts, run it locally on scratch data, find a glossary term or ADR | written (55ee8cb) |
 | 003 | [One Payment, end to end](https://github.com/krucx/Mortgage-Management-App/issues/134) | `003-one-payment-end-to-end/` | follow one Payment from form → Preview → API → Ledger → Receipt | written (361c7fa) |
-| 004 | [The Ledger engine](https://github.com/krucx/Mortgage-Management-App/issues/140) | `004-the-ledger-engine/` | hand-trace any Mortgage's interest, Capitalisation and Payment order | planned |
+| 004 | [The Ledger engine](https://github.com/krucx/Mortgage-Management-App/issues/140) | `004-the-ledger-engine/` | hand-trace any Mortgage's interest, Capitalisation and Payment order | written (6f1775b) |
 | 005 | [Replay and Closures](https://github.com/krucx/Mortgage-Management-App/issues/146) | `005-replay-and-closures/` | explain Outstanding, Redeem/Waive/Forfeit/Reopen and Dormant | planned |
 | 006 | [Changes and Previews](https://github.com/krucx/Mortgage-Management-App/issues/152) | `006-changes-and-previews/` | add a change route that refuses, writes, checks and records History | planned |
 | 007 | [Payments and Receipts](https://github.com/krucx/Mortgage-Management-App/issues/158) | `007-payments-and-receipts/` | explain Allocations, Final Payments, `received_with`, Voids, the Cash Limit and Receipts | planned |
@@ -43,6 +43,13 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 3. Saving it ([#137](https://github.com/krucx/Mortgage-Management-App/issues/137))
 4. What the Ledger says back ([#138](https://github.com/krucx/Mortgage-Management-App/issues/138))
 5. Back to the Customer ([#139](https://github.com/krucx/Mortgage-Management-App/issues/139))
+
+### 004 The Ledger engine (written)
+1. The Ledger is a replay ([#141](https://github.com/krucx/Mortgage-Management-App/issues/141))
+2. One month's interest ([#142](https://github.com/krucx/Mortgage-Management-App/issues/142))
+3. The order inside a day, and what a Payment pays ([#143](https://github.com/krucx/Mortgage-Management-App/issues/143))
+4. Capitalisation ([#144](https://github.com/krucx/Mortgage-Management-App/issues/144))
+5. Term Changes and Projections ([#145](https://github.com/krucx/Mortgage-Management-App/issues/145))
 
 ## Reference sheets
 

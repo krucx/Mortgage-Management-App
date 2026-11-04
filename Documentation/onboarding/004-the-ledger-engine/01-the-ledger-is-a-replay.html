@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.1 · The Ledger is a replay</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 004 · Lesson 1</p>
+<h1>The Ledger is a replay</h1>
+<p class="lede">On 18 Oct the Lender typed Kavita's anklet in from the paper book, with three Payments. The last one typed was dated <em>before</em> the other two. It changed how the other two were applied, though nobody edited them. This lesson shows the function that makes that happen, and what it's given.</p>
+
+<div class="callout win"><strong>By the end</strong> you can say what is stored, what is derived, and why a back-dated Payment rewrites later Ledger steps that nobody edited.</div>
+
+<h2>The problem</h2>
+<p>Kavita pledged a silver-gold anklet on 1 Jul 2026 for ₹15,000 in cash. Its Terms are 2% a month, <a href="../reference/glossary.html#interest-mode"><dfn class="term" title="How a Mortgage's interest grows: Simple, Compounded Yearly (simple monthly, capitalised every year), or Compounded Monthly.">Interest Mode</dfn></a> Simple, and <a href="../reference/glossary.html#part-month-rule"><dfn class="term" title="How the Interest to Date is charged for a month under way: pro-rata (each day started, out of 30), full month (the whole month once it starts), or nothing.">Part-Month Rule</dfn></a> "nothing". The Lender only got round to entering it on 18 Oct, and typed its Payments in the order the slips came to hand:</p>
+<table class="steps text">
+<tr><th>Typed</th><th>Payment id</th><th>Dated</th><th>Amount</th></tr>
+<tr><td>1st</td><td>31</td><td>26 Aug 2026</td><td>₹300</td></tr>
+<tr><td>2nd</td><td>32</td><td>5 Sep 2026</td><td>₹300</td></tr>
+<tr class="changed"><td>3rd</td><td>33</td><td>25 Aug 2026</td><td>₹15,000</td></tr>
+</table>
+<p>Picture a design that stores the <a href="../reference/glossary.html#ledger"><dfn class="term" title="The step-by-step history of a Mortgage — interest added, capitalisations, payments — derived from its terms and payments.">Ledger</dfn></a> as rows, the way the app's first spec did (a <code>MortgageLedger</code> table). After the first two Payments, the rows say Payment 31 paid ₹300 of interest. Then Payment 33 arrives, dated a day <em>earlier</em>. It pays most of the Principal, so now Payment 31 should have paid Principal, not interest. September's and October's rows are wrong too. The stored design needs code that finds every row after 25 Aug and rewrites it correctly. Every other kind of change (a Void, a corrected date, a Term Change) needs that code as well. If any of it has a bug, the figures drift and nobody notices.</p>
+
+<h2>The idea</h2>
+<p>Store only facts that never change: the Mortgage's start date, amount and Terms, its <a href="../reference/glossary.html#term-change"><dfn class="term" title="A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.">Term Changes</dfn></a>, and each Payment's <a href="../reference/glossary.html#allocation"><dfn class="term" title="The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month's interest), then Principal.">Allocation</dfn></a> with its date. Whenever anyone needs the Ledger, <a href="../reference/glossary.html#replay"><dfn class="term" title="Working out a Mortgage's Ledger or Outstanding from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).">Replay</dfn></a> the facts from the start date, in date order, and rebuild it. There's nothing to rewrite, because nothing derived was kept (<a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>).</p>
+<p>Think of a chess game written down as its list of moves. You don't store the board after every move. You store the moves, and play them out whenever you want to see the board. If you find a move was written down wrong, you fix that one line and play the game through again.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph Stored["Stored facts (database)"]
+    M["mortgage row<br/>start, amount_lent, Terms"]
+    A["allocation + payment rows<br/>not Voided"]
+    T["term_change rows"]
+  end
+  RP["MortgageReplay._replay<br/>replay.py"]
+  CL["compute_ledger(start, amount_lent,<br/>terms, as_of, allocations, …)"]
+  L["list of LedgerStep<br/>started, interest, payment, …"]
+  M --> RP
+  A -->|"Allocation(on, amount, payment_id)"| RP
+  T -->|"TermChange"| RP
+  RP -->|"plain values"| CL
+  CL -->|"derived, never saved"| L
+</pre>
+<figcaption>Left of <code>compute_ledger</code> is stored; right of it is computed afresh on every read.</figcaption>
+</figure>
+<p>Notice that the arrow out of <code>compute_ledger</code> goes nowhere near the database. The list of steps is used for one answer and then thrown away.</p>
+
+<h2>The code</h2>
+<h3>1. What goes in: an <code>Allocation</code></h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>Allocation</code> · lines 27–33</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>27  @dataclass(frozen=True)
+28  class Allocation:
+29      """The part of a Payment applied to this Mortgage."""
+30
+31      on: date
+32      amount: int  # paise  ◀
+33      payment_id: int
+</code></pre>
+</figure>
+<p>A Payment enters the engine as just three things: when, how much, and which Payment it belongs to. <code>@dataclass(frozen=True)</code> makes a small class whose fields can't be changed after it's made. Amounts are always <strong>paise</strong>, integers (₹1 = 100 paise), so no floating-point rounding ever creeps in. Lesson 2 has more on units.</p>
+
+<h3>2. What comes out: a <code>LedgerStep</code></h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>LedgerEvent</code>, <code>LedgerStep</code> · lines 15–53, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>15  LedgerEvent = Literal[
+16      "started",
+17      "interest",
+18      "interest_to_date",
+19      "payment",
+20      "capitalised",
+21      "forfeited",          # chapter 005
+22      "waived",             # chapter 005
+23      "term_changed",
+24  ]
+⋮
+37  class LedgerStep:
+38      on: date
+39      event: LedgerEvent
+40      amount: int  # paise moved by this step
+41      principal: int  # running Principal after the step, in paise         ①
+42      unpaid_interest: int  # running unpaid interest after the step, in paise
+⋮
+44      charged_on: int = 0                    # interest steps: Principal at the month's start
+⋮
+49      paid_ahead: int = 0                    # lesson 3
+50      interest_paid: int = 0  # payment steps: the part that paid interest   ②
+51      principal_paid: int = 0  # payment steps: the part that paid Principal
+52      payment_id: int | None = None  # None for a hypothetical Payment in a Projection
+53      terms: Terms | None = None  # term_changed steps: the Terms from then on
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Every step carries the <strong>running</strong> Principal and unpaid interest after it, so the last step tells you where the Mortgage stands.</li>
+  <li>How a Payment divided between interest and Principal lives here, on a derived step, and not on the <code>allocation</code> row. That's the "₹1,500 to interest, ₹3,500 to Principal" from chapter 003.</li>
+</ol>
+
+<h3>3. The replay: <code>compute_ledger</code></h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>compute_ledger()</code> · lines 339–407, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>339  def compute_ledger(
+340      start: date,
+341      amount_lent: int,
+342      terms: Terms,
+343      as_of: date,                                   ①
+344      allocations: Iterable[Allocation] = (),
+345      closed_on: date | None = None,                 # chapter 005
+346      closure: Literal["redeemed", "waived", "forfeited"] | None = None,   # chapter 005
+347      term_changes: Iterable[TermChange] = (),       # lesson 5
+348      hypothetical: HypotheticalPayments | None = None,   # lesson 5
+349      final_payment: int | None = None,              # chapter 005
+350  ) -&gt; list[LedgerStep]:
+⋮    … lines 379–387 set up a Closure: chapter 005 …
+388      run = _Run(                                    ②
+389          start,
+390          amount_lent,
+391          terms,
+392          [a for a in allocations if a not in final],
+393          as_of,
+394          term_changes,
+395          hypothetical,
+396      )
+397      run.accrue_through(as_of)                      ③  ◀
+398      run.pay_through(as_of)
+⋮    … lines 399–401: a Redemption's cap, chapter 005 …
+402      run.charge_interest_to_date(as_of, cap)        ④
+⋮    … lines 403–406: the Closure's final Payment and write-off, chapter 005 …
+407      return run.steps
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>as_of</code> is the day to replay up to, included. Ask for 19 Oct and you get the Ledger as it stands at the end of 19 Oct.</li>
+  <li><code>_Run</code> holds the running state of one replay: the Principal, the unpaid interest, and the Payments not yet applied, sorted by date. A fresh <code>_Run</code> is made for every call. Nothing carries over between calls.</li>
+  <li><code>accrue_through</code> walks from the start to <code>as_of</code>, one Accrual Date at a time, applying the Payments that fall before and on each one. Lessons 2–4 open it up.</li>
+  <li>An open Ledger ends with today's <a href="../reference/glossary.html#interest-to-date"><dfn class="term" title="The interest for the month under way, as of a date, under its Part-Month Rule: counted from its first day (the start or an Accrual Date) through that date, so today is always charged; it changes from day to day until the month's interest is charged on the next Accrual Date, and is fixed at a Closure.">Interest to Date</dfn></a>: the interest for the month under way so far (lessons 2 and 3).</li>
+</ol>
+<p>The parameters marked "chapter 005" are how the same function closes a Mortgage. In this chapter they're always left at <code>None</code>. The only caller in the app is <code>MortgageReplay._replay</code>, at <a href="../../../backend/src/mortgage_backend/lending/replay.py"><code>lending/replay.py</code></a> line 265, which reads the stored facts and passes them in. Chapter 005 opens it.</p>
+
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>_Run.__init__()</code> · lines 184–189</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>184          self.principal, self.unpaid = amount_lent, 0
+185          self.steps = [LedgerStep(start, "started", amount_lent, amount_lent, 0)]
+186          self.pending = sorted(
+187              (a for a in allocations if a.on &lt;= until),
+188              key=lambda a: (a.on, a.payment_id),     ◀ date order, not typing order
+189          )
+</code></pre>
+</figure>
+<p>This is where Kavita's late slip finds its place. The Allocations come in "in no particular order" (as <code>replay.py</code> says), and they're sorted by date, then by Payment id for two on the same day. The order they were typed in doesn't matter.</p>
+
+<h2>Run-through: Kavita's anklet, typed in three times</h2>
+<p>2% of ₹15,000 is ₹300 a month, added on the 1st (the anklet's Accrual Date). Here is the Ledger on 19 Oct after each Payment was typed, from <code>compute_ledger</code> with the first one, two, then all three Allocations.</p>
+<table class="steps">
+<tr><th>Date</th><th>Step</th><th>Amount</th><th>Principal</th><th>Unpaid interest</th><th>To interest</th><th>To Principal</th></tr>
+<tr><th colspan="7">After typing Payment 31 only: owes ₹15,600</th></tr>
+<tr><td>1 Aug</td><td>interest</td><td>300</td><td>15,000</td><td>300</td><td></td><td></td></tr>
+<tr><td>26 Aug</td><td>payment 31</td><td>300</td><td>15,000</td><td>0</td><td>300</td><td>0</td></tr>
+<tr><td>1 Sep</td><td>interest</td><td>300</td><td>15,000</td><td>300</td><td></td><td></td></tr>
+<tr><td>1 Oct</td><td>interest</td><td>300</td><td>15,000</td><td>600</td><td></td><td></td></tr>
+<tr><th colspan="7">After typing Payment 32 too: owes ₹15,300</th></tr>
+<tr><td>26 Aug</td><td>payment 31</td><td>300</td><td>15,000</td><td>0</td><td>300</td><td>0</td></tr>
+<tr><td>5 Sep</td><td>payment 32</td><td>300</td><td>15,000</td><td>0</td><td>300</td><td>0</td></tr>
+<tr><td>1 Oct</td><td>interest</td><td>300</td><td>15,000</td><td>300</td><td></td><td></td></tr>
+<tr><th colspan="7">After typing Payment 33 (dated 25 Aug): owes ₹0</th></tr>
+<tr><td>1 Aug</td><td>interest</td><td>300</td><td>15,000</td><td>300</td><td></td><td></td></tr>
+<tr class="changed"><td>25 Aug</td><td>payment 33</td><td>15,000</td><td>300</td><td>0</td><td>300</td><td>14,700</td></tr>
+<tr class="changed"><td>26 Aug</td><td>payment 31</td><td>300</td><td>0</td><td>0</td><td>0</td><td>300</td></tr>
+<tr><td>1 Sep</td><td>interest</td><td>300</td><td>0</td><td>300</td><td></td><td></td></tr>
+<tr><td>5 Sep</td><td>payment 32</td><td>300</td><td>0</td><td>0</td><td>300</td><td>0</td></tr>
+<tr class="changed"><td>1 Oct</td><td>interest</td><td>0</td><td>0</td><td>0</td><td></td><td></td></tr>
+</table>
+<p class="cite">Figures in rupees from <code>scripts/run_throughs.py</code> (section L1), which runs the real <code>compute_ledger</code> on the anklet's stored facts, at commit 6f1775b.</p>
+<p>Payment 31 was typed first and never touched again. Yet its step went from "₹300 to interest" to "₹300 to Principal". That's because the replay now meets Payment 33 first, which clears August's interest and all but ₹300 of the Principal. October's interest dropped to nothing, because there's no Principal left to charge.</p>
+<p>One figure looks odd: on 1 Sep, ₹300 of interest is added though the Principal is already ₹0. That isn't a bug. September's month began on 1 Aug, when the Principal was ₹15,000, and a month is charged on its <em>starting</em> Principal. Lesson 3 explains why (ADR 0006). Payment 32 pays that interest, and the anklet owes nothing. The Lender still holds it, so it's flagged Dormant (chapter 005).</p>
+<p><strong>Check it on your served book:</strong> open <a href="http://127.0.0.1:8765/mortgages/10"><code>/mortgages/10</code></a> (2026-Kavita-SilverGoldAnklet) and click <strong>Show complete Ledger</strong>. The steps match the last block above. The 1 Sep line reads "Interest: 2% of ₹15,000": that's <code>charged_on</code>, the Principal at the month's start. The 1 Oct line reads "2% of ₹0" and moves ₹0.</p>
+
+<h2>Nuances</h2>
+<h3>(a) Always from the start</h3>
+<p>Some systems that allow back-dated facts look for the "branch point": the first event affected by the late fact. They undo the events after it and replay only from there. Martin Fowler calls this pattern a <a href="https://martinfowler.com/eaaDev/RetroactiveEvent.html">Retroactive Event</a>. This app never does that. Every call to <code>compute_ledger</code> starts again at <code>"started"</code>. A Mortgage has at most a few dozen steps, so a few hundred Mortgages replay in milliseconds (<a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>). The simple design is also the one that can't drift.</p>
+
+<h3>(b) A history that can't have happened</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on the anklet's served book, the Lender tries to add a fourth Payment of just <strong>₹1</strong>, dated 25 Aug. On 25 Aug it owed far more than ₹1. Is it accepted?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>No. The Preview answers <strong>422</strong>:</p>
+    <pre><code>2026-Kavita-SilverGoldAnklet: the Payment on 26 Aug 2026 would be more than the ₹299 owed then</code></pre>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L1), <code>POST /api/payments/preview</code> on the built book.</p>
+    <p>The ₹1 itself is fine. But it comes first in the replay, so by 26 Aug only ₹299 is owed, and Payment 31's ₹300 is now more than that. <code>pay_through</code> raises <code>Overpayment</code> for the <em>later</em> Payment (lesson 3 shows the check). A back-dated fact is refused when it would make any later fact impossible, and the message names the Payment that broke.</p>
+  </div>
+</div>
+<div class="callout warn"><strong>Trap #5, a warning:</strong> the change is refused <em>before</em> it saves, and its Preview is refused too, because a Preview runs the real change and rolls it back. Chapter 006 owns how. See the <a href="../reference/traps.html#t5">traps sheet</a>.</div>
+
+<h3>(c) Two Payments on the same day</h3>
+<p>Same-day Allocations are applied in Payment-id order (line 188): the one saved first goes first. So it's still deterministic: the same facts always give the same Ledger.</p>
+
+<div class="callout warn"><strong>Newcomer trap #4: nothing owed is stored.</strong> There's no ledger table, no stored Outstanding, and no stored "interest paid". A slow page is never a reason to add one. Cache inside a request if you must (<code>MortgageReplay._ledgers</code> keeps each Ledger for the life of one request), but never across requests. This chapter owns trap #4; see the <a href="../reference/traps.html#t4">traps sheet</a>.</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">Which of these is a stored fact, not derived?</p>
+  <button class="opt">The ₹14,700 that Payment 33 paid off the Principal</button>
+  <button class="opt">The ₹15,000 that Payment 33 put on the anklet</button>
+  <button class="opt">The ₹300 of interest added on 1 Sep 2026</button>
+  <div class="why">The Allocation's amount is in the <code>allocation</code> row. How it divided (₹300 + ₹14,700) and every interest step come out of <code>compute_ledger</code> each time.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">A Payment from June is Voided. What has to update every later Ledger step?</p>
+  <button class="opt">A job that rewrites the steps after June</button>
+  <button class="opt">The Void route, which edits the later rows</button>
+  <button class="opt">Nothing: the next replay just leaves it out</button>
+  <div class="why">There are no stored steps to rewrite. <code>replays()</code> loads only non-Voided Allocations, so the next call to <code>compute_ledger</code> simply never sees it.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Two Payments to one Mortgage share a date. Which is applied first?</p>
+  <button class="opt">The one with the lower Payment id</button>
+  <button class="opt">The one with the larger amount</button>
+  <button class="opt">The one entered on the later day</button>
+  <div class="why"><code>_Run</code> sorts by <code>(a.on, a.payment_id)</code>. Ids grow as Payments are saved, so the earlier-saved one goes first. Amount plays no part.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a> again (one paragraph), then <code>compute_ledger</code>'s docstring in <a href="../../../backend/src/mortgage_backend/lending/ledger.py"><code>lending/ledger.py</code></a>, lines 351–378. Every rule this chapter teaches is in that docstring in one sentence. In <a href="../../../backend/tests/test_ledger.py"><code>tests/test_ledger.py</code></a>, <code>test_a_back_dated_payment_is_slotted_in_by_date</code> pins nuance (c)'s cousin: a Payment typed second but dated first.</p>
+
+<nav class="lessons">
+  <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">← 003 · What the Ledger says back</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="02-one-months-interest.html">Next: One month's interest →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

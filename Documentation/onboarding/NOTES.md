@@ -38,3 +38,15 @@
 - The check-yourself exercise (commenting out `check_replays` at `changes.py:303`) fails exactly the 5 tests issue #134 named. Without it the overpayment raises `Overpayment` in the next replay of the same request, giving a **500** (not a 422); the transaction still rolls back.
 - `reference/traps.html` lists only traps met so far (by number, with fixed ids `t1`…), and never links to unwritten chapters. Add rows as chapters meet them.
 - Don't let readers press Send in WhatsApp: the sample book's numbers are invented but realistic.
+
+## Chapter 004 (written at 6f1775b)
+
+- `004-the-ledger-engine/scripts/run_throughs.py` builds the book, reads each Mortgage's facts with `replays()`, and calls `compute_ledger` / `project` directly, including dates past 19 Oct and one-change variants (extra `Allocation`s with `payment_id=900`). Sections are headed L1–L5 and 99.
+- Sample-book ids: ring 1, chain 2, coin 3, necklace 4, bangles 5, nose ring 6, earrings 7, Arjun's chain 8, mangalsutra 9, anklet 10. Kavita's anklet Payments are ids 31 (26 Aug), 32 (5 Sep), 33 (25 Aug, typed last).
+- The Mortgage page's Ledger shows every step, including a ₹0 `interest` step (the anklet's 1 Oct); no zero steps are filtered. It shows the last 8; **Show complete Ledger** shows all.
+- A Preview of ₹1 on the anklet dated 25 Aug is refused with a 422 naming the *later* Payment: "the Payment on 26 Aug 2026 would be more than the ₹299 owed then". Good for 006.
+- Paying Principal the day *before* an Accrual Date lowers the next month's interest; paying it *on* the Accrual Date lowers only the month after (ADR 0006). Chain, ₹50,000: on 9 Oct → 10 Nov charged ₹656; on 10 Oct → 10 Nov charged ₹1,600. Readers find this surprising; 005 and 016 can lean on it.
+- The bangles' Projection (19 Oct): baseline ₹1,51,500 / ₹1,58,450 / ₹1,65,200 / ₹1,79,984 at 0/3/6/12 months; ₹10,000 a month gives ₹1,28,127 / ₹1,03,505 / ₹50,854, paid off 25 Mar 2028. The Principal jumps to ₹1,65,500 at the 25 Apr 2027 anniversary.
+- Lesson 4's `$BOOK` snippet reads the reader's served scratch database through `replay(conn, 2)`; it's read-only. 005 can reuse the pattern.
+- The check-yourself exercise was rechecked: 5 fail, 79 pass, the same 5 issue #140 named.
+- `reference/ledger.html` is new (created by 004). 005 adds Outstanding and the Closure rules to it. The glossary sheet gained Projection and Trend.

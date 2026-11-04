@@ -38,6 +38,8 @@
 <tr><th>From</th><th>Command</th><th>What it does</th></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest</code></td><td>All backend tests; each makes its own throwaway database</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_default_terms.py</code></td><td>One test file (002's check-yourself exercise)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_ledger.py</code></td><td>The Ledger engine's 84 tests, pure and database-free (004's check-yourself exercise)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python ../Documentation/onboarding/004-the-ledger-engine/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 004 quotes</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run mypy src</code></td><td>Strict type check of the backend</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm test</code></td><td>All frontend tests (vitest), against a fake server</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm run typecheck</code></td><td>TypeScript check (<code>tsc -b</code>)</td></tr>
@@ -61,7 +63,7 @@
 </table>
 
 <footer>
-  Commands checked at commit <code>55ee8cb</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.5 · Term Changes and Projections</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 004 · Lesson 5</p>
+<h1>Term Changes and Projections</h1>
+<p class="lede">On 12 Oct the Lender agreed to drop Meera's bangles from 2% to 1.5% a month, from their next Accrual Date, 25 Oct. On the served book it's 19 Oct, so the change hasn't bitten yet. Meera asks two things: "When does it start to count?" and "What will I owe in a year?" Both answers come from the replay you already know.</p>
+
+<div class="callout win"><strong>By the end</strong> you can say when a Term Change starts to bite, and read a Projection.</div>
+
+<h2>The problem</h2>
+<p>The simple way to change a rate is to update the Mortgage's <code>monthly_rate_bps</code> column. But a Replay starts from the start date every time (lesson 1). With the rate overwritten, every month since April would be charged at 1.5%. Interest that Meera has already paid, and Receipts she has already been sent, would all change. The Terms need a history: which Terms held for which month.</p>
+<p>The question about next year has a trap too. Working out next year with a separate "forecast" formula would mean a second copy of the rules: Accrual Dates, Capitalisation, the coming Term Change. Sooner or later the two copies would disagree.</p>
+
+<h2>The idea</h2>
+<p>A <a href="../reference/glossary.html#term-change"><dfn class="term" title="A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.">Term Change</dfn></a> is one more stored fact: a date, which must be an Accrual Date, and only the fields that change. Each month is charged under the Terms in force on the day it <em>starts</em>. A month that started before 25 Oct keeps the old Terms, even though its interest is added on 25 Oct.</p>
+<p>A <a href="../reference/glossary.html#projection"><dfn class="term" title="The Ledger continued into the future under stated assumptions, used to compare outcomes before a decision.">Projection</dfn></a> is the same replay, continued past today, with the coming Term Changes and, if you ask, made-up monthly Payments. There is no separate maths.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+timeline
+  title Meera's bangles around the Term Change
+  25 Sep 2026 : a month starts under 2%
+  12 Oct 2026 : Term Change saved, from 25 Oct
+  19 Oct 2026 : the served book's today, Interest to Date still at 2%
+  25 Oct 2026 : interest for 25 Sep to 25 Oct at 2% (old Terms) : term_changed step, 1.5% from now
+  25 Nov 2026 : interest for 25 Oct to 25 Nov at 1.5%, the first month it bites
+</pre>
+<figcaption>The Term Change is dated 25 Oct, but the first interest it lowers is added on 25 Nov.</figcaption>
+</figure>
+<p>Notice that saving the change on 12 Oct changes nothing until a month starts under it. Nothing runs on 25 Oct either: the replay just passes that date.</p>
+
+<h2>The code</h2>
+<h3>1. A Term Change, and the Terms for a month</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>TermChange</code>, <code>terms_on()</code> · lines 57–81, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>57  class TermChange:
+58      """What changes for the months starting on `on`, an Accrual Date; anything left
+59      as None carries over from the Terms in force then."""
+60
+61      on: date
+62      monthly_rate_bps: int | None = None
+63      interest_mode: InterestMode | None = None
+64      part_month_rule: PartMonthRule | None = None
+⋮
+67      def apply(self, terms: Terms) -&gt; Terms:                             ①
+⋮        … copy `terms`, replacing only the fields that aren't None …
+⋮
+76  def terms_on(terms: Terms, changes: Iterable[TermChange], day: date) -&gt; Terms:
+77      """The Terms for a month starting on `day`: each Term Change in date order."""
+78      for change in sorted(changes, key=lambda change: change.on):
+79          if change.on &lt;= day:                                           ②
+80              terms = change.apply(terms)
+81      return terms
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Meera's change is <code>TermChange(on=25 Oct, monthly_rate_bps=150)</code>. Her Interest Mode and Part-Month Rule carry over from the Terms in force then.</li>
+  <li>Changes are applied one by one, in date order, up to <code>day</code>. The original Terms on the <code>mortgage</code> row are never overwritten.</li>
+</ol>
+
+<h3>2. Where the engine asks for Terms</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>_Run.accrue_through()</code> · lines 262–306, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>262          while (on := accrual_date(self.start, self.n)) &lt;= day:
+263              month_terms = self.terms_from(accrual_date(self.start, self.n - 1))   ①  ◀
+⋮
+265              interest = monthly_interest(self.month_start_principal, month_terms)
+⋮
+278              capitalises = _capitalises(month_terms, self.n)                     ②
+⋮
+283              hypothetical = self.hypothetical                                    ③
+284              if hypothetical and on &gt; hypothetical.after:
+285                  if owed := self.outstanding(on):
+286                      self.pay(on, min(hypothetical.amount, owed), None)
+⋮
+295              if (new_terms := self.terms_from(on)) != month_terms:              ④
+296                  self.steps.append(
+⋮                    … LedgerStep(on, "term_changed", 0, …, terms=new_terms) …
+305                  )
+306                  self.term_changes.append((on, new_terms))
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The month ending on <code>on</code> began on the <em>previous</em> Accrual Date (<code>n - 1</code>). Its Terms are looked up for that day. On 25 Oct that's 25 Sep: 2%.</li>
+  <li>Whether to capitalise also follows the old month's Terms.</li>
+  <li>A Projection's made-up Payment (more below). It comes after the day's real Payments (line 282) and before Capitalisation. <code>payment_id</code> is <code>None</code>, which is how you tell it apart.</li>
+  <li>If the month starting today has different Terms, a <code>term_changed</code> step marks it, after everything else that day.</li>
+</ol>
+
+<h3>3. A Projection: the replay, past today</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>project()</code> · lines 428–459, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>428  def project(
+⋮        … start, amount_lent, terms, dates, allocations, term_changes, hypothetical, paid_off_by …
+437  ) -&gt; Projected:
+⋮
+441      last = max(dates[-1], paid_off_by or dates[-1])
+442      run = _Run(start, amount_lent, terms, allocations, last, term_changes, hypothetical)   ①
+443      snapshots = []
+444      for on in dates:
+445          run.accrue_through(on)                                            ②
+446          run.pay_through(on)
+447          snapshots.append(
+448              Snapshot(
+⋮                    … on, principal, unpaid, outstanding(on), interest_charged_on(on) …
+454              )
+455          )
+456      in_view = [c for c in run.term_changes if dates[0] &lt; c[0] &lt;= dates[-1]]
+457      if paid_off_by is not None:
+458          run.accrue_through(paid_off_by)                                   ③
+459      return Projected(snapshots, in_view, run.paid_off_on)
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The same <code>_Run</code> as a Ledger: same interest, same order inside a day, same Capitalisation.</li>
+  <li>One replay, stopping at each date to take a <code>Snapshot</code> of where the Mortgage stands. It never starts again, so 13 dates cost one replay, not 13.</li>
+  <li>To answer "when would it be paid off?", it keeps going (up to ten years) until a made-up Payment leaves nothing owed (<code>paid_off_on</code>, set in <code>pay</code>).</li>
+</ol>
+<p>The route is <code>GET /api/mortgages/{id}/projection</code>, in <a href="../../../backend/src/mortgage_backend/lending/projections.py"><code>lending/projections.py</code></a> (line 111). It asks for today and each month for a year (<code>accrual_date(today, months)</code>, so the 19th of each month on the book). It passes <code>HypotheticalPayments(after=today, amount=monthly_payment)</code> when you type a monthly figure. It reaches <code>project</code> through <code>MortgageReplay.projection</code> (<a href="../../../backend/src/mortgage_backend/lending/replay.py"><code>replay.py</code></a> line 246). <code>baseline</code> (line 100) is the "no more Payments" series on its own. Chapter 012 opens the Dashboard, which uses it.</p>
+
+<h2>Run-through: Meera's bangles</h2>
+<p>₹1,50,000 lent on 25 Apr 2026 at 2%, Compounded Yearly, pro-rata: ₹3,000 a month on the 25th. She paid ₹10,000 on 10 Sep and ₹6,000 on 10 Oct (₹1,000 of it ahead). Here is the Ledger continued past 19 Oct with no more Payments:</p>
+<table class="steps">
+<tr><th>Date</th><th>Step</th><th>Amount</th><th>Principal</th><th>Unpaid interest</th></tr>
+<tr><td>25 Sep</td><td>interest, 2% of 1,50,000</td><td>3,000</td><td>1,50,000</td><td>5,000</td></tr>
+<tr><td>10 Oct</td><td>payment: 5,000 unpaid + 1,000 ahead</td><td>6,000</td><td>1,50,000</td><td>0</td></tr>
+<tr><td>19 Oct</td><td>interest_to_date, 25 days at 2%, 1,000 paid ahead</td><td>2,500</td><td>1,50,000</td><td>1,500</td></tr>
+<tr><td>25 Oct</td><td>interest, 2% (the month began 25 Sep), 1,000 paid ahead</td><td>3,000</td><td>1,50,000</td><td>2,000</td></tr>
+<tr class="changed"><td>25 Oct</td><td>term_changed: 1.5% from now</td><td>0</td><td>1,50,000</td><td>2,000</td></tr>
+<tr class="changed"><td>25 Nov</td><td>interest, 1.5% of 1,50,000</td><td>2,250</td><td>1,50,000</td><td>4,250</td></tr>
+<tr><td>25 Dec</td><td>interest, 1.5%</td><td>2,250</td><td>1,50,000</td><td>6,500</td></tr>
+</table>
+<p class="cite">Figures in rupees from <code>scripts/run_throughs.py</code> (section L5): the real <code>compute_ledger</code> on the bangles' stored facts and Term Change, at commit 6f1775b.</p>
+<p>Now read the same thing as the Mortgage page shows it. Open <a href="http://127.0.0.1:8765/mortgages/5"><code>/mortgages/5</code></a> (2026-Meera-PairBangles) and find the Projection. It shows today, then 3, 6 and 12 months on, and its chart marks the coming Term Change on 25 Oct.</p>
+<table class="steps">
+<tr><th>Series</th><th>19 Oct 2026 (today)</th><th>19 Jan 2027</th><th>19 Apr 2027</th><th>19 Oct 2027</th></tr>
+<tr><td>No more Payments: Outstanding</td><td>1,51,500</td><td>1,58,450</td><td>1,65,200</td><td>1,79,984</td></tr>
+<tr><td>Paying ₹10,000 a month: Outstanding</td><td>1,51,500</td><td>1,28,127</td><td>1,03,505</td><td>50,854</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5), <code>GET /api/mortgages/5/projection</code> with and without <code>monthly_payment=1000000</code>, on the book served at 19 Oct 2026.</p>
+<p>Type <strong>10000</strong> into "What if they pay every month (₹)". The page says it would be paid off on <strong>25 Mar 2028</strong>. Two things to notice in the baseline. First, it grows by about ₹2,250 a month, not ₹3,000: the Projection already knows about the coming Term Change. (Not exactly ₹2,250, because each point's Interest to Date covers a different number of days.) Second, between 19 Apr and 19 May 2027 the Principal jumps from ₹1,50,000 to ₹1,65,500. That's the bangles' first anniversary on 25 Apr 2027, capitalising ₹15,500 of unpaid interest (lesson 4).</p>
+<p>Each point's Outstanding includes its Interest to Date. On 19 Nov 2026 it's ₹1,50,000 + ₹2,000 unpaid + 26 days of 1.5% (₹1,950) = ₹1,53,950.</p>
+
+<h2>Nuances</h2>
+<h3>(a) A Term Change on an Accrual Date keeps that day on the old Terms</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> suppose Meera's chain (Compounded Yearly) had a Term Change to <strong>Simple</strong> from 10 Nov 2026, its first anniversary. Is the ₹4,400 still capitalised on 10 Nov?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Date</th><th>Step</th><th>Amount</th><th>Principal</th><th>Unpaid</th></tr>
+    <tr><td>10 Nov</td><td>interest</td><td>1,600</td><td>80,000</td><td>4,400</td></tr>
+    <tr class="changed"><td>10 Nov</td><td>capitalised</td><td>4,400</td><td>84,400</td><td>0</td></tr>
+    <tr><td>10 Nov</td><td>term_changed: Simple from now</td><td>0</td><td>84,400</td><td>0</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L5).</p>
+    <p>Yes. The year that ends on 10 Nov ran under Compounded Yearly, and <code>_capitalises</code> is asked with that month's Terms (line 278). The change applies to the months starting 10 Nov. Nothing earlier changes, as the glossary promises: "it never rewrites earlier interest". Test: <code>test_a_switch_from_simple_to_compounded_monthly</code> pins the mirror image: a switch on 14 Apr doesn't capitalise on 14 Apr, but on 14 May it capitalises all the Simple months' interest.</p>
+  </div>
+</div>
+
+<h3>(b) Made-up Payments come after the real ones</h3>
+<p>The first made-up Payment falls on the first Accrual Date after today: 25 Oct. If Meera had also really paid ₹5,000 on 25 Oct, the real Payment comes first. It pays the ₹2,000 unpaid, ₹75 ahead (1 day at 1.5%) and ₹2,925 of Principal. Then the made-up ₹10,000 all goes to Principal. Each made-up Payment is capped at what's owed (line 286), so the last one is smaller and leaves exactly nothing. Test: <code>test_hypothetical_payments_fall_on_each_accrual_date_until_paid_off</code>.</p>
+
+<h3>(c) A Projection is not a Trend</h3>
+<p>The Dashboard also shows <a href="../reference/glossary.html#trend"><dfn class="term" title="The monthly average of the last 3 full months (Payments received, Principal lent, Redemptions) carried forward as an estimate; nothing is replayed, so unlike a Projection it is never exact.">Trends</dfn></a>: the last 3 full months' average carried forward (<code>lending/dashboard.py</code>). A Trend is an estimate and replays nothing. A Projection is exact under its assumptions, because it's the real engine. Don't call either a "forecast": that's on both terms' <em>Avoid</em> lists. Chapter 012 owns the Dashboard.</p>
+
+<h3>(d) A Term Change has to start on an Accrual Date</h3>
+<p>The engine assumes it (<code>TermChange</code>'s docstring). The route that saves one, in <code>lending/changes.py</code>, refuses any other date: "A Term Change starts on an Accrual Date, today or later". Chapter 006 owns that route and its Preview.</p>
+
+<div class="callout warn"><strong>Trap #8, a warning:</strong> there's no scheduler. Nothing "applies" the Term Change on 25 Oct; the replay simply reaches that date. The daily jobs that do exist (Backups, Notices) run on the first <code>/api/</code> request of the day, from middleware. Chapter 010 owns that; see the <a href="../reference/traps.html#t8">traps sheet</a>.</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">A Mortgage accrues on the 5th. A Term Change to 1% starts on 5 Mar. Which is the first interest charged at 1%?</p>
+  <button class="opt">The interest added on 5 Mar</button>
+  <button class="opt">The interest added on 5 Apr</button>
+  <button class="opt">The Interest to Date on 4 Mar</button>
+  <div class="why">The interest added on 5 Mar is for the month that started on 5 Feb, under the old Terms. The month starting 5 Mar is the first under 1%, and its interest is added on 5 Apr. The Interest to Date from 5 Mar on is at 1% too.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">How does a Projection work out next year's interest?</p>
+  <button class="opt">With <code>_Run</code>, the same replay as a Ledger</button>
+  <button class="opt">With a formula in <code>projections.py</code></button>
+  <button class="opt">By averaging the last three full months</button>
+  <div class="why"><code>project</code> builds a <code>_Run</code> and calls <code>accrue_through</code>, exactly like <code>compute_ledger</code>. <code>projections.py</code> only picks the dates and shapes the answer. Averaging is a Trend.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">In a Projection's Ledger, how do you tell a made-up Payment from a real one?</p>
+  <button class="opt">Its amount is always a round figure</button>
+  <button class="opt">Its event is <code>"hypothetical"</code></button>
+  <button class="opt">Its <code>payment_id</code> is <code>None</code></button>
+  <div class="why">Both are <code>"payment"</code> steps. A made-up one is applied with <code>self.pay(on, …, None)</code>, so it has no Payment id (<code>LedgerStep.payment_id</code>'s comment says so). The last one is capped at what's owed, so it needn't be round.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../../backend/src/mortgage_backend/lending/projections.py"><code>lending/projections.py</code></a> top to bottom (140 lines). Then, in <a href="../../../backend/tests/test_ledger.py"><code>tests/test_ledger.py</code></a>, the Term Change tests from <code>test_a_rate_change_mid_year_under_compounded_yearly</code> (line 493) to <code>test_term_changes_each_change_only_what_they_say</code>.</p>
+
+<nav class="lessons">
+  <a href="04-capitalisation.html">← Capitalisation</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Next: Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

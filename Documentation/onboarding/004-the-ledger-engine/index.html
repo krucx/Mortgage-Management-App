@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>004 · The Ledger engine</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 004</p>
+<h1>The Ledger engine</h1>
+
+<h2>The problem this chapter solves</h2>
+<p>Every money figure the app shows comes out of one place: <a href="../../../backend/src/mortgage_backend/lending/ledger.py"><code>lending/ledger.py</code></a>. It covers every month's interest, how each Payment divides between interest and Principal, when unpaid interest starts earning interest, and what the Mortgage will owe a year from now. In chapter 003 it was a black box that answered "₹1,500 to interest, ₹3,500 to Principal". If that answer is ever wrong, a Customer is asked for the wrong money. So whoever changes this file has to be able to work out the right answer by hand.</p>
+<p>The rules are small, but the order they run in matters. Should a Payment made on the 10th count before the 10th's interest, or after it? Is a month charged on the Principal at its start or at its end? Is unpaid interest capitalised before that day's Payment, or after it? Each question has one answer, recorded in an ADR, and a two-line change to <code>accrue_through</code> can quietly flip it. This chapter teaches those answers on an <strong>open</strong> (Active) Mortgage. Closing one is chapter 005.</p>
+
+<h2>What you'll be able to do</h2>
+<ul>
+  <li>Say what is stored and what is derived, and why a back-dated Payment rewrites Ledger steps nobody edited.</li>
+  <li>Work out any month's interest charge, and any Interest to Date, by hand from the Terms.</li>
+  <li>Hand-trace a run of Payments in the engine's order, including one made on an Accrual Date and one made mid-month.</li>
+  <li>Say when unpaid interest is capitalised, and what a Customer can pay to avoid it.</li>
+  <li>Say when a Term Change starts to bite, and read a Projection.</li>
+</ul>
+
+<h2>Before you start</h2>
+<p><a href="../001-what-the-app-does/02-how-whats-owed-grows.html">Chapter 001, lessons 2 and 3</a> explained the Terms, interest, Capitalisation and Payments in plain words. Here you meet the same rules as code. <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">Chapter 003, lesson 4</a> showed where the Ledger is read from (<code>load_payment</code> → <code>replays</code> → <code>compute_ledger</code>). Keep the sample book served from <a href="../002-find-your-way-and-run-it/04-serve-the-sample-book.html">chapter 002, lesson 4</a> (<code>http://127.0.0.1:8765</code>, held on 19 Oct 2026). You'll check figures on its Mortgage pages, and run short <code>uv run python</code> snippets from <code>backend/</code> for dates the book can't reach.</p>
+
+<h2>The map</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  RP["replay.py<br/>MortgageReplay._replay"] -->|"Terms, Allocations,<br/>TermChanges"| CL["compute_ledger()<br/>L1"]
+  PJ["projections.py<br/>baseline, project"] -->|"dates,<br/>HypotheticalPayments"| PR["project()<br/>L5"]
+  CL --> RUN["_Run<br/>one replay"]
+  PR --> RUN
+  RUN -->|"each Accrual Date"| AT["accrue_through()<br/>L3"]
+  AT -->|"the month's charge"| MI["monthly_interest()<br/>accrual_date()  L2"]
+  AT -->|"each Payment"| PAY["pay_through(), pay()<br/>L3"]
+  AT -->|"compound now?"| CAP["_capitalises()<br/>L4"]
+  AT -->|"Terms for the month"| TO["terms_on()<br/>L5"]
+  RUN -->|"list of LedgerStep"| OUT["Ledger, Outstanding,<br/>months_unpaid()  L3"]
+</pre>
+<figcaption>The whole engine, with the lesson (L1–L5) that opens each box. Everything right of <code>replay.py</code> and <code>projections.py</code> is pure: no database, no clock.</figcaption>
+</figure>
+<p>Notice that a Ledger and a Projection run the same <code>_Run</code>. A Projection is just a replay that keeps going past today. There's no second set of rules to keep in step.</p>
+
+<h2>Where it lives</h2>
+<table class="wide">
+<tr><th>Path</th><th>What it's responsible for</th><th>Lesson</th></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/lending/ledger.py"><code>lending/ledger.py</code></a></td><td>The engine: <code>Allocation</code>, <code>LedgerStep</code>, <code>compute_ledger</code>, <code>_Run</code>, <code>project</code>, <code>months_unpaid</code></td><td>1–5</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/lending/terms.py"><code>lending/terms.py</code></a></td><td><code>Terms</code>, <code>InterestMode</code>, <code>PartMonthRule</code></td><td>2</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/lending/replay.py"><code>lending/replay.py</code></a></td><td>The caller: loads a Mortgage's facts and hands them to the engine (chapter 005 opens it)</td><td>1, 5</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/lending/projections.py"><code>lending/projections.py</code></a></td><td><code>GET /api/mortgages/{id}/projection</code>: the Mortgage page's Projection</td><td>5</td></tr>
+<tr><td><a href="../../../backend/tests/test_ledger.py"><code>backend/tests/test_ledger.py</code></a></td><td>84 tests of the engine, each named after a rule</td><td>99</td></tr>
+<tr><td><a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>, <a href="../../adr/0006-interest-on-start-of-month-principal.md">0006</a>, <a href="../../adr/0011-outstanding-includes-interest-to-date.md">0011</a></td><td>Why it replays; why a month is charged on its start; the Interest to Date</td><td>1, 2–3, 3</td></tr>
+</table>
+
+<h2>Lessons</h2>
+<ol class="lessons-list">
+  <li><a href="01-the-ledger-is-a-replay.html">The Ledger is a replay</a><span class="sum">Facts in, steps out. Kavita's anklet, entered late, rewrites a Payment nobody touched.</span></li>
+  <li><a href="02-one-months-interest.html">One month's interest</a><span class="sum">Accrual Dates, basis points, paise, days out of 30, and the three Part-Month Rules.</span></li>
+  <li><a href="03-the-order-inside-a-day.html">The order inside a day, and what a Payment pays</a><span class="sum">Interest, then Payments, then Capitalisation. Meera's chain and the April she missed.</span></li>
+  <li><a href="04-capitalisation.html">Capitalisation</a><span class="sum">Arjun's ring compounds every month; Meera's chain's first anniversary on 10 Nov 2026.</span></li>
+  <li><a href="05-term-changes-and-projections.html">Term Changes and Projections</a><span class="sum">Meera's bangles go to 1.5% on 25 Oct, seen from 19 Oct on the Projection.</span></li>
+  <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">Hand-trace questions, then move one line in <code>accrue_through</code> and see which 5 tests notice.</span></li>
+</ol>
+
+<footer>
+  <p>Written against commit <code>6f1775b</code>. Every figure came from <a href="scripts/run_throughs.py"><code>scripts/run_throughs.py</code></a>, which builds the sample book in a temporary folder, reads each Mortgage's facts back, and calls the real <code>compute_ledger</code> and <code>project</code>. Run it from <code>backend/</code> with <code>uv run python ../Documentation/onboarding/004-the-ledger-engine/scripts/run_throughs.py</code>.</p>
+  <p>Anything unclear? Ask an agent in this repo to explain it: a step, a function, or why a rule exists. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
+  <p><a href="../index.html">Course home</a> · Previous: <a href="../003-one-payment-end-to-end/index.html">chapter 003</a> · Next: chapter 005, Replay and Closures (coming; see the <a href="../SYLLABUS.md">syllabus</a>)</p>
+</footer>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

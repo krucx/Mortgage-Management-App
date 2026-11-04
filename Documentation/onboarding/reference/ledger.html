@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · The Ledger engine</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Reference sheet</p>
+<h1>The Ledger engine, on one page</h1>
+<p class="lede">The rules <code>backend/src/mortgage_backend/lending/ledger.py</code> follows, for hand-tracing a Mortgage. Taught in <a href="../004-the-ledger-engine/index.html">chapter 004</a>. This sheet grows as chapters are written: Outstanding and the Closure rules are added by chapter 005.</p>
+
+<h2>Stored vs derived</h2>
+<table class="wide">
+<tr><th>Stored (facts)</th><th>Derived on every read (never stored)</th></tr>
+<tr><td>Start date, amount lent, Terms; Term Changes; each non-Voided Payment's Allocation (date, amount, Payment id)</td><td>Every <code>LedgerStep</code>: interest, Interest to Date, how each Payment divided, Capitalisations, Principal, unpaid interest, Months Unpaid, Projections</td></tr>
+</table>
+<p><code>compute_ledger(start, amount_lent, terms, as_of, allocations, …, term_changes, hypothetical)</code> replays from the start date every time. Allocations are sorted by <code>(date, payment_id)</code>. An Allocation larger than everything owed on its date raises <code>Overpayment</code>. ADR 0001; trap #4.</p>
+
+<h2>One month's interest</h2>
+<table class="wide">
+<tr><th>Rule</th><th>In the code</th></tr>
+<tr><td>Money is paise (integers). Rates are basis points <strong>per month</strong>: 200 = 2% a month.</td><td><code>Allocation.amount</code>, <code>Terms.monthly_rate_bps</code></td></tr>
+<tr><td>Charge = Principal × bps × days ÷ (10,000 × 30), rounded <strong>half-up</strong> to the whole rupee. A whole month is 30 days.</td><td><code>monthly_interest</code>, <code>DAYS_IN_A_MONTH</code></td></tr>
+<tr><td>The n-th Accrual Date is the start day, n months on, clamped to month-end; always counted from the start date.</td><td><code>accrual_date</code>, <code>is_accrual_date</code></td></tr>
+<tr><td>Interest to Date days = days since the last Accrual Date (or start) + 1: today always counts.</td><td><code>interest_to_date_days</code></td></tr>
+<tr><td>Part-Month Rule: pro-rata = min(days, 30) of 30; full month = the whole month from day 1; nothing = 0.</td><td><code>interest_to_date_charge</code></td></tr>
+<tr><td>A month, and its Interest to Date, are charged on the Principal at the <strong>start</strong> of that month.</td><td><code>_Run.month_start_principal</code>; ADR 0006</td></tr>
+</table>
+
+<h2>The order inside a day</h2>
+<p>On each Accrual Date, in <code>_Run.accrue_through</code>:</p>
+<ol>
+  <li>Payments dated <em>before</em> today (<code>pay_through(on − 1 day)</code>).</li>
+  <li>The month just ended's interest, on its starting Principal, under the Terms in force when it <em>began</em>; <code>unpaid += interest − paid_ahead</code>.</li>
+  <li>Decide whether to capitalise, on those same old Terms.</li>
+  <li>The new month starts: <code>month_start_principal = principal</code>, <code>paid_ahead = 0</code>.</li>
+  <li>Today's real Payments (<code>pay_through(on)</code>).</li>
+  <li>A Projection's hypothetical Payment, if any (capped at what's owed; <code>payment_id</code> is <code>None</code>).</li>
+  <li>Capitalisation of what's still unpaid, also added to <code>month_start_principal</code>.</li>
+  <li>A <code>term_changed</code> step if the month starting today has new Terms.</li>
+</ol>
+<p>After the last Accrual Date: the remaining Payments, then the Interest to Date step (<code>charge_interest_to_date</code>, shown only when non-zero). Trap #7.</p>
+
+<h2>What a Payment pays</h2>
+<table class="wide">
+<tr><th>Order</th><th>Pays</th><th>Note</th></tr>
+<tr><td>1</td><td>Unpaid interest</td><td>One running total, oldest and newest alike</td></tr>
+<tr><td>2</td><td>The Interest to Date on its date</td><td>Paid <em>ahead</em> (<code>paid_ahead</code>); counts against the month's interest when it's charged</td></tr>
+<tr><td>3</td><td>Principal</td><td>Lowers interest from the <em>next</em> month only. Nothing can pay later months' interest early.</td></tr>
+</table>
+<p><code>months_unpaid</code> reads only <code>interest</code> and <code>payment</code> steps: Payments cover months oldest first, a partly covered month counts as unpaid, capitalised interest still counts as unpaid, and the Interest to Date never counts.</p>
+
+<h2>Capitalisation</h2>
+<table class="wide">
+<tr><th>Interest Mode</th><th>Capitalises on</th><th><code>_capitalises(terms, n)</code></th></tr>
+<tr><td>Simple</td><td>never</td><td><code>False</code></td></tr>
+<tr><td>Compounded Yearly</td><td>every 12th Accrual Date from the start (the anniversaries)</td><td><code>n % 12 == 0</code></td></tr>
+<tr><td>Compounded Monthly</td><td>every Accrual Date</td><td><code>True</code></td></tr>
+</table>
+<p>Only interest still unpaid at the end of the Accrual Date is capitalised: a Payment that day avoids it. Interest paid ahead and the Interest to Date are never capitalised.</p>
+
+<h2>Term Changes and Projections</h2>
+<ul>
+  <li>A <code>TermChange(on, …)</code> starts on an Accrual Date and changes only the fields it sets. <code>terms_on(terms, changes, day)</code> gives the Terms for a month starting on <code>day</code>. The first interest it changes is added one month after its date. Nothing earlier changes.</li>
+  <li><code>project(…, dates, …, hypothetical, paid_off_by)</code> runs one <code>_Run</code> past today, taking a <code>Snapshot</code> on each date (Principal, unpaid interest, Outstanding with its Interest to Date). <code>HypotheticalPayments(after, amount)</code> pays <code>amount</code> on every Accrual Date after <code>after</code>.</li>
+  <li><code>GET /api/mortgages/{id}/projection</code> (<code>lending/projections.py</code>): today and each month for a year, a "no more Payments" baseline and an optional <code>monthly_payment</code> what-if, the coming Term Changes, and <code>paid_off_on</code> within ten years.</li>
+  <li>A Projection replays; a Trend (the Dashboard's 3-month average) doesn't.</li>
+</ul>
+
+<h2>Hand-trace checklist</h2>
+<ol>
+  <li>List the Accrual Dates from the start date (clamp to month-end).</li>
+  <li>Sort the Payments by date, then Payment id.</li>
+  <li>For each Accrual Date, follow the order above. Keep four numbers: Principal, unpaid interest, the month's starting Principal, paid ahead.</li>
+  <li>End with the Interest to Date on the day you're asked about.</li>
+  <li>Check against the Mortgage page (<strong>Show complete Ledger</strong>), or run <code>compute_ledger</code> from <code>backend/</code> with <code>uv run python</code>.</li>
+</ol>
+
+<footer>
+  Created by chapter 004; checked at commit <code>6f1775b</code>.
+  · <a href="../index.html">Course home</a> · <a href="traps.html">Traps</a> · <a href="glossary.html">Glossary</a> · <a href="cast.html">The cast</a>
+</footer>
+</body>
+</html>
