@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.1 · The repo at a glance</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 002 · Lesson 1</p>
+<h1>The repo at a glance</h1>
+<p class="lede">You've cloned the repo and see a dozen folders and files at the top. Which ones hold the app, which hold its documents, and which ones you'll never touch in your first month?</p>
+
+<div class="callout win"><strong>By the end</strong> you can say which top-level folder a piece of work belongs in.</div>
+
+<h2>The problem</h2>
+<p>Suppose your first ticket says: "Meera's Receipt should show the jewellery's weight." Where do you start? The Receipt is a screen, so maybe the frontend. But its words come from the backend. And the screenshots on the project's website show Receipts too, and there's a folder of Windows scripts that installs the app. A newcomer who guesses opens the wrong folder, reads a hundred lines, and still isn't sure.</p>
+<p>The fix is a mental map: every top-level folder has one job. Learn the jobs once and most tickets tell you where they live.</p>
+
+<h2>The idea</h2>
+<p>The repo is one app in two halves, a <strong>backend</strong> (Python) that owns the data and every rule, and a <strong>frontend</strong> (TypeScript) that draws the screens. Around them sit the ways the app gets onto the Lender's laptop, and the documents that explain it.</p>
+
+<h2>The map</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph App["The app"]
+    FE["frontend/<br/>React screens"] -->|"/api requests"| BE["backend/<br/>FastAPI + SQLite"]
+  end
+  subgraph Ship["Getting it onto the laptop"]
+    DC["docker-compose.yml<br/>docker-compose.dev.yml"]
+    WIN["windows/<br/>installer scripts"]
+  end
+  subgraph Words["Words and decisions"]
+    G["GLOSSARY.md"]
+    DOC["Documentation/<br/>ADRs, this course"]
+    CL["CHANGELOG.md"]
+  end
+  subgraph Site["The public website"]
+    DOCS["docs/<br/>GitHub Pages, sample book"]
+  end
+  DC -->|runs| App
+  WIN -->|installs| App
+  DOCS -->|"screenshots taken from"| App
+</pre>
+<figcaption>Four groups of folders. Only the first one is the app itself; everything else ships it, explains it or shows it off.</figcaption>
+</figure>
+<p>Notice that <code>docs/</code> and <code>Documentation/</code> are different things. <code>docs/</code> is the public website (GitHub Pages: the install guide, the walkthrough, The Gold Chain Story). <code>Documentation/</code> is for developers: the ADRs, the agents' instructions and this course.</p>
+
+<h2>Folder by folder</h2>
+<table class="wide">
+<tr><th>Path</th><th>What lives there</th><th>You'd go there to…</th></tr>
+<tr><td><a href="../../../backend/"><code>backend/</code></a></td><td>The API: Python 3.13, FastAPI, SQLite through SQLAlchemy, Alembic migrations. Managed with <code>uv</code>. Tests in <code>backend/tests/</code>.</td><td>change a rule, a figure, a route or the database</td></tr>
+<tr><td><a href="../../../frontend/"><code>frontend/</code></a></td><td>The screens: React and TypeScript, built with Vite. Tests in <code>frontend/tests/</code>.</td><td>change what a page shows or how a form behaves</td></tr>
+<tr><td><a href="../../../windows/"><code>windows/</code></a></td><td>PowerShell scripts behind <code>Setup.bat</code>, <code>Run.bat</code> and <code>Uninstall.bat</code>, and their Pester tests</td><td>change how the Lender installs or starts the app on Windows (chapter 014)</td></tr>
+<tr><td><a href="../../../docker-compose.yml"><code>docker-compose.yml</code></a></td><td>How the Lender runs the <em>published</em> images with Docker</td><td>change ports, volumes or environment for Docker users</td></tr>
+<tr><td><a href="../../../docker-compose.dev.yml"><code>docker-compose.dev.yml</code></a></td><td>An add-on file that builds the images from <em>this folder</em> instead</td><td>try your own code in Docker (lesson 5)</td></tr>
+<tr><td><a href="../../../docs/"><code>docs/</code></a></td><td>The GitHub Pages site, and <code>docs/sample-book/</code>, which builds the invented book every screenshot shows</td><td>retake screenshots; serve the sample book (lesson 4)</td></tr>
+<tr><td><a href="../../"><code>Documentation/</code></a></td><td>ADRs (<code>adr/</code>), notes for agents (<code>agents/</code>), past architecture reviews, and this course</td><td>find why a rule is the way it is (lesson 3)</td></tr>
+<tr><td><a href="../../../GLOSSARY.md"><code>GLOSSARY.md</code></a></td><td>The app's words and their exact meanings</td><td>name a variable, a test or an issue (lesson 3)</td></tr>
+<tr><td><a href="../../../CHANGELOG.md"><code>CHANGELOG.md</code></a></td><td>What changed in each release, in the Lender's words</td><td>date a rule or a screen; write a release (chapter 015)</td></tr>
+<tr><td><a href="../../../Requirements/"><code>Requirements/</code></a></td><td>The original spec (<code>system-requirements.txt</code>) and the owner's lists of enhancements to pick up later</td><td>see where the app started, or what's queued. Not today's rules: the code and the ADRs have moved on</td></tr>
+<tr><td><a href="../../../README.md"><code>README.md</code></a></td><td>How the Lender installs it, then a <em>Development</em> section for you</td><td>the commands to run it (lessons 4 and 5)</td></tr>
+</table>
+<p class="aside">You'll also see <code>data/</code> and <code>backups/</code> at the top of some clones, including the owner's. They are git-ignored and may hold a <strong>real</strong> lending book. Never open the app on them while developing. Lesson 4 shows how to work on scratch data instead.</p>
+
+<h2>The code: how the two halves meet</h2>
+<p>The README's <em>Development</em> section gives the shortest possible picture of the app: two processes, one per half.</p>
+<figure class="snippet">
+<figcaption><a href="../../../README.md">README.md</a> · <em>Development</em> · lines 149–153</figcaption>
+<pre data-file="README.md"><code>149  Run the two halves directly for hot reload (no Docker needed):
+⋮
+152  cd backend &amp;&amp; uv run uvicorn mortgage_backend.main:app --reload   # API on :8000  ①
+153  cd frontend &amp;&amp; npm install &amp;&amp; npm run dev                          # UI on :5173, proxies /api to :8000  ②
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>uv</code> is the Python package manager this repo uses; <code>uv run</code> runs a command inside the backend's own virtual environment, installing what's missing first. <code>uvicorn</code> is the web server that runs the FastAPI app, here the object <code>app</code> in <code>mortgage_backend/main.py</code>.</li>
+  <li>Vite is the frontend's build tool. <code>npm run dev</code> starts its development server, which serves the screens and passes every request under <code>/api</code> on to the backend.</li>
+</ol>
+<p>That one fact, "the screens call <code>/api/…</code> and something passes it to the backend", is how the app is wired everywhere. What changes is <em>who</em> serves the screens.</p>
+
+<h2>Three ways the screens are served</h2>
+<p>The same backend and the same screens run in three different set-ups. You'll meet all three, so here they are as a picture. How each one works inside is chapter 014's subject.</p>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  B["Browser"] -->|"you, coding"| V["Vite dev server<br/>:5173"]
+  B -->|"Lender, Docker"| N["nginx<br/>frontend image"]
+  B -->|"Lender, Windows without Docker"| S["backend serves<br/>frontend/dist itself<br/>(platform/screens.py)"]
+  V -->|"/api proxied"| F["FastAPI<br/>mortgage_backend.main:app"]
+  N -->|"/api proxied"| F
+  S -->|"same process"| F
+  F -->|SQLAlchemy| DB[("SQLite<br/>DATA_DIR/mortgage.db")]
+</pre>
+<figcaption>Three front doors, one backend, one SQLite file. The browser always talks to one origin; something behind it splits screens from <code>/api</code>.</figcaption>
+</figure>
+<p>Two ADRs explain the Lender's two set-ups. <a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a> ships the app as a Docker Compose stack, so nobody installs Python or Node on the Lender's laptop. <a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a> is for laptops without Docker: the backend serves the built screens itself, so there's one process and no Node.js. You only need their names for now.</p>
+
+<h2>Nuances</h2>
+<div class="reveal">
+  <p><strong>Predict:</strong> which folder would you open for each ticket? (a) "The Dashboard should show the number of Customers." (b) "Setup fails when the user name has a space in it." (c) "The story's chapter 4 screenshot is out of date." (d) "Why is a month's interest charged on the Principal at the month's start?"</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="wide">
+    <tr><th>Ticket</th><th>Folder</th><th>Why</th></tr>
+    <tr><td>(a) Dashboard count</td><td><code>backend/</code> then <code>frontend/</code></td><td>The figure is worked out by the backend; the page only shows it. Most features touch both halves, backend first.</td></tr>
+    <tr><td>(b) Setup and a space</td><td><code>windows/</code></td><td>Setup is the PowerShell installer.</td></tr>
+    <tr><td>(c) Old screenshot</td><td><code>docs/sample-book/</code></td><td>Screenshots are retaken from the sample book (<code>run.sh</code>), never edited by hand.</td></tr>
+    <tr><td>(d) Interest on the start-of-month Principal</td><td><code>Documentation/adr/</code></td><td><a href="../../adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a> records that decision and why.</td></tr>
+    </table>
+  </div>
+</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">Where does the GitHub Pages install guide live?</p>
+  <button class="opt"><code>Documentation/</code>, beside the ADRs</button>
+  <button class="opt"><code>windows/</code>, beside <code>Setup.bat</code></button>
+  <button class="opt"><code>docs/</code>, the public website folder</button>
+  <div class="why"><code>docs/</code> is the GitHub Pages site (<code>docs/install.html</code>). <code>Documentation/</code> is for developers only, and <code>windows/</code> holds the installer scripts, not the page about them.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">You run <code>npm run dev</code>. A page asks for <code>/api/mortgages/2</code>. Who answers?</p>
+  <button class="opt">FastAPI, after Vite passes the request on</button>
+  <button class="opt">Vite, from a copy of the data it keeps</button>
+  <button class="opt">nginx, from inside the frontend's image</button>
+  <div class="why">Vite serves the screens and proxies <code>/api</code> to the backend on :8000. Vite holds no data, and nginx only runs in Docker.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">What is in <code>Requirements/</code>?</p>
+  <button class="opt">The rules the code must follow today</button>
+  <button class="opt">The first spec and later wish lists</button>
+  <button class="opt">The Python and Node versions to install</button>
+  <div class="why">It holds the original spec and the owner's lists of enhancements to pick up later. Today's rules are in the code, its tests, the glossary and the ADRs. Versions live in <code>backend/pyproject.toml</code> and <code>frontend/package.json</code>.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read the <a href="../../../README.md">README</a>'s <em>Development</em> section (lines 147–207), then the first paragraph of <a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a>.</p>
+
+<nav class="lessons">
+  <a href="../001-what-the-app-does/99-check-yourself.html">← Chapter 001</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="02-inside-backend-and-frontend.html">Next: Inside the backend and the frontend →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

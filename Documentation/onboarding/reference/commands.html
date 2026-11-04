@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · Commands</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Reference sheet</p>
+<h1>Commands</h1>
+<p class="lede">Every command a developer runs, with where to run it from. All of them work on scratch folders. None of them should ever be pointed at the repo's <code>data/</code> or <code>backups/</code>, which may hold a real lending book. This sheet grows as chapters are written.</p>
+
+<div class="callout warn"><strong>The one rule:</strong> any command that starts the backend gets a scratch <code>DATA_DIR</code> and <code>BACKUP_DIR</code> (or, for the sample book, a scratch folder of its own). Make one with <code>mktemp -d</code>.</div>
+
+<h2>Serve the sample book</h2>
+<p>Taught in <a href="../002-find-your-way-and-run-it/04-serve-the-sample-book.html">002 · Lesson 4</a>. Needs uv and Node.js.</p>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td>anywhere</td><td><code>export BOOK=$(mktemp -d)</code></td><td>A fresh, empty scratch folder for the book</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python ../docs/sample-book/book.py "$BOOK"</code></td><td>Builds the sample book into <code>$BOOK/data</code> through the API. Needs an empty folder: run into a used one, it stops at Meera's Primary Number.</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm install</code> then <code>npm run build</code></td><td>Builds the screens into <code>frontend/dist</code>; rerun after every frontend change you want <code>serve.py</code> to show</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python ../docs/sample-book/serve.py "$BOOK" [port]</code></td><td>Serves the book on <code>http://127.0.0.1:8765</code> (or <code>port</code>), clock held on 19 Oct 2026; Backups into <code>$BOOK/backups</code></td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python ../docs/sample-book/serve.py "$(mktemp -d)" 8766</code></td><td>A blank app on a fresh database, for comparison (Default Terms 3% full month)</td></tr>
+</table>
+
+<h2>Run it while you code</h2>
+<p>Taught in <a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">002 · Lesson 5</a>.</p>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run dev</code></td><td>Vite on <code>http://localhost:5173</code>, hot reload, <code>/api</code> proxied to <code>127.0.0.1:8000</code></td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python ../docs/sample-book/serve.py "$BOOK" 8000</code></td><td>The sample book as Vite's backend: hot-reload screens on familiar figures</td></tr>
+<tr><td><code>backend/</code></td><td><code>DATA_DIR="$DEV/data" BACKUP_DIR="$DEV/backups" uv run uvicorn mortgage_backend.main:app --reload</code></td><td>The backend on :8000, restarting on every Python change, on scratch data (<code>export DEV=$(mktemp -d)</code> first). Uses the real today.</td></tr>
+</table>
+
+<h2>Tests and type checks</h2>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest</code></td><td>All backend tests; each makes its own throwaway database</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_default_terms.py</code></td><td>One test file (002's check-yourself exercise)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run mypy src</code></td><td>Strict type check of the backend</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm test</code></td><td>All frontend tests (vitest), against a fake server</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run typecheck</code></td><td>TypeScript check (<code>tsc -b</code>)</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run gen:types</code></td><td>Regenerates <code>openapi.json</code> and <code>src/api.gen.ts</code> from the backend; commit both after changing a model</td></tr>
+</table>
+
+<h2>Docker, your own code</h2>
+<p>Warned about in <a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">002 · Lesson 5</a>; taught in chapter 014. Not needed to develop.</p>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td>repo root</td><td><code>DATA_DIR="$DEV/data" BACKUP_DIR="$DEV/backups" APP_PORT=8081 docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build</code></td><td>Builds and runs this folder's code on <code>localhost:8081</code>, on scratch data, under its own project name</td></tr>
+<tr><td>repo root</td><td><code>DATA_DIR="$DEV/data" BACKUP_DIR="$DEV/backups" docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml down</code></td><td>Stops it. The variables go on <em>every</em> <code>docker compose</code> command, or Compose reads <code>.env</code>.</td></tr>
+</table>
+<p class="aside">Plain <code>docker compose up -d</code> runs the <em>published</em> images from Docker Hub, not your code, and reads <code>DATA_DIR</code> from <code>.env</code>. That's how the Lender runs it.</p>
+
+<h2>Git</h2>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td>anywhere</td><td><code>git checkout -- &lt;file&gt;</code></td><td>Throws away your uncommitted changes to one file</td></tr>
+<tr><td>anywhere</td><td><code>git rev-parse --short HEAD</code></td><td>The commit you're on, to compare with the commit a chapter was written against</td></tr>
+</table>
+
+<footer>
+  Commands checked at commit <code>55ee8cb</code>.
+  · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
+</footer>
+</body>
+</html>

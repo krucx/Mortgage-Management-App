@@ -5,7 +5,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | # | Chapter | Folder | The reader will be able to | Status |
 | --- | --- | --- | --- | --- |
 | 001 | [What the app does, in plain words](https://github.com/krucx/Mortgage-Management-App/issues/122) | `001-what-the-app-does/` | explain Mortgages, Payments, Closures and the Lender's day in plain words, with no code | written (61bbea2) |
-| 002 | [Find your way and run it](https://github.com/krucx/Mortgage-Management-App/issues/128) | `002-find-your-way-and-run-it/` | name the repo's parts, run it locally on scratch data, find a glossary term or ADR | planned |
+| 002 | [Find your way and run it](https://github.com/krucx/Mortgage-Management-App/issues/128) | `002-find-your-way-and-run-it/` | name the repo's parts, run it locally on scratch data, find a glossary term or ADR | written (55ee8cb) |
 | 003 | [One Payment, end to end](https://github.com/krucx/Mortgage-Management-App/issues/134) | `003-one-payment-end-to-end/` | follow one Payment from form → Preview → API → Ledger → Receipt | planned |
 | 004 | [The Ledger engine](https://github.com/krucx/Mortgage-Management-App/issues/140) | `004-the-ledger-engine/` | hand-trace any Mortgage's interest, Capitalisation and Payment order | planned |
 | 005 | [Replay and Closures](https://github.com/krucx/Mortgage-Management-App/issues/146) | `005-replay-and-closures/` | explain Outstanding, Redeem/Waive/Forfeit/Reopen and Dormant | planned |
@@ -30,7 +30,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 4. How a Mortgage ends ([#126](https://github.com/krucx/Mortgage-Management-App/issues/126))
 5. The Lender's day, and the one big idea ([#127](https://github.com/krucx/Mortgage-Management-App/issues/127))
 
-### 002 Find your way and run it
+### 002 Find your way and run it (written)
 1. The repo at a glance ([#129](https://github.com/krucx/Mortgage-Management-App/issues/129))
 2. Inside the backend and the frontend ([#130](https://github.com/krucx/Mortgage-Management-App/issues/130))
 3. The words and the decisions ([#131](https://github.com/krucx/Mortgage-Management-App/issues/131))

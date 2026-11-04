@@ -14,6 +14,16 @@
   Why the Lender presses Send. Use for: 001.03, Receipts and Follow-up.
 - [ADR 0003: Backups go to a cloud-synced folder](../adr/0003-backup-to-synced-folder.md)
   Where Backups go and when. Use for: 001.05, Releases and Backups.
+- [ADR 0004: The app ships as a Docker Compose stack](../adr/0004-docker-compose-on-lender-laptop.md)
+  Why the Lender runs Docker. Use for: 002.01 (named only), chapter 014.
+- [ADR 0005: A person is identified by their Primary Number](../adr/0005-primary-number-identifies-a-person.md)
+  Why one phone number is one person. Use for: 002.04 (why `book.py` refuses a used folder), People and Collateral.
+- [ADR 0010: Without Docker, the backend serves the built screens](../adr/0010-backend-serves-screens-without-docker.md)
+  Why `serve.py` and the Windows app need no Node.js. Use for: 002.01, 002.04, chapter 014.
+- [README.md, Development](../../README.md)
+  The hot-reload, Docker and test commands. Use for: 002.04, 002.05.
+- [Documentation/agents/domain.md](../agents/domain.md)
+  How agents (and developers) use the glossary and ADRs. Use for: 002.03.
 - [ADR 0006: Interest on start-of-month Principal](../adr/0006-interest-on-start-of-month-principal.md)
   Why paying Principal mid-month lowers interest only from the next month. Use for: 001.02, the Ledger engine.
 - [ADR 0011: Outstanding includes the Interest to Date](../adr/0011-outstanding-includes-interest-to-date.md)
@@ -27,6 +37,12 @@
 
 - [Indian numbering system (Wikipedia)](https://en.wikipedia.org/wiki/Indian_numbering_system)
   Lakh and crore, and why ₹1,00,000 is grouped that way. Use for: 001.01.
+- [uv documentation](https://docs.astral.sh/uv/)
+  The Python package manager behind `uv run`. Use for: 002, installing and running the backend.
+- [Vite: server.proxy](https://vite.dev/config/server-options.html#server-proxy)
+  How the dev server passes `/api` on. Use for: 002.05.
+- [FastAPI: Bigger applications, multiple files](https://fastapi.tiangolo.com/tutorial/bigger-applications/)
+  Routers and `include_router`. Use for: 002.02.
 
 ## Where to get help
 

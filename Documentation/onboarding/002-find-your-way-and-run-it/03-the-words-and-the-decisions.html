@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.3 · The words and the decisions</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 002 · Lesson 3</p>
+<h1>The words and the decisions</h1>
+<p class="lede">The code tells you <em>what</em> the app does. Two documents tell you what its words mean and <em>why</em> it does things the way it does. Where are they, how are they laid out, and how do you get from one to the other?</p>
+
+<div class="callout win"><strong>By the end</strong> you can find a glossary term, its <em>Avoid</em> words, and the ADR behind a rule.</div>
+
+<h2>The problem</h2>
+<p>You read in <code>lending/</code> that Outstanding includes "today". A colleague's instinct says a figure owed should stop at yesterday, since today isn't over. Is the code wrong? Was it an accident, or a decision? If it was a decision, who made it, what else did they consider, and what would break if you "fixed" it?</p>
+<p>Code can't answer that. Comments say what a line does, rarely what was rejected. Without a record, every newcomer re-argues the same questions, and some "fix" a rule that was right.</p>
+
+<h2>The idea</h2>
+<p>This repo keeps two short, plain records beside the code:</p>
+<ul>
+  <li><strong><a href="../../../GLOSSARY.md"><code>GLOSSARY.md</code></a></strong> at the root: every business word, its exact meaning, and the words <em>not</em> to use for it.</li>
+  <li><strong><a href="../../adr/"><code>Documentation/adr/</code></a></strong>: Architecture Decision Records. Each ADR is one decision that a newcomer might otherwise question: what was decided, and why.</li>
+</ul>
+<p>The glossary says what a word means; an ADR says why the rule behind it is that way. Together they are the first place to look before you change a rule.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  Q["A word or rule puzzles you"] --> G{"Is it a business word?"}
+  G -->|yes| GL["GLOSSARY.md<br/>search **Word**:"]
+  GL --> M["meaning and Avoid words"]
+  M --> W{"Still asking why?"}
+  G -->|"no, a design choice"| A["Documentation/adr/<br/>scan the titles"]
+  W -->|yes| A
+  A --> R["read the ADR:<br/>decision, reasons, rejected options"]
+  W -->|no| Done["use the word exactly"]
+  R --> Ask{"Not covered?"}
+  Ask -->|yes| O["ask the owner or open an issue"]
+</pre>
+<figcaption>Glossary first for words, ADRs for reasons, the owner for what neither covers.</figcaption>
+</figure>
+<p>The agent notes in <a href="../../agents/domain.md"><code>Documentation/agents/domain.md</code></a> tell every AI agent in this repo to follow the same path: read the glossary and the relevant ADRs before exploring, use the glossary's words, and flag it if a change contradicts an ADR. You're held to the same rules.</p>
+
+<h2>How the glossary is laid out</h2>
+<p>The glossary is grouped by section (People, Lending, Collateral, Payments, Follow-up, Safekeeping, Status), the same sections as the backend's packages from lesson 2. Each of its 50 terms has the same three-line shape.</p>
+<figure class="snippet">
+<figcaption><a href="../../../GLOSSARY.md">GLOSSARY.md</a> · <em>Lending</em> · lines 52–54</figcaption>
+<pre data-file="GLOSSARY.md"><code>52  **Default Terms**:                         ① the term, bold, capitalised
+53  The Terms the Lender has set to be copied into every new Mortgage.   ②
+54  _Avoid_: Global rate, settings             ③
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The term, in bold, with a capital letter. Wherever a capitalised word like <em>Mortgage</em> or <em>Outstanding</em> appears in code comments, docstrings, tests or issues, it means exactly this entry.</li>
+  <li>One sentence of meaning. Other terms used inside it (<em>Terms</em>, <em>Lender</em>, <em>Mortgage</em>) are themselves entries.</li>
+  <li>Words to avoid, because they mean something subtly different or invite confusion. Not every term has this line.</li>
+</ol>
+<p>To find a term, search the file for <code>**Default Terms**</code>. The course's own <a href="../reference/glossary.html">glossary sheet</a> copies the same entries word for word and says which lesson teaches each.</p>
+
+<h2>How an ADR is laid out</h2>
+<p>There are 12 ADRs, numbered <code>0001</code> to <code>0012</code>. The file name is the number plus the decision in a few words, so the folder listing reads like a table of contents:</p>
+<table class="wide">
+<tr><th>ADR</th><th>Decision</th></tr>
+<tr><td>0001</td><td>The Ledger is derived, not stored</td></tr>
+<tr><td>0002</td><td>WhatsApp messages are click-to-send, not automated</td></tr>
+<tr><td>0003</td><td>Backups go to a cloud-synced folder, not email</td></tr>
+<tr><td>0004</td><td>The app ships as a Docker Compose stack on the Lender's laptop</td></tr>
+<tr><td>0005</td><td>A person is identified by their Primary Number</td></tr>
+<tr><td>0006</td><td>Each month's interest is charged on the Principal at the start of that month</td></tr>
+<tr><td>0007</td><td>Each change's Preview route is written out by hand beside its save route</td></tr>
+<tr><td>0008</td><td>The installed PWA starts and updates the app through a <code>mortgage-management://</code> link</td></tr>
+<tr><td>0009</td><td>Each version is installed in a folder of its own, and <code>app</code> is a junction to the one that runs</td></tr>
+<tr><td>0010</td><td>Without Docker, the backend serves the app's built screens itself</td></tr>
+<tr><td>0011</td><td>Outstanding includes the Interest to Date, today included</td></tr>
+<tr><td>0012</td><td>Dormant Mortgages are flagged, not Redeemed automatically</td></tr>
+</table>
+<p>Inside, an ADR is short: a heading that states the decision, then one to three paragraphs giving the situation, the decision and its reasons. Some end with <em>Considered Options</em>, the alternatives and why they lost. A new decision takes the next number. When a decision replaces an older rule, its ADR says what it replaced and why, as 0011 does about the old Redemption Amount.</p>
+<div class="callout"><strong>Rule:</strong> if your change contradicts an ADR, say so in the issue or commit and argue for reopening it. Never quietly work around one.</div>
+
+<h2>Run-through: Default Terms, then Outstanding to ADR 0011</h2>
+<h3>Step 1: Default Terms</h3>
+<p>Search <code>GLOSSARY.md</code> for <code>**Default Terms**</code> and you get the snippet above: the Terms copied into every new Mortgage. So the code calls it <code>DEFAULT_TERMS</code> (in <code>lending/default_terms.py</code>), the screen calls it "Default Terms", and nobody calls it "the global rate". You'll meet its code in the check-yourself exercise.</p>
+<h3>Step 2: Outstanding</h3>
+<figure class="snippet">
+<figcaption><a href="../../../GLOSSARY.md">GLOSSARY.md</a> · <em>Lending</em> · lines 105–107</figcaption>
+<pre data-file="GLOSSARY.md"><code>105  **Outstanding**:
+106  What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day; nothing once closed.  ◀
+107  _Avoid_: Redemption Amount, balance, dues, payoff
+</code></pre>
+</figure>
+<p>"Plus its Interest to Date … exactly what would redeem it that day" answers half the puzzle from the top of the page: today's interest is in on purpose. But <em>why</em>? And why is "Redemption Amount" on the Avoid list, when it sounds like a perfectly good name?</p>
+<h3>Step 3: follow it to the ADR</h3>
+<p>Scan the ADR titles for "Outstanding": <a href="../../adr/0011-outstanding-includes-interest-to-date.md">0011, Outstanding includes the Interest to Date, today included</a>.</p>
+<figure class="snippet">
+<figcaption><a href="../../adr/0011-outstanding-includes-interest-to-date.md">Documentation/adr/0011-outstanding-includes-interest-to-date.md</a> · lines 1–3, trimmed</figcaption>
+<pre data-file="Documentation/adr/0011-outstanding-includes-interest-to-date.md"><code>1  # Outstanding includes the Interest to Date, today included
+⋮
+3  Outstanding used to be the interest already charged on Accrual Dates plus Principal, and a separate Redemption Amount added the Part-Month Rule charge on top; Customers were told one figure and asked to pay another. Outstanding is now exactly what would redeem the Mortgage that day … The term Redemption Amount is retired, and so is Ready to Redeem, since paying the whole Outstanding Redeems.  ◀
+</code></pre>
+</figure>
+<table class="steps">
+<tr><th>Question</th><th>Where the answer was</th><th>Answer</th></tr>
+<tr><td>What does Outstanding mean?</td><td>Glossary, line 106</td><td>Principal + unpaid interest + Interest to Date, on a date</td></tr>
+<tr class="changed"><td>Why include today?</td><td>ADR 0011</td><td>Customers were told one figure and asked to pay another; now the figure told is the figure that Redeems</td></tr>
+<tr><td>Why avoid "Redemption Amount"?</td><td>ADR 0011</td><td>It was the old second figure, now retired</td></tr>
+<tr><td>What else was considered?</td><td>ADR 0011, paragraph 2</td><td>Keeping the old count for past Closures, rejected so the engine has one day count</td></tr>
+</table>
+<p>In chapter 001 you saw this rule at work: Meera's chain owes ₹83,333 on 19 Oct, which includes ₹533 of Interest to Date. In lesson 4 you'll check that figure on the running app.</p>
+
+<h2>Nuances</h2>
+<div class="reveal">
+  <p><strong>Predict:</strong> you're naming a new function that returns the total the Customer must pay to get their jewellery back today. Which name fits this repo: <code>redemption_amount</code>, <code>balance_due</code> or <code>outstanding</code>?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><code>outstanding</code>. Both others are on Outstanding's <em>Avoid</em> list: "Redemption Amount" is a retired term from before ADR 0011, and "balance" suggests a stored running total, which this app deliberately doesn't keep (ADR 0001). The same goes for screen labels, test names and issue titles.</p>
+  </div>
+</div>
+<div class="reveal">
+  <p><strong>Predict:</strong> you need a word for "a Mortgage the Customer has stopped paying, that the Lender is about to sell". It isn't Forfeited yet. What do you do?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>Don't invent a synonym like "defaulted" (it's on Forfeited's Avoid list) or "overdue". The glossary has no term for this, which is a signal: either the idea isn't needed, or there's a gap worth raising with the owner. <code>domain.md</code> says the same: a missing term is something to note, not something to coin quietly.</p>
+  </div>
+</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">Where do you find why each Preview route is written out by hand rather than generated?</p>
+  <button class="opt">In <code>GLOSSARY.md</code>, under Preview</button>
+  <button class="opt">In the docstring of <code>previews.py</code></button>
+  <button class="opt">In ADR 0007, by scanning ADR titles</button>
+  <div class="why">It's a design decision, so it's an ADR: 0007, "Each change's Preview route is written out by hand beside its save route". The glossary says what a Preview <em>is</em>, not how its routes are built. A docstring might mention it, but the ADR is the record.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">An issue says "the borrower's balance is wrong". How should it be worded?</p>
+  <button class="opt">The Customer's Outstanding is wrong</button>
+  <button class="opt">The client's dues figure is wrong</button>
+  <button class="opt">The loanee's payoff total is wrong</button>
+  <div class="why">Customer and Outstanding are the glossary's terms. Client and loanee are on Customer's Avoid list; dues and payoff are on Outstanding's.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">You disagree with ADR 0012 and think Dormant Mortgages should Redeem by themselves. What's the right move?</p>
+  <button class="opt">Change the code; the tests will catch problems</button>
+  <button class="opt">Raise it, citing ADR 0012, and argue the case</button>
+  <button class="opt">Delete ADR 0012, then write ADR 0013 instead</button>
+  <div class="why">An ADR records a decision someone made for reasons. Contradicting one is fine, but out loud: cite it and argue. Tests check behaviour, not reasons, and deleting the ADR would throw away the reasons it records.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../../GLOSSARY.md"><code>GLOSSARY.md</code></a> top to bottom once: it takes ten minutes, and you met most terms in chapter 001. Then read <a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a> in full, and <a href="../../agents/domain.md"><code>Documentation/agents/domain.md</code></a>.</p>
+
+<nav class="lessons">
+  <a href="02-inside-backend-and-frontend.html">← Inside the backend and the frontend</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="04-serve-the-sample-book.html">Next: Serve the sample book →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>
