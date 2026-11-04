@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.1 · One door for every change</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 006 · Lesson 1</p>
+<h1>One door for every change</h1>
+<p class="lede">Every change to a Mortgage or Payment goes through one function in <code>lending/changes.py</code>, and every one of those functions takes the same four steps. This lesson walks one change through them: the 1.5% rate the Lender gave Meera's bangles on 12 Oct.</p>
+
+<div class="callout win"><strong>By the end</strong> you can name every change in <code>changes.py</code>, find its route, and walk one through refuse → write → check → History.</div>
+
+<h2>The problem</h2>
+<p>On 12 Oct Meera asked for a lower rate on her bangles. The Lender agreed to 1.5% a month instead of 2%, from the bangles' next <a href="../reference/glossary.html#accrual-date"><dfn class="term" title="The monthly day on which a month's interest is added, charged on the Principal as it stood when that month began, at the previous Accrual Date before that day's Payments; taken from the start date and clamped to month-end when the month is shorter.">Accrual Date</dfn></a>, 25 Oct. In the app, that's a <a href="../reference/glossary.html#term-change"><dfn class="term" title="A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.">Term Change</dfn></a>: a dated change to some of a Mortgage's <a href="../reference/glossary.html#terms">Terms</a> (its rate, Interest Mode and Part-Month Rule), applying to the months from then on. Chapter 004, lesson 5 showed how the engine uses one. This lesson is about how one gets saved.</p>
+<p>Saving it isn't just an <code>INSERT</code>. Several things could be wrong:</p>
+<ul>
+  <li>The date might not be an Accrual Date, or might be in the past, which would rewrite interest already charged.</li>
+  <li>There might already be a Term Change on that date.</li>
+  <li>The Mortgage might be closed.</li>
+  <li>The "change" might change nothing.</li>
+</ul>
+<p>And once it's saved, every Ledger it touches has to still make sense, and the change has to appear in the Mortgage's History. The same is true of a Payment, a Void, an edit, a Closure. If each route handled those concerns its own way, one of them would eventually forget one.</p>
+
+<h2>The idea</h2>
+<p>Each change is one plain Python function in <code>changes.py</code> that takes a database connection and does four things in order:</p>
+<ol>
+  <li><strong>Refuse</strong> if the change isn't allowed, by raising an <code>HTTPException</code>.</li>
+  <li><strong>Write</strong> the new facts.</li>
+  <li><strong>Check</strong> by replaying every Mortgage it touches (lesson 2).</li>
+  <li><strong>Record</strong> it in History (lesson 3).</li>
+</ol>
+<p>The route around it does nothing but parse the request, call the function inside a transaction, and send back the result. The rules stay out of the route on purpose: then a Preview (lesson 4) can run exactly the same function.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant P as Change Terms page
+  participant R as post_term_change()
+  participant F as add_term_change()
+  participant DB as database
+  P->>R: POST /api/mortgages/5/term-changes {effective_on, monthly_rate_bps}
+  R->>R: FastAPI parses the body into TermChangeIn
+  R->>DB: engine.begin(): open a transaction
+  R->>F: add_term_change(conn, 5, change, today, now)
+  F->>DB: 1 refuse? replay the Mortgage, test the date
+  F->>DB: 2 write: INSERT term_change
+  F->>DB: 3 check_replays()
+  F->>DB: 4 audit.record(): History rows
+  F-->>R: returns (or raises)
+  R->>DB: load_mortgage(): read it back
+  R-->>P: 201 + the Mortgage, then COMMIT
+</pre>
+<figcaption>The route opens the transaction and answers; the change function does all four steps inside it. If anything raises, the transaction is rolled back and nothing is saved.</figcaption>
+</figure>
+<p>Notice that the route reads the Mortgage back <em>inside</em> the same transaction, so the answer shows exactly what was just saved.</p>
+
+<h2>The code</h2>
+<h3>1. What the module promises</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · module docstring · lines 1–9</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>1  """Changes to Mortgages and Payments, each made in one place: creating Mortgages,
+2  recording and Voiding Payments, edits, Collateral Values set by hand, photos, adding
+3  and removing Term Changes, and Redeeming, Waiving, Forfeiting and Reopening.
+4
+5  Every change is refused if it isn't allowed, written, then checked by replaying each   ◀
+6  Mortgage whose Ledger it touches (no Payment may end up larger than what was owed on its
+7  date), and then recorded in History. The request handlers only parse, call and answer; Previews make the
+8  same change and roll it back.
+9  """
+</code></pre>
+</figure>
+<p>This docstring is the whole chapter in nine lines. Read it again at the end.</p>
+
+<h3>2. The route: parse, call, answer</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>post_term_change()</code> · lines 923–935</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>923  @router.post(
+924      "/mortgages/{mortgage_id}/term-changes", status_code=status.HTTP_201_CREATED
+925  )
+926  def post_term_change(
+927      mortgage_id: int,
+928      change: TermChangeIn,                         ①
+929      engine: EngineDep,
+930      today: TodayDep,
+931      now: NowDep,
+932  ) -&gt; Mortgage:
+933      with engine.begin() as conn:                  ②  ◀
+934          add_term_change(conn, mortgage_id, change, today, now)   ③
+935          return load_mortgage(conn, mortgage_id, today)           ④
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>FastAPI turns the JSON body into a <code>TermChangeIn</code> (a Pydantic model, lines 96–102) before your code runs. A body that doesn't fit it, such as a rate of 0, is refused with a 422 right here, and the change function never runs.</li>
+  <li><code>engine.begin()</code> opens a transaction and <strong>commits</strong> it when the <code>with</code> block ends normally. If anything inside raises, it <strong>rolls back</strong> instead. Everything the change writes, History included, is saved together or not at all.</li>
+  <li>The only line that does anything. <code>today</code> and <code>now</code> come from the app's clock (held on 19 Oct 2026 for the sample book), never from <code>date.today()</code>, so tests and the sample book can choose the day.</li>
+  <li>Read back inside the transaction, so the page gets the Mortgage as just saved, with its new Term Change.</li>
+</ol>
+<p>Every save route in lines 905–1090 has this shape. Open the file and skim them: <code>post_payment</code>, <code>put_mortgage</code>, <code>post_redeem</code>, … each is a few lines long.</p>
+
+<h3>3. The change function, part 1: refuse</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>add_term_change()</code> · lines 368–397, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>368  def add_term_change(
+369      conn: Connection, mortgage_id: int, change: TermChangeIn, today: date, now: datetime
+370  ) -&gt; None:
+⋮
+372      mortgage = replay(conn, mortgage_id)
+373      row = mortgage.row
+374      _refuse_unless_active(row)                                  ① 409
+375      next_one = next(
+376          d for d in upcoming_accrual_dates(row["start_date"], today) if d &gt; today
+377      )
+378      effective_on = change.effective_on or next_one              ②
+379      if effective_on &lt; today or not is_accrual_date(row["start_date"], effective_on):
+380          raise unprocessable(                                    ③ 422  ◀
+381              "A Term Change starts on an Accrual Date, today or later "
+382              f"(the next is {next_one:%d %b %Y})"
+383          )
+384      if any(c.on == effective_on for c in mortgage.term_changes):
+385          raise HTTPException(                                    ④ 409  ◀
+386              status.HTTP_409_CONFLICT,
+387              f"There is already a Term Change on {effective_on:%d %b %Y}",
+388          )
+389      before = mortgage.terms_on(effective_on)                    ⑤
+⋮    … comment: only what differs is stored …
+391      changed = audit.changes(
+392          before.model_dump(),
+393          {**before.model_dump(), **change.model_dump(exclude_none=True)},
+394          Terms.model_fields,
+395      )
+396      if not changed:
+397          raise unprocessable("The Term Change must change the rate, mode or rule")   ⑥ 422
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>A closed Mortgage takes no changes until it's Reopened. The helper is shown below.</li>
+  <li>Leave the date out and you get the next Accrual Date after today. <code>next(generator)</code> returns the first value the generator yields.</li>
+  <li>Not an Accrual Date, or in the past: the request can't stand. <code>unprocessable</code> makes the 422.</li>
+  <li>A Term Change already on that date: the request is fine in itself, but the Mortgage is already in a state that blocks it. That's a 409.</li>
+  <li>The Terms that would be in force for the month starting that day, earlier Term Changes included.</li>
+  <li><code>audit.changes</code> (lesson 3) lists the fields whose values differ. <code>model_dump(exclude_none=True)</code> leaves out the fields the request didn't give, so they carry over from <code>before</code>. If nothing differs, there's nothing to change.</li>
+</ol>
+
+<h3>4. The change function, part 2: write, check, History</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>add_term_change()</code> · lines 398–416</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>398      conn.execute(                                               ① write
+399          insert(term_change_table).values(
+400              mortgage_id=mortgage_id,
+401              effective_on=effective_on,
+402              **{c.field: getattr(change, c.field) for c in changed},   ◀
+403          )
+404      )
+405      check_replays(conn, [row], today)                           ② check
+406      audit.record(                                               ③ History
+407          conn,
+408          now,
+409          "mortgage",
+410          mortgage_id,
+411          "term_change_added",
+412          [
+413              audit.Change("effective_on", None, effective_on.isoformat()),
+414              *changed,
+415          ],
+416      )
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Only the fields in <code>changed</code> get a value. The others stay <code>NULL</code>, meaning "carry over whatever is in force then". The comment at line 390 says why: "so a later Term Change keeps its own effect". If this one stored the Interest Mode too, a different mode set by an earlier Term Change would be overwritten from here on.</li>
+  <li>Replay the Mortgage with the new row in place (lesson 2).</li>
+  <li>One History row for the date, and one for each changed field (lesson 3).</li>
+</ol>
+
+<h3>5. Two kinds of refusal</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_refuse_unless_active()</code> · lines 176–181</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>176  def _refuse_unless_active(row: RowMapping) -&gt; None:
+177      if row["status"] != MortgageStatus.ACTIVE:
+178          raise HTTPException(
+179              status.HTTP_409_CONFLICT,                          ◀
+180              f"{row['name']} is {row['status']}: reopen it first",
+181          )
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/platform/errors.py">platform/errors.py</a> · <code>unprocessable()</code> · lines 6–8</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/errors.py"><code>6  def unprocessable(message: str) -&gt; HTTPException:
+7      """The request can't be carried out as asked (422), with a message for the Lender."""
+8      return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, message)   ◀
+</code></pre>
+</figure>
+<p>Note that <code>unprocessable</code> <em>returns</em> the exception and the caller writes <code>raise unprocessable(…)</code>. That way a type checker sees the <code>raise</code> and knows the code after it can't run. The message in both cases is shown to the Lender as it is, so it's written for them: plain words, the Mortgage Name, a date.</p>
+<table class="steps text">
+<tr><th>Status</th><th>Means</th><th>Examples in <code>changes.py</code></th></tr>
+<tr><td>409 Conflict</td><td>The request makes sense, but the thing isn't in a state that allows it</td><td>A closed Mortgage ("reopen it first"); a Term Change already on that date; a Payment already Voided; a Mortgage Name already used; Reopening an Active Mortgage</td></tr>
+<tr><td>422 Unprocessable</td><td>The request can't stand as asked, whatever the state</td><td>A date in the future or not an Accrual Date; a change that changes nothing; a Payment larger than what was owed (lesson 2); a body FastAPI can't parse</td></tr>
+<tr><td>404 Not Found</td><td>No such Mortgage, Payment, Term Change or photo</td><td><code>mortgage_row</code>; <code>void_payment</code>; <code>remove_term_change</code></td></tr>
+</table>
+<p>The frontend shows the message whatever the status (chapter 011). The status mostly tells <em>you</em>, reading a test or a log, which kind of refusal it was.</p>
+
+<h3>6. Every change, and its two doors</h3>
+<p>Here is every change function in <code>changes.py</code>. All paths start with <code>/api</code>. "Checks?" says whether it calls <code>check_replays</code>; lesson 2 explains why some don't.</p>
+<table class="wide">
+<tr><th>Change function</th><th>Save route</th><th>Preview route (<code>previews.py</code>)</th><th>Checks?</th></tr>
+<tr><td><code>record_payment</code></td><td><code>POST /payments</code></td><td><code>POST /payments/preview</code></td><td>yes</td></tr>
+<tr><td><code>void_payment</code></td><td><code>POST /payments/{payment_id}/void</code></td><td><code>POST /payments/{payment_id}/void-preview</code></td><td>yes</td></tr>
+<tr><td><code>create_mortgage</code></td><td><code>POST /mortgages</code></td><td><code>POST /mortgages/preview</code></td><td>no: no Payments yet</td></tr>
+<tr><td><code>edit_mortgage</code></td><td><code>PUT /mortgages/{mortgage_id}</code></td><td><code>POST /mortgages/{mortgage_id}/edit-preview</code></td><td>yes</td></tr>
+<tr><td><code>add_term_change</code></td><td><code>POST /mortgages/{mortgage_id}/term-changes</code></td><td><code>POST /mortgages/{mortgage_id}/term-changes/preview</code></td><td>yes</td></tr>
+<tr><td><code>remove_term_change</code></td><td><code>DELETE /mortgages/{mortgage_id}/term-changes/{change_id}</code></td><td><code>POST /mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview</code></td><td>yes</td></tr>
+<tr><td><code>set_collateral</code></td><td><code>PUT /mortgages/{mortgage_id}/collateral</code></td><td><code>POST /mortgages/{mortgage_id}/collateral-preview</code></td><td>no: no Ledger</td></tr>
+<tr><td><code>add_photo</code>, <code>remove_photo</code></td><td><code>POST /mortgages/{mortgage_id}/photos</code>, <code>DELETE …/photos/{photo_id}</code></td><td>none</td><td>no: no Ledger</td></tr>
+<tr><td><code>redeem</code></td><td><code>POST /mortgages/{mortgage_id}/redeem</code></td><td><code>POST /mortgages/{mortgage_id}/redeem-preview</code></td><td>yes</td></tr>
+<tr><td><code>waive</code></td><td><code>POST /mortgages/{mortgage_id}/waive</code></td><td><code>POST /mortgages/{mortgage_id}/waive-preview</code></td><td>yes</td></tr>
+<tr><td><code>forfeit</code></td><td><code>POST /mortgages/{mortgage_id}/forfeit</code></td><td><code>POST /mortgages/{mortgage_id}/forfeit-preview</code></td><td>yes</td></tr>
+<tr><td><code>redeem_all</code>, <code>waive_all</code>, <code>forfeit_all</code></td><td><code>POST /closures/redeem</code>, <code>/closures/waive</code>, <code>/closures/forfeit</code></td><td><code>POST /closures/redeem-preview</code>, <code>waive-preview</code>, <code>forfeit-preview</code></td><td>yes, through each single one</td></tr>
+<tr><td><code>reopen</code></td><td><code>POST /mortgages/{mortgage_id}/reopen</code></td><td><code>POST /mortgages/{mortgage_id}/reopen-preview</code></td><td>yes</td></tr>
+</table>
+<p>The bulk Closures (<code>redeem_all</code> and the others) just call the single change once per Mortgage, all inside the route's one transaction. So they're all or none: one refusal rolls back every Mortgage. The <a href="../reference/routes.html">routes sheet</a> lists each route's refusals and History.</p>
+<div class="callout warn"><strong>Trap #1, again.</strong> The Payment routes are here, in <code>lending/changes.py</code>, not in <code>payments/</code>. Every change that can move a Ledger lives in this one module, whatever it's about (chapter 003 owns <a href="../reference/traps.html#t1">this trap</a>).</div>
+
+<h2>Run-through: the bangles' Term Change, 12 Oct</h2>
+<p>The sample book's script (<code>docs/sample-book/book.py</code>) made this change on 12 Oct, with the clock set to that day, by posting <code>{"effective_on": "2026-10-25", "monthly_rate_bps": 150}</code>. Here it is, step by step through <code>add_term_change</code>:</p>
+<table class="steps text">
+<tr><th>Step</th><th>Line</th><th>What happened</th></tr>
+<tr><td>Refuse?</td><td>374</td><td>The bangles are Active: go on</td></tr>
+<tr><td></td><td>375–378</td><td><code>next_one</code> is 25 Oct; the request gave 25 Oct anyway</td></tr>
+<tr><td></td><td>379</td><td>25 Oct is not before 12 Oct, and it is an Accrual Date (the bangles started on 25 Apr): go on</td></tr>
+<tr><td></td><td>384</td><td>No Term Change on 25 Oct yet: go on</td></tr>
+<tr><td></td><td>389–395</td><td><code>before</code>: 2%, Compounded Yearly, pro-rata. <code>changed</code>: only <code>monthly_rate_bps</code>, 200 → 150</td></tr>
+<tr class="changed"><td>Write</td><td>398</td><td>One <code>term_change</code> row: <code>effective_on</code> 2026-10-25, <code>monthly_rate_bps</code> 150, <code>interest_mode</code> NULL, <code>part_month_rule</code> NULL</td></tr>
+<tr><td>Check</td><td>405</td><td>The bangles replay without a problem</td></tr>
+<tr><td>History</td><td>406</td><td>Two rows, action <code>term_change_added</code>: <code>effective_on</code> (none) → 2026-10-25, and <code>monthly_rate_bps</code> 200 → 150</td></tr>
+</table>
+<p class="cite">The stored row and History from <code>scripts/run_throughs.py</code> (sections L1 and L3), on the built book, at commit d6a92ab.</p>
+
+<p><strong>Now try two that are refused.</strong> On your served book it's 19 Oct, and the bangles still have that Term Change. Each <code>curl</code> prints the answer, then the status code. A refused change saves nothing, so these are safe to run:</p>
+<pre><code>B=http://127.0.0.1:8765/api/mortgages/5
+J='content-type: application/json'
+curl -s -w ' %{http_code}\n' -X POST -H "$J" -d '{"effective_on": "2026-11-01", "monthly_rate_bps": 100}' "$B/term-changes"
+curl -s -w ' %{http_code}\n' -X POST -H "$J" -d '{"effective_on": "2026-10-25", "monthly_rate_bps": 100}' "$B/term-changes"</code></pre>
+<table class="steps text">
+<tr><th>Request</th><th>Refused at</th><th>Answer</th></tr>
+<tr><td>1% from 1 Nov</td><td>line 379</td><td>422 · A Term Change starts on an Accrual Date, today or later (the next is 25 Oct 2026)</td></tr>
+<tr class="changed"><td>1% from 25 Oct</td><td>line 384</td><td>409 · There is already a Term Change on 25 Oct 2026</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L1), through the real API on the built book. The book's History had 271 rows before these requests and 271 after.</p>
+<p>The first is a 422 because no state of the Mortgage could make 1 Nov an Accrual Date. The second is a 409 because 25 Oct is a perfectly good date that's already taken. Remove the existing Term Change and the same request would succeed.</p>
+
+<h2>Nuances</h2>
+<h3>(a) A change that changes nothing</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> you ask for 1.5% from 25 Nov. 25 Nov is an Accrual Date and has no Term Change. What happens?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <pre><code>422  The Term Change must change the rate, mode or rule</code></pre>
+    <p>From 25 Oct the bangles are already at 1.5%. <code>terms_on(25 Nov)</code> includes the 25 Oct Term Change, so <code>changed</code> comes out empty and line 397 refuses. A Term Change is compared with the Terms <em>in force then</em>, not with the Terms the Mortgage started with.</p>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L1).</p>
+  </div>
+</div>
+
+<h3>(b) A closed Mortgage</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> <code>POST /api/mortgages/3/term-changes</code> with <code>{"monthly_rate_bps": 100}</code>. Mortgage 3 is Kavita's coin, Redeemed on 5 Oct. 409 or 422, and from which line?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <pre><code>409  2026-Kavita-GoldCoin is redeemed: reopen it first</code></pre>
+    <p>Line 374, the first check. A closed Mortgage is refused for being closed before anything else is looked at, the same rule chapter 005 met in <code>closable</code>. It's a 409 because the request would be fine on an Active Mortgage.</p>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L1).</p>
+  </div>
+</div>
+
+<h3>(c) A refusal before your code runs</h3>
+<p>Send <code>{"effective_on": "2026-11-25", "monthly_rate_bps": 0}</code> and you get a 422 whose <code>detail</code> is a <em>list</em>, not a sentence: <code>[{"type": "greater_than", "loc": ["body", "monthly_rate_bps"], "msg": "Input should be greater than 0", …}]</code>. That comes from FastAPI checking the body against <code>TermChangeIn</code>'s <code>Field(gt=0, le=10_000)</code>, before <code>post_term_change</code> runs. Rules about the shape of one field go on the request model. Rules that need the database (Is it an Accrual Date? Is it taken?) go in the change function.</p>
+
+<h3>(d) The whole change is one transaction</h3>
+<p>Every step writes through the same <code>conn</code>, inside the route's <code>engine.begin()</code>. If <code>check_replays</code> refuses at step 3, the row written at step 2 is rolled back with it. If anything after History raised, the History would be rolled back too. That's why the change functions don't need any clean-up code: they just raise. It's also why a refused change never leaves History behind (lesson 3).</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">Where is the rule "a Term Change starts on an Accrual Date" written?</p>
+  <button class="opt">In the route, <code>post_term_change</code></button>
+  <button class="opt">In the request model, <code>TermChangeIn</code></button>
+  <button class="opt">In the change, <code>add_term_change</code></button>
+  <div class="why">It needs the Mortgage's start date, so it can't be on the request model. Routes only parse, call and answer. It's in the change function (line 379), which is also what the Preview runs.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Voiding a Payment that is already Voided. Which status?</p>
+  <button class="opt">409: the Payment is in the wrong state</button>
+  <button class="opt">422: the request body is not valid</button>
+  <button class="opt">404: a Voided Payment no longer exists</button>
+  <div class="why"><code>void_payment</code> raises 409 "Already voided". The request is fine; the Payment's state blocks it. A Voided Payment still exists (it's kept, marked <code>voided_at</code>), so it isn't 404.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">The bangles' Term Change row has <code>interest_mode</code> NULL. What does that mean?</p>
+  <button class="opt">The Interest Mode was cleared from 25 Oct</button>
+  <button class="opt">The Interest Mode carries over as it was then</button>
+  <button class="opt">The row is broken; NULL should never be stored</button>
+  <div class="why">Only what differs is stored (line 402). NULL means "whatever is in force then", so a later Term Change that sets the Interest Mode keeps its effect.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../../backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a> from line 905 to the end: every save route, one after another. You'll see the same three lines each time. Then pick one change function you haven't met, <code>remove_term_change</code> at line 871, and find its four steps yourself.</p>
+
+<nav class="lessons">
+  <a href="index.html">← Chapter overview</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="02-the-check.html">Next: The check →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

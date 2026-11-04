@@ -64,3 +64,16 @@
 - Lessons 1–4 only read or Preview; lesson 5 has the reader make two Reopens (anklet Redeem→Reopen, coin Reopen) on their served scratch book, so it changes their book: coin then owes ₹55,067 on 19 Oct. Later chapters that check coin or anklet figures on the served book should tell the reader to rebuild.
 - The overview's "Before you start" tells readers to rebuild the book if they saved chapter 003's Payment.
 - `reference/routes.html` now has every Closure route and its Preview twin; `reference/cast.html` has a "Closures, by id" table; `reference/ledger.html` has Outstanding, Closing on a date, The Closures, Dormant and Reopen.
+
+## Chapter 006 (written at d6a92ab)
+
+- `006-changes-and-previews/scripts/run_throughs.py` builds the book, then makes every change, refusal and Preview through the real API on fresh copies (one read-only copy, plus one per lesson that saves: L1, L3, L5, 99). Sections are headed L1–L5 and 99. **Careful when editing it:** an edit you expect to be refused may save (a start date of 2025-11-12 did) and change the read-only copy's figures for later sections.
+- The bangles' Term Change is **id 1** (25 Oct, `monthly_rate_bps` 150 stored, mode and rule NULL). A second Term Change on a copy gets id 2.
+- History on a fresh book: 271 rows. Chain's description edit is row #51; Payment 27 (the ₹16,000) created #233–235, voided #236; the bangles' Term Change #240–241. Bangles' History is 25 rows, Meera's Customer History 73.
+- **Correction to #112/#155:** a Void does *not* put its reason in `note`. It records `Change("void_reason", None, reason)` with no note. Only a Reopen puts its reason in `note`. Lesson 3 teaches the code.
+- Rechecked at d6a92ab (607 tests): deleting `edit_mortgage`'s `check_replays` (line 468) fails exactly the 4 tests #152 named; deleting the ones in `void_payment`, `add_term_change` or `remove_term_change` fails none; deleting `conn.rollback()` in `_preview` fails none; `conn.commit()` there fails 13 (9 test_previews, 3 test_closing, 1 test_redeeming_payments).
+- Chain at ₹1,000 → "the Payment on 10 Dec 2025 would be more than the ₹1,021 owed then"; at ₹10,000 → 10 Jul 2026, ₹1,463; at ₹50,000 it Previews fine.
+- Removing the bangles' Term Change: Projection 1,58,450/1,65,200/1,79,984 → 1,60,600/1,69,600/1,89,833 at 3/6/12 months; `ledger_changes` empty. Payment Preview of ₹83,333 UPI to the chain → redeemed, `payment_id` 34; ₹83,332 leaves ₹1 owed, ₹1,117 in 3 months.
+- Chain Collateral Value: ₹2,70,720 at the Gold Rate (30.8%); ₹90,000 by hand → 92.6%, onto the Call List (85%).
+- `routes.html` now has every save and Preview route in `changes.py`/`previews.py`, plus the History reads. Chapter 008 should add `customer_changes.py`'s routes there.
+- Readers only try refused changes and Previews on the served book in 006; nothing saves. The overview tells them to rebuild a fresh book first (003's Payment and 005's Reopens change the figures and the coin's 409).

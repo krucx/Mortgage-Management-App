@@ -9,7 +9,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 003 | [One Payment, end to end](https://github.com/krucx/Mortgage-Management-App/issues/134) | `003-one-payment-end-to-end/` | follow one Payment from form → Preview → API → Ledger → Receipt | written (361c7fa) |
 | 004 | [The Ledger engine](https://github.com/krucx/Mortgage-Management-App/issues/140) | `004-the-ledger-engine/` | hand-trace any Mortgage's interest, Capitalisation and Payment order | written (6f1775b) |
 | 005 | [Replay and Closures](https://github.com/krucx/Mortgage-Management-App/issues/146) | `005-replay-and-closures/` | explain Outstanding, Redeem/Waive/Forfeit/Reopen and Dormant | written (16b855c) |
-| 006 | [Changes and Previews](https://github.com/krucx/Mortgage-Management-App/issues/152) | `006-changes-and-previews/` | add a change route that refuses, writes, checks and records History | planned |
+| 006 | [Changes and Previews](https://github.com/krucx/Mortgage-Management-App/issues/152) | `006-changes-and-previews/` | add a change route that refuses, writes, checks and records History | written (d6a92ab) |
 | 007 | [Payments and Receipts](https://github.com/krucx/Mortgage-Management-App/issues/158) | `007-payments-and-receipts/` | explain Allocations, Final Payments, `received_with`, Voids, the Cash Limit and Receipts | planned |
 | 008 | [People and Collateral](https://github.com/krucx/Mortgage-Management-App/issues/164) | `008-people-and-collateral/` | explain the Primary Number, Referrers, ID Photos, Gold Rates and Loan-to-Value | planned |
 | 009 | [Follow-up](https://github.com/krucx/Mortgage-Management-App/issues/170) | `009-follow-up/` | explain Notices, the Call List, Call Notes and Call Sheets, and WhatsApp messages | planned |
@@ -57,6 +57,13 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 3. Redeemed, two ways ([#149](https://github.com/krucx/Mortgage-Management-App/issues/149))
 4. Waived and Forfeited ([#150](https://github.com/krucx/Mortgage-Management-App/issues/150))
 5. Dormant, and undoing a Closure ([#151](https://github.com/krucx/Mortgage-Management-App/issues/151))
+
+### 006 Changes and Previews (written)
+1. One door for every change ([#153](https://github.com/krucx/Mortgage-Management-App/issues/153))
+2. The check: replay, then refuse ([#154](https://github.com/krucx/Mortgage-Management-App/issues/154))
+3. History ([#155](https://github.com/krucx/Mortgage-Management-App/issues/155))
+4. Previews: make it, then roll it back ([#156](https://github.com/krucx/Mortgage-Management-App/issues/156))
+5. Adding a change route ([#157](https://github.com/krucx/Mortgage-Management-App/issues/157))
 
 ## Reference sheets
 

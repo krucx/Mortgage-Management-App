@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.3 · History</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 006 · Lesson 3</p>
+<h1>History</h1>
+<p class="lede">The last step of every change is <code>audit.record</code>, which adds rows to the Mortgage's or Payment's History. This lesson reads the sample book's History and shows what each kind of change leaves behind.</p>
+
+<div class="callout win"><strong>By the end</strong> you can read a Mortgage's History and say what each change records.</div>
+
+<h2>The problem</h2>
+<p>On 10 Oct the Lender typed ₹16,000 for one of Meera's Payments instead of ₹6,000, Voided it, and entered ₹6,000. Months later Meera asks why her bangles' Ledger once showed a ₹16,000 Payment. Or the Lender wonders who changed the chain's description, and when. The Ledger can't answer: it is replayed from today's facts, and a Voided Payment isn't in it at all. Something has to remember what the facts <em>were</em>, and how they changed.</p>
+<p>The glossary calls this <a href="../reference/glossary.html#history"><dfn class="term" title="The record of every change to a Customer, Mortgage or Payment — when, what, and the old and new values — which is never edited or removed.">History</dfn></a>: the record of every change to a Customer, Mortgage or Payment, with when, what, and the old and new values, which is never edited or removed.</p>
+<div class="callout warn"><strong>Say "History".</strong> The code calls the module <code>audit.py</code>, the table <code>audit_entry</code>, and the module's docstring still says "The audit log". In this course, in the app and in new code, it's History. The glossary lists <em>Log</em> under Avoid.</div>
+
+<h2>The idea</h2>
+<p>History is an append-only table with <strong>one row per changed field</strong>. Each row says when (<code>at</code>), about what (<code>entity</code> and <code>entity_id</code>), which kind of change (<code>action</code>), the field, its old and new values as text, and an optional <code>note</code>. A change that has no fields to show, such as a Redemption, gets one row with only an <code>action</code> and a <code>note</code>.</p>
+<p>Nothing writes History automatically: there are no database triggers. Each change function calls <code>audit.record</code> itself, as its last step, inside the same transaction as the change. So a refused change leaves no History, and a saved one always does.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  CF["a change function<br/>e.g. edit_mortgage"] -->|"before, after, fields"| CH["audit.changes()"]
+  CH -->|"list of Change(field, old, new)"| CF
+  CF -->|"entity, id, action,<br/>changes, note"| REC["audit.record()"]
+  REC -->|"INSERT one row per Change"| T[("audit_entry")]
+  T -->|"mortgage_history()<br/>customer_history()"| API["GET /api/mortgages/{id}/history<br/>GET /api/customers/{id}/history"]
+  API -->|"AuditEntry list,<br/>newest first"| UI["History section on the<br/>Mortgage and Customer pages"]
+</pre>
+<figcaption>The change function works out what changed and records it; two read functions gather the entries for a page.</figcaption>
+</figure>
+<p>Notice there's no update or delete arrow into <code>audit_entry</code>. The only code that writes to it is the <code>insert</code> in <code>record</code>.</p>
+
+<h2>The code</h2>
+<h3>1. The kinds of entry</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/safekeeping/audit.py">safekeeping/audit.py</a> · <code>Entity</code>, <code>Action</code>, <code>Change</code> · lines 23–44</figcaption>
+<pre data-file="backend/src/mortgage_backend/safekeeping/audit.py"><code>23  Entity = Literal["customer", "mortgage", "payment"]
+24  Action = Literal[                                    ①  ◀
+25      "created",
+26      "edited",
+27      "deleted",
+28      "voided",
+29      "redeemed",
+30      "waived",
+31      "forfeited",
+32      "reopened",
+33      "photo_added",
+34      "photo_removed",
+35      "term_change_added",
+36      "term_change_removed",
+37  ]
+⋮
+40  @dataclass(frozen=True)
+41  class Change:                                        ②
+42      field: str
+43      old: str | None
+44      new: str | None
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>Literal[…]</code> is a type that allows only these exact strings. mypy refuses <code>audit.record(…, "renamed")</code> because <code>"renamed"</code> isn't in the list, and the generated API types give the frontend the same list. A new kind of entry starts here (lesson 5).</li>
+  <li>One field's old and new values, both as text, or <code>None</code> where there was no value.</li>
+</ol>
+
+<h3>2. Working out what changed</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/safekeeping/audit.py">safekeeping/audit.py</a> · <code>changes()</code>, <code>created()</code> · lines 55–69</figcaption>
+<pre data-file="backend/src/mortgage_backend/safekeeping/audit.py"><code>55  def changes(
+56      before: Mapping[Any, object], after: Mapping[Any, object], fields: Iterable[str]
+57  ) -&gt; list[Change]:
+58      """The fields whose value differs, old and new as text."""
+59      found = []
+60      for field in fields:
+61          old, new = _text(before[field]), _text(after[field])     ①
+62          if old != new:
+63              found.append(Change(field, old, new))
+64      return found
+⋮
+67  def created(values: Mapping[Any, object], fields: Iterable[str]) -&gt; list[Change]:
+68      """The values something was created with, as changes from nothing."""
+69      return changes(dict.fromkeys(fields), values, fields)        ②  ◀
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>_text</code> (lines 47–52) turns a date into <code>2026-10-25</code>, anything else into <code>str(value)</code>, and keeps <code>None</code>. Values are compared as text, so ₹80,000 is stored as <code>8000000</code>: paise, as the code holds it.</li>
+  <li><code>dict.fromkeys(fields)</code> is a dict with every field set to <code>None</code>. So "created" is just "changed from nothing", and a field created empty gives no row at all.</li>
+</ol>
+<p>The caller chooses the fields. <code>edit_mortgage</code> passes <code>_AUDITED_EDITS</code> (changes.py lines 164–173: name, start date, Principal, description, weights, purity, Lent Through) and <code>create_mortgage</code> passes <code>_AUDITED_ON_CREATE</code> (lines 473–486: those, plus the Customer and the three Terms). Fields not on the list, like <code>status</code> or the Closure columns, are recorded by their own actions instead.</p>
+
+<h3>3. Writing it</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/safekeeping/audit.py">safekeeping/audit.py</a> · <code>record()</code> · lines 72–98, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/safekeeping/audit.py"><code>72  def record(
+73      conn: Connection,
+74      at: datetime,                                         ① now, from the app's clock
+75      entity: Entity,
+76      entity_id: int,
+77      action: Action,
+78      changed: Sequence[Change] = (),
+79      note: str | None = None,
+80  ) -&gt; None:
+81      """Write an audit entry: one row per changed field, or one row if none."""
+82      rows = [
+83          {"field": c.field, "old_value": c.old, "new_value": c.new} for c in changed
+84      ] or [{"field": None, "old_value": None, "new_value": None}]   ②  ◀
+85      conn.execute(
+86          insert(audit_entry_table),
+⋮    … each row gets at, entity, entity_id, action and note …
+98      )
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Every row of one change gets the same <code>at</code>, <code>action</code> and <code>note</code>, so a reader can group them back into one change.</li>
+  <li><code>a or b</code> gives <code>b</code> when <code>a</code> is an empty list. No changed fields means one row with only the action and note.</li>
+</ol>
+
+<h3>4. Reading it back</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/safekeeping/audit.py">safekeeping/audit.py</a> · <code>_entries()</code>, <code>mortgage_history()</code> · lines 114–144, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/safekeeping/audit.py"><code>114  def _entries(conn: Connection, *where: object) -&gt; list[AuditEntry]:
+115      rows = conn.execute(
+116          select(audit_entry_table, mortgage_table.c.name.label("mortgage_name"))   ①
+117          .outerjoin(
+⋮    … join each "mortgage" entry to its Mortgage row …
+124          .where(or_(*where))  # type: ignore[arg-type]
+125          .order_by(audit_entry_table.c.id.desc())                ② newest first
+126      ).mappings()
+⋮
+137  def mortgage_history(conn: Connection, mortgage_id: int) -&gt; list[AuditEntry]:
+138      """A Mortgage's changes, and those of the Payments made to it, newest first."""
+139      payments = select(allocation_table.c.payment_id).where(
+140          allocation_table.c.mortgage_id == mortgage_id
+141      )
+142      return _entries(
+143          conn, _about("mortgage", [mortgage_id]), _about("payment", payments)   ③  ◀
+144      )
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The Mortgage Name comes from a join with today's <code>mortgage</code> row, not from the entry. So every entry shows the Mortgage's <em>current</em> name (nuance b).</li>
+  <li>Ordered by id, which grows with every insert, so newest first even when two entries share a timestamp.</li>
+  <li>A Mortgage's History is its own entries plus those of every Payment with an Allocation to it, Voided ones included. <code>customer_history</code> (line 147) does the same one level up: the Customer's entries, plus their Mortgages' and Payments'.</li>
+</ol>
+
+<h2>Run-through: three changes in the sample book</h2>
+<p>Read the History yourself on the served book. Either open <a href="http://127.0.0.1:8765/mortgages/5">the bangles' page</a> and scroll to History, or ask the API:</p>
+<pre><code>curl -s http://127.0.0.1:8765/api/mortgages/5/history | python3 -m json.tool | head -80</code></pre>
+<p>Here are three changes, as their <code>audit_entry</code> rows (oldest change first, as you'd tell the story):</p>
+<table class="steps text">
+<tr><th>Row</th><th>at</th><th>entity, id</th><th>action</th><th>field</th><th>old → new</th><th>note</th></tr>
+<tr><td>#51</td><td>15 Jan 2026</td><td>mortgage 2</td><td><code>edited</code></td><td><code>description</code></td><td>Gold chain with pendant → Gold chain with Lakshmi pendant</td><td>—</td></tr>
+<tr><td>#233–235</td><td>10 Oct 2026</td><td>payment 27</td><td><code>created</code></td><td><code>paid_on</code>, <code>amount</code>, <code>method</code></td><td>— → 2026-10-10, 1600000, cash</td><td>—</td></tr>
+<tr class="changed"><td>#236</td><td>10 Oct 2026</td><td>payment 27</td><td><code>voided</code></td><td><code>void_reason</code></td><td>— → Typed ₹16,000 instead of ₹6,000</td><td>—</td></tr>
+<tr><td>#240</td><td>12 Oct 2026</td><td>mortgage 5</td><td><code>term_change_added</code></td><td><code>effective_on</code></td><td>— → 2026-10-25</td><td>—</td></tr>
+<tr><td>#241</td><td>12 Oct 2026</td><td>mortgage 5</td><td><code>term_change_added</code></td><td><code>monthly_rate_bps</code></td><td>200 → 150</td><td>—</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L3): <code>GET /api/mortgages/2/history</code> and <code>/5/history</code> on the built book, at commit d6a92ab.</p>
+<p>What to notice:</p>
+<ul>
+  <li><strong>The chain's edit</strong> recorded one row, for the one field that changed. The other seven fields in <code>_AUDITED_EDITS</code> were sent too, unchanged, and recorded nothing.</li>
+  <li><strong>The ₹16,000 Payment</strong> was created with three rows, not four: its <code>reference</code> was empty, and a field created empty gives no row. Its Void added a row for <code>void_reason</code>. Both are <code>payment</code> entries, yet they appear in the bangles' History because Payment 27 had an Allocation to the bangles. The ₹16,000 isn't in the Ledger any more, but it's still in History.</li>
+  <li><strong>The Term Change</strong> recorded the date and the one Term that differs. Interest Mode and Part-Month Rule stayed the same, so, as in its <code>term_change</code> row (lesson 1), they aren't mentioned.</li>
+</ul>
+<p>The bangles' whole History is 25 rows: 12 for being created, 4 for the 10 Sep Payment, 7 for the two 10 Oct Payments and the Void, and 2 for the Term Change. Meera's Customer History has 73: her own entries as a Customer, plus those of her two Mortgages and of her Payments.</p>
+
+<h2>Nuances</h2>
+<h3>(a) What each kind of change records</h3>
+<table class="wide">
+<tr><th>Change</th><th>Entity</th><th><code>action</code></th><th>Fields</th><th><code>note</code></th></tr>
+<tr><td>New Mortgage</td><td>mortgage</td><td><code>created</code></td><td>Each of <code>_AUDITED_ON_CREATE</code> that has a value</td><td>—</td></tr>
+<tr><td>Edit</td><td>mortgage</td><td><code>edited</code></td><td>Each of <code>_AUDITED_EDITS</code> that changed; no entry at all if none did</td><td>—</td></tr>
+<tr><td>Collateral Value by hand</td><td>mortgage</td><td><code>edited</code></td><td><code>collateral_override</code></td><td>—</td></tr>
+<tr><td>Payment</td><td>payment</td><td><code>created</code></td><td><code>paid_on</code>, <code>amount</code>, <code>method</code>, <code>reference</code> (if any)</td><td>—</td></tr>
+<tr><td>Void</td><td>payment</td><td><code>voided</code></td><td><code>void_reason</code>: none → the reason</td><td>—</td></tr>
+<tr><td>Term Change added</td><td>mortgage</td><td><code>term_change_added</code></td><td><code>effective_on</code>, and each Term that differs</td><td>—</td></tr>
+<tr><td>Term Change removed</td><td>mortgage</td><td><code>term_change_removed</code></td><td>none</td><td>"from 25 Oct 2026"</td></tr>
+<tr><td>Redeem</td><td>mortgage</td><td><code>redeemed</code></td><td>none (plus the Final Payment's <code>created</code>)</td><td>"on 05 Oct 2026 for ₹54,600"</td></tr>
+<tr><td>Waive</td><td>mortgage</td><td><code>waived</code></td><td>none (plus the Final Payment's, if any)</td><td>"on 16 Oct 2026: paid ₹30,520, waived ₹180"</td></tr>
+<tr><td>Forfeit</td><td>mortgage</td><td><code>forfeited</code></td><td>none</td><td>"on 10 Oct 2026, recovered ₹52,000"</td></tr>
+<tr><td>Reopen</td><td>mortgage</td><td><code>reopened</code></td><td><code>status</code>: old → active (plus the Void's own entry)</td><td>the reason</td></tr>
+<tr><td>Photo</td><td>mortgage</td><td><code>photo_added</code>, <code>photo_removed</code></td><td>none</td><td>—</td></tr>
+</table>
+<p class="cite">The notes are the sample book's own, from <code>scripts/run_throughs.py</code> (section L3) on the coin, the nose ring and the earrings.</p>
+<p>Notice the two places a reason can go. A Void stores its reason as the new value of <code>void_reason</code>, the same column it sets on the <code>payment</code> row. A Reopen stores the status change as its field, and its reason in <code>note</code>.</p>
+
+<h3>(b) Entries show the current name</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on a scratch copy, the Lender renames the chain to <code>2025-Meera-ChainWithPendant</code>. What does the chain's 15 Jan description entry show as its <code>mortgage_name</code> afterwards? And what does the <code>created</code> row for <code>name</code> say?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Row</th><th>action</th><th>field</th><th>old → new</th><th><code>mortgage_name</code></th></tr>
+    <tr class="changed"><td>#274</td><td><code>edited</code></td><td><code>name</code></td><td>2025-Meera-GoldChainPendant → 2025-Meera-ChainWithPendant</td><td>2025-Meera-ChainWithPendant</td></tr>
+    <tr><td>#51</td><td><code>edited</code></td><td><code>description</code></td><td>Gold chain with pendant → Gold chain with Lakshmi pendant</td><td>2025-Meera-ChainWithPendant</td></tr>
+    <tr><td>#34</td><td><code>created</code></td><td><code>name</code></td><td>— → 2025-Meera-GoldChainPendant</td><td>2025-Meera-ChainWithPendant</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L3), on its own copy of the book.</p>
+    <p>Every entry shows the new name, because <code>mortgage_name</code> is joined from today's <code>mortgage</code> row. The old name isn't lost: it's in the values of the <code>name</code> rows. That's the History being what the glossary says: never edited. Only the label beside it is current, so the Lender can find the Mortgage. Payment entries have no <code>mortgage_name</code> at all (<code>None</code>), since one Payment can go to several Mortgages.</p>
+  </div>
+</div>
+
+<h3>(c) A Reopen, and the Void inside it</h3>
+<p>On another copy, the coin is Reopened with the reason "Redeemed by mistake: Kavita still has to pay". Two entries appear, both at 19 Oct 11:00, newest first:</p>
+<table class="steps text">
+<tr><th>Row</th><th>entity, id</th><th>action</th><th>field</th><th>old → new</th><th>note</th></tr>
+<tr><td>#273</td><td>mortgage 3</td><td><code>reopened</code></td><td><code>status</code></td><td>redeemed → active</td><td>Redeemed by mistake: Kavita still has to pay</td></tr>
+<tr><td>#272</td><td>payment 26</td><td><code>voided</code></td><td><code>void_reason</code></td><td>— → Redeemed by mistake: Kavita still has to pay</td><td>—</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L3).</p>
+<p>The Void's entry comes first because <code>reopen</code> calls <code>void_payment</code> (lesson 2) before its own <code>audit.record</code>. The old <code>redeemed</code> entry stays, below them.</p>
+
+<h3>(d) Nothing changed, nothing recorded; refused, nothing recorded</h3>
+<p>Save the chain's Edit form without changing anything and the History stays at the same number of rows: <code>changed</code> is empty, and line 469 of <code>edit_mortgage</code> skips <code>record</code>. A refused change records nothing either, as lesson 2's ₹1,000 edit showed (271 rows before and after). That second rule is pinned by <code>test_a_refused_change_records_no_history</code> in <code>tests/test_changes.py</code>.</p>
+<p class="aside">History is mostly tested inside the tests of each change: <code>test_an_edit_is_written_and_recorded</code>, <code>test_term_changes_are_in_the_history</code>, <code>test_closing_and_reopening_are_in_the_history</code> and others assert the entries a change leaves. <code>tests/test_audit.py</code> itself is tiny: three tests of <code>changes()</code>.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">The Lender edits the chain, changing its net weight and its purity. How many History rows does that add?</p>
+  <button class="opt">One, with both fields in its note</button>
+  <button class="opt">Eight, one for each field the form sent</button>
+  <button class="opt">Two, one for each field that changed</button>
+  <div class="why"><code>record</code> writes one row per <code>Change</code>, and <code>audit.changes</code> lists only fields whose text differs. Both rows share the same <code>at</code> and <code>action</code>.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Where in History is the reason for Voiding the ₹16,000 Payment?</p>
+  <button class="opt">The new value of the <code>void_reason</code> row</button>
+  <button class="opt">The <code>note</code> of the <code>voided</code> row</button>
+  <button class="opt">Nowhere: only the <code>payment</code> row has it</button>
+  <div class="why"><code>_record_void_history</code> records <code>Change("void_reason", None, reason)</code> with no note. It's the Reopen that puts its reason in <code>note</code>.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Why is the Voided ₹16,000 Payment in the bangles' History?</p>
+  <button class="opt">A Void is recorded on each Mortgage it touches</button>
+  <button class="opt">It had an Allocation to the bangles</button>
+  <button class="opt">Meera's Customer History is shown there too</button>
+  <div class="why"><code>mortgage_history</code> takes the Mortgage's entries plus the entries of every Payment allocated to it, Voided or not. The Void itself is one <code>payment</code> entry.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read all of <a href="../../../backend/src/mortgage_backend/safekeeping/audit.py"><code>safekeeping/audit.py</code></a>: it's 179 lines. Then read <code>test_a_mortgages_history_shows_every_change_newest_first</code> in <a href="../../../backend/tests/test_corrections.py"><code>tests/test_corrections.py</code></a> (line 255). How the page shows History (<code>History.tsx</code>) is chapter 012's.</p>
+
+<nav class="lessons">
+  <a href="02-the-check.html">← The check</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="04-previews.html">Next: Previews →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>
