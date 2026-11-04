@@ -237,7 +237,7 @@ flowchart TD
 
 <h3>(f) The Payment of exactly the Outstanding, and one rupee more</h3>
 <p>₹83,334 on 19 Oct raises <code>Overpayment: Payment of 8333400 paise on 2026-10-19 exceeds the 8333300 paise owed</code>. Exactly ₹83,333 is allowed, and the engine applies it as an ordinary Payment that leaves nothing owed. In the app, though, saving it does more.</p>
-<div class="callout warn"><strong>Trap #3, a warning:</strong> paying exactly the Outstanding Redeems the Mortgage, in the same request. That happens in <code>record_payment</code>, not in the engine. Chapter 005 owns it; see the <a href="../reference/traps.html#t3">traps sheet</a>.</div>
+<div class="callout warn"><strong>Trap #3, a warning:</strong> paying exactly the Outstanding Redeems the Mortgage, in the same request. That happens in <code>record_payment</code>, not in the engine. <a href="../005-replay-and-closures/03-redeemed.html">Chapter 005, lesson 3</a> owns it; see the <a href="../reference/traps.html#t3">traps sheet</a>.</div>
 
 <div class="callout warn"><strong>Newcomer trap #7: the month starts before the day's Payments.</strong> A month is charged on the Principal at its <em>start</em>. A Payment on an Accrual Date comes <em>after</em> that day's interest, and belongs to the new month. Today always counts in the Interest to Date. So paying Principal never lowers the month it's paid in. This chapter owns trap #7; see the <a href="../reference/traps.html#t7">traps sheet</a>.</div>
 

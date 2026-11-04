@@ -9,7 +9,7 @@
 <body>
 <p class="kicker">Reference sheet</p>
 <h1>The Ledger engine, on one page</h1>
-<p class="lede">The rules <code>backend/src/mortgage_backend/lending/ledger.py</code> follows, for hand-tracing a Mortgage. Taught in <a href="../004-the-ledger-engine/index.html">chapter 004</a>. This sheet grows as chapters are written: Outstanding and the Closure rules are added by chapter 005.</p>
+<p class="lede">The rules <code>backend/src/mortgage_backend/lending/ledger.py</code> follows, for hand-tracing a Mortgage. Taught in <a href="../004-the-ledger-engine/index.html">chapter 004</a> (an open Mortgage) and <a href="../005-replay-and-closures/index.html">chapter 005</a> (Outstanding and Closures, from <code>lending/replay.py</code> and <code>lending/changes.py</code>).</p>
 
 <h2>Stored vs derived</h2>
 <table class="wide">
@@ -69,6 +69,39 @@
   <li>A Projection replays; a Trend (the Dashboard's 3-month average) doesn't.</li>
 </ul>
 
+<h2>Outstanding</h2>
+<ul>
+  <li><code>MortgageReplay.outstanding(on)</code> = the last step of <code>ledger(on)</code>: Principal + unpaid interest. The Interest to Date is inside the unpaid interest, so it's exactly what would Redeem that day. Nothing once closed (but a date before the Closure gives the open figure). ADR 0011.</li>
+  <li><code>replays(conn, rows)</code> loads every Allocation (Voided ones left out at the query) and Term Change for all the rows in <strong>two queries</strong>. <code>replay(conn, id)</code> does one, and 404s.</li>
+  <li><code>ledger(as_of)</code> is cached per <code>as_of</code> on the object, for one request only. Never keep a <code>MortgageReplay</code> across requests (trap #4).</li>
+  <li>Avoid "balance" and "Redemption Amount" (retired by ADR 0011).</li>
+</ul>
+
+<h2>Closing on a date</h2>
+<table class="wide">
+<tr><th>Rule</th><th>In the code</th></tr>
+<tr><td>A quote is the Outstanding if closed on <code>on</code>, leaving out the Closure's own Final Payment. It splits out <code>interest_to_date</code>, its days, and <code>last_accrual_on</code>.</td><td><code>outstanding_on_closure(on)</code>; <code>GET /mortgages/{id}/outstanding-on-closure?on=</code></td></tr>
+<tr><td>Refused (422), in this order: not Active ("already …"); before the start ("had not started"); any Payment strictly after <code>on</code> ("close it on or after then").</td><td><code>not_closable(on)</code></td></tr>
+<tr><td>A Closure may not be dated after today; a quote may.</td><td><code>closable(…, quote_only)</code></td></tr>
+<tr><td>On the closing day: accrue, that day's other Payments, then the Interest to Date (fixed from now on), then the Final Payment, then any write-off. Nothing accrues after <code>closed_on</code>.</td><td><code>compute_ledger</code> (<code>closed_on</code>, <code>closure</code>, <code>final_payment</code>)</td></tr>
+</table>
+
+<h2>The Closures</h2>
+<table class="wide">
+<tr><th>Closure</th><th>Final Payment</th><th>Last Ledger step</th><th>Stored on <code>mortgage</code></th><th>Refused when</th></tr>
+<tr><td>Redeemed (<code>redeem</code>, or a Payment of exactly the quote via <code>_redeemed_by</code>)</td><td>The quote, unless it's ₹0</td><td><code>payment</code> (its Interest to Date capped at what the Final Payment left)</td><td><code>status</code>, <code>closed_on</code>, <code>redemption_payment_id</code></td><td><code>closable</code>. A Payment of the whole quote that can't close is refused whole (trap #3)</td></tr>
+<tr><td>Waived (<code>waive</code>)</td><td><code>amount_paid</code>, unless ₹0</td><td><code>waived</code>: what's left = Waived Amount</td><td>as above + <code>closure_note</code></td><td><code>closable</code>; owes nothing, or <code>amount_paid</code> covers it: "Redeem it instead"</td></tr>
+<tr><td>Forfeited (<code>forfeit</code>)</td><td>none</td><td><code>forfeited</code>: the whole Outstanding</td><td><code>status</code>, <code>closed_on</code>, <code>recovered_amount</code>, <code>closure_note</code></td><td><code>closable</code></td></tr>
+</table>
+<p>Both Redemption and Waiver go through <code>_close_with_payment</code>. <code>closure()</code> replays the rest: <code>outstanding</code> (the quote on <code>closed_on</code>), its Interest to Date, <code>payment_amount</code>, <code>waived_amount</code>, and <code>profit_loss</code> = Recovered Amount − Outstanding (negative is a loss). The bulk routes (<code>redeem_all</code>, <code>waive_all</code>, <code>forfeit_all</code>) are all or none, in one transaction.</p>
+
+<h2>Dormant and Reopen</h2>
+<ul>
+  <li><code>dormant(on)</code>: Active and <code>outstanding(on).total == 0</code>. Derived, never stored; listed by <code>GET /closures/dormant</code>; no Notices, off the Call List. Put right by Redeeming (no Final Payment) or correcting a Payment. ADR 0012.</li>
+  <li><code>reopen</code>: 409 if Active. Clears <code>status</code>, <code>closed_on</code>, <code>redemption_payment_id</code>, <code>recovered_amount</code>, <code>closure_note</code>; then Voids the old Final Payment, if any, with the reason; History <code>reopened</code>.</li>
+  <li>A closed Mortgage refuses Payments, Voids and Term Changes (409 "… reopen it first"). Its Final Payment can't be Voided directly (409 "reopen the Mortgage instead, which voids it").</li>
+</ul>
+
 <h2>Hand-trace checklist</h2>
 <ol>
   <li>List the Accrual Dates from the start date (clamp to month-end).</li>
@@ -79,7 +112,7 @@
 </ol>
 
 <footer>
-  Created by chapter 004; checked at commit <code>6f1775b</code>.
+  Created by chapter 004; extended by chapter 005; checked at commit <code>16b855c</code>.
   · <a href="../index.html">Course home</a> · <a href="traps.html">Traps</a> · <a href="glossary.html">Glossary</a> · <a href="cast.html">The cast</a>
 </footer>
 </body>

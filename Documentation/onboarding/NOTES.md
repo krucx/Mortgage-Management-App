@@ -50,3 +50,17 @@
 - Lesson 4's `$BOOK` snippet reads the reader's served scratch database through `replay(conn, 2)`; it's read-only. 005 can reuse the pattern.
 - The check-yourself exercise was rechecked: 5 fail, 79 pass, the same 5 issue #140 named.
 - `reference/ledger.html` is new (created by 004). 005 adds Outstanding and the Closure rules to it. The glossary sheet gained Projection and Trend.
+
+## Chapter 005 (written at 16b855c)
+
+- `005-replay-and-closures/scripts/run_throughs.py` builds the book once, then works on fresh copies of its database (`Copy`): one read-only, one per change (Reopens, Redemptions, saved Payments), so no change leaks between sections. Sections are headed L1–L5 and 99.
+- Final Payment ids on a fresh book: coin 26 (₹54,600 UPI "UPI 7781"), necklace 29 (₹2,03,600 "NEFT final"), nose ring 30 (₹30,520 cash). Imran's earrings have none. Meera's Voided ₹16,000 is Payment 27. Kavita is Customer 3, Lakshmi 4.
+- **The backend has 607 tests now, not 600** (61bbea2 added seven). The exercise (`replay.py:189`, the quote counting its own Final Payment) fails exactly the 6 tests #146 named; 601 pass. Only *reading a Closure back* breaks: before a Closure `redemption_payment_id` is `None`, so the filter is a no-op. With the break the necklace's Closure would read ₹0, the coin's ₹0, Farida's ₹180.
+- #113 (no test pins Dormant's status check) is **closed**: `test_a_closed_mortgage_owing_nothing_is_never_dormant` pins it. Lesson 5 says so. All current callers of `dormant()` pass Active rows only.
+- The quote route refuses a closed Mortgage first ("already waived"), whatever the date, so lesson 2 shows "close it on or after then" on Meera's chain (Active) with curl, and Farida's from a Reopened copy.
+- A rupee short is expensive: ₹2,03,599 on 16 Oct leaves the necklace owing ₹1 that day and ₹401 on 19 Oct, because the month from 20 Sep is still charged on ₹2,00,000 (ADR 0006). Good for 006 and 016.
+- `owed_after(30, 16 Oct)` for Farida's Final Payment is ₹180 (it adds back the write-off), but her Receipt says "Still owed ₹0": `receipts.py` special-cases a Waiver's Final Payment. Chapter 007 should explain that special case.
+- A Preview of chain ₹83,333 + bangles ₹1,000 (Meera, 19 Oct) shows the bangles' part as Payment 34 and the chain's Final Payment as 35, received with 34. Lesson 3 has the reader curl it; 007 can reuse it for trap #2.
+- Lessons 1–4 only read or Preview; lesson 5 has the reader make two Reopens (anklet Redeem→Reopen, coin Reopen) on their served scratch book, so it changes their book: coin then owes ₹55,067 on 19 Oct. Later chapters that check coin or anklet figures on the served book should tell the reader to rebuild.
+- The overview's "Before you start" tells readers to rebuild the book if they saved chapter 003's Payment.
+- `reference/routes.html` now has every Closure route and its Preview twin; `reference/cast.html` has a "Closures, by id" table; `reference/ledger.html` has Outstanding, Closing on a date, The Closures, Dormant and Reopen.

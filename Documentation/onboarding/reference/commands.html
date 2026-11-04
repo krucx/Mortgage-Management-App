@@ -21,6 +21,8 @@
 <tr><td><code>backend/</code></td><td><code>uv run python ../docs/sample-book/book.py "$BOOK"</code></td><td>Builds the sample book into <code>$BOOK/data</code> through the API. Needs an empty folder: run into a used one, it stops at Meera's Primary Number.</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm install</code> then <code>npm run build</code></td><td>Builds the screens into <code>frontend/dist</code>; rerun after every frontend change you want <code>serve.py</code> to show</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../docs/sample-book/serve.py "$BOOK" [port]</code></td><td>Serves the book on <code>http://127.0.0.1:8765</code> (or <code>port</code>), clock held on 19 Oct 2026; Backups into <code>$BOOK/backups</code></td></tr>
+<tr><td>anywhere</td><td><code>curl -s "http://127.0.0.1:8765/api/mortgages/2/outstanding-on-closure?on=2026-10-19"</code></td><td>The quote for closing Meera's chain on a date: read-only (005 · Lesson 2). Previews (<code>…/redeem-preview</code>, <code>…/waive-preview</code>, <code>/api/payments/preview</code>) save nothing either</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python - "$BOOK" &lt;&lt;'EOF'</code> … <code>replay(conn, 6).outstanding_on_closure(date(2026, 10, 16))</code> … <code>EOF</code></td><td>Reads one Mortgage's replay from the served book's database, for dates or closed Mortgages the screens can't show; read-only (004 · Lesson 4, 005 · Lessons 1–2)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../docs/sample-book/serve.py "$(mktemp -d)" 8766</code></td><td>A blank app on a fresh database, for comparison (Default Terms 3% full month)</td></tr>
 </table>
 
@@ -40,6 +42,8 @@
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_default_terms.py</code></td><td>One test file (002's check-yourself exercise)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_ledger.py</code></td><td>The Ledger engine's 84 tests, pure and database-free (004's check-yourself exercise)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../Documentation/onboarding/004-the-ledger-engine/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 004 quotes</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest -q</code></td><td>All 607 backend tests, one line of dots (005's check-yourself exercise: 6 fail when the quote counts its own Final Payment)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python ../Documentation/onboarding/005-replay-and-closures/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 005 quotes, making its Closures, Reopens and refusals on throwaway copies</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run mypy src</code></td><td>Strict type check of the backend</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm test</code></td><td>All frontend tests (vitest), against a fake server</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm run typecheck</code></td><td>TypeScript check (<code>tsc -b</code>)</td></tr>
@@ -63,7 +67,7 @@
 </table>
 
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

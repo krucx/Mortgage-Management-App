@@ -93,7 +93,7 @@
 <dd>Working out a Mortgage&#x27;s Ledger or Outstanding from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).
   <span class="avoid">Avoid: Recalculation, recompute, refresh</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span>
-  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">003 · Lesson 4</a>, <a href="../004-the-ledger-engine/01-the-ledger-is-a-replay.html">004 · Lesson 1</a></span></dd>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">003 · Lesson 4</a>, <a href="../004-the-ledger-engine/01-the-ledger-is-a-replay.html">004 · Lesson 1</a>, <a href="../005-replay-and-closures/01-outstanding.html">005 · Lesson 1</a></span></dd>
 <dt id="projection">Projection</dt>
 <dd>The Ledger continued into the future under stated assumptions, used to compare outcomes before a decision.
   <span class="avoid">Avoid: Forecast, estimate</span>
@@ -110,7 +110,8 @@
 <dt id="outstanding">Outstanding</dt>
 <dd>What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day; nothing once closed.
   <span class="avoid">Avoid: Redemption Amount, balance, dues, payoff</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/02-how-whats-owed-grows.html">001 · Lesson 2</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/02-how-whats-owed-grows.html">001 · Lesson 2</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/01-outstanding.html">005 · Lesson 1</a></span></dd>
 </dl>
 <h2>Collateral</h2>
 <dl class="terms">
@@ -137,7 +138,8 @@
 <dt id="final-payment">Final Payment</dt>
 <dd>What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.
   <span class="avoid">Avoid: Settlement, closing payment</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/03-redeemed.html">005 · Lesson 3</a></span></dd>
 <dt id="receipt">Receipt</dt>
 <dd>The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
   <span class="avoid">Avoid: Invoice, bill</span>
@@ -155,7 +157,8 @@
 <dt id="void">Void</dt>
 <dd>Cancelling a recorded Payment with a reason, keeping it on record but excluding it from every Ledger.
   <span class="avoid">Avoid: Delete, reverse</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/05-dormant-and-reopen.html">005 · Lesson 5</a></span></dd>
 </dl>
 <h2>Follow-up</h2>
 <dl class="terms">
@@ -197,38 +200,46 @@
 <dl class="terms">
 <dt id="active">Active</dt>
 <dd>A Mortgage still accruing interest with jewellery held.
-  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/05-dormant-and-reopen.html">005 · Lesson 5</a></span></dd>
 <dt id="dormant">Dormant</dt>
 <dd>An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it.
   <span class="avoid">Avoid: Ready to Redeem, paid up</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/05-dormant-and-reopen.html">005 · Lesson 5</a></span></dd>
 <dt id="redeemed">Redeemed</dt>
 <dd>A Mortgage fully repaid with its jewellery returned to the Customer.
   <span class="avoid">Avoid: Settled, paid off</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/03-redeemed.html">005 · Lesson 3</a></span></dd>
 <dt id="closure">Closure</dt>
 <dd>The end of a Mortgage, by Redemption, Waiver or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened.
   <span class="avoid">Avoid: Closing out, termination</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/02-closing-on-a-date.html">005 · Lesson 2</a></span></dd>
 <dt id="waived">Waived</dt>
 <dd>A Mortgage closed with the jewellery returned although the Customer&#x27;s final Payment fell short of its Outstanding on the Closure date (or there was none): the Lender, at their discretion, lets off the rest, the Waived Amount.
   <span class="avoid">Avoid: Written off, settled, discounted</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/04-waived-and-forfeited.html">005 · Lesson 4</a></span></dd>
 <dt id="forfeited">Forfeited</dt>
 <dd>A Mortgage on which the Customer defaulted and the Lender kept or sold the jewellery.
   <span class="avoid">Avoid: Defaulted, auctioned</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/04-waived-and-forfeited.html">005 · Lesson 4</a></span></dd>
 <dt id="reopen">Reopen</dt>
 <dd>Undoing a Closure made by mistake, with a reason: the Mortgage is Active again as if it had never been closed, and a Redemption&#x27;s or Waiver&#x27;s final Payment is Voided.
   <span class="avoid">Avoid: Undo, unclose, revive</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/05-dormant-and-reopen.html">005 · Lesson 5</a></span></dd>
 <dt id="recovered-amount">Recovered Amount</dt>
 <dd>What a Forfeited Mortgage&#x27;s jewellery fetched (or is worth, if kept); its difference from the Outstanding on the Closure date is the Lender&#x27;s profit or loss.
   <span class="avoid">Avoid: Sale value, realisation</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/04-waived-and-forfeited.html">005 · Lesson 4</a></span></dd>
 </dl>
 <footer>
-  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>; unchanged at <code>6f1775b</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
+  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>; unchanged at <code>16b855c</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a>
 </footer>
 </body>

@@ -76,8 +76,20 @@ uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</
 <tr><td>15 Jan 2026</td><td>The chain's description corrected: "Gold chain with pendant" → "Gold chain with Lakshmi pendant" (in its History)</td></tr>
 </table>
 
+<h2>The Closures, by id</h2>
+<p>What the <code>mortgage</code> and <code>payment</code> rows hold for each ending (<a href="../005-replay-and-closures/index.html">chapter 005</a>). Ids are stable on a freshly built book.</p>
+<table class="wide">
+<tr><th>Mortgage</th><th>id</th><th>Closure</th><th>Final Payment</th><th>Quote on the Closure date</th></tr>
+<tr><td>2026-Kavita-GoldCoin</td><td>3</td><td>Redeemed 5 Oct, by the Redeem route</td><td>26: ₹54,600 UPI, "UPI 7781"</td><td>₹50,000 + ₹4,000 + ₹600 (18 days)</td></tr>
+<tr><td>2026-Lakshmi-TempleNecklace</td><td>4</td><td>Redeemed 16 Oct, by an ordinary Payment of the quote</td><td>29: ₹2,03,600 bank transfer, "NEFT final"</td><td>₹2,00,000 + ₹0 + ₹3,600 (27 days)</td></tr>
+<tr><td>2026-Farida-GoldNoseRing</td><td>6</td><td>Waived 16 Oct, ₹180 let off</td><td>30: ₹30,520 cash</td><td>₹30,000 + ₹600 + ₹100 (5 days)</td></tr>
+<tr><td>2026-Imran-GoldEarrings</td><td>7</td><td>Forfeited 10 Oct, Recovered Amount ₹52,000, loss ₹10,840</td><td>none</td><td>₹60,000 + ₹2,800 + ₹40 (1 day)</td></tr>
+<tr><td>2026-Kavita-SilverGoldAnklet</td><td>10</td><td>None: Active and Dormant, owing ₹0</td><td>—</td><td>₹0</td></tr>
+</table>
+<p>The only Voided Payment is 27, Meera's mistyped ₹16,000 on the bangles. The first Payment you save on a fresh book is 34.</p>
+
 <footer>
-  Facts from <code>docs/sample-book/book.py</code>; figures from The Gold Chain Story, checked against the app by <code>001-what-the-app-does/scripts/check_figures.py</code> at commit <code>61bbea2</code>, and the served-book figures and ids by <code>002-find-your-way-and-run-it/scripts/run_throughs.py</code> at commit <code>55ee8cb</code>.
+  Facts from <code>docs/sample-book/book.py</code>; figures from The Gold Chain Story, checked against the app by <code>001-what-the-app-does/scripts/check_figures.py</code> at commit <code>61bbea2</code>, and the served-book figures and ids by <code>002-find-your-way-and-run-it/scripts/run_throughs.py</code> at commit <code>55ee8cb</code>, and the Closures by <code>005-replay-and-closures/scripts/run_throughs.py</code> at commit <code>16b855c</code>.
   · <a href="commands.html">Commands</a>
   · <a href="../index.html">Course home</a> · <a href="glossary.html">Glossary</a>
 </footer>
