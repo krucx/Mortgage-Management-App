@@ -129,7 +129,7 @@ flowchart TD
   <li>Never <code>engine.begin()</code> in a Preview (lesson 4).</li>
   <li>The real change, between two reads.</li>
   <li>This is one of the two Previews with its own shape, so it does its own <code>try</code> … <code>finally: conn.rollback()</code> instead of calling <code>_preview</code>. A Ledger-changing change would just call <code>_preview</code> with a <code>lambda</code>.</li>
-  <li>What the Lender needs to decide: would the <a href="../reference/glossary.html#loan-to-value">Loan-to-Value</a> (the Outstanding as a share of the Collateral Value) put the Mortgage on the Call List? Chapters 008 and 009 own those two.</li>
+  <li>What the Lender needs to decide: would the <a href="../reference/glossary.html#loan-to-value">Loan-to-Value</a> (the Outstanding as a share of the Collateral Value) put the Mortgage on the Call List? Chapters <a href="../008-people-and-collateral/05-gold-rates-collateral-ltv.html">008</a> and <a href="../009-follow-up/01-the-call-list.html">009</a> own those two.</li>
 </ol>
 
 <h3>6. The tests</h3>

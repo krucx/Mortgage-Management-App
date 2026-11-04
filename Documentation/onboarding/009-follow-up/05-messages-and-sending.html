@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9.5 · Messages: templates, cards and click-to-send</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 009 · Lesson 5</p>
+<h1>Messages: templates, cards and click-to-send</h1>
+<p class="lede">Sunita's Notice is thirteen lines of text with a small table in the middle. This lesson reads it line by line, shows which parts the Lender can rewrite and which they can't, and follows the text out of the app into WhatsApp.</p>
+
+<div class="callout win"><strong>By the end</strong> you can change a template safely, and explain how a message reaches WhatsApp.</div>
+
+<h2>The problem</h2>
+<p>Receipts and Notices go to Customers on WhatsApp, usually read on a phone. That brings three problems.</p>
+<ul>
+  <li><strong>WhatsApp has no tables.</strong> A Customer with two Mortgages needs to see two sets of figures that line up. In an ordinary font, "₹700" and "₹35,723" won't line up however many spaces you add.</li>
+  <li><strong>The Lender wants their own words.</strong> "Namaste" or "Dear", Hindi or English, with or without emoji. So the text around the figures is a template the Lender edits. But a template with a typo, like <code>{name}</code> for <code>{customer_name}</code>, would reach the Customer as "Namaste {name}". That's embarrassing, and it can't be unsent.</li>
+  <li><strong>The app can't send WhatsApp messages itself</strong> without breaking WhatsApp's rules (<a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>).</li>
+</ul>
+
+<h2>The idea</h2>
+<p>The figures are built by the app as <strong>cards</strong>: one small block per Mortgage, inside WhatsApp's monospace formatting (text between <code>```</code> fences is shown in a fixed-width font), with amounts right-aligned. The Lender's template says where the cards go, with a <code>{mortgages}</code> placeholder.</p>
+<p>Each template has a fixed list of placeholders it may use. Saving a template with any other brace in it is refused, so a typo is caught when the Lender saves, not when the Customer reads it.</p>
+<p>Sending is click-to-send: the app opens WhatsApp with the message already typed, and the Lender presses Send. All of that sits behind one small frontend object, <code>sender</code>, so it can be replaced by real automation later without touching any page.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  T[("config: message_notice_template")] -->|"template"| NT["notice_text<br/>messages.py"]
+  L["NoticeLine per Mortgage<br/>description, interest, owed_after"] --> CB["_card_block<br/>cards + totals"]
+  CB -->|"{mortgages}"| NT
+  NT -->|"fill"| TXT["message text"]
+  TXT -->|"GET /api/notices"| P["NoticesPage<br/>WhatsApp.tsx (012)"]
+  P -->|"sender.send(phone, text)"| S["messaging.ts<br/>clickToSend"]
+  S -->|"window.open<br/>api.whatsapp.com/send"| WA["WhatsApp,<br/>message prefilled"]
+  E["Settings: save template"] -->|"PUT /api/settings/messages"| R{"template_refusal"}
+  R -->|"unknown brace: 422"| E
+  R -->|"ok"| T
+</pre>
+<figcaption>The backend builds the whole text. The frontend only hands it to WhatsApp. A template is checked once, when it's saved.</figcaption>
+</figure>
+<p>Notice that the frontend never builds a message. Receipts take the same path: <code>receipt_text</code> sits next to <code>notice_text</code>, and the Receipt route returns its <code>text</code> (chapter 007).</p>
+
+<h2>The code</h2>
+<h3>1. Cards</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/follow_up/messages.py">follow_up/messages.py</a> · <code>CARD_WIDTH</code>, <code>_card_block()</code> · lines 19–95, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/messages.py"><code>19  CARD_WIDTH = 24  # characters: fits a phone's WhatsApp monospace line
+20  RULE = "─"
+⋮
+77  def _card_block(cards: list[tuple[str, list[Row]]], totals: list[Row]) -&gt; str:
+78      """A monospace block: a titled card per Mortgage, then totals if more than one."""
+79      rows = [row for _, card in cards for row in card] + totals
+80      width = max(
+81          CARD_WIDTH, *(len(label) + 1 + len(format_inr(paise)) for label, paise in rows)   ①
+82      )
+83
+84      def line(label: str, paise: int) -&gt; str:
+85          amount = format_inr(paise)
+86          return label + amount.rjust(width - len(label))                ②
+87
+88      parts = [
+89          "\n".join([*textwrap.wrap(title, width), *(line(*row) for row in card)])   ③
+90          for title, card in cards
+91      ]
+92      body = "\n\n".join(parts)
+93      if len(cards) &gt; 1:                                                  ④  ◀
+94          body += "\n" + RULE * width + "\n" + "\n".join(line(*row) for row in totals)
+95      return f"```\n{body}\n```"
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Every line in the block is the same width: at least 24 characters, more if some label and amount need it (with one space between). <code>*( … )</code> spreads the generator's values into <code>max</code> as separate arguments.</li>
+  <li><code>rjust</code> pads the amount with spaces on the left, so every amount ends in the same column.</li>
+  <li>The title is the Mortgage's <em>description</em>, wrapped to the width. <code>textwrap.wrap</code> breaks at spaces, so "Gold chain with Lakshmi pendant" (31 characters) becomes "Gold chain with Lakshmi" and "pendant".</li>
+  <li>Totals only appear with two or more cards. With one card they'd just repeat it.</li>
+</ol>
+
+<h3>2. A Notice's text</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/follow_up/messages.py">follow_up/messages.py</a> · <code>notice_text()</code> · lines 162–184, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/messages.py"><code>162  def notice_text(template: str, notice: NoticeMessage) -&gt; str:
+163      interest = sum(line.interest for line in notice.lines)
+164      owed = sum(line.owed_after for line in notice.lines)
+165      block = _card_block(
+166          [
+167              (
+168                  line.description,                             # never the Mortgage Name
+169                  [("Interest added", line.interest), ("Owed after", line.owed_after)],
+170              )
+171              for line in notice.lines
+172          ],
+173          [("Total interest", interest), ("Total owed", owed)],
+174      )
+175      return fill(
+176          template,
+177          {
+178              "customer_name": notice.customer_name,
+179              "date": _date(notice.accrues_on),
+180              "interest": format_inr(interest),
+181              "mortgages": block,                               ◀
+182              "total_owed": format_inr(owed),
+183          },
+184      )
+</code></pre>
+</figure>
+<p>Cards are titled by the jewellery's description, as the Customer knows it ("Mangalsutra"), never by the Mortgage Name ("2026-Sunita-Mangalsutra"), which is the Lender's internal label (<a href="../reference/traps.html#t16">trap #16</a>, owned by chapter 007). <code>receipt_text</code> (line 132) is built the same way, with four rows per card (Paid, Interest, Principal, Still owed) and a "(Redeemed)" suffix on the title when that Payment Redeemed the Mortgage.</p>
+
+<h3>3. Placeholders: allowed, checked, filled</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/follow_up/messages.py">follow_up/messages.py</a> · placeholders, <code>unknown_placeholders()</code>, <code>fill()</code> · lines 98–125</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/messages.py"><code>98  # The placeholders each template may use; saving a template using any other is refused.
+99  RECEIPT_PLACEHOLDERS = (
+100      "customer_name",
+101      "amount",
+102      "method",
+103      "reference",
+104      "date",
+105      "mortgages",
+106      "total_owed",
+107  )
+108  NOTICE_PLACEHOLDERS = ("customer_name", "date", "interest", "mortgages", "total_owed")
+109
+110  _PLACEHOLDER = re.compile(r"\{(\w+)\}")
+111  _BRACED = re.compile(r"\{[^{}]*\}?")  # a brace, up to the next brace or closing one   ①
+112
+113
+114  def unknown_placeholders(template: str, allowed: Sequence[str]) -&gt; list[str]:
+115      """Each brace in `template` that is not exactly an `allowed` {placeholder}, as
+116      written (so `{name}`, `{ amount }`, or an unclosed `{date`), once each, in order;
+117      any of these would reach the Customer as typed."""
+118      usable = {"{" + name + "}" for name in allowed}
+119      found = dict.fromkeys(_BRACED.findall(template))                  ②
+120      return [written for written in found if written not in usable]
+121
+122
+123  def fill(template: str, values: dict[str, str]) -&gt; str:
+124      """The template with each {placeholder} replaced; unknown ones stay as written."""
+125      return _PLACEHOLDER.sub(lambda m: values.get(m.group(1), m.group(0)), template)   ③
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The regex reads: a <code>{</code>, then any characters that aren't braces, then a <code>}</code> if there is one. So it catches <code>{name}</code>, <code>{ amount }</code> and a brace left open, <code>{date</code>.</li>
+  <li><code>dict.fromkeys</code> removes repeats but keeps the order they were first seen in (a set wouldn't keep the order).</li>
+  <li><code>fill</code> is forgiving: an unknown placeholder stays as written. It doesn't need to be strict, because a template can't be saved with one. The strictness lives in one place, the save.</li>
+</ol>
+<p>A Notice has no <code>{amount}</code> or <code>{method}</code>, because nothing was paid. A Receipt has no <code>{interest}</code>. Each list matches what its <code>…_text</code> function fills in.</p>
+
+<h3>4. Refusing a template at save</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/follow_up/message_settings.py">follow_up/message_settings.py</a> · <code>template_refusal()</code>, <code>update_message_settings()</code> · lines 77–110, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/message_settings.py"><code>77  def template_refusal(settings: MessageSettings) -&gt; str | None:
+⋮
+80      for name, template, allowed in (
+81          ("Receipt", settings.receipt_template, RECEIPT_PLACEHOLDERS),
+82          ("Notice", settings.notice_template, NOTICE_PLACEHOLDERS),
+83      ):
+84          if unknown := unknown_placeholders(template, allowed):
+85              usable = " ".join("{" + placeholder + "}" for placeholder in allowed)
+86              return (
+87                  f"The {name} template can't fill {', '.join(unknown)}. "
+88                  f"It can use: {usable}"
+89              )
+90      return None
+⋮
+102  @router.put("/settings/messages")
+103  def update_message_settings(
+104      settings: MessageSettings, engine: EngineDep, today: TodayDep
+105  ) -&gt; MessageSettings:
+106      if reason := template_refusal(settings):
+107          raise unprocessable(reason)                          # 422, nothing saved  ◀
+108      with engine.begin() as conn:
+109          MESSAGE_SETTINGS.set(conn, settings, today)          # then syncs (lesson 3)
+110          return MESSAGE_SETTINGS.get(conn)
+</code></pre>
+</figure>
+<p>The refusal names each bad brace and lists the usable ones, so the Lender can fix it. <code>GET /api/settings/messages/placeholders</code> (line 113) publishes both lists, and the Settings page shows them. The defaults are <code>RECEIPT_TEMPLATE</code> and <code>NOTICE_TEMPLATE</code> (lines 20–41); <code>MessageSettings</code> (line 44) uses them until the Lender saves their own, and refuses an empty template (<code>min_length=1</code>).</p>
+
+<h3>5. Out to WhatsApp</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/messaging.ts">frontend/src/messaging.ts</a> · <code>MessageSender</code>, <code>sender</code>, <code>whatsAppLink()</code> · lines 5–32, trimmed</figcaption>
+<pre data-file="frontend/src/messaging.ts"><code>5  export interface MessageSender {
+6    /** Send `text` to a 10-digit Indian mobile number. */
+7    send(phone: string, text: string): void
+8    /** Open a conversation with the number, to write in it (e.g. from the Call List). */
+9    chat(phone: string): void
+10  }
+⋮
+13  const clickToSend: MessageSender = {
+14    send(phone, text) {
+15      window.open(whatsAppLink(phone, text), '_blank', 'noopener')
+16    },
+⋮
+20  }
+21
+22  export const sender: MessageSender = clickToSend              // ① the one swap point  ◀
+⋮
+28  function whatsAppLink(phone: string, text?: string): string {
+29    const query = new URLSearchParams({ phone: `91${phone}` })  // ② India's country code
+30    if (text !== undefined) query.set('text', text)
+31    return `https://api.whatsapp.com/send/?${query}`            // ③ not wa.me
+32  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Pages import <code>sender</code>, never <code>clickToSend</code>. To move to the WhatsApp Business API, write a second <code>MessageSender</code> and change this one line (<a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>).</li>
+  <li>Phone numbers are stored as 10 digits (chapter 008). WhatsApp wants the full international number, so <code>91</code> is added here and nowhere else. <code>URLSearchParams</code> URL-encodes the text: newlines, ₹ and emoji included.</li>
+  <li><code>wa.me</code> is WhatsApp's short link, but it redirects to this one and the redirect turns emoji into "�" (the comment at lines 24–27). So the app uses the long link directly.</li>
+</ol>
+<p>Only two places call <code>sender</code>: <code>SendOnWhatsApp</code> in <code>components/WhatsApp.tsx</code> (Receipts and Notices) uses <code>send</code>; <code>CallListPage</code> uses <code>chat</code>, to open a conversation with no text. Both are chapter 012's.</p>
+
+<h2>Run-through: Sunita's card, line by line</h2>
+<p>Here is #58's message, with each line's length in characters:</p>
+<table class="steps text">
+<tr><th>Chars</th><th>Line</th><th>Where it comes from</th></tr>
+<tr><td>19</td><td><code>*Interest notice* 🔔</code></td><td>template (<code>*…*</code> is WhatsApp bold)</td></tr>
+<tr><td>0</td><td></td><td>template</td></tr>
+<tr><td>19</td><td><code>Namaste Sunita Rao,</code></td><td>template, <code>{customer_name}</code></td></tr>
+<tr><td>51</td><td><code>On *21 Oct 2026*, interest of *₹700* will be added.</code></td><td>template, <code>{date}</code>, <code>{interest}</code></td></tr>
+<tr><td>0</td><td></td><td>template</td></tr>
+<tr><td>3</td><td><code>```</code></td><td rowspan="5"><code>{mortgages}</code>: <code>_card_block</code></td></tr>
+<tr class="changed"><td>11</td><td><code>Mangalsutra</code></td></tr>
+<tr class="changed"><td>24</td><td><code>Interest added······₹700</code></td></tr>
+<tr class="changed"><td>24</td><td><code>Owed after·······₹35,723</code></td></tr>
+<tr><td>3</td><td><code>```</code></td></tr>
+<tr><td>0</td><td></td><td>template</td></tr>
+<tr><td>32</td><td><code>Total owed after that: *₹35,723*</code></td><td>template, <code>{total_owed}</code></td></tr>
+<tr><td>41</td><td><code>Please get in touch with any questions. 🙏</code></td><td>template</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5); <code>·</code> marks a space. Python counts characters, so ₹ and an emoji are one each.</p>
+<p>Both card lines are exactly 24 characters, <code>CARD_WIDTH</code>: no label and amount here needed more. "Owed after" is ₹35,723: the ₹35,000 Principal, the ₹700 added on 21 Oct, and ₹23, one day of the new month's Interest to Date (today always counts; <a href="../reference/traps.html#t7">trap #7</a>). There's one card, so there are no totals.</p>
+
+<h3>Change the template</h3>
+<p>This saves a template on your served book, then puts the old settings back. Capture the current settings first:</p>
+<pre><code>S=$(curl -s http://127.0.0.1:8765/api/settings/messages)
+put() { curl -s -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages; }
+printf '%s' "$S" | jq '.notice_template = "Namaste {name}, {interest} will be added on {date}."' | put
+printf '%s' "$S" | jq '.notice_template = "Namaste {customer_name}, { interest } on {date"' | put
+printf '%s' "$S" | jq '.notice_template = "Namaste {customer_name}, {interest} will be added on {date}.\n\n{mortgages}"' | put
+printf '%s' "$S" | put      # back to how it was</code></pre>
+<table class="steps text">
+<tr><th>Template</th><th>Answer</th></tr>
+<tr><td><code>Namaste {name}, …</code></td><td>422 · The Notice template can't fill {name}. It can use: {customer_name} {date} {interest} {mortgages} {total_owed}</td></tr>
+<tr><td><code>… { interest } on {date</code></td><td>422 · The Notice template can't fill { interest }, {date. It can use: …</td></tr>
+<tr class="changed"><td><code>Namaste {customer_name}, {interest} will be added on {date}.</code> + cards</td><td>200</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5). A Receipt template using <code>{interest}</code> is refused the same way: "The Receipt template can't fill {interest}. It can use: {customer_name} {amount} {method} {reference} {date} {mortgages} {total_owed}".</p>
+<p>On your book, the accepted template rewords nothing you can see: Sunita's Notice was sent in lesson 4, and its text was frozen then. On a fresh copy, where #58 is still unsent, it reads at once:</p>
+<pre><code>Namaste Sunita Rao, ₹700 will be added on 21 Oct 2026.
+
+```
+Mangalsutra
+Interest added      ₹700
+Owed after       ₹35,723
+```</code></pre>
+
+<h2>Nuances</h2>
+<h3>(a) Two cards, and totals</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on a copy, Meera is given a second Mortgage, "Gold earrings", ₹20,000 from 25 Sep 2026, so it accrues on the 25th, like her bangles. With days ahead at 7, her 25 Oct Notice covers both. What does the block look like?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+<pre><code>```
+Gold earrings
+Interest added      ₹400
+Owed after       ₹20,413
+
+Pair of bangles
+Interest added    ₹3,000
+Owed after     ₹1,52,075
+────────────────────────
+Total interest    ₹3,400
+Total owed     ₹1,72,488
+```</code></pre>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L5), on a copy: Notice #59, Mortgages 2026-Meera-GoldEarrings and 2026-Meera-PairBangles.</p>
+    <p>One Notice, two cards, ordered by Mortgage Name (<code>_accruing</code> sorts by name), with a 24-character rule and the totals. The line above the block says "interest of *₹3,400*". The bangles' Term Change to 1.5% from 25 Oct (chapter 006) doesn't lower this month: the month ending on 25 Oct is charged at 2%.</p>
+  </div>
+</div>
+
+<h3>(b) A card that has to widen</h3>
+<p>Calling <code>notice_text</code> directly with a made-up ₹12,34,567 of interest: <code>"Interest added"</code> (14) + a space + <code>"₹12,34,567"</code> (10) is 25 characters, so every line of the block becomes 25 wide, and the amounts still line up. (From <code>scripts/run_throughs.py</code>, section L5; <code>test_messages.py::test_a_card_widens_for_a_large_amount_and_wraps_a_long_item</code>.)</p>
+
+<h3>(c) A Receipt's card</h3>
+<p>Receipt 26, Kavita's coin, Redeemed on 5 Oct:</p>
+<pre><code>```
+Gold coin (Redeemed)
+Paid             ₹54,600
+  Interest        ₹4,600
+  Principal      ₹50,000
+Still owed            ₹0
+```</code></pre>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5): <code>GET /api/payments/26/receipt</code>, its <code>text</code>.</p>
+<p>The same <code>_card_block</code>, different rows. The two-space indent makes Interest and Principal read as parts of Paid. The title says "(Redeemed)" so Kavita knows the coin is hers again. What each figure means is chapter 007's.</p>
+
+<h3>(d) The link WhatsApp opens</h3>
+<p>Running the real <code>messaging.ts</code> under Node, with <code>window.open</code> replaced by a function that records its arguments, <code>sender.send("9860067890", message)</code> opens:</p>
+<pre><code>https://api.whatsapp.com/send/?phone=919860067890&amp;text=*Interest+notice*+%F0%9F%94%94%0A%0ANamaste+Sunita+Rao%2C%0A…</code></pre>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5), which runs <code>frontend/src/messaging.ts</code> with Node 26's built-in TypeScript support. Target <code>_blank</code>, features <code>noopener</code>. <code>sender.chat</code> opens the same link with no <code>text</code>.</p>
+<p><code>%F0%9F%94%94</code> is 🔔 in UTF-8, and <code>%0A</code> a newline. Everything the backend built arrives in WhatsApp's text box, character for character. Don't press Send on the sample book: its numbers are invented but realistic.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">The Lender saves the Notice template <code>Dear {customer_name}, pay {amount} by {date}.</code> What happens?</p>
+  <button class="opt">It saves, and <code>{amount}</code> shows as typed</button>
+  <button class="opt">It saves, and <code>{amount}</code> is left blank</button>
+  <button class="opt">422: a Notice can't fill <code>{amount}</code></button>
+  <div class="why"><code>amount</code> is a Receipt placeholder, not a Notice one. <code>template_refusal</code> finds <code>{amount}</code> among the braces and refuses the save. Only <code>fill</code> would leave it as typed, and it never sees a refused template.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Why does a Notice with one card show no "Total owed" line in the block?</p>
+  <button class="opt">Totals are added only for two or more cards</button>
+  <button class="opt">The template's <code>{total_owed}</code> replaces it</button>
+  <button class="opt">One card is too narrow to fit the total</button>
+  <div class="why">Line 93: <code>if len(cards) &gt; 1</code>. With one card the totals would repeat it. <code>{total_owed}</code> is a separate placeholder outside the block, used by the default template either way.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">The owner wants messages sent by the WhatsApp Business API. What's the smallest frontend change?</p>
+  <button class="opt">Edit every page that has a Send button</button>
+  <button class="opt">A new <code>MessageSender</code>, assigned to <code>sender</code></button>
+  <button class="opt">Change <code>whatsAppLink</code> to use <code>wa.me</code></button>
+  <div class="why">Pages only call <code>sender.send</code> and <code>sender.chat</code>. Swap the object behind <code>sender</code> and they all follow (ADR 0002). <code>wa.me</code> would break emoji and still be click-to-send. (Sending from the backend would need more work there too.)</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../../backend/src/mortgage_backend/follow_up/messages.py"><code>follow_up/messages.py</code></a> (184 lines) and <a href="../../../frontend/src/messaging.ts"><code>frontend/src/messaging.ts</code></a> (32 lines) whole, then <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>: one paragraph on why the app opens a link instead of driving WhatsApp Web.</p>
+
+<nav class="lessons">
+  <a href="04-a-notices-life.html">← A Notice's life</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Next: Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

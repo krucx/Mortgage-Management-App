@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9.99 · Check yourself</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 009 · Check yourself</p>
+<h1>Check yourself: Follow-up</h1>
+<p class="lede">Questions from all five lessons, mixed up. Each is about a fresh sample book, before any of this chapter's saves. Then one small break in the real code, which shows how a log can quietly stop being a log.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">1. Nobody pays anything. Served on 19 Nov 2026, is Arjun's gold chain (started 19 Aug, 2 Months Unpaid on 19 Oct) on the Call List, and why?</p>
+  <button class="opt">Yes, only because it accrues that day</button>
+  <button class="opt">Yes: 3 Months Unpaid, and it accrues that day</button>
+  <button class="opt">No: its Loan-to-Value is still under 85%</button>
+  <div class="why">On 19 Nov the chain adds its third month's interest with none paid, so Months Unpaid reaches the limit of 3 (<code>&gt;=</code>). It also accrues on the 19th. One row carries both reasons. Loan-to-Value is only one of three reasons. (From <code>scripts/run_throughs.py</code>, section 99: 3 Months Unpaid, 29.4%. Lesson 1.)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">2. On 21 Oct, nobody has called anyone yet. Where does Arjun's ruby ring sort?</p>
+  <button class="opt">First: it's uncalled, with the most Months Unpaid</button>
+  <button class="opt">Last, below Sunita, as he was called on 19 Oct</button>
+  <button class="opt">Off the list until a new Call Note is added</button>
+  <div class="why">"Called" means a Call Note dated <em>today</em> (<code>_todays_notes</code>). The 19 Oct note doesn't count on 21 Oct, so the ring is uncalled, and 15 Months Unpaid beats Sunita's 1. (Lesson 1.)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">3. The app isn't opened after 19 Oct until 23 Oct. Days ahead is 2. Which unsent Notices exist that morning?</p>
+  <button class="opt">Meera's for 25 Oct only: Sunita's is past</button>
+  <button class="opt">None: the missed days aren't made up</button>
+  <button class="opt">Sunita's for 21 Oct, and Meera's for 25 Oct</button>
+  <div class="why">The first request on 23 Oct syncs: 25 Oct is within 2 days, so Meera's Notice is made, <code>created_on</code> 23 Oct. Sunita's was made on 19 Oct and is still unsent. <code>sync</code> never removes a Notice for a past date; the Lender skips it. (From <code>scripts/run_throughs.py</code>, section L3 (c2). Lesson 3.)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">4. A sheet comes back with a note for 2026-Sunita-Mangalsutra, Called on 20 Sep 2026. What does the import say?</p>
+  <button class="opt">Added: the date isn't after today</button>
+  <button class="opt">Left out: before the Mortgage started</button>
+  <button class="opt">Counted as empty, and not named</button>
+  <div class="why">The mangalsutra started on 21 Sep. <code>left_out_because</code> checks both ends: not after today, not before the start. A left-out row is named with its row number and reason; only empty notes and duplicates are just counted. (Lesson 2.)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">5. A <code>queued</code> Notice is skipped. What does its row hold afterwards?</p>
+  <button class="opt">The message as it read, and no <code>sent_at</code></button>
+  <button class="opt">No message: only sent Notices keep one</button>
+  <button class="opt">The message, and <code>sent_at</code> set to now</button>
+  <div class="why"><code>act</code> stores the message and the <code>notice_mortgage</code> rows for any Notice leaving the unsent statuses, sent or skipped. Only sending sets <code>sent_at</code>. (Lesson 4.)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">6. Which template saves?</p>
+  <button class="opt">Notice: <code>Ref {reference}, owed {total_owed}</code></button>
+  <button class="opt">Notice: <code>Owed { total_owed } after {date}</code></button>
+  <button class="opt">Receipt: <code>Ref {reference}, owed {total_owed}</code></button>
+  <div class="why"><code>{reference}</code> is a Receipt placeholder; a Notice has no Payment to refer to. <code>{ total_owed }</code> with spaces isn't exactly a placeholder, so it's refused too. The Receipt template uses only its own two placeholders. (From <code>scripts/run_throughs.py</code>, section 99. Lesson 5.)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">7. Which of these requests can write to the <code>notice</code> table?</p>
+  <button class="opt"><code>GET /api/call-list</code></button>
+  <button class="opt"><code>GET /api/dashboard</code></button>
+  <button class="opt"><code>POST /api/payments</code></button>
+  <div class="why">The Dashboard syncs the Notices first, inside <code>engine.begin()</code>, so its counts agree with the Notices page. The Call List reads only. A Payment doesn't sync: the next read will (though, as the first request of a new day, any request runs the daily jobs). (Lesson 3.)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">8. Sunita's Notice was sent on 19 Oct. On 20 Oct the Lender corrects her mangalsutra's Principal. What does the sent Notice say now?</p>
+  <button class="opt">Exactly what it said when it was sent</button>
+  <button class="opt">The new figures, as worded from the replay</button>
+  <button class="opt">Nothing: its message is cleared by the edit</button>
+  <div class="why">A sent Notice shows the stored <code>message</code>; only unsent ones are worded on read (<code>list_notices</code>, line 292). That's the next exercise. (Lesson 4.)</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Hands-on: make sent Notices forget what they said</h2>
+<p>Your first safe change in this area. You'll make one small edit so that sent and skipped Notices are worded again on every read, like unsent ones, and see what catches it.</p>
+<ol>
+  <li>Run every backend test, from the repo root:
+<pre><code>cd backend &amp;&amp; uv run pytest</code></pre>
+    All 607 pass (checked at commit 6e6b030).</li>
+  <li>Open <a href="../../../backend/src/mortgage_backend/follow_up/notices.py"><code>follow_up/notices.py</code></a> at line 292, inside <code>list_notices</code>, and change
+<pre><code>        conn, [row for row in rows if row["status"] in _UNSENT], replayed</code></pre>
+    to
+<pre><code>        conn, rows, replayed</code></pre>
+    Now every Notice, sent or not, gets an entry in <code>accruing</code>, so line 296 words them all from today's replay and today's template.</li>
+  <li><strong>Predict</strong> before you run. How many tests fail? Think about what a test would have to do to notice: send a Notice, then change something the wording depends on, then read it back.</li>
+  <li>Run <code>uv run pytest</code> again.</li>
+</ol>
+<div class="reveal">
+  <p><strong>Check:</strong> how many failed, and why?</p>
+  <button class="show">I've run it. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>1 failed, 606 passed</strong> (at commit 6e6b030):</p>
+    <table class="steps text">
+    <tr><th>Test</th><th>Why it fails</th></tr>
+    <tr class="changed"><td><code>test_notices.py::test_a_sent_notice_keeps_the_message_that_was_sent</code></td><td>It sends a Notice, then records a ₹9,000 Payment and changes the template to <code>"changed"</code>. Read back, the sent Notice's message is now <code>'changed'</code>, not the text that was sent: <code>AssertionError: assert (&lt;NoticeStatu...'&gt;, 'changed') == ('sent', '*In...questions. 🙏')</code></td></tr>
+    </table>
+    <p>That's lesson 4's point, made concrete. The message <em>was</em> stored when it was sent (<code>act</code> still writes it), but nothing reads it any more. The Notices page would now show every past Notice as if it had been written this morning, with today's figures and today's template. Sunita's log would say she was told something she never saw.</p>
+    <p>Notice how little guards this: one line, one test. Everything else still passes, because every other test either reads unsent Notices or doesn't change anything after sending. If you ever touch <code>list_notices</code>, run that test first.</p>
+  </div>
+</div>
+<ol start="5">
+  <li>Undo the change:
+<pre><code>git checkout -- backend/src/mortgage_backend/follow_up/notices.py</code></pre>
+    (from the repo root), and run <code>uv run pytest</code> once more: 607 pass.</li>
+</ol>
+
+<h2>Recap</h2>
+<ul>
+  <li>The Call List is worked out on request; only its two limits and the Call Notes are stored. An Active, non-Dormant Mortgage is listed for Months Unpaid at or above the limit (3), Loan-to-Value strictly above it (85%), or accruing today, and can carry several reasons. Rows sort uncalled first, then most Months Unpaid, then highest Loan-to-Value, grouped per Customer. "Called" means a Call Note today (<a href="01-the-call-list.html">lesson 1</a>, ADR 0012).</li>
+  <li>Call Notes follow one set of rules either way (<code>left_out_because</code>): Active, not empty, not after today, not before the start. One added on its own is dated today; an imported one takes the sheet's Called on. An exact duplicate is kept once, so importing twice adds nothing. Left-out rows are named, empty ones and duplicates counted. Call Notes aren't History (<a href="02-call-notes-and-call-sheets.html">lesson 2</a>).</li>
+  <li>There's no scheduler. <code>sync</code> makes the unsent Notices what they should be (one per Customer per coming Accrual Date within the days ahead, none for Dormant Mortgages), and is safe to repeat. It runs in the daily run, on every read of the Notices or the Dashboard, and on saving message settings. Missed days are made up only for dates still to come; approvals are forgotten while "approve first" is off (<a href="03-the-notice-queue.html">lesson 3</a>, trap #8).</li>
+  <li>An unsent Notice is a Customer and a date; its Mortgages, figures and wording are worked out on every read. Sending or skipping freezes the message and <code>notice_mortgage</code>. Approve needs awaiting, send needs queued, skip needs unsent; anything else is a 409. A Notice with nothing to say can only be skipped. "Sent" means the Lender opened WhatsApp (<a href="04-a-notices-life.html">lesson 4</a>, ADR 0001, ADR 0002).</li>
+  <li>The backend builds every message: cards per Mortgage in a monospace block, at least 24 wide, titled by description, totals only for two or more. Each template has its own placeholders; any other brace is refused at save. The frontend hands the text to <code>sender</code>, which opens <code>api.whatsapp.com/send</code> with <code>91</code> added, never <code>wa.me</code> (<a href="05-messages-and-sending.html">lesson 5</a>, trap #16).</li>
+</ul>
+<p>Keep the <a href="../reference/routes.html#follow-up">routes sheet</a> open when you work on follow-up: it now lists every Call List, Call Note, Call Sheet, Notice and message route. The <a href="../reference/traps.html#t8">traps sheet</a> marks the Notice half of #8 as this chapter's, and the <a href="../reference/glossary.html#call-list">glossary</a> links each follow-up term to the lesson that opens its code.</p>
+
+<nav class="lessons">
+  <a href="05-messages-and-sending.html">← Messages and sending</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="../index.html">Course home →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

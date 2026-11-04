@@ -103,8 +103,19 @@ uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</
 </table>
 <p>The only Voided Payment is 27, Meera's mistyped ₹16,000 on the bangles. The first Payment you save on a fresh book is 34.</p>
 
+<h2>Follow-up on 19 Oct</h2>
+<p>What chapter 009 reads on a fresh book. Mortgage ids are in the tables above.</p>
+<table class="wide">
+<tr><th>What</th><th>On a fresh book</th></tr>
+<tr><td>Call List</td><td>One group, Arjun Patel (9820023456): 2026-Arjun-GoldChain first (<code>accrues_today</code>; 2 Months Unpaid, 28.8%), then 2025-Arjun-GoldRingRuby (<code>months_unpaid</code> 15 and <code>loan_to_value</code> 104.9%; called today, so it sorts second)</td></tr>
+<tr><td>Months Unpaid of the other Active Mortgages</td><td>Meera's chain 2 (part of September and all of October, not April: Payments cover the oldest month first), the bangles 0, the mangalsutra 0; the anklet is Dormant and skipped. Meera's chain reaches 3 on 10 Nov</td></tr>
+<tr><td>Call Notes</td><td>One: <code>call_note</code> 1, the ring, 19 Oct, "Will pay after Diwali". The next one saved is 2</td></tr>
+<tr><td>Notices</td><td>58 rows. 1–57 sent (Accrual Dates 15 Jul 2025 to 19 Oct 2026), each with one <code>notice_mortgage</code> row. <strong>#58</strong>: Sunita (Customer 7), accrues 21 Oct, <code>awaiting_approval</code>, <code>message</code> NULL; worded as ₹700 interest, ₹35,723 owed after. The Dashboard: 0 to send, 1 to approve. The next Notice made is 59 (Meera's 25 Oct, once it's within the days ahead)</td></tr>
+<tr><td>Settings</td><td>Call List 3 Months Unpaid, above 85%. Messages: the default templates, 2 days ahead, approve first on</td></tr>
+</table>
+
 <footer>
-  Facts from <code>docs/sample-book/book.py</code>; figures from The Gold Chain Story, checked against the app by <code>001-what-the-app-does/scripts/check_figures.py</code> at commit <code>61bbea2</code>, and the served-book figures and ids by <code>002-find-your-way-and-run-it/scripts/run_throughs.py</code> at commit <code>55ee8cb</code>, the Closures by <code>005-replay-and-closures/scripts/run_throughs.py</code> at commit <code>16b855c</code>, and the people, Gold Rates and Collateral Values by <code>008-people-and-collateral/scripts/run_throughs.py</code> at commit <code>575437c</code>.
+  Facts from <code>docs/sample-book/book.py</code>; figures from The Gold Chain Story, checked against the app by <code>001-what-the-app-does/scripts/check_figures.py</code> at commit <code>61bbea2</code>, and the served-book figures and ids by <code>002-find-your-way-and-run-it/scripts/run_throughs.py</code> at commit <code>55ee8cb</code>, the Closures by <code>005-replay-and-closures/scripts/run_throughs.py</code> at commit <code>16b855c</code>, and the people, Gold Rates and Collateral Values by <code>008-people-and-collateral/scripts/run_throughs.py</code> at commit <code>575437c</code>, and the follow-up rows by <code>009-follow-up/scripts/run_throughs.py</code> at commit <code>6e6b030</code>.
   · <a href="commands.html">Commands</a>
   · <a href="../index.html">Course home</a> · <a href="glossary.html">Glossary</a>
 </footer>

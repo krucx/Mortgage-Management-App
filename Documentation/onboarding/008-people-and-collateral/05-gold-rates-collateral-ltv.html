@@ -166,7 +166,7 @@ flowchart LR
 137          loan_to_value = collateral.loan_to_value if collateral else None
 </code></pre>
 </figure>
-<p>The same call appears in <code>load_mortgage</code> (<code>lending/mortgages.py</code>, line 238) for the Mortgage page, in the Dashboard (<code>lending/dashboard.py</code>, lines 223–227) and in the Projection (<code>lending/projections.py</code>, line 91). The Call List puts an Active Mortgage on the list when its Loan-to-Value is above a threshold, 85% in the sample book (<code>loan_to_value_too_high</code>; chapter 009). The Dashboard adds up the Collateral Values of the Active Mortgages that have one (chapter 012). The Projection divides each future month's Outstanding by <em>today's</em> Collateral Value (chapter 004, lesson 5).</p>
+<p>The same call appears in <code>load_mortgage</code> (<code>lending/mortgages.py</code>, line 238) for the Mortgage page, in the Dashboard (<code>lending/dashboard.py</code>, lines 223–227) and in the Projection (<code>lending/projections.py</code>, line 91). The Call List puts an Active Mortgage on the list when its Loan-to-Value is above a threshold, 85% in the sample book (<code>loan_to_value_too_high</code>; <a href="../009-follow-up/01-the-call-list.html">chapter 009, lesson 1</a>). The Dashboard adds up the Collateral Values of the Active Mortgages that have one (chapter 012). The Projection divides each future month's Outstanding by <em>today's</em> Collateral Value (chapter 004, lesson 5).</p>
 
 <h2>Run-through: Arjun's ruby ring</h2>
 <p>The sample book's Gold Rates on 19 Oct 2026: <code>curl -s http://127.0.0.1:8765/api/settings/gold-rates</code>.</p>

@@ -12,7 +12,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 006 | [Changes and Previews](https://github.com/krucx/Mortgage-Management-App/issues/152) | `006-changes-and-previews/` | add a change route that refuses, writes, checks and records History | written (d6a92ab) |
 | 007 | [Payments and Receipts](https://github.com/krucx/Mortgage-Management-App/issues/158) | `007-payments-and-receipts/` | explain Allocations, Final Payments, `received_with`, Voids, the Cash Limit and Receipts | written (15df77d) |
 | 008 | [People and Collateral](https://github.com/krucx/Mortgage-Management-App/issues/164) | `008-people-and-collateral/` | explain the Primary Number, Referrers, ID Photos, Gold Rates and Loan-to-Value | written (575437c) |
-| 009 | [Follow-up](https://github.com/krucx/Mortgage-Management-App/issues/170) | `009-follow-up/` | explain Notices, the Call List, Call Notes and Call Sheets, and WhatsApp messages | planned |
+| 009 | [Follow-up](https://github.com/krucx/Mortgage-Management-App/issues/170) | `009-follow-up/` | explain Notices, the Call List, Call Notes and Call Sheets, and WhatsApp messages | written (6e6b030) |
 | 010 | [Platform, database and migrations](https://github.com/krucx/Mortgage-Management-App/issues/176) | `010-platform-database-and-migrations/` | add a migration safely; know the clock, the daily run and the composition root | planned |
 | 011 | [The frontend's data layer](https://github.com/krucx/Mortgage-Management-App/issues/182) | `011-the-frontends-data-layer/` | fetch, preview and propose a change from a page | planned |
 | 012 | [Frontend pages and the PWA](https://github.com/krucx/Mortgage-Management-App/issues/188) | `012-frontend-pages-and-the-pwa/` | build a page from existing components; explain the service worker, StartGate and UpdateBanner | planned |
@@ -78,6 +78,13 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 3. Adding, editing and deleting a Customer ([#167](https://github.com/krucx/Mortgage-Management-App/issues/167))
 4. Photos and ID Photos ([#168](https://github.com/krucx/Mortgage-Management-App/issues/168))
 5. Gold Rates, Collateral Value and Loan-to-Value ([#169](https://github.com/krucx/Mortgage-Management-App/issues/169))
+
+### 009 Follow-up (written)
+1. The Call List: who to phone today, and why ([#171](https://github.com/krucx/Mortgage-Management-App/issues/171))
+2. Call Notes and Call Sheets ([#172](https://github.com/krucx/Mortgage-Management-App/issues/172))
+3. The Notice queue is synced, not scheduled ([#173](https://github.com/krucx/Mortgage-Management-App/issues/173))
+4. A Notice's life: approve, skip, send ([#174](https://github.com/krucx/Mortgage-Management-App/issues/174))
+5. Messages: templates, cards and click-to-send ([#175](https://github.com/krucx/Mortgage-Management-App/issues/175))
 
 ## Reference sheets
 
