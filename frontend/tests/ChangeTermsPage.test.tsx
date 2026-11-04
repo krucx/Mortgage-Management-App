@@ -90,3 +90,56 @@ test('back on the Mortgage page, the saved Term Change shows at once, before the
 
   expect(await screen.findByText('coming')).toBeTruthy()
 })
+
+const withComingChange = {
+  ...mortgage,
+  term_changes: [
+    {
+      id: 4,
+      effective_on: '2099-11-10',
+      terms: { ...mortgage.terms, monthly_rate_bps: 200 },
+      removable: true,
+    },
+  ],
+}
+
+/** The Mortgage page with a coming Term Change, whose removal is previewed then made. */
+function showComingChange() {
+  let removed = false
+  const server = fakeServer({
+    'GET /api/mortgages/7': () => (removed ? mortgage : withComingChange),
+    'POST /api/mortgages/7/term-changes/4/remove-preview': changePreview([preview]),
+    'DELETE /api/mortgages/7/term-changes/4': () => {
+      removed = true
+      return mortgage
+    },
+  })
+  showPage(server, '/mortgages/7', { '/mortgages/:id': <MortgagePage /> })
+  return server
+}
+
+test('a coming Term Change is removed from the Terms panel after its removal is previewed', async () => {
+  const server = showComingChange()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Remove the Term Change from 10 Nov 2099?' })
+  expect(await within(dialog).findByText(/No change to the Ledger so far/)).toBeTruthy()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }))
+
+  await vi.waitFor(() => expect(screen.queryByText('coming')).toBeNull())
+  expect(screen.queryByText(/From 10 Nov 2099/)).toBeNull()
+  expect(server.requests).toContain('POST /api/mortgages/7/term-changes/4/remove-preview')
+  expect(server.requests).toContain('DELETE /api/mortgages/7/term-changes/4')
+})
+
+test('cancelling leaves the coming Term Change as it was', async () => {
+  const server = showComingChange()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+  await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(screen.getByText('coming')).toBeTruthy()
+  expect(server.requests).not.toContain('DELETE /api/mortgages/7/term-changes/4')
+})

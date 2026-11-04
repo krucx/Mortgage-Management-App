@@ -5,6 +5,10 @@ from datetime import date, timedelta
 
 import pytest
 from api_seed import SIMPLE_3, lend, pay, person
+from conftest import TODAY
+from seed import RUPEE, add_customer, add_mortgage, forfeit, redeem, waive
+
+from mortgage_backend.lending.replay import replay
 
 
 @pytest.fixture
@@ -76,6 +80,21 @@ def test_a_dormant_mortgage_is_redeemed_with_no_payment(client, ramesh, chain):
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "redeemed"
     assert dormant(client) == []
+
+
+def test_a_closed_mortgage_owing_nothing_is_never_dormant(conn):
+    customer = add_customer(conn)
+    redeemed, waived, forfeited = (
+        add_mortgage(conn, customer, suffix) for suffix in ("Chain", "Ring", "Bangle")
+    )
+    redeem(conn, redeemed, date(2026, 3, 14))
+    waive(conn, waived, date(2026, 3, 20), paid=1_08_000 * RUPEE)
+    forfeit(conn, forfeited, date(2026, 3, 20), recovered=90_000 * RUPEE)
+
+    for mortgage in (redeemed, waived, forfeited):
+        closed = replay(conn, mortgage)
+        assert closed.outstanding(TODAY).total == 0
+        assert not closed.dormant(TODAY)
 
 
 def notices(client):

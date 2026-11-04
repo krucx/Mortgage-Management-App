@@ -72,6 +72,19 @@ def test_a_mortgage_with_loan_to_value_too_high_is_listed(client, ramesh):
     assert rows[0]["loan_to_value"] == pytest.approx(1_03_000 / 96_000)
 
 
+def test_a_mortgage_at_exactly_the_loan_to_value_limit_is_not_listed(client, ramesh):
+    client.put(
+        "/api/settings/gold-rates",
+        json=[{"purity_karat": 22, "rate_per_gram": 5_150 * RUPEE}],
+    )
+    # Each owes ₹87,550 today: ₹85,000 and the month under way.
+    at_limit = lend(client, ramesh, "2026-04-01", 85_000 * RUPEE, net_weight_mg=20_000)
+    above = lend(client, ramesh, "2026-04-02", 85_000 * RUPEE, net_weight_mg=19_999)
+
+    assert at_limit["name"] not in [name for name, _ in listed(client)]
+    assert listed(client) == [(above["name"], ["loan_to_value"])]
+
+
 def test_a_mortgage_accruing_today_is_listed_for_information(client, ramesh):
     mortgage = lend(client, ramesh, "2026-03-20")
 

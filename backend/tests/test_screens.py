@@ -1,6 +1,9 @@
 """Without Docker, the backend also serves the app's built screens (frontend/dist), as nginx
 does in Docker: the app at any of its paths, with the same caching."""
 
+import re
+from pathlib import Path
+
 import pytest
 from conftest import TODAY
 from fastapi.testclient import TestClient
@@ -71,3 +74,34 @@ def test_a_page_can_be_asked_for_its_headers_alone(served):
 
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-cache"
+
+
+NGINX_CONF = Path(__file__).parents[2] / "frontend" / "nginx.conf"
+
+# A path in each of nginx.conf's locations that sets a Cache-Control.
+A_PATH_IN_EACH_LOCATION = {
+    "/": "/mortgages/7",
+    r"~ ^/(sw\.js|registerSW\.js|workbox-[^/]+\.js)$": "/sw.js",
+    "= /manifest.webmanifest": "/manifest.webmanifest",
+    "/assets/": "/assets/index-3f9a1c.js",
+}
+
+
+def nginx_cache_control() -> dict[str, str]:
+    """Each nginx.conf location that sets a Cache-Control, with what it sets."""
+    headers = {}
+    for block in re.split(r"^\s*location\s+", NGINX_CONF.read_text(), flags=re.M)[1:]:
+        location, body = block.split("{", 1)
+        header = re.search(r'add_header Cache-Control "([^"]*)"', body)
+        if header:
+            headers[location.strip()] = header.group(1)
+    return headers
+
+
+def test_the_screens_are_cached_as_nginx_caches_them_in_docker(served):
+    backend_cache_control = {
+        location: served.get(path).headers["cache-control"]
+        for location, path in A_PATH_IN_EACH_LOCATION.items()
+    }
+
+    assert backend_cache_control == nginx_cache_control()

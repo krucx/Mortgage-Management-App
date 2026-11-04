@@ -8,15 +8,16 @@ import { fakeServer, type FakeServer } from './fakeServer'
 
 afterEach(cleanup)
 
-/** A backend that is stopped until `start()`: until then fetch itself fails, as it does
- *  when nothing answers on the laptop. */
-function backend() {
+/** Fetch itself fails, as it does when nothing answers on the laptop. */
+const nothingAnswers = () => {
+  throw new TypeError('Failed to fetch')
+}
+
+/** A backend that is stopped until `start()`: until then it answers as `stopped` does. */
+function backend(stopped: () => unknown = nothingAnswers) {
   let running = false
   const server = fakeServer({
-    'GET /api/payment-methods': () => {
-      if (!running) throw new TypeError('Failed to fetch')
-      return []
-    },
+    'GET /api/payment-methods': () => (running ? [] : stopped()),
   })
   return { server, start: () => (running = true) }
 }
@@ -82,6 +83,17 @@ test('off Windows there is no link to start it with: it says to start the server
 
   expect(await screen.findByText(/Start its server/)).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Start Mortgage Management' })).toBeNull()
+
+  start()
+  await waitFor(() => expect(reloads()).toBe(1))
+})
+
+test('in Docker, nginx answering 502 for a stopped backend counts as stopped, and the app loads once it answers', async () => {
+  const { server, start } = backend(() => new Response('Bad Gateway', { status: 502 }))
+  const { reloads } = showGate(server)
+
+  expect(await screen.findByRole('button', { name: 'Start Mortgage Management' })).toBeTruthy()
+  expect(screen.queryByText('The app')).toBeNull()
 
   start()
   await waitFor(() => expect(reloads()).toBe(1))
