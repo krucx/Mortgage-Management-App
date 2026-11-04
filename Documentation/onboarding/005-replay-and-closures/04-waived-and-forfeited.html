@@ -242,7 +242,7 @@ curl -s -X POST -H 'content-type: application/json' "$B/2/waive-preview" \
 149          return ledger[-1].principal + ledger[-1].unpaid_interest + later
 </code></pre>
 </figure>
-<p>A Receipt's "still owed" line uses this (chapter 007). It answers "what did this Mortgage owe right after <em>this</em> Payment?", adding back anything paid or written off later on the same day. <code>ledger[at + 1 :]</code> is a Python slice: every step after index <code>at</code>.</p>
+<p>A Receipt's "still owed" line uses this (<a href="../007-payments-and-receipts/05-receipts.html">chapter 007, lesson 5</a>). It answers "what did this Mortgage owe right after <em>this</em> Payment?", adding back anything paid or written off later on the same day. <code>ledger[at + 1 :]</code> is a Python slice: every step after index <code>at</code>.</p>
 <div class="reveal">
   <p><strong>Predict:</strong> what is <code>owed_after(30, date(2026, 10, 16))</code> for Farida's Final Payment?</p>
   <button class="show">I've made my prediction. Show me.</button>
@@ -251,7 +251,7 @@ curl -s -X POST -H 'content-type: application/json' "$B/2/waive-preview" \
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L4).</p>
   </div>
 </div>
-<div class="callout warn"><strong>Trap #16, a warning:</strong> Farida's Receipt names her jewellery, never the Mortgage Name: "Gold nose ring · Paid ₹30,520 · Interest ₹700 · Principal ₹29,820 · Still owed ₹0". Chapter 007 owns Receipts; see the <a href="../reference/traps.html#t16">traps sheet</a>.</div>
+<div class="callout warn"><strong>Trap #16, a warning:</strong> Farida's Receipt names her jewellery, never the Mortgage Name: "Gold nose ring · Paid ₹30,520 · Interest ₹700 · Principal ₹29,820 · Still owed ₹0". <a href="../007-payments-and-receipts/05-receipts.html">Chapter 007, lesson 5</a> owns Receipts; see the <a href="../reference/traps.html#t16">traps sheet</a>.</div>
 
 <h3>(d) The bulk routes: all or none</h3>
 <p>The Closures page can Redeem, Waive or Forfeit several Mortgages at once: <code>POST /api/closures/redeem</code>, <code>/waive</code> and <code>/forfeit</code>, handled by <code>redeem_all</code>, <code>waive_all</code> and <code>forfeit_all</code>. Each loops over the single-Mortgage function inside one transaction. Asked to Forfeit Meera's chain <em>and</em> Farida's nose ring, it refuses with "2026-Farida-GoldNoseRing is already waived", and the chain stays Active: the whole request rolled back (from <code>scripts/run_throughs.py</code>, section L4).</p>

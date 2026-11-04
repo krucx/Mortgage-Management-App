@@ -264,7 +264,7 @@ flowchart TD
   "customer_id": 1, "paid_on": "2026-10-19", "amount": 8433300, "method": "upi", "reference": null,
   "allocations": [{"mortgage_id": 2, "amount": 8333300}, {"mortgage_id": 5, "amount": 100000}]}'</code></pre>
 <p>The answer has a <code>mortgages</code> entry for each. The chain goes from Active, owing ₹83,333, to <code>closure.kind</code> <code>"redeemed"</code>, owing ₹0. The bangles stay Active, owing ₹1,50,500. Inside the rolled-back transaction, the bangles' part was written as Payment 34 and the chain's Final Payment as Payment 35, "received with" 34.</p>
-<div class="callout warn"><strong>Trap #2, a warning:</strong> that one Payment is two <code>payment</code> rows. The Final Payment is its own part, so a Reopen can Void it alone. Chapter 007 owns how the parts share one Receipt; see the <a href="../reference/traps.html#t2">traps sheet</a>.</div>
+<div class="callout warn"><strong>Trap #2, a warning:</strong> that one Payment is two <code>payment</code> rows. The Final Payment is its own part, so a Reopen can Void it alone. <a href="../007-payments-and-receipts/02-one-payment-several-parts.html">Chapter 007, lesson 2</a> owns how the parts share one Receipt; see the <a href="../reference/traps.html#t2">traps sheet</a>.</div>
 <div class="callout warn"><strong>Trap #5, a warning:</strong> the Preview showed the Redemption because a Preview runs the real <code>record_payment</code>, Redemption and all, then rolls it back. Chapter 006 owns how; see the <a href="../reference/traps.html#t5">traps sheet</a>.</div>
 
 <h2>Quiz</h2>

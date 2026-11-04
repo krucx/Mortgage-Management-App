@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.2 · One Payment, several parts</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 007 · Lesson 2</p>
+<h1>One Payment, several parts</h1>
+<p class="lede">In lesson 1, one Payment was one <code>payment</code> row. That isn't always so. When a Payment Redeems a Mortgage, the app stores it as two or more rows that belong together. This lesson shows when that happens, which id you get back, and why the API never tells you.</p>
+
+<div class="callout win"><strong>By the end</strong> you can explain <code>received_with</code>: when a Payment is split into parts, which id comes back, and why the API hides it.</div>
+
+<h2>The problem</h2>
+<p>It's 19 Oct. Meera comes in to take her chain home and to pay something towards the bangles. She hands over one UPI transfer: ₹83,333 for the chain (exactly its <a href="../reference/glossary.html#outstanding"><dfn class="term" title="What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day; nothing once closed.">Outstanding</dfn></a> today) and ₹1,000 for the bangles. Paying exactly the Outstanding <a href="../reference/glossary.html#redeemed"><dfn class="term" title="A Mortgage fully repaid with its jewellery returned to the Customer.">Redeems</dfn></a> the chain in the same request (<a href="../reference/traps.html#t3">trap #3</a>, owned by chapter 005).</p>
+<p>So the ₹83,333 is the chain's <a href="../reference/glossary.html#final-payment"><dfn class="term" title="What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.">Final Payment</dfn></a>. Now picture two things that could happen next:</p>
+<ul>
+  <li><strong>The chain was handed back by mistake.</strong> The Lender Reopens it. The Reopen must Void the chain's Final Payment (chapter 005, lesson 5). But a Void cancels a whole <code>payment</code> row. If the ₹83,333 and the ₹1,000 were one row, Reopening the chain would also wipe out the ₹1,000 Meera really did pay on the bangles.</li>
+  <li><strong>Meera wants her Receipt.</strong> She paid ₹84,333 in one transfer, so she expects one Receipt that says ₹84,333.</li>
+</ul>
+<p>The first wants two rows. The second wants one Payment.</p>
+
+<h2>The idea</h2>
+<p>Store each Final Payment as a <strong>part</strong> of its own: a separate <code>payment</code> row with its own Allocation. Link every part to the Payment's <strong>first part</strong> through the <code>received_with</code> column. The ordinary Allocations together are the first part; if every Allocation Redeems, the first Final Payment is. Anything that thinks of "the Payment" (the Receipt, the cash warning) gathers the parts back together through <code>received_with</code>. Anything that acts on one Mortgage's Final Payment (a Reopen) touches only its part.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  IN["POST /payments<br/>chain ₹83,333 + bangles ₹1,000"] --> RF["_refuse_payment<br/>line 288"]
+  RF --> RB{"each Allocation:<br/>_redeemed_by()<br/>is it the whole Outstanding?"}
+  RB -->|"bangles: no"| ORD["ordinary"]
+  RB -->|"chain: yes"| RED["redeemed"]
+  ORD --> W1["_write_payment(paid)<br/>first = 34, received_with NULL"]
+  W1 --> CK["check_replays, History"]
+  CK --> W2["_close_redeemed(..., received_with=first)<br/>row 35, received_with 34"]
+  RED --> W2
+  W2 --> CL["chain: Redeemed,<br/>redemption_payment_id 35"]
+  CL --> RET["return first: 34"]
+</pre>
+<figcaption>The ordinary part is written first, so it gets the lower id. Each redeeming Allocation becomes a part of its own, pointing back at the first.</figcaption>
+</figure>
+<p>Notice the order doesn't depend on the body. Whether the chain or the bangles comes first in the request, the ordinary part is written first.</p>
+
+<h2>The code</h2>
+<h3>1. Sorting the Allocations</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>record_payment()</code> · lines 282–304</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>282  def record_payment(
+283      conn: Connection, payment: PaymentIn, today: date, now: datetime
+284  ) -&gt; int:
+285      """Record a Payment (or refuse); returns its id. Each Mortgage it pays its whole
+286      Outstanding on the Payment date is Redeemed (ADR 0011), with its Final Payment kept
+287      as a part of its own: the id is then the Payment's first part."""
+288      rows = _refuse_payment(conn, payment, today)
+289      redeemed = []
+290      for allocation in payment.allocations:
+291          with _refusal_names_mortgage(conn, allocation.mortgage_id):
+292              mortgage = _redeemed_by(conn, allocation, payment.paid_on, today)   ①
+293          if mortgage is not None:
+294              redeemed.append((allocation, mortgage))
+295      redeemed_ids = {allocation.mortgage_id for allocation, _ in redeemed}
+296      ordinary = [a for a in payment.allocations if a.mortgage_id not in redeemed_ids]
+297      first = None
+298      if ordinary:
+299          paid = payment.model_copy(                                  ②
+300              update={"amount": sum(a.amount for a in ordinary), "allocations": ordinary}
+301          )
+302          first = _write_payment(conn, paid)                          ③  ◀
+303          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
+304          _record_payment_history(conn, first, paid, now)
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>_redeemed_by</code> (line 325) returns the replayed Mortgage if the Allocation equals its whole Outstanding on the Payment date, and <code>None</code> otherwise. If the Mortgage can't be Redeemed on that date, it refuses the whole Payment (chapter 005, lesson 3).</li>
+  <li><code>model_copy(update=…)</code> makes a copy of a Pydantic model with some fields replaced. Here it's the same Payment with only the ordinary Allocations, and an amount that adds up to them.</li>
+  <li>The first part is written. Its id becomes <code>first</code>.</li>
+</ol>
+
+<h3>2. Each Final Payment, as a part of its own</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>record_payment()</code> · lines 305–322</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>305      for allocation, mortgage in redeemed:
+306          with _refusal_names_mortgage(conn, allocation.mortgage_id):
+307              final = _close_redeemed(
+308                  conn,
+309                  mortgage,
+310                  payment.paid_on,
+311                  allocation.amount,
+312                  payment.method,
+313                  payment.reference,
+314                  today,
+315                  now,
+316                  received_with=first,                                ①  ◀
+317              )
+318          assert final is not None  # an Allocation is more than nothing
+319          if first is None:
+320              first = final                                           ②
+321      assert first is not None  # there is at least one Allocation
+322      return first                                                    ③
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The same <code>_close_redeemed</code> that the Redeem route uses (chapter 005), told which Payment this part belongs to. Line 316 is the line the check-yourself exercise breaks.</li>
+  <li>If there was no ordinary part, the first Final Payment written becomes the first part, and later ones point at it.</li>
+  <li>The id returned is always the first part's.</li>
+</ol>
+
+<h3>3. Where <code>received_with</code> is written</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_write_payment()</code> · lines 197–214</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>197  def _write_payment(
+198      conn: Connection, payment: PaymentIn, received_with: int | None = None
+199  ) -&gt; int:
+200      """Write the Payment, or a part of one: `received_with` is the Payment's first part,
+201      whose Receipt the part shares."""
+202      payment_id: int = conn.execute(
+203          insert(payment_table)
+204          .values(
+205              **payment.model_dump(exclude={"allocations"}),
+206              received_with=received_with,                            ◀
+207          )
+208          .returning(payment_table.c.id)
+209      ).scalar_one()
+210      conn.execute(
+211          insert(allocation_table),
+212          [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
+213      )
+214      return payment_id
+</code></pre>
+</figure>
+<p><code>model_dump()</code> turns the Pydantic model into a dict; <code>**</code> spreads it into keyword arguments. <code>.returning(…)</code> asks the database for the new row's id in the same statement. The second <code>insert</code> is given a list of dicts, so it writes one <code>allocation</code> row per Allocation.</p>
+<p><code>_close_redeemed</code> reaches this through <code>_close_with_payment</code> (line 600), which builds a one-Allocation <code>PaymentIn</code> for the Final Payment, calls <code>_write_payment(conn, final, received_with)</code> at line 630, sets the Closure, and only then runs <code>check_replays</code>. The comment at lines 616–617 says why it's checked after closing: the Final Payment may include the Interest to Date, which is owed only once the Mortgage closes.</p>
+
+<h2>Run-through: pay off the chain, and ₹1,000 on the bangles</h2>
+<p>This one <strong>saves</strong>, on your served scratch book. Later lessons expect it. Preview it first, then save it:</p>
+<pre><code>BODY='{"customer_id": 1, "paid_on": "2026-10-19", "amount": 8433300, "method": "upi",
+       "reference": "UPI 5512",
+       "allocations": [{"mortgage_id": 2, "amount": 8333300}, {"mortgage_id": 5, "amount": 100000}]}'
+curl -s -H 'content-type: application/json' -d "$BODY" http://127.0.0.1:8765/api/payments/preview
+curl -s -H 'content-type: application/json' -d "$BODY" http://127.0.0.1:8765/api/payments</code></pre>
+<p>The Preview says the chain goes from Active, owing ₹83,333, to Redeemed, owing ₹0; the bangles from ₹1,51,500 to ₹1,50,500. Its <code>ledger_changes</code> already show the two ids to come: the bangles' new step has <code>payment_id</code> 34, the chain's 35.</p>
+<div class="reveal">
+  <p><strong>Predict:</strong> the save answers 201 with a Payment. What are its <code>id</code> and <code>amount</code>, and which Allocations does it list?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><code>id</code> 34, <code>amount</code> 100000 (₹1,000), and one Allocation: the bangles. The route returns <code>load_payment(conn, first)</code> (line 910), and the first part is only the ordinary part. The chain's ₹83,333 is not in this response at all. The New Payment page doesn't show this response: it opens the Receipt, which gathers every part (lesson 5).</p>
+  </div>
+</div>
+<p>Now look at the rows:</p>
+<pre><code>sqlite3 -header -column "$BOOK/data/mortgage.db" \
+  "SELECT id, amount, method, reference, received_with FROM payment WHERE id &gt;= 34;
+   SELECT id, payment_id, mortgage_id, amount FROM allocation WHERE payment_id &gt;= 34;
+   SELECT id, status, closed_on, redemption_payment_id FROM mortgage WHERE id = 2;"</code></pre>
+<table class="steps text">
+<tr><th>Row</th><th>What it holds</th><th>Why</th></tr>
+<tr><td><code>payment</code> 34</td><td>₹1,000 · upi · "UPI 5512" · <code>received_with</code> empty</td><td>The first part: the ordinary Allocations</td></tr>
+<tr class="changed"><td><code>payment</code> 35</td><td>₹83,333 · upi · "UPI 5512" · <code>received_with</code> 34</td><td>The chain's Final Payment, a part of its own, pointing at 34</td></tr>
+<tr><td><code>allocation</code> 35</td><td>payment 34 · Mortgage 5 · ₹1,000</td><td>The bangles' Allocation</td></tr>
+<tr><td><code>allocation</code> 36</td><td>payment 35 · Mortgage 2 · ₹83,333</td><td>The chain's Allocation</td></tr>
+<tr><td><code>mortgage</code> 2</td><td>redeemed · 2026-10-19 · <code>redemption_payment_id</code> 35</td><td>The Closure points at its Final Payment, not at 34</td></tr>
+<tr><td><code>audit_entry</code> 272–280</td><td><code>created</code> on payment 34 (4 rows), <code>created</code> on payment 35 (4 rows), <code>redeemed</code> on Mortgage 2: "on 19 Oct 2026 for ₹83,333"</td><td>Each part records its own History (chapter 006, lesson 3)</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L2), on a fresh copy of the book, at commit 15df77d.</p>
+<p>Both parts carry the same date, method and reference, because the Final Payment is built from the Payment's own. Open <code>http://127.0.0.1:8765/payments/34/receipt</code> or <code>/payments/35/receipt</code>: the same Receipt either way, for ₹84,333, with a line for the bangles and a line for the chain marked Redeemed. Lesson 5 shows how it's gathered.</p>
+
+<div class="callout warn"><strong>Trap #2: one Payment can be several <code>payment</code> rows.</strong> A Final Payment is kept as a part of its own, pointing back through <code>received_with</code>, which the API never shows; the id <code>POST /api/payments</code> returns is the first part. When you count Payments, sum cash, or build anything "per Payment", group the rows by <code>received_with or id</code>, the way <code>load_receipt</code> and <code>cash_sums</code> do (<a href="../reference/traps.html#t2">trap #2</a>, owned by this lesson).</div>
+
+<h2>Nuances</h2>
+<h3>(a) Every Allocation Redeems</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on a fresh book, Meera pays both in full in one transfer: the chain's ₹83,333 and the bangles' ₹1,51,500, chain listed first. How many rows, which id comes back, and which row has <code>received_with</code>?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Row</th><th>Amount</th><th><code>received_with</code></th></tr>
+    <tr class="changed"><td>34</td><td>₹83,333 (the chain's Final Payment)</td><td>empty</td></tr>
+    <tr><td>35</td><td>₹1,51,500 (the bangles' Final Payment)</td><td>34</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L2).</p>
+    <p>There's no ordinary part, so <code>first</code> is still <code>None</code> when the loop starts. The chain's Final Payment is written with <code>received_with=None</code> and becomes the first part (line 320). The bangles' points at it. The route returns 34. Both Mortgages are Redeemed, and the Receipt is ₹2,34,833 with nothing still owed. With just one Allocation that Redeems (the chain alone), there's a single row and <code>received_with</code> stays empty: a Payment of one part is an ordinary-looking row.</p>
+  </div>
+</div>
+
+<h3>(b) A Reopen takes only its own part</h3>
+<p>Back on the Payment you saved. Suppose the chain was handed back by mistake and the Lender Reopens it. Don't do this on your served book (the next lessons expect the chain Redeemed); here's what <code>scripts/run_throughs.py</code> saw on a copy:</p>
+<table class="steps text">
+<tr><th>After <code>POST /mortgages/2/reopen</code></th><th>Result</th></tr>
+<tr><td><code>payment</code> 34</td><td>₹1,000, not Voided</td></tr>
+<tr class="changed"><td><code>payment</code> 35</td><td>₹83,333, Voided, still <code>received_with</code> 34</td></tr>
+<tr><td>Receipt of 34</td><td>₹1,000: only the bangles' line</td></tr>
+<tr><td>Receipt of 35</td><td>409 · This Payment was Voided: it has no Receipt</td></tr>
+</table>
+<p>That's the glossary's Final Payment in action: "kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest". The Reopen Voids <code>redemption_payment_id</code>, which is 35, through <code>void_payment</code> (chapter 006, lesson 2).</p>
+
+<h3>(c) Why the API hides <code>received_with</code></h3>
+<p>Look at <code>Payment</code> in <a href="../../../backend/src/mortgage_backend/payments/payments.py"><code>payments/payments.py</code></a> (line 55): no <code>received_with</code>. And a test makes sure it never appears anywhere in the API:</p>
+<figure class="snippet">
+<figcaption><a href="../../../backend/tests/test_openapi.py">tests/test_openapi.py</a> · <code>test_ready_to_redeem_is_retired_from_the_api</code> · lines 8–15</figcaption>
+<pre data-file="backend/tests/test_openapi.py"><code>8  def test_ready_to_redeem_is_retired_from_the_api() -&gt; None:
+9      # Paying the whole Outstanding Redeems (ADR 0011), so nothing waits to be Redeemed.
+10      schema = schema_text()
+11      assert [
+12          term
+13          for term in ("ready_to_redeem", "ready-to-redeem", "ReadyToRedeem", "received_with")   ◀
+14          if term in schema
+15      ] == []
+</code></pre>
+</figure>
+<p>The history explains it. Before <a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>, a Payment could leave a Mortgage "Ready to Redeem", and a later Redeem request carried <code>received_with</code> to join its Final Payment to that earlier Payment's Receipt. A client could name any Payment there. Once paying the whole Outstanding Redeemed the Mortgage in the same request, that flow was retired (commit <code>2743eac</code>), and <code>received_with</code> left the API. Now only <code>record_payment</code> sets it, inside one transaction, for parts it has just written itself. Nothing outside the backend needs it either: the Receipt and the cash sums gather the parts on the server, and the id you get back is enough to find them.</p>
+<p>The test reads the generated OpenAPI schema (<code>schema_text()</code>), so it fails the moment someone adds <code>received_with</code> to any request or response model.</p>
+
+<h3>(d) A whole Outstanding that can't Redeem</h3>
+<p>If an Allocation equals a Mortgage's whole Outstanding but the Mortgage can't be Redeemed on that date (say a later Payment exists), <code>_redeemed_by</code> refuses, and the whole Payment is refused with it, ordinary part included: all or none. Chapter 005, lesson 3 owns that rule; <code>test_if_the_redemption_is_refused_the_ordinary_part_is_not_recorded_either</code> pins it.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">Arjun pays ₹1,000 on his ring and his chain's whole Outstanding, chain listed first. Which part is <code>received_with</code> empty?</p>
+  <button class="opt">The chain's Final Payment, listed first</button>
+  <button class="opt">The ring's ₹1,000, the ordinary part</button>
+  <button class="opt">Neither: both point at the Payment</button>
+  <div class="why">The ordinary Allocations are always written first, whatever the body's order, and become the first part. Each Final Payment points at it. There is no separate "Payment" row for both to point at.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Why is a Final Payment stored as a part of its own?</p>
+  <button class="opt">So a Reopen can Void it alone</button>
+  <button class="opt">So it can have its own reference</button>
+  <button class="opt">So the Receipt can show it separately</button>
+  <div class="why">A Void cancels a whole <code>payment</code> row. Keeping the Final Payment apart lets a Reopen Void it and leave the rest of the Payment standing. It shares the Payment's reference, and the Receipt merges the parts back into one.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">After the run-through, what does <code>GET /api/payments/34</code> give as <code>amount</code>?</p>
+  <button class="opt">₹84,333, the whole transfer</button>
+  <button class="opt">₹83,333, the chain's Final Payment</button>
+  <button class="opt">₹1,000, the first part only</button>
+  <div class="why"><code>load_payment</code> reads one row. Payment 34 is the ordinary part, ₹1,000. Only the Receipt adds the parts together.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../../backend/tests/test_redeeming_payments.py"><code>tests/test_redeeming_payments.py</code></a> from line 96 (<code>test_one_payment_can_redeem_one_mortgage_and_part_pay_another</code>) to line 266. Each test is a short story about parts: refused together, one Receipt, a Reopen, Voiding the ordinary part alone, and a whole Outstanding that can't Redeem.</p>
+
+<nav class="lessons">
+  <a href="01-a-payment-and-its-allocations.html">← A Payment and its Allocations</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="03-voids.html">Next: Voids →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

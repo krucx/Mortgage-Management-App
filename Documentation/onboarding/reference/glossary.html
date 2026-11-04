@@ -51,7 +51,8 @@
 <dt id="lent-through">Lent Through</dt>
 <dd>How a Mortgage&#x27;s Principal was handed to the Customer: Cash, UPI or bank transfer.
   <span class="avoid">Avoid: Disbursal mode, payout</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/01-a-pledge.html">001 · Lesson 1</a></span>
+  <span class="taught">In the code: <a href="../007-payments-and-receipts/04-the-cash-limit.html">007 · Lesson 4</a></span></dd>
 <dt id="term-change">Term Change</dt>
 <dd>A dated change to some of a Mortgage&#x27;s Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.
   <span class="avoid">Avoid: Rate edit, amendment</span>
@@ -137,31 +138,32 @@
 <dd>A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt.
   <span class="avoid">Avoid: Receipt (that is the acknowledgement of a Payment), collection</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
-  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/03-saving-it.html">003 · Lesson 3</a></span></dd>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/03-saving-it.html">003 · Lesson 3</a>, <a href="../007-payments-and-receipts/01-a-payment-and-its-allocations.html">007 · Lesson 1</a>, <a href="../007-payments-and-receipts/02-one-payment-several-parts.html">007 · Lesson 2</a></span></dd>
 <dt id="final-payment">Final Payment</dt>
 <dd>What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.
   <span class="avoid">Avoid: Settlement, closing payment</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
-  <span class="taught">In the code: <a href="../005-replay-and-closures/03-redeemed.html">005 · Lesson 3</a></span></dd>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/03-redeemed.html">005 · Lesson 3</a>, <a href="../007-payments-and-receipts/02-one-payment-several-parts.html">007 · Lesson 2</a></span></dd>
 <dt id="receipt">Receipt</dt>
 <dd>The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
   <span class="avoid">Avoid: Invoice, bill</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
-  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/05-back-to-the-customer.html">003 · Lesson 5</a></span></dd>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/05-back-to-the-customer.html">003 · Lesson 5</a>, <a href="../007-payments-and-receipts/05-receipts.html">007 · Lesson 5</a></span></dd>
 <dt id="allocation">Allocation</dt>
 <dd>The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month&#x27;s interest), then Principal.
   <span class="avoid">Avoid: Split, contribution</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
-  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">003 · Lesson 4</a>, <a href="../004-the-ledger-engine/03-the-order-inside-a-day.html">004 · Lesson 3</a></span></dd>
+  <span class="taught">In the code: <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">003 · Lesson 4</a>, <a href="../004-the-ledger-engine/03-the-order-inside-a-day.html">004 · Lesson 3</a>, <a href="../007-payments-and-receipts/01-a-payment-and-its-allocations.html">007 · Lesson 1</a></span></dd>
 <dt id="cash-limit">Cash Limit</dt>
 <dd>The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage&#x27;s Principal lent.
   <span class="avoid">Avoid: Cash cap, cash ceiling</span>
-  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span></dd>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
+  <span class="taught">In the code: <a href="../007-payments-and-receipts/04-the-cash-limit.html">007 · Lesson 4</a></span></dd>
 <dt id="void">Void</dt>
 <dd>Cancelling a recorded Payment with a reason, keeping it on record but excluding it from every Ledger.
   <span class="avoid">Avoid: Delete, reverse</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
-  <span class="taught">In the code: <a href="../005-replay-and-closures/05-dormant-and-reopen.html">005 · Lesson 5</a></span></dd>
+  <span class="taught">In the code: <a href="../005-replay-and-closures/05-dormant-and-reopen.html">005 · Lesson 5</a>, <a href="../007-payments-and-receipts/03-voids.html">007 · Lesson 3</a></span></dd>
 </dl>
 <h2>Follow-up</h2>
 <dl class="terms">
@@ -243,7 +245,7 @@
   <span class="taught">In the code: <a href="../005-replay-and-closures/04-waived-and-forfeited.html">005 · Lesson 4</a></span></dd>
 </dl>
 <footer>
-  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>; unchanged at <code>d6a92ab</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
+  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>; unchanged at <code>15df77d</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a>
 </footer>
 </body>

@@ -222,11 +222,11 @@ Total owed     ₹2,28,233
   <p><strong>Predict:</strong> the Payment's page lists "2026-Meera-PairBangles". What does Meera's Receipt call it, and why?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p>"Pair of bangles", the Mortgage's description. A Mortgage Name and an id are the Lender's internal labels; anything a Customer reads uses the description and the Customer's name instead (line 96 of <code>receipts.py</code>, and the glossary's definition of Receipt). Keep that rule whenever you touch customer-facing text. Chapter 007 covers the Receipt's wording.</p>
+    <p>"Pair of bangles", the Mortgage's description. A Mortgage Name and an id are the Lender's internal labels; anything a Customer reads uses the description and the Customer's name instead (line 96 of <code>receipts.py</code>, and the glossary's definition of Receipt). Keep that rule whenever you touch customer-facing text. <a href="../007-payments-and-receipts/05-receipts.html">Chapter 007, lesson 5</a> covers the Receipt's wording.</p>
   </div>
 </div>
 <h3>(c) One Payment, one Receipt, perhaps several rows</h3>
-<p>Meera's Payment is one <code>payment</code> row. But a Payment that Redeems a Mortgage keeps that Mortgage's <a href="../reference/glossary.html#final-payment"><dfn class="term" title="What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.">Final Payment</dfn></a> as a row of its own, pointing back with <code>received_with</code>, and <code>load_receipt</code> gathers all the parts into one Receipt (its lines 65–79). The API never shows <code>received_with</code>. Chapter 007 explains why.</p>
+<p>Meera's Payment is one <code>payment</code> row. But a Payment that Redeems a Mortgage keeps that Mortgage's <a href="../reference/glossary.html#final-payment"><dfn class="term" title="What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.">Final Payment</dfn></a> as a row of its own, pointing back with <code>received_with</code>, and <code>load_receipt</code> gathers all the parts into one Receipt (its lines 65–79). The API never shows <code>received_with</code>. <a href="../007-payments-and-receipts/02-one-payment-several-parts.html">Chapter 007, lesson 2</a> explains why.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="1">

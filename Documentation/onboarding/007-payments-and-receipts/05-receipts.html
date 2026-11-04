@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.5 · Receipts</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 007 · Lesson 5</p>
+<h1>Receipts</h1>
+<p class="lede">The Receipt is the one part of a Payment the Customer sees. This lesson rebuilds its figures from the Ledger, shows how it gathers a Payment's parts into one message, and explains why a Receipt resent months later still says the same thing.</p>
+
+<div class="callout win"><strong>By the end</strong> you can rebuild any Receipt's figures, and explain why it can be resent months later.</div>
+
+<h2>The problem</h2>
+<p>After Meera pays, she gets a WhatsApp message: what she paid, how each piece of jewellery's share was applied, and what each still owes. Three weeks later she calls: "I lost that message, can you send it again?"</p>
+<p>The obvious design stores the message, or its figures, when the Payment is saved. But stored figures go stale (<a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>): if an earlier Payment turns up later, typed in from a paper book, the stored "still owed" is wrong. The other obvious design works it out from <em>today's</em> Ledger. But then the resent Receipt would show what Meera owes today, not what she owed just after that Payment, and wouldn't match the one on her phone.</p>
+<p>There's a second constraint. The Lender's screens call the chain "2025-Meera-GoldChainPendant" and know it as Mortgage 2. Meera has never seen either. She knows it as her gold chain with the Lakshmi pendant.</p>
+
+<h2>The idea</h2>
+<p>Work the Receipt out from the replay every time it's asked for, and for each Mortgage read the Ledger <strong>as it stood just after that Payment</strong> on its date. The Ledger is replayed from facts, so asking again gives the same answer unless an earlier fact has changed, and then the Receipt is corrected with it. Name each Mortgage by its description, and the Customer by their name.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  R["GET /payments/34/receipt"] --> L["load_receipt(conn, 34)"]
+  L -->|"Voided?"| X["409: it has no Receipt"]
+  L --> F["first = received_with or 34<br/>lines 65–67"]
+  F --> T["together: every non-Voided part<br/>id = first or received_with = first"]
+  T --> A["allocated: (part, Mortgage)<br/>for each part's Allocations"]
+  A --> RP["replays() each Mortgage"]
+  RP --> LN["a ReceiptLineOut per Mortgage:<br/>description, paid, interest_paid,<br/>principal_paid, owed_after, redeemed"]
+  LN --> M["ReceiptMessage, total_owed"]
+  M --> TX["receipt_text(template, message)<br/>chapter 009"]
+  TX --> OUT["Receipt: lines, total_owed, phones, text"]
+</pre>
+<figcaption>Every figure on a Receipt comes from a replay at the moment it's asked for; nothing about it is stored.</figcaption>
+</figure>
+<p>Notice the Receipt doesn't care which part you open it from. Lesson 2's Payment gives the same Receipt from 34 or from 35.</p>
+
+<h2>The code</h2>
+<h3>1. What a line holds</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/follow_up/messages.py">follow_up/messages.py</a> · <code>ReceiptLine</code>, <code>ReceiptMessage</code> · lines 23–45</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/messages.py"><code>23  class ReceiptLine(BaseModel):
+24      """What a Payment did to one Mortgage."""
+25
+26      description: str  # of the Mortgage's jewellery, as the Customer knows it   ◀
+27      paid: int  # paise: the Allocation
+28      interest_paid: int
+29      principal_paid: int
+30      owed_after: int  # Outstanding just after the Payment
+31      redeemed: bool = False  # the Allocation was its final Payment: jewellery returned
+32
+33
+34  class ReceiptMessage(BaseModel):
+35      customer_name: str
+36      paid_on: date
+37      amount: int
+38      method: str  # as the Customer reads it, e.g. "Cash"
+39      reference: str | None = None
+40      lines: Sequence[ReceiptLine]
+41
+42      @property
+43      def total_owed(self) -&gt; int:
+44          """What the Mortgages it paid still owe, between them."""
+45          return sum(line.owed_after for line in self.lines)
+</code></pre>
+</figure>
+<p>There's no Mortgage Name and no id here: these are the fields a Customer's message is built from. <code>receipts.py</code> extends the line for the Lender's screen with <code>mortgage_id</code> (line 28: "for the Lender's links; never shown to the Customer"). <code>@property</code> makes <code>total_owed</code> read like a field but be worked out on each read. "Total owed" covers only the Mortgages this Payment paid, not everything the Customer owes.</p>
+
+<h3>2. Gathering the parts</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/payments/receipts.py">payments/receipts.py</a> · <code>load_receipt()</code> · lines 59–85</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/receipts.py"><code>59      if payment is None:
+60          raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
+61      if payment["voided_at"] is not None:
+62          raise HTTPException(
+63              status.HTTP_409_CONFLICT, "This Payment was Voided: it has no Receipt"
+64          )
+65      # The parts of the Payment this one is part of (its Final Payments kept apart), which
+66      # share one Receipt.
+67      first = payment["received_with"] or payment_id                     ①  ◀
+68      together = (
+69          conn.execute(
+70              select(payment_table.c.id, payment_table.c.amount)
+71              .where(
+72                  or_(payment_table.c.id == first, payment_table.c.received_with == first),
+73                  payment_table.c.voided_at.is_(None),                    ②
+74              )
+75              .order_by(payment_table.c.id)
+76          )
+⋮
+79      )
+80      allocated = [(p["id"], m) for p in together for m in mortgages_of(conn, p["id"])]   ③
+81      mortgages = [mortgage for _, mortgage in allocated]
+82      replayed = replays(conn, mortgages)
+83      # Each Mortgage once: one paid in two parts isn't two pieces described alike.
+84      described = descriptions(list({m["id"]: m for m in mortgages}.values()))
+85      amount = sum(p["amount"] for p in together)                         ④
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The same grouping as <code>cash_sums</code> in lesson 4: find the first part, whichever part you started from.</li>
+  <li>A Voided part drops out. That's how lesson 2's Reopen left the Receipt with only the bangles.</li>
+  <li>A list comprehension with two <code>for</code>s reads left to right like nested loops: for each part, for each of its Mortgages, a pair <code>(part id, Mortgage row)</code>.</li>
+  <li>The Receipt's amount is the sum of the parts: what the Customer handed over.</li>
+</ol>
+
+<h3>3. One line per Mortgage</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/payments/receipts.py">payments/receipts.py</a> · <code>load_receipt()</code> · lines 86–116, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/receipts.py"><code>86      # One line a Mortgage: a part paying what it owed and its Final Payment, together.
+87      lines: dict[int, ReceiptLineOut] = {}
+88      for paid_by, mortgage in allocated:
+89          step = replayed[mortgage["id"]].steps_by_payment()[paid_by]      ①
+90          # A Waiver's final Payment leaves nothing owed: the rest was let off with it.
+91          closure = replayed[mortgage["id"]].closure()
+92          # How the Mortgage closed, when this Allocation was its final Payment.
+93          closed_by = closure.kind if closure and closure.payment_id == paid_by else None
+94          waived = closed_by == "waived"
+95          line = ReceiptLineOut(
+96              description=described[mortgage["id"]],                       ②
+97              mortgage_id=mortgage["id"],
+98              paid=mortgage["allocated"],
+99              interest_paid=step.interest_paid,
+100              principal_paid=step.principal_paid,
+101              owed_after=0
+102              if waived
+103              else replayed[mortgage["id"]].owed_after(paid_by, payment["paid_on"]),   ③  ◀
+104              redeemed=closed_by == "redeemed",                            ④
+105          )
+106          earlier = lines.get(mortgage["id"])
+107          if earlier is not None:                                         ⑤
+⋮    … add paid, interest_paid and principal_paid to the earlier line; redeemed if either was …
+116          lines[mortgage["id"]] = line
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The split comes from the replay, as on the Payment page (lesson 1).</li>
+  <li>The description, through <code>descriptions()</code> (nuance (d)).</li>
+  <li>What the Mortgage owed just after this part: <code>owed_after</code> in <code>replay.py</code>, below. A Waiver's line is the exception (nuance (b)).</li>
+  <li>"(Redeemed)" is added to the title when the Allocation was a Redemption's Final Payment.</li>
+  <li>If a Mortgage appears in two parts, the second is folded into the first line. Today's <code>record_payment</code> never does that: each Mortgage is either ordinary or Redeemed. Releases before ADR 0011 could join a Final Payment to an earlier Payment on the same Mortgage ("Ready to Redeem"), and those Receipts still have to come out as one line.</li>
+</ol>
+
+<h3>4. "Just after the Payment"</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.owed_after()</code> · lines 138–149</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>138      def owed_after(self, payment_id: int, on: date) -&gt; int:
+139          """What it owed just after its Payment `payment_id` on `on`: Outstanding at the
+140          end of that day, as if none of that day's later Payments (or a write-off) had
+141          been made."""
+142          ledger = self.ledger(on)                                         ①
+143          at = next(i for i, s in enumerate(ledger) if s.payment_id == payment_id)
+144          later = sum(
+145              s.amount
+146              for s in ledger[at + 1 :]
+147              if s.event in ("payment", "waived", "forfeited")             ②
+148          )
+149          return ledger[-1].principal + ledger[-1].unpaid_interest + later   ③  ◀
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The Ledger up to the Payment's date, ending with that day's Interest to Date. Nothing after that date counts, so later Payments can't change it.</li>
+  <li>Anything later the same day that lowered what's owed: another Payment, or a write-off.</li>
+  <li>The Outstanding at the end of the day, with those added back. <code>next(…)</code> returns the first item of a generator: here, the index of this Payment's step.</li>
+</ol>
+
+<h2>Run-through: Meera's 10 Sep Receipt</h2>
+<p>On your served book: <code>curl -s http://127.0.0.1:8765/api/payments/23/receipt</code>, or open <code>http://127.0.0.1:8765/payments/23/receipt</code>.</p>
+<table class="steps">
+<tr><th>Line</th><th>Paid</th><th>Interest</th><th>Principal</th><th>Still owed</th></tr>
+<tr><td>Gold chain with Lakshmi pendant</td><td>₹2,000</td><td>₹2,000</td><td>₹0</td><td>₹81,253</td></tr>
+<tr><td>Pair of bangles</td><td>₹10,000</td><td>₹10,000</td><td>₹0</td><td>₹1,53,700</td></tr>
+<tr><td><strong>Total</strong></td><td>₹12,000</td><td></td><td></td><td>₹2,34,953</td></tr>
+</table>
+<p>Now rebuild "Still owed" from the Ledgers on 10 Sep (the Mortgage page's <strong>Show complete Ledger</strong> shows the same steps):</p>
+<table class="steps">
+<tr><th>Mortgage</th><th>10 Sep step</th><th>Amount</th><th>Principal</th><th>Unpaid interest</th></tr>
+<tr><td>Chain</td><td><code>interest</code> (Accrual Date)</td><td>₹1,600</td><td>₹80,000</td><td>₹3,200</td></tr>
+<tr><td>Chain</td><td><code>payment</code> 23</td><td>₹2,000</td><td>₹80,000</td><td>₹1,200</td></tr>
+<tr class="changed"><td>Chain</td><td><code>interest_to_date</code> (1 day)</td><td>₹53</td><td>₹80,000</td><td>₹1,253 → owes <strong>₹81,253</strong></td></tr>
+<tr><td>Bangles</td><td><code>payment</code> 23</td><td>₹10,000</td><td>₹1,50,000</td><td>₹2,000</td></tr>
+<tr class="changed"><td>Bangles</td><td><code>interest_to_date</code> (17 days since 25 Aug)</td><td>₹1,700</td><td>₹1,50,000</td><td>₹3,700 → owes <strong>₹1,53,700</strong></td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5): <code>load_receipt</code> through the API, and each Mortgage's <code>ledger(10 Sep)</code>, at commit 15df77d.</p>
+<p>The chain had ₹1,600 unpaid from earlier (Meera missed April), so 10 Sep's interest brought it to ₹3,200, and the ₹2,000 all went to interest. Then the day's Interest to Date: the new month has started, and today always counts (<a href="../reference/traps.html#t7">trap #7</a>). "Still owed" is the Outstanding at the end of 10 Sep: exactly what would have Redeemed the chain that day (<a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>).</p>
+<p>The Receipt page is for printing. The Payment page (<code>/payments/23</code>) shows the same Receipt as WhatsApp text, with a <strong>Send on WhatsApp</strong> button. Chapter 003, lesson 5 showed both; <code>receipt_text</code> fills the Lender's Receipt template, and chapter 009 owns how. The button opens <code>api.whatsapp.com/send</code> with the text filled in, and the Lender presses Send: <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a> chose that over automating WhatsApp, which breaks when WhatsApp changes its screens and risks a ban on the Lender's number. Don't press Send: the sample book's numbers look real.</p>
+
+<div class="callout warn"><strong>Trap #16: customer-facing text hides internal names.</strong> Receipts and Notices use the jewellery's description and the Customer's name, never the Mortgage Name or ids. In <code>load_receipt</code> the Mortgage Name never reaches a <code>ReceiptLine</code>, and <code>mortgage_id</code> is only on <code>ReceiptLineOut</code>, for the Lender's links. <code>test_the_receipt_message_shows_items_not_mortgage_names</code> checks the text. When you add anything to a Receipt, Notice or message, keep to it (<a href="../reference/traps.html#t16">trap #16</a>, owned by this lesson).</div>
+
+<h2>Nuances</h2>
+<h3>(a) Resent later: the same, unless the past changed</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> after lesson 2, the chain is paid off and Redeemed. Open Receipt 23 again. Does the chain's line still say ₹81,253? And what if, instead, a ₹500 cash Payment to the chain dated 1 Sep were entered today?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Book</th><th>Chain still owed</th><th>Bangles still owed</th><th>Total owed</th></tr>
+    <tr><td>Fresh</td><td>₹81,253</td><td>₹1,53,700</td><td>₹2,34,953</td></tr>
+    <tr><td>After lesson 2's Payment (chain Redeemed 19 Oct)</td><td>₹81,253</td><td>₹1,53,700</td><td>₹2,34,953</td></tr>
+    <tr class="changed"><td>After a ₹500 Payment dated 1 Sep</td><td>₹80,753</td><td>₹1,53,700</td><td>₹2,34,453</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L5), each on its own copy.</p>
+    <p>Lesson 2's Payment is <em>after</em> 10 Sep, so <code>ledger(10 Sep)</code> never sees it: the Receipt is unchanged. The 1 Sep Payment is <em>before</em>, so it changes what the chain owed on 10 Sep, and the Receipt changes with it, as it should. The "Paid" figures never change; only what was owed around them can. That's ADR 0001's promise: point-in-time history from facts that don't change.</p>
+  </div>
+</div>
+
+<h3>(b) Redeemed, and Waived</h3>
+<p>Two Closures, two Receipts, on your served book:</p>
+<table class="steps text">
+<tr><th>Receipt</th><th>Line</th><th>Still owed</th></tr>
+<tr><td>26 · Kavita, 5 Oct, ₹54,600 UPI "UPI 7781"</td><td>Gold coin <strong>(Redeemed)</strong>: ₹4,600 interest, ₹50,000 Principal</td><td>₹0</td></tr>
+<tr class="changed"><td>30 · Farida, 16 Oct, ₹30,520 cash</td><td>Gold nose ring: ₹700 interest, ₹29,820 Principal</td><td>₹0</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5).</p>
+<div class="reveal">
+  <p><strong>Predict:</strong> Farida's ₹30,520 left ₹180 of Principal unpaid, which the Lender let off. What does <code>owed_after(30, 16 Oct)</code> return on its own, and why does the Receipt say ₹0?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>16 Oct step</th><th>Amount</th><th>Principal</th><th>Unpaid</th></tr>
+    <tr><td><code>interest_to_date</code></td><td>₹100</td><td>₹30,000</td><td>₹700</td></tr>
+    <tr><td><code>payment</code> 30</td><td>₹30,520</td><td>₹180</td><td>₹0</td></tr>
+    <tr class="changed"><td><code>waived</code></td><td>₹180</td><td>₹0</td><td>₹0</td></tr>
+    </table>
+    <p><code>owed_after</code> gives <strong>₹180</strong>: it adds back the day's later write-off (line 147), as if it hadn't happened yet. That's right for an ordinary Payment, but the Waiver's Final Payment came <em>with</em> the write-off. Telling Farida she "still owes ₹180" on the message that closes her Mortgage would be wrong. So <code>load_receipt</code> special-cases it (lines 90–94, 101–102): a Waiver's Final Payment line owes 0. It isn't marked "(Redeemed)": the jewellery was returned, but the Mortgage was Waived, not Redeemed.</p>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L5): <code>replay(conn, 6).owed_after(30, 16 Oct)</code> and its Ledger.</p>
+  </div>
+</div>
+
+<h3>(c) One Receipt for a Payment in parts</h3>
+<p>Your lesson 2 Payment, as the Customer reads it (<code>GET /api/payments/34/receipt</code>, field <code>text</code>, trimmed):</p>
+<pre><code>We have received *₹84,333* by UPI on 19 Oct 2026. Thank you!
+
+```
+Pair of bangles
+Paid              ₹1,000
+  Interest        ₹1,000
+  Principal           ₹0
+Still owed     ₹1,50,500
+
+Gold chain with Lakshmi
+pendant (Redeemed)
+Paid             ₹83,333
+  Interest        ₹3,333
+  Principal      ₹80,000
+Still owed            ₹0
+────────────────────────
+Total paid       ₹84,333
+Total owed     ₹1,50,500
+```</code></pre>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5).</p>
+<p>One message for two <code>payment</code> rows. The lines come in part order (34's bangles, then 35's chain), not in the order the request listed them.</p>
+
+<h3>(d) Two pieces described alike</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on a copy, Meera pledges a second pair of bangles on 1 Oct (₹40,000), also described "Pair of bangles". She pays ₹2,000 on the old pair and ₹500 on the new one together. How can the Receipt tell them apart without the Mortgage Name?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Line</th><th>Paid</th><th>Interest</th><th>Principal</th><th>Still owed</th></tr>
+    <tr class="changed"><td>Pair of bangles (from 25 Apr 2026)</td><td>₹2,000</td><td>₹1,500</td><td>₹500</td><td>₹1,49,500</td></tr>
+    <tr class="changed"><td>Pair of bangles (from 01 Oct 2026)</td><td>₹500</td><td>₹500</td><td>₹0</td><td>₹40,007</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L5), on a copy.</p>
+    <p><code>descriptions()</code> (<code>follow_up/messages.py</code>, line 65) counts the descriptions in this one message with a <code>Counter</code>; any that appear more than once get their start date added. Only within one message: on a Receipt for the old pair alone, it's just "Pair of bangles". Line 84 passes each Mortgage once, so a Mortgage in two parts isn't mistaken for two pieces alike.</p>
+  </div>
+</div>
+
+<h3>(e) Two Payments on one day</h3>
+<p>On a copy, Meera pays the chain ₹2,000 by UPI (Payment 34) and then ₹1,000 in cash (Payment 35), both on 19 Oct. Receipt 34 says the chain still owes ₹81,333; Receipt 35 says ₹80,333 (from <code>scripts/run_throughs.py</code>, section L5). Each is "just after" its own Payment: <code>owed_after</code> adds 35's ₹1,000 back for Receipt 34, because it came later that day.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="0">
+  <p class="q">Kavita's Receipt 26 is opened again next year. What will its "Still owed" say?</p>
+  <button class="opt">₹0, as it did on 5 Oct</button>
+  <button class="opt">Whatever the coin owes on that day</button>
+  <button class="opt">Nothing: closed Mortgages have no Receipt</button>
+  <div class="why">It's replayed up to 5 Oct, the Payment's date, every time. Later facts can't reach it. Closed Mortgages keep their Receipts; only a Voided Payment loses its own.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Which of these could appear in the text of Meera's Receipt?</p>
+  <button class="opt">2025-Meera-GoldChainPendant</button>
+  <button class="opt">Mortgage 2, Payment 23</button>
+  <button class="opt">Gold chain with Lakshmi pendant</button>
+  <div class="why">A Receipt names each item by its description (trap #16). The Mortgage Name and ids are the Lender's labels; <code>mortgage_id</code> is in the JSON for the Lender's screen, never in the text.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Why does Farida's Receipt say ₹0 still owed, when <code>owed_after</code> gives ₹180?</p>
+  <button class="opt">A rounding rule drops amounts under ₹500</button>
+  <button class="opt">A Waiver's Final Payment line owes nothing</button>
+  <button class="opt">Her Payment was in cash, not by UPI</button>
+  <div class="why"><code>load_receipt</code> checks whether this Allocation was a Waiver's Final Payment and sets <code>owed_after</code> to 0: the ₹180 was let off with it. <code>owed_after</code> on its own adds the same-day write-off back.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read all of <a href="../../../backend/src/mortgage_backend/payments/receipts.py"><code>payments/receipts.py</code></a> (148 lines), then <a href="../../../backend/tests/test_receipts.py"><code>tests/test_receipts.py</code></a>, starting at <code>test_two_pieces_described_alike_are_told_apart_by_start_date</code> (line 78). For how the text and the template work, wait for chapter 009.</p>
+
+<nav class="lessons">
+  <a href="04-the-cash-limit.html">← The Cash Limit</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Next: Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

@@ -216,7 +216,7 @@ curl -s -X POST -H "$J" "$B/mortgages/3/reopen" -d '{"reason": "Redeemed on the 
 <p>A Forfeiture has no Final Payment, so its Reopen Voids nothing. It clears <code>recovered_amount</code> and <code>closure_note</code> with the other columns. On a copy, Reopening Imran's earrings left them Active, owing ₹63,200 on 19 Oct: ₹60,000 + ₹2,800 + ₹400 (10 days) (from <code>scripts/run_throughs.py</code>, section L5).</p>
 
 <h3>(d) Reopening twice</h3>
-<p>Reopen an Active Mortgage and you get 409: "2026-Kavita-SilverGoldAnklet is Active". A Reopen of a Redemption that came with an ordinary Payment (lesson 3's chain and bangles) Voids only the chain's Final Payment part and leaves the bangles' part alone. That's why a Final Payment is its own part (trap #2, chapter 007).</p>
+<p>Reopen an Active Mortgage and you get 409: "2026-Kavita-SilverGoldAnklet is Active". A Reopen of a Redemption that came with an ordinary Payment (lesson 3's chain and bangles) Voids only the chain's Final Payment part and leaves the bangles' part alone. That's why a Final Payment is its own part (trap #2, <a href="../007-payments-and-receipts/02-one-payment-several-parts.html">chapter 007, lesson 2</a>).</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="1">

@@ -81,7 +81,7 @@ sequenceDiagram
 </figure>
 <ol class="marks">
   <li><code>change</code> is any function that takes no arguments. Each route passes a <code>lambda</code> that calls one change function with the route's own arguments. <code>_preview</code> doesn't know or care which change it is.</li>
-  <li><code>before_change</code> and <code>cash_sums</code> work out which sums the change would write in cash, so the page can warn about the Cash Limit. Chapter 007 owns them; here they're just two more reads around the change.</li>
+  <li><code>before_change</code> and <code>cash_sums</code> work out which sums the change would write in cash, so the page can warn about the Cash Limit. <a href="../007-payments-and-receipts/04-the-cash-limit.html">Chapter 007, lesson 4</a> owns them; here they're just two more reads around the change.</li>
   <li>The real change. If it refuses, its <code>HTTPException</code> passes straight up through <code>_preview</code> and the route, and the page gets the save's own 409 or 422.</li>
   <li><code>finally</code> runs whether or not the change raised, so the transaction is always undone.</li>
 </ol>

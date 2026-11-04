@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>007 · Payments and Receipts</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 007</p>
+<h1>Payments and Receipts</h1>
+
+<h2>The problem this chapter solves</h2>
+<p>Money comes in to the Lender every day. Meera hands over ₹12,000 by UPI and says "₹2,000 for the chain, the rest for the bangles". Lakshmi brings ₹2,03,600 by bank transfer to take her necklace home. Someone types ₹16,000 when they meant ₹6,000. Kavita brings ₹25,000 in notes, and the Lender has to remember that Government of India rules want sums that large paid by UPI or bank transfer. And every Customer expects a message on WhatsApp saying what they paid and what they still owe.</p>
+<p>Each of those needs care. A <a href="../reference/glossary.html#payment"><dfn class="term" title="A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt.">Payment</dfn></a> that covers two Mortgages has to be divided between them, in Allocations that add up. A mistake can't just be deleted or edited, because the Ledger of every Mortgage it touched would quietly change, with no trace of why. The cash warning has to treat "one sum" the way the rules do, even when the app stores that sum as two rows. And the <a href="../reference/glossary.html#receipt"><dfn class="term" title="The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.">Receipt</dfn></a> has to show the same figures if the Lender resends it next month, and must never show the Customer the Lender's internal labels.</p>
+<p>This chapter is about how the app stores a Payment, how it corrects one, when it warns about cash, and how it works out a Receipt.</p>
+
+<h2>What you'll be able to do</h2>
+<ul>
+  <li>Read the <code>payment</code> and <code>allocation</code> tables, and say what <code>PaymentIn</code> and <code>_refuse_payment</code> refuse.</li>
+  <li>Say how many <code>payment</code> rows a Payment makes, which id comes back, and why the API never shows <code>received_with</code>.</li>
+  <li>Correct a wrong Payment with a Void and a new Payment, and say which Voids are refused.</li>
+  <li>Say what counts as one cash sum, and why the Cash Limit only warns.</li>
+  <li>Rebuild any Receipt's figures, and explain why it can be resent months later.</li>
+</ul>
+
+<h2>Before you start</h2>
+<p><a href="../003-one-payment-end-to-end/index.html">Chapter 003</a> followed one Payment from the form to the Receipt. This chapter opens each step it passed through. <a href="../004-the-ledger-engine/03-the-order-inside-a-day.html">Chapter 004, lesson 3</a> taught what a Payment pays first inside one Mortgage. <a href="../005-replay-and-closures/03-redeemed.html">Chapter 005, lesson 3</a> taught that paying exactly the Outstanding Redeems a Mortgage. <a href="../006-changes-and-previews/index.html">Chapter 006</a> taught the four steps every change follows (refuse → write → check → History) and how a Preview runs the real change and rolls it back. This chapter doesn't re-teach any of these. It uses them.</p>
+<p>Keep the sample book served from <a href="../002-find-your-way-and-run-it/04-serve-the-sample-book.html">chapter 002, lesson 4</a> (<code>http://127.0.0.1:8765</code>, held on 19 Oct 2026). <strong>Build it fresh</strong> into a new empty folder and set <code>$BOOK</code> to that folder: chapter 003's Payment and chapter 005's Reopens change the ids and figures quoted here. In lesson 2 you'll save one Payment on it, and the later lessons expect that Payment to be there. Everything else you try is a Preview, a read, or a change that gets refused. Never try any of it against real data.</p>
+<p>You'll also read the database directly with <code>sqlite3</code>, which ships with macOS and most Linux systems. The sample book's database is <code>$BOOK/data/mortgage.db</code>. Only read it; every write goes through the API.</p>
+
+<h2>The map</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  F["New Payment page<br/>PaymentForm"] -->|"POST /payments  L1, L2"| RP["record_payment<br/>lending/changes.py"]
+  F -->|"POST /payments/preview  L4"| PV["_preview<br/>lending/previews.py"]
+  PV -->|"runs, then rolls back"| RP
+  PV -->|"what it wrote in cash  L4"| CS["cash_sums<br/>payments/cash_limit.py"]
+  RP -->|"a part each  L2"| T[("payment rows<br/>allocation rows")]
+  V["Payment page: Void…"] -->|"POST /payments/{id}/void  L3"| VP["void_payment<br/>lending/changes.py"]
+  VP -->|"voided_at, void_reason"| T
+  T -->|"replayed  L1"| LP["load_payment<br/>payments/payments.py"]
+  T -->|"replayed  L5"| LR["load_receipt<br/>payments/receipts.py"]
+  LR -->|"lines, text"| W["Receipt page:<br/>Send on WhatsApp"]
+</pre>
+<figcaption>Writes go through <code>lending/changes.py</code>; reads, Receipts and the Cash Limit live in <code>payments/</code>. Each arrow is labelled with the lesson (L1–L5) that opens it.</figcaption>
+</figure>
+<p>Notice that nothing flows from the tables to the screens without a replay in between. The tables hold only what was paid; how it was applied, and what is still owed, is worked out each time it is asked for.</p>
+
+<h2>Where it lives</h2>
+<table class="wide">
+<tr><th>Path</th><th>What it's responsible for</th><th>Lesson</th></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/platform/db.py"><code>platform/db.py</code></a></td><td>The <code>payment</code> and <code>allocation</code> tables</td><td>1, 2</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a></td><td><code>PaymentIn</code>, <code>VoidIn</code>, <code>_refuse_payment</code>, <code>record_payment</code>, <code>_write_payment</code>, <code>void_payment</code>, and the save routes</td><td>1, 2, 3</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/payments/payments.py"><code>payments/payments.py</code></a></td><td>Reading Payments: <code>load_payment</code>, <code>list_payments</code>, <code>mortgages_of</code>, the Payment Methods</td><td>1, 3</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/payments/cash_limit.py"><code>payments/cash_limit.py</code></a></td><td>The Cash Limit setting, and <code>cash_sums</code>: what a change writes in cash</td><td>4</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/payments/receipts.py"><code>payments/receipts.py</code></a></td><td><code>load_receipt</code>: one Receipt for every part of a Payment</td><td>5</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/follow_up/messages.py"><code>follow_up/messages.py</code></a></td><td><code>ReceiptLine</code>, <code>descriptions</code>, and the WhatsApp text (<code>receipt_text</code>, chapter 009)</td><td>5</td></tr>
+<tr><td><a href="../../../backend/tests/test_redeeming_payments.py"><code>tests/test_redeeming_payments.py</code></a>, <a href="../../../backend/tests/test_cash_sums.py"><code>test_cash_sums.py</code></a>, <a href="../../../backend/tests/test_receipts.py"><code>test_receipts.py</code></a></td><td>Payments that Redeem and their one Receipt; the cash sums; Receipt wording</td><td>2, 4, 5, 99</td></tr>
+<tr><td><a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>, <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>, <a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a></td><td>Why the split and the Receipt are replayed; why WhatsApp is click-to-send; why paying the whole Outstanding Redeems</td><td>1, 2, 5</td></tr>
+</table>
+
+<h2>Lessons</h2>
+<ol class="lessons-list">
+  <li><a href="01-a-payment-and-its-allocations.html">A Payment and its Allocations</a><span class="sum">Meera's ₹12,000 as two tables, every refusal you can provoke, and why the interest/Principal split is never stored.</span></li>
+  <li><a href="02-one-payment-several-parts.html">One Payment, several parts</a><span class="sum">Pay off the chain and ₹1,000 on the bangles at once, then find two <code>payment</code> rows and one Receipt.</span></li>
+  <li><a href="03-voids.html">Voids: how a Payment is corrected</a><span class="sum">The ₹16,000 that should have been ₹6,000, and the three Voids the app refuses.</span></li>
+  <li><a href="04-the-cash-limit.html">The Cash Limit</a><span class="sum">₹25,000 in cash against UPI, what counts as one sum, and why it only warns.</span></li>
+  <li><a href="05-receipts.html">Receipts</a><span class="sum">Rebuild Meera's 10 Sep Receipt, Kavita's "(Redeemed)" and Farida's ₹0, and see why a resent Receipt still matches.</span></li>
+  <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">How many rows? Which id? One sum or two? Then break <code>received_with</code> and watch the Receipt and the cash sum fail together.</span></li>
+</ol>
+
+<footer>
+  <p>Written against commit <code>15df77d</code>. Every figure and message came from <a href="scripts/run_throughs.py"><code>scripts/run_throughs.py</code></a>, which builds the sample book in a temporary folder and makes every Payment, Void, Preview and Receipt through the real API, on fresh copies of the book. Run it from <code>backend/</code> with <code>uv run python ../Documentation/onboarding/007-payments-and-receipts/scripts/run_throughs.py</code>.</p>
+  <p>Anything unclear? Ask an agent in this repo to explain it: a function, a refusal, or why a rule exists. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
+  <p><a href="../index.html">Course home</a> · Previous: <a href="../006-changes-and-previews/index.html">chapter 006</a> · Next: chapter 008, People and Collateral (coming; see the <a href="../SYLLABUS.md">syllabus</a>)</p>
+</footer>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>
