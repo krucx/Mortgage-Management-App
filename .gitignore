@@ -4,3 +4,5 @@ data/
 backups/
 
 .DS_Store
+
+.claude/settings.local.json
