@@ -65,7 +65,11 @@ function server(created: unknown[], overrides: Record<string, unknown> = {}) {
 
 const createButton = () => screen.getByRole('button', { name: 'Create Mortgage' }) as HTMLButtonElement
 
-async function fillMortgageForm(backend: FakeServer, description: string, lentThrough = 'upi') {
+async function fillMortgageForm(
+  backend: FakeServer,
+  description: string,
+  lentThrough: string | null = 'upi', // null: left as it starts
+) {
   showPage(backend, '/mortgages/new?customer=3', { '/mortgages/new': <NewMortgagePage /> })
   fireEvent.change(await screen.findByLabelText('Start date'), { target: { value: '2026-09-23' } })
   fireEvent.change(screen.getByLabelText('Principal lent (₹)'), { target: { value: '25000' } })
@@ -76,7 +80,7 @@ async function fillMortgageForm(backend: FakeServer, description: string, lentTh
   })
   const lent = screen.getByLabelText('Lent Through') as HTMLSelectElement
   await vi.waitFor(() => expect(lent.disabled).toBe(false))
-  fireEvent.change(lent, { target: { value: lentThrough } })
+  if (lentThrough !== null) fireEvent.change(lent, { target: { value: lentThrough } })
 }
 
 async function confirmCreate() {
@@ -135,22 +139,10 @@ test("if no Mortgage Name can be suggested, it says so and one can be typed", as
   expect(created.map((m) => m.name)).toEqual(['2026-Asha-Pendant'])
 })
 
-test('a new Mortgage must say how it was lent', async () => {
+test('a new Mortgage is lent in Cash unless changed, warned about from its Preview, before the confirmation', async () => {
   const created: unknown[] = []
-  await fillMortgageForm(server(created), 'gold ring', '')
-
-  await new Promise((resolve) => setTimeout(resolve, 400)) // its Mortgage Name is in
-  expect(createButton().disabled).toBe(true)
-  fireEvent.change(screen.getByLabelText('Lent Through'), { target: { value: 'upi' } })
-  expect(await confirmCreate()).toBe('Create Mortgage 2026-Asha-Gold-Ring?')
-
-  await screen.findByText('Now at /mortgages/7')
-  expect(created).toEqual([expect.objectContaining({ lent_through: 'upi' })])
-})
-
-test('lending in cash is warned about from its Preview, before the confirmation', async () => {
-  const created: unknown[] = []
-  await fillMortgageForm(server(created), 'gold ring', 'cash') // ₹25,000
+  await fillMortgageForm(server(created), 'gold ring', null) // ₹25,000
+  expect((screen.getByLabelText('Lent Through') as HTMLSelectElement).value).toBe('cash')
 
   await vi.waitFor(() => expect(createButton().disabled).toBe(false), { timeout: 2000 })
   fireEvent.click(createButton())

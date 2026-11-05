@@ -5,6 +5,28 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [3.2.2] - 2026-11-05
+
+New Mortgage's Lent Through starts as Cash. **No database changes:** updating keeps all
+data and Backups, and 3.2.1 still starts on the same database.
+
+### Changed
+
+- **Lent Through starts as Cash on New Mortgage:** most Principal is handed over in
+  cash, so it no longer starts empty with "Choose…". Change it to UPI or bank transfer
+  when it was lent that way. Lending in cash at or above the Cash Limit is still
+  warned about before the confirmation. Edit Mortgage is unchanged.
+
+### Upgrading
+
+On Windows, use the banner's **Install now**. Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
+
 ## [3.2.1] - 2026-11-03
 
 New Payment Redeems what it pays in full without waiting on quotes, the Cash Limit's

@@ -132,7 +132,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
     gross: '',
     net: '',
     purity: 22 as Purity,
-    lentThrough: null as PaymentMethod | null,
+    lentThrough: 'cash' as PaymentMethod, // the usual way, so the one to change from
   })
   const methods = usePaymentMethods()
   const { client, queryClient } = useServerState()
@@ -176,7 +176,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (!terms || !nameReady || !fields.lentThrough) return
+    if (!terms || !nameReady) return
     const chosenTerms = fromDraft(terms)
     const asked: MortgageIn = {
       customer_id: customer.id,
@@ -274,7 +274,6 @@ function MortgageForm({ customer }: { customer: Customer }) {
             methods={methods}
             value={fields.lentThrough}
             onChange={(lentThrough) => setFields({ ...fields, lentThrough })}
-            placeholder="Choose…"
             required
           />
         </label>
@@ -369,7 +368,7 @@ function MortgageForm({ customer }: { customer: Customer }) {
       </fieldset>
 
       <div className="row">
-        <button type="submit" disabled={saving || !terms || !nameReady || !fields.lentThrough}>
+        <button type="submit" disabled={saving || !terms || !nameReady}>
           {saving ? 'Saving…' : locked ? 'Retry photo upload' : 'Create Mortgage'}
         </button>
       </div>
