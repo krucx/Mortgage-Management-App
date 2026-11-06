@@ -27,6 +27,7 @@ import type {
   PreviewOfChange,
   Purity,
   RedeemAllIn,
+  SimulationIn,
   TermChangeIn,
   Terms,
   WaiveAllIn,
@@ -442,6 +443,15 @@ export function projectionQuery(client: ApiClient, id: number, monthlyPayment: n
         }),
       )
     },
+  })
+}
+
+/** A Simulation, worked out by the backend's ledger engine; nothing is stored, so it is
+ *  never made stale. */
+export function simulationQuery(client: ApiClient, simulation: SimulationIn) {
+  return queryOptions({
+    queryKey: ['simulation', simulation],
+    queryFn: () => dataOrThrow(client.POST('/api/simulation', { body: simulation })),
   })
 }
 

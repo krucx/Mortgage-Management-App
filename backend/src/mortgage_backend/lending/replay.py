@@ -65,6 +65,26 @@ class OutstandingOnClosure(BaseModel):
     total: int  # the Outstanding on that Closure date
 
 
+def outstanding_on_closure_of(
+    ledger: Sequence[LedgerStep], start: date, on: date
+) -> OutstandingOnClosure:
+    """The Outstanding on `on` of a Ledger replayed as if closed then, with no final
+    Payment."""
+    last = ledger[-1]
+    to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
+    charge = to_date.amount - to_date.paid_ahead if to_date else 0
+    days = interest_to_date_days(start, on)
+    return OutstandingOnClosure(
+        on=on,
+        principal=last.principal,
+        unpaid_interest=last.unpaid_interest - charge,
+        last_accrual_on=on - timedelta(days=days - 1),
+        interest_to_date_days=days,
+        interest_to_date=charge,
+        total=last.principal + last.unpaid_interest,
+    )
+
+
 class Closure(BaseModel):
     """How and when a Mortgage was closed, and what it came to."""
 
@@ -189,19 +209,7 @@ class MortgageReplay:
             [a for a in self.allocations if a.payment_id != final_payment],
             closed_on=on,
         )
-        last = ledger[-1]
-        to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
-        charge = to_date.amount - to_date.paid_ahead if to_date else 0
-        days = interest_to_date_days(self.row["start_date"], on)
-        return OutstandingOnClosure(
-            on=on,
-            principal=last.principal,
-            unpaid_interest=last.unpaid_interest - charge,
-            last_accrual_on=on - timedelta(days=days - 1),
-            interest_to_date_days=days,
-            interest_to_date=charge,
-            total=last.principal + last.unpaid_interest,
-        )
+        return outstanding_on_closure_of(ledger, self.row["start_date"], on)
 
     def closure(self) -> Closure | None:
         """How it was closed and what that came to; None while Active."""

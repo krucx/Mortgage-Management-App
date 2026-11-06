@@ -151,3 +151,9 @@ export type NoticeStatus = Notice['status']
 export type MessageSettings = Schemas['MessageSettings']
 export type MessagePlaceholders = Schemas['MessagePlaceholders']
 export type UpdateStatus = Schemas['UpdateStatus']
+
+/** A made-up Mortgage worked out by the ledger engine, for the Calculator; never kept. */
+export type Simulation = Schemas['Simulation']
+export type SimulationIn = Schemas['SimulationIn']
+export type SimulatedPoint = Schemas['SimulatedPoint']
+export type SimulatedMonth = Schemas['SimulatedMonth']

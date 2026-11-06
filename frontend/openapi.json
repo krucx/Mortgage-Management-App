@@ -3246,6 +3246,157 @@
         "title": "SearchHit",
         "type": "object"
       },
+      "SimulatedMonth": {
+        "description": "A month's interest charged on an Accrual Date or, last, the Interest to Date\ncharged on Closed on, and where it stands after.",
+        "properties": {
+          "capitalised": {
+            "title": "Capitalised",
+            "type": "integer"
+          },
+          "interest": {
+            "title": "Interest",
+            "type": "integer"
+          },
+          "interest_to_date_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest To Date Days"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "principal": {
+            "title": "Principal",
+            "type": "integer"
+          },
+          "unpaid_interest": {
+            "title": "Unpaid Interest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "interest",
+          "interest_to_date_days",
+          "capitalised",
+          "principal",
+          "unpaid_interest"
+        ],
+        "title": "SimulatedMonth",
+        "type": "object"
+      },
+      "SimulatedPoint": {
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "outstanding": {
+            "title": "Outstanding",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "outstanding"
+        ],
+        "title": "SimulatedPoint",
+        "type": "object"
+      },
+      "Simulation": {
+        "properties": {
+          "effective_annual_rate": {
+            "title": "Effective Annual Rate",
+            "type": "number"
+          },
+          "first_month_interest": {
+            "title": "First Month Interest",
+            "type": "integer"
+          },
+          "interest_earned": {
+            "title": "Interest Earned",
+            "type": "integer"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/SimulatedMonth"
+            },
+            "title": "Months",
+            "type": "array"
+          },
+          "on_closure": {
+            "$ref": "#/components/schemas/OutstandingOnClosure"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/SimulatedPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "on_closure",
+          "interest_earned",
+          "first_month_interest",
+          "effective_annual_rate",
+          "points",
+          "months"
+        ],
+        "title": "Simulation",
+        "type": "object"
+      },
+      "SimulationIn": {
+        "properties": {
+          "amount_lent": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Lent",
+            "type": "integer"
+          },
+          "closed_on": {
+            "format": "date",
+            "title": "Closed On",
+            "type": "string"
+          },
+          "span_months": {
+            "default": 12,
+            "enum": [
+              3,
+              6,
+              12,
+              24,
+              36
+            ],
+            "title": "Span Months",
+            "type": "integer"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/Terms"
+          }
+        },
+        "required": [
+          "amount_lent",
+          "start_date",
+          "closed_on",
+          "terms"
+        ],
+        "title": "SimulationIn",
+        "type": "object"
+      },
       "StandaloneReferrer": {
         "properties": {
           "address": {
@@ -7259,6 +7410,45 @@
           }
         },
         "summary": "Read Message Placeholders"
+      }
+    },
+    "/api/simulation": {
+      "post": {
+        "description": "A Simulation closed on `closed_on`; nothing is stored.",
+        "operationId": "simulate_api_simulation_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Simulation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Simulate"
       }
     },
     "/api/update": {

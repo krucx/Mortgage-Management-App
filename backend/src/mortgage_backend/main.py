@@ -25,6 +25,7 @@ from mortgage_backend.lending import (
     mortgages,
     previews,
     projections,
+    simulation,
 )
 from mortgage_backend.payments import cash_limit, payments, receipts
 from mortgage_backend.people import customer_changes, customers
@@ -125,6 +126,7 @@ def create_app(
     app.include_router(backups.router)
     app.include_router(audit.router)
     app.include_router(projections.router)
+    app.include_router(simulation.router)
     app.include_router(previews.router)
     app.include_router(receipts.router)
     app.include_router(message_settings.router)

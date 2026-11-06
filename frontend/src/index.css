@@ -1040,6 +1040,13 @@ figure.chart .series {
   background: var(--accent);
 }
 
+/* A Simulation's Outstanding, on the Calculator */
+.series.outstanding,
+.key.outstanding::before {
+  stroke: var(--accent);
+  background: var(--accent);
+}
+
 .key::before {
   content: '';
   display: inline-block;

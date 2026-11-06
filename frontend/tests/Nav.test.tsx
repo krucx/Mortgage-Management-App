@@ -30,3 +30,15 @@ test('no dot while no Mortgage is Dormant', async () => {
   expect(screen.queryByLabelText(/Dormant/)).toBeNull()
   expect(screen.queryByText('Redeem / Forfeit')).toBeNull()
 })
+
+test('the Calculator sits between Mortgages and Call List', async () => {
+  showPage(fakeServer(dormant(0)), '/', { '/': <Nav /> })
+
+  const tabs = (await screen.findAllByRole('link')).map((link) => link.textContent)
+  expect(tabs.slice(tabs.indexOf('Mortgages'), tabs.indexOf('Call List') + 1)).toEqual([
+    'Mortgages',
+    'Calculator',
+    'Call List',
+  ])
+  expect(screen.getByRole('link', { name: 'Calculator' }).getAttribute('href')).toBe('/calculator')
+})

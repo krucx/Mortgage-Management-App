@@ -3,6 +3,7 @@ import { Nav } from './components/Nav'
 import { StartGate } from './components/StartGate'
 import { ThemeToggle } from './components/ThemeToggle'
 import { UpdateBanner } from './components/UpdateBanner'
+import { CalculatorPage } from './pages/CalculatorPage'
 import { CallListPage } from './pages/CallListPage'
 import { ChangeTermsPage } from './pages/ChangeTermsPage'
 import { ClosuresPage } from './pages/ClosuresPage'
@@ -57,6 +58,7 @@ export default function App() {
               <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
               <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
               <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
+              <Route path="/calculator" element={<CalculatorPage />} />
               <Route path="/call-list" element={<CallListPage />} />
               <Route path="/notices" element={<NoticesPage />} />
               <Route path="/closures" element={<ClosuresPage />} />

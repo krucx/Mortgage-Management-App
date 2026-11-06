@@ -22,9 +22,19 @@ export function todayIso(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
-/** A ratio as a percentage with one decimal, e.g. 0.9561 → "95.6%". */
-export const formatPercent = (ratio: number) =>
-  `${(ratio * 100).toLocaleString('en-IN', { maximumFractionDigits: 1 })}%`
+/** A ratio as a percentage with up to one decimal (or `decimals`), e.g. 0.9561 → "95.6%". */
+export const formatPercent = (ratio: number, decimals = 1) =>
+  `${(ratio * 100).toLocaleString('en-IN', { maximumFractionDigits: decimals })}%`
+
+/** The date `months` on from `isoDate` (YYYY-MM-DD), on the same day or, when that
+ *  month is shorter, its last day: as Accrual Dates are. */
+export function addMonths(isoDate: string, months: number): string {
+  const [year, month, day] = isoDate.split('-').map(Number)
+  const first = new Date(Date.UTC(year, month - 1 + months, 1))
+  const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate()
+  first.setUTCDate(Math.min(day, lastDay))
+  return first.toISOString().slice(0, 10)
+}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 

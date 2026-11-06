@@ -1340,6 +1340,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/simulation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Simulate
+         * @description A Simulation closed on `closed_on`; nothing is stored.
+         */
+        post: operations["simulate_api_simulation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/update": {
         parameters: {
             query?: never;
@@ -2575,6 +2595,74 @@ export interface components {
             phone: string;
             /** Photo Url */
             photo_url: string | null;
+        };
+        /**
+         * SimulatedMonth
+         * @description A month's interest charged on an Accrual Date or, last, the Interest to Date
+         *     charged on Closed on, and where it stands after.
+         */
+        SimulatedMonth: {
+            /** Capitalised */
+            capitalised: number;
+            /** Interest */
+            interest: number;
+            /** Interest To Date Days */
+            interest_to_date_days: number | null;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Principal */
+            principal: number;
+            /** Unpaid Interest */
+            unpaid_interest: number;
+        };
+        /** SimulatedPoint */
+        SimulatedPoint: {
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Outstanding */
+            outstanding: number;
+        };
+        /** Simulation */
+        Simulation: {
+            /** Effective Annual Rate */
+            effective_annual_rate: number;
+            /** First Month Interest */
+            first_month_interest: number;
+            /** Interest Earned */
+            interest_earned: number;
+            /** Months */
+            months: components["schemas"]["SimulatedMonth"][];
+            on_closure: components["schemas"]["OutstandingOnClosure"];
+            /** Points */
+            points: components["schemas"]["SimulatedPoint"][];
+        };
+        /** SimulationIn */
+        SimulationIn: {
+            /** Amount Lent */
+            amount_lent: number;
+            /**
+             * Closed On
+             * Format: date
+             */
+            closed_on: string;
+            /**
+             * Span Months
+             * @default 12
+             * @enum {integer}
+             */
+            span_months: 3 | 6 | 12 | 24 | 36;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            terms: components["schemas"]["Terms"];
         };
         /** StandaloneReferrer */
         StandaloneReferrer: {
@@ -5285,6 +5373,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessagePlaceholders"];
+                };
+            };
+        };
+    };
+    simulate_api_simulation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Simulation"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

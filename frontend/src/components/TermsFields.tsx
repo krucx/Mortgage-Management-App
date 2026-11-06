@@ -4,9 +4,12 @@ import { INTEREST_MODES, PART_MONTH_RULES, type TermsDraft } from '../terms'
 export function TermsFields({
   value,
   onChange,
+  rateProblem = null,
 }: {
   value: TermsDraft
   onChange: (draft: TermsDraft) => void
+  /** Why the rate is refused, shown beside it. */
+  rateProblem?: string | null
 }) {
   return (
     <>
@@ -21,6 +24,7 @@ export function TermsFields({
           value={value.ratePercent}
           onChange={(event) => onChange({ ...value, ratePercent: event.target.value })}
         />
+        {rateProblem && <span className="status error">{rateProblem}</span>}
       </label>
       <label>
         Interest Mode

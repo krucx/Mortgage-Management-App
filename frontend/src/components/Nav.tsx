@@ -17,6 +17,7 @@ export function Nav() {
       <NavLink to="/payments">Payments</NavLink>
       <NavLink to="/customers">Customers</NavLink>
       <NavLink to="/mortgages">Mortgages</NavLink>
+      <NavLink to="/calculator">Calculator</NavLink>
       <NavLink to="/call-list">Call List</NavLink>
       <NavLink to="/notices">Notices</NavLink>
       <NavLink
