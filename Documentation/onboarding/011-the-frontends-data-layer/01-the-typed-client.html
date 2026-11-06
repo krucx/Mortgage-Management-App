@@ -302,7 +302,7 @@ flowchart LR
   <div class="reveal-body">
     <p><code>GET /api/customers?page=1&amp;q=</code> was tried <strong>twice</strong> (no connection isn't a refusal, so it's asked once more), then the page says:</p>
     <p class="status error">The app's server isn't running: start Mortgage Management, then try again.</p>
-    <p>That's <code>UNREACHABLE</code>, from <code>dataOrThrow</code>'s <code>TypeError</code> branch. Reload the page instead, and <code>StartGate</code> catches it before any page shows: "The app isn't running. Start its server: this page loads the app as soon as it is running." That screen is chapter 012's. (From <code>scripts/network.mjs</code>, section L1, which made every <code>/api/</code> request fail to connect.)</p>
+    <p>That's <code>UNREACHABLE</code>, from <code>dataOrThrow</code>'s <code>TypeError</code> branch. Reload the page instead, and <code>StartGate</code> catches it before any page shows: "The app isn't running. Start its server: this page loads the app as soon as it is running." That screen is <a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>'s. (From <code>scripts/network.mjs</code>, section L1, which made every <code>/api/</code> request fail to connect.)</p>
     <p>Start the backend again (<code>serve.py "$BOOK" 8000</code>) before you go on.</p>
   </div>
 </div>

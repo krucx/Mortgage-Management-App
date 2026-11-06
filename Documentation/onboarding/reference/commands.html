@@ -102,8 +102,20 @@
 <tr><td>repo root</td><td><code>sh Documentation/onboarding/011-the-frontends-data-layer/scripts/run_throughs.sh</code></td><td>Builds the sample book in a temp folder, serves it on 8000 with the dev server on 5199, drives the screens headless and prints every <code>/api/</code> request chapter 011 quotes. Ports 8000 and 5199 must be free; needs Playwright (<code>cd docs/sample-book &amp;&amp; npm install</code>)</td></tr>
 </table>
 
+<h2 id="pages">Pages and the installed app</h2>
+<p>Taught in <a href="../012-frontend-pages-and-the-pwa/index.html">chapter 012</a>. Lessons 1–5 use <code>npm run dev</code> against the sample book on port 8000, as above; set every form's date to 19 Oct 2026 first (the two "todays", <a href="../012-frontend-pages-and-the-pwa/01-the-shell-and-a-read-page.html">012 · Lesson 1</a>). The service worker runs only in a built app (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">012 · Lesson 6</a>).</p>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run build</code></td><td>Type-checks, copies Tesseract's files into <code>public/ocr</code>, and builds the screens into <code>dist/</code>, with the service worker (<code>sw.js</code>) and the manifest. 17 files at commit 2c5e561, 10 MB of them in <code>dist/ocr/</code></td></tr>
+<tr><td><code>backend/</code></td><td><code>export PWA=$(mktemp -d)</code><br><code>uv run python ../docs/sample-book/book.py "$PWA"</code><br><code>uv run python ../docs/sample-book/serve.py "$PWA"</code></td><td>A fresh book served with the built screens on <a href="http://127.0.0.1:8765">127.0.0.1:8765</a>, the clock held on 19 Oct 2026. <code>serve.py</code> passes no latest release, so the update banner never shows</td></tr>
+<tr><td>Chrome, on 127.0.0.1:8765</td><td>The install icon in the address bar (or Install in the ⋮ menu)</td><td>Installs the app: its own window, "Mortgage Management". DevTools → Application → Cache storage shows the precache and the <code>pages</code> cache; Service workers lets you unregister it</td></tr>
+<tr><td>the <code>serve.py</code> terminal</td><td>Ctrl-C, then the same command again</td><td>Stop the server: the installed app shows "The app isn't running…" and checks every 2 s. Start it: the app reloads by itself</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npx vitest run tests/UpdateBanner.test.tsx tests/StartGate.test.tsx</code></td><td>The 13 tests behind the installed app: Later, Install now, a failed update, a newer version than offered; a stopped backend, a 502, off Windows</td></tr>
+<tr><td>repo root</td><td><code>sh Documentation/onboarding/012-frontend-pages-and-the-pwa/scripts/run_throughs.sh</code></td><td>Builds the sample book in a temp folder, drives the screens headless through lessons 1–5 (it saves on that copy), then builds the screens, serves a second fresh book on 8765 and drives the service worker. Ports 8000, 5199 and 8765 must be free; needs Playwright (<code>cd docs/sample-book &amp;&amp; npm install</code>)</td></tr>
+</table>
+
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

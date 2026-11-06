@@ -224,7 +224,7 @@ ls "$BOOK/data/photos"</code></pre>
 <h3>(f) A deleted Customer takes their files</h3>
 <p>Deleting a Customer with a photo and an Aadhaar photo removed both <code>customer-8-…</code> files after the commit (from <code>scripts/run_throughs.py</code>, section L4; <code>test_customer_ids.py::test_a_deleted_customer_takes_their_id_photos_with_them</code>). Had the delete been refused, they'd still be there: <code>remove_when_saved</code> only promises.</p>
 
-<p class="aside">The Customer form saves the details first and uploads the photos afterwards, one request each, so a photo that fails to upload doesn't lose the details. Chapter 012 covers the pages.</p>
+<p class="aside">The Customer form saves the details first and uploads the photos afterwards, one request each, so a photo that fails to upload doesn't lose the details. <a href="../012-frontend-pages-and-the-pwa/04-the-mortgage-and-customer-pages.html">Chapter 012, lesson 4</a> covers the pages.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">

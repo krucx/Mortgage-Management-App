@@ -68,6 +68,14 @@
   Why a phone photo is rotated before it's saved. Use for: 008.04.
 - [Python: `uuid.uuid4`](https://docs.python.org/3/library/uuid.html#uuid.uuid4)
   The random part of every photo's file name. Use for: 008.04.
+- [Chrome for Developers: Workbox caching strategies](https://developer.chrome.com/docs/workbox/caching-strategies-overview)
+  The precache and `NetworkFirst`, which the installed app's service worker uses. Use for: 012.06.
+- [vite-plugin-pwa](https://vite-pwa-org.netlify.app/guide/)
+  The Vite plugin that writes the service worker and the manifest (`registerType: 'autoUpdate'`). Use for: 012.06.
+- [React: Preserving and resetting state](https://react.dev/learn/preserving-and-resetting-state)
+  Why a form keyed by the record's id starts again for another record. Use for: 012.02.
+- [Tesseract.js](https://github.com/naptha/tesseract.js)
+  The text reader `ocr.ts` runs in the browser to read ID Photos. Use for: 012.04.
 
 ## Where to get help
 

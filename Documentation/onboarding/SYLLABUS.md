@@ -15,7 +15,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 009 | [Follow-up](https://github.com/krucx/Mortgage-Management-App/issues/170) | `009-follow-up/` | explain Notices, the Call List, Call Notes and Call Sheets, and WhatsApp messages | written (6e6b030) |
 | 010 | [Platform, database and migrations](https://github.com/krucx/Mortgage-Management-App/issues/176) | `010-platform-database-and-migrations/` | add a migration safely; know the clock, the daily run and the composition root | written (b34526a) |
 | 011 | [The frontend's data layer](https://github.com/krucx/Mortgage-Management-App/issues/182) | `011-the-frontends-data-layer/` | fetch, preview and propose a change from a page | written (87a96c7) |
-| 012 | [Frontend pages and the PWA](https://github.com/krucx/Mortgage-Management-App/issues/188) | `012-frontend-pages-and-the-pwa/` | build a page from existing components; explain the service worker, StartGate and UpdateBanner | planned |
+| 012 | [Frontend pages and the PWA](https://github.com/krucx/Mortgage-Management-App/issues/188) | `012-frontend-pages-and-the-pwa/` | build a page from existing components; explain the service worker, StartGate and UpdateBanner | written (2c5e561) |
 | 013 | [Testing](https://github.com/krucx/Mortgage-Management-App/issues/195) | `013-testing/` | write backend and frontend tests with the repo's fixtures, seeds and fakes; run the type checks and Pester | planned |
 | 014 | [How it runs on the Lender's laptop](https://github.com/krucx/Mortgage-Management-App/issues/201) | `014-how-it-runs-on-the-lenders-laptop/` | run and debug Docker, `screens.py` mode and the Windows installer | planned |
 | 015 | [Releases, updates and Backups](https://github.com/krucx/Mortgage-Management-App/issues/207) | `015-releases-updates-and-backups/` | cut a release, explain updates and where Backups go | planned |
@@ -100,6 +100,14 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 3. Lists a page at a time ([#185](https://github.com/krucx/Mortgage-Management-App/issues/185))
 4. Previews from a draft ([#186](https://github.com/krucx/Mortgage-Management-App/issues/186))
 5. Saving, and what goes stale ([#187](https://github.com/krucx/Mortgage-Management-App/issues/187))
+
+### 012 Frontend pages and the PWA (written)
+1. The shell and a read page ([#189](https://github.com/krucx/Mortgage-Management-App/issues/189))
+2. A form page: draft, Preview, confirm, save ([#190](https://github.com/krucx/Mortgage-Management-App/issues/190))
+3. The money forms: New Payment and Closures ([#191](https://github.com/krucx/Mortgage-Management-App/issues/191))
+4. The Mortgage and Customer pages ([#192](https://github.com/krucx/Mortgage-Management-App/issues/192))
+5. Follow-up, the Dashboard and Settings ([#193](https://github.com/krucx/Mortgage-Management-App/issues/193))
+6. The installed app (PWA) ([#194](https://github.com/krucx/Mortgage-Management-App/issues/194))
 
 ## Reference sheets
 

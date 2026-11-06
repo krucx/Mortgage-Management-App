@@ -233,7 +233,7 @@ curl -s 'http://127.0.0.1:8765/api/notices?status=sent&amp;sort=accrues&amp;desc
 </div>
 
 <h3>(d) "Sent" means "the Lender opened WhatsApp"</h3>
-<p>The app never talks to WhatsApp's servers. On the Notices page, the Send button opens WhatsApp with the message ready, and at the same moment tells the backend it was sent (<code>WhatsApp.tsx</code> calls <code>sender.send</code>, then <code>onSent</code>; chapter 012). The Lender still has to press Send in WhatsApp. If they close it instead, the app already says "sent". That's the price of click-to-send, which <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a> chose over automating WhatsApp Web. Lesson 5 shows the link.</p>
+<p>The app never talks to WhatsApp's servers. On the Notices page, the Send button opens WhatsApp with the message ready, and at the same moment tells the backend it was sent (<code>WhatsApp.tsx</code> calls <code>sender.send</code>, then <code>onSent</code>; <a href="../012-frontend-pages-and-the-pwa/05-follow-up-dashboard-and-settings.html">chapter 012, lesson 5</a>). The Lender still has to press Send in WhatsApp. If they close it instead, the app already says "sent". That's the price of click-to-send, which <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a> chose over automating WhatsApp Web. Lesson 5 shows the link.</p>
 
 <h3>(e) A template edit only rewords unsent Notices</h3>
 <p>On a copy, the Lender saves the Notice template <code>Hello {customer_name}: {interest} on {date}.</code>. #58 now reads "Hello Sunita Rao: ₹700 on 21 Oct 2026." Sent Notice #57, to Arjun, still begins "*Interest notice* 🔔 … Namaste Arjun Patel": its text was frozen when it was sent. (From <code>scripts/run_throughs.py</code>, section L4.)</p>

@@ -42,7 +42,7 @@ uv run python ../docs/sample-book/serve.py "$BOOK" 8000
 # terminal 2, from frontend/
 npm run dev</code></pre>
 <p>Open <a href="http://localhost:5173">localhost:5173</a>, open your browser's developer tools, and on the <strong>Network</strong> tab type <code>/api/</code> in the filter box. Every lesson has you watch that tab. Lessons 1–4 only read and Preview. Lesson 5 saves one Payment and approves one Notice on that scratch book. It's a scratch book, so that's fine, but rebuild it before the next chapter.</p>
-<div class="callout warn"><strong>Two things you'll see in development only.</strong> First, <code>/api/payment-methods</code> appears three times on a fresh load. Two are <code>StartGate</code>'s check that the backend answers (chapter 012), made twice because React's <code>StrictMode</code> (in <code>main.tsx</code>) runs every effect twice in development to flush out bugs. The third is the query for the payment methods themselves. The built app makes the check once. Second, a form's date is your <em>browser's</em> today, not the served book's 19 Oct 2026. On the Payment form, set the date to 19 Oct 2026 first, or the backend refuses the list of Mortgages with "The date cannot be in the future".</div>
+<div class="callout warn"><strong>Two things you'll see in development only.</strong> First, <code>/api/payment-methods</code> appears three times on a fresh load. Two are <code>StartGate</code>'s check that the backend answers (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>), made twice because React's <code>StrictMode</code> (in <code>main.tsx</code>) runs every effect twice in development to flush out bugs. The third is the query for the payment methods themselves. The built app makes the check once. Second, a form's date is your <em>browser's</em> today, not the served book's 19 Oct 2026. On the Payment form, set the date to 19 Oct 2026 first, or the backend refuses the list of Mortgages with "The date cannot be in the future".</div>
 
 <h2>The map</h2>
 <figure class="diagram">
@@ -80,7 +80,7 @@ flowchart LR
 <tr><td><a href="../../../frontend/tests/serverState.test.tsx"><code>tests/serverState.test.tsx</code></a>, <a href="../../../frontend/tests/api-types.test.ts"><code>tests/api-types.test.ts</code></a>, <a href="../../../backend/tests/test_openapi.py"><code>backend/tests/test_openapi.py</code></a></td><td>The tests behind the rules in this chapter</td><td>1, 5, 99</td></tr>
 <tr><td><a href="../../../frontend/.oxlintrc.json"><code>frontend/.oxlintrc.json</code></a></td><td>The lint rule that bans <code>fetch</code> outside the typed client</td><td>1</td></tr>
 </table>
-<p class="aside">Named here but taught elsewhere: the pages themselves, <code>BeforeAfter.tsx</code> (how a Preview is drawn), <code>History.tsx</code>, <code>StartGate.tsx</code> and <code>UpdateBanner.tsx</code> (chapter 012); the <code>showPage</code> and <code>fakeServer</code> test harness (chapter 013); the backend side of every Preview and save route (<a href="../006-changes-and-previews/index.html">chapter 006</a>).</p>
+<p class="aside">Named here but taught elsewhere: the pages themselves, <code>BeforeAfter.tsx</code> (how a Preview is drawn), <code>History.tsx</code>, <code>StartGate.tsx</code> and <code>UpdateBanner.tsx</code> (<a href="../012-frontend-pages-and-the-pwa/index.html">chapter 012</a>); the <code>showPage</code> and <code>fakeServer</code> test harness (chapter 013); the backend side of every Preview and save route (<a href="../006-changes-and-previews/index.html">chapter 006</a>).</p>
 
 <h2>Lessons</h2>
 <ol class="lessons-list">
@@ -95,7 +95,7 @@ flowchart LR
 <footer>
   <p>Written against commit <code>87a96c7</code>. Every request, message and count came from <a href="scripts/run_throughs.sh"><code>scripts/run_throughs.sh</code></a>, which builds the sample book in a temporary folder, serves it on port 8000, runs the frontend's own dev server in front of it, and drives the screens in a headless browser (<a href="scripts/network.mjs"><code>scripts/network.mjs</code></a>), printing every <code>/api/</code> request each step makes. Run it from the repo root with <code>sh Documentation/onboarding/011-the-frontends-data-layer/scripts/run_throughs.sh</code>. The test counts and compiler errors came from running <code>npm test</code> and <code>npm run typecheck</code> at that commit.</p>
   <p>Anything unclear? Ask an agent in this repo to explain it: a hook, a query key, or why a request was (or wasn't) made. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
-  <p><a href="../index.html">Course home</a> · Previous: <a href="../010-platform-database-and-migrations/index.html">chapter 010</a> · Next: chapter 012, Frontend pages and the PWA (coming; see the <a href="../SYLLABUS.md">syllabus</a>)</p>
+  <p><a href="../index.html">Course home</a> · Previous: <a href="../010-platform-database-and-migrations/index.html">chapter 010</a> · Next: <a href="../012-frontend-pages-and-the-pwa/index.html">chapter 012, Frontend pages and the PWA</a></p>
 </footer>
 <script src="../assets/mermaid.min.js"></script>
 <script src="../assets/diagrams.js"></script>

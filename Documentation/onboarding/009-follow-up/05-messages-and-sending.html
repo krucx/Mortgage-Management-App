@@ -211,7 +211,7 @@ flowchart LR
   <li>Phone numbers are stored as 10 digits (chapter 008). WhatsApp wants the full international number, so <code>91</code> is added here and nowhere else. <code>URLSearchParams</code> URL-encodes the text: newlines, ₹ and emoji included.</li>
   <li><code>wa.me</code> is WhatsApp's short link, but it redirects to this one and the redirect turns emoji into "�" (the comment at lines 24–27). So the app uses the long link directly.</li>
 </ol>
-<p>Only two places call <code>sender</code>: <code>SendOnWhatsApp</code> in <code>components/WhatsApp.tsx</code> (Receipts and Notices) uses <code>send</code>; <code>CallListPage</code> uses <code>chat</code>, to open a conversation with no text. Both are chapter 012's.</p>
+<p>Only two places call <code>sender</code>: <code>SendOnWhatsApp</code> in <code>components/WhatsApp.tsx</code> (Receipts and Notices) uses <code>send</code>; <code>CallListPage</code> uses <code>chat</code>, to open a conversation with no text. Both are <a href="../012-frontend-pages-and-the-pwa/05-follow-up-dashboard-and-settings.html">chapter 012, lesson 5</a>'s.</p>
 
 <h2>Run-through: Sunita's card, line by line</h2>
 <p>Here is #58's message, with each line's length in characters:</p>

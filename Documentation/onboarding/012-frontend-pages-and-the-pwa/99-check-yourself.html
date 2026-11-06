@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12.99 · Check yourself: Frontend pages and the PWA</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 012 · Check yourself</p>
+<h1>Check yourself: Frontend pages and the PWA</h1>
+<p class="lede">Questions from all six lessons, mixed up. Then make the update banner reload only for the exact version it offered, and see which test catches it.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">1. A bug report says: "the screen at <code>/mortgages/4/redeem</code> shows the wrong button label". Which file draws the button?</p>
+  <button class="opt"><code>pages/MortgagePage.tsx</code>, the Mortgage's own page</button>
+  <button class="opt"><code>components/CloseMortgage.tsx</code>, inside <code>RedeemPage</code></button>
+  <button class="opt"><code>pages/ClosuresPage.tsx</code>, where Redeem… was pressed</button>
+  <div class="why"><code>App.tsx</code> maps <code>/mortgages/:id/redeem</code> to <code>RedeemPage</code>, a read page that hands the Mortgage to <code>CloseMortgage</code> with <code>initialAction="redeem"</code>. The button ("Redeem for ₹…") is drawn there. (Lessons 1 and 3.)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">2. On the served book, with your browser on 3 Nov 2026, the Payment form refuses to list Meera's Mortgages. Why?</p>
+  <button class="opt">The date defaults to the browser's 3 Nov; the backend's today is 19 Oct</button>
+  <button class="opt">The date field's <code>max</code> stops any date after 19 Oct</button>
+  <button class="opt">3 Nov is not an Accrual Date for either Mortgage</button>
+  <div class="why"><code>todayIso()</code> is the browser's date, so the form asks for the Outstanding <code>as_of=2026-11-03</code>, and the backend, whose today is 19 Oct, answers 422 "The date cannot be in the future". <code>max</code> is the browser's today too (3 Nov), and Payments can be on any day. (Lesson 1, nuance d.)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">3. Meera's Receipt for 10 Sept says "Still owed ₹81,253" for the chain. Where does that figure come from?</p>
+  <button class="opt"><code>ReceiptPage</code>: the chain's Outstanding less what was paid</button>
+  <button class="opt">The cached Mortgage, as it stood when the Receipt was opened</button>
+  <button class="opt">The backend's Receipt: <code>owed_after</code>, <code>8125300</code> paise</button>
+  <div class="why">The page shows <code>formatINR(line.owed_after)</code>; the backend worked it out by replaying the chain to just after that Payment. Pages show figures and never compute money. (Lesson 1.)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">4. Why is <code>ChangeTermsForm</code> rendered as <code>&lt;ChangeTermsForm key={id} …/&gt;</code>?</p>
+  <button class="opt">So its Preview is cached under the Mortgage's id</button>
+  <button class="opt">So moving to another Mortgage starts a fresh draft</button>
+  <button class="opt">So React Router redraws the page when the URL changes</button>
+  <div class="why">A new <code>key</code> makes React draw a new component, whose <code>useState</code> starts from the new Mortgage. The script typed 1.25 on the bangles, went to the chain's form, and found 2 there. Without the key the bangles' draft could be saved for the chain. (Lesson 2, nuance b.)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">5. You stop the server and reload the installed app. Which cache answers the page, and what does it show?</p>
+  <button class="opt">The precache, without asking: Meera's chain as last seen</button>
+  <button class="opt">The browser's HTTP cache: the last Dashboard's figures</button>
+  <button class="opt">The <code>pages</code> cache, after the server fails: StartGate</button>
+  <div class="why">Pages are <code>NetworkFirst</code>: the server is asked, fails, and the <code>pages</code> cache (or <code>/index.html</code>, for a page never visited) answers. The app then loads from the precache, and <code>StartGate</code>'s ping fails: "The app isn't running…". No <code>/api</code> answer is ever cached. (Lesson 6.)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">6. The Lender presses Later on version 1.6.0. What does the app remember, and where?</p>
+  <button class="opt">"1.6.0", in this browser's <code>localStorage</code></button>
+  <button class="opt">That updates are off, in the book's settings</button>
+  <button class="opt">"1.6.0", on the backend, for every device</button>
+  <div class="why"><code>writePutOff</code> stores the version under <code>mortgage-management.update-put-off</code> in <code>localStorage</code>. The banner stays hidden until a release newer than 1.6.0 is offered. Each device decides for itself. (Lesson 6, nuance d.)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">7. The banner offered 1.6.0, but Setup installed 1.6.1, released in the meantime. Why does the app still reload?</p>
+  <button class="opt">It reloads for any answer once Setup has finished</button>
+  <button class="opt">It compares with the version that ran before, not the offer</button>
+  <button class="opt">The service worker reloads every page after an update</button>
+  <div class="why">Line 137: <code>data.running !== status.running</code>. Any version other than the one running when Install now was pressed means the update worked. The same version coming back means it failed. (Lesson 6, nuance e; the exercise below.)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">8. Trace it: on a fresh book on 19 Oct, Meera pays ₹2,00,000 equally across the bangles (owes ₹1,51,500) and the chain (₹83,333). What does the form suggest, and will the Preview Redeem anything?</p>
+  <button class="opt">Bangles ₹1,16,667, chain ₹83,333: the chain is Redeemed</button>
+  <button class="opt">₹1,00,000 each: the chain's Preview is refused</button>
+  <button class="opt">Bangles ₹1,16,667, chain ₹83,333: nothing is Redeemed</button>
+  <div class="why">The ₹1,00,000 share is more than the chain's ₹83,333, so <code>allocateEqually</code> gives the chain exactly its Outstanding and the bangles the rest (the script printed [1,16,667, 83,333]). An Allocation of exactly the Outstanding Redeems the chain (trap #3), so the confirmation becomes "Redeem and hand back the jewellery?". (Lesson 3.)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">9. The Dashboard's total Loan-to-Value was 36.3% on a fresh book, and 38.1% after lesson 3. Why did it go up?</p>
+  <button class="opt">The Gold Rates fell after the anklet was Redeemed</button>
+  <button class="opt">Redeeming the anklet added its Final Payment to the owed</button>
+  <button class="opt">The anklet left the Active Mortgages, and its value with it</button>
+  <div class="why">Only Active, valued Mortgages count. The anklet owed ₹0 but was valued at ₹54,144, so it lowered the ratio; once Redeemed, the same Outstanding is divided by ₹10,55,808 instead of ₹11,09,952. (Lessons 3 and 5.)</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Hands-on: reload only for the version offered</h2>
+<p>Lesson 6 said the app reloads for whichever new version runs, even one newer than the banner offered. Here you narrow that to "only the version offered" and see what notices. Work in <code>frontend/</code>.</p>
+<ol>
+  <li>Run the tests as they are:
+<pre><code>npm test</code></pre>
+    <strong>230 passed</strong>, in 34 files (at commit 2c5e561).</li>
+  <li>Open <code>src/components/UpdateBanner.tsx</code>. At line 137, change
+<pre><code>} else if (data.running !== status.running) {</code></pre>
+    to
+<pre><code>} else if (data.running === available.version) {</code></pre>
+    Now the app reloads only once the version it offered runs.</li>
+  <li><strong>Predict</strong> before you run anything: how many tests fail, and which? Think about each of the banner's tests in lesson 6's table: which backend comes back as a version other than the one offered?</li>
+</ol>
+<div class="reveal">
+  <p>Run <code>npm test</code> again.</p>
+  <button class="show">I've run it. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>1 failed, 229 passed</strong> (at commit 2c5e561):</p>
+    <table class="steps text">
+    <tr><th>Test</th><th>What it says</th></tr>
+    <tr class="changed"><td><code>UpdateBanner.test.tsx</code> › the app loads whichever new version Setup installed, even one newer than offered</td><td><code>AssertionError: expected +0 to be 1</code>. The backend stopped, then came back as 1.6.1. The banner offered 1.6.0, so it never reloaded: <code>reloads()</code> stayed 0.</td></tr>
+    </table>
+    <p>The other banner tests still pass. "Install now … loads the app once the new version runs" brings back 1.6.0, the version offered, which reloads either way. "When the version before comes back instead" brings back 1.5.1: not the offer, so no reload; and <code>stopped</code> was set while it was down, so it still says "Update failed". Only a version that is new <em>and</em> not the one offered tells the two rules apart, and that is what this test is for. A release can come out while an update is running, and Setup always installs the newest.</p>
+    <p>On the Lender's laptop the narrowed rule would leave the screen on "Updating to version 1.6.0…" over an app already running 1.6.1, until the 20-minute "The update hasn't finished" message.</p>
+  </div>
+</div>
+<ol start="4">
+  <li>Undo it:
+<pre><code>git checkout -- src/components/UpdateBanner.tsx
+git status --short     # nothing left</code></pre>
+    and run <code>npm test</code>: 230 pass.</li>
+</ol>
+
+<h2>Recap</h2>
+<ul>
+  <li><code>App.tsx</code> maps every URL to one page in <code>src/pages/</code>, inside <code>StartGate</code> and one shell (header, <code>Nav</code> with the Dormant dot from <code>GET /api/closures/dormant</code>, <code>ThemeToggle</code>, <code>UpdateBanner</code>). A read page asks with a read from <code>requests.ts</code>, shows "Loading…" or a <code>status error</code>, then draws with the shared CSS classes, <code>formatINR</code> (paise, Indian grouping) and <code>formatDate</code> (UTC, never shifted). Pages never compute money. Customer-facing text names jewellery by its description. The theme follows the browser unless chosen, kept in <code>localStorage</code>. <code>todayIso()</code> is the browser's today; the backend decides what's refused (<a href="01-the-shell-and-a-read-page.html">lesson 1</a>).</li>
+  <li>A form page loads, then renders its form with <code>key={id}</code>. The form keeps a draft, works out the exact change (or <code>null</code>), and gives it to <code>useProposedChange</code> with a Preview, a <code>Summary</code> confirmation, a save and a <code>navigate</code>. <code>PreviewSection</code> and <code>BeforeAfter</code> draw any Preview: Owed today, interest over 12 months, the Outstanding at 3, 6 and 12 months, the chart and the changed Ledger steps (<a href="02-a-form-page.html">lesson 2</a>).</li>
+  <li>The Payment form suggests equal whole-rupee shares, each capped at that Mortgage's Outstanding, leftovers to the first; more than all is owed is split uncapped for the Preview to refuse. A Redemption is read from the Preview's <code>after.closure</code>. <code>useClosing</code> previews and saves Redeem, Waive off and Forfeit for one or several Mortgages, all or none, reading each Closure's figures from the Preview (<a href="03-the-money-forms.html">lesson 3</a>).</li>
+  <li>The Mortgage page is a list of panels; one that saves calls <code>setMortgage</code>, which updates the cache and marks History stale. The Ledger shows 8 steps, History 5 grouped changes, the rest in a <code>ScrollPopup</code>. ID numbers are read in the browser by Tesseract, from the app's own <code>/ocr/</code>, into empty fields only. <code>useSaveWithPhotos</code> saves the record once, then each photo; a retry sends only what's left (<a href="04-the-mortgage-and-customer-pages.html">lesson 4</a>).</li>
+  <li>The Call List labels the backend's reasons; <code>MarkCalled</code> saves a Call Note with <code>useChange</code>. <code>WhatsAppPreview</code> draws <code>*bold*</code>, <code>_italic_</code>, <code>~strike~</code> and <code>```</code> boxes; <code>SendOnWhatsApp</code> opens WhatsApp through <code>sender</code> and then marks the Notice sent (ADR 0002). Settings is one section per group. Every Dashboard figure is one <code>GET /api/dashboard</code>, each tile a link to its list; the total Loan-to-Value counts only valued Active Mortgages (<a href="05-follow-up-dashboard-and-settings.html">lesson 5</a>).</li>
+  <li>The service worker precaches the built app (not <code>ocr/</code>), fetches pages <code>NetworkFirst</code> with a 5 s timeout and falls back to the cached <code>index.html</code>, and never caches <code>/api</code>. <code>StartGate</code> shows the app only once <code>/api/payment-methods</code> answers below 500, checks every 2 s, and reloads. <code>UpdateBanner</code> offers <code>/api/update</code>'s release; Later is per device; it reloads for any version other than the one running before. <code>screens.py</code>'s cache headers must agree with all this (trap #13) (<a href="06-the-installed-app.html">lesson 6</a>).</li>
+</ul>
+<p>The <a href="../reference/frontend.html#pages">frontend sheet</a> now lists every page and the routes it calls. The <a href="../reference/commands.html#pages">commands sheet</a> has building and installing the app from <code>serve.py</code>, and the <a href="../reference/traps.html#t13">traps sheet</a> has #13.</p>
+
+<nav class="lessons">
+  <a href="06-the-installed-app.html">← The installed app</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="../index.html">Course home →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

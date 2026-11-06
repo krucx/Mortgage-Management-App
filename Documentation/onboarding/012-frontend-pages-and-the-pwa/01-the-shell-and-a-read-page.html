@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12.1 · The shell and a read page</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 012 · Lesson 1</p>
+<h1>The shell and a read page</h1>
+<p class="lede">Someone reports "the Receipt shows the wrong date". Which file do you open? This lesson maps every URL to its page file, opens the shell drawn around every page, and reads the simplest kind of page in full: one that asks for data and shows it.</p>
+
+<div class="callout win"><strong>By the end</strong> you can find the file behind any screen, and read a page that loads and shows data.</div>
+
+<h2>The problem</h2>
+<p>A <dfn class="term" title="The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name."><a href="../reference/glossary.html#receipt">Receipt</a></dfn> is what the Customer takes away after paying: what they paid towards each piece of jewellery, and what is still owed. The Lender prints it, or saves it as a PDF. To fix anything on it, you first need to know which file draws it. There are 21 URLs and 20 page files, and the menu shows only nine of them.</p>
+<p>Then there's what every screen shares. Each one has the same header, menu and theme switch around it. Each one waits for an answer from the backend, and might get an error instead. Each one shows money and dates. If every page wrote these parts itself, they would drift apart: one page would say "Loading…", another would show a blank card; one would write ₹1,51,500 and another ₹151,500. The Lender reads these figures all day, and the screens must say them the same way everywhere.</p>
+
+<h2>The idea</h2>
+<p><strong>One file lists every URL.</strong> <code>App.tsx</code> maps each path to one page component in <code>src/pages/</code>, and draws the shell around it once.</p>
+<p><strong>A read page has one shape.</strong> Ask for the data with a read from <code>requests.ts</code> (<a href="../011-the-frontends-data-layer/02-reading-through-the-cache.html">chapter 011, lesson 2</a>). Until it arrives, show "Loading…", or the error in a <code>status error</code> paragraph. Then draw it with the shared CSS classes, and format every figure with <code>formatINR</code> and every date with <code>formatDate</code>.</p>
+<p><strong>Pages show figures; they never compute money.</strong> Every amount on a screen is a number the backend sent. The frontend only formats it.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  URL["/payments/23/receipt"] --> SG{"StartGate:<br/>backend answers?"}
+  SG -->|"no"| STOP["'The app isn't running…' (lesson 6)"]
+  SG -->|"yes"| BR["BrowserRouter + layout"]
+  BR --> HD["header: Link to /, version, Nav, ThemeToggle"]
+  BR --> UB["UpdateBanner (lesson 6)"]
+  BR --> RT["Routes: path /payments/:id/receipt"]
+  RT --> PG["ReceiptPage"]
+  PG -->|"useQuery(receiptQuery(client, 23))"| D{"data yet?"}
+  D -->|"not yet"| L["Loading…"]
+  D -->|"error"| E["p.status.error: the message"]
+  D -->|"yes"| V["the card: formatINR, formatDate"]
+</pre>
+<figcaption>Every URL goes through the same shell. The page itself only decides what to ask for and how to draw the answer.</figcaption>
+</figure>
+<p>Notice that <code>Nav</code> and <code>UpdateBanner</code> are drawn on every page, so they make requests on every fresh load. You'll see them in the Network tab before the page's own request.</p>
+
+<h2>The code</h2>
+<h3>1. Every URL, in one file</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/App.tsx">frontend/src/App.tsx</a> · <code>App()</code> · lines 28–73, trimmed</figcaption>
+<pre data-file="frontend/src/App.tsx"><code>28  export default function App() {
+29    return (
+30      &lt;StartGate&gt;                                     // ① lesson 6
+31        &lt;BrowserRouter&gt;
+32          &lt;div className="layout"&gt;
+33            &lt;header&gt;
+⋮           … the app's name, a Link to "/", and v{APP_VERSION} …
+40              &lt;Nav /&gt;                                 // ② the menu
+41              &lt;ThemeToggle /&gt;
+42            &lt;/header&gt;
+43            &lt;UpdateBanner /&gt;                         // lesson 6
+44            &lt;main&gt;
+45              &lt;Routes&gt;
+46                &lt;Route path="/" element={&lt;DashboardPage /&gt;} /&gt;
+⋮             … /payments, /payments/new, /payments/:id …
+50                &lt;Route path="/payments/:id/receipt" element={&lt;ReceiptPage /&gt;} /&gt;   ◀
+⋮             … customers, mortgages, calculator …
+57                &lt;Route path="/mortgages/:id" element={&lt;MortgagePage /&gt;} /&gt;
+⋮
+62                &lt;Route path="/call-list" element={&lt;CallListPage /&gt;} /&gt;
+63                &lt;Route path="/notices" element={&lt;NoticesPage /&gt;} /&gt;
+64                &lt;Route path="/closures" element={&lt;ClosuresPage /&gt;} /&gt;
+65                &lt;Route path="/referrers/:id" element={&lt;ReferrerPage /&gt;} /&gt;
+66                &lt;Route path="/settings" element={&lt;SettingsPage /&gt;} /&gt;
+67              &lt;/Routes&gt;                               // ③
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>StartGate</code> wraps everything: until the backend answers, no route is drawn at all (lesson 6).</li>
+  <li>The header is outside <code>Routes</code>, so it's drawn once and stays put while the page below it changes.</li>
+  <li><code>Routes</code> (React Router) draws the one <code>Route</code> whose <code>path</code> matches the URL. <code>:id</code> is a parameter: the page reads it with <code>useParams()</code>. Some pages have two routes: <code>/customers/new</code> and <code>/customers/:id/edit</code> are both <code>CustomerFormPage</code>, which edits when the URL has an id.</li>
+</ol>
+<p>So the answer to "which file draws this screen?" is: find the URL's pattern here, and open that component in <code>src/pages/</code>. The <a href="../reference/frontend.html#pages">frontend sheet</a> has the whole table, with the routes each page calls.</p>
+
+<h3>2. The menu and its red dot</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/components/Nav.tsx">frontend/src/components/Nav.tsx</a> · <code>Nav()</code> · lines 6–33, trimmed</figcaption>
+<pre data-file="frontend/src/components/Nav.tsx"><code>6   /** The app's pages; a red dot on Closures while any Mortgage is Dormant (ADR 0012). */
+7   export function Nav() {
+8     const { client } = useServerState()
+⋮
+11    const dormant = useQuery(dormantCountQuery(client)).data ?? 0       // ①
+12    return (
+13      &lt;nav&gt;
+14        &lt;NavLink to="/" end&gt;
+15          Dashboard
+16        &lt;/NavLink&gt;
+17        &lt;NavLink to="/payments"&gt;Payments&lt;/NavLink&gt;
+⋮       … Customers, Mortgages, Calculator, Call List, Notices …
+23        &lt;NavLink
+24          to="/closures"
+25          title={dormant ? `${dormant} Dormant: owing nothing, to Redeem` : undefined}
+26        &gt;
+27          Closures
+28          {dormant &gt; 0 &amp;&amp; &lt;span className="dot" aria-label={`${dormant} Dormant, to Redeem`} /&gt;}   ◀
+29        &lt;/NavLink&gt;
+30        &lt;NavLink to="/settings"&gt;Settings&lt;/NavLink&gt;
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>GET /api/closures/dormant?page=1</code>, keeping only its <code>total</code>. It's marked stale by any change to what a Mortgage owes (<a href="../011-the-frontends-data-layer/05-saving-and-what-goes-stale.html">chapter 011, lesson 5</a>), so the dot goes away the moment the last Dormant Mortgage is Redeemed.</li>
+</ol>
+<p>A <dfn class="term" title="An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it."><a href="../reference/glossary.html#dormant">Dormant</a></dfn> Mortgage is one that is still Active but owes nothing: its jewellery should already have gone back, and the Lender only has to Redeem it. <a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a> chose a quiet dot on the menu over a separate "Ready to Redeem" state, because owing nothing is usually a slip to put right, not a step in the workflow. <code>NavLink</code> is a <code>Link</code> that adds the <code>active</code> class when its path is the current one; <code>end</code> on Dashboard stops <code>/</code> from matching every URL.</p>
+
+<h3>3. A read page, whole</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/pages/ReceiptPage.tsx">frontend/src/pages/ReceiptPage.tsx</a> · <code>ReceiptPage()</code> · lines 9–33, trimmed</figcaption>
+<pre data-file="frontend/src/pages/ReceiptPage.tsx"><code>9   export function ReceiptPage() {
+10    const id = Number(useParams().id)                                  // ① from the URL
+11    const { client } = useServerState()
+12    const { data: receipt, error } = useQuery(receiptQuery(client, id))   // ②
+13
+14    if (!receipt) return error ? &lt;p className="status error"&gt;{error.message}&lt;/p&gt; : &lt;p&gt;Loading…&lt;/p&gt;   ◀
+15
+16    return (
+17      &lt;section className="card wide receipt"&gt;                        // ③
+18        &lt;div className="row spread no-print"&gt;                        // ④
+19          &lt;Link to={`/payments/${receipt.payment_id}`}&gt;← Back to the Payment&lt;/Link&gt;
+20          &lt;button type="button" onClick={() =&gt; window.print()}&gt;
+21            Print or save as PDF
+22          &lt;/button&gt;
+23        &lt;/div&gt;
+24        &lt;h2&gt;Payment receipt&lt;/h2&gt;
+25        &lt;dl className="summary"&gt;
+⋮       … Received from, Amount, Method …
+30          &lt;div className="summary-row"&gt;
+31            &lt;dt&gt;Date&lt;/dt&gt;
+32            &lt;dd&gt;{formatDate(receipt.paid_on)}&lt;/dd&gt;                  // ⑤
+33          &lt;/div&gt;
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>useParams()</code> gives the route's parameters as strings: <code>{ id: "23" }</code>.</li>
+  <li>The read, named in <code>requests.ts</code> and keyed <code>['payment', 23, 'receipt']</code>. <code>data</code> is <code>undefined</code> until the answer comes.</li>
+  <li>The shared CSS classes, from <a href="../../../frontend/src/index.css"><code>index.css</code></a>: <code>card</code> is the white panel every page sits in, <code>wide</code> lets it use the page's full width, <code>receipt</code> adds the print layout.</li>
+  <li><code>row</code> lays its children out in a line (<code>spread</code>: at both ends). <code>no-print</code> hides this row on paper: <code>index.css</code>'s <code>@media print</code> also hides the header and menu.</li>
+  <li><code>receipt.paid_on</code> is <code>"2026-09-10"</code>, as the backend sends dates; <code>formatDate</code> makes it readable.</li>
+</ol>
+<p>Line 14 is the whole loading and error pattern, and nearly every page has it in this form. Learn to see it at a glance: everything below it can assume the data is there.</p>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/pages/ReceiptPage.tsx">frontend/src/pages/ReceiptPage.tsx</a> · the lines of the table · lines 59–70</figcaption>
+<pre data-file="frontend/src/pages/ReceiptPage.tsx"><code>59            {receipt.lines.map((line) =&gt; (
+60              &lt;tr key={line.mortgage_id}&gt;
+61                &lt;td&gt;
+62                  {line.description}                                 ◀
+63                  {line.redeemed &amp;&amp; ' (Redeemed)'}
+64                &lt;/td&gt;
+65                &lt;td className="num"&gt;{formatINR(line.paid)}&lt;/td&gt;
+66                &lt;td className="num"&gt;{formatINR(line.interest_paid)}&lt;/td&gt;
+67                &lt;td className="num"&gt;{formatINR(line.principal_paid)}&lt;/td&gt;
+68                &lt;td className="num"&gt;{formatINR(line.owed_after)}&lt;/td&gt;
+69              &lt;/tr&gt;
+70            ))}
+</code></pre>
+</figure>
+<p>Every figure here is a field of the answer: <code>paid</code>, <code>interest_paid</code>, <code>principal_paid</code>, <code>owed_after</code>. The page adds nothing up; even the Total row (line 79) shows <code>receipt.total_owed</code> from the backend. <code>num</code> right-aligns a figure in a table cell so the digits line up. And the jewellery is named by its <code>description</code>, not its Mortgage Name (line 62): see nuance (c).</p>
+
+<h3>4. Money and dates</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/money.ts">frontend/src/money.ts</a> · <code>formatINR()</code> · lines 1–15</figcaption>
+<pre data-file="frontend/src/money.ts"><code>1   // Money is always held as integer paise (1 rupee = 100 paise) to avoid float drift.
+2
+3   const rupees = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
+4   const rupeesAndPaise = new Intl.NumberFormat('en-IN', {
+5     minimumFractionDigits: 2,
+6     maximumFractionDigits: 2,
+7   })
+8
+9   /** Formats paise as INR with Indian digit grouping, e.g. 13600000 → "₹1,36,000". */
+10  export function formatINR(paise: number): string {
+11    const sign = paise &lt; 0 ? '-' : ''
+12    const absolute = Math.abs(paise)
+13    const formatter = absolute % 100 === 0 ? rupees : rupeesAndPaise   ◀
+14    return `${sign}₹${formatter.format(absolute / 100)}`
+15  }
+</code></pre>
+</figure>
+<p><code>Intl.NumberFormat('en-IN')</code> is the browser's own number formatter for Indian English, which groups digits the Indian way: the last three, then pairs (lakhs, crores). Line 13 drops the paise when there are none.</p>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/format.ts">frontend/src/format.ts</a> · <code>formatDate</code>, <code>todayIso()</code> · lines 1–9 and 28–33</figcaption>
+<pre data-file="frontend/src/format.ts"><code>1   const dateFormat = new Intl.DateTimeFormat('en-IN', {
+2     day: 'numeric',
+3     month: 'short',
+4     year: 'numeric',
+5     timeZone: 'UTC', // business dates are plain dates; don't shift them   ◀
+6   })
+⋮
+9   export const formatDate = (isoDate: string) =&gt; dateFormat.format(new Date(`${isoDate}T00:00:00Z`))
+⋮
+28  /** Today in the browser's time zone as YYYY-MM-DD. */
+29  export function todayIso(): string {
+30    const now = new Date()                                                 ◀
+31    const pad = (n: number) =&gt; String(n).padStart(2, '0')
+32    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+33  }
+</code></pre>
+</figure>
+<p>Two different clocks are on this page, and nuance (d) is about the trouble that causes. <code>formatDate</code> reads a business date as midnight UTC and prints it in UTC, so no time zone can move it to the day before. <code>todayIso()</code> asks the browser what day it is.</p>
+
+<h2>Run-through: from Meera to a printed Receipt</h2>
+<p>Open <a href="http://localhost:5173/customers/1">/customers/1</a> (Meera Sharma). Clear the Network tab before each step.</p>
+<table class="steps text">
+<tr><th>Step</th><th>URL, and the page file</th><th>Requests</th><th>What shows</th></tr>
+<tr><td>A fresh load of Meera's page</td><td><code>/customers/1</code> · <code>CustomerPage</code></td><td>The shell's first: <code>/api/payment-methods</code> (twice, <code>StartGate</code> in development), <code>/api/closures/dormant?page=1</code> (<code>Nav</code>), <code>/api/update</code> (<code>UpdateBanner</code>). Then the page's: <code>/api/customers/1</code>, her Active and closed Mortgages, her History, her photos</td><td>Closures has a red dot. Its tooltip: "1 Dormant: owing nothing, to Redeem"</td></tr>
+<tr><td>Click <code>2025-Meera-GoldChainPendant</code></td><td><code>/mortgages/2</code> · <code>MortgagePage</code></td><td>4: <code>/api/mortgages/2</code>, its <code>call-notes</code>, <code>projection</code> and <code>history</code>. Nothing for the shell: it's already loaded</td><td>Outstanding on 19 Oct 2026 ₹83,333; Principal ₹80,000; Unpaid interest ₹3,333</td></tr>
+<tr><td>In the Ledger, click the 10 Sept Payment line</td><td><code>/payments/23</code> · <code>PaymentPage</code></td><td>2: <code>/api/payments/23</code> and its <code>receipt</code></td><td>The Payment, and its Receipt as WhatsApp will show it</td></tr>
+<tr class="changed"><td>Click "Print or save as PDF"</td><td><code>/payments/23/receipt</code> · <code>ReceiptPage</code></td><td>1: <code>/api/payments/23/receipt</code>, asked again (every answer is stale at once, chapter 011)</td><td>The Receipt below</td></tr>
+<tr><td>Press "Print or save as PDF"</td><td>the same</td><td>none</td><td>The print preview: no header, no menu, no "Back" row</td></tr>
+</table>
+<p class="cite">From <code>scripts/screens.mjs</code> (section L1), at commit 2c5e561.</p>
+<table class="steps text">
+<tr><th colspan="5">Payment receipt · Received from Meera Sharma · Date 10 Sept 2026 · Amount ₹12,000 · Method UPI · UPI 4419 0921 7731</th></tr>
+<tr><th>Jewellery</th><th>Paid</th><th>Interest</th><th>Principal</th><th>Still owed</th></tr>
+<tr><td>Gold chain with Lakshmi pendant</td><td>₹2,000</td><td>₹2,000</td><td>₹0</td><td>₹81,253</td></tr>
+<tr><td>Pair of bangles</td><td>₹10,000</td><td>₹10,000</td><td>₹0</td><td>₹1,53,700</td></tr>
+<tr><td>Total</td><td>₹12,000</td><td></td><td></td><td>₹2,34,953</td></tr>
+</table>
+<p class="cite">The Receipt page's text, from <code>scripts/screens.mjs</code> (section L1). The API sent <code>owed_after</code> as <code>8125300</code> and <code>15370000</code>: paise.</p>
+<p>Now the theme. Press the moon at the top right: the app goes dark. Reload: it stays dark. Press the sun: it goes light again. The next section says where that choice is kept.</p>
+
+<h2>Nuances</h2>
+<h3>(a) A page that can't load</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> open <a href="http://localhost:5173/payments/999/receipt">/payments/999/receipt</a>. There's no Payment 999. What does line 14 show, and where does its text come from?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>"Payment not found", in red. The backend answered <code>404 {"detail": "Payment not found"}</code>. The typed client turned it into a <code>BackendError</code> whose <code>message</code> is the <code>detail</code> (<a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011, lesson 1</a>), and line 14 shows <code>error.message</code>. The page wrote no error text of its own: every refusal on every screen reads as the backend worded it.</p>
+    <p class="cite">From <code>scripts/screens.mjs</code> (section L1).</p>
+  </div>
+</div>
+
+<h3>(b) Money, as the screens write it</h3>
+<table class="steps text">
+<tr><th>The backend sends (paise)</th><th><code>formatINR</code> shows</th></tr>
+<tr><td><code>8333300</code></td><td>₹83,333</td></tr>
+<tr><td><code>8333350</code></td><td>₹83,333.50</td></tr>
+<tr><td><code>15150000</code></td><td>₹1,51,500</td></tr>
+<tr><td><code>50</code></td><td>₹0.50</td></tr>
+<tr><td><code>-420000</code></td><td>-₹4,200</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.sh</code> (section L1), which calls the real <code>formatINR</code> under Node.</p>
+<p>Every amount crosses the API as integer paise, and becomes rupees only in <code>formatINR</code>, at the last moment. If you see a figure a hundred times too big, someone skipped it; if you see ₹151,500, someone formatted it by hand. Units are <a href="../reference/traps.html#t6">trap #6</a> (owned by <a href="../004-the-ledger-engine/02-one-months-interest.html">chapter 004</a>).</p>
+
+<h3>(c) Descriptions, never Mortgage Names, on what the Customer sees</h3>
+<p>The Receipt says "Gold chain with Lakshmi pendant", not <code>2025-Meera-GoldChainPendant</code>. A <dfn class="term" title="A human-readable label for a Mortgage, beginning with the year it started."><a href="../reference/glossary.html#mortgage-name">Mortgage Name</a></dfn> is the Lender's own filing label; the Customer knows their jewellery. So anything the Customer reads (a Receipt, a Notice) names the jewellery by its description (<a href="../reference/traps.html#t16">trap #16</a>, owned by <a href="../007-payments-and-receipts/05-receipts.html">chapter 007</a>). The Lender's own screens, like the Mortgage page, use the Mortgage Name.</p>
+
+<h3>(d) The two "todays"</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> your browser says it's 3 Nov 2026. The served book's clock says 19 Oct 2026. You open <a href="http://localhost:5173/payments/new?customer=1&amp;mortgage=2">/payments/new?customer=1&amp;mortgage=2</a>. What date does the form start on, and what happens?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>What</th><th>With the browser on 3 Nov 2026</th></tr>
+    <tr><td>"Date received" starts at</td><td><code>2026-11-03</code>, and its <code>max</code> is <code>2026-11-03</code></td></tr>
+    <tr class="changed"><td>The list of Meera's Mortgages on that date</td><td><code>422 {"detail":"The date cannot be in the future"}</code>, shown in red</td></tr>
+    <tr><td>After setting the date to 19 Oct 2026</td><td>No error. The chain (₹83,333) and the bangles (₹1,51,500) are listed</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/screens.mjs</code> (section L1), with the browser's clock set to 3 Nov 2026.</p>
+    <p>The form's default and its <code>max</code> come from <code>todayIso()</code>, the <em>browser's</em> date. Whether a date is in the future is the <em>backend's</em> call, made with its own today (<code>TodayDep</code>, <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">chapter 010, lesson 2</a>). On the Lender's laptop the two agree, because the browser and the backend share one clock. On the served book, held on 19 Oct, they don't. Remember this whenever a form refuses its own default date: set it to 19 Oct 2026. (<code>max</code> only stops the date picker going past the browser's today; the backend is what refuses.)</p>
+  </div>
+</div>
+
+<h3>(e) Dates read "Sept"</h3>
+<p>The screens write 10 Sep 2026 as "10 Sept 2026". That's not a bug in the app: it's how the browser's <code>Intl.DateTimeFormat</code> abbreviates September for <code>en-IN</code>. The course's prose writes "10 Sep"; the screens, as you'll see them, write "Sept".</p>
+
+<h3>(f) The theme: the browser's, unless the Lender chooses</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/theme.ts">frontend/src/theme.ts</a> · <code>nextChoice()</code>, <code>applyTheme()</code> · lines 25–41, trimmed</figcaption>
+<pre data-file="frontend/src/theme.ts"><code>25  export function nextChoice(shown: Theme, system: Theme): Theme | null {
+26    const other: Theme = shown === 'dark' ? 'light' : 'dark'
+27    return other === system ? null : other                 // back to the browser's: no choice   ◀
+28  }
+⋮
+31  export function applyTheme(choice: Theme | null): void {
+32    const root = document.documentElement
+33    if (choice) root.dataset.theme = choice                  // &lt;html data-theme="dark"&gt;
+34    else root.removeAttribute('data-theme')
+35    try {
+36      if (choice) localStorage.setItem(KEY, choice)
+37      else localStorage.removeItem(KEY)
+</code></pre>
+</figure>
+<table class="steps text">
+<tr><th>Step (browser in light mode)</th><th><code>data-theme</code></th><th><code>localStorage.theme</code></th><th>The switch's tooltip</th></tr>
+<tr><td>At first</td><td>none</td><td>none</td><td>"Switch to the dark theme (now following the browser)"</td></tr>
+<tr class="changed"><td>Press it</td><td><code>dark</code></td><td><code>dark</code></td><td>"Switch to the light theme"</td></tr>
+<tr><td>Reload</td><td><code>dark</code></td><td><code>dark</code></td><td>"Switch to the light theme"</td></tr>
+<tr><td>Press it again</td><td>none</td><td>none</td><td>"Switch to the dark theme (now following the browser)"</td></tr>
+</table>
+<p class="cite">From <code>scripts/screens.mjs</code> (section L1).</p>
+<p>Pressing back to the theme the browser would show anyway clears the choice (line 27), so the app follows the browser again. <a href="../../../frontend/index.html"><code>frontend/index.html</code></a> applies a stored choice in a tiny inline script before the app draws, so a dark-mode Lender never sees a white flash. <code>localStorage</code> is kept per browser and per site, so the choice belongs to this laptop, not to the book. The CSS does the rest: <code>index.css</code> picks its colours from <code>prefers-color-scheme</code> unless <code>data-theme</code> says otherwise.</p>
+
+<h3>(g) The words on screen</h3>
+<p>Every label on a screen is UI copy, and it uses the glossary's words exactly: Customer, never "borrower"; Mortgage, never "loan"; Outstanding, never "balance". Nothing checks this (<a href="../reference/traps.html#t19">trap #19</a>, owned by <a href="../008-people-and-collateral/01-the-primary-number.html">chapter 008</a>), so when you add a label, look the word up in <a href="../../../GLOSSARY.md"><code>GLOSSARY.md</code></a>.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">A screen at <code>/customers/7/edit</code> shows a wrong label. Which file do you open?</p>
+  <button class="opt"><code>pages/CustomerPage.tsx</code>, the Customer's page</button>
+  <button class="opt"><code>pages/CustomerFormPage.tsx</code>, the form</button>
+  <button class="opt"><code>pages/CustomersPage.tsx</code>, the list</button>
+  <div class="why"><code>App.tsx</code> line 54 maps <code>/customers/:id/edit</code> to <code>CustomerFormPage</code>, the same component as <code>/customers/new</code>; it edits when the URL has an id. <code>CustomerPage</code> is <code>/customers/:id</code>, and <code>CustomersPage</code> is the list at <code>/customers</code>.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">The Receipt's "Still owed" says ₹81,253. Where was that figure worked out?</p>
+  <button class="opt">In <code>ReceiptPage</code>, from the Payment's Allocations</button>
+  <button class="opt">In <code>formatINR</code>, from the Mortgage's Ledger</button>
+  <button class="opt">In the backend, sent as <code>owed_after</code> in paise</button>
+  <div class="why">The page shows <code>formatINR(line.owed_after)</code> and nothing else; the backend replayed the Ledger to get <code>8125300</code>. Pages never compute money. <code>formatINR</code> only turns paise into "₹81,253".</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">You choose the dark theme on the Lender's laptop, then open the app on their phone. Which theme does the phone show?</p>
+  <button class="opt">The phone's own theme: the choice is per browser</button>
+  <button class="opt">Dark: the choice is saved in the book's settings</button>
+  <button class="opt">Light: the app always starts in light mode first</button>
+  <div class="why">The choice lives in that browser's <code>localStorage</code> under <code>theme</code>, never on the backend. A browser with no stored choice follows its own <code>prefers-color-scheme</code>.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../../frontend/src/App.tsx"><code>App.tsx</code></a> whole (73 lines), then <a href="../../../frontend/src/pages/RedeemPage.tsx"><code>RedeemPage.tsx</code></a> (37 lines): another read page with the same line 14, which hands its data to a form (lesson 3). For the menu's dot, read <a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>.</p>
+
+<nav class="lessons">
+  <a href="index.html">← Chapter overview</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="02-a-form-page.html">Next: A form page →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>
