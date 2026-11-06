@@ -201,7 +201,7 @@ const results = card().locator('.tiles').first()
 await shot('calculator', card(), {
   amount: field('Amount lent (₹)'),
   compared: card().locator('fieldset').filter({ hasText: 'Compared with' }),
-  plan: card().locator('fieldset').filter({ hasText: 'Planned Payments' }),
+  plan: card().locator('details').filter({ hasText: 'Planned Payments' }),
   value: card().locator('details').filter({ hasText: 'Jewellery value' }),
   tiles: results,
   lend: button('Lend this'),
@@ -401,9 +401,9 @@ await page.unroute('**/api/**')
 await page.route('**/api/update', (route) =>
   route.fulfill({
     json: {
-      running: '3.3.0',
+      running: '3.4.1',
       available: {
-        version: '3.4.0',
+        version: '3.4.2',
         notes: '### Added\n\n- **Example:** what a release adds is listed here, from its changelog.',
       },
     },

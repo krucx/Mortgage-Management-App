@@ -5,7 +5,11 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
-## [Unreleased]
+## [3.4.1] - 2026-11-06
+
+The Calculator shows what a loan comes to first, without scrolling. **No database
+changes:** updating keeps all data and Backups, and 3.4.0 still starts on the same
+database.
 
 ### Changed
 
