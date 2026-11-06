@@ -182,9 +182,9 @@
 - `common.ps1`'s `Select-Mode` comment still says local means "uv and npm"; since ADR 0010 a release needs no npm. Not fixed (code, not course).
 - Chapter 015 owns the ready-built zip, `release.yml`, `updates.py`, the banner's side of an update, and restoring a `-before-update` Backup; 014 links forward by number only.
 
-## Chapter 015 (written at 970c639)
+## Chapter 015 (follow-up to 5cfbec5; issue #207 aligned)
 
-- The four lessons follow the release tag through Docker Hub and the ready-built Windows zip; explain the daily GitHub update lookup and banner handoff; walk through a Backup's contents, location, password and retention; then distinguish switching code versions from restoring the pre-migration database.
-- Backup examples use the fixture clock in `backend/tests/test_backups.py` (20 Apr 2026 at 10:30). The archive is a SQLite snapshot plus photos, with the optional classic zip password; ADR 0003 accepts its weak encryption for a private synced folder. Weekly backup starts from the app's daily-run hook, and retention defaults to four.
-- `scripts/check_refs.py` passes for the six chapter pages. Local page links resolve. The hands-on exercise changes only the expected Backup filename in `test_backups.py`; undo with `git checkout -- tests/test_backups.py`.
-- No glossary additions: no new business terms from `GLOSSARY.md` are introduced. `reference/commands.html` adds release commands; `reference/traps.html` adds trap #15, owned by lesson 4.
+- Five lessons follow #208–#212 in order: create and inspect a Backup on a copy of the served book; run release preparation steps without publishing; inject a release into `/api/update`; migrate and then refuse an unknown revision on the same copy; restore the pre-migration Backup.
+- The chapter's checked app version is 3.4.1. `test_backups.py` and `test_updates.py`: 28 pass; removing the `before-update` label gives 1 failure (`test_an_update_backs_up_the_database_before_migrating_it`), 27 pass. A full backend run with a plain-string version comparison fails 2 cases (707 pass) in `test_versions_are_compared_by_number_not_as_text`; issue #119 has been fixed by tests in current main.
+- Scratch runs confirmed the copied sample book writes a zip with `mortgage.db` and photos at 19 Oct 2026 11:00; the injected update check returns running 3.4.1 and offers 3.10.0; a no-op 0016 migration creates `-before-update`, and code without 0016 refuses the database without pruning that archive (issue #118 is fixed by the unknown-revision check in `platform/db.py`).
+- `reference/commands.html` now has the local release version check and restore steps; trap #15 is owned by lesson 2 (release metadata must agree). No glossary additions.

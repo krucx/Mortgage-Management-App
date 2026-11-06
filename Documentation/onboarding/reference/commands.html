@@ -139,6 +139,8 @@
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_backups.py -q</code></td><td>Exercises Backup creation, encrypted and plain zips, weekly cadence, retention and pre-migration safety on temporary data</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_updates.py -q</code></td><td>Checks version ordering, daily lookup interval, offline response and no update lookup in a development build</td></tr>
 <tr><td>repo root</td><td><code>git tag --list '[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1</code></td><td>Shows the highest numeric release tag; release workflow uses this to avoid moving <code>latest</code> backwards</td></tr>
+<tr><td>repo root</td><td><code>TAG=3.4.1; test "$TAG" = "$(sed -n 's/^version = "\(.*\)"/\1/p' backend/pyproject.toml)" &amp;&amp; test "$TAG" = "$(node -p "require('./frontend/package.json').version")"</code></td><td>Release workflow's version agreement check, performed locally; never push a tag for an onboarding exercise</td></tr>
+<tr><td>scratch data folder</td><td><code>mkdir -p "$COPY/restore"</code><br><code>unzip "$COPY/backups/&lt;chosen-file&gt;.zip" -d "$COPY/restore"</code><br><code>cp "$COPY/restore/mortgage.db" "$COPY/data/mortgage.db"</code><br><code>rm -rf "$COPY/data/photos" &amp;&amp; cp -R "$COPY/restore/photos" "$COPY/data/photos"</code></td><td>Restore on a stopped scratch app. Choose the Backup, and replace both database and photos together (015 · Lesson 5)</td></tr>
 </table>
 
 <h2 id="laptop">How it runs on the Lender's laptop</h2>
@@ -159,7 +161,7 @@
 </table>
 
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>; release and Backup rows at <code>970c639</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>; release and Backup rows at <code>5cfbec5</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

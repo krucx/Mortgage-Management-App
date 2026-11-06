@@ -18,7 +18,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 012 | [Frontend pages and the PWA](https://github.com/krucx/Mortgage-Management-App/issues/188) | `012-frontend-pages-and-the-pwa/` | build a page from existing components; explain the service worker, StartGate and UpdateBanner | written (2c5e561) |
 | 013 | [Testing](https://github.com/krucx/Mortgage-Management-App/issues/195) | `013-testing/` | write backend and frontend tests with the repo's fixtures, seeds and fakes; run the type checks and Pester | written (bda77f1) |
 | 014 | [How it runs on the Lender's laptop](https://github.com/krucx/Mortgage-Management-App/issues/201) | `014-how-it-runs-on-the-lenders-laptop/` | run and debug Docker, `screens.py` mode and the Windows installer | written (36d403e) |
-| 015 | [Releases, updates and Backups](https://github.com/krucx/Mortgage-Management-App/issues/207) | `015-releases-updates-and-backups/` | cut a release, explain updates and where Backups go | written (970c639) |
+| 015 | [Releases, updates and Backups](https://github.com/krucx/Mortgage-Management-App/issues/207) | `015-releases-updates-and-backups/` | cut a release, explain updates and where Backups go | written (pending follow-up commit) |
 | 016 | [Your first change](https://github.com/krucx/Mortgage-Management-App/issues/213) | `016-your-first-change/` | make one small change test-first through every layer, following the repo's workflow | planned |
 
 ## Planned lessons
@@ -125,10 +125,11 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 5. The mortgage-management:// link ([#206](https://github.com/krucx/Mortgage-Management-App/issues/206))
 
 ### 015 Releases, updates and Backups (written)
-1. One tag, two distributions ([#208](https://github.com/krucx/Mortgage-Management-App/issues/208))
-2. How the app hears about a release ([#209](https://github.com/krucx/Mortgage-Management-App/issues/209))
-3. A Backup you can restore ([#210](https://github.com/krucx/Mortgage-Management-App/issues/210))
-4. Updates, migrations and the way back ([#211](https://github.com/krucx/Mortgage-Management-App/issues/211))
+1. A Backup, start to finish ([#208](https://github.com/krucx/Mortgage-Management-App/issues/208))
+2. Cutting a release ([#209](https://github.com/krucx/Mortgage-Management-App/issues/209))
+3. How an update reaches the Lender ([#210](https://github.com/krucx/Mortgage-Management-App/issues/210))
+4. When an update changes the database ([#211](https://github.com/krucx/Mortgage-Management-App/issues/211))
+5. Bringing a Backup back ([#212](https://github.com/krucx/Mortgage-Management-App/issues/212))
 
 ## Reference sheets
 
