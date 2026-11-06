@@ -8,7 +8,7 @@ into another lesson's figures.
     cd backend && uv run python ../Documentation/onboarding/005-replay-and-closures/scripts/run_throughs.py
 
 Amounts print in rupees (the code works in paise). Each section is headed with the
-lesson that quotes it (L1–L5, 99).
+lesson that quotes it (L1–L6, 99).
 """
 
 import shutil
@@ -18,7 +18,7 @@ from datetime import date, datetime, time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event, select
+from sqlalchemy import create_engine, event, func, select
 
 REPO = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "docs" / "sample-book"))
@@ -28,7 +28,7 @@ import book  # noqa: E402
 from mortgage_backend.lending.ledger import Allocation  # noqa: E402
 from mortgage_backend.lending.replay import MortgageReplay, replay, replays  # noqa: E402
 from mortgage_backend.main import create_app  # noqa: E402
-from mortgage_backend.platform.db import mortgage_table, payment_table  # noqa: E402
+from mortgage_backend.platform.db import metadata, mortgage_table, payment_table  # noqa: E402
 
 THE_DAY = book.THE_DAY
 RUPEE = 100
@@ -360,6 +360,92 @@ def report(built: Path) -> None:
     print("\n   Reopen Farida's Waiver (nose ring): its final Payment")
     s, b = farida.call("get", f"/api/mortgages/{NOSERING}")
     print("   (already reopened above) status", b["status"], "outstanding", rs(b["outstanding"]["total"]))
+
+    # ------------------------------------------------------------ lesson 6
+    print("\n== L6. A Simulation: Meera's chain, typed into the Calculator")
+    sim = Copy(built, "simulation")
+    with create_engine(sim.url).connect() as conn:
+        chain = replay(conn, CHAIN)
+    row = chain.row
+    terms = {"monthly_rate_bps": row["monthly_rate_bps"], "interest_mode": row["interest_mode"],
+             "part_month_rule": row["part_month_rule"]}
+    lumps = [{"on": str(a.on), "amount": a.amount} for a in sorted(chain.allocations, key=lambda a: a.on)]
+    print("   start", row["start_date"], terms)
+    print("   lump sums:", [(l["on"], rs(l["amount"])) for l in lumps])
+    ask = {"amount_lent": 80_000 * RUPEE, "start_date": str(row["start_date"]), "closed_on": "2026-10-19",
+           "terms": terms, "lump_sums": lumps}
+
+    def simulate(**changes):
+        r = sim.api.post("/api/simulation", json={**ask, **changes})
+        return r.status_code, r.json()
+
+    def tiles(b) -> str:
+        return (f"Outstanding on {b['on_closure']['on']} {rs(b['on_closure']['total'])}"
+                f" | interest earned {rs(b['interest_earned'])} | first month {rs(b['first_month_interest'])}"
+                f" | effective {b['effective_annual_rate']:.4%} | paid off {b['paid_off_on']}")
+
+    def everything():
+        with create_engine(sim.url).connect() as conn:
+            return {t.name: conn.execute(select(func.count()).select_from(t)).scalar() for t in metadata.sorted_tables}
+
+    def configs():
+        with create_engine(sim.url).connect() as conn:
+            return {r[0] for r in conn.execute(select(metadata.tables["config"].c.key))}
+
+    c0, before = configs(), everything()
+    s, b = simulate()
+    print("   config rows written by the first Simulation:", sorted(configs() - c0), "| rest same:",
+          {t: n for t, n in everything().items() if t != "config"} == {t: n for t, n in before.items() if t != "config"})
+    sim.call("get", "/api/dashboard")
+    before = everything()
+    simulate()
+    print("   after a warm-up read, a Simulation stores nothing:", everything() == before)
+    print("   19 Oct:", s, tiles(b))
+    print("   on_closure:", money(b["on_closure"]))
+    _, real = sim.call("get", f"/api/mortgages/{CHAIN}/outstanding-on-closure", params={"on": "2026-10-19"})
+    print("   real quote:", money(real), "| equal:", b["on_closure"] == real)
+    print("   months (last 4):", [money(m) for m in b["months"][-4:]])
+    print("   interest earned check: total - lent + paid =",
+          rs(b["on_closure"]["total"] - 80_000 * RUPEE + sum(l["amount"] for l in lumps)))
+    after = everything()
+    print("   stores nothing:", after == before, {t: (before[t], after[t]) for t in before if before[t] != after[t]})
+    for d in ("2026-10-10", "2026-11-10", "2026-12-10"):
+        s, b = simulate(closed_on=d)
+        print(f"   closed on {d}:", s, tiles(b), "| replay:", quote(chain.outstanding_on_closure(date.fromisoformat(d))))
+    print("   Compared Terms:")
+    for mode in ("simple", "compounded_monthly"):
+        s, b = simulate(terms={**terms, "interest_mode": mode})
+        print(f"     {mode}:", s, tiles(b))
+    for rule in ("full_month", "nothing"):
+        s, b = simulate(terms={**terms, "part_month_rule": rule})
+        print(f"     {rule}:", s, tiles(b))
+    print("   A Lump Sum larger than what is owed:")
+    for extra in ({"on": "2026-10-15", "amount": 1_00_000 * RUPEE}, {"on": "2026-10-15", "amount": 83_121 * RUPEE},
+                  {"on": "2026-10-15", "amount": 83_120 * RUPEE}):
+        s, b = simulate(lump_sums=lumps + [extra])
+        print(f"     + {extra['on']} {rs(extra['amount'])}:", s, b.get("detail") if s != 200 else tiles(b))
+    print("   A Lump Sum after Closed on:")
+    s, b = simulate(lump_sums=lumps + [{"on": "2026-10-25", "amount": 10_000 * RUPEE}])
+    print("     ", s, tiles(b), [l["ignored"] for l in b["lump_sums"]][-2:])
+    print("   A monthly payment (the plan):")
+    for monthly in (1_600, 5_000, 10_000):
+        s, b = simulate(lump_sums=[], monthly_payment=monthly * RUPEE, closed_on="2027-11-10")
+        print(f"     {monthly}/month from the start:", s, tiles(b))
+    s, b = simulate(monthly_payment=10_000 * RUPEE, closed_on="2027-11-10")
+    print("     lumps + 10000/month:", s, tiles(b))
+    print("   Limits:")
+    for bad in ({"closed_on": "2025-11-10"}, {"closed_on": "2035-11-11"}, {"closed_on": "2035-11-10"},
+                {"amount_lent": 0}, {"span_months": 5},
+                {"lump_sums": [{"on": "2025-11-09", "amount": 100}]}):
+        s, b = simulate(**bad)
+        print(f"     {bad}:", s, b.get("detail") if s != 200 else tiles(b))
+    print("   A fresh Calculator: ₹1,00,000 from 19 Oct 2026, a year, sample Default Terms")
+    s, b = simulate(amount_lent=1_00_000 * RUPEE, start_date="2026-10-19", closed_on="2027-10-19", lump_sums=[])
+    print("    ", s, tiles(b))
+    print("   99: Sunita's mangalsutra typed in, closed on 21 Oct")
+    s, b = simulate(amount_lent=35_000 * RUPEE, start_date="2026-09-21", closed_on="2026-10-21", lump_sums=[])
+    print("    ", s, tiles(b))
+    print("   stores nothing, after all of L6:", everything() == before)
 
     # ---------------------------------------------------------------- 99
     print("\n== 99. Check yourself")

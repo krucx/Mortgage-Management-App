@@ -56,30 +56,30 @@ flowchart LR
 
 <h3>2. One Mortgage's facts: <code>MortgageReplay</code></h3>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.__init__()</code>, <code>ledger()</code> · lines 84–122, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>84  class MortgageReplay:
-85      """One Mortgage's stored facts, loaded once, and what they replay to."""
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.__init__()</code>, <code>ledger()</code> · lines 104–142, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>104 class MortgageReplay:
+105     """One Mortgage's stored facts, loaded once, and what they replay to."""
 ⋮
-93          self.row = row                                    ①
-94          self.allocations = list(allocations)  # non-Voided, in no particular order
-95          self.term_changes = list(term_changes)  # in date order
-96          self._terms = Terms(
+113         self.row = row                                    ①
+114         self.allocations = list(allocations)  # non-Voided, in no particular order
+115         self.term_changes = list(term_changes)  # in date order
+116         self._terms = Terms(
 ⋮
-101         self._ledgers: dict[date, list[LedgerStep]] = {}  # each Ledger built, by as_of   ②
+121         self._ledgers: dict[date, list[LedgerStep]] = {}  # each Ledger built, by as_of   ②
 ⋮
-107     def ledger(self, as_of: date) -&gt; list[LedgerStep]:
+127     def ledger(self, as_of: date) -&gt; list[LedgerStep]:
 ⋮
-112         if as_of not in self._ledgers:  # the facts never change, so neither does it  ◀
-113             self._ledgers[as_of] = self._replay(
-114                 as_of,
-115                 self.allocations,
-116                 closed_on=self.row["closed_on"],                    ③
-117                 closure=None
-118                 if self.row["status"] == MortgageStatus.ACTIVE
-119                 else self.row["status"],
-120                 final_payment=self.row["redemption_payment_id"],
-121             )
-122         return list(self._ledgers[as_of])                       ④
+132         if as_of not in self._ledgers:  # the facts never change, so neither does it  ◀
+133             self._ledgers[as_of] = self._replay(
+134                 as_of,
+135                 self.allocations,
+136                 closed_on=self.row["closed_on"],                    ③
+137                 closure=None
+138                 if self.row["status"] == MortgageStatus.ACTIVE
+139                 else self.row["status"],
+140                 final_payment=self.row["redemption_payment_id"],
+141             )
+142         return list(self._ledgers[as_of])                       ④
 </code></pre>
 </figure>
 <ol class="marks">
@@ -91,46 +91,46 @@ flowchart LR
 
 <h3>3. The Outstanding</h3>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.outstanding()</code> · lines 151–158</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>151     def outstanding(self, on: date) -&gt; Outstanding:
-152         """What the Mortgage owes on `on`: nothing once closed."""
-153         last = self.ledger(on)[-1]                          ◀ the end of that day
-154         return Outstanding(
-155             principal=last.principal,
-156             unpaid_interest=last.unpaid_interest,
-157             total=last.principal + last.unpaid_interest,
-158         )
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.outstanding()</code> · lines 171–178</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>171     def outstanding(self, on: date) -&gt; Outstanding:
+172         """What the Mortgage owes on `on`: nothing once closed."""
+173         last = self.ledger(on)[-1]                          ◀ the end of that day
+174         return Outstanding(
+175             principal=last.principal,
+176             unpaid_interest=last.unpaid_interest,
+177             total=last.principal + last.unpaid_interest,
+178         )
 </code></pre>
 </figure>
 <p>That's all of it: the running totals on the Ledger's last step. There's no separate formula for the Outstanding that could drift away from the Ledger.</p>
 
 <h3>4. Many Mortgages at once: <code>replays()</code></h3>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>replays()</code> · lines 278–320, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>278  def replays(conn: Connection, rows: Sequence[RowMapping]) -&gt; dict[int, MortgageReplay]:
-279      """A replay for each Mortgage row, loading all their facts in two queries."""
-280      ids = [row["id"] for row in rows]
-281      allocations: dict[int, list[Allocation]] = {id_: [] for id_ in ids}
-282      for allocation in conn.execute(                        ① query 1
-283          select(
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>replays()</code> · lines 286–328, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>286  def replays(conn: Connection, rows: Sequence[RowMapping]) -&gt; dict[int, MortgageReplay]:
+287      """A replay for each Mortgage row, loading all their facts in two queries."""
+288      ids = [row["id"] for row in rows]
+289      allocations: dict[int, list[Allocation]] = {id_: [] for id_ in ids}
+290      for allocation in conn.execute(                        ① query 1
+291          select(
 ⋮        … mortgage_id, amount, payment_id, paid_on …
-289          .join(payment_table, payment_table.c.id == allocation_table.c.payment_id)
-290          .where(
-291              allocation_table.c.mortgage_id.in_(ids),      ②
-292              payment_table.c.voided_at.is_(None),  # a Voided Payment is in no Ledger  ◀
-293          )
-294      ):
+297          .join(payment_table, payment_table.c.id == allocation_table.c.payment_id)
+298          .where(
+299              allocation_table.c.mortgage_id.in_(ids),      ②
+300              payment_table.c.voided_at.is_(None),  # a Voided Payment is in no Ledger  ◀
+301          )
+302      ):
 ⋮        … group each Allocation under its Mortgage …
-302      changes: dict[int, list[TermChange]] = {id_: [] for id_ in ids}
-303      for change in conn.execute(                            ③ query 2
-304          select(term_change_table)
-305          .where(term_change_table.c.mortgage_id.in_(ids))
-306          .order_by(term_change_table.c.effective_on)
+310      changes: dict[int, list[TermChange]] = {id_: [] for id_ in ids}
+311      for change in conn.execute(                            ③ query 2
+312          select(term_change_table)
+313          .where(term_change_table.c.mortgage_id.in_(ids))
+314          .order_by(term_change_table.c.effective_on)
 ⋮
-317      return {
-318          row["id"]: MortgageReplay(row, allocations[row["id"]], changes[row["id"]])
-319          for row in rows
-320      }
+325      return {
+326          row["id"]: MortgageReplay(row, allocations[row["id"]], changes[row["id"]])
+327          for row in rows
+328      }
 </code></pre>
 </figure>
 <ol class="marks">

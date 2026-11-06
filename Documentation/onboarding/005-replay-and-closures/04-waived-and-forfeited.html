@@ -123,39 +123,39 @@ flowchart TD
 
 <h3>4. Reading it back: <code>Closure</code></h3>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>Closure</code> · lines 68–81</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>68  class Closure(BaseModel):
-69      """How and when a Mortgage was closed, and what it came to."""
-70
-71      kind: Literal["redeemed", "waived", "forfeited"]
-72      on: date
-73      outstanding: int  # on the Closure date, before its final Payment
-74      interest_to_date: int  # of that Outstanding: the month under way, as yet unpaid
-75      interest_to_date_days: int  # days of that month, the Closure date included
-76      payment_id: int | None  # Redeemed or Waived: the final Payment, if any
-77      payment_amount: int | None  # what that final Payment paid on this Mortgage
-78      waived_amount: int | None  # Waived: what the Lender let off
-79      recovered_amount: int | None  # Forfeited: what the jewellery fetched (or is worth)
-80      profit_loss: int | None  # Forfeited: recovered − Outstanding on the Closure date
-81      note: str | None
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>Closure</code> · lines 88–101</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>88  class Closure(BaseModel):
+89      """How and when a Mortgage was closed, and what it came to."""
+90
+91      kind: Literal["redeemed", "waived", "forfeited"]
+92      on: date
+93      outstanding: int  # on the Closure date, before its final Payment
+94      interest_to_date: int  # of that Outstanding: the month under way, as yet unpaid
+95      interest_to_date_days: int  # days of that month, the Closure date included
+96      payment_id: int | None  # Redeemed or Waived: the final Payment, if any
+97      payment_amount: int | None  # what that final Payment paid on this Mortgage
+98      waived_amount: int | None  # Waived: what the Lender let off
+99      recovered_amount: int | None  # Forfeited: what the jewellery fetched (or is worth)
+100     profit_loss: int | None  # Forfeited: recovered − Outstanding on the Closure date
+101     note: str | None
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.closure()</code> · lines 206–235, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>206      def closure(self) -&gt; Closure | None:
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.closure()</code> · lines 214–243, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>214      def closure(self) -&gt; Closure | None:
 ⋮
-209          if row["status"] == MortgageStatus.ACTIVE:
-210              return None
-211          on_closure = self.outstanding_on_closure(row["closed_on"])     ① lesson 2's quote
-212          outstanding = on_closure.total
-213          forfeited = row["status"] == MortgageStatus.FORFEITED
-214          last = self.ledger(row["closed_on"])[-1]                        ② the write-off step, if any
+217          if row["status"] == MortgageStatus.ACTIVE:
+218              return None
+219          on_closure = self.outstanding_on_closure(row["closed_on"])     ① lesson 2's quote
+220          outstanding = on_closure.total
+221          forfeited = row["status"] == MortgageStatus.FORFEITED
+222          last = self.ledger(row["closed_on"])[-1]                        ② the write-off step, if any
 ⋮
-231              waived_amount=last.amount if last.event == "waived" else None,   ③
-232              recovered_amount=row["recovered_amount"],
-233              profit_loss=row["recovered_amount"] - outstanding if forfeited else None,   ④  ◀
-234              note=row["closure_note"],
-235          )
+239              waived_amount=last.amount if last.event == "waived" else None,   ③
+240              recovered_amount=row["recovered_amount"],
+241              profit_loss=row["recovered_amount"] - outstanding if forfeited else None,   ④  ◀
+242              note=row["closure_note"],
+243          )
 </code></pre>
 </figure>
 <ol class="marks">
@@ -227,19 +227,19 @@ curl -s -X POST -H 'content-type: application/json' "$B/2/waive-preview" \
 
 <h3>(c) <code>owed_after</code> ignores what came later that day</h3>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.owed_after()</code> · lines 138–149</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>138      def owed_after(self, payment_id: int, on: date) -&gt; int:
-139          """What it owed just after its Payment `payment_id` on `on`: Outstanding at the
-140          end of that day, as if none of that day's later Payments (or a write-off) had
-141          been made."""
-142          ledger = self.ledger(on)
-143          at = next(i for i, s in enumerate(ledger) if s.payment_id == payment_id)
-144          later = sum(
-145              s.amount
-146              for s in ledger[at + 1 :]                        ◀ after this Payment, same day
-147              if s.event in ("payment", "waived", "forfeited")
-148          )
-149          return ledger[-1].principal + ledger[-1].unpaid_interest + later
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.owed_after()</code> · lines 158–169</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>158      def owed_after(self, payment_id: int, on: date) -&gt; int:
+159          """What it owed just after its Payment `payment_id` on `on`: Outstanding at the
+160          end of that day, as if none of that day's later Payments (or a write-off) had
+161          been made."""
+162          ledger = self.ledger(on)
+163          at = next(i for i, s in enumerate(ledger) if s.payment_id == payment_id)
+164          later = sum(
+165              s.amount
+166              for s in ledger[at + 1 :]                        ◀ after this Payment, same day
+167              if s.event in ("payment", "waived", "forfeited")
+168          )
+169          return ledger[-1].principal + ledger[-1].unpaid_interest + later
 </code></pre>
 </figure>
 <p>A Receipt's "still owed" line uses this (<a href="../007-payments-and-receipts/05-receipts.html">chapter 007, lesson 5</a>). It answers "what did this Mortgage owe right after <em>this</em> Payment?", adding back anything paid or written off later on the same day. <code>ledger[at + 1 :]</code> is a Python slice: every step after index <code>at</code>.</p>

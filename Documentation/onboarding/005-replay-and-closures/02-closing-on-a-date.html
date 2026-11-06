@@ -81,21 +81,21 @@ flowchart TD
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.not_closable()</code> · lines 168–181</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>168      def not_closable(self, on: date) -&gt; str | None:
-169          """Why it can't be closed on `on`, a date not in the future; None if it can."""
-170          row = self.row
-171          if row["status"] != MortgageStatus.ACTIVE:                        ①
-172              return f"{row['name']} is already {row['status']}"
-173          if on &lt; row["start_date"]:                                        ②
-174              return f"{row['name']} had not started on that date"
-175          later = max((a.on for a in self.allocations if a.on &gt; on), default=None)   ③  ◀
-176          if later is not None:
-177              return (
-178                  f"There are Payments after that date (latest {later:%d %b %Y}); "
-179                  "close it on or after then"
-180              )
-181          return None
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.not_closable()</code> · lines 188–201</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>188      def not_closable(self, on: date) -&gt; str | None:
+189          """Why it can't be closed on `on`, a date not in the future; None if it can."""
+190          row = self.row
+191          if row["status"] != MortgageStatus.ACTIVE:                        ①
+192              return f"{row['name']} is already {row['status']}"
+193          if on &lt; row["start_date"]:                                        ②
+194              return f"{row['name']} had not started on that date"
+195          later = max((a.on for a in self.allocations if a.on &gt; on), default=None)   ③  ◀
+196          if later is not None:
+197              return (
+198                  f"There are Payments after that date (latest {later:%d %b %Y}); "
+199                  "close it on or after then"
+200              )
+201          return None
 </code></pre>
 </figure>
 <ol class="marks">
@@ -107,33 +107,45 @@ flowchart TD
 
 <h3>3. The quote: <code>outstanding_on_closure</code></h3>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.outstanding_on_closure()</code> · lines 183–204, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>183      def outstanding_on_closure(self, on: date) -&gt; OutstandingOnClosure:
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.outstanding_on_closure()</code> · lines 203–212, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>203      def outstanding_on_closure(self, on: date) -&gt; OutstandingOnClosure:
 ⋮
-186          final_payment = self.row["redemption_payment_id"]
-187          ledger = self._replay(
-188              on,
-189              [a for a in self.allocations if a.payment_id != final_payment],   ①  ◀
-190              closed_on=on,                                      ②
-191          )
-192          last = ledger[-1]
-193          to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
-194          charge = to_date.amount - to_date.paid_ahead if to_date else 0      ③
-195          days = interest_to_date_days(self.row["start_date"], on)
-196          return OutstandingOnClosure(
-197              on=on,
-198              principal=last.principal,
-199              unpaid_interest=last.unpaid_interest - charge,
-200              last_accrual_on=on - timedelta(days=days - 1),
-201              interest_to_date_days=days,
-202              interest_to_date=charge,
-203              total=last.principal + last.unpaid_interest,       ④
-204          )
+206          final_payment = self.row["redemption_payment_id"]
+207          ledger = self._replay(
+208              on,
+209              [a for a in self.allocations if a.payment_id != final_payment],   ①  ◀
+210              closed_on=on,                                      ②
+211          )
+212          return outstanding_on_closure_of(ledger, self.row["start_date"], on)   ③
 </code></pre>
 </figure>
 <ol class="marks">
   <li>Leave out the Closure's own Final Payment, if it already has one. Otherwise, asked about a Mortgage that's already Redeemed, the quote would count the Payment that paid it against itself and come to ₹0. The check-yourself exercise breaks exactly this line.</li>
   <li><code>closed_on=on</code> with no <code>closure</code> kind: "a quote of closing then", in <code>compute_ledger</code>'s words.</li>
+  <li>Reading the figures off the replayed Ledger is a separate function, outside the class, because a Ledger that comes from no Mortgage at all needs it too: the Calculator's Simulations (<a href="06-a-simulation.html">lesson 6</a>).</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>outstanding_on_closure_of()</code> · lines 68–86, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>68  def outstanding_on_closure_of(
+69      ledger: Sequence[LedgerStep], start: date, on: date
+70  ) -&gt; OutstandingOnClosure:
+⋮
+73      last = ledger[-1]
+74      to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
+75      charge = to_date.amount - to_date.paid_ahead if to_date else 0      ④
+76      days = interest_to_date_days(start, on)
+77      return OutstandingOnClosure(
+78          on=on,
+79          principal=last.principal,
+80          unpaid_interest=last.unpaid_interest - charge,
+81          last_accrual_on=on - timedelta(days=days - 1),
+82          interest_to_date_days=days,
+83          interest_to_date=charge,
+84          total=last.principal + last.unpaid_interest,       ⑤
+85      )
+</code></pre>
+</figure>
+<ol class="marks" start="4">
   <li><code>next(generator, None)</code> returns the first step that matches, or <code>None</code>. The Interest to Date is split out of the unpaid interest so the form can show it on its own line.</li>
   <li>The total is the same sum lesson 1's <code>outstanding</code> takes: the last step's Principal plus unpaid interest.</li>
 </ol>

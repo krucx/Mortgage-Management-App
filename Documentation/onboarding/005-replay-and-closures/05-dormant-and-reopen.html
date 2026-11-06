@@ -46,14 +46,14 @@ stateDiagram-v2
 <h2>The code</h2>
 <h3>1. <code>dormant()</code></h3>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.dormant()</code> · lines 160–166</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>160      def dormant(self, on: date) -&gt; bool:
-161          """Active, yet owing nothing on `on`: its jewellery should already have gone
-162          back (see Dormant in GLOSSARY.md, ADR 0012)."""
-163          return (
-164              self.row["status"] == MortgageStatus.ACTIVE          ①
-165              and self.outstanding(on).total == 0                  ②  ◀
-166          )
+<figcaption><a href="../../../backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.dormant()</code> · lines 180–186</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>180      def dormant(self, on: date) -&gt; bool:
+181          """Active, yet owing nothing on `on`: its jewellery should already have gone
+182          back (see Dormant in GLOSSARY.md, ADR 0012)."""
+183          return (
+184              self.row["status"] == MortgageStatus.ACTIVE          ①
+185              and self.outstanding(on).total == 0                  ②  ◀
+186          )
 </code></pre>
 </figure>
 <ol class="marks">
@@ -248,7 +248,7 @@ curl -s -X POST -H "$J" "$B/mortgages/3/reopen" -d '{"reason": "Redeemed on the 
 <nav class="lessons">
   <a href="04-waived-and-forfeited.html">← Waived and Forfeited</a>
   <a href="index.html">Chapter overview</a>
-  <a href="99-check-yourself.html">Next: Check yourself →</a>
+  <a href="06-a-simulation.html">Next: A Simulation →</a>
 </nav>
 <script src="../assets/quiz.js"></script>
 <script src="../assets/snippet.js"></script>

@@ -114,6 +114,14 @@
   <li>A closed Mortgage refuses Payments, Voids and Term Changes (409 "… reopen it first"). Its Final Payment can't be Voided directly (409 "reopen the Mortgage instead, which voids it").</li>
 </ul>
 
+<h2>Simulations</h2>
+<ul>
+  <li><code>simulate</code> replays <code>SimulationIn</code> alone through <code>compute_ledger</code>, closed on Closed on (or the day the plan pays it off, if sooner), and reads it with <code>outstanding_on_closure_of</code>: the same reader as <code>MortgageReplay.outstanding_on_closure</code>. So a Simulation owes what a real Mortgage with those Payments would. No database.</li>
+  <li>Lump Sums become Allocations numbered by their place; the monthly payment is <code>HypotheticalPayments</code>. A Lump Sum after Closed on is ignored; one larger than what is owed is refused (422 naming it), unless the plan had already paid it off, when it is ignored.</li>
+  <li>Interest earned = each month's interest + the Interest to Date; Capitalised interest counted once. Limits: Closed on after the start and within 10 years of Accrual Dates; Lump Sums on or after the start.</li>
+  <li>The parity tests compare a Simulation with a real Mortgage, so they can't catch a bug in the shared reader; fixed-figure tests do.</li>
+</ul>
+
 <h2>Hand-trace checklist</h2>
 <ol>
   <li>List the Accrual Dates from the start date (clamp to month-end).</li>
