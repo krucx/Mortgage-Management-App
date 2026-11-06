@@ -1352,7 +1352,7 @@ export interface paths {
         /**
          * Simulate
          * @description A Simulation closed on `closed_on`, or on the day its plan pays it off if
-         *     sooner; nothing is stored. A lump sum larger than what is owed on its date is
+         *     sooner; nothing is stored. A Lump Sum larger than what is owed on its date is
          *     refused, as a real Payment would be.
          */
         post: operations["simulate_api_simulation_post"];

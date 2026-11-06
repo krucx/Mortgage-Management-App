@@ -14,6 +14,7 @@ if a page marks a figure it can't fill, or a figure goes unused, so a run either
 everything or changes nothing.
 """
 
+import json
 import re
 import sys
 from collections import Counter
@@ -31,6 +32,8 @@ from mortgage_backend.main import create_app
 from mortgage_backend.platform.money import format_inr
 
 DOCS = Path(__file__).resolve().parents[1]
+# The Calculator's inputs as its URL keeps them, shared with shots.mjs.
+SIMULATION = json.loads((Path(__file__).parent / "simulation.json").read_text())
 PAGES = [DOCS / "walkthrough.html", DOCS / "story.html"]
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -91,6 +94,11 @@ class ServedBook:
         assert response.status_code == 200, f"GET {path}: {response.text}"
         return response.json()
 
+    def post(self, path: str, body: Any) -> Any:
+        response = self.api.post(path, json=body)
+        assert response.status_code == 200, f"POST {path}: {response.text}"
+        return response.json()
+
     def every(self, path: str, **params: Any) -> list[Any]:
         """Every item of a paged list."""
         items: list[Any] = []
@@ -122,6 +130,68 @@ class ServedBook:
     def call_notes(self) -> int:
         with self.engine.connect() as conn:
             return int(conn.execute(text("SELECT count(*) FROM call_note")).scalar_one())
+
+
+def paise(rupees: str) -> int:
+    """Rupees as the Calculator's URL holds them ("20000") in paise."""
+    return int(rupees) * 100
+
+
+def calculator(book: ServedBook, terms: dict[str, Any], rates: dict[int, Any]) -> dict[str, str]:
+    """The figures of the Calculator's sample Simulation (simulation.json), under its
+    Terms and the Terms compared with them, as the Calculator works them out."""
+    inputs = SIMULATION
+    # The story tells it as asked today, for a year, at the Default Terms.
+    assert inputs["start"] == THE_DAY.isoformat(), "simulation.json: start on the day of the story"
+    assert inputs["closed"] == THE_DAY.replace(year=THE_DAY.year + 1).isoformat(), "simulation.json: a year on"
+    # "2027-04-19:5000,…", as the Calculator's URL keeps Lump Sums
+    lumps = [lump.split(":") for lump in inputs["lumps"].split(",")]
+    under = [
+        {
+            "monthly_rate_bps": round(float(inputs[f"rate{which}"]) * 100),
+            "interest_mode": inputs[f"mode{which}"],
+            "part_month_rule": inputs[f"rule{which}"],
+        }
+        for which in ("", "2")  # the Terms, then those compared
+    ]
+    assert under[0] == terms, "simulation.json: the first Terms are the Default Terms"
+    first, second = (
+        book.post(
+            "/api/simulation",
+            {
+                "amount_lent": paise(inputs["amount"]),
+                "start_date": inputs["start"],
+                "closed_on": inputs["closed"],
+                "terms": each,
+                "span_months": int(inputs["span"]),
+                "monthly_payment": paise(inputs["monthly"]),
+                "lump_sums": [{"on": on, "amount": paise(amount)} for on, amount in lumps],
+            },
+        )
+        for each in under
+    )
+    one, two = (rate(each["monthly_rate_bps"]) for each in under)
+    lent = paise(inputs["amount"])
+    # The Collateral Value the Calculator shows: worked out in the browser, as nothing
+    # is stored; rounded half-up to the paisa, as a Mortgage's is.
+    mg = round(float(inputs["net"]) * 1000)
+    collateral = (2 * mg * rates[int(inputs["purity"])]["rate_per_gram"] + 1000) // 2000
+
+    def both(figure: Any) -> str:
+        return f"{figure(first)} at {one}, {figure(second)} at {two}"
+
+    return {
+        "calculator.ask": f"{format_inr(lent)} for a year, from {day(inputs['start'])} to {day(inputs['closed'])}",
+        "calculator.plan": f"{format_inr(paise(inputs['monthly']))} a month, and "
+        + " and ".join(f"{format_inr(paise(amount))} on {day(on)}" for on, amount in lumps),
+        "calculator.compared": f"{two} a month",
+        "calculator.paid-off": both(lambda s: day(s["paid_off_on"])),
+        "calculator.interest": both(lambda s: format_inr(s["interest_earned"])),
+        "calculator.first-month": format_inr(first["first_month_interest"]),
+        "calculator.yearly": both(lambda s: percent(s["effective_annual_rate"])),
+        "calculator.value": f"{inputs['net']} grams of {inputs['purity']}K is {format_inr(collateral)}",
+        "calculator.ltv": percent(lent / collateral),
+    }
 
 
 def figures(book: ServedBook) -> dict[str, str]:
@@ -239,6 +309,7 @@ def figures(book: ServedBook) -> dict[str, str]:
         "history.photos": str(changes["photo_added"]),
         "book.day": day(THE_DAY),
     }
+    found |= calculator(book, terms, rates)
     found["dashboard.bars"], found["dashboard.bars-note"] = bars(dash["payments_by_month"])
     return found
 

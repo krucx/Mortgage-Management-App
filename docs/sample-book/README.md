@@ -24,6 +24,9 @@ never touches a real database. Then look over the screenshots and the pages, and
 - **`figures.py`** fills in every figure and address the walkthrough and story quote from the
   served book (each marked `data-fig="…"`), so none is typed by hand; it fails if a page
   marks one it can't fill, or a figure goes unused. Add a figure there, then mark it on the page.
+- **`simulation.json`** is the Calculator's sample Simulation, as its URL keeps it: the
+  inputs `shots.mjs` opens the Calculator with, and that `figures.py` works out for the
+  figures the walkthrough and story quote from it. Change the scene there.
 - **`call_sheet.py`** fills in the day's exported Call Sheet, for its import scene.
 - **`shots.mjs`** opens each scene in a browser (its clock on the same day), photographs
   it, and records where each numbered marker of `story.html` sits on it. Scenes that change

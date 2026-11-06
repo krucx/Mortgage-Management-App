@@ -7,7 +7,7 @@
 // Writes <out>/<name>.png for each screenshot and <out>/spots.json; publish.py turns them
 // into docs/shots/*.webp and story.html's SPOTS. Scenes that change the book (approving a
 // Notice, Payments) come last, so every other screenshot shows the book as built.
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const [, , out, base = 'http://127.0.0.1:8765', callSheet] = process.argv
@@ -189,6 +189,28 @@ await shot('customer', card(), {
 })
 await open('/referrers/1')
 await shot('referrer', card())
+
+// Sizing up a loan ------------------------------------------------------------------------
+
+// The Calculator keeps its inputs in its URL: the Simulation figures.py quotes too.
+const simulation = JSON.parse(readFileSync(new URL('./simulation.json', import.meta.url)))
+await open('/calculator?' + new URLSearchParams(simulation))
+await card().getByText('Total interest earned').waitFor()
+await settle()
+const results = card().locator('.tiles').first()
+await shot('calculator', card(), {
+  amount: field('Amount lent (₹)'),
+  compared: card().locator('fieldset').filter({ hasText: 'Compared with' }),
+  plan: card().locator('fieldset').filter({ hasText: 'Planned Payments' }),
+  value: card().locator('details').filter({ hasText: 'Jewellery value' }),
+  tiles: results,
+  lend: button('Lend this'),
+  chart: card().locator('figure.chart'),
+})
+await card().locator('summary', { hasText: /^Month by month, / }).first().click()
+await page.mouse.move(0, 0) // off the table, so no row is hovered
+await settle()
+await shot('calculator-months', card().locator('details.tucked[open]').filter({ hasText: 'Month by month' }).first())
 
 // Weighing the gold --------------------------------------------------------------------
 
@@ -379,9 +401,9 @@ await page.unroute('**/api/**')
 await page.route('**/api/update', (route) =>
   route.fulfill({
     json: {
-      running: '3.2.1',
+      running: '3.3.0',
       available: {
-        version: '3.3.0',
+        version: '3.4.0',
         notes: '### Added\n\n- **Example:** what a release adds is listed here, from its changelog.',
       },
     },

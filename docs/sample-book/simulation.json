@@ -1,0 +1,16 @@
+{
+  "amount": "20000",
+  "start": "2026-10-19",
+  "closed": "2027-10-19",
+  "span": "12",
+  "rate": "2",
+  "mode": "compounded_yearly",
+  "rule": "pro_rata",
+  "monthly": "1500",
+  "lumps": "2027-04-19:5000",
+  "rate2": "1.5",
+  "mode2": "compounded_yearly",
+  "rule2": "pro_rata",
+  "net": "2.8",
+  "purity": "22"
+}

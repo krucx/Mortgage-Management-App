@@ -13,7 +13,10 @@
             "type": "integer"
           }
         },
-        "required": ["mortgage_id", "amount"],
+        "required": [
+          "mortgage_id",
+          "amount"
+        ],
         "title": "AllocationIn",
         "type": "object"
       },
@@ -90,7 +93,11 @@
             "type": "string"
           },
           "entity": {
-            "enum": ["customer", "mortgage", "payment"],
+            "enum": [
+              "customer",
+              "mortgage",
+              "payment"
+            ],
             "title": "Entity",
             "type": "string"
           },
@@ -181,7 +188,9 @@
             "type": "integer"
           }
         },
-        "required": ["keep"],
+        "required": [
+          "keep"
+        ],
         "title": "BackupSettings",
         "type": "object"
       },
@@ -258,7 +267,9 @@
             "type": "string"
           }
         },
-        "required": ["file"],
+        "required": [
+          "file"
+        ],
         "title": "Body_import_call_notes_api_call_list_import_post",
         "type": "object"
       },
@@ -270,7 +281,9 @@
             "type": "string"
           }
         },
-        "required": ["photo"],
+        "required": [
+          "photo"
+        ],
         "title": "Body_post_photo_api_mortgages__mortgage_id__photos_post",
         "type": "object"
       },
@@ -282,7 +295,9 @@
             "type": "string"
           }
         },
-        "required": ["file"],
+        "required": [
+          "file"
+        ],
         "title": "Body_preview_import_api_call_list_import_preview_post",
         "type": "object"
       },
@@ -294,7 +309,9 @@
             "type": "string"
           }
         },
-        "required": ["photo"],
+        "required": [
+          "photo"
+        ],
         "title": "Body_put_customer_photo_api_customers__customer_id__photo_put",
         "type": "object"
       },
@@ -306,7 +323,9 @@
             "type": "string"
           }
         },
-        "required": ["photo"],
+        "required": [
+          "photo"
+        ],
         "title": "Body_put_id_photo_api_customers__customer_id__id_photos__card__put",
         "type": "object"
       },
@@ -339,7 +358,12 @@
             "type": "array"
           }
         },
-        "required": ["customer", "phone_1", "phone_2", "rows"],
+        "required": [
+          "customer",
+          "phone_1",
+          "phone_2",
+          "rows"
+        ],
         "title": "CallListGroup",
         "type": "object"
       },
@@ -370,7 +394,13 @@
             "type": "integer"
           }
         },
-        "required": ["items", "total", "page", "page_size", "mortgages"],
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "mortgages"
+        ],
         "title": "CallListPage",
         "type": "object"
       },
@@ -415,7 +445,11 @@
           },
           "reasons": {
             "items": {
-              "enum": ["months_unpaid", "loan_to_value", "accrues_today"],
+              "enum": [
+                "months_unpaid",
+                "loan_to_value",
+                "accrues_today"
+              ],
               "type": "string"
             },
             "title": "Reasons",
@@ -473,7 +507,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "called_on", "note", "created_at"],
+        "required": [
+          "id",
+          "called_on",
+          "note",
+          "created_at"
+        ],
         "title": "CallNote",
         "type": "object"
       },
@@ -538,7 +577,9 @@
             "title": "Cash Limit"
           }
         },
-        "required": ["cash_limit"],
+        "required": [
+          "cash_limit"
+        ],
         "title": "CashLimit",
         "type": "object"
       },
@@ -554,7 +595,11 @@
             "type": "integer"
           },
           "kind": {
-            "enum": ["redeemed", "waived", "forfeited"],
+            "enum": [
+              "redeemed",
+              "waived",
+              "forfeited"
+            ],
             "title": "Kind",
             "type": "string"
           },
@@ -662,7 +707,10 @@
             "type": "string"
           },
           "source": {
-            "enum": ["gold_rate", "manual"],
+            "enum": [
+              "gold_rate",
+              "manual"
+            ],
             "title": "Source",
             "type": "string"
           },
@@ -671,7 +719,12 @@
             "type": "integer"
           }
         },
-        "required": ["value", "source", "set_on", "loan_to_value"],
+        "required": [
+          "value",
+          "source",
+          "set_on",
+          "loan_to_value"
+        ],
         "title": "Collateral",
         "type": "object"
       },
@@ -725,7 +778,12 @@
             "type": "boolean"
           }
         },
-        "required": ["before", "after", "listed_before", "listed_after"],
+        "required": [
+          "before",
+          "after",
+          "listed_before",
+          "listed_after"
+        ],
         "title": "CollateralPreview",
         "type": "object"
       },
@@ -744,7 +802,11 @@
             "type": "integer"
           }
         },
-        "required": ["month", "interest_charged", "payments_estimate"],
+        "required": [
+          "month",
+          "interest_charged",
+          "payments_estimate"
+        ],
         "title": "ComingMonth",
         "type": "object"
       },
@@ -759,7 +821,10 @@
             "$ref": "#/components/schemas/Terms"
           }
         },
-        "required": ["on", "terms"],
+        "required": [
+          "on",
+          "terms"
+        ],
         "title": "ComingTermChange",
         "type": "object"
       },
@@ -991,7 +1056,11 @@
             "title": "Referrer"
           }
         },
-        "required": ["name", "address", "phone_1"],
+        "required": [
+          "name",
+          "address",
+          "phone_1"
+        ],
         "title": "CustomerIn",
         "type": "object"
       },
@@ -1204,7 +1273,10 @@
             "type": "string"
           }
         },
-        "required": ["kind", "id"],
+        "required": [
+          "kind",
+          "id"
+        ],
         "title": "ExistingCustomerReferrer",
         "type": "object"
       },
@@ -1220,7 +1292,10 @@
             "type": "string"
           }
         },
-        "required": ["kind", "id"],
+        "required": [
+          "kind",
+          "id"
+        ],
         "title": "ExistingStandaloneReferrer",
         "type": "object"
       },
@@ -1246,7 +1321,10 @@
             "type": "string"
           }
         },
-        "required": ["forfeited_on", "mortgages"],
+        "required": [
+          "forfeited_on",
+          "mortgages"
+        ],
         "title": "ForfeitAllIn",
         "type": "object"
       },
@@ -1268,7 +1346,10 @@
             "type": "integer"
           }
         },
-        "required": ["forfeited_on", "recovered_amount"],
+        "required": [
+          "forfeited_on",
+          "recovered_amount"
+        ],
         "title": "ForfeitIn",
         "type": "object"
       },
@@ -1284,14 +1365,23 @@
             "type": "integer"
           }
         },
-        "required": ["mortgage_id", "recovered_amount"],
+        "required": [
+          "mortgage_id",
+          "recovered_amount"
+        ],
         "title": "ForfeitedMortgageIn",
         "type": "object"
       },
       "GoldRate": {
         "properties": {
           "purity_karat": {
-            "enum": [24, 22, 20, 18, 14],
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
             "title": "Purity Karat",
             "type": "integer"
           },
@@ -1319,14 +1409,24 @@
             "title": "Updated On"
           }
         },
-        "required": ["purity_karat", "rate_per_gram", "updated_on"],
+        "required": [
+          "purity_karat",
+          "rate_per_gram",
+          "updated_on"
+        ],
         "title": "GoldRate",
         "type": "object"
       },
       "GoldRateIn": {
         "properties": {
           "purity_karat": {
-            "enum": [24, 22, 20, 18, 14],
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
             "title": "Purity Karat",
             "type": "integer"
           },
@@ -1336,7 +1436,10 @@
             "type": "integer"
           }
         },
-        "required": ["purity_karat", "rate_per_gram"],
+        "required": [
+          "purity_karat",
+          "rate_per_gram"
+        ],
         "title": "GoldRateIn",
         "type": "object"
       },
@@ -1389,7 +1492,11 @@
         "type": "object"
       },
       "InterestMode": {
-        "enum": ["simple", "compounded_yearly", "compounded_monthly"],
+        "enum": [
+          "simple",
+          "compounded_yearly",
+          "compounded_monthly"
+        ],
         "title": "InterestMode",
         "type": "string"
       },
@@ -1436,7 +1543,12 @@
             "type": "string"
           }
         },
-        "required": ["on", "event", "before", "after"],
+        "required": [
+          "on",
+          "event",
+          "before",
+          "after"
+        ],
         "title": "LedgerChange",
         "type": "object"
       },
@@ -1520,7 +1632,13 @@
             "type": "integer"
           }
         },
-        "required": ["on", "event", "amount", "principal", "unpaid_interest"],
+        "required": [
+          "on",
+          "event",
+          "amount",
+          "principal",
+          "unpaid_interest"
+        ],
         "title": "LedgerStep",
         "type": "object"
       },
@@ -1537,7 +1655,10 @@
             "type": "string"
           }
         },
-        "required": ["on", "amount"],
+        "required": [
+          "on",
+          "amount"
+        ],
         "title": "LumpSum",
         "type": "object"
       },
@@ -1559,7 +1680,10 @@
             "type": "array"
           }
         },
-        "required": ["receipt", "notice"],
+        "required": [
+          "receipt",
+          "notice"
+        ],
         "title": "MessagePlaceholders",
         "type": "object"
       },
@@ -1604,7 +1728,10 @@
             "type": "string"
           }
         },
-        "required": ["month", "amount"],
+        "required": [
+          "month",
+          "amount"
+        ],
         "title": "MonthlyPayments",
         "type": "object"
       },
@@ -1691,7 +1818,13 @@
             "type": "array"
           },
           "purity_karat": {
-            "enum": [24, 22, 20, 18, 14],
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
             "title": "Purity Karat",
             "type": "integer"
           },
@@ -1783,7 +1916,13 @@
             "type": "integer"
           },
           "purity_karat": {
-            "enum": [24, 22, 20, 18, 14],
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
             "title": "Purity Karat",
             "type": "integer"
           },
@@ -1845,7 +1984,13 @@
             "type": "integer"
           },
           "purity_karat": {
-            "enum": [24, 22, 20, 18, 14],
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
             "title": "Purity Karat",
             "type": "integer"
           },
@@ -1889,7 +2034,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "title": "MortgageLink",
         "type": "object"
       },
@@ -1904,7 +2052,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "url"],
+        "required": [
+          "id",
+          "url"
+        ],
         "title": "MortgagePhoto",
         "type": "object"
       },
@@ -1998,7 +2149,12 @@
         "type": "object"
       },
       "MortgageStatus": {
-        "enum": ["active", "redeemed", "waived", "forfeited"],
+        "enum": [
+          "active",
+          "redeemed",
+          "waived",
+          "forfeited"
+        ],
         "title": "MortgageStatus",
         "type": "string"
       },
@@ -2023,7 +2179,12 @@
             "$ref": "#/components/schemas/Terms"
           }
         },
-        "required": ["name", "terms", "after", "cash"],
+        "required": [
+          "name",
+          "terms",
+          "after",
+          "cash"
+        ],
         "title": "NewMortgagePreview",
         "type": "object"
       },
@@ -2047,7 +2208,12 @@
             "type": "string"
           }
         },
-        "required": ["kind", "name", "address", "phone"],
+        "required": [
+          "kind",
+          "name",
+          "address",
+          "phone"
+        ],
         "title": "NewStandaloneReferrer",
         "type": "object"
       },
@@ -2078,7 +2244,12 @@
             "type": "integer"
           }
         },
-        "required": ["row", "mortgage_name", "note", "reason"],
+        "required": [
+          "row",
+          "mortgage_name",
+          "note",
+          "reason"
+        ],
         "title": "NotImported",
         "type": "object"
       },
@@ -2150,7 +2321,12 @@
         "type": "object"
       },
       "NoticeStatus": {
-        "enum": ["awaiting_approval", "queued", "sent", "skipped"],
+        "enum": [
+          "awaiting_approval",
+          "queued",
+          "sent",
+          "skipped"
+        ],
         "title": "NoticeStatus",
         "type": "string"
       },
@@ -2170,7 +2346,11 @@
             "type": "integer"
           }
         },
-        "required": ["principal", "unpaid_interest", "total"],
+        "required": [
+          "principal",
+          "unpaid_interest",
+          "total"
+        ],
         "title": "Outstanding",
         "type": "object"
       },
@@ -2242,7 +2422,12 @@
             "type": "integer"
           }
         },
-        "required": ["items", "total", "page", "page_size"],
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
         "title": "Page[CustomerRow]",
         "type": "object"
       },
@@ -2268,7 +2453,12 @@
             "type": "integer"
           }
         },
-        "required": ["items", "total", "page", "page_size"],
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
         "title": "Page[MortgageRow]",
         "type": "object"
       },
@@ -2294,12 +2484,21 @@
             "type": "integer"
           }
         },
-        "required": ["items", "total", "page", "page_size"],
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
         "title": "Page[Notice]",
         "type": "object"
       },
       "PartMonthRule": {
-        "enum": ["pro_rata", "full_month", "nothing"],
+        "enum": [
+          "pro_rata",
+          "full_month",
+          "nothing"
+        ],
         "title": "PartMonthRule",
         "type": "string"
       },
@@ -2430,7 +2629,11 @@
         "type": "object"
       },
       "PaymentMethod": {
-        "enum": ["cash", "upi", "bank_transfer"],
+        "enum": [
+          "cash",
+          "upi",
+          "bank_transfer"
+        ],
         "title": "PaymentMethod",
         "type": "string"
       },
@@ -2444,7 +2647,10 @@
             "type": "string"
           }
         },
-        "required": ["method", "name"],
+        "required": [
+          "method",
+          "name"
+        ],
         "title": "PaymentMethodName",
         "type": "object"
       },
@@ -2481,7 +2687,12 @@
             "type": "integer"
           }
         },
-        "required": ["items", "total", "page", "page_size"],
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
         "title": "PaymentPage",
         "type": "object"
       },
@@ -2551,7 +2762,10 @@
             "type": "integer"
           },
           "kind": {
-            "enum": ["customer", "referrer"],
+            "enum": [
+              "customer",
+              "referrer"
+            ],
             "title": "Kind",
             "type": "string"
           },
@@ -2560,7 +2774,11 @@
             "type": "string"
           }
         },
-        "required": ["kind", "id", "name"],
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
         "title": "PersonSummary",
         "type": "object"
       },
@@ -2574,7 +2792,10 @@
           "ignored": {
             "anyOf": [
               {
-                "enum": ["after_closed_on", "after_paid_off"],
+                "enum": [
+                  "after_closed_on",
+                  "after_paid_off"
+                ],
                 "type": "string"
               },
               {
@@ -2589,7 +2810,11 @@
             "type": "string"
           }
         },
-        "required": ["on", "amount", "ignored"],
+        "required": [
+          "on",
+          "amount",
+          "ignored"
+        ],
         "title": "PlannedLumpSum",
         "type": "object"
       },
@@ -2611,7 +2836,10 @@
             "type": "array"
           }
         },
-        "required": ["mortgages", "cash"],
+        "required": [
+          "mortgages",
+          "cash"
+        ],
         "title": "PreviewOfChange",
         "type": "object"
       },
@@ -2646,7 +2874,12 @@
             "type": "array"
           }
         },
-        "required": ["outstanding", "points", "term_changes", "closure"],
+        "required": [
+          "outstanding",
+          "points",
+          "term_changes",
+          "closure"
+        ],
         "title": "PreviewSide",
         "type": "object"
       },
@@ -2725,7 +2958,11 @@
             "type": "array"
           }
         },
-        "required": ["points", "term_changes", "paid_off_on"],
+        "required": [
+          "points",
+          "term_changes",
+          "paid_off_on"
+        ],
         "title": "ProjectedSeries",
         "type": "object"
       },
@@ -2966,7 +3203,11 @@
             "title": "Reference"
           }
         },
-        "required": ["redeemed_on", "method", "mortgage_ids"],
+        "required": [
+          "redeemed_on",
+          "method",
+          "mortgage_ids"
+        ],
         "title": "RedeemAllIn",
         "type": "object"
       },
@@ -2992,7 +3233,10 @@
             "title": "Reference"
           }
         },
-        "required": ["redeemed_on", "method"],
+        "required": [
+          "redeemed_on",
+          "method"
+        ],
         "title": "RedeemIn",
         "type": "object"
       },
@@ -3007,7 +3251,10 @@
             "type": "string"
           }
         },
-        "required": ["version", "notes"],
+        "required": [
+          "version",
+          "notes"
+        ],
         "title": "Release",
         "type": "object"
       },
@@ -3018,7 +3265,10 @@
             "type": "integer"
           },
           "kind": {
-            "enum": ["customer", "referrer"],
+            "enum": [
+              "customer",
+              "referrer"
+            ],
             "title": "Kind",
             "type": "string"
           },
@@ -3042,7 +3292,13 @@
             "title": "Photo Url"
           }
         },
-        "required": ["kind", "id", "name", "phone", "photo_url"],
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "phone",
+          "photo_url"
+        ],
         "title": "SearchHit",
         "type": "object"
       },
@@ -3110,7 +3366,10 @@
             "type": "string"
           }
         },
-        "required": ["on", "amount"],
+        "required": [
+          "on",
+          "amount"
+        ],
         "title": "SimulatedPayment",
         "type": "object"
       },
@@ -3126,7 +3385,10 @@
             "type": "integer"
           }
         },
-        "required": ["on", "outstanding"],
+        "required": [
+          "on",
+          "outstanding"
+        ],
         "title": "SimulatedPoint",
         "type": "object"
       },
@@ -3236,7 +3498,13 @@
           },
           "span_months": {
             "default": 12,
-            "enum": [3, 6, 12, 24, 36],
+            "enum": [
+              3,
+              6,
+              12,
+              24,
+              36
+            ],
             "title": "Span Months",
             "type": "integer"
           },
@@ -3249,7 +3517,12 @@
             "$ref": "#/components/schemas/Terms"
           }
         },
-        "required": ["amount_lent", "start_date", "closed_on", "terms"],
+        "required": [
+          "amount_lent",
+          "start_date",
+          "closed_on",
+          "terms"
+        ],
         "title": "SimulationIn",
         "type": "object"
       },
@@ -3279,7 +3552,13 @@
             "type": "array"
           }
         },
-        "required": ["id", "name", "address", "phone", "referred"],
+        "required": [
+          "id",
+          "name",
+          "address",
+          "phone",
+          "referred"
+        ],
         "title": "StandaloneReferrer",
         "type": "object"
       },
@@ -3354,7 +3633,12 @@
             "$ref": "#/components/schemas/Terms"
           }
         },
-        "required": ["id", "effective_on", "terms", "removable"],
+        "required": [
+          "id",
+          "effective_on",
+          "terms",
+          "removable"
+        ],
         "title": "TermChangeOut",
         "type": "object"
       },
@@ -3373,7 +3657,11 @@
             "$ref": "#/components/schemas/PartMonthRule"
           }
         },
-        "required": ["monthly_rate_bps", "interest_mode", "part_month_rule"],
+        "required": [
+          "monthly_rate_bps",
+          "interest_mode",
+          "part_month_rule"
+        ],
         "title": "Terms",
         "type": "object"
       },
@@ -3394,7 +3682,10 @@
             "type": "string"
           }
         },
-        "required": ["running", "available"],
+        "required": [
+          "running",
+          "available"
+        ],
         "title": "UpdateStatus",
         "type": "object"
       },
@@ -3430,7 +3721,11 @@
             "type": "string"
           }
         },
-        "required": ["loc", "msg", "type"],
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
         "title": "ValidationError",
         "type": "object"
       },
@@ -3442,7 +3737,9 @@
             "type": "string"
           }
         },
-        "required": ["reason"],
+        "required": [
+          "reason"
+        ],
         "title": "VoidIn",
         "type": "object"
       },
@@ -3482,7 +3779,11 @@
             "type": "string"
           }
         },
-        "required": ["waived_on", "method", "mortgages"],
+        "required": [
+          "waived_on",
+          "method",
+          "mortgages"
+        ],
         "title": "WaiveAllIn",
         "type": "object"
       },
@@ -3518,7 +3819,11 @@
             "type": "string"
           }
         },
-        "required": ["waived_on", "amount_paid", "method"],
+        "required": [
+          "waived_on",
+          "amount_paid",
+          "method"
+        ],
         "title": "WaiveIn",
         "type": "object"
       },
@@ -3534,7 +3839,10 @@
             "type": "integer"
           }
         },
-        "required": ["mortgage_id", "amount_paid"],
+        "required": [
+          "mortgage_id",
+          "amount_paid"
+        ],
         "title": "WaivedMortgageIn",
         "type": "object"
       }
@@ -3604,7 +3912,12 @@
             "schema": {
               "anyOf": [
                 {
-                  "enum": ["customer", "mortgage", "why", "outstanding"],
+                  "enum": [
+                    "customer",
+                    "mortgage",
+                    "why",
+                    "outstanding"
+                  ],
                   "type": "string"
                 },
                 {
@@ -3775,7 +4088,10 @@
             "schema": {
               "anyOf": [
                 {
-                  "enum": ["mortgage", "customer"],
+                  "enum": [
+                    "mortgage",
+                    "customer"
+                  ],
                   "type": "string"
                 },
                 {
@@ -4109,7 +4425,12 @@
             "required": false,
             "schema": {
               "default": "name",
-              "enum": ["name", "phone", "address", "referrer"],
+              "enum": [
+                "name",
+                "phone",
+                "address",
+                "referrer"
+              ],
               "title": "Sort",
               "type": "string"
             }
@@ -4430,7 +4751,10 @@
             "name": "card",
             "required": true,
             "schema": {
-              "enum": ["aadhaar", "pan"],
+              "enum": [
+                "aadhaar",
+                "pan"
+              ],
               "title": "Card",
               "type": "string"
             }
@@ -4478,7 +4802,10 @@
             "name": "card",
             "required": true,
             "schema": {
-              "enum": ["aadhaar", "pan"],
+              "enum": [
+                "aadhaar",
+                "pan"
+              ],
               "title": "Card",
               "type": "string"
             }
@@ -6142,7 +6469,12 @@
             "schema": {
               "anyOf": [
                 {
-                  "enum": ["customer", "accrues", "mortgages", "status"],
+                  "enum": [
+                    "customer",
+                    "accrues",
+                    "mortgages",
+                    "status"
+                  ],
                   "type": "string"
                 },
                 {
@@ -6407,7 +6739,13 @@
             "schema": {
               "anyOf": [
                 {
-                  "enum": ["date", "customer", "mortgages", "method", "amount"],
+                  "enum": [
+                    "date",
+                    "customer",
+                    "mortgages",
+                    "method",
+                    "amount"
+                  ],
                   "type": "string"
                 },
                 {

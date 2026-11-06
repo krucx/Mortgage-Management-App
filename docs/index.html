@@ -166,11 +166,11 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
 <main class="page">
 
 <header class="intro">
-  <div class="eyebrow">Mortgage Management 3.2.2 · documentation</div>
+  <div class="eyebrow">Mortgage Management 3.3.0 · documentation</div>
   <h1>Mortgage Management</h1>
   <p class="lede">A lending book for a jeweller who lends against gold. One Lender keeps every Customer, every pledged packet of jewellery, every Payment and every follow-up in one app on their own laptop. The app works out what each Mortgage owes on any date, prepares the day's Notices and phone calls, and keeps every change.</p>
   <div class="facts">
-    <span>Version: <b>3.2.2</b></span>
+    <span>Version: <b>3.3.0</b></span>
     <span>Runs on: <b>the Lender's laptop, Windows or anywhere with Docker</b></span>
     <span>Opens at: <b>http://localhost:8080</b></span>
     <span>Money: <b>₹, Indian digit grouping</b></span>
@@ -314,6 +314,22 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       </div>
     </article>
 
+    <article class="feature" style="--tone: var(--money-in)">
+      <img src="shots/calculator.webp" width="1068" height="2832" alt="The Calculator: a loan's amount, dates and Terms compared with a second rate, planned Payments and the jewellery's value, with what each comes to and a chart." loading="lazy">
+      <div class="feature-body">
+        <h3>Calculator</h3>
+        <p>Size up a loan before lending: a Simulation worked out exactly as its Mortgage's Ledger would be, with nothing saved.</p>
+        <ul>
+          <li>The Outstanding on a chosen day, interest earned, first month's interest and the effective annual rate</li>
+          <li>Two sets of Terms side by side, and how they differ</li>
+          <li>Planned Payments: a monthly amount and Lump Sums, and when they pay it off</li>
+          <li>Loan-to-Value from the jewellery's weight or a typed value</li>
+          <li>Month by month, and <span class="ui">Lend this</span> into New Mortgage</li>
+        </ul>
+        <div class="more"><a href="walkthrough.html#s4">Walkthrough §4</a><a href="story.html#pledge">Story: the pledge</a></div>
+      </div>
+    </article>
+
     <article class="feature" style="--tone: var(--accent)">
       <img src="shots/edit-preview.webp" width="1068" height="2426" alt="Editing a Mortgage's Principal: the Preview shows owed today, the Outstanding over the next year, a chart and the Ledger steps that change." loading="lazy">
       <div class="feature-body">
@@ -329,7 +345,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </article>
 
     <article class="feature" style="--tone: var(--money-in)">
-      <img src="shots/payment-new.webp" width="1068" height="1788" alt="Recording a Payment split equally across two Mortgages, beside each one's Outstanding, with a Preview for each." loading="lazy">
+      <img src="shots/payment-new.webp" width="1068" height="832" alt="Recording a Payment split equally across two Mortgages, beside each one's Outstanding, with a Preview for each." loading="lazy">
       <div class="feature-body">
         <h3>Payments and Receipts</h3>
         <p>One sum entered once and split across a Customer's Mortgages, with a Receipt for WhatsApp or print.</p>
@@ -414,6 +430,20 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <p>The Lender's everyday jobs, step by step. Open one to see it.</p>
   </div>
   <div class="flows">
+
+    <details class="flow">
+      <summary><b>Size up a loan</b><span>What it would earn, before lending a rupee</span></summary>
+      <div class="flow-body">
+        <ol class="steps">
+          <li><span>Open <span class="ui">Calculator</span>. Enter the amount; the start date is today, <span class="ui">Closed on</span> a year on, and the Terms are the Default Terms. Change any of them.</span></li>
+          <li><span>Read what it comes to on Closed on: the Outstanding, the interest earned, the first month's interest and the effective annual rate, with a chart.</span></li>
+          <li><span>To weigh another rate, press <span class="ui">Compare other Terms</span>. To see a repayment plan, enter a monthly payment or add Lump Sums: it says when it is paid off.</span></li>
+          <li><span>Open <span class="ui">Jewellery value</span> and enter the net weight and purity for its Loan-to-Value.</span></li>
+          <li><span>Happy with it? <span class="ui">Lend this</span> opens New Mortgage with the amount, start date and Terms; choose the Customer and go on as below.</span></li>
+        </ol>
+        <p class="tip">The inputs are in the page's address, so a bookmark keeps them. Nothing on the Calculator is ever saved.</p>
+      </div>
+    </details>
 
     <details class="flow" open>
       <summary><b>Lend against new jewellery</b><span>A new or returning Customer pledges a packet</span></summary>
@@ -563,6 +593,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <div class="nuances">
         <div class="nuance rule"><b>Nothing owed is stored</b><span>Outstanding, the Interest to Date and the Ledger are replayed from the Terms and Payments every time, so a correction anywhere shows everywhere at once.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR-0001</a></div>
         <div class="nuance rule"><b>A Preview is the real change, undone</b><span>The change is made with every check a save would run, read, then rolled back. A Preview can't disagree with the save.</span></div>
+        <div class="nuance"><b>A Simulation is the Ledger</b><span>The Calculator replays the same engine as a Mortgage, so a loan lent on its Terms and paid as planned owes what it said. It is never saved.</span></div>
         <div class="nuance"><b>Exact versus estimate</b><span>Projections replay the Mortgages and are exact; Trends carry the last three months forward and are labelled as estimates.</span></div>
         <div class="nuance"><b>History is never edited</b><span>Every change to a Customer, Mortgage or Payment is kept, with old and new values, and can't be changed or removed.</span></div>
         <div class="nuance"><b>Voided, never deleted</b><span>A Voided Payment stays on record with its reason but counts in no Ledger.</span></div>
@@ -630,6 +661,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <div><dt>Receipt</dt><dd>The Customer's acknowledgement of a Payment, covering every part of it and marking any jewellery it Redeemed.</dd></div>
     <div><dt>Notice</dt><dd>A message to a Customer ahead of an Accrual Date, covering every Mortgage accruing that day.</dd></div>
     <div><dt>Months Unpaid</dt><dd>How many of the latest monthly interest charges are still unpaid.</dd></div>
+    <div><dt>Lump Sum</dt><dd>A one-off planned Payment in a Simulation: an amount on a date, beside any monthly amount.</dd></div>
+    <div><dt>Simulation</dt><dd>A made-up Mortgage on the Calculator, worked out as a real one's Ledger would be, to size up a loan; never kept.</dd></div>
     <div><dt>Void</dt><dd>Cancelling a Payment with a reason, keeping it on record.</dd></div>
     <div><dt>Redeemed · Waived · Forfeited</dt><dd>The three ways a Mortgage closes: paid in full, the rest let off, or the jewellery kept.</dd></div>
   </dl>
@@ -675,7 +708,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <span class="go">Read the story →</span>
     </a>
   </div>
-  <footer>Written for version 3.2.2. What changed in each version is in the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md">changelog</a>; the details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>. Screenshots use invented sample data.</footer>
+  <footer>Written for version 3.3.0. What changed in each version is in the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md">changelog</a>; the details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>. Screenshots use invented sample data.</footer>
 </section>
 
 </main>

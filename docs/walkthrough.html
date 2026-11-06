@@ -191,7 +191,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
   <h1>Mortgage Book Walkthrough</h1>
   <p class="lede">One Lender, one laptop, a book of gold-jewellery pledges. This guide follows a pledge through its whole life in the app: the morning view of the book, setting the rules, meeting a Customer, lending against their jewellery, taking Payments, following up, and closing the Mortgage. Each stop says where to click, what to say, and the details worth pointing out.</p>
   <div class="facts">
-    <span>Version: <b>3.2.2</b></span>
+    <span>Version: <b>3.3.0</b></span>
     <span>App: <b>http://127.0.0.1:8080</b></span>
     <span>Figures: <b>the live book on 18 Oct 2026</b></span>
     <span>Money: <b>₹, Indian digit grouping</b></span>
@@ -221,7 +221,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <li><a href="#s1"><span class="n">1</span>The book at a glance</a></li>
     <li><a href="#s2"><span class="n">2</span>Settings</a></li>
     <li><a href="#s3"><span class="n">3</span>Customers</a></li>
-    <li><a href="#s4"><span class="n">4</span>New Mortgage</a></li>
+    <li><a href="#s4"><span class="n">4</span>Calculator and New Mortgage</a></li>
     <li><a href="#s5"><span class="n">5</span>A Mortgage</a></li>
     <li><a href="#s6"><span class="n">6</span>Changes and Previews</a></li>
     <li><a href="#s7"><span class="n">7</span>Payments</a></li>
@@ -384,13 +384,37 @@ nav.bar > ol { flex: 1; min-width: 0; }
 <section class="stop" id="s4" aria-labelledby="s4-title">
   <div class="stop-head">
     <div class="stop-no">4</div>
-    <h2 id="s4-title">Lending: a New Mortgage</h2>
-    <p class="open">Open <span class="path">/mortgages/new</span> (or <span class="ui">New Mortgage</span> on a Customer)</p>
+    <h2 id="s4-title">Lending: the Calculator, then a New Mortgage</h2>
+    <p class="open">Open <span class="path">/calculator</span>, then <span class="path">/mortgages/new</span> (or <span class="ui">New Mortgage</span> on a Customer)</p>
   </div>
-  <p class="say">"Lending is one Mortgage per packet of jewellery. The Lender picks the Customer, sees what they already owe, weighs the gold, and the app suggests a name and shows what this loan will grow to before anything is saved."</p>
+  <p class="say">"Before lending, the Lender can size the loan up on the Calculator: what it would earn and cost, worked out exactly as the Mortgage's Ledger will be, and nothing is saved. Then lending is one Mortgage per packet of jewellery. The Lender picks the Customer, sees what they already owe, weighs the gold, and the app suggests a name and shows what this loan will grow to before anything is saved."</p>
   <div class="cols">
     <div>
-      <div class="block-title">Show</div>
+      <div class="block-title">Size it up first</div>
+      <ol class="steps">
+        <li><span><span class="ui">Calculator</span> in the menu. Enter an amount: the start date is today, <span class="ui">Closed on</span> a year on, and the Terms are the Default Terms, each changeable. Every figure is as if it were Redeemed on Closed on.</span></li>
+        <li><span>Read the tiles: the <span class="ui">Outstanding</span> on that day, <span class="ui">Total interest earned</span>, <span class="ui">First month's interest</span> and the <span class="ui">Effective annual rate</span>. The chart shows the Outstanding from the start.</span></li>
+        <li><span><span class="ui">Compare other Terms</span>: a second rate, Interest Mode or Part-Month Rule beside the first, each figure for both and how the second differs.</span></li>
+        <li><span><span class="ui">Planned Payments</span>: a monthly amount and Lump Sums on chosen dates. A <span class="ui">Paid off</span> tile says when the plan clears it.</span></li>
+        <li><span>Open <span class="ui">Jewellery value</span> and enter the net weight and purity (or a Collateral Value) for its Loan-to-Value now and on Closed on.</span></li>
+        <li><span><span class="ui">Month by month</span> unfolds the Ledger it would have. Then press <span class="ui">Lend this</span>: New Mortgage opens with the amount, start date and Terms.</span></li>
+      </ol>
+    </div>
+    <div class="live">
+      <div class="block-title">The sample Simulation</div>
+      <dl>
+        <dt>Asked</dt><dd data-fig="calculator.ask">₹20,000 for a year, from 19 Oct 2026 to 19 Oct 2027</dd>
+        <dt>Planned</dt><dd data-fig="calculator.plan">₹1,500 a month, and ₹5,000 on 19 Apr 2027</dd>
+        <dt>First month's interest</dt><dd data-fig="calculator.first-month">₹400</dd>
+        <dt>Interest earned</dt><dd data-fig="calculator.interest">₹3,027 at 2%, ₹2,196 at 1.5%</dd>
+        <dt>Paid off</dt><dd data-fig="calculator.paid-off">19 Nov 2027 at 2%, 19 Oct 2027 at 1.5%</dd>
+      </dl>
+      <p class="note">The inputs live in the page's address: a refresh, a bookmark or a link sent to someone keeps the Simulation. A start date still to come can be simulated, but not lent.</p>
+    </div>
+  </div>
+  <div class="cols">
+    <div>
+      <div class="block-title">Then lend</div>
       <ol class="steps">
         <li><span>Choose a Customer. Their <span class="ui">Active Mortgages</span> appear first, as a reminder of what they already owe.</span></li>
         <li><span>Enter the start date (it may be back-dated), Principal lent and how it was <span class="ui">Lent Through</span> (Cash, UPI or bank transfer; it starts as Cash), a description, gross and net weight in grams, and purity.</span></li>
@@ -413,6 +437,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
   </div>
   <div class="nuances">
     <div class="nuance rule"><b>Accrual Dates follow the start date</b><span>Started on the 31st? Interest is added on the 31st, or the month's last day when it is shorter.</span></div>
+    <div class="nuance rule"><b>A Simulation is the Ledger, never kept</b><span>The Calculator replays the same engine as a Mortgage, so a loan lent on the same Terms and paid the same way owes exactly what it said. Nothing it works out is saved.</span></div>
     <div class="nuance"><b>Names are unique</b><span>A second necklace the same year becomes <code>…-GoldNecklace-2</code> automatically.</span></div>
     <div class="nuance"><b>Cash is warned about, never refused</b><span>The same question comes before a Payment, a Final Payment or an edit in cash at or above the Cash Limit. Mortgages made before Lent Through was asked show "—" until edited.</span></div>
     <div class="nuance"><b>Collateral Value from the weight</b><span>Net weight at the Gold Rate for its purity; the Lender can set a value by hand later.</span></div>

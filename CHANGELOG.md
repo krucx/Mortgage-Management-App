@@ -5,6 +5,53 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [3.3.0] - 2026-11-06
+
+A Calculator, to size up a loan before lending, and whole-rupee gridlines on the
+charts. **No database changes:** updating keeps all data and Backups, and 3.2.2 still
+starts on the same database.
+
+### Added
+
+- **Calculator** (in the menu, between Mortgages and Call List): a Simulation of a
+  loan, an amount, a start date, the day it would close on and its Terms, worked out
+  by the same Ledger as a real Mortgage, so a Mortgage lent on those Terms and paid
+  the same way owes exactly what it said. It shows the Outstanding on the closing day,
+  the total interest earned, the first month's interest and the effective annual rate,
+  a graph of the Outstanding over 3 to 36 months, and the Ledger month by month.
+  Nothing is saved, and the inputs are kept in the page's address, so a bookmark
+  keeps them.
+- **Planned Payments in a Simulation:** a monthly amount paid on every Accrual Date,
+  and Lump Sums on chosen dates, each paid as a real Payment would be. A **Paid off**
+  tile says when the plan clears it (or that it doesn't within 10 years). A Lump Sum
+  after the closing day, or after the plan has paid it off, is left out, and one more
+  than is owed is refused, each said on its row.
+- **Compare other Terms:** a second rate, Interest Mode or Part-Month Rule beside the
+  first, with each figure for both, how the second differs, and a line for each on
+  the graph.
+- **Jewellery value:** a net weight and purity at today's Gold Rate, or a Collateral
+  Value typed in, for the Loan-to-Value now and on the closing day.
+- **Lend this** opens New Mortgage with the Simulation's amount, start date and
+  Terms, ready to choose the Customer. It is off for a start date still to come.
+
+### Changed
+
+- **Chart gridlines in whole rupees:** the Projection and the Dashboard's Payments by
+  month label their gridlines in whole rupees, as the Calculator does, never
+  "₹80,474.50".
+- **Docs:** the Calculator is in the docs, the walkthrough and The Gold Chain Story,
+  with new screenshots.
+
+### Upgrading
+
+On Windows, use the banner's **Install now**. Elsewhere:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d
+```
+
 ## [3.2.2] - 2026-11-05
 
 New Mortgage's Lent Through starts as Cash. **No database changes:** updating keeps all
