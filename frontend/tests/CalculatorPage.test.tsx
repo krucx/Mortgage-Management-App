@@ -256,18 +256,18 @@ const search = () =>
 const button = (name: string | RegExp) => screen.getByRole<HTMLButtonElement>('button', { name })
 const settle = (expectation: () => void) => vi.waitFor(expectation, { timeout: 2000 })
 
-test('a monthly amount and dated lump sums are planned, added and removed, all in the URL', async () => {
+test('a monthly amount and dated Lump Sums are planned, added and removed, all in the URL', async () => {
   const { server, asked } = backend()
   showCalculator(server, '/calculator?amount=100000')
   await screen.findByText('Total interest earned', {}, { timeout: 2000 })
 
   type('Monthly payment (₹)', '3000')
-  fireEvent.click(button('Add a lump sum'))
-  fireEvent.click(button('Add a lump sum'))
-  type('Lump sum 1 date', '2026-06-01')
-  type('Lump sum 1 amount (₹)', '20000')
-  type('Lump sum 2 date', '2026-09-01')
-  type('Lump sum 2 amount (₹)', '5000')
+  fireEvent.click(button('Add a Lump Sum'))
+  fireEvent.click(button('Add a Lump Sum'))
+  type('Lump Sum 1 date', '2026-06-01')
+  type('Lump Sum 1 amount (₹)', '20000')
+  type('Lump Sum 2 date', '2026-09-01')
+  type('Lump Sum 2 amount (₹)', '5000')
 
   await settle(() =>
     expect(asked.at(-1)).toMatchObject({
@@ -280,7 +280,7 @@ test('a monthly amount and dated lump sums are planned, added and removed, all i
   )
   expect(search()).toMatchObject({ monthly: '3000', lumps: '2026-06-01:20000,2026-09-01:5000' })
 
-  fireEvent.click(button('Remove lump sum 1'))
+  fireEvent.click(button('Remove Lump Sum 1'))
   await settle(() =>
     expect(asked.at(-1)?.lump_sums).toEqual([{ on: '2026-09-01', amount: 500_000 }]),
   )
@@ -293,16 +293,16 @@ test('a bookmarked plan opens with its rows', async () => {
   await settle(() => expect(asked.length).toBe(1))
 
   expect(field('Monthly payment (₹)').value).toBe('2500')
-  expect(field('Lump sum 1 amount (₹)').value).toBe('20000')
-  expect(field('Lump sum 2 date').value).toBe('')
+  expect(field('Lump Sum 1 amount (₹)').value).toBe('20000')
+  expect(field('Lump Sum 2 date').value).toBe('')
   // A row not filled in yet is left out.
   expect(asked[0].lump_sums).toEqual([{ on: '2026-06-01', amount: 2_000_000 }])
 })
 
 test.each([
-  ['Lump sum 1 amount (₹)', '0', 'Enter an amount over ₹0'],
-  ['Lump sum 1 date', '2026-04-19', 'Must be on or after the start date'],
-])('a lump sum with %s of %s is refused on its row', async (label, value, message) => {
+  ['Lump Sum 1 amount (₹)', '0', 'Enter an amount over ₹0'],
+  ['Lump Sum 1 date', '2026-04-19', 'Must be on or after the start date'],
+])('a Lump Sum with %s of %s is refused on its row', async (label, value, message) => {
   const { server, asked } = backend()
   showCalculator(server, '/calculator?amount=100000&lumps=2026-06-01:20000')
   await settle(() => expect(asked.length).toBe(1))
@@ -315,7 +315,7 @@ test.each([
   expect(asked.length).toBe(1)
 })
 
-test('a lump sum after Closed on is ignored, with a hint on its row', async () => {
+test('a Lump Sum after Closed on is ignored, with a hint on its row', async () => {
   const { server } = backend((asked) => ({
     ...simulation,
     lump_sums: asked.lump_sums!.map((lump) => ({
@@ -326,11 +326,11 @@ test('a lump sum after Closed on is ignored, with a hint on its row', async () =
   showCalculator(server, '/calculator?amount=100000&lumps=2026-06-01:20000,2027-05-01:5000')
 
   const hint = await screen.findByText('Ignored: after Closed on', {}, { timeout: 2000 })
-  expect(hint.closest('.lump-sum')).toBe(field('Lump sum 2 date').closest('.lump-sum'))
+  expect(hint.closest('.lump-sum')).toBe(field('Lump Sum 2 date').closest('.lump-sum'))
   expect(screen.getAllByText(/Ignored/)).toHaveLength(1)
 })
 
-test('a lump sum larger than what is owed on its date is refused on its row', async () => {
+test('a Lump Sum larger than what is owed on its date is refused on its row', async () => {
   const { server } = backend(() =>
     Response.json(
       {
@@ -338,7 +338,7 @@ test('a lump sum larger than what is owed on its date is refused on its row', as
           lump_sum: 1,
           owed: 10_500_000,
           on: '2026-05-15',
-          message: 'The lump sum on 15 May 2026 is more than the ₹1,05,000 owed then',
+          message: 'The Lump Sum on 15 May 2026 is more than the ₹1,05,000 owed then',
         },
       },
       { status: 422 },
@@ -348,7 +348,7 @@ test('a lump sum larger than what is owed on its date is refused on its row', as
   showCalculator(server, '/calculator?amount=100000&lumps=2026-05-01:1000,:,2026-05-15:200000')
 
   const refusal = await screen.findByText('Only ₹1,05,000 owed on 15 May', {}, { timeout: 2000 })
-  expect(refusal.closest('.lump-sum')).toBe(field('Lump sum 3 date').closest('.lump-sum'))
+  expect(refusal.closest('.lump-sum')).toBe(field('Lump Sum 3 date').closest('.lump-sum'))
   expect(screen.queryByText('Total interest earned')).toBeNull()
 })
 

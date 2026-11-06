@@ -43,3 +43,36 @@ export const formatRate = (bps: number) => `${bps / 100}%`
 export const describeTerms = (terms: Terms) =>
   `${formatRate(terms.monthly_rate_bps)} a month · ${INTEREST_MODES[terms.interest_mode]} · ` +
   `Part-Month Rule: ${PART_MONTH_RULES[terms.part_month_rule]}`
+
+/** `value` if it is one of `choices`' keys (a URL can be edited by hand), else `fallback`. */
+export function oneOf<Key extends string>(
+  choices: Record<Key, string>,
+  value: string | null,
+  fallback: Key,
+): Key {
+  return value !== null && value in choices ? (value as Key) : fallback
+}
+
+/** Terms kept in a URL under `rate`, `mode` and `rule` (each followed by `suffix`); none
+ *  without a rate. */
+export function draftFromParams(params: URLSearchParams, suffix = ''): TermsDraft | null {
+  const rate = params.get(`rate${suffix}`)
+  return rate === null
+    ? null
+    : {
+        ratePercent: rate,
+        interest_mode: oneOf(INTEREST_MODES, params.get(`mode${suffix}`), 'simple'),
+        part_month_rule: oneOf(PART_MONTH_RULES, params.get(`rule${suffix}`), 'full_month'),
+      }
+}
+
+/** Terms as a URL keeps them (see draftFromParams); with none, each is removed. */
+export function draftParams(draft: TermsDraft, suffix?: string): Record<string, string>
+export function draftParams(draft: TermsDraft | null, suffix?: string): Record<string, string | null>
+export function draftParams(draft: TermsDraft | null, suffix = '') {
+  return {
+    [`rate${suffix}`]: draft?.ratePercent ?? null,
+    [`mode${suffix}`]: draft?.interest_mode ?? null,
+    [`rule${suffix}`]: draft?.part_month_rule ?? null,
+  }
+}

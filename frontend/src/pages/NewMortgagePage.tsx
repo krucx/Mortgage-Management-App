@@ -4,14 +4,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   PURITIES,
   type Customer,
-  type InterestMode,
   type Mortgage,
   type MortgageIn,
   type NewMortgagePreview,
-  type PartMonthRule,
   type PaymentMethod,
   type Purity,
-  type Terms,
 } from '../api'
 import { NewMortgageForecast } from '../components/ChangeForecasts'
 import { CustomerChooser } from '../components/CustomerChooser'
@@ -30,6 +27,7 @@ import { previewQuery } from '../components/usePreview'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { WeightFields } from '../components/WeightFields'
 import { formatDate, todayIso } from '../format'
+import { carriedIn, type Carried } from '../lendThis'
 import { formatINR, rupeesToPaise } from '../money'
 import {
   addMortgagePhoto,
@@ -41,38 +39,8 @@ import {
   suggestedNameQuery,
 } from '../requests'
 import { STALE_AFTER, useLedgerChange, useServerState } from '../serverState'
-import { formatRate, fromDraft, INTEREST_MODES, PART_MONTH_RULES, toDraft } from '../terms'
+import { formatRate, fromDraft, INTEREST_MODES, toDraft } from '../terms'
 import { gramsToMg } from '../weight'
-
-/** What a Simulation on the Calculator carries into a new Mortgage ("Lend this"): the
- *  amount, start date and Terms, each to start the form from. */
-interface Carried {
-  amount: string // rupees
-  start: string
-  terms: Terms | null
-}
-
-function carriedIn(params: URLSearchParams): Carried {
-  const rate = params.get('rate')
-  const mode = params.get('mode')
-  const rule = params.get('rule')
-  return {
-    amount: params.get('amount') ?? '',
-    start: params.get('start') ?? todayIso(),
-    terms:
-      rate !== null &&
-      mode !== null &&
-      mode in INTEREST_MODES &&
-      rule !== null &&
-      rule in PART_MONTH_RULES
-        ? fromDraft({
-            ratePercent: rate,
-            interest_mode: mode as InterestMode,
-            part_month_rule: rule as PartMonthRule,
-          })
-        : null,
-  }
-}
 
 /**
  * Create a Mortgage: pick (or create) the Customer, see their Active Mortgages,

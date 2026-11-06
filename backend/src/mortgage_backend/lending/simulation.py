@@ -69,11 +69,11 @@ class SimulationIn(BaseModel):
                 f"Closed on must be at most {MAX_YEARS} years after the start date"
             )
         if any(lump.on < self.start_date for lump in self.lump_sums):
-            raise ValueError("A lump sum must be on or after the start date")
+            raise ValueError("A Lump Sum must be on or after the start date")
         return self
 
     def allocations(self) -> list[Allocation]:
-        """The lump sums by Closed on, each as a Payment numbered by its place."""
+        """The Lump Sums by Closed on, each as a Payment numbered by its place."""
         return [
             Allocation(on=lump.on, amount=lump.amount, payment_id=n)
             for n, lump in enumerate(self.lump_sums)
@@ -123,7 +123,7 @@ class Simulation(BaseModel):
     # When the plan pays everything off, within MAX_YEARS of the start; with no plan, None
     paid_off_on: date | None
     lump_sums: list[PlannedLumpSum]  # as asked, each with whether it was ignored
-    # for the graph: the start, each Accrual Date and lump sum, Closed on; up to the
+    # for the graph: the start, each Accrual Date and Lump Sum, Closed on; up to the
     # day it is paid off, if within the span
     points: list[SimulatedPoint]
     payments: list[SimulatedPayment]  # what the plan pays over the graph
@@ -134,7 +134,7 @@ def _graph_dates(
     simulation: SimulationIn, paid: list[Allocation], paid_off_on: date | None
 ) -> list[date]:
     """The start and each Accrual Date over the span (or up to Closed on, if later),
-    with Closed on and each lump sum paid; none after the day it is paid off."""
+    with Closed on and each Lump Sum paid; none after the day it is paid off."""
     start, closed_on = simulation.start_date, simulation.closed_on
     end = max(accrual_date(start, simulation.span_months), closed_on)
     if paid_off_on is not None:
@@ -163,7 +163,7 @@ def _paid_off(ledger: list[LedgerStep]) -> LedgerStep | None:
 
 
 class _Plan:
-    """The planned Payments as they would be paid: the lump sums by Closed on and up to
+    """The planned Payments as they would be paid: the Lump Sums by Closed on and up to
     the day they pay it off, with the monthly payment, replayed for MAX_YEARS."""
 
     def __init__(self, simulation: SimulationIn) -> None:
@@ -201,12 +201,12 @@ class _Plan:
         )
 
     def _skip_or_refuse(self, over: Overpayment) -> None:
-        """A lump sum larger than what is owed on its date is left out if the plan has
+        """A Lump Sum larger than what is owed on its date is left out if the plan has
         paid it off already, and otherwise refused, as a real Payment would be."""
         too_large = (over.on, over.payment_id)
         earlier = [a for a in self.paid if (a.on, a.payment_id) < too_large]
         paying_off = _paid_off(self._replay(over.on, earlier))
-        # Not counting a monthly payment later that day: it comes after lump sums.
+        # Not counting a monthly payment later that day: it comes after Lump Sums.
         if paying_off and (paying_off.on < over.on or paying_off.payment_id is not None):
             self.after_paid_off.add(over.payment_id)
             self.paid = [a for a in self.paid if a.payment_id != over.payment_id]
@@ -218,7 +218,7 @@ class _Plan:
                 "owed": over.outstanding,
                 "on": over.on.isoformat(),
                 "message": (
-                    f"The lump sum on {over.on:%d %b %Y} is more than the "
+                    f"The Lump Sum on {over.on:%d %b %Y} is more than the "
                     f"{format_inr(over.outstanding)} owed then"
                 ),
             },
@@ -307,7 +307,7 @@ router = APIRouter(prefix="/api")
 @router.post("/simulation")
 def simulate(simulation: SimulationIn) -> Simulation:
     """A Simulation closed on `closed_on`, or on the day its plan pays it off if
-    sooner; nothing is stored. A lump sum larger than what is owed on its date is
+    sooner; nothing is stored. A Lump Sum larger than what is owed on its date is
     refused, as a real Payment would be."""
     start = simulation.start_date
     plan = _Plan(simulation)
