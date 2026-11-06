@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>014 · How it runs on the Lender's laptop</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 014</p>
+<h1>How it runs on the Lender's laptop</h1>
+
+<h2>The problem this chapter solves</h2>
+<p>Everything until now ran on your machine, with you watching. The real app runs on one laptop you'll never see, owned by a Lender who isn't technical. It has to install from a double-click, start from an icon, update itself without losing a rupee of history, and keep the records in a folder that survives all of that. It runs two ways: in Docker where Docker works, and as one plain Python process on Windows PCs where it doesn't.</p>
+<p>Get this wrong and the failures are the worst kind: silent and far away. An update that dies halfway leaves the Lender with no app on a busy morning. A screen that caches too long hides an update for a year. And for you, the developer, one command typed without two variables runs unreleased code on real records and migrates them for good.</p>
+<p>This chapter is about running and debugging, not reading every line. You'll run the app in Docker and without it, side by side, on a copy of the sample book. For Windows, you'll read only the functions that decide things, and run their Pester tests in Docker. No Windows PC needed.</p>
+
+<h2>What you'll be able to do</h2>
+<ul>
+  <li>Run your own code in Docker on scratch data, and debug it with <code>ps</code>, <code>logs</code> and <code>exec</code>.</li>
+  <li>Serve the built screens from the backend, and check with <code>curl</code> that both modes cache the same way.</li>
+  <li>Explain what Setup does on a Windows PC, and run and read the scripts' Pester tests.</li>
+  <li>Explain how an update switches versions, and what it can and can't undo.</li>
+  <li>Explain how the installed app starts and updates the app through <code>mortgage-management://</code>, and why that link is narrow.</li>
+</ul>
+
+<h2>Before you start</h2>
+<ul>
+  <li><strong>The sample book, served.</strong> <a href="../002-find-your-way-and-run-it/04-serve-the-sample-book.html">Chapter 002, lesson 4</a>: <code>$BOOK</code> built by <code>book.py</code> and served by <code>serve.py</code> on 8765, the clock held on 19 Oct 2026. Lesson 1 copies its data folder, so it can be a book you've changed in earlier chapters; lesson 2 compares the two. If you'd rather start clean, rebuild it into a fresh <code>$BOOK</code>.</li>
+  <li><strong>Docker, your own code: the warning.</strong> <a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">Chapter 002, lesson 5</a> gave the dev compose command with <code>-p mortgage-dev</code> and <code>APP_PORT=8081</code>. This chapter explains it.</li>
+  <li><strong>The composition root and migrations.</strong> <a href="../010-platform-database-and-migrations/01-the-composition-root.html">Chapter 010, lessons 1</a>, <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">2</a> and <a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">5</a>: <code>create_app</code> and its arguments, where today comes from, and why every start migrates the database after a <code>-before-update</code> Backup (<a href="../reference/traps.html#t9">trap #9</a>).</li>
+  <li><strong>The installed app.</strong> <a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">Chapter 012, lesson 6</a>: the service worker, <code>StartGate</code> and <code>UpdateBanner</code>.</li>
+  <li><strong>Pester.</strong> <a href="../013-testing/01-every-check-and-how-to-run-it.html">Chapter 013, lesson 1</a>: how to run it in the <code>mm-pester</code> image.</li>
+</ul>
+<p>You need Docker Desktop running, plus uv and Node as before. Lessons 1 and 2 start containers and servers; lessons 3–5 only read code and run Pester. Nothing in this chapter changes your served book or the repo, except the check-yourself's one-line breaks, which you undo.</p>
+<div class="callout warn"><strong>Plans that changed.</strong> This chapter was planned (issue <a href="https://github.com/krucx/Mortgage-Management-App/issues/201">#201</a>) when Docker ran nginx in front of the backend. Since commit <code>3137302</code> (<a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>) it's one image and one service, <code>app</code>, and the backend serves the screens in both modes. So <code>frontend/Dockerfile</code>, <code>frontend/nginx.conf</code> and the gap filed as <a href="https://github.com/krucx/Mortgage-Management-App/issues/117">#117</a> are gone; a stopped backend in Docker refuses the connection instead of answering 502; and Pester has 65 tests, not 61. The lessons teach the code as it is, and say where the plan differed.</div>
+
+<h2>The map</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  subgraph D["With Docker  L1"]
+    DC["docker-compose.yml<br/>(+ .dev.yml)"] -->|"runs"| IM["one image: Dockerfile"]
+  end
+  subgraph N["Without Docker  L2, L3"]
+    RP["windows/run.ps1"] -->|"python -m uvicorn"| PY["backend in backend\.venv"]
+  end
+  IM -->|"SCREENS_DIR set"| SS["platform/screens.py<br/>API + screens, one port  L2"]
+  PY -->|"SCREENS_DIR set"| SS
+  SB["Setup.bat → setup.ps1 → install.ps1  L3"] -->|"docker: compose pull"| DC
+  SB -->|"local: uv sync"| RP
+  SB -->|"versions\X, app junction  L4"| VF["MortgageManagement\versions"]
+  SB -->|"Register-AppLink  L5"| LK["mortgage-management://<br/>link.ps1"]
+  PWA["installed app: StartGate, UpdateBanner"] -->|"start, update"| LK
+  LK -->|"Run.bat or Setup"| RP
+</pre>
+<figcaption>Two ways to run, one way to serve, and the Windows scripts that install, switch and start them. L1–L5 are the lessons.</figcaption>
+</figure>
+<p>Notice that both paths meet at <code>screens.py</code>: whichever way the app runs, one Python process answers the API and the screens on one port. That's why lesson 2 can compare the two modes with <code>curl</code> and find them identical.</p>
+
+<h2>Where it lives</h2>
+<table class="wide">
+<tr><th>Path</th><th>What it's responsible for</th><th>Lesson</th></tr>
+<tr><td><a href="../../../Dockerfile"><code>Dockerfile</code></a></td><td>The one image: the screens built in a Node stage, copied into the Python image with the backend</td><td>1</td></tr>
+<tr><td><a href="../../../docker-compose.yml"><code>docker-compose.yml</code></a>, <a href="../../../docker-compose.dev.yml"><code>docker-compose.dev.yml</code></a>, <a href="../../../.env.example"><code>.env.example</code></a></td><td>How the Lender runs the published image, and how you run your own build</td><td>1</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/platform/upload_limit.py"><code>platform/upload_limit.py</code></a></td><td>The 20 MB request cap, once nginx's, now the backend's in both modes</td><td>1</td></tr>
+<tr><td><a href="../../../backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a>, <a href="../../../backend/tests/test_screens.py"><code>tests/test_screens.py</code></a></td><td>The built screens served by the backend, with their caching; and the tests that pin it</td><td>2</td></tr>
+<tr><td><a href="../../../docs/sample-book/serve.py"><code>docs/sample-book/serve.py</code></a></td><td>The sample book served without Docker, the clock on 19 Oct</td><td>2</td></tr>
+<tr><td><a href="../../../windows/Setup.bat"><code>windows/Setup.bat</code></a>, <a href="../../../windows/setup.ps1"><code>setup.ps1</code></a></td><td>The double-click; gets a version's code into a folder of its own and runs its install</td><td>3</td></tr>
+<tr><td><a href="../../../windows/install.ps1"><code>windows/install.ps1</code></a></td><td>Docker or local, the <code>.env</code>, installing, the switch between versions, the shortcut and the link</td><td>3, 4</td></tr>
+<tr><td><a href="../../../windows/common.ps1"><code>windows/common.ps1</code></a></td><td>The shared decisions: mode, <code>.env</code> text, the junction, Compose's project and images, the link's registry keys</td><td>3, 4, 5</td></tr>
+<tr><td><a href="../../../windows/Run.bat"><code>windows/Run.bat</code></a>, <a href="../../../windows/run.ps1"><code>run.ps1</code></a></td><td>Starting the app the way <code>.env</code> says (the Desktop shortcut)</td><td>3</td></tr>
+<tr><td><a href="../../../windows/Uninstall.bat"><code>windows/Uninstall.bat</code></a>, <a href="../../../windows/uninstall.ps1"><code>uninstall.ps1</code></a></td><td>Removing the app, keeping its latest Backup first</td><td>3</td></tr>
+<tr><td><a href="../../../windows/link.ps1"><code>windows/link.ps1</code></a></td><td>Opening <code>mortgage-management://start</code> and <code>update</code>, and nothing else</td><td>5, 99</td></tr>
+<tr><td><a href="../../../windows/tests/"><code>windows/tests/</code></a></td><td><code>Launcher.Tests.ps1</code> (55 tests) and <code>Uninstall.Tests.ps1</code> (10): every decision above</td><td>3, 4, 5, 99</td></tr>
+<tr><td><a href="../../../.github/workflows/test.yml"><code>.github/workflows/test.yml</code></a></td><td>The <code>image</code> job (the image starts and caches right), <code>pages</code> (<code>docs/Setup.bat</code> is <code>windows/Setup.bat</code>) and <code>windows</code> (Pester, then install, update and uninstall on a real Windows machine)</td><td>1, 3, 4</td></tr>
+</table>
+<p class="aside">Named here but taught elsewhere: building the ready-built zip, cutting a release, <code>platform/updates.py</code>, and making and restoring Backups (chapter 015); <code>StartGate</code> and <code>UpdateBanner</code> in full (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>); how migrations run on start (<a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">chapter 010, lesson 5</a>).</p>
+
+<h2>Lessons</h2>
+<ol class="lessons-list">
+  <li><a href="01-the-app-in-docker.html">The app in Docker</a><span class="sum">One image, one service: your build on a copy of the book, on 8081. Debug with <code>ps</code>, <code>logs</code>, <code>exec</code>; watch Compose refuse, or quietly take <code>.env</code>'s folders, without the two variables.</span></li>
+  <li><a href="02-without-docker-the-backend-serves-the-screens.html">Without Docker: the backend serves the screens</a><span class="sum"><code>screens.py</code>'s twenty lines, <code>serve.py</code> beside Docker, the same headers from both; what <code>test_screens.py</code> pins; a stopped backend.</span></li>
+  <li><a href="03-setup-on-windows.html">Setup on Windows</a><span class="sum">CI's <code>windows</code> job as the story of one install: the code fetched, its own install run, the <code>.env</code>, <code>uv sync</code>, <code>run.ps1</code>. 65 Pester tests, run in Docker. ASCII only.</span></li>
+  <li><a href="04-each-version-in-its-own-folder.html">Each version in its own folder</a><span class="sum">Arjun's Tuesday update: the new version beside the old, the junction moved last, the old one started again on failure, and the Backup Setup names but won't restore.</span></li>
+  <li><a href="05-the-mortgage-management-link.html">The mortgage-management:// link</a><span class="sum">Meera's payment day: Start on the installed app runs <code>link.ps1</code>, which takes two actions and nothing else, gated twice.</span></li>
+  <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">Eight questions; then loosen the link's regex and see which one of 65 tests notices, and break <code>screens.py</code>'s caching rule.</span></li>
+</ol>
+
+<footer>
+  <p>Written against commit <code>36d403e</code>. Every command output, header, count and failure came from <a href="scripts/run_throughs.sh"><code>scripts/run_throughs.sh</code></a>, on 6 Nov 2026. It builds a fresh sample book in a temp folder, runs the dev image on a copy (under its own image name, so an existing <code>:dev</code> is never retagged) beside <code>serve.py</code>, runs Pester, and makes the check-yourself breaks on copies of <code>windows/</code> and <code>backend/</code>, so your clone is never touched. Run it from the repo root with <code>sh Documentation/onboarding/014-how-it-runs-on-the-lenders-laptop/scripts/run_throughs.sh</code>. Docker's figures follow the real today, so yours will differ by the days since.</p>
+  <p>Anything unclear? Ask an agent in this repo to explain it: a Compose error, a header, a Pester test, or what a script does on a PC you don't have. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
+  <p><a href="../index.html">Course home</a> · Previous: <a href="../013-testing/index.html">chapter 013</a> · Next: chapter 015, Releases, updates and Backups (coming; see the <a href="../SYLLABUS.md">syllabus</a>)</p>
+</footer>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

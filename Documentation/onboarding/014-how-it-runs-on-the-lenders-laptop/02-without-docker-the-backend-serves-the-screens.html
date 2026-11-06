@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.2 · Without Docker: the backend serves the screens</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 014 · Lesson 2</p>
+<h1>Without Docker: the backend serves the screens</h1>
+<p class="lede">Some Lenders' PCs can't run Docker. There the app is one Python process that serves the API and the built screens from the same port. Since ADR 0013, Docker runs that same process too. This lesson shows the twenty lines that do it, and has you check, with <code>curl</code>, that both ways cache alike.</p>
+
+<div class="callout win"><strong>By the end</strong> you can serve the built screens from the backend, and check that both modes cache the same way.</div>
+
+<h2>The problem</h2>
+<p>Docker Desktop needs virtualisation switched on, a recent Windows, and often admin rights to install. On some PCs it never works. The app still has to run there, from one double-click, with nothing a Lender can't install.</p>
+<p>The screens are a React app: <code>npm run build</code> turns them into plain files in <code>frontend/dist</code> (an <code>index.html</code>, hashed scripts in <code>assets/</code>, the service worker <code>sw.js</code>, the manifest). Something has to send those files to the browser, and send <code>/api/…</code> to the backend. In development that's Vite (<a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">chapter 002, lesson 5</a>). On the Lender's PC it used to be <code>vite preview</code>, which meant Node.js and some 220 MB of <code>node_modules</code> on the laptop, installed through <code>winget</code>, the step that most often failed (<a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a>).</p>
+<p>And whatever serves the files decides how the browser caches them. Get that wrong and the installed app keeps showing last month's screens after an update (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>).</p>
+
+<h2>The idea</h2>
+<p><strong>The backend serves the built screens itself, at every path that isn't <code>/api</code>, when it's told where they are (<code>SCREENS_DIR</code>).</strong> One process, one origin, nothing to proxy, no Node.js. Pages and the service worker are sent "check every time"; the hashed files "keep a year". Docker's image sets <code>SCREENS_DIR</code> too, so both modes serve the app with the same code (<a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>).</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  R["GET path"] --> A{"an /api route<br/>matches?"}
+  A -->|"yes"| API["the route answers"]
+  A -->|"no"| S["screen(path)<br/>the catch-all, added last"]
+  S --> P{"path is api<br/>or api/…?"}
+  P -->|"yes"| N1["404 Not Found"]
+  P -->|"no"| F{"a file in<br/>SCREENS_DIR?"}
+  F -->|"yes, in assets/"| K["the file<br/>public, max-age=31536000, immutable"]
+  F -->|"yes, anything else"| C["the file<br/>no-cache"]
+  F -->|"no, under assets/"| N2["404 Not Found"]
+  F -->|"no"| I["index.html, no-cache<br/>(the app finds its page from the path)"]
+</pre>
+<figcaption>Every request that no API route takes ends in one of four answers.</figcaption>
+</figure>
+<p>Notice the two 404 branches. Without them, a typo'd API path or a missing script would get <code>index.html</code> with a 200, and the frontend would try to parse a web page as JSON or JavaScript.</p>
+
+<h2>The code</h2>
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a> · the two headers · lines 11–14</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/screens.py"><code>11  # Checked for a new version every time: the pages, the service worker, the manifest.
+12  NO_CACHE = "no-cache"
+13  # Built files carry a hash in their names, so they never change.
+14  IMMUTABLE = "public, max-age=31536000, immutable"
+</code></pre>
+</figure>
+<p><code>no-cache</code> doesn't mean "don't cache". It means "you may keep it, but ask me before using it", so the browser sends a cheap conditional request and gets the new <code>index.html</code> the moment there is one. <code>immutable</code> with a year's <code>max-age</code> means "never ask again". That's safe only because Vite names each built script after a hash of its contents (<code>index-DJTOgnFd.js</code>): a changed script is a new name, which the new <code>index.html</code> points at. (<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control">MDN: Cache-Control</a>.)</p>
+
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a> · <code>serve_screens()</code> · lines 23–42</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/screens.py"><code>23  def serve_screens(app: FastAPI, screens_dir: Path) -&gt; None:
+27      root = screens_dir.resolve()
+29      @app.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)   ①
+30      def screen(path: str) -&gt; FileResponse:
+31          if path == "api" or path.startswith("api/"):
+32              raise HTTPException(status_code=404, detail="Not Found")                  ②
+33          file = (root / path).resolve()
+34          if path and file.is_file() and file.is_relative_to(root):                    ③
+35              kept = path.startswith("assets/")  ◀
+36              media_type = "application/manifest+json" if file.suffix == ".webmanifest" else None
+37              return FileResponse(
+38                  file, media_type=media_type, headers={"Cache-Control": IMMUTABLE if kept else NO_CACHE}
+39              )
+40          if path.startswith("assets/"):
+41              raise HTTPException(status_code=404, detail="Not Found")
+42          return FileResponse(root / "index.html", headers={"Cache-Control": NO_CACHE})  ④
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>{path:path}</code> is a Starlette path parameter that matches the rest of the URL, slashes included. <code>HEAD</code> too, so <code>curl -I</code> works. <code>include_in_schema=False</code> keeps it out of <code>openapi.json</code>, and so out of the frontend's generated types (<a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011, lesson 1</a>).</li>
+  <li>An unknown <code>/api/…</code> path falls through to here (no API route took it). It must stay a JSON 404, the same answer FastAPI gives without screens.</li>
+  <li><code>resolve()</code> turns <code>../</code> into a real path, and <code>is_relative_to(root)</code> refuses anything that ends up outside the screens folder. Checked: with a <code>secret.txt</code> beside the folder, <code>/../secret.txt</code>, <code>/..%2Fsecret.txt</code> and <code>/%2E%2E/secret.txt</code> all got the app's <code>index.html</code>, never the file.</li>
+  <li>Any other path is a page of the app (<code>/mortgages/2</code>, <code>/payments/new</code>). The browser gets <code>index.html</code>, and React's router reads the path and draws that page (<a href="../012-frontend-pages-and-the-pwa/01-the-shell-and-a-read-page.html">chapter 012, lesson 1</a>).</li>
+</ol>
+<p>Line 35 is the whole caching policy: under <code>assets/</code> kept a year, everything else checked every time. That "everything else" includes <code>sw.js</code>, <code>registerSW.js</code>, the <code>workbox-*.js</code> runtime and <code>manifest.webmanifest</code>, which sit at the top of <code>dist/</code>. The check-yourself page breaks this line.</p>
+
+<figure class="snippet">
+<figcaption><a href="../../../backend/src/mortgage_backend/main.py"><code>main.py</code></a> · end of <code>create_app()</code>, and the module's app · lines 139–150, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>139      if screens_dir is not None:
+140          serve_screens(app, screens_dir)  # last, so it never answers for the API  ◀
+141      return app
+⋮
+144  app = create_app(
+145      database_url_from_env(),
+146      backup_dir=backup_dir_from_env(),
+148      screens_dir=screens_dir_from_env(),     # SCREENS_DIR, or None
+150  )
+</code></pre>
+</figure>
+<p>Starlette tries routes in the order they were added, so the catch-all goes in after every <code>include_router</code>. Added first, it would answer <code>/api/customers</code> with a 404. Without <code>SCREENS_DIR</code> (as in <code>uvicorn --reload</code> during development, or every test but <code>test_screens.py</code>), there's no catch-all and only the API is served. You met the rest of <code>create_app</code> in <a href="../010-platform-database-and-migrations/01-the-composition-root.html">chapter 010, lesson 1</a>.</p>
+<p>Three places set the screens folder: the image (<code>ENV SCREENS_DIR=/app/screens</code>, lesson 1), <code>windows/run.ps1</code> (<code>$env:SCREENS_DIR = $screens</code>, lesson 3), and <code>serve.py</code>, which passes it straight in:</p>
+
+<figure class="snippet">
+<figcaption><a href="../../../docs/sample-book/serve.py"><code>docs/sample-book/serve.py</code></a> · lines 24–31</figcaption>
+<pre data-file="docs/sample-book/serve.py"><code>24      app = create_app(
+25          f"sqlite:///{folder / 'data' / 'mortgage.db'}",
+26          today=lambda: THE_DAY,
+27          now=lambda: datetime.combine(THE_DAY, time(11, 0)),
+28          backup_dir=folder / "backups",
+29          screens_dir=Path(__file__).resolve().parents[2] / "frontend" / "dist",  ◀
+30      )
+31      uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+</code></pre>
+</figure>
+<p>So you've been using "without Docker" mode since chapter 002: <code>serve.py</code> <em>is</em> it, with the clock held on 19 Oct.</p>
+
+<h2>Run-through: the same headers, both ways</h2>
+<p>Keep lesson 1's Docker copy running on 8081. Rebuild the screens (<code>cd frontend &amp;&amp; npm run build</code>) and serve the book itself on 8765 (<code>cd backend &amp;&amp; uv run python ../docs/sample-book/serve.py "$BOOK"</code>). Then ask each for the same paths, headers only:</p>
+<pre><code>for port in 8765 8081; do
+  curl -sI http://127.0.0.1:$port/sw.js | grep -i -E '^HTTP|cache-control|content-type'
+done</code></pre>
+<p>Do the same for <code>/</code>, <code>/mortgages/2</code>, <code>/manifest.webmanifest</code>, and one hashed script: <code>curl -s http://127.0.0.1:8765/ | grep -o '/assets/[^"]*\.js' | head -n 1</code> finds its name.</p>
+<table class="steps">
+<tr><th>Path</th><th><code>serve.py</code> :8765</th><th>Docker :8081</th></tr>
+<tr><td><code>/</code></td><td>200 · <code>no-cache</code> · text/html</td><td>200 · <code>no-cache</code> · text/html</td></tr>
+<tr><td><code>/mortgages/2</code></td><td>200 · <code>no-cache</code> · text/html</td><td>200 · <code>no-cache</code> · text/html</td></tr>
+<tr><td><code>/sw.js</code></td><td>200 · <code>no-cache</code> · text/javascript</td><td>200 · <code>no-cache</code> · text/javascript</td></tr>
+<tr><td><code>/registerSW.js</code></td><td>200 · <code>no-cache</code> · text/javascript</td><td>200 · <code>no-cache</code> · text/javascript</td></tr>
+<tr><td><code>/manifest.webmanifest</code></td><td>200 · <code>no-cache</code> · application/manifest+json</td><td>200 · <code>no-cache</code> · application/manifest+json</td></tr>
+<tr class="changed"><td><code>/assets/index-DJTOgnFd.js</code></td><td>200 · <code>public, max-age=31536000, immutable</code></td><td>200 · <code>public, max-age=31536000, immutable</code></td></tr>
+<tr><td><code>/assets/missing.js</code></td><td>404 · application/json</td><td>404 · application/json</td></tr>
+<tr><td><code>/api/no-such-thing</code></td><td>404 · application/json</td><td>404 · application/json</td></tr>
+</table>
+<p class="cite">Output from <code>scripts/run_throughs.sh</code>, section L2, at commit <code>36d403e</code>.</p>
+<p>They match, row for row, because it's the same function answering. Note the highlighted row too: Docker's image built its screens in its own Node stage, your clone built them with your Node, and both index pages name the same <code>index-DJTOgnFd.js</code>. Same source, same hash. (If yours differ, your <code>frontend/dist</code> is from another commit: rebuild it.)</p>
+
+<h2>Nuances</h2>
+
+<h3>Trap #13: what still has to agree</h3>
+<p>Before ADR 0013, Docker's screens came from nginx, whose <code>add_header</code> lines had to match <code>screens.py</code> by hand, and no test compared them. That gap was filed while planning this chapter as <a href="https://github.com/krucx/Mortgage-Management-App/issues/117">#117</a>; it closed when nginx went. The plan for this lesson was to show that gap. It no longer exists: <code>screens.py</code> is the only place the headers are set.</p>
+<p>What's left of <a href="../reference/traps.html#t13">trap #13</a> is the agreement between <em>two caches</em>: the browser's HTTP cache, which follows these headers, and the service worker's own, set in <code>vite.config.ts</code> (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>). If <code>sw.js</code> were kept a year, the browser would never fetch the new service worker, and the new precache list inside it, until the year was up. <a href="../../../backend/tests/test_screens.py"><code>tests/test_screens.py</code></a> pins the headers:</p>
+<table class="wide">
+<tr><th>Test</th><th>Pins</th></tr>
+<tr><td><code>test_the_app_opens_at_any_of_its_paths_checked_for_a_new_version_each_time</code></td><td><code>/</code>, <code>/mortgages/7</code>, <code>/payments/new</code> get <code>index.html</code>, <code>no-cache</code></td></tr>
+<tr><td><code>test_built_files_are_kept_as_they_never_change</code></td><td><code>/assets/index-3f9a1c.js</code> immutable</td></tr>
+<tr><td><code>test_the_service_worker_and_manifest_are_always_checked</code></td><td><code>/sw.js</code> and <code>/manifest.webmanifest</code> <code>no-cache</code></td></tr>
+<tr><td><code>test_the_manifest_has_its_own_type</code></td><td><code>application/manifest+json</code>, set by hand on line 36 rather than left to Python's guess, which comes from the machine (on Windows, partly from the registry)</td></tr>
+<tr><td><code>test_the_api_is_never_answered_with_the_app</code></td><td><code>/api/customers</code> 200, <code>/api/no-such-thing</code> a JSON 404</td></tr>
+<tr><td><code>test_without_built_screens_only_the_api_is_served</code></td><td>no <code>screens_dir</code>, no <code>/</code></td></tr>
+<tr><td><code>test_a_page_can_be_asked_for_its_headers_alone</code></td><td><code>HEAD</code> works</td></tr>
+</table>
+<p>Ten tests in all (two are parametrized over three and two paths). Each builds a tiny fake <code>dist/</code> in <code>tmp_path</code>, so none needs <code>npm run build</code>. Not pinned: <code>registerSW.js</code> and <code>workbox-*.js</code>. Nothing in the fake <code>dist/</code> stands for them.</p>
+
+<h3>A stopped backend</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> stop each one (the variables, then <code>docker compose -p mortgage-dev -f … -f … stop app</code>; and Ctrl-C <code>serve.py</code>), then <code>curl -sS http://127.0.0.1:&lt;port&gt;/api/customers</code>. What does each answer?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>Nothing, both times:</p>
+    <pre><code>curl: (7) Failed to connect to 127.0.0.1 port 8081 after 0 ms: Couldn't connect to server
+curl: (7) Failed to connect to 127.0.0.1 port 8765 after 0 ms: Couldn't connect to server</code></pre>
+    <p>The plan for this lesson expected a <strong>502</strong> from Docker, because nginx stayed up when the backend stopped and answered "Bad Gateway" for it. With one container there's no one left to answer. The 502 lives on in development only: Vite's proxy answers 502 when nothing is on port 8000.</p>
+    <p><code>StartGate</code> treats both as stopped: a failed <code>fetch</code>, or any status of 500 or more (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>). <code>StartGate.test.tsx</code>'s "a 502 from a proxy in front of a stopped backend counts as stopped" pins the second, since <a href="https://github.com/krucx/Mortgage-Management-App/issues/116">#116</a> was closed (<a href="../013-testing/05-finding-what-no-test-pins.html">chapter 013, lesson 5</a>). It still matters, for Vite, and for a Lender whose PWA was installed from an older version.</p>
+  </div>
+</div>
+
+<h3>The rest, briefly</h3>
+<ul>
+  <li><strong><code>127.0.0.1</code>, not <code>localhost</code>.</strong> On Windows (and macOS) <code>localhost</code> may resolve to IPv6 <code>::1</code> first, where uvicorn bound to <code>127.0.0.1</code> isn't listening. The Windows scripts probe <code>127.0.0.1</code> for that reason (<code>run.ps1</code> line 51 says so). Docker publishes on <code>127.0.0.1</code> too (lesson 1).</li>
+  <li><strong>Why not something else?</strong> ADR 0010 rejected shipping <code>node_modules</code> with <code>vite preview</code> (220 MB, per platform, still Node), a tiny <code>node:http</code> server (still Node, plus a hand-written <code>/api</code> proxy carrying 20 MB uploads), a bundled Caddy or nginx for Windows (a binary to update and get past SmartScreen), and Python's <code>http.server</code> or PowerShell's <code>HttpListener</code> (another process and another proxy). The backend was already there and already on the right port.</li>
+  <li><strong>Without Docker, the screens must be built.</strong> A release's ready-built download has <code>frontend/dist</code> in it; <code>run.ps1</code> refuses to start without <code>frontend\dist\index.html</code> ("The app screens are not built: run Setup again."). Lesson 3 shows where it comes from.</li>
+</ul>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">Why is <code>serve_screens</code> called after every <code>include_router</code>?</p>
+  <button class="opt">FastAPI needs the screens' folder to exist before routes</button>
+  <button class="opt">So the catch-all is left out of the OpenAPI schema</button>
+  <button class="opt">Routes match in order, so the catch-all would take the API's</button>
+  <div class="why">Starlette tries routes in the order they were added; <code>/{path:path}</code> matches everything, so added first it would answer every API path. Leaving it out of the schema is <code>include_in_schema=False</code>'s job, and the folder is only read per request.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Why may <code>/assets/index-DJTOgnFd.js</code> be kept a year, but not <code>/sw.js</code>?</p>
+  <button class="opt">Its name changes when its contents do; <code>sw.js</code>'s never does</button>
+  <button class="opt">Scripts under <code>assets/</code> are never changed by a release</button>
+  <button class="opt">The service worker is too large to keep in the browser's cache</button>
+  <div class="why">Vite puts a hash of the contents in each built file's name, so a new version is a new name, which the always-checked <code>index.html</code> points at. <code>sw.js</code> keeps its name across releases, so it must be checked each time. Releases do change <code>assets/</code>, by adding new names.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">With the backend stopped, what does <code>curl /api/customers</code> get on the Docker port today?</p>
+  <button class="opt">502 Bad Gateway, from the proxy in front of it</button>
+  <button class="opt">No connection: nothing is listening on the port</button>
+  <button class="opt">The cached <code>index.html</code>, from the service worker</button>
+  <div class="why">Since ADR 0013 the container <em>is</em> the backend, so stopping it leaves nothing on the port. The 502 came from nginx, before; now only Vite's dev proxy gives one. <code>curl</code> has no service worker; and the service worker never caches <code>/api/</code>.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a> for its rejected options, then <a href="../../../backend/tests/test_screens.py"><code>tests/test_screens.py</code></a> whole (75 lines). It's the pattern for testing anything <code>create_app</code> takes as an argument: build the input in <code>tmp_path</code>, pass it in, ask with <code>TestClient</code>.</p>
+
+<nav class="lessons">
+  <a href="01-the-app-in-docker.html">← The app in Docker</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="03-setup-on-windows.html">Setup on Windows →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.1 · The app in Docker</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 014 · Lesson 1</p>
+<h1>The app in Docker</h1>
+<p class="lede">On most laptops the app runs in Docker: one image, one Compose service, the Lender's data in two folders outside it. This lesson has you run your own code that way, on a copy of the sample book, and look inside when something is off.</p>
+
+<div class="callout win"><strong>By the end</strong> you can run your own code in Docker on scratch data, and debug it with <code>ps</code>, <code>logs</code> and <code>exec</code>.</div>
+
+<h2>The problem</h2>
+<p>The <dfn class="term" title="The person who runs the business and uses the app: lends against jewellery, records Payments, follows up."><a href="../reference/glossary.html#lender">Lender</a></dfn> has one laptop. It could be a Mac or a Windows PC. Nobody on it knows what Python, Node.js or a virtual environment is, and nobody should have to. The app has to install as one thing, start as one thing, update as one thing, and keep the Lender's records safe through all of it.</p>
+<p>The obvious design, "install Python and Node and run the two servers", fails here three ways. It needs a different installer per operating system. Each install drifts (a different Python, a package that failed halfway). And the records end up wherever the code happens to be, so replacing the code risks replacing them.</p>
+<p>You, the developer, have the opposite problem. You need to run <em>your</em> code exactly the way the Lender runs the released code, and you must never point it at real records by accident.</p>
+
+<h2>The idea</h2>
+<p><strong>Ship the app as one Docker image, and run it with Docker Compose.</strong> The image holds the backend, Python, every package and the built screens. Compose starts it with the database folder and the <dfn class="term" title="A copy of all the Lender's data (the database and photos) kept in a folder outside the app, from which everything can be restored."><a href="../reference/glossary.html#backup">Backup</a></dfn> folder mounted from the laptop's own disk, so the records live outside the container and survive any update. The Lender's Compose file <em>pulls</em> the published image. A second, development file <em>builds</em> it from your folder instead (<a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a>, <a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>).</p>
+<p>Think of the image as a sealed appliance and the two folders as the Lender's filing cabinet beside it. Swap the appliance for a newer model and the cabinet stays exactly where it was.</p>
+
+<div class="callout warn"><strong>A correction to the plan.</strong> This chapter was planned (issue <a href="https://github.com/krucx/Mortgage-Management-App/issues/202">#202</a>) when Docker ran <em>two</em> services: nginx serving the screens and passing <code>/api</code> to the backend, from <code>frontend/Dockerfile</code> and <code>frontend/nginx.conf</code>. Commit <code>3137302</code> (<a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>) replaced them with one image built by the root <code>Dockerfile</code>, and one service, <code>app</code>. Those files are gone. If you meet <code>backend</code>, <code>frontend</code> or nginx in an old issue or an old version's folder, that's what it means.</div>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  DF["Dockerfile"] -->|"stage 1: npm ci, npm run build"| SC["frontend/dist"]
+  SC -->|"copied to /app/screens"| IMG["image<br/>mortgage-management-app:dev"]
+  DF -->|"stage 2: uv sync, backend/src"| IMG
+  CY["docker-compose.yml<br/>+ docker-compose.dev.yml"] -->|"build, then run"| CT["container app<br/>uvicorn on :8000"]
+  IMG --> CT
+  CT -->|"bind mount /data"| D["DATA_DIR<br/>mortgage.db, photos"]
+  CT -->|"bind mount /backups"| B["BACKUP_DIR<br/>Backup zips"]
+  BR["browser"] -->|"127.0.0.1:APP_PORT"| CT
+</pre>
+<figcaption>One image, one container. The records are never inside it.</figcaption>
+</figure>
+<p>Notice that the only things that cross the container's wall are two folders and one port. Everything you'll debug in this lesson is one of those three.</p>
+
+<h2>The code</h2>
+<h3>The image</h3>
+<figure class="snippet">
+<figcaption><a href="../../../Dockerfile"><code>Dockerfile</code></a> · the screens stage · lines 7–12</figcaption>
+<pre data-file="Dockerfile"><code>7  FROM --platform=$BUILDPLATFORM node:24-alpine AS screens   ①
+8  WORKDIR /frontend
+9  COPY frontend/package.json frontend/package-lock.json ./
+10  RUN npm ci                                                   ②
+11  COPY frontend/ ./
+12  RUN npm run build
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>A <em>multi-stage build</em>: this stage exists only to produce files; nothing of Node ends up in the final image. <code>$BUILDPLATFORM</code> runs it on the building machine's own CPU. The built screens are the same bytes on every platform, so they're built once, never under slow arm64 emulation (<a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>).</li>
+  <li>The two package files are copied first, alone, so Docker can reuse this layer's <code>node_modules</code> until they change. Copying the rest after keeps a screen edit from reinstalling every package.</li>
+</ol>
+
+<figure class="snippet">
+<figcaption><a href="../../../Dockerfile"><code>Dockerfile</code></a> · the app stage · lines 14–36, trimmed</figcaption>
+<pre data-file="Dockerfile"><code>14  FROM python:3.13-slim
+16  COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /usr/local/bin/uv
+19  RUN apt-get update &amp;&amp; apt-get install -y --no-install-recommends zip \   ①
+25  COPY backend/pyproject.toml backend/uv.lock ./
+26  RUN uv sync --frozen --no-dev --no-install-project
+28  COPY backend/src ./src
+29  RUN uv sync --frozen --no-dev
+31  COPY --from=screens /frontend/dist ./screens                            ②
+33  ENV DATA_DIR=/data BACKUP_DIR=/backups SCREENS_DIR=/app/screens  ◀
+35  # Migrations run on app start.
+36  CMD ["uvicorn", "mortgage_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The <code>zip</code> program writes password-protected Backups. Without Docker there's no such program, which is why Backups are plain zips there (chapter 015).</li>
+  <li>The first stage's built screens land in <code>/app/screens</code>.</li>
+</ol>
+<p>Line 33 is the whole contract between the image and the backend: three environment variables. <code>DATA_DIR</code> and <code>BACKUP_DIR</code> are the two mount points; <code>SCREENS_DIR</code> tells the backend to serve the screens too (lesson 2). The backend reads them through <code>create_app</code>'s module-level call (<a href="../010-platform-database-and-migrations/01-the-composition-root.html">chapter 010, lesson 1</a>). Line 36 binds <code>0.0.0.0</code>: inside a container that's needed for the port to be reachable at all, and it's safe because of what Compose does next.</p>
+
+<h3>The Lender's Compose file</h3>
+<figure class="snippet">
+<figcaption><a href="../../../docker-compose.yml"><code>docker-compose.yml</code></a> · the whole service · lines 4–18</figcaption>
+<pre data-file="docker-compose.yml"><code>4  services:
+5    app:
+6      image: krucx11/mortgage-management-app:${APP_VERSION:-latest}   ①
+7      restart: unless-stopped
+8      environment:
+9        TZ: ${TZ:-Asia/Kolkata}                                        ②
+10        BACKUP_PASSWORD: ${BACKUP_PASSWORD:-}
+12        CHECK_FOR_UPDATES: "true"
+13      volumes:
+14        - ${DATA_DIR:?Set DATA_DIR in .env}:/data      ◀
+15        - ${BACKUP_DIR:?Set BACKUP_DIR in .env}:/backups
+16      ports:
+18        - "127.0.0.1:${APP_PORT:-8080}:8000"            ③
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The published image on Docker Hub. <code>${APP_VERSION:-latest}</code> is Compose's shell-style fallback: <code>APP_VERSION</code> if set and not empty, else <code>latest</code>.</li>
+  <li>The time zone decides every business date: when "today" changes, and so every Accrual Date and every day of Interest to Date.</li>
+  <li>Published on <code>127.0.0.1</code> only: reachable from this laptop, never from the café's Wi-Fi.</li>
+</ol>
+<p>Line 14's <code>${DATA_DIR:?message}</code> means "this variable is required: stop with this message if it's missing". Compose fills variables from your shell first and from a <code>.env</code> file beside the Compose file second. <a href="../../../.env.example"><code>.env.example</code></a> is the template the README tells the Lender to copy: <code>DATA_DIR</code>, <code>BACKUP_DIR</code>, <code>BACKUP_PASSWORD</code>, <code>TZ</code>, <code>APP_PORT</code> and <code>APP_VERSION</code>, each with a comment.</p>
+
+<h3>The development overlay</h3>
+<figure class="snippet">
+<figcaption><a href="../../../docker-compose.dev.yml"><code>docker-compose.dev.yml</code></a> · lines 4–10</figcaption>
+<pre data-file="docker-compose.dev.yml"><code>4  services:
+5    app:
+6      build: .                               ①
+7      image: mortgage-management-app:dev     ②
+8      pull_policy: build
+9      environment:
+10        CHECK_FOR_UPDATES: "false"  # a development build never offers an update
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Given a second <code>-f</code> file, Compose merges it over the first, key by key. This one adds a build from the repo root's <code>Dockerfile</code>.</li>
+  <li>…and gives the result its own name. Without line 7 the build would be tagged <code>krucx11/mortgage-management-app:latest</code>, quietly replacing the published image you'd pulled. <code>pull_policy: build</code> says never try to pull this name, always build it.</li>
+</ol>
+
+<h2>Run-through: your code, on a copy of the book</h2>
+<p>You'll run the dev build on a <strong>copy</strong> of your served sample book (<a href="../002-find-your-way-and-run-it/04-serve-the-sample-book.html">chapter 002, lesson 4</a>), so lesson 2 can compare it with the book itself. Like chapter 002, it uses its own project name (<code>-p mortgage-dev</code>) and port (8081), so it never touches a copy of the app already running from this folder on 8080. From the repo root:</p>
+<pre><code>export COPY=$(mktemp -d)
+cp -R "$BOOK/data" "$COPY/" &amp;&amp; mkdir "$COPY/backups"
+
+# Every compose command below starts with these three variables. Every one.
+DATA_DIR="$COPY/data" BACKUP_DIR="$COPY/backups" APP_PORT=8081 \
+  docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build</code></pre>
+<p>The first build takes a few minutes (it runs <code>npm ci</code> and <code>uv sync</code>); later ones reuse the cached layers and take seconds. Then look:</p>
+
+<table class="steps">
+<tr><th>Command (after the three variables and <code>docker compose -p mortgage-dev -f … -f …</code>)</th><th>What it showed</th><th>What it tells you</th></tr>
+<tr><td><code>ps</code></td><td><code>mortgage-dev-app-1  mortgage-management-app:dev  Up 17 seconds  127.0.0.1:8081-&gt;8000/tcp</code></td><td>Running, from your build, on 8081, on this laptop only</td></tr>
+<tr><td><code>logs app</code></td><td><code>Started server process [1]</code> … <code>Application startup complete.</code> … <code>Uvicorn running on http://0.0.0.0:8000</code></td><td>Migrations ran and the app started. A failed migration would stop here with a traceback</td></tr>
+<tr><td><code>exec app ls /data /backups</code></td><td><code>/backups: mortgage-backup-2026-11-06-2319.zip</code><br><code>/data: mortgage.db photos</code></td><td>The container sees the copy's files. A Backup is already there: taken at start-up, since the copy had none this week</td></tr>
+<tr><td><code>exec app date</code></td><td><code>Fri Nov  6 23:19:35 IST 2026</code></td><td>The container's clock, in <code>TZ</code>'s zone: this is the app's today</td></tr>
+<tr class="changed"><td><code>curl -s "http://127.0.0.1:8081/api/mortgages/2/outstanding-on-closure?on=2026-11-06"</code></td><td><code>"principal":8000000,"unpaid_interest":280000,"interest_to_date_days":28,"interest_to_date":149300,"total":8429300</code></td><td>Meera's chain owes ₹84,293, not the ₹83,333 of 19 Oct</td></tr>
+</table>
+<p class="cite">Output from <code>scripts/run_throughs.sh</code>, section L1, on 6 Nov 2026 at commit <code>36d403e</code>. Amounts in the API are in paise (₹1 = 100 paise). The script builds under its own image name, <code>mortgage-management-app:onboarding-check</code>, so <code>ps</code> there shows that; yours shows <code>:dev</code>. Your dates, times and figures follow your own today.</p>
+<p>The last row is the one to understand. <code>serve.py</code> holds the clock on 19 Oct 2026 (<a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">chapter 010, lesson 2</a>). The image runs the module-level <code>create_app</code>, whose today is the real one. So the same database, read 18 days later, has 18 more days of <dfn class="term" title="Interest charged pro-rata for the days since the last Accrual Date, owed if the Mortgage closes today."><a href="../reference/glossary.html#interest-to-date">Interest to Date</a></dfn>: the chain's 28 days since its 10 Oct Accrual Date come to ₹1,493. Open <code>http://localhost:8081/mortgages/2</code> and the screens say the same.</p>
+<p>Also note what that first <code>/api/</code> request did: <code>last_daily_run</code> in the copy's <code>config</code> table was <code>2026-10-19</code> before it and <code>2026-11-06</code> after. The day's jobs ran, as chapter 010 taught. A copy you serve in Docker is a copy that has lived through today.</p>
+
+<h3>When something's off</h3>
+<table class="wide">
+<tr><th>Symptom</th><th>Look with</th><th>Usually</th></tr>
+<tr><td>The page doesn't load at all</td><td><code>ps</code> (is it <code>Up</code>? on which port?)</td><td>Not started, exited, or you opened 8080 instead of 8081</td></tr>
+<tr><td>It started, then stopped</td><td><code>logs app</code></td><td>A migration failed, or the database is from a newer version ("from a newer version of the app")</td></tr>
+<tr><td>The figures are of the wrong book</td><td><code>exec app ls -la /data</code>, then <code>config</code> (it prints the resolved mounts)</td><td>A command ran without the variables and Compose took <code>.env</code>'s folders (below)</td></tr>
+<tr><td>Your change isn't there</td><td><code>ps</code>'s IMAGE column</td><td>You ran without the dev file, or without <code>--build</code> (below)</td></tr>
+</table>
+<p>To stop: the same three variables, then <code>docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml down</code>. <code>down</code> removes the container and its network, never the mounted folders.</p>
+
+<h2>Nuances</h2>
+
+<h3>Leaving the variables out</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> you rebuild after a screen change and, in a hurry, type <code>docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build</code> without <code>DATA_DIR</code> and <code>BACKUP_DIR</code>. What happens?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>It depends on whether there's a <code>.env</code> beside the Compose file. In a folder without one, Compose refuses before doing anything, with line 14's and 15's messages:</p>
+    <pre><code>error while interpolating services.app.volumes.[]: required variable DATA_DIR is missing a value: Set DATA_DIR in .env
+error while interpolating services.app.volumes.[]: required variable BACKUP_DIR is missing a value: Set BACKUP_DIR in .env</code></pre>
+    <p>With a <code>.env</code> there (the README's "Anywhere with Docker" has the Lender copy <code>.env.example</code> to one, and a developer who runs the app for real from their clone has one too), it says <em>nothing</em>. It takes <code>.env</code>'s folders and starts your unreleased build on them. <code>scripts/run_throughs.sh</code> checks this with <code>config</code>, which only prints: beside this repo's <code>.env</code>, both mounts resolved to "a folder from .env".</p>
+    <p>That's <a href="../reference/traps.html#t12">trap #12</a>'s second half, and why <a href="../reference/traps.html#t9">trap #9</a> follows from it: the app migrates whatever <code>DATA_DIR</code> it's given, on start, with no way back but a Backup (<a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">chapter 010, lesson 5</a>). <strong>Pass the scratch variables on every compose command</strong>, including <code>logs</code>, <code>exec</code>, <code>stop</code> and a rebuild of one service. Each one re-reads the configuration.</p>
+  </div>
+</div>
+
+<h3>Leaving the dev file out</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> after your dev build is running, you type the variables and plain <code>docker compose -p mortgage-dev up -d</code>, without <code>-f docker-compose.dev.yml</code>. What runs now?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>The published image, in place of yours. Compose sees the service's image change to <code>krucx11/mortgage-management-app:latest</code> and recreates the container:</p>
+    <pre><code> Container mortgage-dev-app-1 Recreated
+mortgage-dev-app-1 krucx11/mortgage-management-app:latest Up Less than a second</code></pre>
+    <p>And <code>latest</code> means <em>the latest you pulled</em>, not the latest released. On the machine this chapter was checked on, it was 3.4.0 while the code said 3.4.1, and because the plain file sets <code>CHECK_FOR_UPDATES</code> to <code>"true"</code>, <code>GET /api/update</code> answered <code>{"running":"3.4.0","available":{"version":"3.4.1",…}}</code>: the banner offered an update. Adding the dev file back (<code>up -d</code> with both files) put <code>mortgage-management-app:dev</code> back, answering <code>{"running":"3.4.1","available":null}</code>.</p>
+    <p>That's <a href="../reference/traps.html#t12">trap #12</a>'s first half. The dev build never replaced the pulled image (line 7's own name), so nothing was lost, but nothing of yours was running either.</p>
+  </div>
+</div>
+
+<h3>The rest, briefly</h3>
+<ul>
+  <li><strong><code>restart: unless-stopped</code></strong> brings the app back whenever Docker Desktop starts, unless someone stopped it. The Lender never starts it by hand. A container you <code>stop</code> stays stopped across a restart.</li>
+  <li><strong>The upload cap is in the backend now.</strong> nginx used to refuse bodies over 20 MB. Since one image, <a href="../../../backend/src/mortgage_backend/platform/upload_limit.py"><code>platform/upload_limit.py</code></a> does it, in both modes: a 21 MB photo got <code>{"detail":"The file is too large (over 20 MB)."}</code> with HTTP 413, and nothing was stored.</li>
+  <li><strong>Two projects can share the <code>:dev</code> name.</strong> The image name doesn't include the project. If this folder also runs the app for real from a dev build (project <code>mortgage-management-app</code>), your <code>--build</code> retags <code>mortgage-management-app:dev</code>. The running container keeps the image it started with; its next <code>up --build</code> rebuilds anyway.</li>
+  <li><strong>CI checks the image too.</strong> The <code>image</code> job in <a href="../../../.github/workflows/test.yml"><code>test.yml</code></a> builds it, runs it on empty folders, checks that <code>/</code> is <code>no-cache</code> and a hashed <code>/assets/</code> script is immutable, and that <code>/api/backups</code> answers. The release runs it first, so a broken image is never published (chapter 015).</li>
+</ul>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">Why does <code>docker-compose.dev.yml</code> give the image its own name?</p>
+  <button class="opt">So Docker Hub accepts the build without a login</button>
+  <button class="opt">So the build never replaces the image pulled from Docker Hub</button>
+  <button class="opt">So Compose runs it on a different port than the Lender's</button>
+  <div class="why">Without line 7, the build would take the plain file's name, <code>krucx11/mortgage-management-app:latest</code>, and overwrite the pulled image locally. Nothing here pushes to Docker Hub. The port comes from <code>APP_PORT</code>, not the image's name.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">The same copy of the book shows Meera's chain at ₹83,333 in <code>serve.py</code> and ₹84,293 in Docker. Why?</p>
+  <button class="opt">The Docker build has a newer interest rule than serve.py</button>
+  <button class="opt">Docker's <code>TZ</code> is India's, and serve.py uses UTC</button>
+  <button class="opt">serve.py holds today at 19 Oct; Docker's today is real</button>
+  <div class="why"><code>serve.py</code> passes <code>today=lambda: THE_DAY</code>; the image runs the module-level app, whose today is <code>date.today</code>. Eighteen more days of Interest to Date make the difference. Both run the same code, and a time zone moves the date by at most a day.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Where do the database and photos live while the app runs in Docker?</p>
+  <button class="opt">In the laptop's <code>DATA_DIR</code>, mounted into <code>/data</code></button>
+  <button class="opt">In the image, copied there by the Dockerfile's last stage</button>
+  <button class="opt">In a Docker volume that only the container can open</button>
+  <div class="why">Line 14 bind-mounts the host folder <code>DATA_DIR</code> at <code>/data</code>. The image holds code and screens only, so replacing it never touches the records (<a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a>). A named Docker volume would hide them from the Lender and their Backups.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a> whole (it's short), then the README's "Anywhere with Docker" and "Updating" sections, which are what the Lender follows. Then read the <code>image</code> job in <a href="../../../.github/workflows/test.yml"><code>.github/workflows/test.yml</code></a> from line 40: it's this lesson's run-through, written as CI.</p>
+
+<nav class="lessons">
+  <a href="index.html">← Chapter overview</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="02-without-docker-the-backend-serves-the-screens.html">Without Docker: the backend serves the screens →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

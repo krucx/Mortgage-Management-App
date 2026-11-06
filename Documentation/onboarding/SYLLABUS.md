@@ -17,7 +17,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 011 | [The frontend's data layer](https://github.com/krucx/Mortgage-Management-App/issues/182) | `011-the-frontends-data-layer/` | fetch, preview and propose a change from a page | written (87a96c7) |
 | 012 | [Frontend pages and the PWA](https://github.com/krucx/Mortgage-Management-App/issues/188) | `012-frontend-pages-and-the-pwa/` | build a page from existing components; explain the service worker, StartGate and UpdateBanner | written (2c5e561) |
 | 013 | [Testing](https://github.com/krucx/Mortgage-Management-App/issues/195) | `013-testing/` | write backend and frontend tests with the repo's fixtures, seeds and fakes; run the type checks and Pester | written (bda77f1) |
-| 014 | [How it runs on the Lender's laptop](https://github.com/krucx/Mortgage-Management-App/issues/201) | `014-how-it-runs-on-the-lenders-laptop/` | run and debug Docker, `screens.py` mode and the Windows installer | planned |
+| 014 | [How it runs on the Lender's laptop](https://github.com/krucx/Mortgage-Management-App/issues/201) | `014-how-it-runs-on-the-lenders-laptop/` | run and debug Docker, `screens.py` mode and the Windows installer | written (36d403e) |
 | 015 | [Releases, updates and Backups](https://github.com/krucx/Mortgage-Management-App/issues/207) | `015-releases-updates-and-backups/` | cut a release, explain updates and where Backups go | planned |
 | 016 | [Your first change](https://github.com/krucx/Mortgage-Management-App/issues/213) | `016-your-first-change/` | make one small change test-first through every layer, following the repo's workflow | planned |
 
@@ -115,6 +115,13 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 3. Below the API: seeds and pure tests ([#198](https://github.com/krucx/Mortgage-Management-App/issues/198))
 4. Frontend tests: fakeServer and showPage ([#199](https://github.com/krucx/Mortgage-Management-App/issues/199))
 5. Finding what no test pins ([#200](https://github.com/krucx/Mortgage-Management-App/issues/200))
+
+### 014 How it runs on the Lender's laptop (written)
+1. The app in Docker ([#202](https://github.com/krucx/Mortgage-Management-App/issues/202))
+2. Without Docker: the backend serves the screens ([#203](https://github.com/krucx/Mortgage-Management-App/issues/203))
+3. Setup on Windows ([#204](https://github.com/krucx/Mortgage-Management-App/issues/204))
+4. Each version in its own folder ([#205](https://github.com/krucx/Mortgage-Management-App/issues/205))
+5. The mortgage-management:// link ([#206](https://github.com/krucx/Mortgage-Management-App/issues/206))
 
 ## Reference sheets
 

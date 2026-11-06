@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.5 · The mortgage-management:// link</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 014 · Lesson 5</p>
+<h1>The <code>mortgage-management://</code> link</h1>
+<p class="lede">A web page can't start a program, but the Lender's installed app needs to start the backend, and to run Setup when there's an update. Setup gives it a way: a link Windows knows how to open. This lesson follows that link from a button to a script, and shows why it accepts so little.</p>
+
+<div class="callout win"><strong>By the end</strong> you can explain how the installed app starts and updates the app, and why the link is narrow.</div>
+
+<h2>The problem</h2>
+<p>It's Meera Sharma's payment day. The Lender switched the PC on this morning and tapped the Mortgage Management icon, the installed app (PWA) from <a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>. Without Docker nothing has started the backend: <code>run.ps1</code> runs only when someone opens the Desktop shortcut. The icon opens the cached screens, and they can't load a single figure.</p>
+<p><code>StartGate</code> notices and says "The app isn't running on this laptop." Telling the Lender to find the Desktop shortcut works, but they've learnt the icon, and "close this, open that" is where people get lost. The page itself should offer <strong>Start</strong>. But a page in a browser can't run <code>Run.bat</code>; that's the browser's whole security model.</p>
+
+<h2>The idea</h2>
+<p><strong>Register a custom URL scheme for this Windows user. Opening <code>mortgage-management://start</code> runs a small script that starts the app; <code>mortgage-management://update</code> runs Setup.</strong> It's the same mechanism as <code>mailto:</code> or <code>zoommtg://</code>: the page opens a link, Windows asks the Lender once whether to allow it, and runs the program registered for the scheme (<a href="../../adr/0008-pwa-starts-the-app-through-a-link.md">ADR 0008</a>).</p>
+<p>Because <em>any</em> web page can open that link, the script treats it like input from a stranger: it accepts exactly two links and nothing else.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant L as Lender
+  participant G as StartGate (the PWA)
+  participant W as Windows
+  participant K as link.ps1
+  participant A as app (backend)
+  L->>G: taps the icon
+  G->>A: GET /api/payment-methods
+  A--xG: no connection
+  G->>L: "The app isn't running on this laptop." Start
+  L->>G: Start Mortgage Management
+  G->>W: open mortgage-management://start
+  W->>L: allow this site to open the link? (once)
+  W->>K: powershell -File link.ps1 "mortgage-management://start"
+  K->>A: Run.bat -NoBrowser
+  G->>A: GET /api/payment-methods, every 2 s
+  A-->>G: 200
+  G->>G: reload: Meera's page loads
+</pre>
+<figcaption>Start, from tap to figures. The PWA never learns whether the link worked; it just keeps asking until the backend answers.</figcaption>
+</figure>
+<p>Notice that there's no reply from <code>link.ps1</code> to the page. A custom URL scheme is one-way. <code>StartGate</code> doesn't need a reply: the evidence that it worked is the backend answering. After five minutes without one it says to use the Desktop shortcut, whose window shows what went wrong.</p>
+
+<h2>The code</h2>
+<h3>Registering the link</h3>
+<figure class="snippet">
+<figcaption><a href="../../../windows/common.ps1"><code>windows/common.ps1</code></a> · <code>Register-AppLink</code>, <code>Unregister-AppLink</code> · lines 292–305, trimmed</figcaption>
+<pre data-file="windows/common.ps1"><code>292  function Register-AppLink {
+295      param([string]$Folder = $AppDir)
+296      $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+297      $handler = Join-Path $Folder 'windows\link.ps1'
+298      Set-UserClassValue 'mortgage-management' '' 'URL:Mortgage Management'
+299      Set-UserClassValue 'mortgage-management' 'URL Protocol' ''                         ①
+300      Set-UserClassValue 'mortgage-management\DefaultIcon' '' (Join-Path $Folder 'windows\MortgageManagement.ico')
+301      Set-UserClassValue 'mortgage-management\shell\open\command' '' `
+302          "`"$powershell`" -NoProfile -ExecutionPolicy Bypass -File `"$handler`" `"%1`""   ②
+303  }
+⋮
+305  function Unregister-AppLink { Remove-UserClassKey 'mortgage-management' }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>An empty <code>URL Protocol</code> value is what marks a registry key as a URL scheme. <code>Set-UserClassValue</code> writes under <code>HKCU\Software\Classes</code>: this Windows user only, so no admin rights are needed (<a href="https://learn.microsoft.com/en-us/previous-versions/windows/internet-explorer/ie-developer/platform-apis/aa767914(v=vs.85)">Microsoft: Registering an application to a URI scheme</a>).</li>
+  <li>Windows replaces <code>%1</code> with the whole link that was opened, and the quotes make it <em>one</em> argument, whatever it contains. <code>install.ps1</code> registers it with <code>$Folder</code> = <code>InstallDir\app</code>, so the handler goes through the junction to whichever version runs (lesson 4).</li>
+</ol>
+<p>Pester's "registering the mortgage-management:// link" checks both: the <code>URL Protocol</code> value, and that the command ends with <code>-File "…\windows\link.ps1" "%1"</code>. "is removed whole" checks that <code>Unregister-AppLink</code> (called by the uninstaller) removes the key and everything under it.</p>
+
+<h3>Opening the link</h3>
+<figure class="snippet">
+<figcaption><a href="../../../windows/link.ps1"><code>windows/link.ps1</code></a> · lines 24–47, trimmed</figcaption>
+<pre data-file="windows/link.ps1"><code>24  function Select-LinkAction {
+26      param([string[]]$Arguments)
+27      if (@($Arguments).Count -ne 1) { return $null }                                        ①
+28      if ($Arguments[0] -match '^mortgage-management://(start|update)/?$') { return $Matches[1].ToLower() }  ◀
+29      return $null
+30  }
+31
+32  function Start-Launcher { &amp; (Join-Path $PSScriptRoot 'Run.bat') -NoBrowser }              ②
+33
+34  function Start-Setup {
+36      $global:LASTEXITCODE = 0  # set by Setup only if it fails
+37      &amp; (Join-Path $PSScriptRoot 'setup.ps1') -NonInteractive -InstallDir (Get-InstallDir)   ③
+38      if ($LASTEXITCODE -ne 0) { Read-Host 'Press Enter to close this window' | Out-Null }
+39  }
+⋮
+41  function Open-Link {
+42      param([string[]]$Arguments)
+43      switch (Select-LinkAction $Arguments) {                                                  ④
+44          'start' { Start-Launcher }
+45          'update' { Start-Setup }
+46      }
+47  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Exactly one argument: <code>"%1"</code>. Anything else is not from Windows' registration.</li>
+  <li><code>-NoBrowser</code>, because the browser is already open: it's the PWA that asked. <code>StartGate</code> reloads itself once the app answers.</li>
+  <li>Setup for the newest release, no questions, into this install's folder (<code>Get-InstallDir</code> works from either <code>app\windows</code> or <code>versions\X\windows</code>). Its window stays open only if it fails, so the Lender can read why.</li>
+  <li>PowerShell's <code>switch</code> runs the block whose label equals the value, and nothing for any other value, <code>$null</code> included.</li>
+</ol>
+<p>Line 28 is a regular expression: <code>^…$</code> anchors it to the whole string, <code>(start|update)</code> allows only those two words, and <code>/?</code> allows one trailing slash, which some browsers add (<code>mortgage-management://start/</code>). PowerShell's <code>-match</code> is case-insensitive, hence the <code>ToLower()</code>. Nothing after the action is allowed: no <code>?x=1</code>, no <code>/now</code>, no second argument.</p>
+
+<h3>The two buttons</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/components/StartGate.tsx"><code>components/StartGate.tsx</code></a> · <code>startApp</code> · lines 80–83</figcaption>
+<pre data-file="frontend/src/components/StartGate.tsx"><code>80    const startApp = () =&gt; {
+81      openLink('mortgage-management://start')   // window.location.assign, by default
+82      setState('starting')
+83    }
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/components/UpdateBanner.tsx"><code>components/UpdateBanner.tsx</code></a> · Install now · lines 184–193</figcaption>
+<pre data-file="frontend/src/components/UpdateBanner.tsx"><code>184        {onWindows &amp;&amp; !installing &amp;&amp; (
+185          &lt;button
+186            type="button"
+187            onClick={() =&gt; {
+188              openLink('mortgage-management://update')
+189              setPhase('installing')
+190            }}
+191          &gt;
+192            Install now
+193          &lt;/button&gt;
+</code></pre>
+</figure>
+<p>Both show their button only <code>onWindows</code> (<code>navigator.userAgent</code> includes "Windows"), because only Setup on Windows registers the link. On a Mac, <code>StartGate</code> says "The app isn't running. Start its server…", and the banner has no Install now: in Docker the Lender updates with <code>docker compose pull</code> and <code>up -d</code> (the README's "Updating"). How each component waits and reloads is <a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>.</p>
+
+<h2>Run-through: Meera's payment day</h2>
+<table class="steps">
+<tr><th>Moment</th><th>What runs</th><th>What the Lender sees</th></tr>
+<tr><td>Taps the icon</td><td>The service worker serves the cached screens; <code>StartGate</code>'s <code>GET /api/payment-methods</code> fails</td><td>"The app isn't running on this laptop." and <strong>Start Mortgage Management</strong></td></tr>
+<tr><td>Presses Start</td><td><code>window.location.assign('mortgage-management://start')</code></td><td>The first time only: the browser asks whether to open Mortgage Management</td></tr>
+<tr class="changed"><td>Allows it</td><td>Windows runs <code>powershell … link.ps1 "mortgage-management://start"</code>; <code>Select-LinkAction</code> → <code>start</code>; <code>Run.bat -NoBrowser</code></td><td>A console window: "Starting Mortgage Management..."</td></tr>
+<tr><td>The backend answers</td><td><code>StartGate</code>'s check, every 2 s, gets a 200; <code>reload()</code></td><td>The app, with Meera's figures</td></tr>
+<tr><td>Later: Install now</td><td><code>mortgage-management://update</code> → <code>Start-Setup</code> → <code>setup.ps1 -NonInteractive</code>, lesson 4's switch</td><td>"Updating to version …"; Setup's window; the app reloads by itself when the new version runs</td></tr>
+</table>
+<p>None of this can run on your Mac, and none needs to: the decisions are pinned by Pester. Read "the mortgage-management:// link" in <a href="../../../windows/tests/Launcher.Tests.ps1"><code>Launcher.Tests.ps1</code></a> (line 158): six <code>It</code>s. Three accept (<code>start</code>, <code>start/</code>, <code>update/</code>). Two refuse: "does nothing for any other action" (<code>uninstall</code>, <code>start-everything</code>, <code>other://start</code>) and "does nothing when anything more is passed" (<code>start?x=1</code>, <code>start/now</code>, a second argument, none). And one runs <code>Open-Link</code> with <code>Start-Launcher</code> and <code>Start-Setup</code> mocked: <code>update</code> calls Setup, <code>start</code> the launcher, and <code>anything</code> neither.</p>
+
+<h2>Nuances</h2>
+<h3>Two gates</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> the action is checked twice: by the regex in <code>Select-LinkAction</code>, then by the <code>switch</code> in <code>Open-Link</code>. If a later change loosened the regex so that any word got through, would the app then run anything a web page asked for?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>No. <code>mortgage-management://uninstall</code> would pass the regex and return <code>'uninstall'</code>, but the <code>switch</code> has blocks only for <code>'start'</code> and <code>'update'</code>, so nothing would run. The second gate holds on its own.</p>
+    <p>But the first gate is what the tests name as the contract: "does nothing for any other action" calls <code>Select-LinkAction</code> directly and expects nothing back. The check-yourself page has you loosen line 28 and see exactly which tests notice, and which don't.</p>
+  </div>
+</div>
+
+<h3>The rest, briefly</h3>
+<ul>
+  <li><strong>Why so narrow?</strong> Any web page the Lender visits can try <code>window.location = 'mortgage-management://…'</code>. With two fixed actions and no arguments, the worst a hostile page can do is start this app or update it to the newest release, and Windows asks the Lender first. An argument (a folder, a version, a flag) would be a door for whatever a stranger wrote.</li>
+  <li><strong>"%1" is quoted, and checked anyway.</strong> The quotes make Windows pass one argument; the count check refuses a handler invoked any other way.</li>
+  <li><strong>Per user, no admin.</strong> <code>HKCU</code> is this Windows user's own part of the registry, writeable without elevation. Another user on the same PC has no link.</li>
+  <li><strong>Uninstall removes it whole</strong>: <code>Unregister-AppLink</code> deletes the <code>mortgage-management</code> key and everything under it, so no dead link is left pointing at a deleted folder.</li>
+  <li><strong>Rejected: start the app at Windows sign-in</strong>, so the icon always just works. ADR 0008 turned it down: the app would always be running in the background, and the update banner would still need a way to run Setup. Also rejected: keeping only the Desktop shortcut, because the Lender already uses the icon, which would then show a page that can't work.</li>
+</ul>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">Why does Start open a link instead of calling the backend?</p>
+  <button class="opt">The backend refuses requests from the installed app's origin</button>
+  <button class="opt">The backend isn't running, and a page can't start a program</button>
+  <button class="opt">Windows only lets PowerShell scripts start Python programs</button>
+  <div class="why">Start is shown precisely because nothing answers on the port, so there's no backend to call. A browser page can't run programs, but it can open a link whose scheme Windows has registered, which runs <code>link.ps1</code>. The origin is the backend's own, and there's no such Windows rule.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">A web page opens <code>mortgage-management://start?dir=C:\</code>. What happens?</p>
+  <button class="opt">Nothing runs: the regex refuses anything after the action</button>
+  <button class="opt">The app starts, ignoring the part after the question mark</button>
+  <button class="opt">Setup runs into <code>C:\</code>, as the link asked</button>
+  <div class="why">Line 28's pattern ends <code>/?$</code>: one optional slash, then the end. <code>?dir=…</code> doesn't match, so <code>Select-LinkAction</code> returns nothing and the <code>switch</code> runs nothing. "does nothing when anything more is passed" pins this with <code>start?x=1</code>. Nothing in <code>link.ps1</code> reads arguments at all.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">On the Lender's Mac, the backend is stopped. What does <code>StartGate</code> show?</p>
+  <button class="opt">A Start button that opens <code>mortgage-management://start</code></button>
+  <button class="opt">The cached screens, with the figures from the last visit</button>
+  <button class="opt">"The app isn't running. Start its server…", with no button</button>
+  <div class="why">Only Setup on Windows registers the link, so off Windows <code>StartGate</code> doesn't offer it and says to start the server. It never shows the app without a backend: <code>/api/</code> is never cached (chapter 012, lesson 6).</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../adr/0008-pwa-starts-the-app-through-a-link.md">ADR 0008</a> (a paragraph and two rejected options), then <a href="../../../windows/link.ps1"><code>windows/link.ps1</code></a> whole: it's 50 lines, and its header comment is the contract in plain words.</p>
+
+<nav class="lessons">
+  <a href="04-each-version-in-its-own-folder.html">← Each version in its own folder</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

@@ -51,7 +51,7 @@
 </table>
 
 <h2>Docker, your own code</h2>
-<p>Warned about in <a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">002 · Lesson 5</a>; taught in chapter 014. Not needed to develop.</p>
+<p>Warned about in <a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">002 · Lesson 5</a>; taught in <a href="../014-how-it-runs-on-the-lenders-laptop/01-the-app-in-docker.html">014 · Lesson 1</a>. Not needed to develop. More commands for debugging it are under <a href="#laptop">How it runs on the Lender's laptop</a>.</p>
 <table class="wide">
 <tr><th>From</th><th>Command</th><th>What it does</th></tr>
 <tr><td>repo root</td><td><code>DATA_DIR="$DEV/data" BACKUP_DIR="$DEV/backups" APP_PORT=8081 docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build</code></td><td>Builds and runs this folder's code on <code>localhost:8081</code>, on scratch data, under its own project name</td></tr>
@@ -132,8 +132,25 @@
 <tr><td>repo root</td><td><code>sh Documentation/onboarding/013-testing/scripts/run_throughs.sh</code></td><td>Every count and failure chapter 013 quotes: runs every check, then each lesson's one-line break, in a throwaway git worktree (your clone is never touched). About ten minutes; Pester needs Docker</td></tr>
 </table>
 
+<h2 id="laptop">How it runs on the Lender's laptop</h2>
+<p>Taught in <a href="../014-how-it-runs-on-the-lenders-laptop/index.html">chapter 014</a>. <code>$DC</code> below stands for the whole prefix, typed every time: <code>DATA_DIR="$COPY/data" BACKUP_DIR="$COPY/backups" APP_PORT=8081 docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml</code>. Leaving the variables out of any one command lets Compose read <code>.env</code> (<a href="traps.html#t12">trap #12</a>).</p>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td>anywhere</td><td><code>export COPY=$(mktemp -d); cp -R "$BOOK/data" "$COPY/" &amp;&amp; mkdir "$COPY/backups"</code></td><td>A copy of the served book's data for Docker, so the book itself stays on <code>serve.py</code></td></tr>
+<tr><td>repo root</td><td><code>$DC up -d --build</code></td><td>Builds this folder's code (<code>mortgage-management-app:dev</code>) and runs it on the copy, on <code>localhost:8081</code>. First build a few minutes, then seconds</td></tr>
+<tr><td>repo root</td><td><code>$DC ps</code> · <code>$DC logs app</code> · <code>$DC exec app ls -la /data /backups</code> · <code>$DC exec app date</code></td><td>Running? From which image, on which port? Did it start (migrations), which files does it see, and what's its today (<code>TZ</code>)?</td></tr>
+<tr><td>repo root</td><td><code>$DC config</code></td><td>The merged configuration, with every variable filled in: check which folders it will mount before you <code>up</code></td></tr>
+<tr><td>repo root</td><td><code>$DC stop app</code> · <code>$DC start app</code> · <code>$DC down</code></td><td>Stop and start the container; <code>down</code> removes it and its network, never the mounted folders</td></tr>
+<tr><td>anywhere</td><td><code>curl -sI http://127.0.0.1:8081/sw.js</code> (and <code>:8765</code>)</td><td>Status and <code>Cache-Control</code> of one path, headers only. Pages, <code>sw.js</code>, <code>registerSW.js</code>, the manifest: <code>no-cache</code>; <code>/assets/…</code>: <code>public, max-age=31536000, immutable</code>. The same in both modes</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_screens.py</code></td><td>The 10 tests that pin <code>screens.py</code>'s answers and headers</td></tr>
+<tr><td>repo root</td><td><code>docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke-Pester windows/tests -Output Detailed'</code></td><td>The Windows scripts' 65 Pester tests, one line each (build <code>mm-pester</code> first: <a href="#testing">Testing</a>)</td></tr>
+<tr><td>repo root</td><td><code>LC_ALL=C grep -c "$(printf '[\200-\377]')" windows/*.ps1 windows/*.bat windows/tests/*.ps1</code></td><td>Non-ASCII bytes per file in <code>windows/</code>: each must be 0 (<a href="traps.html#t14">trap #14</a>)</td></tr>
+<tr><td>Windows, optional</td><td><code>powershell -ExecutionPolicy Bypass -File windows\setup.ps1 -NonInteractive -Mode local -Ref main -InstallDir C:\scratch\mm</code></td><td>What CI's <code>windows</code> job runs, into a scratch folder. Remove with <code>C:\scratch\mm\app\windows\Uninstall.bat</code>. Never leave out <code>-InstallDir</code> where the app is installed for real</td></tr>
+<tr><td>repo root</td><td><code>sh Documentation/onboarding/014-how-it-runs-on-the-lenders-laptop/scripts/run_throughs.sh</code></td><td>Every output chapter 014 quotes, in a temp folder (its build is named <code>:onboarding-check</code>, so an existing <code>:dev</code> is never retagged). About half a minute once images are cached</td></tr>
+</table>
+
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

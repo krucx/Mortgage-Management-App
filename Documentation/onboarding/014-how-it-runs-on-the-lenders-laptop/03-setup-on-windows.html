@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.3 · Setup on Windows</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 014 · Lesson 3</p>
+<h1>Setup on Windows</h1>
+<p class="lede">On Windows the Lender double-clicks <code>Setup.bat</code>, answers two questions, and gets a Desktop shortcut. Behind it are six PowerShell scripts in <code>windows/</code>. You won't read them whole, and you don't need a Windows PC: you'll follow CI's <code>windows</code> job as the story of one install, read the few functions that decide things, and run their Pester tests in Docker.</p>
+
+<div class="callout win"><strong>By the end</strong> you can explain what Setup does on a PC, and run and read the scripts' Pester tests.</div>
+
+<h2>The problem</h2>
+<p>The Lender's PC is a stranger's machine. It runs Windows PowerShell 5.1, the version built into Windows, not the modern PowerShell 7 you'd install. It may have Docker or not, git or not, internet or not, admin rights or not. The Lender will run Setup once to install and again, months later, to update, and both must leave their records exactly where they were. Nobody will be there to read an error.</p>
+<p>And you can't test it by hand: you probably don't have a Windows PC, and if you did, "install it on my machine" proves nothing about theirs.</p>
+
+<h2>The idea</h2>
+<p><strong>Keep the scripts' decisions in small functions with no side effects, test those with Pester anywhere, and test the whole install end to end on a real Windows machine in CI.</strong> The decisions ("which release is newest?", "Docker or not?", "where does the data go?") are pure: they take values and return values. The actions (download, install, start) are thin wrappers around programs. Pester (PowerShell's test framework, <a href="../013-testing/01-every-check-and-how-to-run-it.html">chapter 013, lesson 1</a>) can call any function and replace any other with a <code>Mock</code>, so a test can say "pretend Docker is installed" without Docker.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  SB["Setup.bat<br/>(double-click)"] -->|"fetches, or runs the one beside it"| SP["setup.ps1 Main"]
+  SP -->|"Get-AppCode"| V["versions\3.4.1<br/>the release's code"]
+  V -->|"runs its own"| IP["install.ps1 Install-App"]
+  IP -->|"Select-Mode"| M{"docker or local?"}
+  M -->|"Initialize-EnvFile"| E[".env"]
+  M -->|"docker: Install-Docker"| DP["docker compose pull"]
+  M -->|"local: Install-Local"| UV["uv sync"]
+  IP -->|"Set-AppJunction"| J["app → versions\3.4.1"]
+  IP -->|"New-DesktopShortcut, Register-AppLink"| SC["shortcut and link"]
+  SC -->|"Run.bat → run.ps1"| R["the app on 127.0.0.1:8080"]
+</pre>
+<figcaption>A first install. An update takes the same path, with a switch in place of the junction step (lesson 4).</figcaption>
+</figure>
+<p>Notice that <code>setup.ps1</code> runs the <em>new</em> version's <code>install.ps1</code>, not its own. Setup only fetches code; the code installs itself. So a release can change how it installs without the Lender ever getting a new <code>Setup.bat</code>.</p>
+<p>The install folder, <code>%USERPROFILE%\MortgageManagement</code> by default, ends up like this:</p>
+<pre><code>MortgageManagement\
+├── app\              a junction (a Windows folder link) to the version that runs
+├── versions\
+│   └── 3.4.1\        that version's code, its .env, backend\.venv, frontend\dist
+├── data\             DATA_DIR: mortgage.db and photos (unless the Lender chose elsewhere)
+└── backups\          BACKUP_DIR (or a Google Drive / OneDrive folder)</code></pre>
+
+<h2>The code</h2>
+<p>Each of these functions is a few lines. Read them in this order.</p>
+
+<figure class="snippet">
+<figcaption><a href="../../../windows/Setup.bat"><code>windows/Setup.bat</code></a> · lines 7–14, trimmed</figcaption>
+<pre data-file="windows/Setup.bat"><code>7  set "HERE=%~dp0"
+9  cd /d "%TEMP%"                                       ①
+10  if exist "%HERE%setup.ps1" goto beside
+11  powershell -NoProfile -ExecutionPolicy Bypass -Command "… Invoke-WebRequest … windows/setup.ps1 … catch { … Offline: starting the version you have … }"   ②
+⋮
+13  :beside
+14  powershell -NoProfile -ExecutionPolicy Bypass -File "%HERE%setup.ps1" %*
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Out of its own folder first: an update moves the <code>app</code> junction, and Windows won't change a folder a window is sitting in.</li>
+  <li>Downloaded on its own (from the docs site), there's no <code>setup.ps1</code> beside it, so it fetches the newest from GitHub. If GitHub can't be reached, it repeats <code>setup.ps1</code>'s offline path inline (start the version installed, or say the first setup needs internet), because there's no <code>setup.ps1</code> to run. Its comment says: keep the two in step.</li>
+</ol>
+
+<figure class="snippet">
+<figcaption><a href="../../../windows/setup.ps1"><code>windows/setup.ps1</code></a> · <code>Get-AppCode</code> · lines 124–134</figcaption>
+<pre data-file="windows/setup.ps1"><code>124  function Get-AppCode {
+127      param([string]$Ref, [string]$Folder)
+128      if ($Ref -match '^\d+\.\d+\.\d+$' -and (Get-ReadyBuilt $Ref $Folder)) { return }   ◀
+129      if (Get-Command git -ErrorAction SilentlyContinue) {
+130          Get-AppCodeWithGit $Ref $Folder
+131      } else {
+132          Get-AppCodeDownload $Ref $Folder
+133      }
+134  }
+</code></pre>
+</figure>
+<p>Three ways to get a version's code. A release number (<code>3.4.1</code>) gets the <strong>ready-built download</strong>, <code>mortgage-management-3.4.1.zip</code> from the GitHub Release, which has <code>frontend\dist</code> already built, so the PC needs no Node.js (chapter 015 shows the release workflow that makes it). A release from before that zip existed answers 404, and so does a branch or commit: then the code itself, through git if it's installed, else GitHub's source zip. <code>-Ref main</code> or <code>-Ref &lt;commit&gt;</code> is how CI installs the commit under test.</p>
+
+<figure class="snippet">
+<figcaption><a href="../../../windows/common.ps1"><code>windows/common.ps1</code></a> · <code>Select-Mode</code> · lines 17–24</figcaption>
+<pre data-file="windows/common.ps1"><code>17  function Select-Mode {
+20      param([string]$Requested, [bool]$DockerInstalled)
+21      if ($Requested -eq 'docker' -or $Requested -eq 'local') { return $Requested }
+22      if ($DockerInstalled) { return 'docker' }
+23      return 'local'
+24  }
+</code></pre>
+</figure>
+<p>A pure decision, called by install, run and the version switch. <code>-Mode auto</code> (the default) means Docker if the <code>docker</code> command exists. The choice is saved as <code>RUN_WITH</code> in <code>.env</code>, so <code>run.ps1</code> later starts the app the same way. Its Pester tests are the three lines of "Docker or local".</p>
+
+<figure class="snippet">
+<figcaption><a href="../../../windows/install.ps1"><code>windows/install.ps1</code></a> · <code>Initialize-EnvFile</code> · lines 46–78, trimmed</figcaption>
+<pre data-file="windows/install.ps1"><code>46  function Initialize-EnvFile {
+48      param([string]$Mode, [string]$InstallDir, [bool]$NonInteractive)
+49      if (Test-Path (Get-EnvPath)) {                                          ①
+50          $text = Set-EnvValue ([IO.File]::ReadAllText((Get-EnvPath))) 'RUN_WITH' $Mode
+51          if ($Mode -eq 'local' -and (Read-EnvText $text)['BACKUP_PASSWORD']) {
+54              $text = Set-EnvValue $text 'BACKUP_PASSWORD' "''"                    ②
+⋮
+57          return
+58      }
+59      $dataDir = Join-Path $InstallDir 'data'
+60      $backupDir = Join-Path $InstallDir 'backups'
+⋮    … unless -NonInteractive: ask for both folders, and with Docker a Backup password …
+77      New-Item -ItemType Directory -Force $dataDir, $backupDir | Out-Null
+78      Write-EnvFile (New-EnvText -Mode $Mode -DataDir $dataDir -BackupDir $backupDir -Password $password)
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>An update already has a <code>.env</code> (copied forward from the version before, lesson 4): only <code>RUN_WITH</code> is set, every other line and comment kept (<code>Set-EnvValue</code>; Pester's "changes one value and leaves the rest, comments included").</li>
+  <li>Without Docker there's no <code>zip</code> program (lesson 1), so Backups are plain zips and a password is cleared, with a yellow warning.</li>
+</ol>
+<p><code>New-EnvText</code> writes the same names as <code>.env.example</code> plus <code>RUN_WITH</code>, and <code>Write-EnvFile</code> writes UTF-8 <em>without</em> a byte-order mark, which Docker Compose would read as part of the first variable's name.</p>
+
+<figure class="snippet">
+<figcaption><a href="../../../windows/install.ps1"><code>windows/install.ps1</code></a> · <code>Install-Local</code> · lines 96–130, trimmed</figcaption>
+<pre data-file="windows/install.ps1"><code>96  function Install-Local {
+99      $built = Test-Path (Join-Path $AppDir 'frontend\dist\index.html')   ◀
+100      if (-not $built -and -not (Test-Command node)) {
+⋮        … winget install OpenJS.NodeJS.LTS …
+109      if (-not (Test-Command uv)) {
+⋮        … uv's own installer, which brings the right Python …
+118          &amp; uv sync --frozen --no-dev
+121      if ($built) { return }
+⋮    … otherwise npm ci and npm run build in frontend\ …
+130  }
+</code></pre>
+</figure>
+<p>This is ADR 0010's payoff on the PC. A release came built, so Node is never installed and nothing is built: just <code>uv sync</code> for the backend's packages. Only code from a branch or commit needs Node. Pester's "installing without Docker" pins both cases: "needs no Node, and builds nothing, when the screens come built" (<code>uv</code> once, <code>npm</code> and <code>winget</code> never), and "installs Node and builds the screens from the code otherwise" (<code>winget</code> once, <code>npm</code> twice).</p>
+
+<figure class="snippet">
+<figcaption><a href="../../../windows/run.ps1"><code>windows/run.ps1</code></a> · <code>Start-Locally</code> · lines 43–64, trimmed</figcaption>
+<pre data-file="windows/run.ps1"><code>43      $env:DATA_DIR = $settings['DATA_DIR']
+44      $env:BACKUP_DIR = $settings['BACKUP_DIR']
+45      $env:BACKUP_PASSWORD = $settings['BACKUP_PASSWORD']
+46      $env:SCREENS_DIR = $screens                                       ①
+47      $env:CHECK_FOR_UPDATES = 'true'
+⋮
+52      $backend = Start-Process -FilePath $python -NoNewWindow -PassThru `
+54          -ArgumentList '-m', 'uvicorn', 'mortgage_backend.main:app', '--host', '127.0.0.1', '--port', $port   ②
+⋮
+57          if (-not (Wait-Url "http://127.0.0.1:$port/api/backups" 300)) {     ③
+⋮
+64          Wait-Process -Id $backend.Id
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The same three variables as the image's line 33 (lesson 1), from <code>.env</code>. With <code>SCREENS_DIR</code> set, the backend serves the screens (lesson 2).</li>
+  <li>The venv's own <code>python.exe -m uvicorn</code>, not <code>uv run</code>. When the window closes, the <code>finally</code> below stops the process it started. Started through <code>uv run</code>, that process would be uv, and uvicorn under it could keep running. This way the window <em>is</em> the app: close it and the app stops.</li>
+  <li>Ready means <code>/api/backups</code> answers. Up to five minutes: a start that migrates the database takes a Backup first (<a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">chapter 010, lesson 5</a>).</li>
+</ol>
+<p>With Docker, <code>run.ps1</code> instead starts Docker Desktop if needed, runs <code>docker compose up -d --remove-orphans</code> (lesson 4 says why <code>--remove-orphans</code>), and waits for the app. The window can close; the container keeps running.</p>
+
+<h2>Run-through: one install, as CI does it</h2>
+<p>CI's <code>windows</code> job in <a href="../../../.github/workflows/test.yml"><code>.github/workflows/test.yml</code></a> (from line 71) runs on a real Windows machine for every push and pull request. Read it as one Lender's life with the app:</p>
+<table class="steps">
+<tr><th>Step (line)</th><th>What it does</th><th>What it proves</th></tr>
+<tr><td>Pester (76)</td><td><code>Invoke-Pester windows/tests</code></td><td>Every decision function, on Windows PowerShell 5.1</td></tr>
+<tr class="changed"><td>Set up without Docker (88)</td><td><code>setup.ps1 -NonInteractive -Mode local -Ref &lt;this commit&gt; -InstallDir $RUNNER_TEMP\mm</code></td><td>A first install works from nothing. The runner <em>has</em> Docker, so it's told <code>-Mode local</code>, as on a PC without it</td></tr>
+<tr><td>The app starts, answers, and takes a Backup (94)</td><td>Runs <code>app\windows\run.ps1 -NoBrowser</code>; waits for <code>/api/customers</code>; reads <code>/manifest.webmanifest</code>; waits for a <code>.zip</code> in <code>backups</code></td><td>The backend serves the API <em>and</em> the screens, and Backups work without the <code>zip</code> program</td></tr>
+<tr><td>An update switches to the new version once it starts (122)</td><td>Setup again, same commit; checks <code>app</code> is a junction to a folder ending <code>-2</code>, and two version folders</td><td>Lesson 4's switch, for real</td></tr>
+<tr><td>Uninstall keeps the latest Backup and removes the rest (136)</td><td><code>uninstall.ps1 -NonInteractive -KeepBackupIn $RUNNER_TEMP\kept</code></td><td>Nothing is left behind but the kept Backup</td></tr>
+</table>
+<p>The update step installs the same commit again, so its folder is <code>versions\&lt;commit&gt;-2</code>: <code>Select-FreeFolder</code> adds <code>-2</code> when a name is taken.</p>
+
+<h3>Run the tests yourself</h3>
+<p>Build chapter 013's image once, then run Pester from the repo root (<a href="../013-testing/01-every-check-and-how-to-run-it.html">chapter 013, lesson 1</a> explains the image):</p>
+<pre><code>docker build -t mm-pester -f Documentation/onboarding/013-testing/scripts/pester.Dockerfile .
+docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke-Pester windows/tests'</code></pre>
+<pre><code>[+] /repo/windows/tests/Launcher.Tests.ps1 1.51s (55 tests)
+[+] /repo/windows/tests/Uninstall.Tests.ps1 67ms (10 tests)
+Tests Passed: 65, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0</code></pre>
+<p class="cite">From <code>scripts/run_throughs.sh</code>, section L3–L5, at commit <code>36d403e</code>. The plan for this chapter said 61; four tests were added since, among them "switching versions with Docker".</p>
+<p>Now open <a href="../../../windows/tests/Launcher.Tests.ps1"><code>windows/tests/Launcher.Tests.ps1</code></a> and read these <code>Describe</code> blocks. Each <code>It</code> is one sentence of what Setup promises:</p>
+<table class="wide">
+<tr><th><code>Describe</code></th><th>What to notice</th></tr>
+<tr><td>"Docker or local"</td><td>Pure: values in, a value out. No mocks needed</td></tr>
+<tr><td>"the .env file"</td><td>A password with spaces and <code>#</code> survives; one with a <code>'</code> is refused (<code>.env</code> single-quotes it, leaving no way to write one)</td></tr>
+<tr><td>"first setup folder selection"</td><td><code>Mock Read-Host</code> answers the prompts, so an interactive function runs unattended</td></tr>
+<tr><td>"Setup without internet"</td><td>Tells "can't reach GitHub" (start what's installed) from "GitHub said no", for example a 403 rate limit (don't pretend to be offline, stop)</td></tr>
+<tr><td>"getting a version's code"</td><td>The ready-built zip for a release; the code itself for an older release (404) or a branch</td></tr>
+<tr><td>"installing without Docker"</td><td><code>function uv {}</code> stand-ins, so Pester can mock programs that aren't installed</td></tr>
+</table>
+<p>Then <a href="../../../windows/tests/Uninstall.Tests.ps1"><code>Uninstall.Tests.ps1</code></a>: which Backup is kept (never a half-written <code>.partial</code>), that it never overwrites a file of the same name, which processes are stopped (Run.bat's window and everything it started, never the uninstaller's own), and which Docker images go (every published version, old <code>backend-</code>/<code>ui-</code> names included, and the <code>:dev</code> builds).</p>
+
+<div class="aside"><strong>Optional, with a Windows PC or VM.</strong> Run what CI runs, into a scratch folder: <code>powershell -ExecutionPolicy Bypass -File windows\setup.ps1 -NonInteractive -Mode local -Ref main -InstallDir C:\scratch\mm</code>, then <code>C:\scratch\mm\app\windows\Run.bat</code>. Remove it with <code>C:\scratch\mm\app\windows\Uninstall.bat</code>. Never leave out <code>-InstallDir</code> on a PC where the app is installed for real.</div>
+
+<h2>Nuances</h2>
+
+<h3>Trap #14: the scripts' rules</h3>
+<div class="callout warn"><strong><a href="../reference/traps.html#t14">Trap #14</a>.</strong> Windows PowerShell 5.1 reads a script without a byte-order mark as the PC's old code page, so an em dash or a curly quote in a <code>.ps1</code> becomes garbage, and inside a string can break the parse. Every file in <code>windows/</code> is <strong>ASCII only</strong> and says so in its header. Check before you commit: <code>LC_ALL=C grep -c "$(printf '[\200-\377]')" windows/*.ps1 windows/*.bat windows/tests/*.ps1</code> prints 0 for each file. Pester in Docker runs PowerShell 7, which reads UTF-8 happily, so it won't catch this; CI's Windows runner will.</div>
+<ul>
+  <li><strong><code>docs/Setup.bat</code> must stay byte-identical to <code>windows/Setup.bat</code>.</strong> The docs site offers it for download, and CI's <code>pages</code> job runs <code>cmp windows/Setup.bat docs/Setup.bat</code>. Change one, copy it to the other.</li>
+  <li><strong>The dot-source guard.</strong> <code>setup.ps1</code>, <code>install.ps1</code>, <code>link.ps1</code> and <code>uninstall.ps1</code> end like <code>link.ps1</code>'s lines 49–50: <code>if ($MyInvocation.InvocationName -ne '.') { Open-Link $Arguments }</code>. Run normally, it does its job. <em>Dot-sourced</em> (<code>. .\link.ps1</code>, which runs a script in the caller's scope), it only defines its functions. That's how <code>Launcher.Tests.ps1</code>'s <code>BeforeAll</code> loads <code>common.ps1</code>, <code>setup.ps1</code>, <code>install.ps1</code> and <code>link.ps1</code> without installing anything. (<code>common.ps1</code> only defines functions anyway; <code>run.ps1</code> isn't loaded by the tests.)</li>
+  <li><strong>Uninstall runs from <code>%TEMP%</code>.</strong> Windows won't delete a folder that a window is in, and <code>Uninstall.bat</code> sits inside the folder being deleted. So it changes to <code>%TEMP%</code> first, keeps the latest Backup in Documents (copied, not moved, if the Backup folder is a synced one that stays), and only then removes the Docker images, the shortcut, the link, the data folder and the install folder. Its last line does the rest, because <code>cmd</code> reads a <code>.bat</code> a line at a time and this one is deleted while it runs. With no Backup to keep, it asks again (or, non-interactive, removes nothing).</li>
+  <li><strong>No admin rights anywhere.</strong> The install folder is under the user's profile, the shortcut on their Desktop, the link under <code>HKCU</code> (lesson 5). Only Node's <code>winget</code> install may ask, and a release never needs it.</li>
+</ul>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">Why does <code>setup.ps1</code> run the new version's <code>install.ps1</code> instead of its own?</p>
+  <button class="opt">The Lender's old <code>setup.ps1</code> can't download new code</button>
+  <button class="opt">Each release installs itself, however its own install works</button>
+  <button class="opt">PowerShell 5.1 can't run two scripts from one folder</button>
+  <div class="why">Setup only fetches the code; the code installs itself, so a release can change its own install steps (a new dependency, a new folder) and still be set up by any <code>Setup.bat</code>. Downloading is <code>Get-AppCode</code>'s job in either case, and nothing stops 5.1 running several scripts.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Setup installs release 3.4.1 on a PC without Docker or Node. What does <code>Install-Local</code> run?</p>
+  <button class="opt"><code>winget</code> for Node, <code>npm ci</code>, then <code>uv sync</code></button>
+  <button class="opt">Nothing at all: the release's zip has everything</button>
+  <button class="opt"><code>uv sync</code> only: the screens came built in the zip</button>
+  <div class="why">The ready-built zip has <code>frontend\dist\index.html</code>, so <code>$built</code> is true: no Node, no build. The backend's packages still need installing into <code>backend\.venv</code> (plus uv itself, if missing). Node is only for a branch or commit.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">You add a helpful "→" to a <code>Write-Host</code> in <code>install.ps1</code>. Pester passes in Docker. What happens?</p>
+  <button class="opt">It may break on the Lender's PowerShell 5.1, which misreads it</button>
+  <button class="opt">CI's <code>pages</code> job fails, as <code>docs/</code> has another copy</button>
+  <button class="opt">Nothing: PowerShell has read UTF-8 scripts for years</button>
+  <div class="why">Windows PowerShell 5.1 reads a BOM-less script in the PC's code page, so the arrow's UTF-8 bytes become other characters (trap #14). Docker's Pester runs PowerShell 7, which reads UTF-8, so it can't catch it. The <code>pages</code> job compares only <code>Setup.bat</code>.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../../windows/setup.ps1"><code>windows/setup.ps1</code></a>'s <code>Main</code> from line 156: the offline branch, the "already newest" branch and the cleanup when anything fails are each a <code>Describe</code> in the tests you just read. Then the README's "On Windows: double-click setup", which is what the Lender sees.</p>
+
+<nav class="lessons">
+  <a href="02-without-docker-the-backend-serves-the-screens.html">← Without Docker: the backend serves the screens</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="04-each-version-in-its-own-folder.html">Each version in its own folder →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

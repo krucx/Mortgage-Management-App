@@ -236,7 +236,7 @@ sequenceDiagram
     <tr class="changed"><td>a <code>screens_dir</code></td><td>200, <code>index.html</code></td><td>200, JSON</td><td>404, JSON</td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L1), with a one-file stand-in for <code>frontend/dist</code>.</p>
-    <p><code>/customers</code> is a screen's address: the browser loads <code>index.html</code> and the frontend picks the page from the path. An unknown <code>/api/</code> path stays a JSON 404 either way, so the frontend never mistakes a web page for an API answer. The real app always has a <code>screens_dir</code>: in Docker the image sets <code>SCREENS_DIR</code> to the screens built into it, and without Docker it points at the release's <code>frontend/dist</code> (chapter 014, ADRs 0010 and 0013). Only the tests and the Vite dev set-up run without one.</p>
+    <p><code>/customers</code> is a screen's address: the browser loads <code>index.html</code> and the frontend picks the page from the path. An unknown <code>/api/</code> path stays a JSON 404 either way, so the frontend never mistakes a web page for an API answer. The real app always has a <code>screens_dir</code>: in Docker the image sets <code>SCREENS_DIR</code> to the screens built into it, and without Docker it points at the release's <code>frontend/dist</code> (<a href="../014-how-it-runs-on-the-lenders-laptop/02-without-docker-the-backend-serves-the-screens.html">chapter 014, lesson 2</a>; ADRs 0010 and 0013). Only the tests and the Vite dev set-up run without one.</p>
   </div>
 </div>
 
