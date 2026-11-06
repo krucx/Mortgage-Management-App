@@ -17,7 +17,7 @@ import {
 import { FieldProblem } from '../components/FieldProblem'
 import { JewelleryValue } from '../components/JewelleryValue'
 import { PlannedPayments } from '../components/PlannedPayments'
-import { SimulationResults } from '../components/SimulationResults'
+import { MonthByMonth, SimulationResults } from '../components/SimulationResults'
 import { TermsFields } from '../components/TermsFields'
 import { useDebounced } from '../components/useDebounced'
 import { useUrlFilters } from '../components/useUrlFilters'
@@ -89,7 +89,7 @@ export function CalculatorPage() {
   const navigate = useNavigate()
   const [inputs, change] = useInputs(useQuery(settings.defaultTerms(client)).data)
   const goldRates = useQuery(settings.goldRates(client)).data
-  const [graphOpen, setGraphOpen] = useState(true)
+  const [graphOpen, setGraphOpen] = useState(false)
   const problem = problems(inputs)
   const { amount, start, closed, terms, span, monthly, lumps, compared } = inputs
   const valid = amount !== '' && terms !== null && !anyProblem(problem)
@@ -129,6 +129,16 @@ export function CalculatorPage() {
         }))
       : null
   const future = start > todayIso()
+  // Why the tiles show nothing yet, pointing below: the input at fault may be folded away.
+  const why = !valid
+    ? amount === ''
+      ? 'Enter an amount to see what it would come to.'
+      : 'Fix the inputs marked below to see what it would come to.'
+    : refusal
+      ? 'A Lump Sum is more than is owed on its date: see Planned Payments.'
+      : (error?.message ?? (runs ? null : 'Working it out…'))
+  const failed = valid && !!(refusal || error)
+  const shown = why ? null : runs
 
   function lend() {
     navigate(lendThisLink(amount, start, terms!))
@@ -141,55 +151,47 @@ export function CalculatorPage() {
         A Simulation: what a loan would come to, worked out exactly as a Mortgage's Ledger would be.
         Nothing is saved.
       </p>
-      {/* What it comes to first, so it shows without scrolling; the inputs below fold. */}
-      {/* Why there is nothing to show, pointing below: the input at fault may be folded away. */}
-      {!valid ? (
-        <p className="hint">
-          {amount === ''
-            ? 'Enter an amount to see what it would come to.'
-            : 'Fix the inputs marked below to see what it would come to.'}
-        </p>
-      ) : refusal ? (
-        <p className="status error">
-          A Lump Sum is more than is owed on its date: see Planned Payments.
-        </p>
-      ) : error ? (
-        <p className="status error">{error.message}</p>
-      ) : !runs ? (
-        <p>Working it out…</p>
-      ) : (
-        <SimulationResults
-          runs={runs}
-          amountLent={settled![0].amount_lent}
-          closedOn={settled![0].closed_on}
-          planned={!!(settled![0].monthly_payment || settled![0].lump_sums?.length)}
-          collateral={collateralOf(inputs, goldRates)?.value ?? null}
-          span={span}
-          onSpan={(months) => change({ span: months })}
-          graphOpen={graphOpen}
-          onGraphOpen={setGraphOpen}
-          lend={
-            <div className="row">
-              <button
-                type="button"
-                disabled={future}
-                title={future ? "Can't lend before the start date" : undefined}
-                onClick={lend}
-              >
-                Lend this
-              </button>
-              {future ? (
-                <span className="hint">Can't lend before the start date</span>
-              ) : (
+      {/* What it comes to first and always in place, so it shows without scrolling and
+          nothing moves as the amount is typed; the inputs below fold. */}
+      <SimulationResults
+        runs={shown ?? []}
+        amountLent={shown ? settled![0].amount_lent : 0}
+        closedOn={problem.closed ? null : closed}
+        planned={
+          shown
+            ? !!(settled![0].monthly_payment || settled![0].lump_sums?.length)
+            : !!(monthly || sent.length)
+        }
+        collateral={collateralOf(inputs, goldRates)?.value ?? null}
+        span={span}
+        onSpan={(months) => change({ span: months })}
+        graphOpen={graphOpen}
+        onGraphOpen={setGraphOpen}
+        lend={
+          <div className="row">
+            <button
+              type="button"
+              disabled={!shown || future}
+              title={shown && future ? "Can't lend before the start date" : undefined}
+              onClick={lend}
+            >
+              Lend this
+            </button>
+            {why ? (
+              <span className={failed ? 'status error' : 'hint'}>{why}</span>
+            ) : future ? (
+              <span className="hint">Can't lend before the start date</span>
+            ) : (
+              shown && (
                 <span className="hint">
                   Opens New Mortgage with this amount, start date and Terms
-                  {runs.length > 1 && ` (${runs[0].label})`}.
+                  {shown.length > 1 && ` (${shown[0].label})`}.
                 </span>
-              )}
-            </div>
-          }
-        />
-      )}
+              )
+            )}
+          </div>
+        }
+      />
 
       <details className="tucked" open>
         <summary>Loan and Terms</summary>
@@ -279,6 +281,15 @@ export function CalculatorPage() {
       />
 
       <JewelleryValue inputs={inputs} change={change} goldRates={goldRates} />
+
+      {/* Below the inputs, so opening one moves none of them. */}
+      {shown?.map((run, index) => (
+        <MonthByMonth
+          key={index}
+          simulation={run.simulation}
+          label={shown.length > 1 ? run.label : null}
+        />
+      ))}
     </section>
   )
 }

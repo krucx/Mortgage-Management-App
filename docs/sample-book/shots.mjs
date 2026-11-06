@@ -195,7 +195,9 @@ await shot('referrer', card())
 // The Calculator keeps its inputs in its URL: the Simulation figures.py quotes too.
 const simulation = JSON.parse(readFileSync(new URL('./simulation.json', import.meta.url)))
 await open('/calculator?' + new URLSearchParams(simulation))
-await card().getByText('Total interest earned').waitFor()
+await card().getByText(/^Month by month/).first().waitFor()
+// The graph starts folded away; open it for the picture.
+await card().locator('summary', { hasText: /^Graph$/ }).click()
 await settle()
 const results = card().locator('.tiles').first()
 await shot('calculator', card(), {

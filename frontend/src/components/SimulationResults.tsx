@@ -6,19 +6,21 @@ import { formatChange, formatINR } from '../money'
 import { SimulationChart } from './SimulationChart'
 
 /** A figure for each Simulation, labelled with its Terms when two are compared, and how
- *  the second differs from the first. */
+ *  the second differs from the first; with none worked out yet, `blank`. */
 function Tile({
   caption,
   runs,
   figure,
   format,
   difference,
+  blank = format(null),
 }: {
   caption: string
   runs: Run[]
   figure: (simulation: Simulation) => number | null
   format: (figure: number | null) => string
   difference: (second: number, first: number) => string
+  blank?: string
 }) {
   const figures = runs.map((run) => figure(run.simulation))
   const [one, two] = figures
@@ -26,9 +28,11 @@ function Tile({
     <div className="tile">
       <span className="hint">{caption}</span>
       <strong>
-        {runs.length === 1
-          ? format(one)
-          : runs.map((run, i) => `${run.label} ${format(figures[i])}`).join(' · ')}
+        {runs.length === 0
+          ? blank
+          : runs.length === 1
+            ? format(one)
+            : runs.map((run, i) => `${run.label} ${format(figures[i])}`).join(' · ')}
       </strong>
       {runs.length > 1 && one !== null && two !== null && (
         <span className="hint">{difference(two, one)}</span>
@@ -45,6 +49,8 @@ const percentagePoints = (decimals: number) => (second: number, first: number) =
     : `${second > first ? '+' : '−'}${formatPercent(Math.abs(second - first), decimals).slice(0, -1)} percentage points`
 const DAY = 24 * 60 * 60 * 1000
 
+/** What a Simulation comes to, its tiles always in place so nothing moves as the inputs are
+ *  typed: at nothing until one is worked out, `runs` then empty. */
 export function SimulationResults({
   runs,
   amountLent,
@@ -59,7 +65,7 @@ export function SimulationResults({
 }: {
   runs: Run[]
   amountLent: number // paise
-  closedOn: string
+  closedOn: string | null // as entered, for before anything is worked out; none if it's wrong
   planned: boolean
   collateral: number | null // paise
   span: Span
@@ -69,11 +75,13 @@ export function SimulationResults({
   onGraphOpen: (open: boolean) => void
   lend: ReactNode
 }) {
+  // Once worked out, the day it closed on is the Simulation's own.
+  const closing = runs[0]?.simulation.on_closure.on ?? closedOn
   return (
     <div className="stack">
       <div className="tiles">
         <Tile
-          caption={`Outstanding on ${formatDate(closedOn)}`}
+          caption={closing ? `Outstanding on ${formatDate(closing)}` : 'Outstanding when closed'}
           runs={runs}
           figure={(s) => s.on_closure.total}
           format={money}
@@ -104,6 +112,7 @@ export function SimulationResults({
           <Tile
             caption="Paid off"
             runs={runs}
+            blank="—"
             figure={(s) => (s.paid_off_on ? Date.parse(s.paid_off_on) : null)}
             format={(paidOff) =>
               paidOff === null
@@ -130,7 +139,9 @@ export function SimulationResults({
             difference={percentagePoints(1)}
           />
           <Tile
-            caption={`Loan-to-Value on ${formatDate(closedOn)}`}
+            caption={
+              closing ? `Loan-to-Value on ${formatDate(closing)}` : 'Loan-to-Value when closed'
+            }
             runs={runs}
             figure={(s) => s.on_closure.total / collateral}
             format={share(1)}
@@ -145,41 +156,43 @@ export function SimulationResults({
         onToggle={(event) => onGraphOpen(event.currentTarget.open)}
       >
         <summary>Graph</summary>
-        <div className="stack">
-          <label className="what-if">
-            Graph span
-            <select value={span} onChange={(event) => onSpan(Number(event.target.value) as Span)}>
-              {SPANS.map((months) => (
-                <option key={months} value={months}>
-                  {months} months
-                </option>
-              ))}
-            </select>
-          </label>
-          <SimulationChart
-            lines={runs.map((run) => ({
-              label: run.label,
-              points: run.simulation.points,
-              payments: run.simulation.payments,
-            }))}
-            closedOn={closedOn}
-          />
-        </div>
+        {runs.length === 0 ? (
+          <p className="hint">Nothing to draw yet.</p>
+        ) : (
+          <div className="stack">
+            <label className="what-if">
+              Graph span
+              <select value={span} onChange={(event) => onSpan(Number(event.target.value) as Span)}>
+                {SPANS.map((months) => (
+                  <option key={months} value={months}>
+                    {months} months
+                  </option>
+                ))}
+              </select>
+            </label>
+            <SimulationChart
+              lines={runs.map((run) => ({
+                label: run.label,
+                points: run.simulation.points,
+                payments: run.simulation.payments,
+              }))}
+              closedOn={runs[0].simulation.on_closure.on}
+            />
+          </div>
+        )}
       </details>
-
-      {runs.map((run, index) => (
-        <MonthByMonth
-          key={index}
-          simulation={run.simulation}
-          label={runs.length > 1 ? run.label : null}
-        />
-      ))}
     </div>
   )
 }
 
 /** A Simulation's Ledger, month by month, with its planned Payments; folded away. */
-function MonthByMonth({ simulation, label }: { simulation: Simulation; label: string | null }) {
+export function MonthByMonth({
+  simulation,
+  label,
+}: {
+  simulation: Simulation
+  label: string | null
+}) {
   return (
     <details className="tucked">
       <summary>{label ? `Month by month, ${label}` : 'Month by month'}</summary>

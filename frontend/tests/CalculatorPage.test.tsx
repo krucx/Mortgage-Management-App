@@ -111,6 +111,9 @@ function showCalculator(server: ReturnType<typeof backend>['server'], at = '/cal
 const tile = (caption: string) =>
   screen.getByText(caption).closest('.tile')?.querySelector('strong')?.textContent
 
+/** Waits for a Simulation to be worked out: its month-by-month tables show only then. */
+const worked = () => screen.findAllByText(/^Month by month/, {}, { timeout: 2000 })
+
 const field = (label: string | RegExp) => screen.getByLabelText<HTMLInputElement>(label)
 const type = (label: string | RegExp, value: string) =>
   fireEvent.change(field(label), { target: { value } })
@@ -133,7 +136,7 @@ test('an amount brings up the tiles, worked out by the backend', async () => {
 
   type('Amount lent (₹)', '100000')
 
-  await screen.findByText('Outstanding on 20 Apr 2027', {}, { timeout: 2000 })
+  await worked()
   expect(tile('Outstanding on 20 Apr 2027')).toBe('₹1,29,360')
   expect(asked.at(-1)).toEqual({
     amount_lent: 10_000_000,
@@ -175,7 +178,7 @@ test('each change goes into the URL, with every input, and is worked out again',
   await vi.waitFor(() => expect(field('Monthly interest rate (%)').value).toBe('2'))
 
   type('Amount lent (₹)', '100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
   type('Monthly interest rate (%)', '3')
 
   await vi.waitFor(() => expect(asked.at(-1)?.terms.monthly_rate_bps).toBe(300), { timeout: 2000 })
@@ -206,7 +209,7 @@ test.each([
 
   const shown = await screen.findByText(message)
   expect(shown.closest('label')).toBe(input.closest('label'))
-  expect(screen.queryByText('Total interest earned')).toBeNull()
+  expect(tile('Total interest earned')).toBe('₹0')
   await new Promise((resolve) => setTimeout(resolve, 400))
   expect(asked.length).toBe(1)
 })
@@ -224,7 +227,7 @@ test('ten years on is the latest it can close', async () => {
 test('the graph is one Outstanding line, Closed on marked, over the chosen span', async () => {
   const { server, asked } = backend()
   showCalculator(server, '/calculator?amount=100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   const graph = screen.getByRole('img', { name: 'Outstanding from 20 Apr 2026 to 20 Apr 2027' })
   expect(graph.querySelectorAll('path.series')).toHaveLength(1)
@@ -238,7 +241,7 @@ test('the graph is one Outstanding line, Closed on marked, over the chosen span'
 test('the month-by-month table is folded away until opened', async () => {
   const { server } = backend()
   showCalculator(server, '/calculator?amount=100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   const table = screen.getByText('Month by month').closest('details')!
   expect(table.open).toBe(false)
@@ -259,7 +262,7 @@ const settle = (expectation: () => void) => vi.waitFor(expectation, { timeout: 2
 test('a monthly amount and dated Lump Sums are planned, added and removed, all in the URL', async () => {
   const { server, asked } = backend()
   showCalculator(server, '/calculator?amount=100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   type('Monthly payment (₹)', '3000')
   fireEvent.click(button('Add a Lump Sum'))
@@ -349,7 +352,7 @@ test('a Lump Sum larger than what is owed on its date is refused on its row', as
 
   const refusal = await screen.findByText('Only ₹1,05,000 owed on 15 May', {}, { timeout: 2000 })
   expect(refusal.closest('.lump-sum')).toBe(field('Lump Sum 3 date').closest('.lump-sum'))
-  expect(screen.queryByText('Total interest earned')).toBeNull()
+  expect(tile('Total interest earned')).toBe('₹0')
 })
 
 test('the Paid off tile shows only with a plan, and says so when not within 10 years', async () => {
@@ -358,7 +361,7 @@ test('the Paid off tile shows only with a plan, and says so when not within 10 y
     paid_off_on: asked.monthly_payment === 5_000_000 ? '2026-07-20' : null,
   }))
   showCalculator(server, '/calculator?amount=100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
   expect(screen.queryByText(/Paid off/)).toBeNull()
 
   type('Monthly payment (₹)', '1000')
@@ -389,7 +392,7 @@ test('planned Payments are dots on the line and rows of the table', async () => 
     ],
   }))
   showCalculator(server, '/calculator?amount=100000&monthly=3000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   expect(screen.getByRole('img').querySelectorAll('circle.payment')).toHaveLength(2)
   const rows = [...screen.getByText('Month by month').closest('details')!.querySelectorAll('tbody tr')]
@@ -417,7 +420,7 @@ const byTerms = (asked: SimulationIn): Simulation =>
 test('a second set of Terms is run alongside, each tile labelled with both and the difference', async () => {
   const { server, asked } = backend(byTerms)
   showCalculator(server, '/calculator?amount=100000&mode=simple&rate=2&rule=full_month')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   fireEvent.click(button('Compare other Terms'))
   const second = screen.getByRole('group', { name: 'Compared with' })
@@ -443,7 +446,7 @@ test('a second set of Terms is run alongside, each tile labelled with both and t
 test('the jewellery value is folded away, and without one there is no Loan-to-Value', async () => {
   const { server } = backend()
   showCalculator(server, '/calculator?amount=100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   expect((screen.getByText('Jewellery value').closest('details') as HTMLDetailsElement).open).toBe(false)
   expect(screen.queryByText(/Loan-to-Value/)).toBeNull()
@@ -452,7 +455,7 @@ test('the jewellery value is folded away, and without one there is no Loan-to-Va
 test('a net weight is valued at the Gold Rate for its purity, giving Loan-to-Value now and on Closed on', async () => {
   const { server } = backend()
   showCalculator(server, '/calculator?amount=100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   type('Net weight, gold only (grams)', '25') // 25 g at ₹6,000 = ₹1,50,000
 
@@ -469,7 +472,7 @@ test('a net weight is valued at the Gold Rate for its purity, giving Loan-to-Val
 test('a purity with no Gold Rate set gives no value', async () => {
   const { server } = backend()
   showCalculator(server, '/calculator?amount=100000&net=25&purity=18')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   expect(screen.getByText('No Gold Rate set for 18K: type a Collateral Value instead')).toBeTruthy()
   expect(screen.queryByText(/Loan-to-Value/)).toBeNull()
@@ -482,7 +485,7 @@ test('Lend this opens New Mortgage with the amount, start date and first Terms, 
     '/calculator?amount=50000&start=2026-04-01&rate=2.5&mode=simple&rule=pro_rata&monthly=1000' +
       '&rate2=3&mode2=simple&rule2=full_month',
   )
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   fireEvent.click(button('Lend this'))
 
@@ -499,7 +502,7 @@ test('Lend this opens New Mortgage with the amount, start date and first Terms, 
 test('Lend this is disabled, with a tip, for a start date still to come', async () => {
   const { server } = backend()
   showCalculator(server, '/calculator?amount=50000&start=2026-04-21')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   expect(button('Lend this').disabled).toBe(true)
   expect(screen.getByText("Can't lend before the start date")).toBeTruthy()
@@ -510,46 +513,75 @@ const section = (summary: string) =>
   screen.getByText(summary, { selector: 'summary' }).closest('details') as HTMLDetailsElement
 
 /** Whether `a` comes before `b` on the page. */
-const before = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+const before = (a: Node, b: Node) =>
+  !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
 
-test('the tiles and the graph come before the inputs, so they show without scrolling', async () => {
+test('the tiles and the graph come before the inputs', async () => {
   const { server } = backend()
   showCalculator(server, '/calculator?amount=100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
-  const before = (a: Node, b: Node) =>
-    !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
   const tiles = screen.getByText('Total interest earned').closest('.tiles')!
   expect(before(tiles, field('Amount lent (₹)'))).toBe(true)
   expect(before(screen.getByRole('img'), field('Amount lent (₹)'))).toBe(true)
 })
 
-test('before an amount, the hint is where the tiles will be, above the inputs', async () => {
+test('before an amount, the tiles are there already, at nothing, with Lend this and a hint', async () => {
   const { server } = backend()
   showCalculator(server)
   await vi.waitFor(() => expect(field('Monthly interest rate (%)').value).toBe('2'))
 
+  expect(tile('Outstanding on 20 Apr 2027')).toBe('₹0')
+  expect(tile('Total interest earned')).toBe('₹0')
+  expect(tile("First month's interest")).toBe('₹0')
+  expect(tile('Effective annual rate')).toBe('0%')
+  expect(button('Lend this').disabled).toBe(true)
   const hint = screen.getByText('Enter an amount to see what it would come to.')
-  expect(
-    hint.compareDocumentPosition(field('Amount lent (₹)')) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy()
+  expect(before(hint, field('Amount lent (₹)'))).toBe(true)
 })
 
-test('the graph can be folded away, open to start with', async () => {
+test('entering the amount moves nothing above the inputs', async () => {
   const { server } = backend()
-  showCalculator(server, '/calculator?amount=100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  showCalculator(server)
+  await vi.waitFor(() => expect(field('Monthly interest rate (%)').value).toBe('2'))
+  const card = field('Amount lent (₹)').closest('section')!
+  const above = () => {
+    const loan = section('Loan and Terms')
+    return [...card.children]
+      .slice(0, [...card.children].indexOf(loan))
+      .map((element) => [element.tagName, element.className, element.children.length].join(' '))
+  }
+  const empty = above()
+
+  type('Amount lent (₹)', '100000')
+  await worked()
+
+  expect(above()).toEqual(empty)
+  expect(tile('Total interest earned')).toBe('₹29,360')
+  expect(before(section('Jewellery value'), screen.getByText('Month by month'))).toBe(true)
+})
+
+test('the graph is folded away to start with, and empty before an amount', async () => {
+  const { server } = backend()
+  showCalculator(server)
+  await vi.waitFor(() => expect(field('Monthly interest rate (%)').value).toBe('2'))
 
   const graph = section('Graph')
-  expect(graph.open).toBe(true)
-  expect(within(graph).getByRole('img')).toBeTruthy()
-  expect(within(graph).getByLabelText('Graph span')).toBeTruthy()
+  expect(graph.open).toBe(false)
+  expect(within(graph).queryByRole('img')).toBeNull()
+  expect(within(graph).getByText('Nothing to draw yet.')).toBeTruthy()
+
+  type('Amount lent (₹)', '100000')
+  await worked()
+  expect(section('Graph').open).toBe(false)
+  expect(within(section('Graph')).getByRole('img')).toBeTruthy()
+  expect(within(section('Graph')).getByLabelText('Graph span')).toBeTruthy()
 })
 
 test('the inputs are in sections that fold: the loan open, the plan folded away until there is one', async () => {
   const { server } = backend()
   showCalculator(server, '/calculator?amount=100000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   const loan = section('Loan and Terms')
   expect(loan.open).toBe(true)
@@ -564,18 +596,18 @@ test('the inputs are in sections that fold: the loan open, the plan folded away 
 test('a bookmarked plan opens its section', async () => {
   const { server } = backend()
   showCalculator(server, '/calculator?amount=100000&monthly=5000')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   expect(section('Planned Payments').open).toBe(true)
 })
 
-test('a folded graph stays folded while a compared set of Terms is worked out', async () => {
+test('an opened graph stays open while a compared set of Terms is worked out', async () => {
   const { server } = backend(byTerms)
   showCalculator(server, '/calculator?amount=100000&mode=simple&rate=2&rule=full_month')
-  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+  await worked()
 
   fireEvent.click(screen.getByText('Graph', { selector: 'summary' }))
-  await vi.waitFor(() => expect(section('Graph').open).toBe(false))
+  await vi.waitFor(() => expect(section('Graph').open).toBe(true))
   fireEvent.click(button('Compare other Terms'))
   fireEvent.change(
     within(screen.getByRole('group', { name: 'Compared with' })).getByLabelText('Interest Mode'),
@@ -587,7 +619,7 @@ test('a folded graph stays folded while a compared set of Terms is worked out', 
   await settle(() =>
     expect(tile('Outstanding on 20 Apr 2027')).toBe('2% Simple ₹1,24,000 · 2% Monthly ₹1,26,820'),
   )
-  expect(section('Graph').open).toBe(false)
+  expect(section('Graph').open).toBe(true)
 })
 
 test('a refused Lump Sum says at the top where to look, its section perhaps folded', async () => {
@@ -621,4 +653,16 @@ test('an input it cannot work out with says so at the top, not to enter an amoun
 
   expect(screen.getByText('Fix the inputs marked below to see what it would come to.')).toBeTruthy()
   expect(screen.queryByText('Enter an amount to see what it would come to.')).toBeNull()
+})
+
+test('with a jewellery value but no amount, the Loan-to-Value tiles are there already, at nothing', async () => {
+  const { server } = backend()
+  showCalculator(server, '/calculator?value=200000')
+  await vi.waitFor(() => expect(field('Monthly interest rate (%)').value).toBe('2'))
+
+  expect(tile('Loan-to-Value now')).toBe('0%')
+  expect(tile('Loan-to-Value on 20 Apr 2027')).toBe('0%')
+
+  type('Amount lent (₹)', '100000')
+  await settle(() => expect(tile('Loan-to-Value now')).toBe('50%'))
 })

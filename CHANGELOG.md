@@ -13,10 +13,12 @@ database.
 
 ### Changed
 
-- **Calculator:** what it comes to (the figures, Lend this and the graph) is at the top,
-  above the inputs, so it shows without scrolling. The graph and each group of inputs
-  (Loan and Terms, Planned Payments, Jewellery value) fold away; Planned Payments starts
-  folded unless a plan was entered.
+- **Calculator:** what it comes to (the figures and Lend this) is at the top, above the
+  inputs, so it shows without scrolling, and always in place: at ₹0 until there is an
+  amount, so nothing on the screen moves while it is typed. The graph is folded away to
+  start with, empty until there is something to draw; month by month is below the
+  inputs. The graph and each group of inputs (Loan and Terms, Planned Payments,
+  Jewellery value) fold; Planned Payments starts folded unless a plan was entered.
 
 ## [3.4.0] - 2026-11-06
 
