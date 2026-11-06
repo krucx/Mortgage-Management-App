@@ -94,6 +94,10 @@ _Avoid_: Recalculation, recompute, refresh
 The Ledger continued into the future under stated assumptions, used to compare outcomes before a decision.
 _Avoid_: Forecast, estimate
 
+**Simulation**:
+A made-up Mortgage (an amount, a start date, Terms and perhaps planned Payments) worked out exactly as a real one's Ledger would be, to size up a loan before lending; it has no Customer or jewellery and is never kept.
+_Avoid_: Quote, estimate, dummy mortgage
+
 **Preview**:
 What a change would do, shown before it is saved: the change is made and then undone, so a Preview is refused exactly when saving would be.
 _Avoid_: Dry run, simulation
