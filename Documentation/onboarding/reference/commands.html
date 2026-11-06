@@ -114,8 +114,26 @@
 <tr><td>repo root</td><td><code>sh Documentation/onboarding/012-frontend-pages-and-the-pwa/scripts/run_throughs.sh</code></td><td>Builds the sample book in a temp folder, drives the screens headless through lessons 1–5 (it saves on that copy), then builds the screens, serves a second fresh book on 8765 and drives the service worker. Ports 8000, 5199 and 8765 must be free; needs Playwright (<code>cd docs/sample-book &amp;&amp; npm install</code>)</td></tr>
 </table>
 
+<h2 id="testing">Testing</h2>
+<p>Taught in <a href="../013-testing/index.html">chapter 013</a>. No server or sample book needed: each backend test makes its own database, and the frontend tests answer requests with <code>fakeServer</code>. Run all four CI commands before you push to <code>main</code>.</p>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td><code>backend/</code></td><td><code>uv run mypy src</code></td><td>CI's first backend check: strict types in <code>src/</code> (not <code>tests/</code>). "Success: no issues found in 62 source files"</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest</code></td><td>CI's second: every backend test, 709 at the chapter's commit, about 35 s</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run typecheck</code></td><td>CI's first frontend check: <code>tsc -b</code>, over <code>src/</code> and <code>tests/</code>. Prints nothing when clean</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm test</code></td><td>CI's second: <code>vitest run</code>, 230 tests in 34 files, about 17 s</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run lint</code></td><td>oxlint. <strong>Not in CI</strong>: the only check that bans <code>fetch</code> outside the typed client (<a href="traps.html#t11">trap #11</a>). Prints nothing when clean</td></tr>
+<tr><td>repo root</td><td><code>cmp windows/Setup.bat docs/Setup.bat</code></td><td>CI's <code>pages</code> job: the downloadable <code>Setup.bat</code> is the one in <code>windows/</code>. No output means the same</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest -k cash_limit -v</code></td><td>Only tests whose name or file name contains the words (5 here: one is in <code>test_lent_through.py</code>)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_cash_limit.py</code><br><code>uv run pytest tests/test_cash_limit.py::test_a_cash_limit_of_nothing_is_refused</code></td><td>One file; one test</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npx vitest run -t "Term Change"</code><br><code>npx vitest run tests/ChangeTermsPage.test.tsx</code></td><td>Tests whose name contains the words (4 here); one file</td></tr>
+<tr><td>repo root</td><td><code>docker build -t mm-pester -f Documentation/onboarding/013-testing/scripts/pester.Dockerfile .</code><br><code>docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke-Pester windows/tests'</code></td><td>The Windows scripts' Pester tests, in Debian with PowerShell's <code>linux-arm64</code> release (not on the Mac, not Microsoft's image): "Tests Passed: 65". On Intel/AMD, change <code>linux-arm64</code> to <code>linux-x64</code> in the Dockerfile</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run python ../Documentation/onboarding/013-testing/scripts/figures.py</code></td><td>The tests' cast through the real app on 20 Apr 2026: Ramesh's chain, the Loan-to-Value boundary, a ₹12,000 Payment</td></tr>
+<tr><td>repo root</td><td><code>sh Documentation/onboarding/013-testing/scripts/run_throughs.sh</code></td><td>Every count and failure chapter 013 quotes: runs every check, then each lesson's one-line break, in a throwaway git worktree (your clone is never touched). About ten minutes; Pester needs Docker</td></tr>
+</table>
+
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

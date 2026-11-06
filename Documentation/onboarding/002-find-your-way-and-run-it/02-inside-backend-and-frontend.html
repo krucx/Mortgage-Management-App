@@ -161,7 +161,7 @@ flowchart TD
   <p><strong>Predict:</strong> the backend tests make test data over HTTP with helpers in <code>backend/tests/api_seed.py</code>. Why not the shorter, more obvious name <code>http.py</code>?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p>Because <code>backend/tests/</code> is on Python's import path when pytest runs, so the tests can <code>import seed</code> directly. A file called <code>http.py</code> there would hide Python's own <code>http</code> module from everything that imports it, including the web libraries. The file's docstring says so. Chapter 013 covers the test helpers.</p>
+    <p>Because <code>backend/tests/</code> is on Python's import path when pytest runs, so the tests can <code>import seed</code> directly. A file called <code>http.py</code> there would hide Python's own <code>http</code> module from everything that imports it, including the web libraries. The file's docstring says so. <a href="../013-testing/02-backend-tests-through-the-api.html">Chapter 013, lesson 2</a> covers the test helpers, and shows what an <code>http.py</code> does.</p>
   </div>
 </div>
 

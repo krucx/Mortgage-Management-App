@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.1 · Every check, and how to run it</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 013 · Lesson 1</p>
+<h1>Every check, and how to run it</h1>
+<p class="lede">Every push to <code>main</code> runs a set of checks on GitHub. This lesson is the list: what each check is, how to run it on your own machine before you push, and how to run just one test while you work. It ends with the one check CI doesn't run.</p>
+
+<div class="callout win"><strong>By the end</strong> you can run locally everything CI runs, and run one test on its own.</div>
+
+<h2>The problem</h2>
+<p>This project has one developer, who commits straight to <code>main</code>. There are no pull requests and no reviewer. So when a check fails on GitHub, <code>main</code> is already broken: the next release would be cut from broken code, and the Lender's next update would install it.</p>
+<p>"Run the tests before you push" sounds like enough, but "the tests" is really several different tools in two languages, plus PowerShell. Run <code>pytest</code> alone and you miss a type error that <code>mypy</code> would have caught. Run <code>npm test</code> alone and you miss a type error in a page, because vitest doesn't type-check. Each tool catches a different kind of mistake, so you need to know the whole list.</p>
+
+<h2>The idea</h2>
+<p><strong>CI is a short list of commands, and you can run every one of them yourself.</strong> CI (continuous integration) means GitHub runs these checks on its own machines for every push. They live in one file, <code>.github/workflows/test.yml</code>. The two that matter day to day are two commands for the backend and two for the frontend. Run all four before you push, and CI should agree with you.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  P["push to main,<br/>a pull request,<br/>or release.yml"] --> T[".github/workflows/test.yml"]
+  T --> B["backend<br/>uv run mypy src<br/>uv run pytest"]
+  T --> F["frontend<br/>npm run typecheck<br/>npm test"]
+  T --> I["image<br/>docker build, start, curl"]
+  T --> G["pages<br/>cmp Setup.bat"]
+  T --> W["windows<br/>Invoke-Pester, then<br/>setup, update, uninstall"]
+  R["release.yml"] -.->|"publishes only if<br/>all five pass"| T
+</pre>
+<figcaption>Five jobs, run side by side on GitHub's machines. The first two are this chapter's subject.</figcaption>
+</figure>
+<p>Notice that the release workflow runs this same file before it publishes anything. A red check doesn't just mark a commit; it stops the release (chapter 015).</p>
+
+<h2>The code</h2>
+<h3>1. The two jobs you'll run every day</h3>
+<figure class="snippet">
+<figcaption><a href="../../../.github/workflows/test.yml">.github/workflows/test.yml</a> · the triggers and the <code>backend</code> and <code>frontend</code> jobs · lines 3–35, trimmed</figcaption>
+<pre data-file=".github/workflows/test.yml"><code>3   on:
+4     push:
+5       branches: [main]
+6     pull_request:
+⋮
+8     workflow_call:                        # ① release.yml runs this file too
+⋮
+11    backend:
+12      runs-on: ubuntu-latest
+⋮
+19        - run: uv sync --frozen               # install exactly what uv.lock says
+20        - run: uv run mypy src                # ②  ◀
+21        - run: uv run pytest                  # ③  ◀
+⋮
+23    frontend:
+24      runs-on: ubuntu-latest
+⋮
+33        - run: npm ci
+34        - run: npm run typecheck              # ④  ◀
+35        - run: npm test                       # ⑤  ◀
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>workflow_call</code> lets another workflow use this one as a step. <code>release.yml</code> does, so a release runs every check first.</li>
+  <li><strong>mypy</strong> checks the backend's type annotations without running anything. Note the folder: <code>src</code>. It checks the app's code, <em>not</em> the tests.</li>
+  <li><strong>pytest</strong> runs every backend test.</li>
+  <li><code>npm run typecheck</code> is <code>tsc -b</code>: the TypeScript compiler checks every type and writes nothing. It covers <code>tests/</code> as well as <code>src/</code>.</li>
+  <li><code>npm test</code> is <code>vitest run</code>: every frontend test, once. (Plain <code>vitest</code> would keep watching your files and rerun them.)</li>
+</ol>
+
+<h3>2. Where each tool is set up</h3>
+<figure class="snippet">
+<figcaption><a href="../../../backend/pyproject.toml">backend/pyproject.toml</a> · pytest and mypy · lines 32–37</figcaption>
+<pre data-file="backend/pyproject.toml"><code>32  [tool.pytest.ini_options]
+33  testpaths = ["tests"]                   # ① where pytest looks
+34
+35  [tool.mypy]
+36  strict = true                           # ②  ◀
+37  plugins = ["pydantic.mypy"]             # ③
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>pytest collects every <code>test_*.py</code> file in <code>backend/tests/</code>, and every function in it whose name starts with <code>test_</code>.</li>
+  <li><code>strict</code> turns on all of mypy's optional checks: every function needs its argument and return types, and nothing may silently be <code>Any</code>. So <code>src/</code> is fully typed. The tests aren't type-checked at all, which is why most of them have no annotations.</li>
+  <li>Pydantic models (every <code>…In</code> body a route accepts) build their <code>__init__</code> at run time. The plugin tells mypy what fields they take, so <code>PaymentIn(amount="lots")</code> is an error before anything runs.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/package.json">frontend/package.json</a> · <code>scripts</code> · lines 6–14, trimmed</figcaption>
+<pre data-file="frontend/package.json"><code>6     "scripts": {
+⋮
+8       "build": "tsc -b &amp;&amp; node scripts/copy-ocr.mjs &amp;&amp; vite build",   ①
+9       "typecheck": "tsc -b",
+10      "test": "vitest run",
+11      "lint": "oxlint",                                                  ②  ◀
+⋮
+13      "gen:types": "cd ../backend &amp;&amp; uv run python -m mortgage_backend.openapi …",   ③
+14    },
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>tsc -b</code> is also the first step of a build. A type error that slips past you still stops <code>npm run build</code>, and so the Docker image.</li>
+  <li><code>oxlint</code>: a linter, a tool that reads code for patterns that are legal but wrong. Below.</li>
+  <li>Not a check, but it decides whether two of them pass: after changing a backend model, regenerate the frontend's types (<a href="../reference/traps.html#t10">trap #10</a>, <a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011</a>).</li>
+</ol>
+<p>vitest's own settings are a few lines at the end of <a href="../../../frontend/vite.config.ts"><code>vite.config.ts</code></a>: it runs <code>tests/**/*.test.{ts,tsx}</code>, and loads <code>tests/setup.ts</code> first (lesson 4).</p>
+
+<h3>3. The rule CI never checks</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/.oxlintrc.json">frontend/.oxlintrc.json</a> · <code>no-restricted-globals</code> · lines 16–22</figcaption>
+<pre data-file="frontend/.oxlintrc.json"><code>16      "no-restricted-globals": [
+17        "error",
+18        {
+19          "name": "fetch",                                                ◀
+20          "message": "Ask the backend through the typed client (src/serverState.ts, src/requests.ts), never with fetch directly."
+21        }
+22      ],
+</code></pre>
+</figure>
+<p>This is <a href="../reference/traps.html#t11">trap #11</a>, taught in <a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011</a>: every request goes through the typed client, so it is type-checked, cached and made stale by saves. The next rules in the file ban <code>window.fetch</code>, <code>globalThis.fetch</code> and <code>self.fetch</code> too. oxlint is what enforces it. And <code>npm run lint</code> appears nowhere in <code>test.yml</code>.</p>
+
+<h3>4. The other three jobs</h3>
+<table class="wide">
+<tr><th>Job</th><th>What it checks</th><th>Run it yourself</th></tr>
+<tr><td><code>image</code></td><td>The one Docker image builds, starts on empty folders, serves the screens with the right cache headers, and answers <code>/api</code> (<a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>)</td><td>Chapter 014. Locally, use <code>docker-compose.dev.yml</code> with scratch folders (<a href="../reference/traps.html#t12">trap #12</a>)</td></tr>
+<tr><td><code>pages</code></td><td>The <code>Setup.bat</code> offered on the GitHub Pages site is byte for byte the one in <code>windows/</code> (line 67)</td><td><code>cmp windows/Setup.bat docs/Setup.bat</code> from the repo root: no output means the same</td></tr>
+<tr><td><code>windows</code></td><td>On a real Windows machine: the Pester tests (line 85), then Setup without Docker, the app answering and taking a Backup, an update, and the uninstall</td><td>Pester only, in Docker: below. The rest only runs on Windows (chapter 014)</td></tr>
+</table>
+
+<h2>Run-through: everything CI runs</h2>
+<p>From the repo root, in two terminals (the backend and the frontend don't depend on each other):</p>
+<pre><code># terminal 1
+cd backend
+uv run mypy src
+uv run pytest
+
+# terminal 2
+cd frontend
+npm run typecheck
+npm test</code></pre>
+<table class="steps text">
+<tr><th>Command</th><th>What it prints at the end</th><th>Time on a laptop</th></tr>
+<tr><td><code>uv run mypy src</code></td><td><code>Success: no issues found in 62 source files</code></td><td>a few seconds the first time; under a second after, from its cache</td></tr>
+<tr><td><code>uv run pytest</code></td><td><code>709 passed</code></td><td>about 35 s</td></tr>
+<tr><td><code>npm run typecheck</code></td><td>nothing at all: <code>tsc</code> prints only errors</td><td>a few seconds</td></tr>
+<tr><td><code>npm test</code></td><td><code>Test Files  34 passed (34)</code>, <code>Tests  230 passed (230)</code></td><td>about 17 s</td></tr>
+<tr><td><code>cmp windows/Setup.bat docs/Setup.bat</code></td><td>nothing: the files are the same</td><td>instant</td></tr>
+<tr><td>Pester, in Docker (below)</td><td><code>Tests Passed: 65, Failed: 0</code></td><td>2 s, plus building the image once</td></tr>
+</table>
+<p class="cite">Counts from <code>scripts/run_throughs.sh</code>, section L1, at the commit on the <a href="index.html">overview</a>. Earlier chapters quote 600 or 607 backend tests: the suite grows with the app, so trust your own run over any number in a lesson.</p>
+
+<h3>One test at a time</h3>
+<p>While you work on one thing, run only its tests. Both runners filter by name:</p>
+<pre><code>cd backend  &amp;&amp; uv run pytest -k cash_limit -v
+cd frontend &amp;&amp; npx vitest run -t "Term Change"</code></pre>
+<div class="reveal">
+  <p><strong>Predict:</strong> <code>test_cash_limit.py</code> has four tests. How many does <code>-k cash_limit</code> run?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>Five.</strong> <code>-k</code> matches any test whose name, or file name, <em>contains</em> the words:</p>
+    <table class="steps text">
+    <tr><th>File</th><th>Test</th></tr>
+    <tr><td><code>test_cash_limit.py</code></td><td><code>test_the_cash_limit_is_20000_rupees_unless_changed</code></td></tr>
+    <tr><td><code>test_cash_limit.py</code></td><td><code>test_the_lender_can_change_the_cash_limit</code></td></tr>
+    <tr><td><code>test_cash_limit.py</code></td><td><code>test_clearing_the_cash_limit_turns_the_warning_off_and_it_stays_off</code></td></tr>
+    <tr><td><code>test_cash_limit.py</code></td><td><code>test_a_cash_limit_of_nothing_is_refused</code></td></tr>
+    <tr class="changed"><td><code>test_lent_through.py</code></td><td><code>test_cash_above_the_cash_limit_is_lent_all_the_same</code></td></tr>
+    </table>
+    <p>"5 passed, 704 deselected". The fifth is a test in another file that happens to say "cash limit" in its name. That's usually what you want: everything about the Cash Limit. For exactly one file, name it: <code>uv run pytest tests/test_cash_limit.py</code>. For exactly one test, add <code>::</code> and its name.</p>
+  </div>
+</div>
+<p><code>vitest -t "Term Change"</code> works the same way on test names: it runs the 4 tests in <code>ChangeTermsPage.test.tsx</code> and skips the other 226. To run one file, give its path: <code>npx vitest run tests/ChangeTermsPage.test.tsx</code>.</p>
+<p class="cite">From <code>scripts/run_throughs.sh</code>, section L1.</p>
+
+<h3>The lint CI doesn't run</h3>
+<p>Now see what only the lint catches. In <code>frontend/src/money.ts</code>, add one line at the end:</p>
+<pre><code>export const sneaky = () =&gt; fetch('/api/customers')</code></pre>
+<div class="reveal">
+  <p><strong>Predict:</strong> which of <code>npm run typecheck</code>, <code>npm test</code> and <code>npm run lint</code> fail?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Command</th><th>Result</th></tr>
+    <tr><td><code>npm run typecheck</code></td><td>passes: <code>fetch</code> is a perfectly typed browser function</td></tr>
+    <tr><td><code>npm test</code></td><td>230 passed: no test calls <code>sneaky</code></td></tr>
+    <tr class="changed"><td><code>npm run lint</code></td><td><code>src/money.ts:27:29: error eslint(no-restricted-globals): Unexpected use of 'fetch'. Ask the backend through the typed client (src/serverState.ts, src/requests.ts), never with fetch directly.</code></td></tr>
+    </table>
+    <p>Only the lint fails, and CI doesn't run it. Pushed, this would go green on GitHub. (If a <em>page</em> called <code>fetch</code> while a test drew it, the test would fail: <code>showPage</code> replaces <code>fetch</code> with one that throws. Lesson 4. But a call no test reaches slips through.)</p>
+  </div>
+</div>
+<p>Undo it with <code>git checkout -- src/money.ts</code>. With the code clean, <code>npm run lint</code> prints nothing at all.</p>
+<p class="cite">From <code>scripts/run_throughs.sh</code>, section L1.</p>
+
+<h3>Pester, in Docker</h3>
+<p>The Windows scripts in <code>windows/</code> (Setup, Run, Uninstall) are PowerShell. Their own decisions, such as which release is newest and whether to use Docker, are tested with <strong>Pester</strong>, PowerShell's test framework, in <code>windows/tests/</code>. CI runs them on a Windows machine.</p>
+<p>On a Mac, don't install PowerShell; run Pester in a small Linux container instead. The image is Debian with PowerShell's own Linux release unpacked into it, and Pester installed. <a href="scripts/pester.Dockerfile"><code>scripts/pester.Dockerfile</code></a> builds it. From the repo root:</p>
+<pre><code>docker build -t mm-pester -f Documentation/onboarding/013-testing/scripts/pester.Dockerfile .
+docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke-Pester windows/tests'</code></pre>
+<p>It ends with <code>Tests Passed: 65, Failed: 0, Skipped: 0</code>: 55 tests in <code>Launcher.Tests.ps1</code> and 10 in <code>Uninstall.Tests.ps1</code>, in under two seconds once the image is built. The repo is mounted read-only (<code>:ro</code>), so the tests can't change your clone.</p>
+<div class="callout warn"><strong>Use this image, not another.</strong> On this project's Apple-silicon Mac, Microsoft's own <code>mcr.microsoft.com/powershell</code> image hung, so the Dockerfile starts from plain Debian and unpacks PowerShell's <code>linux-arm64</code> release. On an Intel or AMD machine, change <code>linux-arm64</code> to <code>linux-x64</code> in it.</div>
+<p>What those tests check, and the rest of the <code>windows</code> job, is chapter 014's.</p>
+
+<h2>Nuances</h2>
+<h3>a. mypy doesn't read the tests; tsc does</h3>
+<p>The backend's CI command is <code>mypy src</code>, so a type mistake in a backend test is caught only when the test runs. The frontend's <code>tsconfig.app.json</code> includes <code>"src"</code> <em>and</em> <code>"tests"</code>, so <code>npm run typecheck</code> checks the frontend's tests too. A test whose fake answer has the wrong shape for <code>Mortgage</code> fails the type check, not just the test. That is part of why the frontend fixtures are typed (<code>export const mortgage: Mortgage = …</code>, lesson 4).</p>
+
+<h3>b. vitest runs in Node unless a file asks for a browser</h3>
+<p>Vitest runs each test file in plain Node by default, where there is no <code>document</code>. A file that draws a page starts with the comment <code>// @vitest-environment jsdom</code>, which gives it jsdom: a browser's DOM, written in JavaScript. 27 of the 34 test files have it. The other 7 (<code>allocate</code>, <code>format</code>, <code>money</code>, <code>sort</code>, <code>weight</code>, <code>idNumbers</code>, <code>api-types</code>) test plain functions and don't need it. Forget the line in a new page test and it fails with <code>document is not defined</code>.</p>
+
+<h3>c. vitest doesn't type-check</h3>
+<p>Vitest strips the types and runs the JavaScript. A test can pass with a type error in it, so <code>npm test</code> green and <code>npm run typecheck</code> red is possible. That's why CI runs both.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">You add <code>window.fetch('/api/backups')</code> to a page that no test draws, then run the four CI commands. What happens?</p>
+  <button class="opt">mypy fails: <code>fetch</code> is not allowed in the app</button>
+  <button class="opt"><code>npm run typecheck</code> fails on the restricted global</button>
+  <button class="opt">All four pass; only <code>npm run lint</code> would object</button>
+  <div class="why">mypy reads only the backend. <code>tsc</code> checks types, and <code>window.fetch</code> is well typed. The ban is an oxlint rule (<code>no-restricted-properties</code>, for <code>window.fetch</code>), and CI never runs oxlint. No test draws the page, so <code>showPage</code>'s throwing <code>fetch</code> never runs either.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">You want to run only the four tests in <code>backend/tests/test_cash_limit.py</code>. Which command does exactly that?</p>
+  <button class="opt"><code>uv run pytest tests/test_cash_limit.py</code></button>
+  <button class="opt"><code>uv run pytest -k cash_limit</code></button>
+  <button class="opt"><code>uv run pytest -k test_cash_limit.py</code></button>
+  <div class="why">A path runs that file. <code>-k cash_limit</code> matches by substring and also runs <code>test_lent_through.py</code>'s <code>test_cash_above_the_cash_limit_is_lent_all_the_same</code>: five tests. <code>-k</code> takes name expressions, not paths; a dot in it is an error.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">A frontend test file passes <code>{ id: 'seven' }</code> where a <code>Mortgage</code> is expected. <code>npm test</code> passes. What does CI say?</p>
+  <button class="opt">Green: vitest ran the file and every test passed</button>
+  <button class="opt">Red: <code>npm run typecheck</code> also checks <code>tests/</code></button>
+  <button class="opt">Red: oxlint rejects the wrong type in a test file</button>
+  <div class="why">vitest strips types without checking them, but <code>tsc -b</code> includes <code>tests/</code> (<code>tsconfig.app.json</code>), so the frontend job fails at its typecheck step. oxlint doesn't check types and isn't in CI.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../../.github/workflows/test.yml"><code>.github/workflows/test.yml</code></a> whole (about 150 lines): every job's steps, including the <code>image</code> job's checks of the cache headers that <a href="../reference/traps.html#t13">trap #13</a> is about. Then the "Tests and type checks" section of the <a href="../../../README.md">README</a>. For the tools themselves, pytest's guide to <a href="https://docs.pytest.org/en/stable/how-to/usage.html">choosing which tests to run</a> covers <code>-k</code>, <code>::</code> and more.</p>
+
+<nav class="lessons">
+  <a href="index.html">← Chapter overview</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="02-backend-tests-through-the-api.html">Backend tests through the API →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

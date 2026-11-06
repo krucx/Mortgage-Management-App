@@ -211,7 +211,7 @@ uv run python ../docs/sample-book/serve.py "$PWA"      # http://127.0.0.1:8765</
 <p class="cite">From <code>scripts/pwa.mjs</code> (section L6), which starts and stops <code>serve.py</code> itself. Off Windows, so no Start button.</p>
 
 <h3>The update banner, from its tests</h3>
-<p><code>serve.py</code> passes no latest release, so <code>/api/update</code> answers <code>{"running": "3.4.1", "available": null}</code> and the banner never shows on the served book. Read <a href="../../../frontend/tests/UpdateBanner.test.tsx"><code>tests/UpdateBanner.test.tsx</code></a> instead. Each test runs the real banner against a fake backend (<code>fakeServer</code>, chapter 013) whose version can be changed mid-test, checking every 5 ms instead of every 3 s:</p>
+<p><code>serve.py</code> passes no latest release, so <code>/api/update</code> answers <code>{"running": "3.4.1", "available": null}</code> and the banner never shows on the served book. Read <a href="../../../frontend/tests/UpdateBanner.test.tsx"><code>tests/UpdateBanner.test.tsx</code></a> instead. Each test runs the real banner against a fake backend (<code>fakeServer</code>, <a href="../013-testing/04-frontend-tests-fakeserver-and-showpage.html">chapter 013</a>) whose version can be changed mid-test, checking every 5 ms instead of every 3 s:</p>
 <table class="steps text">
 <tr><th>Test (line)</th><th>The backend does</th><th>The banner</th></tr>
 <tr><td>"a newer release is offered with its notes" (40)</td><td>runs 1.5.1; 1.6.0 is out</td><td>"Version 1.6.0 is available", its notes, Install now</td></tr>
