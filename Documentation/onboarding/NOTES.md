@@ -182,7 +182,7 @@
 - `common.ps1`'s `Select-Mode` comment still says local means "uv and npm"; since ADR 0010 a release needs no npm. Not fixed (code, not course).
 - Chapter 015 owns the ready-built zip, `release.yml`, `updates.py`, the banner's side of an update, and restoring a `-before-update` Backup; 014 links forward by number only.
 
-## Chapter 015 (follow-up to 5cfbec5; issue #207 aligned)
+## Chapter 015 (written at fceac5d; source checked at 5cfbec5)
 
 - Five lessons follow #208–#212 in order: create and inspect a Backup on a copy of the served book; run release preparation steps without publishing; inject a release into `/api/update`; migrate and then refuse an unknown revision on the same copy; restore the pre-migration Backup.
 - The chapter's checked app version is 3.4.1. `test_backups.py` and `test_updates.py`: 28 pass; removing the `before-update` label gives 1 failure (`test_an_update_backs_up_the_database_before_migrating_it`), 27 pass. A full backend run with a plain-string version comparison fails 2 cases (707 pass) in `test_versions_are_compared_by_number_not_as_text`; issue #119 has been fixed by tests in current main.

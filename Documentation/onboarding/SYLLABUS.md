@@ -18,7 +18,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 012 | [Frontend pages and the PWA](https://github.com/krucx/Mortgage-Management-App/issues/188) | `012-frontend-pages-and-the-pwa/` | build a page from existing components; explain the service worker, StartGate and UpdateBanner | written (2c5e561) |
 | 013 | [Testing](https://github.com/krucx/Mortgage-Management-App/issues/195) | `013-testing/` | write backend and frontend tests with the repo's fixtures, seeds and fakes; run the type checks and Pester | written (bda77f1) |
 | 014 | [How it runs on the Lender's laptop](https://github.com/krucx/Mortgage-Management-App/issues/201) | `014-how-it-runs-on-the-lenders-laptop/` | run and debug Docker, `screens.py` mode and the Windows installer | written (36d403e) |
-| 015 | [Releases, updates and Backups](https://github.com/krucx/Mortgage-Management-App/issues/207) | `015-releases-updates-and-backups/` | cut a release, explain updates and where Backups go | written (pending follow-up commit) |
+| 015 | [Releases, updates and Backups](https://github.com/krucx/Mortgage-Management-App/issues/207) | `015-releases-updates-and-backups/` | cut a release, explain updates and where Backups go | written (fceac5d) |
 | 016 | [Your first change](https://github.com/krucx/Mortgage-Management-App/issues/213) | `016-your-first-change/` | make one small change test-first through every layer, following the repo's workflow | planned |
 
 ## Planned lessons
