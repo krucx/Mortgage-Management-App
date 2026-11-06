@@ -65,14 +65,14 @@
 - The overview's "Before you start" tells readers to rebuild the book if they saved chapter 003's Payment.
 - `reference/routes.html` now has every Closure route and its Preview twin; `reference/cast.html` has a "Closures, by id" table; `reference/ledger.html` has Outstanding, Closing on a date, The Closures, Dormant and Reopen.
 
-### Lesson 6, A Simulation (added at 36d403e, #233)
+### Lesson 6, A Simulation (added at 756ae3a, #233)
 
 - Added after chapters 006–013 were written, for the Calculator (#227–#229). `run_throughs.py` gained section L6 (Meera's chain typed in as Lump Sums, on its own `Copy`); `scripts/calculator.sh` + `calculator.mjs` drive the real Calculator (vite :5199 in front of serve.py :8000, browser clock 19 Oct 2026) and save nothing.
 - **The Calculator changed `replay.py`:** `outstanding_on_closure_of` (line 68) was pulled out of `MortgageReplay.outstanding_on_closure` (now 203–212), shifting everything below by +20 (+8 after the old body). Every `replay.py` snippet in 005 · 1, 2, 4, 5 was renumbered; lesson 2's quote is now two snippets. Other chapters' `replay.py` snippets (007 · 5 already drifted) were not touched.
 - **Correction to #233, taught as such:** the hands-on exercise (`replay.py:209`, drop the Final Payment filter) still fails exactly the same 6 tests, now 703 of 709 pass, and **no Simulation test fails**: the filter is in `MortgageReplay`, before the shared function. Breaking the shared function itself (`unpaid_interest=last.unpaid_interest`, no `- charge`) fails 3 fixed-figure tests and **none** of the 100 Simulation tests, since both sides of the parity tests move together. Lesson 6 nuance (f) teaches it.
 - Figures: chain in the Calculator on 19 Oct ₹83,333 (equal field by field to the real quote), interest earned ₹18,133, 24%; 10 Oct ₹82,853, 10 Nov ₹84,456, 10 Dec ₹86,144. Compounded Monthly ₹83,555 (+₹222, 26.82%); Simple = Yearly before the anniversary. A Lump Sum of ₹1,00,000 on 15 Oct: "Only ₹83,120 owed on 15 Oct"; exactly ₹83,120 → paid off 15 Oct, interest earned ₹17,920. Monthly ₹1,600 never pays off; ₹5,000 → 10 Jul 2027; ₹10,000 → 10 Aug 2026. Lend this → `/mortgages/new?amount=80000&start=2025-11-10&rate=2&mode=compounded_yearly&rule=pro_rata`.
 - The day's first request (any) writes three `backup_last_*` rows to `config` (010 · 2's daily run). Count rows after a warm-up request when checking "stores nothing".
-- 012's overview now links the Calculator to 005 · 6 instead of listing it among pages built the same way. Glossary sheet has Simulation and Lump Sum; routes sheet `POST /simulation`; Ledger sheet a Simulations section; frontend sheet's `/calculator` row links 005 · 6.
+- 012's overview now links the Calculator to 005 · 6 instead of listing it among pages built the same way. Glossary sheet has Simulation and Lump Sum; routes sheet `POST /simulation`; Ledger sheet a Simulations section; frontend sheet's `/calculator` row links 005 · 6. All shared-page updates are in `756ae3a`.
 
 ## Chapter 006 (written at d6a92ab)
 

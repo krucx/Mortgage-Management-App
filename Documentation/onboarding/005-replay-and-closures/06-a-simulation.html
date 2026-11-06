@@ -265,7 +265,7 @@ flowchart LR
 <tr><td>Effective annual rate</td><td>24%</td><td><code>effective_annual_rate</code> 0.24</td></tr>
 <tr><td>Paid off</td><td>Not within 10 years</td><td><code>paid_off_on</code> <code>null</code>: Lump Sums alone never clear it</td></tr>
 </table>
-<p class="cite">From <code>scripts/calculator.sh</code>, which drives the real Calculator in a browser on a fresh sample book, at commit 36d403e.</p>
+<p class="cite">From <code>scripts/calculator.sh</code>, which drives the real Calculator in a browser on a fresh sample book, at commit <code>756ae3a</code>.</p>
 <p>Now open Meera's chain, <code>http://127.0.0.1:8765/mortgages/2</code>. Its page says "Outstanding on 19 Oct 2026 ₹83,333". The two agree to the paisa, field by field:</p>
 <table class="steps">
 <tr><th>Field of <code>OutstandingOnClosure</code></th><th>The Simulation</th><th>The real quote, <code>GET …/2/outstanding-on-closure?on=2026-10-19</code></th></tr>
@@ -356,7 +356,7 @@ flowchart LR
       <li><code>test_closing.py::test_a_outstanding_on_closure_includes_the_interest_to_date[pro_rata-70000]</code></li>
       <li><code>test_replay.py::test_a_outstanding_on_closure_leaves_out_interest_to_date_paid_ahead</code></li>
     </ul>
-    <p class="cite">Checked at commit 36d403e in a throwaway <code>git worktree</code>.</p>
+    <p class="cite">Checked at commit <code>756ae3a</code> in a throwaway <code>git worktree</code>.</p>
     <p>That's the point of sharing the function: a rule changed in one place moves the Calculator and the Close this Mortgage form together. The parity tests can't catch a bug they share, so the fixed-figure tests have to.</p>
   </div>
 </div>
