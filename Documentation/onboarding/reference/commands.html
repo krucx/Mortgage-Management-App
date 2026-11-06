@@ -132,6 +132,15 @@
 <tr><td>repo root</td><td><code>sh Documentation/onboarding/013-testing/scripts/run_throughs.sh</code></td><td>Every count and failure chapter 013 quotes: runs every check, then each lesson's one-line break, in a throwaway git worktree (your clone is never touched). About ten minutes; Pester needs Docker</td></tr>
 </table>
 
+<h2 id="releases">Releases, updates and Backups</h2>
+<p>Taught in <a href="../015-releases-updates-and-backups/index.html">chapter 015</a>. Use scratch folders for every app instance; a real <code>BACKUP_DIR</code> may contain the Lender's database and Customer photos.</p>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_backups.py -q</code></td><td>Exercises Backup creation, encrypted and plain zips, weekly cadence, retention and pre-migration safety on temporary data</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_updates.py -q</code></td><td>Checks version ordering, daily lookup interval, offline response and no update lookup in a development build</td></tr>
+<tr><td>repo root</td><td><code>git tag --list '[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1</code></td><td>Shows the highest numeric release tag; release workflow uses this to avoid moving <code>latest</code> backwards</td></tr>
+</table>
+
 <h2 id="laptop">How it runs on the Lender's laptop</h2>
 <p>Taught in <a href="../014-how-it-runs-on-the-lenders-laptop/index.html">chapter 014</a>. <code>$DC</code> below stands for the whole prefix, typed every time: <code>DATA_DIR="$COPY/data" BACKUP_DIR="$COPY/backups" APP_PORT=8081 docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml</code>. Leaving the variables out of any one command lets Compose read <code>.env</code> (<a href="traps.html#t12">trap #12</a>).</p>
 <table class="wide">
@@ -150,7 +159,7 @@
 </table>
 
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>; release and Backup rows at <code>970c639</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

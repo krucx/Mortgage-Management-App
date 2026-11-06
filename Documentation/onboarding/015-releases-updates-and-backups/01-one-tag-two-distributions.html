@@ -1,0 +1,45 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>15.1 · One tag, two distributions</title><link rel="stylesheet" href="../assets/course.css"></head><body>
+<p class="kicker">Chapter 015 · Lesson 1</p><h1>One tag, two distributions</h1><p class="lede">A release starts when a version tag is pushed. How does that one event safely produce an image for Docker and an installer download for Windows?</p>
+<div class="callout win"><strong>By the end</strong> you can trace the release workflow and explain why the GitHub Release waits for the image.</div>
+<h2>The problem</h2><p>Docker installations pull a versioned image. Windows Setup needs the repository files plus already-built browser screens in a zip. If either artifact claims a version different from the code, a Lender may install mismatched pieces.</p><h2>The idea</h2><p>A numeric version tag is the release request. The workflow checks the tag against both package versions and runs the reusable test workflow. It publishes the multi-platform Docker image first, then builds the screens and publishes a Windows zip with the version's <code>CHANGELOG.md</code> section as release notes.</p>
+<h2>The flow</h2><figure class="diagram"><pre class="mermaid">flowchart TD
+  PUSH[push tag 3.4.1] --> CHECK[tests + version agreement]
+  CHECK -->|pass| DOCKER[Docker Hub: version tag]
+  DOCKER -->|highest version only| LATEST[move latest tag]
+  DOCKER -->|publish first| RELEASE[GitHub Release]
+  RELEASE --> ZIP[ready-built zip + changelog notes]
+</pre><figcaption>An older patch release can publish its versioned image without moving <code>latest</code> backwards.</figcaption></figure>
+<h2>The code</h2><figure class="snippet"><figcaption><a href="../../../.github/workflows/release.yml"><code>.github/workflows/release.yml</code></a> · version job · lines 35–48</figcaption><pre data-file=".github/workflows/release.yml"><code>35  # The tag must be the version the app reports, so an image never claims the wrong one.
+36  - name: The tag matches the backend's and the frontend's version
+37    run: |
+38      backend=$(sed -n 's/^version = \"\(.*\)\"/\1/p' backend/pyproject.toml)
+39      frontend=$(node -p "require('./frontend/package.json').version")
+40      echo "tag $GITHUB_REF_NAME, backend $backend, frontend $frontend"
+41      test "$GITHUB_REF_NAME" = "$backend" &amp;&amp; test "$GITHUB_REF_NAME" = "$frontend"   ◀
+42  # A fix for an older version must not move the latest back.
+43  - name: Is this the highest version tagged?
+44    id: latest
+45    run: |
+46      highest=$(git tag --list '[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1)
+47      echo "highest $highest"
+48      echo "latest=$([ \"$GITHUB_REF_NAME\" = \"$highest\" ] &amp;&amp; echo true || echo false)" &gt;&gt; "$GITHUB_OUTPUT"
+</code></pre></figure><p>Line 41 makes a mismatch fail before publishing. The highest-tag check uses version sorting, so <code>3.10.0</code> sorts after <code>3.9.0</code>, unlike plain text order.</p>
+<figure class="snippet"><figcaption><a href="../../../.github/workflows/release.yml"><code>.github/workflows/release.yml</code></a> · release dependency and zip · lines 79–102</figcaption><pre data-file=".github/workflows/release.yml"><code>79  # After the image, so the update banner never offers a release Docker can't pull yet.
+80  github-release:
+81    needs: [version, publish]   ◀
+82    runs-on: ubuntu-latest
+⋮   … build the screens …
+95  # The code as tagged (git archive), with the built screens, under one folder.
+96  - name: The ready-built download
+97    run: |
+98      mkdir staging
+99      git archive --format=tar --prefix="mortgage-management-$TAG/" HEAD | tar -x -C staging
+100     cp -r frontend/dist "staging/mortgage-management-$TAG/frontend/dist"
+101     (cd staging &amp;&amp; zip -qr "../mortgage-management-$TAG.zip" "mortgage-management-$TAG")
+102     unzip -l "mortgage-management-$TAG.zip" | grep -q "mortgage-management-$TAG/frontend/dist/index.html"
+</code></pre></figure><p>The dependency at line 81 enforces publication order. The archive contains the code from the tag; line 100 adds the built screens and line 102 checks that the expected entry point made it into the zip.</p>
+<h2>Run-through</h2><table class="steps"><tr><th>Event</th><th>Result</th><th>Why</th></tr><tr><td>Push <code>3.4.1</code>; versions agree; tests pass</td><td>Publish begins</td><td>The version job succeeds</td></tr><tr><td>The highest tag is <code>3.4.1</code></td><td>Publish image as <code>:3.4.1</code> and <code>:latest</code></td><td>It is safe to advance latest</td></tr><tr><td>Image succeeds</td><td>Create GitHub Release and ready-built zip</td><td>Release depends on publish</td></tr><tr class="changed"><td>Later push <code>3.4.0</code> as a maintenance fix</td><td>Publish <code>:3.4.0</code>, leave <code>:latest</code> at 3.4.1</td><td>Version ordering prevents rollback of latest</td></tr></table><p class="cite">The workflow in <code>.github/workflows/release.yml</code> encodes each step; the artifact is made from the tagged source.</p>
+<h2>Nuance</h2><div class="reveal"><p><strong>Predict:</strong> If the GitHub Release job ran before Docker image publication, what user-facing failure could follow?</p><button class="show">Show the answer</button><div class="reveal-body"><p>The banner could offer a version whose image Docker cannot yet pull. The workflow explicitly makes the GitHub Release depend on the published image.</p></div></div>
+<h2>Quiz</h2><div class="quiz" data-answer="1"><p class="q">A release tag disagrees with the frontend package version. What happens?</p><button class="opt">The image is published with the tag's version.</button><button class="opt">The version job fails before publication.</button><button class="opt">Only the Windows zip is skipped.</button><div class="why">The workflow tests the tag against both backend and frontend versions before the publish job runs.</div></div><p><span class="score"></span></p>
+<h2>Go deeper</h2><p>Read <a href="../../../.github/workflows/release.yml">the complete workflow</a>, then compare its artifacts with <a href="../../../README.md">the install and release notes in README</a>.</p><nav><a href="index.html">Chapter overview</a> · <a href="02-how-the-app-hears-about-a-release.html">Next: how the app hears about a release</a></nav>
+<script src="../assets/quiz.js"></script><script src="../assets/snippet.js"></script><script src="../assets/mermaid.min.js"></script><script src="../assets/diagrams.js"></script></body></html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>15.3 · A Backup you can restore</title><link rel="stylesheet" href="../assets/course.css"></head><body>
+<p class="kicker">Chapter 015 · Lesson 3</p><h1>A Backup you can restore</h1><p class="lede">A folder of files is useful only if it holds a consistent database and its photos, and someone can find and open it later. Let's follow one Backup from database snapshot to the Lender's synced folder.</p><div class="callout win"><strong>By the end</strong> you can say where a Backup goes, what it contains, how its filename is made, and what Settings tells you about it.</div>
+<h2>The problem</h2><p>A database and ID Photos form one lending book. Copying just the database loses photos; copying the live database file while the app writes can produce an inconsistent copy. A weekly attachment also grows beyond common email limits and leaves personal data in a mailbox.</p><h2>The idea</h2><p>The app snapshots SQLite consistently, zips the snapshot and photos, and moves a completed archive into <code>BACKUP_DIR</code> by renaming a hidden partial file. The folder can be synced by Google Drive or iCloud. A configured password encrypts the zip; Settings reports whether encryption is on. With no password, the zip is plain. The compatible classic zip password is weak encryption, accepted because the synced folder is expected to be private (<a href="../../../Documentation/adr/0003-backup-to-synced-folder.md">ADR 0003</a>). The default retention is four archives.</p><p>ADR 0003 chose a synced folder over email: it avoids SMTP credentials, attachment limits and a second store of Customer data.</p>
+<h2>The flow</h2><figure class="diagram"><pre class="mermaid">flowchart TD
+  DB[(live SQLite database)] --> SNAP[SQLite online snapshot]
+  PHOTOS[photos folder] --> ZIP[zip snapshot + photos]
+  SNAP --> ZIP
+  ZIP --> PARTIAL[copy as hidden .partial]
+  PARTIAL -->|atomic rename| FINAL[BACKUP_DIR / timestamped zip]
+  FINAL --> PRUNE[keep newest N]
+  FINAL --> CLOUD[cloud-synced folder]
+</pre><figcaption>A partial archive is never presented as a finished Backup.</figcaption></figure>
+<h2>The code</h2><figure class="snippet"><figcaption><a href="../../../backend/src/mortgage_backend/safekeeping/backups.py"><code>safekeeping/backups.py</code></a> · <code>Backups.make()</code> · lines 139–161</figcaption><pre data-file="backend/src/mortgage_backend/safekeeping/backups.py"><code>139  def make(self, label: str = "") -&gt; Path:
+140      """Write a Backup now, record it and prune old ones. Raises if it fails."""
+141      if self.backup_dir is None:
+142          raise RuntimeError("No backup folder is configured")
+143      taken_at = self.now().replace(second=0, microsecond=0)
+144      self.clean_leftovers()
+145      try:
+146          self.work_dir.mkdir(parents=True)
+147          self._snapshot_database(self.work_dir / "mortgage.db")
+148          archive = self.work_dir / "backup.zip"
+149          self._zip(archive, "mortgage.db", cwd=self.work_dir)
+150          if self.photos.is_dir():
+151              self._zip(archive, self.photos.name, cwd=self.photos.parent)
+152          self.backup_dir.mkdir(parents=True, exist_ok=True)
+153          name = self._unused_name(taken_at, label)
+154          partial = self.backup_dir / f".{name}.partial"
+155          shutil.copyfile(self.work_dir / "backup.zip", partial)
+156          os.replace(partial, self.backup_dir / name)   ◀
+157      finally:
+158          self.clean_leftovers()
+159      self._record(last_at=taken_at, last_file=name, last_error="")
+160      self._prune()
+161      return self.backup_dir / name
+</code></pre></figure><p>The hidden work folder holds the archive while it is built. The destination only gets a completed zip, and <code>finally</code> removes temporary files even after failure.</p>
+<h2>Run-through</h2><table class="steps"><tr><th>Clock</th><th>Action</th><th>File / status</th></tr><tr><td>20 Apr 2026 10:30</td><td>First app request starts weekly Backup</td><td><code>mortgage-backup-2026-04-20-1030.zip</code></td></tr><tr><td>Same minute</td><td>Another Backup is requested</td><td>Suffix is added to avoid overwriting</td></tr><tr><td>After making zip</td><td>Database and photos are present; password opens it</td><td>Archive lives in configured <code>BACKUP_DIR</code></td></tr><tr class="changed"><td>Seven or more days after previous Backup</td><td>Daily run starts a new Backup</td><td>Oldest archive beyond keep count is pruned</td></tr></table><p class="cite">These are pinned by <a href="../../../backend/tests/test_backups.py">test_backups.py</a>: its scratch app fixes the clock to 20 Apr 2026 at 10:30, and its zip assertions inspect a real archive.</p>
+<h2>Nuances</h2><div class="reveal"><p><strong>Predict:</strong> The Lender sets <code>BACKUP_PASSWORD</code> but the computer has no <code>zip</code> program. What happens?</p><button class="show">Show the answer</button><div class="reveal-body"><p>The Backup fails with an explicit error. The pure Python fallback makes a plain zip only when there is no password; it will not silently drop the requested password. On Windows without Docker, an unencrypted zip can be created by that fallback.</p></div></div>
+<h2>Quiz</h2><div class="quiz" data-answer="0"><p class="q">Why copy the archive to a hidden partial name, then rename?</p><button class="opt">An interrupted copy must not look like a complete Backup.</button><button class="opt">To make the zip smaller.</button><button class="opt">So cloud sync ignores the final file.</button><div class="why">The app atomically renames the fully copied archive into its final name.</div></div><p><span class="score"></span></p><h2>Go deeper</h2><p>Read <a href="../../../backend/tests/test_backups.py">the Backup tests</a> for encrypted and plain archives, retention, the weekly interval and pre-migration Backups. Read <a href="../../../Documentation/adr/0003-backup-to-synced-folder.md">ADR 0003</a> for the storage decision.</p><nav><a href="02-how-the-app-hears-about-a-release.html">Previous</a> · <a href="index.html">Chapter overview</a> · <a href="04-updates-migrations-and-the-way-back.html">Next: updates, migrations and the way back</a></nav>
+<script src="../assets/quiz.js"></script><script src="../assets/snippet.js"></script><script src="../assets/mermaid.min.js"></script><script src="../assets/diagrams.js"></script></body></html>

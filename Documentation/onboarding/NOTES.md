@@ -181,3 +181,10 @@
 - The reader saves nothing on the served book: lesson 1 runs Docker on a `cp -R "$BOOK/data"` copy. `reference/commands.html` has a laptop section (`#laptop`); `traps.html` #12 (owned 014 · 1), #13 (014 · 2), new #14 (014 · 3), #9 warned in 014 · 1 and 4. Earlier chapters' "chapter 014" mentions now link to their lesson. No new glossary terms (deployment words aren't in `GLOSSARY.md`).
 - `common.ps1`'s `Select-Mode` comment still says local means "uv and npm"; since ADR 0010 a release needs no npm. Not fixed (code, not course).
 - Chapter 015 owns the ready-built zip, `release.yml`, `updates.py`, the banner's side of an update, and restoring a `-before-update` Backup; 014 links forward by number only.
+
+## Chapter 015 (written at 970c639)
+
+- The four lessons follow the release tag through Docker Hub and the ready-built Windows zip; explain the daily GitHub update lookup and banner handoff; walk through a Backup's contents, location, password and retention; then distinguish switching code versions from restoring the pre-migration database.
+- Backup examples use the fixture clock in `backend/tests/test_backups.py` (20 Apr 2026 at 10:30). The archive is a SQLite snapshot plus photos, with the optional classic zip password; ADR 0003 accepts its weak encryption for a private synced folder. Weekly backup starts from the app's daily-run hook, and retention defaults to four.
+- `scripts/check_refs.py` passes for the six chapter pages. Local page links resolve. The hands-on exercise changes only the expected Backup filename in `test_backups.py`; undo with `git checkout -- tests/test_backups.py`.
+- No glossary additions: no new business terms from `GLOSSARY.md` are introduced. `reference/commands.html` adds release commands; `reference/traps.html` adds trap #15, owned by lesson 4.
