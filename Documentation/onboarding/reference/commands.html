@@ -143,6 +143,14 @@
 <tr><td>scratch data folder</td><td><code>mkdir -p "$COPY/restore"</code><br><code>unzip "$COPY/backups/&lt;chosen-file&gt;.zip" -d "$COPY/restore"</code><br><code>cp "$COPY/restore/mortgage.db" "$COPY/data/mortgage.db"</code><br><code>rm -rf "$COPY/data/photos" &amp;&amp; cp -R "$COPY/restore/photos" "$COPY/data/photos"</code></td><td>Restore on a stopped scratch app. Choose the Backup, and replace both database and photos together (015 · Lesson 5)</td></tr>
 </table>
 
+<h2 id="workflow">Issues and commits</h2>
+<p>Taught in <a href="../016-your-first-change/01-from-an-idea-to-an-issue.html">016 · Lesson 1</a>. Work from an issue, use its glossary terms, and commit directly to <code>main</code> in the normal workflow. The local practice branch is a course exception.</p>
+<table class="wide"><tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td>repo root</td><td><code>gh issue view 213 --json number,title,body,labels,comments</code></td><td>Reads an issue and its full specification</td></tr>
+<tr><td>repo root</td><td><code>git log -5 --oneline</code></td><td>Recent commit messages show the behavior and issue number style</td></tr>
+<tr><td>repo root</td><td><code>git switch -c practice/edit-a-term-change</code></td><td>Creates the chapter's local practice branch; delete it after finishing</td></tr>
+<tr><td>repo root</td><td><code>git branch -D practice/edit-a-term-change</code></td><td>Removes the finished practice branch after switching to main</td></tr></table>
+
 <h2 id="laptop">How it runs on the Lender's laptop</h2>
 <p>Taught in <a href="../014-how-it-runs-on-the-lenders-laptop/index.html">chapter 014</a>. <code>$DC</code> below stands for the whole prefix, typed every time: <code>DATA_DIR="$COPY/data" BACKUP_DIR="$COPY/backups" APP_PORT=8081 docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml</code>. Leaving the variables out of any one command lets Compose read <code>.env</code> (<a href="traps.html#t12">trap #12</a>).</p>
 <table class="wide">
@@ -161,7 +169,7 @@
 </table>
 
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>; release and Backup rows at <code>5cfbec5</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>; release and Backup rows at <code>5cfbec5</code>; workflow rows at <code>93de7a7</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

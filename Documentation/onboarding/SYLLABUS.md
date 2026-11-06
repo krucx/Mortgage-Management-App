@@ -19,7 +19,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 013 | [Testing](https://github.com/krucx/Mortgage-Management-App/issues/195) | `013-testing/` | write backend and frontend tests with the repo's fixtures, seeds and fakes; run the type checks and Pester | written (bda77f1) |
 | 014 | [How it runs on the Lender's laptop](https://github.com/krucx/Mortgage-Management-App/issues/201) | `014-how-it-runs-on-the-lenders-laptop/` | run and debug Docker, `screens.py` mode and the Windows installer | written (36d403e) |
 | 015 | [Releases, updates and Backups](https://github.com/krucx/Mortgage-Management-App/issues/207) | `015-releases-updates-and-backups/` | cut a release, explain updates and where Backups go | written (fceac5d) |
-| 016 | [Your first change](https://github.com/krucx/Mortgage-Management-App/issues/213) | `016-your-first-change/` | make one small change test-first through every layer, following the repo's workflow | planned |
+| 016 | [Your first change](https://github.com/krucx/Mortgage-Management-App/issues/213) | `016-your-first-change/` | make one small change test-first through every layer, following the repo's workflow | written (93de7a7) |
 
 ## Planned lessons
 
@@ -144,3 +144,10 @@ Seven shared sheets in `reference/`, decided in [#121](https://github.com/krucx/
 | `traps.html` | The newcomer surprises met so far (of 20), each linked to the chapter that owns it | 003 |
 | `ledger.html` | The order inside a day, one month's interest, Capitalisation, Outstanding, the Closure rules | 004 |
 | `frontend.html` | The data hooks, cache keys, what goes stale, each page and the routes it calls | 011 |
+
+### 016 Your first change (written)
+1. From an idea to an issue ([#214](https://github.com/krucx/Mortgage-Management-App/issues/214))
+2. The change, test-first ([#215](https://github.com/krucx/Mortgage-Management-App/issues/215))
+3. Preview and History ([#216](https://github.com/krucx/Mortgage-Management-App/issues/216))
+4. Through to the screen ([#217](https://github.com/krucx/Mortgage-Management-App/issues/217))
+5. Shipping it, and the agent skills ([#218](https://github.com/krucx/Mortgage-Management-App/issues/218))
