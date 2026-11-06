@@ -53,6 +53,8 @@ export function SimulationResults({
   collateral,
   span,
   onSpan,
+  graphOpen,
+  onGraphOpen,
   lend,
 }: {
   runs: Run[]
@@ -62,6 +64,9 @@ export function SimulationResults({
   collateral: number | null // paise
   span: Span
   onSpan: (months: Span) => void
+  /** Whether the graph is open, kept by the page so it stays as left while worked out again. */
+  graphOpen: boolean
+  onGraphOpen: (open: boolean) => void
   lend: ReactNode
 }) {
   return (
@@ -134,24 +139,33 @@ export function SimulationResults({
         </div>
       )}
 
-      <label className="what-if">
-        Graph span
-        <select value={span} onChange={(event) => onSpan(Number(event.target.value) as Span)}>
-          {SPANS.map((months) => (
-            <option key={months} value={months}>
-              {months} months
-            </option>
-          ))}
-        </select>
-      </label>
-      <SimulationChart
-        lines={runs.map((run) => ({
-          label: run.label,
-          points: run.simulation.points,
-          payments: run.simulation.payments,
-        }))}
-        closedOn={closedOn}
-      />
+      <details
+        className="tucked"
+        open={graphOpen}
+        onToggle={(event) => onGraphOpen(event.currentTarget.open)}
+      >
+        <summary>Graph</summary>
+        <div className="stack">
+          <label className="what-if">
+            Graph span
+            <select value={span} onChange={(event) => onSpan(Number(event.target.value) as Span)}>
+              {SPANS.map((months) => (
+                <option key={months} value={months}>
+                  {months} months
+                </option>
+              ))}
+            </select>
+          </label>
+          <SimulationChart
+            lines={runs.map((run) => ({
+              label: run.label,
+              points: run.simulation.points,
+              payments: run.simulation.payments,
+            }))}
+            closedOn={closedOn}
+          />
+        </div>
+      </details>
 
       {runs.map((run, index) => (
         <MonthByMonth
@@ -206,4 +220,3 @@ function MonthByMonth({ simulation, label }: { simulation: Simulation; label: st
     </details>
   )
 }
-

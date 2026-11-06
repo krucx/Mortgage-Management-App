@@ -5,6 +5,15 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [Unreleased]
+
+### Changed
+
+- **Calculator:** what it comes to (the figures, Lend this and the graph) is at the top,
+  above the inputs, so it shows without scrolling. The graph and each group of inputs
+  (Loan and Terms, Planned Payments, Jewellery value) fold away; Planned Payments starts
+  folded unless a plan was entered.
+
 ## [3.4.0] - 2026-11-06
 
 The app ships as one Docker image, and the backend refuses uploads over 20 MB with or

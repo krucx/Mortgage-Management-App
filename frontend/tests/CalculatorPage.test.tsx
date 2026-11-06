@@ -504,3 +504,121 @@ test('Lend this is disabled, with a tip, for a start date still to come', async 
   expect(button('Lend this').disabled).toBe(true)
   expect(screen.getByText("Can't lend before the start date")).toBeTruthy()
 })
+
+/** The collapsible section whose summary reads `summary`. */
+const section = (summary: string) =>
+  screen.getByText(summary, { selector: 'summary' }).closest('details') as HTMLDetailsElement
+
+/** Whether `a` comes before `b` on the page. */
+const before = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+test('the tiles and the graph come before the inputs, so they show without scrolling', async () => {
+  const { server } = backend()
+  showCalculator(server, '/calculator?amount=100000')
+  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+
+  const before = (a: Node, b: Node) =>
+    !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+  const tiles = screen.getByText('Total interest earned').closest('.tiles')!
+  expect(before(tiles, field('Amount lent (₹)'))).toBe(true)
+  expect(before(screen.getByRole('img'), field('Amount lent (₹)'))).toBe(true)
+})
+
+test('before an amount, the hint is where the tiles will be, above the inputs', async () => {
+  const { server } = backend()
+  showCalculator(server)
+  await vi.waitFor(() => expect(field('Monthly interest rate (%)').value).toBe('2'))
+
+  const hint = screen.getByText('Enter an amount to see what it would come to.')
+  expect(
+    hint.compareDocumentPosition(field('Amount lent (₹)')) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
+})
+
+test('the graph can be folded away, open to start with', async () => {
+  const { server } = backend()
+  showCalculator(server, '/calculator?amount=100000')
+  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+
+  const graph = section('Graph')
+  expect(graph.open).toBe(true)
+  expect(within(graph).getByRole('img')).toBeTruthy()
+  expect(within(graph).getByLabelText('Graph span')).toBeTruthy()
+})
+
+test('the inputs are in sections that fold: the loan open, the plan folded away until there is one', async () => {
+  const { server } = backend()
+  showCalculator(server, '/calculator?amount=100000')
+  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+
+  const loan = section('Loan and Terms')
+  expect(loan.open).toBe(true)
+  expect(within(loan).getByLabelText('Amount lent (₹)')).toBeTruthy()
+  expect(within(loan).getByLabelText('Monthly interest rate (%)')).toBeTruthy()
+  const plan = section('Planned Payments')
+  expect(plan.open).toBe(false)
+  expect(within(plan).getByLabelText('Monthly payment (₹)')).toBeTruthy()
+  expect(section('Jewellery value').open).toBe(false)
+})
+
+test('a bookmarked plan opens its section', async () => {
+  const { server } = backend()
+  showCalculator(server, '/calculator?amount=100000&monthly=5000')
+  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+
+  expect(section('Planned Payments').open).toBe(true)
+})
+
+test('a folded graph stays folded while a compared set of Terms is worked out', async () => {
+  const { server } = backend(byTerms)
+  showCalculator(server, '/calculator?amount=100000&mode=simple&rate=2&rule=full_month')
+  await screen.findByText('Total interest earned', {}, { timeout: 2000 })
+
+  fireEvent.click(screen.getByText('Graph', { selector: 'summary' }))
+  await vi.waitFor(() => expect(section('Graph').open).toBe(false))
+  fireEvent.click(button('Compare other Terms'))
+  fireEvent.change(
+    within(screen.getByRole('group', { name: 'Compared with' })).getByLabelText('Interest Mode'),
+    {
+      target: { value: 'compounded_monthly' },
+    },
+  )
+
+  await settle(() =>
+    expect(tile('Outstanding on 20 Apr 2027')).toBe('2% Simple ₹1,24,000 · 2% Monthly ₹1,26,820'),
+  )
+  expect(section('Graph').open).toBe(false)
+})
+
+test('a refused Lump Sum says at the top where to look, its section perhaps folded', async () => {
+  const { server } = backend(() =>
+    Response.json(
+      {
+        detail: {
+          lump_sum: 0,
+          owed: 10_500_000,
+          on: '2026-05-15',
+          message: 'The Lump Sum on 15 May 2026 is more than the ₹1,05,000 owed then',
+        },
+      },
+      { status: 422 },
+    ),
+  )
+  showCalculator(server, '/calculator?amount=100000&lumps=2026-05-15:200000')
+
+  const note = await screen.findByText(
+    'A Lump Sum is more than is owed on its date: see Planned Payments.',
+    {},
+    { timeout: 2000 },
+  )
+  expect(before(note, field('Amount lent (₹)'))).toBe(true)
+})
+
+test('an input it cannot work out with says so at the top, not to enter an amount', async () => {
+  const { server } = backend()
+  showCalculator(server, '/calculator?amount=100000&monthly=-5')
+  await vi.waitFor(() => expect(field('Monthly interest rate (%)').value).toBe('2'))
+
+  expect(screen.getByText('Fix the inputs marked below to see what it would come to.')).toBeTruthy()
+  expect(screen.queryByText('Enter an amount to see what it would come to.')).toBeNull()
+})
