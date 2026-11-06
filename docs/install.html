@@ -315,7 +315,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div data-mode="docker" class="q" data-note="The same again, to be sure it was typed right.">The same password again: <kbd>********</kbd></div>
         <div data-mode="docker" class="warn" data-note="Write it down now and keep it somewhere safe: a Backup can't be opened without it, by anyone.">Write the Backup password down somewhere safe: a Backup cannot be opened without it.</div>
         <div data-mode="docker" data-note="If Docker Desktop wasn't already running, Setup starts it and waits.">Starting Docker Desktop (this can take a minute or two)...</div>
-        <div data-mode="docker" data-note="The app is downloaded from Docker Hub. Lines of download progress scroll past here.">Downloading the app (Docker images)...</div>
+        <div data-mode="docker" data-note="The app is downloaded from Docker Hub. Lines of download progress scroll past here.">Downloading the app (Docker image)...</div>
         <div data-mode="local" data-note="uv runs the app's server, and brings the right Python with it. Skipped if it is already installed.">Installing uv (it also brings the right Python)...</div>
         <div data-mode="local" data-note="The app's server is installed into the app's folder; its screens come ready-built. This is the slowest part, a minute or two, with lines of progress scrolling past.">Installing the backend...</div>
         <div data-mode="both"></div>
@@ -414,6 +414,7 @@ docker compose up -d --remove-orphans</pre><button type="button" class="copy">Co
       <div class="nuance"><b>Or from the app itself</b><span>When a newer release is out, the app shows a banner with what's new. On Windows, <span class="ui">Install now</span> runs Setup for it (Windows asks once whether to open it), and the app reloads by itself once the new version runs. <span class="ui">Later</span> hides it until the next release.</span></div>
       <div class="nuance"><b>Nothing to download when it's current</b><span>Setup compares the version you have with the newest first: if you have it, it downloads nothing and just starts the app.</span></div>
       <div class="nuance"><b>The version before is kept</b><span>Each version has its own folder in <span class="path">MortgageManagement\versions</span>, and <span class="path">app</span> points at the one that runs. The one before stays there; older ones are removed after an update.</span></div>
+      <div class="nuance" data-for="win-docker mac"><b>One container since 3.4.0</b><span>The app is one Docker image and runs as one container, <span class="ui">app</span>. Updating from an older release, which ran two (<span class="ui">backend</span> and <span class="ui">frontend</span>), removes those two, so only <span class="ui">app</span> is left in Docker Desktop.</span></div>
       <div class="nuance"><b>Nothing to download each time</b><span>Setup.bat always fetches the newest release, so the same file works for every update.</span></div>
     </div>
   </div>

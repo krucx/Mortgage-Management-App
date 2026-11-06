@@ -173,7 +173,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
 Use a scratch `DATA_DIR` and `BACKUP_DIR` (on every `docker compose` command) when
 trying unreleased code, so it never runs a migration on real data. Plain
-`docker compose up -d` goes back to the published images.
+`docker compose up -d` goes back to the published image.
 
 The Windows setup lives in `windows/`: `Setup.bat` → `setup.ps1` (gets the code) →
 `install.ps1` (Docker or local, `.env`, installs, shortcut, `mortgage-management://`

@@ -213,7 +213,7 @@ function New-EnvText {
     $lines = @(
         '# Written by the Windows setup. Paths are folders on this computer.',
         '',
-        '# How the app runs: docker (the published images) or local (uv and npm).',
+        '# How the app runs: docker (the published image) or local (uv; Node only for unreleased code).',
         "RUN_WITH=$Mode",
         '',
         '# Database and photos live here. Back this folder up!',

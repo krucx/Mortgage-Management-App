@@ -57,7 +57,7 @@
 <tr><td>repo root</td><td><code>DATA_DIR="$DEV/data" BACKUP_DIR="$DEV/backups" APP_PORT=8081 docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build</code></td><td>Builds and runs this folder's code on <code>localhost:8081</code>, on scratch data, under its own project name</td></tr>
 <tr><td>repo root</td><td><code>DATA_DIR="$DEV/data" BACKUP_DIR="$DEV/backups" docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml down</code></td><td>Stops it. The variables go on <em>every</em> <code>docker compose</code> command, or Compose reads <code>.env</code>.</td></tr>
 </table>
-<p class="aside">Plain <code>docker compose up -d</code> runs the <em>published</em> images from Docker Hub, not your code, and reads <code>DATA_DIR</code> from <code>.env</code>. That's how the Lender runs it.</p>
+<p class="aside">Plain <code>docker compose up -d</code> runs the <em>published</em> image from Docker Hub, not your code, and reads <code>DATA_DIR</code> from <code>.env</code>. That's how the Lender runs it.</p>
 
 <h2>Git</h2>
 <table class="wide">

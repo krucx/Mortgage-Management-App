@@ -53,8 +53,8 @@ flowchart LR
 <tr><td><a href="../../../backend/"><code>backend/</code></a></td><td>The API: Python 3.13, FastAPI, SQLite through SQLAlchemy, Alembic migrations. Managed with <code>uv</code>. Tests in <code>backend/tests/</code>.</td><td>change a rule, a figure, a route or the database</td></tr>
 <tr><td><a href="../../../frontend/"><code>frontend/</code></a></td><td>The screens: React and TypeScript, built with Vite. Tests in <code>frontend/tests/</code>.</td><td>change what a page shows or how a form behaves</td></tr>
 <tr><td><a href="../../../windows/"><code>windows/</code></a></td><td>PowerShell scripts behind <code>Setup.bat</code>, <code>Run.bat</code> and <code>Uninstall.bat</code>, and their Pester tests</td><td>change how the Lender installs or starts the app on Windows (chapter 014)</td></tr>
-<tr><td><a href="../../../docker-compose.yml"><code>docker-compose.yml</code></a></td><td>How the Lender runs the <em>published</em> images with Docker</td><td>change ports, volumes or environment for Docker users</td></tr>
-<tr><td><a href="../../../docker-compose.dev.yml"><code>docker-compose.dev.yml</code></a></td><td>An add-on file that builds the images from <em>this folder</em> instead</td><td>try your own code in Docker (lesson 5)</td></tr>
+<tr><td><a href="../../../docker-compose.yml"><code>docker-compose.yml</code></a></td><td>How the Lender runs the <em>published</em> image with Docker: one service, <code>app</code></td><td>change ports, volumes or environment for Docker users</td></tr>
+<tr><td><a href="../../../docker-compose.dev.yml"><code>docker-compose.dev.yml</code></a></td><td>An add-on file that builds the image from <em>this folder</em> instead (the root <a href="../../../Dockerfile"><code>Dockerfile</code></a>)</td><td>try your own code in Docker (lesson 5)</td></tr>
 <tr><td><a href="../../../docs/"><code>docs/</code></a></td><td>The GitHub Pages site, and <code>docs/sample-book/</code>, which builds the invented book every screenshot shows</td><td>retake screenshots; serve the sample book (lesson 4)</td></tr>
 <tr><td><a href="../../"><code>Documentation/</code></a></td><td>ADRs (<code>adr/</code>), notes for agents (<code>agents/</code>), past architecture reviews, and this course</td><td>find why a rule is the way it is (lesson 3)</td></tr>
 <tr><td><a href="../../../GLOSSARY.md"><code>GLOSSARY.md</code></a></td><td>The app's words and their exact meanings</td><td>name a variable, a test or an issue (lesson 3)</td></tr>
@@ -67,11 +67,11 @@ flowchart LR
 <h2>The code: how the two halves meet</h2>
 <p>The README's <em>Development</em> section gives the shortest possible picture of the app: two processes, one per half.</p>
 <figure class="snippet">
-<figcaption><a href="../../../README.md">README.md</a> · <em>Development</em> · lines 149–153</figcaption>
-<pre data-file="README.md"><code>149  Run the two halves directly for hot reload (no Docker needed):
+<figcaption><a href="../../../README.md">README.md</a> · <em>Development</em> · lines 157–161</figcaption>
+<pre data-file="README.md"><code>157  Run the two halves directly for hot reload (no Docker needed):
 ⋮
-152  cd backend &amp;&amp; uv run uvicorn mortgage_backend.main:app --reload   # API on :8000  ①
-153  cd frontend &amp;&amp; npm install &amp;&amp; npm run dev                          # UI on :5173, proxies /api to :8000  ②
+160  cd backend &amp;&amp; uv run uvicorn mortgage_backend.main:app --reload   # API on :8000  ①
+161  cd frontend &amp;&amp; npm install &amp;&amp; npm run dev                          # UI on :5173, proxies /api to :8000  ②
 </code></pre>
 </figure>
 <ol class="marks">
@@ -80,22 +80,21 @@ flowchart LR
 </ol>
 <p>That one fact, "the screens call <code>/api/…</code> and something passes it to the backend", is how the app is wired everywhere. What changes is <em>who</em> serves the screens.</p>
 
-<h2>Three ways the screens are served</h2>
-<p>The same backend and the same screens run in three different set-ups. You'll meet all three, so here they are as a picture. How each one works inside is chapter 014's subject.</p>
+<h2>Two ways the screens are served</h2>
+<p>The same backend and the same screens run in three different set-ups (you coding, the Lender in Docker, the Lender on Windows without Docker), but there are only two front doors. You'll meet both, so here they are as a picture. How each one works inside is chapter 014's subject.</p>
 <figure class="diagram">
 <pre class="mermaid">
 flowchart LR
   B["Browser"] -->|"you, coding"| V["Vite dev server<br/>:5173"]
-  B -->|"Lender, Docker"| N["nginx<br/>frontend image"]
-  B -->|"Lender, Windows without Docker"| S["backend serves<br/>frontend/dist itself<br/>(platform/screens.py)"]
+  B -->|"Lender, in Docker"| S["backend serves<br/>the built screens itself<br/>(platform/screens.py)"]
+  B -->|"Lender, Windows without Docker"| S
   V -->|"/api proxied"| F["FastAPI<br/>mortgage_backend.main:app"]
-  N -->|"/api proxied"| F
   S -->|"same process"| F
   F -->|SQLAlchemy| DB[("SQLite<br/>DATA_DIR/mortgage.db")]
 </pre>
-<figcaption>Three front doors, one backend, one SQLite file. The browser always talks to one origin; something behind it splits screens from <code>/api</code>.</figcaption>
+<figcaption>Two front doors, one backend, one SQLite file. The browser always talks to one origin: Vite while you code, and otherwise the backend itself, the same way with Docker and without.</figcaption>
 </figure>
-<p>Two ADRs explain the Lender's two set-ups. <a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a> ships the app as a Docker Compose stack, so nobody installs Python or Node on the Lender's laptop. <a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a> is for laptops without Docker: the backend serves the built screens itself, so there's one process and no Node.js. You only need their names for now.</p>
+<p>Three ADRs explain the Lender's two set-ups. <a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a> ships the app with Docker Compose, so nobody installs Python or Node on the Lender's laptop. <a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a> is for laptops without Docker: the backend serves the built screens itself, so there's one process and no Node.js. <a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a> does the same in Docker: one image, one Compose service, the screens built into it. You only need their names for now.</p>
 
 <h2>Nuances</h2>
 <div class="reveal">
@@ -124,8 +123,8 @@ flowchart LR
   <p class="q">You run <code>npm run dev</code>. A page asks for <code>/api/mortgages/2</code>. Who answers?</p>
   <button class="opt">FastAPI, after Vite passes the request on</button>
   <button class="opt">Vite, from a copy of the data it keeps</button>
-  <button class="opt">nginx, from inside the frontend's image</button>
-  <div class="why">Vite serves the screens and proxies <code>/api</code> to the backend on :8000. Vite holds no data, and nginx only runs in Docker.</div>
+  <button class="opt">The installed app, from what it cached</button>
+  <div class="why">Vite serves the screens and proxies <code>/api</code> to the backend on :8000. Vite holds no data, and the installed app never keeps figures on the device: they always come fresh from the server.</div>
 </div>
 <div class="quiz" data-answer="1">
   <p class="q">What is in <code>Requirements/</code>?</p>
@@ -137,7 +136,7 @@ flowchart LR
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read the <a href="../../../README.md">README</a>'s <em>Development</em> section (lines 147–207), then the first paragraph of <a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a>.</p>
+<p>Read the <a href="../../../README.md">README</a>'s <em>Development</em> section (lines 155–212), then the first paragraph of <a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a>.</p>
 
 <nav class="lessons">
   <a href="../001-what-the-app-does/99-check-yourself.html">← Chapter 001</a>

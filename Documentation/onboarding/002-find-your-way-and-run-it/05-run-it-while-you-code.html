@@ -37,8 +37,8 @@ flowchart LR
 <h2>The code</h2>
 <figure class="snippet">
 <figcaption><a href="../../../frontend/vite.config.ts">frontend/vite.config.ts</a> · <code>server</code> · lines 71–76</figcaption>
-<pre data-file="frontend/vite.config.ts"><code>71    // The dev server passes /api on to the backend. (Without Docker, the installed app is
-72    // served by the backend itself: windows/run.ps1.)
+<pre data-file="frontend/vite.config.ts"><code>71    // The dev server passes /api on to the backend. (Installed, in Docker or not, the app is
+72    // served by the backend itself: Dockerfile, windows/run.ps1.)
 73    // 127.0.0.1, not localhost: on Windows localhost can mean IPv6, where the API isn't.
 74    server: {
 75      proxy: { '/api': 'http://127.0.0.1:8000' },  ◀
@@ -155,7 +155,7 @@ npm run dev</code></pre>
 </div>
 <h3>(d) Docker, in one box</h3>
 <div class="callout warn">
-  <p><strong>Plain <code>docker compose up</code> runs the published images, not your code.</strong> <code>docker-compose.yml</code> pulls the release from Docker Hub. To run this folder's code, add the dev file, which builds both images locally:</p>
+  <p><strong>Plain <code>docker compose up</code> runs the published image, not your code.</strong> <code>docker-compose.yml</code> pulls the release from Docker Hub. To run this folder's code, add the dev file, which builds the image locally:</p>
   <pre><code>export DEV=$(mktemp -d)
 DATA_DIR="$DEV/data" BACKUP_DIR="$DEV/backups" APP_PORT=8081 \
   docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build

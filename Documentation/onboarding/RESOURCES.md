@@ -16,6 +16,8 @@
   Where Backups go and when. Use for: 001.05, Releases and Backups.
 - [ADR 0004: The app ships as a Docker Compose stack](../adr/0004-docker-compose-on-lender-laptop.md)
   Why the Lender runs Docker. Use for: 002.01 (named only), chapter 014.
+- [ADR 0013: One image: the backend serves the screens in Docker too](../adr/0013-one-image-backend-serves-screens-in-docker.md)
+  Why Docker runs one image and one Compose service, `app`, with no nginx. Use for: 002.01 (named only), 010.01, chapter 014.
 - [ADR 0005: A person is identified by their Primary Number](../adr/0005-primary-number-identifies-a-person.md)
   Why one phone number is one person. Use for: 002.04 (why `book.py` refuses a used folder), People and Collateral.
 - [ADR 0007: Each change's Preview route is written out by hand](../adr/0007-preview-routes-written-out-by-hand.md)

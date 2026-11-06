@@ -9,7 +9,7 @@ InstallDir\app is a junction pointing at the version that runs. An update switch
 this version only once this version has started and answers; until then, and if it never
 does, the version before it keeps running.
 
-  docker  Docker is installed: pulls the published images.
+  docker  Docker is installed: pulls the published image.
   local   No Docker: uv (its own installer, with Python) and the backend's packages. A
           release comes with its screens built; other code (a branch or commit) has them
           built here, with Node (winget).
@@ -89,8 +89,8 @@ function Copy-EnvForward {
 
 function Install-Docker {
     Start-DockerDesktop
-    Write-Host 'Downloading the app (Docker images)...'
-    Invoke-AppCompose $AppDir 'Downloading the Docker images' @('pull')
+    Write-Host 'Downloading the app (Docker image)...'
+    Invoke-AppCompose $AppDir 'Downloading the Docker image' @('pull')
 }
 
 function Install-Local {

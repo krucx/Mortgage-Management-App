@@ -68,8 +68,8 @@ export default defineConfig({
   ],
   // The app's version, shown beside its name in the top bar.
   define: { __APP_VERSION__: JSON.stringify(version) },
-  // The dev server passes /api on to the backend. (Without Docker, the installed app is
-  // served by the backend itself: windows/run.ps1.)
+  // The dev server passes /api on to the backend. (Installed, in Docker or not, the app is
+  // served by the backend itself: Dockerfile, windows/run.ps1.)
   // 127.0.0.1, not localhost: on Windows localhost can mean IPv6, where the API isn't.
   server: {
     proxy: { '/api': 'http://127.0.0.1:8000' },
