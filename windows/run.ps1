@@ -20,7 +20,7 @@ function Open-App {
 
 function Start-WithDocker {
     Start-DockerDesktop
-    Invoke-AppCompose $AppDir 'Starting the app (docker compose up)' @('up', '-d')
+    Start-AppContainers $AppDir
     if (-not (Wait-Url $url 180)) { throw "The app did not answer at $url." }
     Open-App
     Write-Host "Mortgage Management is running at $url (in Docker)." -ForegroundColor Green
@@ -39,7 +39,7 @@ function Start-Locally {
         return
     }
     # The backend reads its folders from these, as it does in Docker; and serves the screens
-    # itself (nginx does in Docker), so nothing else needs to run.
+    # itself, as it does in Docker too, so nothing else needs to run.
     $env:DATA_DIR = $settings['DATA_DIR']
     $env:BACKUP_DIR = $settings['BACKUP_DIR']
     $env:BACKUP_PASSWORD = $settings['BACKUP_PASSWORD']

@@ -1,0 +1,10 @@
+# Only what the image is built from (Dockerfile); never the Lender's data or a local build.
+*
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/src
+!frontend
+frontend/node_modules
+frontend/dist
+frontend/public/ocr
+**/__pycache__

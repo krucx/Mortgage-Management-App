@@ -1,6 +1,6 @@
-"""The app's built screens (frontend/dist), served by the backend itself when it runs without
-Docker (windows/run.ps1; in Docker nginx serves them): with the same caching as
-frontend/nginx.conf, so the installed app picks up an update the same way."""
+"""The app's built screens (frontend/dist), served by the backend itself, in Docker (the
+image sets SCREENS_DIR) and without it (windows/run.ps1 does; Documentation/adr/0010,
+0013), so the installed app picks up an update the same way in both."""
 
 import os
 from pathlib import Path

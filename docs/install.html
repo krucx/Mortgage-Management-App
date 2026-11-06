@@ -406,7 +406,7 @@ cd Mortgage-Management-App</pre><button type="button" class="copy">Copy</button>
       <p>In the app's folder, in Terminal:</p>
       <div class="cmd"><pre>git pull
 docker compose pull
-docker compose up -d</pre><button type="button" class="copy">Copy</button></div>
+docker compose up -d --remove-orphans</pre><button type="button" class="copy">Copy</button></div>
       <p class="sub">To go back to an earlier release, set <code>APP_VERSION</code> in <span class="path">.env</span> (for example <code>1.2.0</code>) and run the last two commands. If a newer release updated the database, restore the Backup taken before that update.</p>
     </div>
     <div class="nuances">

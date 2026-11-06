@@ -43,6 +43,7 @@ from mortgage_backend.platform.updates import (
     UpdateCheck,
     latest_release_from_env,
 )
+from mortgage_backend.platform.upload_limit import UploadLimit
 from mortgage_backend.safekeeping import audit, backups
 from mortgage_backend.safekeeping.backups import (
     Backups,
@@ -61,7 +62,7 @@ def create_app(
     latest_release: LatestRelease | None = None,
 ) -> FastAPI:
     """The app; without a `backup_dir` it takes no Backups, with a `screens_dir` it serves
-    the built screens too (without Docker, where nginx doesn't), and without
+    the built screens too (as it does in Docker and without it), and without
     `latest_release` it never looks for a newer release."""
     engine = make_engine(database_url)
     backup = Backups(engine, database_url, backup_dir, backup_password, now)
@@ -100,6 +101,9 @@ def create_app(
     app.state.backups = backup
     app.state.daily_run = daily_run
     app.state.update_check = UpdateCheck(app.version, latest_release, now)
+    # Inside the daily jobs' middleware, which would turn its refusal of a body sent
+    # without its length into a 400; neither reads a body before it.
+    app.add_middleware(UploadLimit)
 
     @app.middleware("http")
     async def run_daily_jobs(

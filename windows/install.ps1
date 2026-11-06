@@ -166,7 +166,7 @@ function Start-Version {
        other version; without, in a window of its own, as the Desktop shortcut does. #>
     param([string]$Folder, [string]$Mode)
     if ($Mode -eq 'docker') {
-        Invoke-AppCompose $Folder 'Starting the app (docker compose up)' @('up', '-d')
+        Start-AppContainers $Folder
     } else {
         $windows = Join-Path $Folder 'windows'
         Start-Process -FilePath (Join-Path $windows 'Run.bat') -ArgumentList '-NoBrowser' -WorkingDirectory $windows | Out-Null

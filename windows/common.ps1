@@ -185,6 +185,14 @@ function Invoke-AppCompose {
     } finally { Pop-Location }
 }
 
+function Start-AppContainers {
+    <# Start the app in Docker from the code in `Folder`, removing the containers of any
+       other version: whatever services it had (before one image, backend and frontend),
+       none is left running to hold the port. #>
+    param([string]$Folder = $AppDir)
+    Invoke-AppCompose $Folder 'Starting the app (docker compose up)' @('up', '-d', '--remove-orphans')
+}
+
 function Get-AppPort {
     <# The port the app is opened on, from the .env `Settings`. #>
     param([hashtable]$Settings)

@@ -76,6 +76,29 @@ function Stop-App {
     }
 }
 
+function Select-AppImages {
+    <# Of the local Docker images `Images` (repository:tag), the app's: every version
+       published (with or without the backend-/ui- prefixes of before one image), and the
+       development builds. The version before is kept for going back to (ADR 0009), so
+       compose alone would leave its images behind. #>
+    param([string[]]$Images)
+    @($Images | Where-Object {
+        $_ -like 'krucx11/mortgage-management-app:*' -or
+        $_ -match '^mortgage-management-app(-backend|-ui)?:dev$'
+    })
+}
+
+function Remove-AppImages {
+    <# Remove every Docker image of the app (Select-AppImages); one that can't be removed
+       is reported, and the rest of the uninstall goes on. #>
+    $images = Select-AppImages @(& docker images --format '{{.Repository}}:{{.Tag}}')
+    if ($images.Count -eq 0) { return }
+    & docker rmi @images
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host 'Some of its Docker images could not be removed: see docker images.' -ForegroundColor Yellow
+    }
+}
+
 function Remove-Folder {
     <# Delete `Folder`, trying again for a little while if Windows still holds a file in it. #>
     param([string]$Folder)
@@ -156,6 +179,7 @@ function Main {
     if ($settings['RUN_WITH'] -eq 'docker') {
         Write-Host 'Removing its Docker images...'
         Invoke-AppCompose $AppDir 'Removing the Docker images (docker compose down --rmi all)' @('down', '--rmi', 'all')
+        Remove-AppImages
     }
     $shortcut = Get-ShortcutPath
     if (Test-Path -LiteralPath $shortcut) { Remove-Item -LiteralPath $shortcut -Force }

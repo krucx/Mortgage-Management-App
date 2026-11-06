@@ -95,7 +95,7 @@ Once a week (on the first use of the day it falls due) the app writes
 (Customers' ID Photos among them: set `BACKUP_PASSWORD`, or keep `BACKUP_DIR` private),
 and keeps the last few (4 by default, see Settings). It also takes one, marked
 `-before-update`, before any database update; if that Backup fails the app does not
-start, so the data is never updated without one (`docker compose logs backend` says why). Settings shows the last Backup and has a
+start, so the data is never updated without one (`docker compose logs app` says why). Settings shows the last Backup and has a
 **Back up now** button.
 
 To restore:
@@ -118,10 +118,14 @@ updated the database when it failed to start, Setup says which `-before-update` 
 to restore should the version you had not start on it. Elsewhere:
 
 ```sh
-git pull               # this folder's compose file and notes
-docker compose pull    # the newest images (or those for APP_VERSION)
-docker compose up -d
+git pull                             # this folder's compose file and notes
+docker compose pull                  # the newest image (or the one for APP_VERSION)
+docker compose up -d --remove-orphans
 ```
+
+`--remove-orphans` removes the containers of a release that ran other services (one
+from before the app was one image ran a `backend` and a `frontend`), which would
+otherwise keep holding the port.
 
 To go back to an earlier release, set `APP_VERSION` in `.env` and run the same two
 `docker compose` commands. A newer release may have updated the database: restore the
@@ -153,10 +157,11 @@ cd backend && uv run uvicorn mortgage_backend.main:app --reload   # API on :8000
 cd frontend && npm install && npm run dev                          # UI on :5173, proxies /api to :8000
 ```
 
-To try this folder's own code as the Lender runs it, build the images locally instead
-of pulling them. `docker-compose.dev.yml` builds both under their own names
-(`mortgage-management-app-backend:dev`, `mortgage-management-app-ui:dev`), so the images
-from Docker Hub are left as they are:
+To try this folder's own code as the Lender runs it, build the image locally instead
+of pulling it. The app is one image (Documentation/adr/0013): the root `Dockerfile` builds
+the screens, and the backend serves them and `/api` on one port, as it does without
+Docker. `docker-compose.dev.yml` builds it under its own name
+(`mortgage-management-app:dev`), so the image from Docker Hub is left as it is:
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
@@ -179,7 +184,7 @@ The GitHub Pages screenshots are taken from an invented sample book made through
 own API: `docs/sample-book/run.sh` retakes them all (see its README).
 
 - `backend/`: FastAPI + SQLite (SQLAlchemy, Alembic migrations), managed with [uv](https://docs.astral.sh/uv/).
-- `frontend/`: React + TypeScript + Vite, served by nginx in production.
+- `frontend/`: React + TypeScript + Vite; its built screens are served by the backend, in Docker and without it.
 
 ### Tests and type checks
 

@@ -112,3 +112,42 @@ Describe 'stopping the app before it is removed' {
             Should -Not -Contain 30
     }
 }
+
+Describe 'the Docker images removed' {
+    BeforeAll {
+        # As `docker images --format '{{.Repository}}:{{.Tag}}'` lists them.
+        $images = @(
+            'krucx11/mortgage-management-app:3.4.0'
+            'krucx11/mortgage-management-app:latest'
+            'krucx11/mortgage-management-app:backend-3.3.0'
+            'krucx11/mortgage-management-app:ui-3.3.0'
+            'krucx11/mortgage-management-app:backend-latest'
+            'mortgage-management-app:dev'
+            'mortgage-management-app-backend:dev'
+            'mortgage-management-app-ui:dev'
+            'krucx11/other-app:latest'
+            'mortgage-management-app-notes:dev'
+            'python:3.13-slim'
+            'nginx:1.29-alpine'
+            '<none>:<none>'
+        )
+    }
+
+    It 'are every version of the app, with or without the old backend- and ui- prefixes, and its development builds' {
+        Select-AppImages $images | Should -Be @(
+            'krucx11/mortgage-management-app:3.4.0'
+            'krucx11/mortgage-management-app:latest'
+            'krucx11/mortgage-management-app:backend-3.3.0'
+            'krucx11/mortgage-management-app:ui-3.3.0'
+            'krucx11/mortgage-management-app:backend-latest'
+            'mortgage-management-app:dev'
+            'mortgage-management-app-backend:dev'
+            'mortgage-management-app-ui:dev'
+        )
+    }
+
+    It 'are none when the app has none left' {
+        Select-AppImages @('python:3.13-slim') | Should -BeNullOrEmpty
+        Select-AppImages @() | Should -BeNullOrEmpty
+    }
+}

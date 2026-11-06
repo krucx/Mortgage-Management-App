@@ -1,9 +1,9 @@
-# The Lender runs this with `docker compose up -d` (see README and Documentation/adr/0004).
-# It runs the images published to Docker Hub: the latest release, or APP_VERSION (.env).
+# The Lender runs this with `docker compose up -d` (see README and Documentation/adr/0004,
+# 0013). It runs the image published to Docker Hub: the latest release, or APP_VERSION (.env).
 # To run this folder's own code instead, add docker-compose.dev.yml (see README).
 services:
-  backend:
-    image: krucx11/mortgage-management-app:backend-${APP_VERSION:-latest}
+  app:
+    image: krucx11/mortgage-management-app:${APP_VERSION:-latest}
     restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Kolkata}
@@ -13,12 +13,6 @@ services:
     volumes:
       - ${DATA_DIR:?Set DATA_DIR in .env}:/data
       - ${BACKUP_DIR:?Set BACKUP_DIR in .env}:/backups
-
-  frontend:
-    image: krucx11/mortgage-management-app:ui-${APP_VERSION:-latest}
-    restart: unless-stopped
-    depends_on:
-      - backend
     ports:
       # Reachable from this laptop only, never from the network.
-      - "127.0.0.1:${APP_PORT:-8080}:80"
+      - "127.0.0.1:${APP_PORT:-8080}:8000"

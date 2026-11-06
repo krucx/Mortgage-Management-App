@@ -413,6 +413,50 @@ Describe 'installing a new version beside the one running' {
     }
 }
 
+Describe 'switching versions with Docker' {
+    BeforeEach {
+        $InstallDir = Join-Path $TestDrive ([guid]::NewGuid())
+        $Mode = 'docker'
+        $NonInteractive = $true
+        $old = Join-Path $InstallDir 'versions/1.5.1'
+        $AppDir = Join-Path $InstallDir 'versions/1.6.0'
+        New-Item -ItemType Directory -Force (Join-Path $old 'frontend'), (Join-Path $AppDir 'frontend') | Out-Null
+        Set-Content (Join-Path $old 'frontend/package.json') '{ "version": "1.5.1" }'
+        Set-Content (Join-Path $AppDir 'frontend/package.json') '{ "version": "1.6.0" }'
+        $oldEnv = "RUN_WITH=docker`r`nDATA_DIR=$(Join-Path $InstallDir 'data')`r`nBACKUP_DIR=$(Join-Path $InstallDir 'backups')`r`n"
+        Set-Content -NoNewline -Path (Join-Path $old '.env') -Value $oldEnv
+
+        Mock Write-Host {}
+        Mock Test-Command { $true }
+        Mock Get-CurrentVersion { $old }
+        Mock Install-Docker {}
+        Mock Invoke-AppCompose {}
+        Mock Wait-Version { $true }
+        Mock Set-AppJunction {}
+        Mock Remove-OldVersions {}
+        Mock New-DesktopShortcut {}
+        Mock Register-AppLink {}
+        # Whatever services the other version had (backend and frontend, before one image),
+        # none is left running to hold the port.
+        $startsAlone = { ($Arguments -join ' ') -eq 'up -d --remove-orphans' }
+    }
+
+    It 'starts the new version alone, removing the old version''s containers' {
+        Install-App
+
+        Should -Invoke Invoke-AppCompose -Times 1 -ParameterFilter { $Folder -eq $AppDir -and (& $startsAlone) }
+        Should -Invoke Invoke-AppCompose -Times 0 -ParameterFilter { $Arguments[0] -eq 'down' }
+    }
+
+    It 'starts the old version again alone, removing the new one''s, when the new one does not answer' {
+        Mock Wait-Version { $false }
+
+        { Install-App } | Should -Throw '*1.6.0 did not start*'
+
+        Should -Invoke Invoke-AppCompose -Times 1 -ParameterFilter { $Folder -eq $old -and (& $startsAlone) }
+    }
+}
+
 Describe 'Setup updating to a new version' {
     BeforeEach {
         $InstallDir = Join-Path $TestDrive ([guid]::NewGuid())

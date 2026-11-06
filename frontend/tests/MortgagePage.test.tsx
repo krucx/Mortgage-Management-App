@@ -156,6 +156,35 @@ test("adding a photo shows it, and makes the Mortgage's and its Customer's Histo
   expect(state.queryClient.getQueryState(customerHistory)?.isInvalidated).toBe(true)
 })
 
+test('a photo over 20 MB is refused in plain words, and not sent', async () => {
+  const server = fakeServer({ 'GET /api/mortgages/7': mortgage })
+  showMortgagePage(server)
+
+  fireEvent.change(await screen.findByLabelText('Upload photos'), {
+    target: { files: [new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'ring.jpg', { type: 'image/jpeg' })] },
+  })
+
+  expect(await screen.findByText('The photo is too large (over 20 MB).')).toBeTruthy()
+  expect(server.requests).not.toContain('POST /api/mortgages/7/photos')
+})
+
+test("the backend's refusal of a photo too large is shown as it says it", async () => {
+  const server = fakeServer({
+    'GET /api/mortgages/7': mortgage,
+    'POST /api/mortgages/7/photos': Response.json(
+      { detail: 'The file is too large (over 20 MB).' },
+      { status: 413 },
+    ),
+  })
+  showMortgagePage(server)
+
+  fireEvent.change(await screen.findByLabelText('Upload photos'), {
+    target: { files: [new File(['x'], 'ring.jpg', { type: 'image/jpeg' })] },
+  })
+
+  expect(await screen.findByText('The file is too large (over 20 MB).')).toBeTruthy()
+})
+
 // What the Mortgage owes on 20 Apr 2026, whatever the date asked.
 const quote = {
   on: '2026-04-20',

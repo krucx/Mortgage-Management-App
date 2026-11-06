@@ -34,6 +34,30 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  # The one image (Documentation/adr/0013) builds and, on empty data and Backup folders,
+  # serves the screens with their caching and answers /api. The release runs this first,
+  # so a broken image is never published.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -t mortgage-management-app:ci .
+      - name: The app starts, serves its screens and answers /api
+        run: |
+          mkdir -p "$RUNNER_TEMP/data" "$RUNNER_TEMP/backups"
+          docker run -d --name app -p 127.0.0.1:8080:8000 -e CHECK_FOR_UPDATES=false \
+            -v "$RUNNER_TEMP/data:/data" -v "$RUNNER_TEMP/backups:/backups" mortgage-management-app:ci
+          trap 'docker logs app' EXIT
+          for _ in $(seq 60); do curl -sf http://127.0.0.1:8080/api/backups >/dev/null && break; sleep 1; done
+          # The cache header of `path`, failing unless it answers 200.
+          cache() { curl -sf -D - -o /dev/null "http://127.0.0.1:8080$1" | tr -d '\r' | sed -n 's/^cache-control: //Ip'; }
+          curl -sf http://127.0.0.1:8080/ | grep -q '<div id="root">'
+          test "$(cache /)" = "no-cache"
+          asset=$(curl -sf http://127.0.0.1:8080/ | grep -o '/assets/[^"]*\.js' | head -n 1)
+          test -n "$asset"
+          test "$(cache "$asset")" = "public, max-age=31536000, immutable"
+          curl -sf http://127.0.0.1:8080/api/backups
+
   pages:
     runs-on: ubuntu-latest
     steps:
