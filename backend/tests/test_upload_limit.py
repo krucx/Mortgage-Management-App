@@ -10,7 +10,8 @@ from PIL import Image
 from mortgage_backend.platform.db import photos_dir
 
 MB = 1024 * 1024
-TOO_LARGE = "The file is too large (over 20 MB)."
+# Written out, not imported: the test pins the wording the Lender reads.
+TOO_LARGE_MESSAGE = "The file is too large (over 20 MB)."
 
 
 def photo_of(size: int) -> bytes:
@@ -21,6 +22,7 @@ def photo_of(size: int) -> bytes:
 
 
 def stored_photos(database_url: str) -> list[str]:
+    """The files in the photos folder, which a refused upload must leave empty."""
     folder = photos_dir(database_url)
     return sorted(p.name for p in folder.iterdir()) if folder.exists() else []
 
@@ -46,7 +48,7 @@ def test_a_photo_over_20_mb_is_refused_on_every_photo_route_and_nothing_is_store
         )
 
         assert response.status_code == 413, path
-        assert response.json()["detail"] == TOO_LARGE
+        assert response.json()["detail"] == TOO_LARGE_MESSAGE
     assert stored_photos(database_url) == []
     assert client.get(f"/api/mortgages/{chain['id']}").json()["photos"] == []
     customer = client.get(f"/api/customers/{ramesh['id']}").json()
@@ -80,4 +82,4 @@ def test_a_body_sent_without_its_length_is_refused_once_it_passes_20_mb(client, 
     )
 
     assert response.status_code == 413
-    assert response.json()["detail"] == TOO_LARGE
+    assert response.json()["detail"] == TOO_LARGE_MESSAGE

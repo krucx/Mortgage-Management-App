@@ -123,28 +123,32 @@ docker compose pull                  # the newest image (or the one for APP_VERS
 docker compose up -d --remove-orphans
 ```
 
-`--remove-orphans` removes the containers of a release that ran other services (one
-from before the app was one image ran a `backend` and a `frontend`), which would
-otherwise keep holding the port.
+`--remove-orphans` removes the containers of a release that ran other services (before
+3.4.0, a `backend` and a `frontend`), which would otherwise keep holding the port.
 
 To go back to an earlier release, set `APP_VERSION` in `.env` and run the same two
-`docker compose` commands. A newer release may have updated the database: restore the
-Backup taken before that update (see Backups) when going back past one.
+`docker compose` commands. To go back before 3.4.0, which was two images, first
+`git checkout <version>` (e.g. `git checkout 3.3.0`) for that release's own compose file.
+A newer release may have updated the database: restore the Backup taken before that
+update (see Backups) when going back past one.
 
 ### Published images
 
-Each release is published to Docker Hub as
+Each release is published to Docker Hub as one image,
 [`krucx11/mortgage-management-app`](https://hub.docker.com/r/krucx11/mortgage-management-app),
 for Intel and Apple-silicon machines:
 
-| Image   | This release      | Newest release    |
-| ------- | ----------------- | ----------------- |
-| Backend | `backend-<version>` (e.g. `backend-1.2.0`) | `backend-latest` |
-| UI      | `ui-<version>` (e.g. `ui-1.2.0`)           | `ui-latest`      |
+| This release                | Newest release |
+| --------------------------- | -------------- |
+| `<version>` (e.g. `3.4.0`)  | `latest`       |
 
-They are built by `.github/workflows/release.yml` when a version tag (e.g. `1.2.0`) is
-pushed, after the tests pass. The `-latest` tags move only when the pushed version is the
-highest so far, so a fix for an older version doesn't take them back. The tag must match
+Releases before 3.4.0 were two images, tagged `backend-<version>` and `ui-<version>`;
+those tags stay on Docker Hub, so going back to one of them still works, with its own
+compose file (see Updating).
+
+It is built by `.github/workflows/release.yml` when a version tag (e.g. `3.4.0`) is
+pushed, after the tests pass. The `latest` tag moves only when the pushed version is the
+highest so far, so a fix for an older version doesn't take it back. The tag must match
 the version in `backend/pyproject.toml` and `frontend/package.json`. The workflow needs two repository secrets,
 `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub access token with Read & Write).
 

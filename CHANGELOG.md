@@ -5,6 +5,39 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [3.4.0] - 2026-11-06
+
+The app ships as one Docker image, and the backend refuses uploads over 20 MB with or
+without Docker. **No database changes:** updating keeps all data and Backups, and 3.3.0
+still starts on the same database.
+
+### Changed
+
+- **One image:** with Docker the app is one image, `krucx11/mortgage-management-app:<version>`
+  (`:latest` for the newest), and one Compose service, `app`, instead of a `backend`
+  and an nginx `frontend`. The backend serves the screens itself, as it already did
+  without Docker; the address stays <http://localhost:8080>. Logs are now
+  `docker compose logs app`. Releases before 3.4.0 keep their `backend-`/`ui-` images
+  on Docker Hub, so going back to one still works: on Windows as before, elsewhere
+  with that release's own compose file (`git checkout 3.3.0`).
+- **Updating and going back with Docker** remove the other version's containers
+  (`--remove-orphans`), so the old `frontend` never keeps holding the port.
+- **Uninstall with Docker** removes every image of the app, the version before
+  included, not only the one running.
+- **Uploads over 20 MB** are refused, now also without Docker, where nothing limited
+  them before; nothing is stored. The screens say "The photo is too large (over 20 MB)."
+
+### Upgrading
+
+Nothing to do on Windows: use the banner's **Install now**, and Setup switches from the
+two old containers to the new one. Elsewhere, add `--remove-orphans`:
+
+```sh
+git pull
+docker compose pull
+docker compose up -d --remove-orphans
+```
+
 ## [3.3.0] - 2026-11-06
 
 A Calculator, to size up a loan before lending, and whole-rupee gridlines on the

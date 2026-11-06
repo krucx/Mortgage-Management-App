@@ -88,7 +88,7 @@ test('off Windows there is no link to start it with: it says to start the server
   await waitFor(() => expect(reloads()).toBe(1))
 })
 
-test('in Docker, nginx answering 502 for a stopped backend counts as stopped, and the app loads once it answers', async () => {
+test('a 502 from a proxy in front of a stopped backend counts as stopped, and the app loads once it answers', async () => {
   const { server, start } = backend(() => new Response('Bad Gateway', { status: 502 }))
   const { reloads } = showGate(server)
 

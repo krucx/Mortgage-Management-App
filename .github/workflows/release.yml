@@ -1,10 +1,13 @@
 name: Release
 
-# Pushing a version tag (e.g. 1.2.0) publishes both images to Docker Hub, tagged with
-# that version and, when it is the highest version tagged so far, as the latest:
-#   krucx11/mortgage-management-app:backend-1.2.0, :backend-latest
-#   krucx11/mortgage-management-app:ui-1.2.0, :ui-latest
-# and a GitHub Release, its notes the version's CHANGELOG section (the in-app update
+# Pushing a version tag (e.g. 1.2.0) publishes the app's one image (Documentation/adr/0013)
+# to Docker Hub, tagged with that version and, when it is the highest version tagged so
+# far, as the latest:
+#   krucx11/mortgage-management-app:1.2.0, :latest
+# The backend-* and ui-* tags of the releases before one image stay on Docker Hub, never
+# touched here, so a version folder from before still pulls its own images on rollback
+# (Documentation/adr/0009).
+# Then a GitHub Release, its notes the version's CHANGELOG section (the in-app update
 # banner shows them), with the ready-built download Windows Setup installs from:
 #   mortgage-management-1.2.0.zip, the code with its screens built (frontend/dist)
 # Needs the repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (a Docker Hub
@@ -47,16 +50,10 @@ jobs:
   publish:
     needs: [tests, version]
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - name: backend
-            context: backend
-          - name: ui
-            context: frontend
     steps:
       - uses: actions/checkout@v5
-      # Built for Intel and Apple-silicon laptops alike.
+      # Built for Intel and Apple-silicon laptops alike; the screens are built once, on
+      # the runner's own platform (see Dockerfile).
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -65,21 +62,21 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
+          context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.IMAGE }}:${{ matrix.name }}-${{ github.ref_name }}
-            ${{ needs.version.outputs.latest == 'true' && format('{0}:{1}-latest', env.IMAGE, matrix.name) || '' }}
+            ${{ env.IMAGE }}:${{ github.ref_name }}
+            ${{ needs.version.outputs.latest == 'true' && format('{0}:latest', env.IMAGE) || '' }}
           labels: |
-            org.opencontainers.image.title=Mortgage Management (${{ matrix.name }})
+            org.opencontainers.image.title=Mortgage Management
             org.opencontainers.image.version=${{ github.ref_name }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
 
-  # After the images, so the update banner never offers a release Docker can't pull yet.
+  # After the image, so the update banner never offers a release Docker can't pull yet.
   github-release:
     needs: [version, publish]
     runs-on: ubuntu-latest

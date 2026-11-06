@@ -407,7 +407,7 @@ cd Mortgage-Management-App</pre><button type="button" class="copy">Copy</button>
       <div class="cmd"><pre>git pull
 docker compose pull
 docker compose up -d --remove-orphans</pre><button type="button" class="copy">Copy</button></div>
-      <p class="sub">To go back to an earlier release, set <code>APP_VERSION</code> in <span class="path">.env</span> (for example <code>1.2.0</code>) and run the last two commands. If a newer release updated the database, restore the Backup taken before that update.</p>
+      <p class="sub">To go back to an earlier release, set <code>APP_VERSION</code> in <span class="path">.env</span> (for example <code>1.2.0</code>) and run the last two commands; to go back before 3.4.0, first run <code>git checkout 3.3.0</code> (or the release you want) for its own compose file. If a newer release updated the database, restore the Backup taken before that update.</p>
     </div>
     <div class="nuances">
       <div class="nuance rule"><b>A Backup comes first</b><span>When a release updates the database, the app takes a Backup marked <code>-before-update</code> before it does. If that Backup fails, the app doesn't start, so the data is never changed without one.</span></div>
