@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ComingMonth, MonthlyPayments } from '../api'
 import { monthName } from '../format'
 import { formatINR } from '../money'
+import { Gridlines } from './ChartFrame'
 
 const WIDTH = 640
 const HEIGHT = 220
@@ -71,7 +72,6 @@ export function PaymentsByMonthChart({
   const slot = (WIDTH - PAD.left - PAD.right) / columns.length
   const base = HEIGHT - PAD.bottom
   const y = (paise: number) => PAD.top + (1 - paise / max) * (base - PAD.top)
-  const ticks = [0, 0.5, 1].map((share) => Math.round(max * share))
   const todayX = PAD.left + months.length * slot
   // With two years of months, every other one is named.
   const named = (i: number) => columns.length <= 12 || i % 2 === 0
@@ -99,14 +99,7 @@ export function PaymentsByMonthChart({
             <line x1="0" y1="0" x2="0" y2="6" className="hatch" />
           </pattern>
         </defs>
-        {ticks.map((tick) => (
-          <g key={tick}>
-            <line x1={PAD.left} x2={WIDTH - PAD.right} y1={y(tick)} y2={y(tick)} className="grid" />
-            <text x={PAD.left - 6} y={y(tick) + 4} textAnchor="end">
-              {formatINR(tick)}
-            </text>
-          </g>
-        ))}
+        <Gridlines max={max} y={y} left={PAD.left} right={WIDTH - PAD.right} />
         {columns.map((column, i) => {
           const x = PAD.left + i * slot
           const first = i === 0 || column.month.endsWith('-01')
