@@ -1040,11 +1040,37 @@ figure.chart .series {
   background: var(--accent);
 }
 
-/* A Simulation's Outstanding, on the Calculator */
+/* A Simulation's Outstanding, on the Calculator, and the one it is compared with */
 .series.outstanding,
 .key.outstanding::before {
   stroke: var(--accent);
   background: var(--accent);
+}
+
+.series.compared,
+.key.compared::before {
+  stroke: var(--error);
+  background: var(--error);
+}
+
+/* A planned Payment on a Simulation's line */
+figure.chart circle.payment {
+  fill: var(--surface);
+  stroke-width: 2;
+}
+
+figure.chart circle.payment.outstanding {
+  stroke: var(--accent);
+}
+
+figure.chart circle.payment.compared {
+  stroke: var(--error);
+}
+
+/* A planned lump sum on the Calculator: its date, amount and what became of it */
+.lump-sum {
+  align-items: end;
+  flex-wrap: wrap;
 }
 
 .key::before {

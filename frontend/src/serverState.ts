@@ -13,6 +13,9 @@ export type ApiClient = Client<paths>
 function errorMessage(status: number, body: unknown): string {
   const detail = (body as { detail?: unknown } | null)?.detail
   if (typeof detail === 'string') return detail
+  // A refusal with its particulars, e.g. which of several rows it was, and why
+  const message = (detail as { message?: unknown } | null)?.message
+  if (typeof message === 'string') return message
   if (Array.isArray(detail)) {
     return detail
       .map((item: { loc?: unknown[]; msg?: string }) => {
@@ -27,9 +30,12 @@ function errorMessage(status: number, body: unknown): string {
 /** The backend answered, but not with what was asked: a refusal (4xx) or a failure (5xx). */
 export class BackendError extends Error {
   readonly status: number
+  /** The body's `detail`: a message, or a refusal's particulars. */
+  readonly detail: unknown
   constructor(status: number, body: unknown) {
     super(errorMessage(status, body))
     this.status = status
+    this.detail = (body as { detail?: unknown } | null)?.detail
   }
 }
 

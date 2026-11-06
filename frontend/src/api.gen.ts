@@ -1351,7 +1351,9 @@ export interface paths {
         put?: never;
         /**
          * Simulate
-         * @description A Simulation closed on `closed_on`; nothing is stored.
+         * @description A Simulation closed on `closed_on`, or on the day its plan pays it off if
+         *     sooner; nothing is stored. A lump sum larger than what is owed on its date is
+         *     refused, as a real Payment would be.
          */
         post: operations["simulate_api_simulation_post"];
         delete?: never;
@@ -1965,6 +1967,16 @@ export interface components {
             /** Unpaid Interest */
             unpaid_interest: number;
         };
+        /** LumpSum */
+        LumpSum: {
+            /** Amount */
+            amount: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+        };
         /**
          * MessagePlaceholders
          * @description The placeholders each template may use.
@@ -2421,6 +2433,18 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** PlannedLumpSum */
+        PlannedLumpSum: {
+            /** Amount */
+            amount: number;
+            /** Ignored */
+            ignored: ("after_closed_on" | "after_paid_off") | null;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+        };
         /**
          * PreviewOfChange
          * @description Each Mortgage a change touches, before and after it, and the sums it would write
@@ -2598,8 +2622,9 @@ export interface components {
         };
         /**
          * SimulatedMonth
-         * @description A month's interest charged on an Accrual Date or, last, the Interest to Date
-         *     charged on Closed on, and where it stands after.
+         * @description A month's interest charged on an Accrual Date, a planned Payment or, last, the
+         *     Interest to Date charged on Closed on, and where it stands after (a day's
+         *     capitalisation is shown on its last row).
          */
         SimulatedMonth: {
             /** Capitalised */
@@ -2613,10 +2638,22 @@ export interface components {
              * Format: date
              */
             on: string;
+            /** Paid */
+            paid: number;
             /** Principal */
             principal: number;
             /** Unpaid Interest */
             unpaid_interest: number;
+        };
+        /** SimulatedPayment */
+        SimulatedPayment: {
+            /** Amount */
+            amount: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
         };
         /** SimulatedPoint */
         SimulatedPoint: {
@@ -2636,9 +2673,15 @@ export interface components {
             first_month_interest: number;
             /** Interest Earned */
             interest_earned: number;
+            /** Lump Sums */
+            lump_sums: components["schemas"]["PlannedLumpSum"][];
             /** Months */
             months: components["schemas"]["SimulatedMonth"][];
             on_closure: components["schemas"]["OutstandingOnClosure"];
+            /** Paid Off On */
+            paid_off_on: string | null;
+            /** Payments */
+            payments: components["schemas"]["SimulatedPayment"][];
             /** Points */
             points: components["schemas"]["SimulatedPoint"][];
         };
@@ -2651,6 +2694,13 @@ export interface components {
              * Format: date
              */
             closed_on: string;
+            /**
+             * Lump Sums
+             * @default []
+             */
+            lump_sums: components["schemas"]["LumpSum"][];
+            /** Monthly Payment */
+            monthly_payment?: number | null;
             /**
              * Span Months
              * @default 12

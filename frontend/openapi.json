@@ -1642,6 +1642,26 @@
         "title": "LedgerStep",
         "type": "object"
       },
+      "LumpSum": {
+        "properties": {
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "amount"
+        ],
+        "title": "LumpSum",
+        "type": "object"
+      },
       "MessagePlaceholders": {
         "description": "The placeholders each template may use.",
         "properties": {
@@ -2762,6 +2782,42 @@
         "title": "PersonSummary",
         "type": "object"
       },
+      "PlannedLumpSum": {
+        "properties": {
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "type": "integer"
+          },
+          "ignored": {
+            "anyOf": [
+              {
+                "enum": [
+                  "after_closed_on",
+                  "after_paid_off"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ignored"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "amount",
+          "ignored"
+        ],
+        "title": "PlannedLumpSum",
+        "type": "object"
+      },
       "PreviewOfChange": {
         "description": "Each Mortgage a change touches, before and after it, and the sums it would write\nin cash, for the Cash Limit's warning.",
         "properties": {
@@ -3247,7 +3303,7 @@
         "type": "object"
       },
       "SimulatedMonth": {
-        "description": "A month's interest charged on an Accrual Date or, last, the Interest to Date\ncharged on Closed on, and where it stands after.",
+        "description": "A month's interest charged on an Accrual Date, a planned Payment or, last, the\nInterest to Date charged on Closed on, and where it stands after (a day's\ncapitalisation is shown on its last row).",
         "properties": {
           "capitalised": {
             "title": "Capitalised",
@@ -3273,6 +3329,10 @@
             "title": "On",
             "type": "string"
           },
+          "paid": {
+            "title": "Paid",
+            "type": "integer"
+          },
           "principal": {
             "title": "Principal",
             "type": "integer"
@@ -3285,12 +3345,32 @@
         "required": [
           "on",
           "interest",
+          "paid",
           "interest_to_date_days",
           "capitalised",
           "principal",
           "unpaid_interest"
         ],
         "title": "SimulatedMonth",
+        "type": "object"
+      },
+      "SimulatedPayment": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "amount"
+        ],
+        "title": "SimulatedPayment",
         "type": "object"
       },
       "SimulatedPoint": {
@@ -3326,6 +3406,13 @@
             "title": "Interest Earned",
             "type": "integer"
           },
+          "lump_sums": {
+            "items": {
+              "$ref": "#/components/schemas/PlannedLumpSum"
+            },
+            "title": "Lump Sums",
+            "type": "array"
+          },
           "months": {
             "items": {
               "$ref": "#/components/schemas/SimulatedMonth"
@@ -3335,6 +3422,25 @@
           },
           "on_closure": {
             "$ref": "#/components/schemas/OutstandingOnClosure"
+          },
+          "paid_off_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid Off On"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/SimulatedPayment"
+            },
+            "title": "Payments",
+            "type": "array"
           },
           "points": {
             "items": {
@@ -3349,7 +3455,10 @@
           "interest_earned",
           "first_month_interest",
           "effective_annual_rate",
+          "paid_off_on",
+          "lump_sums",
           "points",
+          "payments",
           "months"
         ],
         "title": "Simulation",
@@ -3366,6 +3475,26 @@
             "format": "date",
             "title": "Closed On",
             "type": "string"
+          },
+          "lump_sums": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/LumpSum"
+            },
+            "title": "Lump Sums",
+            "type": "array"
+          },
+          "monthly_payment": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Payment"
           },
           "span_months": {
             "default": 12,
@@ -7414,7 +7543,7 @@
     },
     "/api/simulation": {
       "post": {
-        "description": "A Simulation closed on `closed_on`; nothing is stored.",
+        "description": "A Simulation closed on `closed_on`, or on the day its plan pays it off if\nsooner; nothing is stored. A lump sum larger than what is owed on its date is\nrefused, as a real Payment would be.",
         "operationId": "simulate_api_simulation_post",
         "requestBody": {
           "content": {

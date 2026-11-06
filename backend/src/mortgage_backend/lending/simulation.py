@@ -2,17 +2,21 @@
 one's Ledger would be, for the Calculator (see GLOSSARY.md).
 
 Nothing is read from or written to the database: the engine replays the amount, start
-date and Terms alone, closed on the chosen date.
+date, Terms and planned Payments alone, closed on the chosen date (or the day the plan
+pays it off, if sooner).
 """
 
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
 from mortgage_backend.lending.ledger import (
+    Allocation,
+    HypotheticalPayments,
     LedgerStep,
+    Overpayment,
     accrual_date,
     compute_ledger,
     monthly_interest,
@@ -23,6 +27,7 @@ from mortgage_backend.lending.replay import (
     outstanding_on_closure_of,
 )
 from mortgage_backend.lending.terms import Terms
+from mortgage_backend.platform.money import format_inr
 
 
 MAX_YEARS = 10  # how long after its start a Simulation can close
@@ -39,6 +44,11 @@ def effective_annual_rate(start: date, terms: Terms) -> float:
     return (year_on.principal + year_on.unpaid_interest - _RATE_BASE) / _RATE_BASE
 
 
+class LumpSum(BaseModel):
+    on: date
+    amount: int = Field(gt=0)  # paise
+
+
 class SimulationIn(BaseModel):
     amount_lent: int = Field(gt=0)  # paise
     start_date: date
@@ -46,6 +56,9 @@ class SimulationIn(BaseModel):
     terms: Terms
     # How far the graph runs from the start, stretched to `closed_on` if later
     span_months: Literal[3, 6, 12, 24, 36] = 12
+    # The plan: paid on every Accrual Date, capped at what is owed, until nothing is
+    monthly_payment: int | None = Field(default=None, gt=0)  # paise
+    lump_sums: list[LumpSum] = []
 
     @model_validator(mode="after")
     def closes_after_it_starts(self) -> "SimulationIn":
@@ -55,7 +68,22 @@ class SimulationIn(BaseModel):
             raise ValueError(
                 f"Closed on must be at most {MAX_YEARS} years after the start date"
             )
+        if any(lump.on < self.start_date for lump in self.lump_sums):
+            raise ValueError("A lump sum must be on or after the start date")
         return self
+
+    def allocations(self) -> list[Allocation]:
+        """The lump sums by Closed on, each as a Payment numbered by its place."""
+        return [
+            Allocation(on=lump.on, amount=lump.amount, payment_id=n)
+            for n, lump in enumerate(self.lump_sums)
+            if lump.on <= self.closed_on
+        ]
+
+    def hypothetical(self) -> HypotheticalPayments | None:
+        if self.monthly_payment is None:
+            return None
+        return HypotheticalPayments(after=self.start_date, amount=self.monthly_payment)
 
 
 class SimulatedPoint(BaseModel):
@@ -63,12 +91,24 @@ class SimulatedPoint(BaseModel):
     outstanding: int  # what would redeem it that day, if still open until then
 
 
+class SimulatedPayment(BaseModel):
+    on: date
+    amount: int  # paise; a monthly payment is capped at what is owed
+
+
+class PlannedLumpSum(LumpSum):
+    # Why it is left out: dated after Closed on, or after the plan has paid it off
+    ignored: Literal["after_closed_on", "after_paid_off"] | None
+
+
 class SimulatedMonth(BaseModel):
-    """A month's interest charged on an Accrual Date or, last, the Interest to Date
-    charged on Closed on, and where it stands after."""
+    """A month's interest charged on an Accrual Date, a planned Payment or, last, the
+    Interest to Date charged on Closed on, and where it stands after (a day's
+    capitalisation is shown on its last row)."""
 
     on: date
     interest: int
+    paid: int  # a planned Payment's row: what it paid
     interest_to_date_days: int | None  # the last row: days of the month charged
     capitalised: int
     principal: int
@@ -80,21 +120,136 @@ class Simulation(BaseModel):
     interest_earned: int  # charged by `closed_on`, its Interest to Date included
     first_month_interest: int
     effective_annual_rate: float  # e.g. 0.24: what it earns in a year, as a share
-    points: list[SimulatedPoint]  # for the graph: the start, each Accrual Date, Closed on
+    # When the plan pays everything off, within MAX_YEARS of the start; with no plan, None
+    paid_off_on: date | None
+    lump_sums: list[PlannedLumpSum]  # as asked, each with whether it was ignored
+    # for the graph: the start, each Accrual Date and lump sum, Closed on; up to the
+    # day it is paid off, if within the span
+    points: list[SimulatedPoint]
+    payments: list[SimulatedPayment]  # what the plan pays over the graph
     months: list[SimulatedMonth]  # up to Closed on, the Interest to Date last
 
 
-def _graph_dates(simulation: SimulationIn) -> list[date]:
+def _graph_dates(
+    simulation: SimulationIn, paid: list[Allocation], paid_off_on: date | None
+) -> list[date]:
     """The start and each Accrual Date over the span (or up to Closed on, if later),
-    with Closed on itself."""
+    with Closed on and each lump sum paid; none after the day it is paid off."""
     start, closed_on = simulation.start_date, simulation.closed_on
     end = max(accrual_date(start, simulation.span_months), closed_on)
-    dates = {closed_on}
+    if paid_off_on is not None:
+        end = min(end, paid_off_on)
+    dates = {closed_on, *(lump.on for lump in paid)}
+    if paid_off_on is not None:
+        dates.add(paid_off_on)
     n = 0
     while (on := accrual_date(start, n)) <= end:
         dates.add(on)
         n += 1
-    return sorted(dates)
+    return sorted(on for on in dates if on <= end)
+
+
+def _paid_off(ledger: list[LedgerStep]) -> LedgerStep | None:
+    """The Payment after which nothing is owed: it paid unpaid interest and the
+    Interest to Date before the last of the Principal."""
+    return next(
+        (
+            step
+            for step in ledger
+            if step.event == "payment" and not step.principal and not step.unpaid_interest
+        ),
+        None,
+    )
+
+
+class _Plan:
+    """The planned Payments as they would be paid: the lump sums by Closed on and up to
+    the day they pay it off, with the monthly payment, replayed for MAX_YEARS."""
+
+    def __init__(self, simulation: SimulationIn) -> None:
+        self.simulation = simulation
+        self.paid = simulation.allocations()
+        self.after_paid_off: set[int] = set()
+        while True:
+            try:
+                self.ledger = self._replay(
+                    accrual_date(simulation.start_date, 12 * MAX_YEARS), self.paid
+                )
+                break
+            except Overpayment as over:
+                self._skip_or_refuse(over)
+        paying_off = _paid_off(self.ledger)
+        self.paid_off_on = paying_off.on if paying_off else None
+        if self.paid_off_on is not None:
+            # e.g. pro-rata, where a month's rest is still charged on its Accrual Date
+            later = {a.payment_id for a in self.paid if a.on > self.paid_off_on}
+            self.after_paid_off |= later
+            self.paid = [a for a in self.paid if a.payment_id not in later]
+
+    def _replay(
+        self, on: date, paid: list[Allocation], closed: bool = False
+    ) -> list[LedgerStep]:
+        simulation = self.simulation
+        return compute_ledger(
+            simulation.start_date,
+            simulation.amount_lent,
+            simulation.terms,
+            on,
+            allocations=paid,
+            closed_on=on if closed else None,
+            hypothetical=simulation.hypothetical(),
+        )
+
+    def _skip_or_refuse(self, over: Overpayment) -> None:
+        """A lump sum larger than what is owed on its date is left out if the plan has
+        paid it off already, and otherwise refused, as a real Payment would be."""
+        too_large = (over.on, over.payment_id)
+        earlier = [a for a in self.paid if (a.on, a.payment_id) < too_large]
+        paying_off = _paid_off(self._replay(over.on, earlier))
+        # Not counting a monthly payment later that day: it comes after lump sums.
+        if paying_off and (paying_off.on < over.on or paying_off.payment_id is not None):
+            self.after_paid_off.add(over.payment_id)
+            self.paid = [a for a in self.paid if a.payment_id != over.payment_id]
+            return
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            {
+                "lump_sum": over.payment_id,
+                "owed": over.outstanding,
+                "on": over.on.isoformat(),
+                "message": (
+                    f"The lump sum on {over.on:%d %b %Y} is more than the "
+                    f"{format_inr(over.outstanding)} owed then"
+                ),
+            },
+        )
+
+    def ends_on(self) -> date:
+        """Closed on, or the day the plan pays it off if sooner."""
+        closed_on = self.simulation.closed_on
+        if self.paid_off_on is not None and self.paid_off_on < closed_on:
+            return self.paid_off_on
+        return closed_on
+
+    def closed(self) -> list[LedgerStep]:
+        """The Ledger as if closed on the day it ends."""
+        on = self.ends_on()
+        return self._replay(on, self.paid, closed=True)
+
+    def lump_sums(self) -> list[PlannedLumpSum]:
+        closed_on = self.simulation.closed_on
+        return [
+            PlannedLumpSum(
+                on=lump.on,
+                amount=lump.amount,
+                ignored=(
+                    "after_closed_on"
+                    if lump.on > closed_on
+                    else "after_paid_off" if n in self.after_paid_off else None
+                ),
+            )
+            for n, lump in enumerate(self.simulation.lump_sums)
+        ]
 
 
 def _months(ledger: list[LedgerStep], closure: OutstandingOnClosure) -> list[SimulatedMonth]:
@@ -105,6 +260,19 @@ def _months(ledger: list[LedgerStep], closure: OutstandingOnClosure) -> list[Sim
                 SimulatedMonth(
                     on=step.on,
                     interest=step.amount,
+                    paid=0,
+                    interest_to_date_days=None,
+                    capitalised=0,
+                    principal=step.principal,
+                    unpaid_interest=step.unpaid_interest,
+                )
+            )
+        elif step.event == "payment":
+            months.append(
+                SimulatedMonth(
+                    on=step.on,
+                    interest=0,
+                    paid=step.amount,
                     interest_to_date_days=None,
                     capitalised=0,
                     principal=step.principal,
@@ -123,6 +291,7 @@ def _months(ledger: list[LedgerStep], closure: OutstandingOnClosure) -> list[Sim
         SimulatedMonth(
             on=closure.on,
             interest=closure.interest_to_date,
+            paid=0,
             interest_to_date_days=closure.interest_to_date_days,
             capitalised=0,
             principal=closure.principal,
@@ -137,14 +306,21 @@ router = APIRouter(prefix="/api")
 
 @router.post("/simulation")
 def simulate(simulation: SimulationIn) -> Simulation:
-    """A Simulation closed on `closed_on`; nothing is stored."""
-    start, on = simulation.start_date, simulation.closed_on
-    ledger = compute_ledger(
-        start, simulation.amount_lent, simulation.terms, on, closed_on=on
-    )
-    closure = outstanding_on_closure_of(ledger, start, on)
+    """A Simulation closed on `closed_on`, or on the day its plan pays it off if
+    sooner; nothing is stored. A lump sum larger than what is owed on its date is
+    refused, as a real Payment would be."""
+    start = simulation.start_date
+    plan = _Plan(simulation)
+    ledger = plan.closed()
+    closure = outstanding_on_closure_of(ledger, start, plan.ends_on())
+    dates = _graph_dates(simulation, plan.paid, plan.paid_off_on)
     projected = project(
-        start, simulation.amount_lent, simulation.terms, _graph_dates(simulation)
+        start,
+        simulation.amount_lent,
+        simulation.terms,
+        dates,
+        allocations=plan.paid,
+        hypothetical=simulation.hypothetical(),
     )
     return Simulation(
         on_closure=closure,
@@ -157,9 +333,16 @@ def simulate(simulation: SimulationIn) -> Simulation:
             simulation.amount_lent, simulation.terms
         ),
         effective_annual_rate=effective_annual_rate(start, simulation.terms),
+        paid_off_on=plan.paid_off_on,
+        lump_sums=plan.lump_sums(),
         points=[
             SimulatedPoint(on=point.on, outstanding=point.outstanding)
             for point in projected.snapshots
+        ],
+        payments=[
+            SimulatedPayment(on=step.on, amount=step.amount)
+            for step in plan.ledger
+            if step.event == "payment" and step.on <= dates[-1]
         ],
         months=_months(ledger, closure),
     )

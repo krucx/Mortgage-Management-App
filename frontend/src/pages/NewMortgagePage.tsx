@@ -1,14 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   PURITIES,
   type Customer,
+  type InterestMode,
   type Mortgage,
   type MortgageIn,
   type NewMortgagePreview,
+  type PartMonthRule,
   type PaymentMethod,
   type Purity,
+  type Terms,
 } from '../api'
 import { NewMortgageForecast } from '../components/ChangeForecasts'
 import { CustomerChooser } from '../components/CustomerChooser'
@@ -38,16 +41,56 @@ import {
   suggestedNameQuery,
 } from '../requests'
 import { STALE_AFTER, useLedgerChange, useServerState } from '../serverState'
-import { formatRate, fromDraft, INTEREST_MODES, toDraft } from '../terms'
+import { formatRate, fromDraft, INTEREST_MODES, PART_MONTH_RULES, toDraft } from '../terms'
 import { gramsToMg } from '../weight'
+
+/** What a Simulation on the Calculator carries into a new Mortgage ("Lend this"): the
+ *  amount, start date and Terms, each to start the form from. */
+interface Carried {
+  amount: string // rupees
+  start: string
+  terms: Terms | null
+}
+
+function carriedIn(params: URLSearchParams): Carried {
+  const rate = params.get('rate')
+  const mode = params.get('mode')
+  const rule = params.get('rule')
+  return {
+    amount: params.get('amount') ?? '',
+    start: params.get('start') ?? todayIso(),
+    terms:
+      rate !== null &&
+      mode !== null &&
+      mode in INTEREST_MODES &&
+      rule !== null &&
+      rule in PART_MONTH_RULES
+        ? fromDraft({
+            ratePercent: rate,
+            interest_mode: mode as InterestMode,
+            part_month_rule: rule as PartMonthRule,
+          })
+        : null,
+  }
+}
 
 /**
  * Create a Mortgage: pick (or create) the Customer, see their Active Mortgages,
- * then enter the new one.
+ * then enter the new one, perhaps starting from a Simulation's figures.
  */
 export function NewMortgagePage() {
   const [params, setParams] = useSearchParams()
   const customerId = Number(params.get('customer')) || undefined
+  // The Customer comes and goes; whatever else the page was opened with stays.
+  function setCustomer(id: number | null) {
+    const next = new URLSearchParams(params)
+    if (id === null) next.delete('customer')
+    else next.set('customer', String(id))
+    setParams(next)
+  }
+  const query = params.toString()
+  // Kept while the URL is, so the form's Terms start from it only once
+  const carried = useMemo(() => carriedIn(new URLSearchParams(query)), [query])
   const { client } = useServerState()
   const customer = useQuery({ ...customerQuery(client, customerId ?? 0), enabled: !!customerId })
     .data
@@ -57,12 +100,12 @@ export function NewMortgagePage() {
       <h2>New Mortgage</h2>
       {customerId && customer?.id === customerId ? (
         <>
-          <CustomerSummary customer={customer} onChange={() => setParams({})} />
-          <MortgageForm customer={customer} />
+          <CustomerSummary customer={customer} onChange={() => setCustomer(null)} />
+          <MortgageForm customer={customer} carried={carried} />
         </>
       ) : (
         <CustomerChooser
-          onChoose={(id) => setParams({ customer: String(id) })}
+          onChoose={setCustomer}
           footer={
             <p className="hint">
               Not a Customer yet?{' '}
@@ -123,11 +166,11 @@ function CustomerSummary({ customer, onChange }: { customer: Customer; onChange:
   )
 }
 
-function MortgageForm({ customer }: { customer: Customer }) {
+function MortgageForm({ customer, carried }: { customer: Customer; carried: Carried }) {
   const navigate = useNavigate()
   const [fields, setFields] = useState({
-    start_date: todayIso(),
-    amountLent: '',
+    start_date: carried.start,
+    amountLent: carried.amount,
     description: '',
     gross: '',
     net: '',
@@ -137,7 +180,11 @@ function MortgageForm({ customer }: { customer: Customer }) {
   const methods = usePaymentMethods()
   const { client, queryClient } = useServerState()
   const changeLedger = useLedgerChange()
-  const [terms, setTerms] = useDraft(useQuery(settings.defaultTerms(client)).data, toDraft)
+  const defaultTerms = useQuery({
+    ...settings.defaultTerms(client),
+    enabled: carried.terms === null,
+  }).data
+  const [terms, setTerms] = useDraft(carried.terms ?? defaultTerms, toDraft)
   const [typedName, setName] = useState('')
   const [nameEdited, setNameEdited] = useState(false)
   const [photos, setPhotos] = useState<{ blob: Blob; url: string }[]>([])

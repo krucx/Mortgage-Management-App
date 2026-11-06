@@ -155,3 +155,33 @@ test('a new Mortgage is lent in Cash unless changed, warned about from its Previ
   await screen.findByText('Now at /mortgages/7')
   expect(created).toEqual([expect.objectContaining({ lent_through: 'cash', amount_lent: 2_500_000 })])
 })
+
+test("opened from the Calculator, it asks for a Customer, then shows the Simulation's amount, start date and Terms", async () => {
+  showPage(
+    server([], {
+      'GET /api/search': [
+        { kind: 'customer', id: 3, name: 'Asha Rao', phone: '9829012345', photo_url: null },
+      ],
+    }),
+    '/mortgages/new?amount=50000&start=2026-01-31&rate=2.5&mode=compounded_monthly&rule=pro_rata',
+    { '/mortgages/new': <NewMortgagePage /> },
+  )
+
+  fireEvent.change(screen.getByLabelText('Customer'), { target: { value: 'Asha' } })
+  fireEvent.click(await screen.findByRole('button', { name: /Asha Rao/ }, { timeout: 2000 }))
+
+  const amount = (await screen.findByLabelText('Principal lent (₹)')) as HTMLInputElement
+  expect(amount.value).toBe('50000')
+  expect((screen.getByLabelText('Start date') as HTMLInputElement).value).toBe('2026-01-31')
+  await vi.waitFor(() =>
+    expect((screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).value).toBe('2.5'),
+  )
+  expect((screen.getByLabelText('Interest Mode') as HTMLSelectElement).value).toBe('compounded_monthly')
+  expect((screen.getByLabelText(/Part-Month Rule/) as HTMLSelectElement).value).toBe('pro_rata')
+
+  // Still editable
+  fireEvent.change(amount, { target: { value: '60000' } })
+  expect(amount.value).toBe('60000')
+  fireEvent.change(screen.getByLabelText('Monthly interest rate (%)'), { target: { value: '3' } })
+  expect((screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).value).toBe('3')
+})

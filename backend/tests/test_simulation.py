@@ -1,11 +1,14 @@
 """Simulations: a made-up Mortgage worked out by the ledger engine, for the Calculator
 (today is 20 Apr 2026, see conftest)."""
 
+from datetime import date
+
 import pytest
 from api_seed import SIMPLE_3, lend, pay, person
 from seed import LAKH, RUPEE
 from sqlalchemy import select
 
+from mortgage_backend.lending.ledger import accrual_date
 from mortgage_backend.platform.db import make_engine, metadata
 
 
@@ -212,3 +215,181 @@ def test_the_table_shows_each_capitalisation(client):
         # The month from 14 Mar in full, charged on Closed on: never capitalised
         ("2026-03-14", 1_020 * RUPEE, 0, 1_02_010 * RUPEE, 1_020 * RUPEE),
     ]
+
+
+def accrual_dates(start, until):
+    """Each Accrual Date of a Mortgage started on `start`, up to `until`."""
+    first = date.fromisoformat(start)
+    dates, n = [], 1
+    while (on := accrual_date(first, n)) <= date.fromisoformat(until):
+        dates.append(on.isoformat())
+        n += 1
+    return dates
+
+
+@pytest.mark.parametrize(
+    "interest_mode", ["simple", "compounded_yearly", "compounded_monthly"]
+)
+@pytest.mark.parametrize("part_month_rule", ["full_month", "pro_rata", "nothing"])
+def test_a_planned_simulation_owes_what_a_mortgage_with_those_payments_would(
+    client, interest_mode, part_month_rule
+):
+    terms = {
+        "monthly_rate_bps": 250,
+        "interest_mode": interest_mode,
+        "part_month_rule": part_month_rule,
+    }
+    start, closed_on = "2025-01-31", "2026-04-20"
+    lump_sums = [
+        {"on": "2025-03-10", "amount": 20_000 * RUPEE},
+        {"on": "2025-12-31", "amount": 15_000 * RUPEE},  # an Accrual Date
+    ]
+    ramesh = person(client)
+    mortgage = lend(client, ramesh, start=start, amount=LAKH, terms=terms)
+    for lump in lump_sums:
+        pay(client, ramesh, {mortgage["id"]: lump["amount"]}, on=lump["on"])
+    for on in accrual_dates(start, closed_on):
+        pay(client, ramesh, {mortgage["id"]: 2_000 * RUPEE}, on=on)
+    real = client.get(
+        f"/api/mortgages/{mortgage['id']}/outstanding-on-closure",
+        params={"on": closed_on},
+    ).json()
+
+    simulation = simulated(
+        client,
+        start_date=start,
+        closed_on=closed_on,
+        terms=terms,
+        monthly_payment=2_000 * RUPEE,
+        lump_sums=lump_sums,
+    )
+
+    assert simulation["on_closure"] == real
+
+
+def test_a_plan_that_pays_it_off_ends_the_simulation_that_day(client):
+    # ₹30,000 on each Accrual Date pays the month's interest, the next month's in full
+    # ahead, then Principal: ₹76,000 left on 14 Feb, ₹48,280 on 14 Mar, ₹19,728 on
+    # 14 Apr, and on 14 May the ₹19,728 with its month's ₹592.
+    simulation = simulated(client, monthly_payment=30_000 * RUPEE)
+
+    assert simulation["paid_off_on"] == "2026-05-14"
+    assert simulation["on_closure"]["on"] == "2026-05-14"
+    assert simulation["on_closure"]["total"] == 0
+    assert simulation["interest_earned"] == (3_000 + 3_000 + 2_280 + 1_448 + 592) * RUPEE
+    points = outstanding_by_date(simulation)
+    assert list(points)[-1] == "2026-05-14"
+    assert points["2026-05-14"] == 0
+
+
+def test_a_plan_paying_it_off_after_closed_on_still_says_when(client):
+    simulation = simulated(client, monthly_payment=30_000 * RUPEE, closed_on="2026-03-01")
+
+    assert simulation["paid_off_on"] == "2026-05-14"
+    assert simulation["on_closure"]["on"] == "2026-03-01"
+    # The month from 14 Feb was paid ahead that day.
+    assert simulation["on_closure"]["total"] == 76_000 * RUPEE
+
+
+def test_a_plan_that_never_pays_it_off_within_ten_years_says_none(client):
+    # ₹2,000 a month never keeps up with ₹3,000 of interest.
+    simulation = simulated(client, monthly_payment=2_000 * RUPEE)
+
+    assert simulation["paid_off_on"] is None
+
+
+def test_a_lump_sum_can_pay_it_off(client):
+    # On 14 Feb: ₹3,000 of interest, the month's ₹3,000 ahead and the ₹1,00,000.
+    simulation = simulated(
+        client, lump_sums=[{"on": "2026-02-14", "amount": 1_06_000 * RUPEE}]
+    )
+
+    assert simulation["paid_off_on"] == "2026-02-14"
+    assert simulation["on_closure"]["total"] == 0
+
+
+def test_a_lump_sum_after_closed_on_is_ignored(client):
+    simulation = simulated(
+        client,
+        closed_on="2026-03-14",
+        lump_sums=[
+            {"on": "2026-03-15", "amount": 10_000 * RUPEE},
+            {"on": "2026-02-20", "amount": 10_000 * RUPEE},
+        ],
+    )
+
+    assert [lump["ignored"] for lump in simulation["lump_sums"]] == [
+        "after_closed_on",
+        None,
+    ]
+    # 20 Feb's pays 14 Feb's ₹3,000, the month's ₹3,000 ahead and ₹4,000 of Principal;
+    # then the month from 14 Mar on ₹96,000.
+    assert simulation["on_closure"]["total"] == (96_000 + 2_880) * RUPEE
+
+
+def test_a_lump_sum_after_the_plan_has_paid_it_off_is_ignored(client):
+    simulation = simulated(
+        client,
+        monthly_payment=30_000 * RUPEE,  # paid off on 14 May
+        lump_sums=[{"on": "2026-06-01", "amount": 5_000 * RUPEE}],
+    )
+
+    assert simulation["lump_sums"][0]["ignored"] == "after_paid_off"
+    assert simulation["paid_off_on"] == "2026-05-14"
+
+
+def test_a_lump_sum_larger_than_what_is_owed_is_refused_naming_it(client):
+    # ₹1,00,000, a month's ₹3,000 ahead and 14 Feb's ₹3,000 are owed on 15 Feb.
+    response = simulate(
+        client,
+        lump_sums=[
+            {"on": "2026-02-01", "amount": 1_000 * RUPEE},
+            {"on": "2026-02-15", "amount": 1_06_001 * RUPEE},
+        ],
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["lump_sum"] == 1
+    assert detail["on"] == "2026-02-15"
+    assert detail["owed"] == 1_05_000 * RUPEE
+
+
+@pytest.mark.parametrize(
+    "lump", [{"on": "2026-01-13", "amount": RUPEE}, {"on": "2026-02-01", "amount": 0}]
+)
+def test_a_lump_sum_must_be_over_nothing_and_not_before_the_start(client, lump):
+    assert simulate(client, lump_sums=[lump]).status_code == 422
+
+
+def test_a_monthly_payment_must_be_over_nothing(client):
+    assert simulate(client, monthly_payment=0).status_code == 422
+
+
+def test_planned_payments_are_rows_of_the_table_and_dots_on_the_graph(client):
+    simulation = simulated(
+        client,
+        closed_on="2026-03-14",
+        monthly_payment=1_000 * RUPEE,
+        lump_sums=[{"on": "2026-02-20", "amount": 10_000 * RUPEE}],
+    )
+
+    assert [
+        (m["on"], m["interest"], m["paid"], m["principal"], m["unpaid_interest"])
+        for m in simulation["months"]
+    ] == [
+        ("2026-02-14", 3_000 * RUPEE, 0, LAKH, 3_000 * RUPEE),
+        ("2026-02-14", 0, 1_000 * RUPEE, LAKH, 2_000 * RUPEE),
+        # ₹2,000 of interest, the month's ₹3,000 ahead, then Principal
+        ("2026-02-20", 0, 10_000 * RUPEE, 95_000 * RUPEE, 0),
+        ("2026-03-14", 3_000 * RUPEE, 0, 95_000 * RUPEE, 0),
+        ("2026-03-14", 0, 1_000 * RUPEE, 95_000 * RUPEE, 0),
+        # The month from 14 Mar on ₹95,000, ₹1,000 of it paid ahead
+        ("2026-03-14", 1_850 * RUPEE, 0, 95_000 * RUPEE, 1_850 * RUPEE),
+    ]
+    assert [(p["on"], p["amount"]) for p in simulation["payments"]][:3] == [
+        ("2026-02-14", 1_000 * RUPEE),
+        ("2026-02-20", 10_000 * RUPEE),
+        ("2026-03-14", 1_000 * RUPEE),
+    ]
+    assert "2026-02-20" in outstanding_by_date(simulation)

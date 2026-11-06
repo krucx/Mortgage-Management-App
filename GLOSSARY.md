@@ -95,7 +95,7 @@ The Ledger continued into the future under stated assumptions, used to compare o
 _Avoid_: Forecast, estimate
 
 **Simulation**:
-A made-up Mortgage (an amount, a start date, Terms and perhaps planned Payments) worked out exactly as a real one's Ledger would be, to size up a loan before lending; it has no Customer or jewellery and is never kept.
+A made-up Mortgage (an amount, a start date, Terms and perhaps planned Payments: a monthly amount and lump sums) worked out exactly as a real one's Ledger would be, to size up a loan before lending; it has no Customer, only perhaps a jewellery value for its Loan-to-Value, and is never kept.
 _Avoid_: Quote, estimate, dummy mortgage
 
 **Preview**:
