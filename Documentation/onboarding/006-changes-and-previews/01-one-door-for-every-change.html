@@ -200,7 +200,7 @@ sequenceDiagram
 <tr><td>422 Unprocessable</td><td>The request can't stand as asked, whatever the state</td><td>A date in the future or not an Accrual Date; a change that changes nothing; a Payment larger than what was owed (lesson 2); a body FastAPI can't parse</td></tr>
 <tr><td>404 Not Found</td><td>No such Mortgage, Payment, Term Change or photo</td><td><code>mortgage_row</code>; <code>void_payment</code>; <code>remove_term_change</code></td></tr>
 </table>
-<p>The frontend shows the message whatever the status (chapter 011). The status mostly tells <em>you</em>, reading a test or a log, which kind of refusal it was.</p>
+<p>The frontend shows the message whatever the status (<a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011, lesson 1</a>). The status mostly tells <em>you</em>, reading a test or a log, which kind of refusal it was.</p>
 
 <h3>6. Every change, and its two doors</h3>
 <p>Here is every change function in <code>changes.py</code>. All paths start with <code>/api</code>. "Checks?" says whether it calls <code>check_replays</code>; lesson 2 explains why some don't.</p>

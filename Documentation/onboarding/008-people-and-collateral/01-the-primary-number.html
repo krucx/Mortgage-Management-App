@@ -234,7 +234,7 @@ flowchart TD
 470          return owner_of(conn, number)
 </code></pre>
 </figure>
-<p>The Customer form and its Referrer picker call this once a complete number is typed (<code>useNumberOwner</code>, through <code>numberOwnerQuery</code> in <code>frontend/src/requests.ts</code>; chapter 011 covers the frontend's data layer), to say whose number it is before the Lender presses Save. A half-typed number isn't an error, so it answers <code>null</code> rather than 422.</p>
+<p>The Customer form and its Referrer picker call this once a complete number is typed (<code>useNumberOwner</code>, through <code>numberOwnerQuery</code> in <code>frontend/src/requests.ts</code>; <a href="../011-the-frontends-data-layer/02-reading-through-the-cache.html">chapter 011, lesson 2</a> covers reads like it), to say whose number it is before the Lender presses Save. A half-typed number isn't an error, so it answers <code>null</code> rather than 422.</p>
 <table class="steps text">
 <tr><th><code>?phone=</code></th><th>Answer</th></tr>
 <tr><td>9810012345</td><td><code>{"kind": "customer", "id": 1, "name": "Meera Sharma"}</code></td></tr>

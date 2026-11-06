@@ -49,7 +49,15 @@
   Routers and `include_router`. Use for: 002.02.
 
 - [TanStack Query: Query invalidation](https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation)
-  How `invalidateQueries` marks cached answers stale and refetches those on screen. Use for: 003.05, chapter 011.
+  How `invalidateQueries` marks cached answers stale and refetches those on screen, and `refetchType`. Use for: 003.05, 011.05.
+- [TanStack Query: Important defaults](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)
+  Why every answer is stale at once (`staleTime` 0), and when stale answers are asked again: a new page using them, window focus, reconnecting. Use for: 011.02.
+- [TanStack Query: Paginated queries](https://tanstack.com/query/latest/docs/framework/react/guides/paginated-queries)
+  `keepPreviousData`, which keeps the last page on screen while the next loads. Use for: 011.03, 011.04.
+- [openapi-fetch](https://openapi-ts.dev/openapi-fetch/)
+  The typed client every request goes through: paths, parameters and bodies checked against `api.gen.ts`. Use for: 011.01.
+- [openapi-typescript](https://openapi-ts.dev/introduction)
+  Turns `openapi.json` into `api.gen.ts` (`npm run gen:types`). Use for: 011.01.
 - [Pydantic: Models](https://docs.pydantic.dev/latest/concepts/models/)
   The classes FastAPI parses request bodies into, such as `PaymentIn`. Use for: 003.03.
 - [Chrome DevTools: Inspect network activity](https://developer.chrome.com/docs/devtools/network)

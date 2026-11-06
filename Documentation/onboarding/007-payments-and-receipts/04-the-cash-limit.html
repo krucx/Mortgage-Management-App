@@ -153,7 +153,7 @@ sequenceDiagram
 40      })
 </code></pre>
 </figure>
-<p>A React hook that returns a function. Every form that proposes a change calls <code>await warnCash(preview.previews?.cash ?? [])</code> when the Lender presses Save (<a href="../../../frontend/src/components/useProposedChange.tsx"><code>useProposedChange.tsx</code></a>, line 56), and only saves if it comes back <code>true</code>. "Go back" is the default button. Chapter 011 covers hooks like this one; here, just notice that the comparison is <em>at or above</em> (<code>largest &lt; limit</code> means "below, so go on"), and that a cleared limit (<code>null</code>) never asks.</p>
+<p>A React hook that returns a function. Every form that proposes a change calls <code>await warnCash(preview.previews?.cash ?? [])</code> when the Lender presses Save (<a href="../../../frontend/src/components/useProposedChange.tsx"><code>useProposedChange.tsx</code></a>, line 56), and only saves if it comes back <code>true</code>. "Go back" is the default button. <a href="../011-the-frontends-data-layer/04-previews-from-a-draft.html">Chapter 011, lesson 4</a> covers hooks like this one; here, just notice that the comparison is <em>at or above</em> (<code>largest &lt; limit</code> means "below, so go on"), and that a cleared limit (<code>null</code>) never asks.</p>
 
 <h2>Run-through: ₹25,000, in cash and by UPI</h2>
 <p>On a fresh book, Meera pays ₹25,000 to her chain on 19 Oct. The same Preview, twice, with only the method changed:</p>

@@ -93,7 +93,7 @@ flowchart TD
 <tr><td><code>pages/</code></td><td>One file per screen, named <code>…Page.tsx</code>, each listed in <code>App.tsx</code></td></tr>
 <tr><td><code>components/</code></td><td>Parts pages share: panels, dialogs, and hooks (functions named <code>use…</code>, React's way of sharing stateful logic between components)</td></tr>
 <tr><td><code>requests.ts</code></td><td>Every request the screens make, as a named function</td></tr>
-<tr><td><code>serverState.ts</code></td><td>The typed API client, the cache and its keys (chapter 011)</td></tr>
+<tr><td><code>serverState.ts</code></td><td>The typed API client, the cache and its keys (<a href="../011-the-frontends-data-layer/index.html">chapter 011</a>)</td></tr>
 <tr><td><code>api.gen.ts</code>, <code>api.ts</code></td><td>Request and response types, <strong>generated</strong> from the backend (<code>npm run gen:types</code>); <code>api.ts</code> gives them short names. Never edit <code>api.gen.ts</code> by hand.</td></tr>
 <tr><td><code>money.ts</code>, <code>format.ts</code>, <code>terms.ts</code>, …</td><td>Small helpers: rupees in Indian grouping, dates, describing Terms</td></tr>
 </table>

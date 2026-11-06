@@ -142,7 +142,7 @@ flowchart TD
 <p>For a Ledger-changing change, add to <code>test_previews.py</code> a test that the Preview is refused like the save (as <code>test_a_void_preview_is_refused_like_the_void</code> does), and to <code>test_changes.py</code> a test that a refused change records no History. Chapter 013 owns the fixtures.</p>
 
 <h3>7. The generated types</h3>
-<div class="callout warn"><strong>Trap #10.</strong> The frontend's API types are generated from the backend. A new or changed request model, response model or <code>Action</code> literal means running <code>npm run gen:types</code> in <code>frontend/</code> and committing both <code>frontend/openapi.json</code> and <code>frontend/src/api.gen.ts</code>. Forget, and tests fail in both languages. Chapter 011 owns <a href="../reference/traps.html#t10">this trap</a>.</div>
+<div class="callout warn"><strong>Trap #10.</strong> The frontend's API types are generated from the backend. A new or changed request model, response model or <code>Action</code> literal means running <code>npm run gen:types</code> in <code>frontend/</code> and committing both <code>frontend/openapi.json</code> and <code>frontend/src/api.gen.ts</code>. Forget, and tests fail in both languages. <a href="../011-the-frontends-data-layer/01-the-typed-client.html">Chapter 011, lesson 1</a> owns <a href="../reference/traps.html#t10">this trap</a>.</div>
 
 <h2>Run-through: the checklist on Meera's chain</h2>
 <p>On your served book the chain is valued at the Gold Rate. Ask for a Preview of setting it by hand to ₹90,000 (it saves nothing):</p>

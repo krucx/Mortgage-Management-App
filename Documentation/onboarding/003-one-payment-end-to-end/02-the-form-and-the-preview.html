@@ -228,7 +228,7 @@ flowchart TD
 <h3>(d) Two warnings for later</h3>
 <div class="callout warn">
   <p><strong>A bug in a change shows up in its Preview too.</strong> Because the Preview runs <code>record_payment</code> for real, a bug there breaks the Preview as well as the save. That's by design: they can never disagree. Each change's Preview route is written out by hand beside its save route (<a href="../../adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a>). Chapter 006 explains both.</p>
-  <p><strong><code>PaymentIn</code> is generated, not written.</strong> The TypeScript type <code>PaymentIn</code> comes from the backend's Pydantic model of the same name, through <code>openapi.json</code> and <code>api.gen.ts</code>. Change the model and run <code>npm run gen:types</code>, or tests fail in both languages. Chapter 011 covers it.</p>
+  <p><strong><code>PaymentIn</code> is generated, not written.</strong> The TypeScript type <code>PaymentIn</code> comes from the backend's Pydantic model of the same name, through <code>openapi.json</code> and <code>api.gen.ts</code>. Change the model and run <code>npm run gen:types</code>, or tests fail in both languages. <a href="../011-the-frontends-data-layer/01-the-typed-client.html">Chapter 011, lesson 1</a> covers it.</p>
 </div>
 
 <h2>Quiz</h2>

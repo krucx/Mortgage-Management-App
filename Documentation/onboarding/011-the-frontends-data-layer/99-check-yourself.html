@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11.99 · Check yourself: The frontend's data layer</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 011 · Check yourself</p>
+<h1>Check yourself: The frontend's data layer</h1>
+<p class="lede">Questions from all five lessons, mixed up. Then make Previews refetch after a save like everything else, and see which two tests catch it.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">1. A page imports <code>type MessageSettings</code> from <code>api.ts</code>. Where do its fields come from?</p>
+  <button class="opt">They're typed by hand in <code>api.ts</code> to match</button>
+  <button class="opt">A backend Pydantic model, through <code>api.gen.ts</code></button>
+  <button class="opt">The backend sends them to the browser at start-up</button>
+  <div class="why"><code>api.ts</code> only names generated types (<code>Schemas['…']</code>). They come from the backend's models: <code>openapi.py</code> writes <code>openapi.json</code>, and <code>openapi-typescript</code> turns it into <code>api.gen.ts</code>, both by <code>npm run gen:types</code>. Nothing about types happens at run time. (Lesson 1.)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">2. On the served book, with the dev server, you type "8000" into the Payment form at four keys a second, then wait. How many <code>POST /api/payments/preview</code> requests go out?</p>
+  <button class="opt">Four, one per key, the last one shown</button>
+  <button class="opt">Two: the first key, and 400 ms after the last</button>
+  <button class="opt">One, about 400 ms after the last key</button>
+  <div class="why"><code>usePreview</code> keeps <code>enabled</code> false until the draft's key has stayed the same for 400 ms, so only ₹8,000 is asked about. The script measured it 408 ms after the last key (lesson 4, run-through).</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">3. A Payment is saved while the Dashboard is <em>not</em> on screen. When is <code>GET /api/dashboard</code> asked?</p>
+  <button class="opt">When the Dashboard is next shown</button>
+  <button class="opt">At once, as <code>ledgerChanged</code> names it</button>
+  <button class="opt">Never: it waits for a reload of the app</button>
+  <div class="why"><code>invalidateQueries</code> marks every matching key stale but asks again only for those on screen (active). The Dashboard is asked when its page mounts, as the run-through after Sunita's Notice showed (lesson 5).</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">4. Why is <code>keys.search(query)</code> <code>['customer', 'search', query]</code> rather than <code>['search', query]</code>?</p>
+  <button class="opt">So the search's answer is typed as a Customer</button>
+  <button class="opt">Because the backend's route is under <code>/customers</code></button>
+  <button class="opt">So a saved Customer makes every search stale too</button>
+  <div class="why">A key is a path, and <code>STALE_AFTER.customer</code> names the prefix <code>['customer']</code>. A saved or deleted Customer can change who a search finds, so searches are filed under it on purpose. Keys don't decide types, and the route is <code>/api/search</code>. (Lesson 2.)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">5. Meera's chain, ₹90,000 in UPI, its Preview answered. Why is Save disabled?</p>
+  <button class="opt">The draft is <code>null</code> until the amount is valid</button>
+  <button class="opt">The Preview was refused, so saving would be too</button>
+  <button class="opt">₹90,000 is over the Cash Limit, which blocks it</button>
+  <div class="why"><code>canSave</code> needs <code>!preview.error</code>, and the Preview answered 422 "…would be more than the ₹83,333 owed then". The draft isn't <code>null</code>: it's a complete <code>PaymentIn</code>. The Cash Limit only warns, never blocks, and this is UPI anyway. (Lessons 1 and 4.)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">6. You add "skip all Notices for a Customer". It changes nothing owed. Which save hook does its page use?</p>
+  <button class="opt"><code>useChange(STALE_AFTER.notice)</code></button>
+  <button class="opt"><code>useLedgerChange()</code>, as it's a bulk change</button>
+  <button class="opt"><code>useMortgageChange()</code>, as Notices are per Mortgage</button>
+  <div class="why">It's a Notice action, and <code>STALE_AFTER.notice</code> already says what those make stale: the Notices list and the Dashboard. Bulk or not, it isn't a Ledger change. <code>useMortgageChange</code> is only for changes that return the Mortgage they changed. (Lesson 5.)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">7. The backend is stopped while the app is open. The Lender clicks Customers. What do they see, and how many tries were made?</p>
+  <button class="opt">"Request failed (500)", after one try</button>
+  <button class="opt">A blank list, after the browser times out</button>
+  <button class="opt">"The app's server isn't running…", after two</button>
+  <div class="why"><code>fetch</code> throws a <code>TypeError</code>, which <code>dataOrThrow</code> turns into <code>UNREACHABLE</code>. That isn't a refusal, so <code>retryUnlessRefused</code> asks once more: two tries. (Lesson 1, nuance e.)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">8. On the Customers list sorted <code>?sort=-name</code>, the Lender opens Meera and presses Back. What is asked for?</p>
+  <button class="opt">Nothing: the list's page is cached</button>
+  <button class="opt">The same page and sort, shown at once meanwhile</button>
+  <button class="opt">Page 1 in the default order: the sort was lost</button>
+  <div class="why">The sort lives in the URL, which Back restores, so the key is the same one cached. Being stale at once (<code>staleTime</code> 0), it's asked again in the background while the cached rows show. (Lessons 2 and 3.)</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Hands-on: make Previews refetch after a save</h2>
+<p>Lesson 5 said Previews and Closure quotes are only marked stale after a Ledger change, never asked again on the spot. Here you take that rule out and see what notices. Work in <code>frontend/</code>.</p>
+<ol>
+  <li>Run the tests as they are:
+<pre><code>npm test</code></pre>
+    <strong>230 passed</strong>, in 34 files (at commit 87a96c7).</li>
+  <li>Open <code>src/serverState.ts</code>. In <code>ledgerChanged</code>, line 157, change
+<pre><code>void queryClient.invalidateQueries({ queryKey, refetchType: 'none' })</code></pre>
+    to
+<pre><code>void queryClient.invalidateQueries({ queryKey })</code></pre>
+    Now Previews and Closure quotes on screen are asked for again after every Ledger change, like everything else.</li>
+  <li><strong>Predict</strong> before you run anything: how many tests fail, and which?</li>
+</ol>
+<div class="reveal">
+  <p>Run <code>npm test</code> again.</p>
+  <button class="show">I've run it. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>2 failed, 228 passed</strong> (at commit 87a96c7):</p>
+    <table class="steps text">
+    <tr><th>Test</th><th>What it says</th></tr>
+    <tr><td><code>serverState.test.tsx</code> › a Ledger change does not ask again for a Preview or quote on screen: the change it previewed is made</td><td><code>expected 4 to be 2</code>. The test watches a Preview and a Closure quote (as if on screen), counts how often each is asked, then calls <code>ledgerChanged</code>. Both were asked again.</td></tr>
+    <tr class="changed"><td><code>closing.test.tsx</code> › a Waiver and a Redemption each go to their own routes</td><td>The requests to <code>/api/closures/</code> were six, not four:
+<pre><code>  "POST /api/closures/waive-preview",
+  "POST /api/closures/waive",
++ "POST /api/closures/waive-preview",
+  "POST /api/closures/redeem-preview",
+  "POST /api/closures/redeem",
++ "POST /api/closures/redeem-preview",</code></pre></td></tr>
+    </table>
+    <p>The first test pins the rule. The second shows the harm. Right after a Waiver is saved, the form's Preview, still on screen, asks the backend to preview the same Waiver again, on a Mortgage that is now Waived. On the real backend that's a refusal, shown for an instant under a change that just succeeded. The test's fake backend answers anything, so what it catches is the extra request itself.</p>
+    <p>Nothing else fails. Most page tests check what ends up on screen, and their fake backend answers a repeated Preview as happily as the first, so an extra request goes unseen. That's why the first test exists: it counts the requests.</p>
+  </div>
+</div>
+<ol start="4">
+  <li>Undo it:
+<pre><code>git checkout -- src/serverState.ts
+git status --short     # nothing left</code></pre>
+    and run <code>npm test</code>: 230 pass.</li>
+</ol>
+
+<h2>Recap</h2>
+<ul>
+  <li>The frontend's types are generated: <code>openapi.py</code> writes the backend's schema to <code>openapi.json</code>, <code>openapi-typescript</code> turns it into <code>api.gen.ts</code>, and <code>api.ts</code> only names its types. Change a model, run <code>npm run gen:types</code>, commit both files, or <code>test_openapi.py</code> (and, if they disagree, <code>api-types.test.ts</code>) fail. Every request goes through one <code>openapi-fetch</code> client, so a wrong path won't compile; <code>fetch</code> is banned elsewhere (oxlint, and <code>showPage</code> in tests; CI doesn't lint). <code>dataOrThrow</code> makes every answer data or one readable error; a refusal is never retried, a failure once (<a href="01-the-typed-client.html">lesson 1</a>, traps #10 and #11).</li>
+  <li>One <code>QueryClient</code> holds every answer, made in <code>main.tsx</code> and given to every page by <code>ServerStateProvider</code>. Each read in <code>requests.ts</code> has a key from <code>keys</code>, built like a path so a prefix reaches a whole branch. Answers are stale at once: a page shows the cached answer immediately and asks again behind it. Settings, payment methods and the update check are read once (<code>staleTime: Infinity</code>) and updated from what saving returns (<a href="02-reading-through-the-cache.html">lesson 2</a>).</li>
+  <li>A list is a <code>ListRequest</code> (key and loader) in <code>lists</code>; <code>useListPage</code> does the rest. The sort lives in the URL (<code>?sort=-name</code>), so Back and reloads keep it; a new sort or filter starts at page 1; an emptied page steps back; each page and order is its own key, so a slow old answer never shows (<a href="03-lists-a-page-at-a-time.html">lesson 3</a>).</li>
+  <li>A form makes a draft (or <code>null</code>); <code>usePreview</code> asks for its Preview 400 ms after it settles, under <code>['preview', …draft]</code>, and never shows an old draft's answer as current. <code>useProposedChange</code> enables Save only with a draft, a loaded Preview and no refusal, then warns about cash at or over the Cash Limit, confirms, saves and hands on the result (<a href="04-previews-from-a-draft.html">lesson 4</a>).</li>
+  <li>What each change makes stale is declared once, in <code>serverState.ts</code>: <code>ledgerChanged</code> for anything that can change what's owed, <code>STALE_AFTER</code> for the rest. Pages save through <code>useLedgerChange</code>, <code>useMortgageChange</code> or <code>useChange</code>. What's on screen is asked again at once; Previews and Closure quotes are only marked, because the one on screen previews the change just made (<a href="05-saving-and-what-goes-stale.html">lesson 5</a>).</li>
+</ul>
+<p>The new <a href="../reference/frontend.html">frontend sheet</a> lists every hook, key, list and <code>STALE_AFTER</code> entry from this chapter. The <a href="../reference/commands.html#frontend">commands sheet</a> has <code>gen:types</code>, the typecheck, the tests and lint; the <a href="../reference/traps.html#t10">traps sheet</a> marks #10 and #11 as this chapter's.</p>
+
+<nav class="lessons">
+  <a href="05-saving-and-what-goes-stale.html">← Saving, and what goes stale</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="../index.html">Course home →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

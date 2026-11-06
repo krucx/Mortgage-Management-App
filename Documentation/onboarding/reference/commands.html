@@ -89,8 +89,21 @@
 <tr><td><code>backend/</code></td><td><code>uv run python ../Documentation/onboarding/010-platform-database-and-migrations/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 010 quotes, starting the app on throwaway copies (some on later days, one with a temporary migration 0016)</td></tr>
 </table>
 
+
+<h2 id="frontend">The frontend's data layer</h2>
+<p>Taught in <a href="../011-the-frontends-data-layer/index.html">chapter 011</a>. Run the frontend with <code>npm run dev</code> against the sample book served on port 8000 (<a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">002 · Lesson 5</a>).</p>
+<table class="wide">
+<tr><th>From</th><th>Command</th><th>What it does</th></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run gen:types</code></td><td>Writes the backend's schema to <code>openapi.json</code> and regenerates <code>src/api.gen.ts</code> from it. Run after changing any model a route takes or returns, and commit both files (<a href="traps.html#t10">trap #10</a>; 011 · Lesson 1)</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run typecheck</code></td><td>Compiles everything (<code>tsc -b</code>): a path, parameter or body the backend doesn't take fails here. CI runs it</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm test</code></td><td>Every frontend test (Vitest): 230 at commit 87a96c7. CI runs it</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run lint</code></td><td>oxlint, which bans <code>fetch</code> outside the typed client (<a href="traps.html#t11">trap #11</a>). CI doesn't run it: run it yourself</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_openapi.py</code></td><td>Whether the checked-in <code>openapi.json</code> matches the backend, and that retired words stay out of the schema</td></tr>
+<tr><td>repo root</td><td><code>sh Documentation/onboarding/011-the-frontends-data-layer/scripts/run_throughs.sh</code></td><td>Builds the sample book in a temp folder, serves it on 8000 with the dev server on 5199, drives the screens headless and prints every <code>/api/</code> request chapter 011 quotes. Ports 8000 and 5199 must be free; needs Playwright (<code>cd docs/sample-book &amp;&amp; npm install</code>)</td></tr>
+</table>
+
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

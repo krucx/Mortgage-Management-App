@@ -14,7 +14,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 008 | [People and Collateral](https://github.com/krucx/Mortgage-Management-App/issues/164) | `008-people-and-collateral/` | explain the Primary Number, Referrers, ID Photos, Gold Rates and Loan-to-Value | written (575437c) |
 | 009 | [Follow-up](https://github.com/krucx/Mortgage-Management-App/issues/170) | `009-follow-up/` | explain Notices, the Call List, Call Notes and Call Sheets, and WhatsApp messages | written (6e6b030) |
 | 010 | [Platform, database and migrations](https://github.com/krucx/Mortgage-Management-App/issues/176) | `010-platform-database-and-migrations/` | add a migration safely; know the clock, the daily run and the composition root | written (b34526a) |
-| 011 | [The frontend's data layer](https://github.com/krucx/Mortgage-Management-App/issues/182) | `011-the-frontends-data-layer/` | fetch, preview and propose a change from a page | planned |
+| 011 | [The frontend's data layer](https://github.com/krucx/Mortgage-Management-App/issues/182) | `011-the-frontends-data-layer/` | fetch, preview and propose a change from a page | written (87a96c7) |
 | 012 | [Frontend pages and the PWA](https://github.com/krucx/Mortgage-Management-App/issues/188) | `012-frontend-pages-and-the-pwa/` | build a page from existing components; explain the service worker, StartGate and UpdateBanner | planned |
 | 013 | [Testing](https://github.com/krucx/Mortgage-Management-App/issues/195) | `013-testing/` | write backend and frontend tests with the repo's fixtures, seeds and fakes; run the type checks and Pester | planned |
 | 014 | [How it runs on the Lender's laptop](https://github.com/krucx/Mortgage-Management-App/issues/201) | `014-how-it-runs-on-the-lenders-laptop/` | run and debug Docker, `screens.py` mode and the Windows installer | planned |
@@ -93,6 +93,13 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 4. Tables, the engine and lists a page at a time ([#180](https://github.com/krucx/Mortgage-Management-App/issues/180))
 5. How the app migrates on every start ([#181](https://github.com/krucx/Mortgage-Management-App/issues/181))
 6. Adding a migration safely ([#226](https://github.com/krucx/Mortgage-Management-App/issues/226))
+
+### 011 The frontend's data layer (written)
+1. The typed client and the generated types ([#183](https://github.com/krucx/Mortgage-Management-App/issues/183))
+2. Reading through one cache ([#184](https://github.com/krucx/Mortgage-Management-App/issues/184))
+3. Lists a page at a time ([#185](https://github.com/krucx/Mortgage-Management-App/issues/185))
+4. Previews from a draft ([#186](https://github.com/krucx/Mortgage-Management-App/issues/186))
+5. Saving, and what goes stale ([#187](https://github.com/krucx/Mortgage-Management-App/issues/187))
 
 ## Reference sheets
 

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11.2 · Reading through one cache</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Chapter 011 · Lesson 2</p>
+<h1>Reading through one cache</h1>
+<p class="lede">No page calls the client directly to read something. It asks the cache, by key, and the cache decides whether to ask the backend. This lesson shows the keys, where the cache is made, and when an answer is shown from the cache and when it is asked for again.</p>
+
+<div class="callout win"><strong>By the end</strong> you can write a read in <code>requests.ts</code> with the right key, and say when it will be asked for again.</div>
+
+<h2>The problem</h2>
+<p>Go from Meera's Customer page to her chain and back. If each page fetched its data in a <code>useEffect</code> and kept it in its own state, every visit would start with a blank page and a spinner, and the same answer would be fetched over and over. Keep answers forever instead, and after a Payment her page still shows the old Outstanding.</p>
+<p>There's a second, subtler problem: <em>finding</em> what to refresh. A Payment to the chain changes the chain, Meera's Customer History, every list, the Dashboard. If each screen kept its data its own way, the code that saves a Payment would need to know about every one of them.</p>
+
+<h2>The idea</h2>
+<p><strong>One cache for the whole app, with answers filed under keys.</strong> The app uses <a href="https://tanstack.com/query/latest">TanStack Query</a> (often called React Query). It keeps every answer from the backend in one <code>QueryClient</code>, filed under a <em>query key</em>: an array such as <code>['mortgage', 2]</code>. A page says "I need the answer for this key, and here's how to get it", and TanStack Query shows what it has, asks the backend if what it has is stale, and re-renders the page when the answer arrives.</p>
+<p><strong>Keys are paths.</strong> Keys are built like folder paths, so a prefix names a whole branch: <code>['customer']</code> matches <code>['customer', 1]</code>, <code>['customer', 1, 'history']</code> and <code>['customer', 'search', 'Meera']</code>. Lesson 5 makes whole branches stale with one prefix.</p>
+<p><strong>Shown at once, asked again behind the scenes.</strong> By default, TanStack Query treats every answer as stale the moment it arrives (its <code>staleTime</code> is 0). A page that needs a cached key shows the cached answer immediately <em>and</em> asks the backend again, then swaps in the new answer. Things that can't change while the app runs say so with <code>staleTime: Infinity</code>, and are asked for once.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant P as CustomerPage
+  participant Q as QueryClient, the cache
+  participant C as typed client
+  participant B as backend
+  P->>Q: useQuery(customerQuery(client, 1))
+  alt key not cached
+    Q->>C: queryFn()
+    C->>B: GET /api/customers/1
+    B-->>Q: Customer
+    Q-->>P: data, after "Loading…"
+  else cached, stale (staleTime 0)
+    Q-->>P: cached data, at once
+    Q->>C: queryFn(), in the background
+    C->>B: GET /api/customers/1
+    B-->>Q: Customer
+    Q-->>P: new data, re-render
+  else cached, staleTime Infinity
+    Q-->>P: cached data, nothing asked
+  end
+</pre>
+<figcaption>Three ways a read can go. Almost every read in the app takes the middle path on a second visit.</figcaption>
+</figure>
+<p>Notice that the page never decides any of this. It names a key and a function, and the cache's rules do the rest.</p>
+
+<h2>The code</h2>
+<h3>1. One client, one cache, given to every page</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/main.tsx">frontend/src/main.tsx</a> · lines 8–14</figcaption>
+<pre data-file="frontend/src/main.tsx"><code>8   createRoot(document.getElementById('root')!).render(
+9     &lt;StrictMode&gt;
+10      &lt;ServerStateProvider state={createServerState()}&gt;     ◀
+11        &lt;App /&gt;
+12      &lt;/ServerStateProvider&gt;
+13    &lt;/StrictMode&gt;,
+14  )
+</code></pre>
+</figure>
+<p><code>createServerState()</code> (lesson 1) runs once, when the app starts, and makes the typed client and the <code>QueryClient</code>. Reload the browser tab and you get a fresh, empty cache.</p>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/components/ServerStateProvider.tsx">frontend/src/components/ServerStateProvider.tsx</a> · lines 5–17</figcaption>
+<pre data-file="frontend/src/components/ServerStateProvider.tsx"><code>5   /** Gives every page below it the typed client and the query cache. */
+6   export function ServerStateProvider({
+⋮
+13    return (
+14      &lt;ClientContext.Provider value={state.client}&gt;
+15        &lt;QueryClientProvider client={state.queryClient}&gt;{children}&lt;/QueryClientProvider&gt;
+16      &lt;/ClientContext.Provider&gt;
+17    )
+</code></pre>
+</figure>
+<p>Two React <em>contexts</em>: a way to hand a value to every component below, without passing it through each one's props. <code>QueryClientProvider</code> is TanStack Query's own; <code>ClientContext</code> is the app's, for the typed client.</p>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/serverState.ts">frontend/src/serverState.ts</a> · <code>useServerState()</code> · lines 187–193</figcaption>
+<pre data-file="frontend/src/serverState.ts"><code>187  /** The typed client and the cache, inside a ServerStateProvider. */
+188  export function useServerState(): ServerState {
+189    const client = useContext(ClientContext)
+190    const queryClient = useQueryClient()
+191    if (!client) throw new Error('useServerState needs a ServerStateProvider')
+192    return { client, queryClient }
+193  }
+</code></pre>
+</figure>
+<p>Every page and hook gets both from here. Tests wrap a page in the same provider with a fake <code>fetch</code> (chapter 013), which is why nothing else may make its own client.</p>
+
+<h3>2. The keys</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/serverState.ts">frontend/src/serverState.ts</a> · <code>keys</code> · lines 63–101, trimmed</figcaption>
+<pre data-file="frontend/src/serverState.ts"><code>63   /** Query keys, by what they hold; a prefix matches every key under it. */
+64   export const keys = {
+65     mortgage: (id: number) =&gt; ['mortgage', id] as const,
+66     /** A Mortgage's History; under the Mortgage, so whatever makes it stale does this too. */
+67     mortgageHistory: (id: number) =&gt; ['mortgage', id, 'history'] as const,
+68     customer: (id: number) =&gt; ['customer', id] as const,
+69     /** Every Customer, and everything under one (their History). */
+70     allCustomers: ['customer'] as const,
+71     payment: (id: number) =&gt; ['payment', id] as const,
+⋮
+73     allPayments: ['payment'] as const,
+⋮
+77     /** A Standalone Referrer; under the Customers, as saving one they referred changes it. */
+78     referrer: (id: number) =&gt; ['customer', 'referrer', id] as const,      ◀
+79     /** Who matches a search, and who owns a Primary Number: under the Customers too. */
+80     search: (query: string) =&gt; ['customer', 'search', query] as const,    ◀
+81     numberOwner: (phone: string) =&gt; ['customer', 'number-owner', phone] as const,   ◀
+⋮
+85     allMortgages: ['mortgage'] as const,
+86     lists: ['list'] as const,
+87     /** One list (with any filters, sort and page). */
+88     list: (name: string) =&gt; ['list', name] as const,
+89     dashboard: ['dashboard'] as const,
+⋮
+91     dormant: ['dormant'] as const,
+⋮
+93     previews: ['preview'] as const,
+⋮
+95     outstandingOnClosure: ['outstanding-on-closure'] as const,
+⋮
+97     settings: ['settings'] as const,
+⋮
+100    update: ['update'] as const,
+101  }
+</code></pre>
+</figure>
+<p><code>as const</code> tells TypeScript to type <code>['mortgage', id]</code> as a fixed, read-only pair (<code>readonly ['mortgage', number]</code>) rather than a loose <code>(string | number)[]</code>. The <code>all…</code> keys are the prefixes; the functions make one entry under them. Every key the app uses starts with one of these.</p>
+
+<h3>3. A read, with its key</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>dormantCountQuery()</code>, <code>mortgageQuery()</code> · lines 43–60</figcaption>
+<pre data-file="frontend/src/requests.ts"><code>43  /** How many Mortgages are Dormant: Active yet owing nothing, to be Redeemed. */
+44  export function dormantCountQuery(client: ApiClient) {
+45    return queryOptions({
+46      queryKey: keys.dormant,
+47      queryFn: () =&gt;
+48        dataOrThrow(client.GET('/api/closures/dormant', { params: { query: { page: 1 } } })),
+49      select: (dormant) =&gt; dormant.total,                       // ①
+50    })
+51  }
+52
+53  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
+54  export function mortgageQuery(client: ApiClient, id: number) {
+55    return queryOptions({                                    // ②
+56      queryKey: keys.mortgage(id),                            // ③  ◀
+57      queryFn: () =&gt;
+58        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),
+59    })
+60  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>select</code> picks what the page gets out of the cached answer. The cache keeps the whole first page of <dfn class="term" title="An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it."><a href="../reference/glossary.html#dormant">Dormant</a></dfn> Mortgages; the menu only gets the number, <code>total</code>.</li>
+  <li><code>queryOptions</code> is TanStack Query's helper that ties a key to its function's answer type, so <code>useQuery(mortgageQuery(client, 2)).data</code> is typed <code>Mortgage</code>. It returns the plain options object; the page passes it to <code>useQuery</code>.</li>
+  <li>The key comes from <code>keys</code>, never typed out by hand in a page. One spelling, one place.</li>
+</ol>
+<p>A page then reads it in one line, as <code>MortgagePage</code> does (line 40): <code>const loaded = useQuery(mortgageQuery(client, id))</code>. <code>loaded.data</code> is the Mortgage, or <code>undefined</code> until it arrives; <code>loaded.error</code> is the <code>BackendError</code> from lesson 1, if any.</p>
+
+<h3>4. Read once</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>settingsQuery()</code> · lines 350–353</figcaption>
+<pre data-file="frontend/src/requests.ts"><code>350  /** A settings group: read once, then known from what saving it returns. */
+351  function settingsQuery&lt;T&gt;(name: string, load: () =&gt; Promise&lt;T&gt;) {
+352    return queryOptions({ queryKey: [...keys.settings, name], queryFn: load, staleTime: Infinity })   ◀
+353  }
+</code></pre>
+</figure>
+<p>Each settings group (<code>default-terms</code>, <code>gold-rates</code>, <code>call-list</code>, <code>cash-limit</code>, <code>messages</code>, <code>placeholders</code>) gets this. <code>paymentMethodsQuery</code> (line 681) and <code>updateStatusQuery</code> (line 691) set <code>staleTime: Infinity</code> too: the payment methods are fixed while the app runs, and the backend asks GitHub about updates at most once a day anyway.</p>
+
+<h2>Run-through: Meera's page, her chain, and back</h2>
+<p>Open <a href="http://localhost:5173/customers/1">localhost:5173/customers/1</a> with the Network tab filtered to <code>/api/</code>. Click through to her chain (<code>2025-Meera-GoldChainPendant</code>), then press the browser's Back, then Forward.</p>
+<table class="steps text">
+<tr><th>Step</th><th>Requests</th><th>What the page shows meanwhile</th></tr>
+<tr><td>Open <code>/customers/1</code> (a fresh load)</td><td>12: the menu's and <code>StartGate</code>'s (lesson 1), then <code>/api/customers/1</code>, her Active and closed Mortgages (<code>/api/mortgages?…&amp;status=active</code>, <code>…&amp;closed=true</code>), her three photos, <code>/api/customers/1/history</code></td><td>"Loading…" until the answers arrive</td></tr>
+<tr><td>Click the chain</td><td>4: <code>/api/mortgages/2</code>, <code>…/call-notes</code>, <code>…/projection</code>, <code>…/history</code></td><td>"Loading…": never seen before</td></tr>
+<tr class="changed"><td>Back</td><td>4: <code>/api/customers/1/history</code>, <code>/api/customers/1</code>, and both Mortgage lists</td><td><strong>Meera's page, at once</strong></td></tr>
+<tr class="changed"><td>Forward</td><td>4: the chain's four again</td><td><strong>The chain's page, at once</strong></td></tr>
+</table>
+<p class="cite">From <code>scripts/network.mjs</code> (section L2). The menu's own requests (<code>/api/closures/dormant</code>, <code>/api/update</code>) were made once, on the fresh load: the menu stays on screen.</p>
+<p>The second visit <em>does</em> ask again: every answer is stale at once (<code>staleTime</code> 0). What the cache buys you is the "at once". The script checked it by making <code>/api/customers/1</code> take two seconds to answer: 200 ms after pressing Back, the page already showed "Meera Sharma", from the cache, while the request was still on its way.</p>
+<p class="aside">This lesson's plan (issue #184) expected the second visit to ask nothing new. On the real app it asks everything again, behind a page that is already drawn. That's TanStack Query's default, and the app keeps it on purpose: every figure is worked out by the backend, so the cache never gets to decide a figure is still right.</p>
+<p>Now Settings. Click <strong>Settings</strong> in the menu, then <strong>Customers</strong>, then <strong>Settings</strong> again:</p>
+<table class="steps text">
+<tr><th>Step</th><th>Requests</th></tr>
+<tr><td>Settings, first time</td><td>7: <code>/api/settings/default-terms</code>, <code>…/gold-rates</code>, <code>…/call-list</code>, <code>…/cash-limit</code>, <code>…/messages</code>, <code>…/messages/placeholders</code>, and <code>/api/backups</code></td></tr>
+<tr><td>Customers</td><td><code>/api/customers?page=1&amp;q=</code> (and photos)</td></tr>
+<tr class="changed"><td>Settings, second time</td><td><strong>1</strong>: <code>/api/backups</code></td></tr>
+</table>
+<p class="cite">From <code>scripts/network.mjs</code> (section L2).</p>
+<p>The six settings groups have <code>staleTime: Infinity</code>, so the second visit asks none of them. <code>backupsQuery</code> (line 388) doesn't: whether a Backup is running changes on its own, so it's asked every time, and every second while one runs (<code>refetchInterval</code>).</p>
+
+<h2>Nuances</h2>
+<h3>(a) A key is a path, on purpose</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> the Lender saves a Customer, and the save makes the prefix <code>['customer']</code> stale. Which of these cached answers become stale: <code>['customer', 1]</code>; <code>['customer', 1, 'history']</code>; <code>['customer', 'search', 'Meera']</code>; <code>['customer', 'referrer', 1]</code>; <code>['mortgage', 2]</code>?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>The first four</strong>, not the Mortgage. TanStack Query matches a key by its start, element by element. That's why <code>keys.search</code>, <code>keys.numberOwner</code> and <code>keys.referrer</code> are filed under <code>'customer'</code> even though they aren't one Customer: a saved Customer can change who matches a search, who owns a Primary Number, and whom a Standalone Referrer has referred. (<code>['mortgage', 2]</code> is made stale by the same save for a different reason: <code>STALE_AFTER.customer</code> names <code>allMortgages</code> too, because a Mortgage shows its Customer's name. Lesson 5.)</p>
+  </div>
+</div>
+
+<h3>(b) A Receipt sits under its Payment</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>receiptQuery()</code> · lines 665–679</figcaption>
+<pre data-file="frontend/src/requests.ts"><code>665  /** A Payment's Receipt for the Customer, worded from the Receipt template. */
+666  export function receiptQuery(client: ApiClient, paymentId: number) {
+667    return queryOptions({
+668      queryKey: [...keys.payment(paymentId), 'receipt'],          // ①  ◀
+669      queryFn: ({ client: cache }) =&gt; {
+670        // Not asked for once the Payment is known to be Voided: it has none.
+671        if (cache.getQueryData&lt;Payment&gt;(keys.payment(paymentId))?.voided_at) {   // ②
+672          throw new Error('A Voided Payment has no Receipt')
+673        }
+674        return dataOrThrow(
+675          client.GET('/api/payments/{payment_id}/receipt', { params: paymentPath(paymentId) }),
+676        )
+677      },
+678    })
+679  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>['payment', 23, 'receipt']</code>: anything that makes Payments stale reaches their Receipts too. New message settings reword every Receipt, and <code>STALE_AFTER.messageSettings</code> only has to name <code>allPayments</code>. (<code>...</code> is JavaScript's spread: it copies the elements of <code>keys.payment(paymentId)</code> into the new array.)</li>
+  <li>A query function gets a context object; <code>client</code> in it is the <code>QueryClient</code> (renamed <code>cache</code> here, to tell it apart from the typed client). It looks up the Payment already in the cache, without asking. A Voided Payment has no Receipt, so asking would only earn a refusal. Lesson 5 shows the save that makes this work. <code>projectionQuery</code> (line 430) does the same for a closed Mortgage, which has no Projection.</li>
+</ol>
+
+<h3>(c) Read once, then known from what saving returns</h3>
+<p>If the settings groups are never asked again, how does the page see a change? The save route answers with what it stored, and the page puts that answer straight into the cache. In <code>SettingsPage.tsx</code>, saving the message settings ends with <code>queryClient.setQueryData(settings.messages(client).queryKey, messages)</code> (line 415). <code>setQueryData</code> writes an answer under a key as if the backend had just sent it. The default Terms, Gold Rates, Call List thresholds and Cash Limit forms do the same.</p>
+
+<h3>(d) A picker must never leave a Mortgage out</h3>
+<figure class="snippet">
+<figcaption><a href="../../../frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>everyMortgageQuery()</code> · lines 606–629, trimmed</figcaption>
+<pre data-file="frontend/src/requests.ts"><code>606  /** Every one of a Customer's Mortgages that match, on one page, for choosing from: a
+607   *  picker must never leave one out. With `asOf`, Outstanding is worked out on that date. */
+608  export function everyMortgageQuery(
+⋮
+612    return queryOptions({
+613      queryKey: [...keys.list('mortgages'), 'every', filters],    // ①
+⋮
+616          client.GET('/api/mortgages', {
+⋮
+619                page: 1,
+620                customer_id: filters.customerId,
+621                status: filters.status,
+622                as_of: filters.asOf,                              // ②
+623                paged: false,                                     // ③  ◀
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Filed under the Mortgages list, so anything that makes lists stale reaches it. The <code>filters</code> object is part of the key, so each Customer, status and date has its own entry. TanStack Query compares keys by value, not by object identity, so a new <code>{ customerId: 1, … }</code> with the same contents finds the same entry.</li>
+  <li>The Payment form passes its date: the backend works out each Mortgage's Outstanding <em>on that date</em>. The frontend never does; it has no Ledger code.</li>
+  <li>Lists come 20 to a page (<a href="../010-platform-database-and-migrations/04-tables-engine-and-pages.html">chapter 010, lesson 4</a>). A Customer with 21 Active Mortgages would lose one from the Payment form's table. <code>paged: false</code> asks for all of them on one page.</li>
+</ol>
+<p>On the Payment form, this is <code>GET /api/mortgages?page=1&amp;customer_id=1&amp;status=active&amp;as_of=2026-10-19&amp;paged=false</code>. That <code>as_of</code> is why the form's date matters: leave it at your browser's real today and the backend refuses the date as in the future.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">You add a read of a Customer's Call Notes across all their Mortgages. Which key lets a saved Customer make it stale with no other change?</p>
+  <button class="opt"><code>['call-notes', 'customer', id]</code></button>
+  <button class="opt"><code>['customer-call-notes', id]</code></button>
+  <button class="opt"><code>[...keys.customer(id), 'call-notes']</code></button>
+  <div class="why">Under <code>['customer', id]</code>, so <code>STALE_AFTER.customer</code>'s <code>allCustomers</code> prefix reaches it. The first sits under <code>['call-notes']</code>, which a Call Note makes stale but a saved Customer doesn't. The second is under nothing at all: you'd have to add it to every <code>STALE_AFTER</code> entry by hand.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">You open Meera's chain, go to the Dashboard, then come back to the chain. What happens?</p>
+  <button class="opt">It shows at once, and asks <code>/api/mortgages/2</code> again</button>
+  <button class="opt">It shows "Loading…" and asks <code>/api/mortgages/2</code></button>
+  <button class="opt">It shows at once, and asks nothing new at all</button>
+  <div class="why">The cached answer is shown immediately, and, being stale (<code>staleTime</code> 0), asked again in the background. "Loading…" is only for a key that was never answered. Asking nothing is for <code>staleTime: Infinity</code>, which a Mortgage doesn't have.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Why does <code>everyMortgageQuery</code> pass <code>paged: false</code>?</p>
+  <button class="opt">One page of 20 is faster for the backend</button>
+  <button class="opt">A picker that missed a Mortgage would be wrong</button>
+  <button class="opt">The backend refuses <code>as_of</code> without it</button>
+  <div class="why">The Payment form and other pickers must show every one of the Customer's Mortgages, or the Lender can't choose the one that's missing. Lists come 20 to a page, so a Customer with 21 would lose one. <code>as_of</code> works with or without paging.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read TanStack Query's <a href="https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults">Important defaults</a> (one page): it says why answers are stale at once, and when stale answers are asked again (a new page using them, the window regaining focus, the network coming back). Then skim <a href="../../../frontend/src/requests.ts"><code>requests.ts</code></a> from line 387 to the end: every read in the app, each with its key.</p>
+
+<nav class="lessons">
+  <a href="01-the-typed-client.html">← The typed client and the generated types</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="03-lists-a-page-at-a-time.html">Next: Lists a page at a time →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+</body>
+</html>

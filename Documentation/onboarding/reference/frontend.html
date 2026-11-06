@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · The frontend's data layer</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<p class="kicker">Reference sheet</p>
+<h1>The frontend's data layer</h1>
+<p class="lede">How the screens ask the backend for anything: the hooks a page uses, the cache's keys, what each kind of change makes stale, and every read, list, Preview and change in <code>frontend/src/requests.ts</code> with the route it calls. Taught in <a href="../011-the-frontends-data-layer/index.html">chapter 011</a>. Chapter 012 will add each page and the routes it calls.</p>
+
+<div class="callout"><strong>The rules in one breath.</strong> Every request goes through the typed client, by a function in <code>requests.ts</code>; never <code>fetch</code> (<a href="traps.html#t11">trap #11</a>). Change a backend model, run <code>npm run gen:types</code> and commit <code>openapi.json</code> and <code>api.gen.ts</code> (<a href="traps.html#t10">trap #10</a>). Every key comes from <code>keys</code> in <code>serverState.ts</code>. A page saves through <code>useLedgerChange</code>, <code>useMortgageChange</code> or <code>useChange(STALE_AFTER.…)</code>; what goes stale is declared there, not in the page.</div>
+
+<h2 id="hooks">The hooks a page uses</h2>
+<table class="wide">
+<tr><th>Hook or function</th><th>File</th><th>What it gives</th><th>Lesson</th></tr>
+<tr><td><code>useServerState()</code></td><td><code>serverState.ts</code></td><td><code>{ client, queryClient }</code>: the typed client and the cache, from <code>ServerStateProvider</code></td><td><a href="../011-the-frontends-data-layer/02-reading-through-the-cache.html">2</a></td></tr>
+<tr><td><code>useQuery(xQuery(client, …))</code></td><td>TanStack Query, with a read from <code>requests.ts</code></td><td><code>data</code> (or <code>undefined</code> until it arrives) and <code>error</code> (a <code>BackendError</code>, or <code>Error</code> for no connection)</td><td><a href="../011-the-frontends-data-layer/02-reading-through-the-cache.html">2</a></td></tr>
+<tr><td><code>useListPage(COLUMNS, lists.x(filters))</code></td><td><code>components/useListPage.tsx</code></td><td><code>listed</code> (a page: <code>items</code>, <code>total</code>, <code>page</code>, <code>page_size</code>), <code>sorting</code> (for <code>SortHeading</code>), <code>error</code>, <code>pager</code>. Sort in the URL; page 1 on a new sort or filter; steps back from an emptied page</td><td><a href="../011-the-frontends-data-layer/03-lists-a-page-at-a-time.html">3</a></td></tr>
+<tr><td><code>useUrlSort(COLUMNS, { param, onChange })</code></td><td><code>components/useUrlSort.ts</code>, <code>sort.ts</code></td><td>A sort kept in the URL as <code>?sort=name</code> or <code>?sort=-amount</code>; only a column in <code>COLUMNS</code> is believed</td><td><a href="../011-the-frontends-data-layer/03-lists-a-page-at-a-time.html">3</a></td></tr>
+<tr><td><code>usePreview(request, delay = 400)</code></td><td><code>components/usePreview.ts</code></td><td><code>{ previews, error, loading }</code> for a <code>PreviewRequest</code>, asked once it has stopped changing for 400 ms; the last answer stays, marked <code>loading</code>; not asked again on window focus</td><td><a href="../011-the-frontends-data-layer/04-previews-from-a-draft.html">4</a></td></tr>
+<tr><td><code>useProposedChange({ change, preview, confirm, save, saved })</code></td><td><code>components/useProposedChange.tsx</code></td><td><code>preview</code>, <code>submit</code>, <code>canSave</code>, <code>saving</code>, <code>error</code>, <code>confirmDialog</code>. Save needs a draft, a loaded Preview and no refusal; then cash warning → confirmation → save → <code>saved</code></td><td><a href="../011-the-frontends-data-layer/04-previews-from-a-draft.html">4</a></td></tr>
+<tr><td><code>useCashWarning()</code></td><td><code>components/useCashWarning.tsx</code></td><td><code>[warnCash, dialog]</code>: <code>await warnCash(cash)</code> is true to go on; warns when the largest cash sum is at or over the Cash Limit; never when it's cleared</td><td><a href="../011-the-frontends-data-layer/04-previews-from-a-draft.html">4</a></td></tr>
+<tr><td><code>useConfirm()</code></td><td><code>components/useConfirm.tsx</code></td><td><code>[confirm, dialog]</code>: <code>await confirm({ title, … })</code> is true if confirmed; an in-app dialog, never a browser popup</td><td><a href="../011-the-frontends-data-layer/04-previews-from-a-draft.html">4</a></td></tr>
+<tr><td><code>useLedgerChange()</code></td><td><code>serverState.ts</code></td><td><code>changeLedger(change, keep?)</code>: sends the change, keeps its answer, then <code>ledgerChanged</code></td><td><a href="../011-the-frontends-data-layer/05-saving-and-what-goes-stale.html">5</a></td></tr>
+<tr><td><code>useMortgageChange()</code></td><td><code>serverState.ts</code></td><td>As <code>useLedgerChange</code>, keeping the returned Mortgage under <code>['mortgage', id]</code> first</td><td><a href="../011-the-frontends-data-layer/05-saving-and-what-goes-stale.html">5</a></td></tr>
+<tr><td><code>useChange(STALE_AFTER.x)</code></td><td><code>serverState.ts</code></td><td>Sends a change that can't alter what's owed, then marks <code>STALE_AFTER.x</code> stale</td><td><a href="../011-the-frontends-data-layer/05-saving-and-what-goes-stale.html">5</a></td></tr>
+</table>
+
+<h2 id="keys">The cache's keys</h2>
+<p>From <code>keys</code> in <code>serverState.ts</code>. A key is a path: making a prefix stale reaches every key under it.</p>
+<table class="wide">
+<tr><th>Key</th><th>Holds</th><th>Nested under it</th></tr>
+<tr><td><code>['mortgage', id]</code></td><td>a Mortgage (<code>mortgageQuery</code>)</td><td><code>…, 'history'</code>; <code>…, 'projection', monthlyPayment</code></td></tr>
+<tr><td><code>['customer', id]</code></td><td>a Customer (<code>customerQuery</code>)</td><td><code>…, 'history'</code></td></tr>
+<tr><td><code>['customer', 'referrer', id]</code>, <code>['customer', 'search', q]</code>, <code>['customer', 'number-owner', phone]</code></td><td>a Standalone Referrer; who matches a search; who owns a Primary Number</td><td>filed under <code>['customer']</code> on purpose: a saved Customer changes them</td></tr>
+<tr><td><code>['payment', id]</code></td><td>a Payment and its Allocations</td><td><code>…, 'receipt'</code>: its Receipt</td></tr>
+<tr><td><code>['call-notes', mortgageId]</code></td><td>a Mortgage's Call Notes</td><td></td></tr>
+<tr><td><code>['list', name, filters, { page, sort }]</code></td><td>one page of a list (<code>useListPage</code>); <code>['list', 'mortgages', 'every', filters]</code> for <code>everyMortgageQuery</code></td><td></td></tr>
+<tr><td><code>['dashboard']</code>, <code>['dormant']</code></td><td>the Dashboard; the menu's Dormant count</td><td></td></tr>
+<tr><td><code>['preview', …request.key]</code></td><td>a Preview of a draft (<code>usePreview</code>); the draft is in the key</td><td></td></tr>
+<tr><td><code>['outstanding-on-closure', id, on]</code></td><td>the quote for closing a Mortgage on a date</td><td></td></tr>
+<tr><td><code>['settings', group]</code></td><td>a settings group (<code>staleTime: Infinity</code>)</td><td></td></tr>
+<tr><td><code>['payment-methods']</code>, <code>['update']</code></td><td>the payment methods; whether a newer release is out (<code>staleTime: Infinity</code>)</td><td></td></tr>
+<tr><td><code>['backups']</code></td><td>the Backups' state; asked every second while one runs</td><td></td></tr>
+<tr><td><code>['simulation', simulation]</code>, <code>['suggested-name', asked]</code></td><td>a Simulation; the Mortgage Name the backend would give</td><td>never made stale: nothing is stored</td></tr>
+</table>
+
+<h2 id="stale">What goes stale</h2>
+<p>"Asked now" means asked again at once if on screen; everything listed is marked stale either way, and the rest is asked when next shown.</p>
+<table class="wide">
+<tr><th>Change</th><th>Save through</th><th>Asked now, if on screen</th><th>Marked only</th></tr>
+<tr id="ledger"><td>Anything that can change what Mortgages owe: a Payment, a Void, a Mortgage edit, a Term Change added or removed, a Redemption, Waiver, Forfeit or Reopen, a new Mortgage</td><td><code>useLedgerChange</code>, or <code>useMortgageChange</code> if it returns the Mortgage</td><td><code>['mortgage']</code>, <code>['payment']</code>, <code>['customer']</code>, <code>['list']</code>, <code>['dashboard']</code>, <code>['dormant']</code></td><td><code>['preview']</code>, <code>['outstanding-on-closure']</code>: the one on screen previews the change just made</td></tr>
+<tr><td>A Notice approved, skipped or sent</td><td><code>useChange(STALE_AFTER.notice)</code></td><td><code>['list', 'notices']</code>, <code>['dashboard']</code></td><td></td></tr>
+<tr><td>A Call Note</td><td><code>useChange(STALE_AFTER.callNote)</code></td><td><code>['list', 'call-list']</code>, <code>['call-notes']</code>, <code>['dashboard']</code></td><td></td></tr>
+<tr><td>A Mortgage photo added or removed</td><td><code>useChange(STALE_AFTER.mortgagePhoto)</code></td><td><code>['mortgage']</code>, <code>['customer']</code></td><td></td></tr>
+<tr><td>A Customer saved or deleted</td><td><code>useChange(STALE_AFTER.customer)</code></td><td><code>['customer']</code>, <code>['mortgage']</code>, <code>['payment']</code>, <code>['list']</code>, <code>['dashboard']</code></td><td></td></tr>
+<tr><td>A Collateral Value; new Gold Rates</td><td><code>useChange(STALE_AFTER.collateral)</code>, <code>(STALE_AFTER.goldRates)</code></td><td><code>['mortgage']</code>, <code>['list']</code>, <code>['dashboard']</code> (Loan-to-Value, so the Call List)</td><td></td></tr>
+<tr><td>New Call List thresholds</td><td><code>useChange(STALE_AFTER.callListThresholds)</code></td><td><code>['list', 'call-list']</code>, <code>['dashboard']</code></td><td></td></tr>
+<tr><td>New message settings</td><td><code>useChange(STALE_AFTER.messageSettings)</code></td><td><code>['payment']</code> (Receipts reworded), <code>['list', 'notices']</code>, <code>['dashboard']</code></td><td></td></tr>
+<tr><td>Any settings group saved</td><td>the save, then <code>setQueryData</code> with what it returned</td><td colspan="2">the group itself is replaced, not asked again</td></tr>
+</table>
+
+<h2 id="reads">Reads</h2>
+<table class="wide">
+<tr><th>In <code>requests.ts</code></th><th>Route</th><th>Key</th><th>Note</th></tr>
+<tr><td><code>mortgageQuery</code></td><td><code>GET /api/mortgages/{mortgage_id}</code></td><td><code>['mortgage', id]</code></td><td></td></tr>
+<tr><td><code>mortgageHistoryQuery</code>, <code>projectionQuery</code></td><td><code>…/history</code>, <code>…/projection</code></td><td>under <code>['mortgage', id]</code></td><td>no Projection asked once the Mortgage is known closed</td></tr>
+<tr><td><code>outstandingOnClosureQuery</code></td><td><code>GET /api/mortgages/{mortgage_id}/outstanding-on-closure?on=</code></td><td><code>['outstanding-on-closure', id, on]</code></td><td></td></tr>
+<tr><td><code>customerQuery</code>, <code>customerHistoryQuery</code></td><td><code>GET /api/customers/{customer_id}</code>, <code>…/history</code></td><td><code>['customer', id]</code>, <code>…, 'history'</code></td><td></td></tr>
+<tr><td><code>referrerQuery</code>, <code>searchQuery</code>, <code>numberOwnerQuery</code></td><td><code>GET /api/referrers/{referrer_id}</code>, <code>/api/search?q=</code>, <code>/api/people/by-phone?phone=</code></td><td>under <code>['customer']</code></td><td></td></tr>
+<tr><td><code>paymentQuery</code>, <code>receiptQuery</code></td><td><code>GET /api/payments/{payment_id}</code>, <code>…/receipt</code></td><td><code>['payment', id]</code>, <code>…, 'receipt'</code></td><td>no Receipt asked once the Payment is known Voided</td></tr>
+<tr><td><code>everyMortgageQuery</code></td><td><code>GET /api/mortgages?…&amp;as_of=&amp;paged=false</code></td><td><code>['list', 'mortgages', 'every', filters]</code></td><td>every match on one page, for pickers</td></tr>
+<tr><td><code>dormantCountQuery</code></td><td><code>GET /api/closures/dormant?page=1</code></td><td><code>['dormant']</code></td><td><code>select</code>s <code>total</code></td></tr>
+<tr><td><code>dashboardQuery</code></td><td><code>GET /api/dashboard</code></td><td><code>['dashboard']</code></td><td>the GET writes: it syncs Notices (<a href="traps.html#t8">trap #8</a>)</td></tr>
+<tr><td><code>callNotesQuery</code></td><td><code>GET /api/mortgages/{mortgage_id}/call-notes</code></td><td><code>['call-notes', id]</code></td><td></td></tr>
+<tr><td><code>settings.defaultTerms</code>, <code>.goldRates</code>, <code>.callList</code>, <code>.cashLimit</code>, <code>.messages</code>, <code>.placeholders</code></td><td><code>GET /api/settings/…</code></td><td><code>['settings', name]</code></td><td><code>staleTime: Infinity</code></td></tr>
+<tr><td><code>paymentMethodsQuery</code>, <code>updateStatusQuery</code></td><td><code>GET /api/payment-methods</code>, <code>/api/update</code></td><td><code>['payment-methods']</code>, <code>['update']</code></td><td><code>staleTime: Infinity</code></td></tr>
+<tr><td><code>backupsQuery</code></td><td><code>GET /api/backups</code></td><td><code>['backups']</code></td><td>every second while one runs</td></tr>
+<tr><td><code>simulationQuery</code>, <code>suggestedNameQuery</code></td><td><code>POST /api/simulation</code>, <code>GET /api/mortgages/suggested-name</code></td><td><code>['simulation', …]</code>, <code>['suggested-name', …]</code></td><td></td></tr>
+</table>
+
+<h2 id="lists">Lists</h2>
+<table class="wide">
+<tr><th><code>lists.…</code></th><th>Route</th><th>Sort columns (<code>api.ts</code>)</th><th>Filters</th></tr>
+<tr><td><code>customers</code></td><td><code>GET /api/customers</code></td><td><code>CUSTOMER_SORTS</code>: name, phone, address, referrer</td><td>search text; Active Mortgage only (<code>?active=true</code> in the URL)</td></tr>
+<tr><td><code>mortgages</code></td><td><code>GET /api/mortgages</code></td><td><code>MORTGAGE_SORTS</code>: name, customer, started, lent, outstanding, status</td><td>search, Customer, status, owing, closed, closed in a month</td></tr>
+<tr><td><code>payments</code></td><td><code>GET /api/payments</code></td><td><code>PAYMENT_SORTS</code>: date, customer, mortgages, method, amount</td><td>search; month or year and Voided in the URL</td></tr>
+<tr><td><code>notices</code></td><td><code>GET /api/notices</code></td><td><code>NOTICE_SORTS</code>: customer, accrues, mortgages, status</td><td>status</td></tr>
+<tr><td><code>callList</code></td><td><code>GET /api/call-list</code></td><td><code>CALL_LIST_SORTS</code>: customer, mortgage, why, outstanding</td><td></td></tr>
+<tr><td><code>dormant</code></td><td><code>GET /api/closures/dormant</code></td><td><code>DORMANT_SORTS</code>: mortgage, customer</td><td></td></tr>
+</table>
+
+<h2 id="previews">Previews and changes</h2>
+<table class="wide">
+<tr><th>Preview (<code>previews.…</code>)</th><th>Preview route</th><th>Save (<code>changes.…</code> unless noted)</th><th>Save route</th></tr>
+<tr><td><code>payment</code></td><td><code>POST /api/payments/preview</code></td><td><code>recordPayment</code></td><td><code>POST /api/payments</code></td></tr>
+<tr><td><code>void</code></td><td><code>POST /api/payments/{payment_id}/void-preview</code></td><td><code>voidPayment</code></td><td><code>POST /api/payments/{payment_id}/void</code></td></tr>
+<tr><td><code>edit</code></td><td><code>POST /api/mortgages/{mortgage_id}/edit-preview</code></td><td><code>edit</code></td><td><code>PUT /api/mortgages/{mortgage_id}</code></td></tr>
+<tr><td><code>termChange</code>, <code>termChangeRemoval</code></td><td><code>…/term-changes/preview</code>, <code>…/term-changes/{change_id}/remove-preview</code></td><td><code>addTermChange</code>, <code>removeTermChange</code></td><td><code>POST …/term-changes</code>, <code>DELETE …/term-changes/{change_id}</code></td></tr>
+<tr><td><code>redeemAll</code>, <code>waiveAll</code>, <code>forfeitAll</code></td><td><code>POST /api/closures/redeem-preview</code>, <code>…/waive-preview</code>, <code>…/forfeit-preview</code></td><td><code>redeemAll</code>, <code>waiveAll</code>, <code>forfeitAll</code></td><td><code>POST /api/closures/redeem</code>, <code>…/waive</code>, <code>…/forfeit</code></td></tr>
+<tr><td><code>reopen</code></td><td><code>POST /api/mortgages/{mortgage_id}/reopen-preview</code></td><td><code>reopen</code></td><td><code>POST /api/mortgages/{mortgage_id}/reopen</code></td></tr>
+<tr><td><code>newMortgage</code> (<code>NewMortgagePreview</code>)</td><td><code>POST /api/mortgages/preview</code></td><td><code>createMortgage</code></td><td><code>POST /api/mortgages</code></td></tr>
+<tr><td><code>collateral</code> (<code>CollateralPreview</code>)</td><td><code>POST /api/mortgages/{mortgage_id}/collateral-preview</code></td><td><code>setCollateral</code></td><td><code>PUT /api/mortgages/{mortgage_id}/collateral</code></td></tr>
+<tr><td><code>customerChanges.preview</code></td><td><code>POST /api/customers/preview</code>, <code>PUT /api/customers/{customer_id}/preview</code></td><td><code>customerChanges.save</code></td><td><code>POST /api/customers</code>, <code>PUT /api/customers/{customer_id}</code></td></tr>
+<tr><td>(none)</td><td></td><td><code>noticeActions.approve</code>, <code>.skip</code>, <code>.markSent</code></td><td><code>POST /api/notices/{notice_id}/approve</code>, <code>…/skip</code>, <code>…/sent</code></td></tr>
+</table>
+<p>Full details of each route (what it refuses, its History) are on the <a href="routes.html">routes sheet</a>.</p>
+
+<footer>
+  Checked at commit <code>87a96c7</code>.
+  · <a href="../index.html">Course home</a> · <a href="commands.html#frontend">Commands</a> · <a href="routes.html">Routes</a> · <a href="traps.html">Traps</a>
+</footer>
+</body>
+</html>
