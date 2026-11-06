@@ -1,0 +1,3 @@
+# A person is identified by their Primary Number
+
+Customers and Standalone Referrers are identified by their Primary Number (a Customer's contact number 1, a Standalone Referrer's phone), unique across both. Names aren't used for identity: the same name with a different number is a different person. We chose this so that typing a "new" Referrer whose number is already known links to the existing person instead of creating a duplicate, and so that a Standalone Referrer who later borrows is *promoted* to a Customer (their referrals move with them) rather than becoming a second record. Contact number 2 is deliberately not an identifier, because family members often share a second phone; reusing it only warns.

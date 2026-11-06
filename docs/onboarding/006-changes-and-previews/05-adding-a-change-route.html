@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.5 · Adding a change route</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 006 · Lesson 5</p>
+<h1>Adding a change route</h1>
+<p class="lede">You now know every piece of a change. This lesson puts them together as a checklist, walks it against the smallest complete change in the app, the Collateral Value set by hand, and has you sketch a change of your own on paper.</p>
+
+<div class="callout win"><strong>By the end</strong> you can list everything a new change needs: change function, save route, Preview route, History <code>Action</code>, tests.</div>
+
+<h2>The problem</h2>
+<p>Sooner or later the Lender will ask for something new: "let me move a Term Change to a later month", say. The code for it is small. The risk is in what you forget: a Preview that doesn't refuse what the save refuses, a change that isn't in History, a check that should have run, or frontend types that no longer match the API. Each of those passes a quick manual test and then bites in use.</p>
+
+<h2>The idea</h2>
+<p>Copy the shape of a change that already works, and tick off the same pieces every time. The smallest change that has all of them is <code>set_collateral</code>. The <a href="../reference/glossary.html#collateral-value"><dfn class="term" title="The current estimated worth of a Mortgage's jewellery: its net weight at the Gold Rate for its purity, unless the Lender sets a value by hand.">Collateral Value</dfn></a> is what the jewellery is worth today: its net weight at the <a href="../reference/glossary.html#gold-rate">Gold Rate</a> for its purity, unless the Lender sets a value by hand. Chapter 008 owns how it's valued. Here we only need the change that sets it.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  M["1 request model<br/>CollateralIn"] --> F["2 change function<br/>set_collateral()"]
+  F --> A{"3 a new kind<br/>of History entry?"}
+  A -->|"yes"| AL["add it to Action<br/>audit.py"]
+  A -->|"no: 'edited'"| S
+  AL --> S["4 save route<br/>put_collateral()"]
+  S --> P["5 Preview route<br/>preview_collateral()"]
+  P --> T["6 tests<br/>test_changes.py, test_previews.py"]
+  T --> G["7 npm run gen:types<br/>commit openapi.json, api.gen.ts"]
+  G --> UI["8 the page<br/>chapters 011–012"]
+</pre>
+<figcaption>The checklist, in the order you'd write it. Steps 1–7 are backend and types; the page comes last.</figcaption>
+</figure>
+
+<h2>The code: Collateral Value, piece by piece</h2>
+<h3>1 and 4. The request model and the save route</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>CollateralIn</code>, <code>put_collateral()</code> · lines 1046–1061</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>1046  class CollateralIn(BaseModel):
+1047      value: int | None = Field(default=None, gt=0)  # paise; None: the Gold Rate again   ①
+1048
+1049
+1050  @router.put("/mortgages/{mortgage_id}/collateral")
+1051  def put_collateral(
+1052      mortgage_id: int,
+1053      collateral: CollateralIn,
+1054      engine: EngineDep,
+1055      today: TodayDep,
+1056      now: NowDep,
+1057  ) -&gt; Mortgage:
+1058      """Set the Collateral Value by hand, or clear it to value at the Gold Rate again."""
+1059      with engine.begin() as conn:                                        ②  ◀
+1060          set_collateral(conn, mortgage_id, collateral.value, today, now)
+1061          return load_mortgage(conn, mortgage_id, today)
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Field-level rules go on the model: a value, if given, must be above 0. <code>None</code> means "clear it". Money is always paise (<a href="../reference/traps.html#t6">trap #6</a>).</li>
+  <li>The lesson 1 shape: <code>engine.begin()</code>, call, read back.</li>
+</ol>
+
+<h3>2. The change function</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>set_collateral()</code> · lines 518–539</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>518  def set_collateral(
+519      conn: Connection, mortgage_id: int, value: int | None, today: date, now: datetime
+520  ) -&gt; None:
+521      """Set the Collateral Value by hand, or clear it (None) to value the jewellery at
+522      the Gold Rate again; only while the jewellery is held (Active)."""
+523      before = mortgage_row(conn, mortgage_id)                ① refuse: 404
+524      _refuse_unless_active(before)                           ① refuse: 409
+525      if value is not None and value &lt;= 0:
+526          raise unprocessable("A Collateral Value must be more than ₹0")   ① refuse: 422
+527      conn.execute(                                           ② write
+528          update(mortgage_table)
+529          .where(mortgage_table.c.id == mortgage_id)
+530          .values(
+531              collateral_override=value,
+532              collateral_override_on=None if value is None else today,
+533          )
+534      )
+535      changed = audit.changes(                                ④ History
+536          before, {"collateral_override": value}, ["collateral_override"]
+537      )
+538      if changed:
+539          audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)   ◀
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Refuse: no such Mortgage, a closed one (the jewellery isn't held any more), a value of ₹0 or less. Line 525 repeats <code>CollateralIn</code>'s rule, because the function can be called without the route: from a test, or from another change. Don't rely on the route alone.</li>
+  <li>Write two columns: the value, and the day it was set.</li>
+  <li>There's no step 3. A Collateral Value isn't one of the facts a Ledger is replayed from, so nothing could become too large. If your change touches anything <code>replays()</code> reads (the <code>mortgage</code> row's Principal, start date or Terms, Payments, Allocations, Term Changes, the Closure), call <code>check_replays</code>.</li>
+  <li>An existing <code>Action</code>, <code>edited</code>, fits, so no new literal is needed. Note the guard: setting the same value again records nothing.</li>
+</ol>
+
+<h3>5. The Preview route</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>preview_collateral()</code> · lines 399–425, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>399  @router.post("/mortgages/{mortgage_id}/collateral-preview")
+400  def preview_collateral(
+⋮    … the same parameters as put_collateral …
+406  ) -&gt; CollateralPreview:
+407      with engine.connect() as conn:                                 ①
+408          try:
+409              before = load_mortgage(conn, mortgage_id, today).collateral
+410              set_collateral(conn, mortgage_id, collateral.value, today, now)   ②  ◀
+411              after = load_mortgage(conn, mortgage_id, today).collateral
+412              settings = CALL_LIST_SETTINGS.get(conn)
+413          finally:
+414              conn.rollback()                                        ③
+⋮
+416      def listed(value: Collateral | None) -&gt; bool:
+417          ratio = value.loan_to_value if value else None
+418          return loan_to_value_too_high(ratio, settings)
+⋮
+420      return CollateralPreview(
+421          before=before,
+422          after=after,
+423          listed_before=listed(before),                              ④
+424          listed_after=listed(after),
+425      )
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Never <code>engine.begin()</code> in a Preview (lesson 4).</li>
+  <li>The real change, between two reads.</li>
+  <li>This is one of the two Previews with its own shape, so it does its own <code>try</code> … <code>finally: conn.rollback()</code> instead of calling <code>_preview</code>. A Ledger-changing change would just call <code>_preview</code> with a <code>lambda</code>.</li>
+  <li>What the Lender needs to decide: would the <a href="../reference/glossary.html#loan-to-value">Loan-to-Value</a> (the Outstanding as a share of the Collateral Value) put the Mortgage on the Call List? Chapters <a href="../008-people-and-collateral/05-gold-rates-collateral-ltv.html">008</a> and <a href="../009-follow-up/01-the-call-list.html">009</a> own those two.</li>
+</ol>
+
+<h3>6. The tests</h3>
+<p>Each change is tested at two levels, in two files:</p>
+<table class="wide">
+<tr><th>File</th><th>Calls</th><th>The Collateral Value's tests</th><th>What they pin</th></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_changes.py"><code>tests/test_changes.py</code></a></td><td>The change function directly, on a <code>conn</code> fixture</td><td><code>test_a_collateral_value_is_set_by_hand_cleared_and_recorded</code>, <code>test_a_collateral_value_is_refused_when_it_cannot_stand</code></td><td>What is written; its History; each refusal's status and message (404, 422, 409)</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_previews.py"><code>tests/test_previews.py</code></a></td><td>The Preview route, through the API <code>client</code></td><td><code>test_a_collateral_preview_shows_the_loan_to_value_and_call_list_either_side</code></td><td>Both sides of the Preview, and that nothing was saved</td></tr>
+</table>
+<p>For a Ledger-changing change, add to <code>test_previews.py</code> a test that the Preview is refused like the save (as <code>test_a_void_preview_is_refused_like_the_void</code> does), and to <code>test_changes.py</code> a test that a refused change records no History. <a href="../013-testing/index.html">Chapter 013</a> owns the fixtures.</p>
+
+<h3>7. The generated types</h3>
+<div class="callout warn"><strong>Trap #10.</strong> The frontend's API types are generated from the backend. A new or changed request model, response model or <code>Action</code> literal means running <code>npm run gen:types</code> in <code>frontend/</code> and committing both <code>frontend/openapi.json</code> and <code>frontend/src/api.gen.ts</code>. Forget, and tests fail in both languages. <a href="../011-the-frontends-data-layer/01-the-typed-client.html">Chapter 011, lesson 1</a> owns <a href="../reference/traps.html#t10">this trap</a>.</div>
+
+<h2>Run-through: the checklist on Meera's chain</h2>
+<p>On your served book the chain is valued at the Gold Rate. Ask for a Preview of setting it by hand to ₹90,000 (it saves nothing):</p>
+<pre><code>curl -s -X POST -H 'content-type: application/json' -d '{"value": 9000000}' \
+     http://127.0.0.1:8765/api/mortgages/2/collateral-preview | python3 -m json.tool</code></pre>
+<table class="steps">
+<tr><th></th><th>Before</th><th>After</th></tr>
+<tr><td><code>value</code> (₹)</td><td>2,70,720</td><td>90,000</td></tr>
+<tr><td><code>source</code></td><td><code>gold_rate</code></td><td><code>manual</code></td></tr>
+<tr><td><code>loan_to_value</code> (₹83,333 owed)</td><td>30.8%</td><td>92.6%</td></tr>
+<tr class="changed"><td><code>listed_before</code> / <code>listed_after</code></td><td>false</td><td>true</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5), through the real API on the built book, at commit d6a92ab.</p>
+<p>20 g of 22-karat gold at the sample book's ₹13,536 a gram is ₹2,70,720. At ₹90,000, the ₹83,333 owed would be 92.6% of the jewellery's worth, over the sample book's 85% Call List line. On a scratch copy, saving it and then clearing it leaves two History rows:</p>
+<table class="steps text">
+<tr><th>Row</th><th>action</th><th>field</th><th>old → new</th></tr>
+<tr><td>#273</td><td><code>edited</code></td><td><code>collateral_override</code></td><td>9000000 → —</td></tr>
+<tr><td>#272</td><td><code>edited</code></td><td><code>collateral_override</code></td><td>— → 9000000</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L5), on its own copy of the book.</p>
+<p>And the refusals: <code>PUT /api/mortgages/3/collateral</code> (the Redeemed coin) is "409 2026-Kavita-GoldCoin is redeemed: reopen it first", from the change function, and so is its Preview. <code>{"value": 0}</code> is a 422 from <code>CollateralIn</code>, before <code>set_collateral</code> runs.</p>
+
+<table class="steps text">
+<tr><th>#</th><th>Piece</th><th>Collateral Value</th><th>✓</th></tr>
+<tr><td>1</td><td>Request model, field rules</td><td><code>CollateralIn</code>: <code>gt=0</code>, <code>None</code> clears</td><td>✓</td></tr>
+<tr><td>2</td><td>Change function: refuse → write → check → History</td><td><code>set_collateral</code>: 404/409/422 → UPDATE → (no Ledger) → <code>edited</code></td><td>✓</td></tr>
+<tr><td>3</td><td>History <code>Action</code></td><td>Reuses <code>edited</code></td><td>✓</td></tr>
+<tr><td>4</td><td>Save route, <code>engine.begin()</code></td><td><code>PUT /mortgages/{mortgage_id}/collateral</code></td><td>✓</td></tr>
+<tr><td>5</td><td>Preview route, <code>engine.connect()</code></td><td><code>POST /mortgages/{mortgage_id}/collateral-preview</code></td><td>✓</td></tr>
+<tr><td>6</td><td>Tests at both levels</td><td>Two in <code>test_changes.py</code>, one in <code>test_previews.py</code></td><td>✓</td></tr>
+<tr><td>7</td><td>Types regenerated</td><td><code>CollateralIn</code>, <code>CollateralPreview</code> in <code>api.gen.ts</code></td><td>✓</td></tr>
+</table>
+
+<h2>Your turn, on paper</h2>
+<p>The Lender asks: "Meera's bangles go to 1.5% from 25 Oct. She's now asked to wait a month. Let me <strong>move</strong> that Term Change to 25 Nov, instead of removing it and adding it again." Sketch the pieces on paper: names, routes, every refusal with its status, whether it calls <code>check_replays</code>, its History, and its tests. <strong>Don't write the code.</strong> Chapter 016 is where you make a real change, test-first, through every layer.</p>
+<div class="reveal">
+  <p><strong>Compare with one possible sketch.</strong></p>
+  <button class="show">I've made my sketch. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>#</th><th>Piece</th><th>Sketch</th></tr>
+    <tr><td>1</td><td>Request model</td><td><code>TermChangeMoveIn(effective_on: date)</code></td></tr>
+    <tr><td>2</td><td>Change function</td><td><code>move_term_change(conn, mortgage_id, change_id, move, today, now)</code> in <code>changes.py</code>. Refuse: 409 not Active (<code>_refuse_unless_active</code>); 404 no such Term Change; 409 already taken effect (as <code>remove_term_change</code>); 422 the new date isn't an Accrual Date today or later (as <code>add_term_change</code>); 409 a Term Change already on the new date. Write: UPDATE <code>effective_on</code>. Check: <code>check_replays(conn, [row], today)</code>, for the pattern's sake. History: below</td></tr>
+    <tr><td>3</td><td>History <code>Action</code></td><td>A new literal, <code>"term_change_moved"</code>, with <code>Change("effective_on", "2026-10-25", "2026-11-25")</code>. Or reuse <code>term_change_removed</code> + <code>term_change_added</code>, if the owner prefers no new kind</td></tr>
+    <tr><td>4</td><td>Save route</td><td><code>PUT /mortgages/{mortgage_id}/term-changes/{change_id}</code> → <code>engine.begin()</code>, call, <code>load_mortgage</code></td></tr>
+    <tr><td>5</td><td>Preview route</td><td><code>POST /mortgages/{mortgage_id}/term-changes/{change_id}/move-preview</code> → <code>engine.connect()</code>, <code>_preview(…, lambda: move_term_change(…))</code></td></tr>
+    <tr><td>6</td><td>Tests</td><td><code>test_changes.py</code>: moved, recorded; each refusal; refused records no History. <code>test_previews.py</code>: the Projection moves, nothing saved; refused like the save</td></tr>
+    <tr><td>7</td><td>Types</td><td><code>npm run gen:types</code>; commit <code>openapi.json</code> and <code>api.gen.ts</code></td></tr>
+    </table>
+    <p>Did you reuse the refusals of <code>add_term_change</code> and <code>remove_term_change</code> rather than inventing new ones? Did you put every rule in the change function, so the Preview gets them for free? Those are the two habits this chapter is about.</p>
+  </div>
+</div>
+
+<h2>Nuances</h2>
+<h3>(a) The same pattern for Customers</h3>
+<p>Changes to a Customer live in <code>people/customer_changes.py</code>, not <code>changes.py</code>, and follow the same pattern: a change function that refuses, writes and records History (<code>entity</code> <code>"customer"</code>), and routes that only parse, call and answer. Customers have no Ledger, so there's no <code>check_replays</code>. <a href="../008-people-and-collateral/03-changing-a-customer.html">Chapter 008, lesson 3</a> owns it.</p>
+
+<h3>(b) Changes with a file</h3>
+<p>A photo is a file on disk as well as a row. A database transaction can roll back a row, but not a file. The photo routes wrap their change in <code>photos.photo_change</code> (in <code>platform/photos.py</code>), which writes the new file first, deletes it if the change is refused, and deletes a replaced file only once the change is saved. That's why <code>post_photo</code> (changes.py line 1064) doesn't use <code>engine.begin()</code> itself. <a href="../008-people-and-collateral/04-photos-and-id-photos.html">Chapter 008, lesson 4</a> owns it.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">Your new change edits a Mortgage's start date by a new route. Which piece must you not leave out?</p>
+  <button class="opt">A brand-new <code>Action</code> literal for History</button>
+  <button class="opt">Its own copy of the rules in the Preview route</button>
+  <button class="opt">A <code>check_replays</code> after the write</button>
+  <div class="why">The start date is read by <code>replays()</code>, so a Payment could become too large. An existing <code>Action</code> (<code>edited</code>) may fit. The Preview must never copy the rules: it calls the same change function.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">You added a field to a request model and all backend tests pass. What's left before committing?</p>
+  <button class="opt">Run <code>npm run gen:types</code> and commit both files</button>
+  <button class="opt">Nothing: the frontend reads models at run time</button>
+  <button class="opt">Add a migration for the request model</button>
+  <div class="why">Trap #10: the frontend's types are generated into <code>openapi.json</code> and <code>api.gen.ts</code>, and tests in both languages compare against them. A request model isn't a table, so it needs no migration.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read the three Collateral Value tests named above, then <code>test_a_void_preview_is_refused_like_the_void</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_previews.py"><code>tests/test_previews.py</code></a>, line 136). Together they're the template for the tests of any new change.</p>
+
+<nav class="lessons">
+  <a href="04-previews.html">← Previews</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Next: Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

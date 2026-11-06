@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.99 · Check yourself</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 001 · Check yourself</p>
+<h1>Check yourself: what the app does</h1>
+<p class="lede">Questions from every lesson, mixed up, then an exercise on paper. Answer before you look back: recalling is what makes it stick.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">Arjun's chain: ₹45,000 on Meera's Terms, started 19 Aug 2026. What interest is added on 19 Sep?</p>
+  <button class="opt">₹75, at 2% a year over twelve months</button>
+  <button class="opt">₹918, at 2% with the interest compounded</button>
+  <button class="opt">₹900, at 2% of ₹45,000 for the month</button>
+  <div class="why">₹900: the rate is per month, 2% of ₹45,000. ₹75 reads the rate as yearly. ₹918 compounds, but Compounded Yearly capitalises only on the first anniversary. (<a href="02-how-whats-owed-grows.html">Lesson 2</a>)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">The Lender lends ₹25,000 in cash, with the Cash Limit at ₹20,000. What does the app do?</p>
+  <button class="opt">Warns first, and saves it if the Lender confirms</button>
+  <button class="opt">Refuses it until it is changed to UPI or bank</button>
+  <button class="opt">Saves it silently and reports it at the month's end</button>
+  <div class="why">It warns, and the Lender decides. The Cash Limit never refuses. Meera's ₹80,000 chain was lent in cash exactly this way. (<a href="03-paying-it-back.html">Lesson 3</a>)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Sunita's mangalsutra was lent ₹35,000 on 21 Sep, pro-rata. On 19 Oct, 29 days into its first month, what is its Interest to Date?</p>
+  <button class="opt">₹700, because the whole month is charged at once</button>
+  <button class="opt">₹677, which is 29/30 of the month's ₹700</button>
+  <button class="opt">Nothing, because no Accrual Date has come yet</button>
+  <div class="why">₹677: 29/30 of ₹700 is ₹676.67, rounded to the rupee. ₹700 is the full-month rule, and nothing is the "nothing" rule; Sunita's Terms are pro-rata. Her Outstanding is ₹35,677, as the story's Closures page quotes. (<a href="02-how-whats-owed-grows.html">Lesson 2</a>)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Where does the app keep a Mortgage's Outstanding?</p>
+  <button class="opt">In a column of the Mortgages table, kept up to date</button>
+  <button class="opt">In a monthly table, written on each Accrual Date</button>
+  <button class="opt">Nowhere: it is replayed from the facts when asked</button>
+  <div class="why">Nowhere. Only facts are stored (Terms, Term Changes, Closures, Allocations), and every figure owed is replayed from them, so a correction shows everywhere at once. (<a href="05-the-lenders-day.html">Lesson 5</a>, ADR 0001)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">On 25 Oct the bangles' Term Change to 1.5% starts. At what rate is the interest added on 25 Oct charged?</p>
+  <button class="opt">2%, the Terms in force when that month started</button>
+  <button class="opt">1.5%, the Terms in force on the day it is added</button>
+  <button class="opt">1.75%, halfway between the old and new rates</button>
+  <div class="why">2%. Each month is charged under the Terms in force when it <em>starts</em>; the month added on 25 Oct began on 25 Sep. 1.5% first applies to the month starting 25 Oct, added on 25 Nov. A Term Change never rewrites earlier interest. (<a href="03-paying-it-back.html">Lesson 3</a>)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">A Mortgage owes ₹10,400: ₹10,000 Principal, ₹300 unpaid interest, ₹100 Interest to Date. The Customer pays ₹500. What is left?</p>
+  <button class="opt">₹10,000 Principal and ₹0 interest of any kind</button>
+  <button class="opt">₹9,900 Principal, with no interest left unpaid</button>
+  <button class="opt">₹9,500 Principal and ₹400 of interest still unpaid</button>
+  <div class="why">₹9,900 Principal. The ₹500 pays the ₹300 unpaid interest first, then the ₹100 Interest to Date, then ₹100 of Principal. ₹9,500 wrongly pays Principal first; the order is fixed. (<a href="03-paying-it-back.html">Lesson 3</a>)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Which word should you use in code and issues for what a Mortgage owes today?</p>
+  <button class="opt">Balance, the usual banking word</button>
+  <button class="opt">Dues, as the Lender's Customers say</button>
+  <button class="opt">Outstanding, from the glossary</button>
+  <div class="why">Outstanding. "Balance" and "dues" are on the glossary's <em>Avoid</em> list. Outstanding has one exact meaning: Principal plus unpaid interest plus Interest to Date. (<a href="05-the-lenders-day.html">Lesson 5</a>)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">A Customer had one Mortgage and paid a month's interest each month, except one month she missed. A year later, how many Months Unpaid?</p>
+  <button class="opt">One: each Payment paid the oldest month first</button>
+  <button class="opt">None: she paid in every month but one of them</button>
+  <button class="opt">Twelve: the missed month spoils the whole year</button>
+  <div class="why">One. Each Payment pays the oldest unpaid interest first, so after the missed month every Payment pays the month before it, and one month's interest stays unpaid. That's exactly Meera's missed April. (<a href="03-paying-it-back.html">Lesson 3</a>, <a href="05-the-lenders-day.html">Lesson 5</a>)</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Exercise, on paper</h2>
+<p>This chapter is the only one without a run in the real repo: there is nothing to change, so nothing to undo. Hands-on work with the code starts in chapter 002. Get a pen. Use Meera's chain: ₹80,000 lent on 10 Nov 2025, 2% a month, Compounded Yearly, pro-rata. Today is 19 Oct 2026.</p>
+
+<div class="reveal">
+  <p><strong>1.</strong> From the chain's Terms, what interest is added on each 10th?</p>
+  <button class="show">Show the answer</button>
+  <div class="reveal-body"><p><strong>₹1,600</strong>: 2% of ₹80,000, every month. No Capitalisation yet, so the Principal is still ₹80,000.</p></div>
+</div>
+
+<div class="reveal">
+  <p><strong>2.</strong> What is the chain's Interest to Date on 19 Oct, for the 10 days of October so far, pro-rata out of 30?</p>
+  <button class="show">Show the answer</button>
+  <div class="reveal-body"><p><strong>₹533</strong>: 10/30 × ₹1,600 = ₹533.33, rounded to the rupee. The 10 days are 10 Oct to 19 Oct, both counted, because today is always charged.</p></div>
+</div>
+
+<div class="reveal">
+  <p><strong>3.</strong> ₹2,800 of interest is unpaid. What Outstanding would Redeem the chain on 19 Oct?</p>
+  <button class="show">Show the answer</button>
+  <div class="reveal-body"><p><strong>₹80,000 + ₹2,800 + ₹533 = ₹83,333</strong>: Principal plus unpaid interest plus Interest to Date. Paying exactly that would Redeem the chain in the same step.</p></div>
+</div>
+<p class="check">Check all three against <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#ledger">The Gold Chain Story, chapter 4 ("The life of a pledge")</a>. In chapter 002 you'll serve the sample book and check them on your own screen.</p>
+
+<div class="reveal">
+  <p><strong>4.</strong> Name the Closure, or the status, in each case:</p>
+  <ol type="a">
+    <li>Farida pays ₹180 short, and the Lender lets her off and returns the nose ring.</li>
+    <li>Imran never comes back, and the Lender sells the earrings.</li>
+    <li>Kavita's anklet owes nothing, but is still in the safe.</li>
+  </ol>
+  <button class="show">Show the answers</button>
+  <div class="reveal-body">
+    <ol type="a">
+      <li><strong>Waived</strong>: the jewellery goes back although the final Payment fell short. ₹180 is the Waived Amount.</li>
+      <li><strong>Forfeited</strong>: the Lender kept or sold the jewellery. The ₹52,000 it fetched is the Recovered Amount.</li>
+      <li><strong>Dormant</strong>, which is not a Closure: the anklet is still Active. The Lender should check, then Redeem it with no Payment, or correct the mistyped Payment date.</li>
+    </ol>
+  </div>
+</div>
+
+<h2>Recap</h2>
+<ul>
+  <li>A Mortgage is one loan against one packet of jewellery, with its own Principal and Terms, copied from the Default Terms when it is created. (<a href="01-a-pledge.html">Lesson 1</a>)</li>
+  <li>Each Accrual Date adds a month's interest: the monthly rate times the Principal at the month's start. The Interest Mode decides when unpaid interest is capitalised. (<a href="02-how-whats-owed-grows.html">Lesson 2</a>)</li>
+  <li>Outstanding = Principal + unpaid interest + Interest to Date, exactly what would Redeem the Mortgage that day. (<a href="02-how-whats-owed-grows.html">Lesson 2</a>)</li>
+  <li>A Payment is split into Allocations, each paying unpaid interest, then the Interest to Date, then Principal. Mistakes are Voided, never edited or deleted. (<a href="03-paying-it-back.html">Lesson 3</a>)</li>
+  <li>A Mortgage ends Redeemed, Waived or Forfeited. Dormant is an Active Mortgage owing nothing, flagged for the Lender. (<a href="04-how-a-mortgage-ends.html">Lesson 4</a>)</li>
+  <li>Nothing owed is stored: every figure is replayed from the facts, so changing an old fact moves today's figures at once. (<a href="05-the-lenders-day.html">Lesson 5</a>)</li>
+  <li>Use the glossary's words, never its <em>Avoid</em> words. (<a href="05-the-lenders-day.html">Lesson 5</a>)</li>
+</ul>
+
+<h2>Reference sheets</h2>
+<ul>
+  <li><a href="../reference/glossary.html">Glossary</a>: every term this chapter taught, word for word, with its <em>Avoid</em> words.</li>
+  <li><a href="../reference/cast.html">The cast</a>: the sample book's people, Mortgages, Terms and key figures on 19 Oct 2026.</li>
+</ul>
+
+<nav class="lessons">
+  <a href="05-the-lenders-day.html">← The Lender's day</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="../index.html">Course home →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

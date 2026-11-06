@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · The cast</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Reference sheet</p>
+<h1>The cast: the sample book on 19 Oct 2026</h1>
+<p class="lede">Every example in the course uses the same invented lending book: the one <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html">The Gold Chain Story</a> tells. It is built by <code>docs/sample-book/book.py</code> through the app's own API, one dated change after another, and ends on 19 Oct 2026, the day the story is told. Nobody in it is real.</p>
+
+<h2>Serve it yourself</h2>
+<p>From <code>backend/</code>, into a fresh, empty scratch folder (<a href="../002-find-your-way-and-run-it/04-serve-the-sample-book.html">002 · Lesson 4</a>; every command is on the <a href="commands.html">commands sheet</a>):</p>
+<pre><code>export BOOK=$(mktemp -d)
+uv run python ../docs/sample-book/book.py "$BOOK"
+(cd ../frontend &amp;&amp; npm install &amp;&amp; npm run build)
+uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</code></pre>
+<p>The clock stays on 19 Oct 2026, so the figures below never move. The API gives amounts in paise (₹1 = 100 paise).</p>
+<h3>Figures checked on the served book</h3>
+<table class="wide">
+<tr><th>Mortgage</th><th>id</th><th>Figure</th><th>Screen</th><th>API</th></tr>
+<tr><td>2025-Meera-GoldChainPendant</td><td>2</td><td>A month's interest</td><td>₹1,600</td><td>last <code>interest</code> step, <code>amount</code> 160000</td></tr>
+<tr><td>2025-Meera-GoldChainPendant</td><td>2</td><td>Interest to Date, 10 days</td><td>₹533</td><td>last step, <code>interest_to_date</code>, 53300</td></tr>
+<tr><td>2025-Meera-GoldChainPendant</td><td>2</td><td>Outstanding</td><td>₹83,333</td><td><code>outstanding.total</code> 8333300</td></tr>
+<tr><td>2026-Lakshmi-TempleNecklace</td><td>4</td><td>Paid to Redeem, 16 Oct</td><td>₹2,03,600</td><td><code>closure.payment_amount</code> 20360000</td></tr>
+</table>
+<p class="aside">A fresh database is not the book: its Default Terms are 3%, Compounded Yearly, full month (migration 0001). The book sets its own, below.</p>
+
+<h2>The Lender's settings</h2>
+<table class="wide">
+<tr><th>Setting</th><th>In the sample book</th><th>Note</th></tr>
+<tr><td>Default Terms</td><td>2% a month, Compounded Yearly, pro-rata</td><td>Set by <code>book.py</code>. A fresh database starts at 3%, Compounded Yearly, full month.</td></tr>
+<tr><td>Call List</td><td>3 Months Unpaid, or Loan-to-Value above 85%</td><td>Or accruing today.</td></tr>
+<tr><td>Notices</td><td>2 days before each Accrual Date, approved first</td><td></td></tr>
+<tr><td>Cash Limit</td><td>₹20,000</td><td>The app's default; it warns, never refuses.</td></tr>
+<tr><td>Gold Rates</td><td>24K ₹14,766 · 22K ₹13,536 · 20K ₹12,332 · 18K ₹11,075 · 14K ₹8,601 a gram</td><td>All five changed on 19 Oct 2026, so each says <code>updated_on</code> 19 Oct.</td></tr>
+</table>
+
+<h2>People</h2>
+<table class="wide">
+<tr><th>Person</th><th>Who they are</th><th>Introduced by</th></tr>
+<tr><td>Meera Sharma</td><td>Customer: the gold chain and the bangles. Pays most months.</td><td>Ravi Verma</td></tr>
+<tr><td>Ravi Verma</td><td>Standalone Referrer: known only by name and phone, not a Customer.</td><td>—</td></tr>
+<tr><td>Arjun Patel</td><td>Customer: a ruby ring, 15 Months Unpaid, and a gold chain.</td><td>Meera</td></tr>
+<tr><td>Kavita Joshi</td><td>Customer: a gold coin (Redeemed) and an anklet (Dormant).</td><td>—</td></tr>
+<tr><td>Lakshmi Iyer</td><td>Customer: a temple necklace, paid in full and Redeemed on 16 Oct.</td><td>—</td></tr>
+<tr><td>Farida Khan</td><td>Customer: a gold nose ring, pays every month, Waived ₹180 short.</td><td>—</td></tr>
+<tr><td>Imran Qureshi</td><td>Customer: gold earrings, one Payment, then Forfeited.</td><td>—</td></tr>
+<tr><td>Sunita Rao</td><td>Customer: a mangalsutra, accruing on 21 Oct. Shares a family phone with Meera.</td><td>Meera</td></tr>
+</table>
+
+<h2>People, by id</h2>
+<p>Their rows on a freshly built book (<a href="../008-people-and-collateral/index.html">chapter 008</a>). The Primary Number is contact number 1, or a Standalone Referrer's phone.</p>
+<table class="wide">
+<tr><th>Person</th><th>id</th><th>Primary Number</th><th>Contact number 2</th><th>Referrer row</th><th>Also on file</th></tr>
+<tr><td>Meera Sharma</td><td>Customer 1</td><td>9810012345</td><td>9810099999 (family phone)</td><td><code>referred_by_standalone_referrer_id</code> 1</td><td>email, Aadhaar Number 4821, PAN ABCPS1234K, a photo, both ID Photos</td></tr>
+<tr><td>Arjun Patel</td><td>Customer 2</td><td>9820023456</td><td>—</td><td><code>referred_by_customer_id</code> 1</td><td>a photo</td></tr>
+<tr><td>Kavita Joshi</td><td>Customer 3</td><td>9850056789</td><td>—</td><td>—</td><td></td></tr>
+<tr><td>Lakshmi Iyer</td><td>Customer 4</td><td>9830034567</td><td>—</td><td>—</td><td></td></tr>
+<tr><td>Farida Khan</td><td>Customer 5</td><td>9870078901</td><td>—</td><td>—</td><td></td></tr>
+<tr><td>Imran Qureshi</td><td>Customer 6</td><td>9840045678</td><td>—</td><td>—</td><td></td></tr>
+<tr><td>Sunita Rao</td><td>Customer 7</td><td>9860067890</td><td>9810099999 (Meera's family phone)</td><td><code>referred_by_customer_id</code> 1</td><td></td></tr>
+<tr><td>Ravi Verma</td><td>Standalone Referrer 1</td><td>9811122233</td><td>—</td><td>—</td><td>no address</td></tr>
+</table>
+<p>The photos folder holds five files: Meera's three, Arjun's photo and the ruby ring's. The next Customer saved is 8. On 19 Oct the ruby ring is worth ₹81,216 at the Gold Rate and owes ₹85,184: Loan-to-Value 104.9%, the book's only Mortgage above 85%.</p>
+
+<h2>Mortgages</h2>
+<p>Terms are the sample book's Default Terms (2% a month, Compounded Yearly, pro-rata) unless the row says otherwise.</p>
+<table class="wide">
+<tr><th>Mortgage Name</th><th>Jewellery</th><th>Lent</th><th>Terms</th><th>On 19 Oct 2026</th></tr>
+<tr><td>2025-Meera-GoldChainPendant</td><td>Gold chain with Lakshmi pendant, 20 g of 22K</td><td>₹80,000 cash, 10 Nov 2025</td><td>Default</td><td>Active. Outstanding ₹83,333 (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#ledger">story, ch. 4</a>)</td></tr>
+<tr><td>2026-Meera-PairBangles</td><td>Pair of bangles, 30 g of 22K</td><td>₹1,50,000 bank transfer, 25 Apr 2026</td><td>Default; Term Change to 1.5% from 25 Oct 2026</td><td>Active</td></tr>
+<tr><td>2025-Arjun-GoldRingRuby</td><td>Gold ring with ruby, 6 g of 22K</td><td>₹60,000 UPI, 15 Jun 2025</td><td>2.5%, Compounded Monthly, pro-rata</td><td>Active. Owes ₹85,184; 15 Months Unpaid; Loan-to-Value 104.9% (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#arjun">story, ch. 7</a>)</td></tr>
+<tr><td>2026-Arjun-GoldChain</td><td>Gold chain, 12 g of 22K</td><td>₹45,000 UPI, 19 Aug 2026</td><td>Default</td><td>Active, accrues today (the 19th)</td></tr>
+<tr><td>2026-Kavita-GoldCoin</td><td>Gold coin, 10 g of 24K</td><td>₹50,000 UPI, 18 Feb 2026</td><td>Default</td><td>Redeemed on 5 Oct, paying ₹54,600 (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">story, ch. 8</a>)</td></tr>
+<tr><td>2026-Kavita-SilverGoldAnklet</td><td>Silver-gold anklet, 4 g</td><td>₹15,000 cash, 1 Jul 2026, entered on 18 Oct</td><td>2%, Simple, Part-Month Rule nothing</td><td>Active and Dormant: owes nothing, still held</td></tr>
+<tr><td>2026-Lakshmi-TempleNecklace</td><td>Temple necklace, 30 g of 22K</td><td>₹2,00,000 bank transfer, 20 Feb 2026</td><td>Default</td><td>Redeemed on 16 Oct by a Payment of its whole Outstanding</td></tr>
+<tr><td>2026-Farida-GoldNoseRing</td><td>Gold nose ring, 2.5 g of 22K</td><td>₹30,000 UPI, 12 May 2026</td><td>Default</td><td>Waived on 16 Oct: ₹30,520 paid of ₹30,700, ₹180 let off (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">story, ch. 8</a>)</td></tr>
+<tr><td>2026-Imran-GoldEarrings</td><td>Gold earrings, 8 g of 22K</td><td>₹60,000 UPI, 10 Jun 2026</td><td>Default</td><td>Forfeited on 10 Oct: owed ₹62,840, sold for ₹52,000, a loss of ₹10,840 (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">story, ch. 8</a>)</td></tr>
+<tr><td>2026-Sunita-Mangalsutra</td><td>Mangalsutra, 10 g of 22K</td><td>₹35,000 UPI, 21 Sep 2026</td><td>Default</td><td>Active; its first Notice waits for approval</td></tr>
+</table>
+
+<h2>Meera's Payments on the chain and bangles</h2>
+<table class="wide">
+<tr><th>Date</th><th>What happened</th></tr>
+<tr><td>10th of Dec 2025 to Aug 2026</td><td>₹1,600 to the chain each month, except April, which she missed</td></tr>
+<tr><td>10 Sep 2026</td><td>One Payment of ₹12,000 by UPI: ₹2,000 to the chain, ₹10,000 to the bangles</td></tr>
+<tr><td>10 Oct 2026</td><td>₹16,000 typed instead of ₹6,000: Voided ("Typed ₹16,000 instead of ₹6,000"), then ₹6,000 recorded for the bangles</td></tr>
+<tr><td>15 Jan 2026</td><td>The chain's description corrected: "Gold chain with pendant" → "Gold chain with Lakshmi pendant" (in its History)</td></tr>
+</table>
+
+<h2>The Closures, by id</h2>
+<p>What the <code>mortgage</code> and <code>payment</code> rows hold for each ending (<a href="../005-replay-and-closures/index.html">chapter 005</a>). Ids are stable on a freshly built book.</p>
+<table class="wide">
+<tr><th>Mortgage</th><th>id</th><th>Closure</th><th>Final Payment</th><th>Quote on the Closure date</th></tr>
+<tr><td>2026-Kavita-GoldCoin</td><td>3</td><td>Redeemed 5 Oct, by the Redeem route</td><td>26: ₹54,600 UPI, "UPI 7781"</td><td>₹50,000 + ₹4,000 + ₹600 (18 days)</td></tr>
+<tr><td>2026-Lakshmi-TempleNecklace</td><td>4</td><td>Redeemed 16 Oct, by an ordinary Payment of the quote</td><td>29: ₹2,03,600 bank transfer, "NEFT final"</td><td>₹2,00,000 + ₹0 + ₹3,600 (27 days)</td></tr>
+<tr><td>2026-Farida-GoldNoseRing</td><td>6</td><td>Waived 16 Oct, ₹180 let off</td><td>30: ₹30,520 cash</td><td>₹30,000 + ₹600 + ₹100 (5 days)</td></tr>
+<tr><td>2026-Imran-GoldEarrings</td><td>7</td><td>Forfeited 10 Oct, Recovered Amount ₹52,000, loss ₹10,840</td><td>none</td><td>₹60,000 + ₹2,800 + ₹40 (1 day)</td></tr>
+<tr><td>2026-Kavita-SilverGoldAnklet</td><td>10</td><td>None: Active and Dormant, owing ₹0</td><td>—</td><td>₹0</td></tr>
+</table>
+<p>The only Voided Payment is 27, Meera's mistyped ₹16,000 on the bangles. The first Payment you save on a fresh book is 34.</p>
+
+<h2>Follow-up on 19 Oct</h2>
+<p>What chapter 009 reads on a fresh book. Mortgage ids are in the tables above.</p>
+<table class="wide">
+<tr><th>What</th><th>On a fresh book</th></tr>
+<tr><td>Call List</td><td>One group, Arjun Patel (9820023456): 2026-Arjun-GoldChain first (<code>accrues_today</code>; 2 Months Unpaid, 28.8%), then 2025-Arjun-GoldRingRuby (<code>months_unpaid</code> 15 and <code>loan_to_value</code> 104.9%; called today, so it sorts second)</td></tr>
+<tr><td>Months Unpaid of the other Active Mortgages</td><td>Meera's chain 2 (part of September and all of October, not April: Payments cover the oldest month first), the bangles 0, the mangalsutra 0; the anklet is Dormant and skipped. Meera's chain reaches 3 on 10 Nov</td></tr>
+<tr><td>Call Notes</td><td>One: <code>call_note</code> 1, the ring, 19 Oct, "Will pay after Diwali". The next one saved is 2</td></tr>
+<tr><td>Notices</td><td>58 rows. 1–57 sent (Accrual Dates 15 Jul 2025 to 19 Oct 2026), each with one <code>notice_mortgage</code> row. <strong>#58</strong>: Sunita (Customer 7), accrues 21 Oct, <code>awaiting_approval</code>, <code>message</code> NULL; worded as ₹700 interest, ₹35,723 owed after. The Dashboard: 0 to send, 1 to approve. The next Notice made is 59 (Meera's 25 Oct, once it's within the days ahead)</td></tr>
+<tr><td>Settings</td><td>Call List 3 Months Unpaid, above 85%. Messages: the default templates, 2 days ahead, approve first on</td></tr>
+</table>
+
+<h2 id="tests-cast">The tests' own cast</h2>
+<p>The automated tests don't use the sample book. Each test makes the little it needs, fresh, with these defaults (<a href="../013-testing/index.html">chapter 013</a>). Figures from <code>013-testing/scripts/figures.py</code>, which runs the real app.</p>
+<table class="wide">
+<tr><th>Who or what</th><th>Where it's made</th><th>Facts</th></tr>
+<tr><td>Today</td><td><code>backend/tests/conftest.py</code>, <code>TODAY</code></td><td><strong>20 Apr 2026</strong> for every <code>client</code> test. <code>conn</code> tests pass their own dates (<code>test_notices.py</code> works on 12 May 2026). The frontend uses the browser's real date (<a href="traps.html#t17">trap #17</a>)</td></tr>
+<tr><td>Ramesh Kumar</td><td><code>api_seed.person</code>, <code>seed.add_customer</code></td><td>Primary Number 9829012345. A second Customer needs another number: the tests use Sita Devi, 9829054321; <code>nth_person(client, n)</code> makes "Customer 0n" on 98290000nn</td></tr>
+<tr><td>Ramesh's gold chain</td><td><code>api_seed.lend</code>, <code>seed.add_mortgage</code></td><td>₹1,00,000 from 14 Jan 2026, 19 g net of 22K, lent by UPI, on <code>SIMPLE_3</code> (3% a month, Simple, full month: ₹3,000 on each 14th). Owes <strong>₹1,12,000</strong> on 20 Apr: ₹9,000 to 14 Apr and the month under way. Named "2026-Ramesh-GoldChain" through the API; "2026-Ramesh-Chain" by <code>seed.py</code></td></tr>
+<tr><td>A Payment</td><td><code>api_seed.pay</code>, <code>seed.add_payment</code></td><td>By Allocation, <code>{mortgage id: paise}</code>; <code>pay</code> defaults to cash on 15 Apr. ₹12,000 on 20 Apr leaves the chain owing ₹1,00,000, off the Call List</td></tr>
+<tr><td><code>RING</code></td><td><code>api_seed.py</code></td><td>₹10,000 against a 5 g gold ring: a small Mortgage, for lists of many</td></tr>
+<tr><td>Asha Rao's gold chain</td><td><code>frontend/tests/showPage.tsx</code>, <code>mortgage</code></td><td>Mortgage 7, "2026GoldChain", Customer 3. ₹50,000 from 10 Jan 2026 at 1.5% a month, Simple, pro-rata; owes ₹50,750 (₹750 unpaid interest). Coming Accrual Dates 10 Nov and 10 Dec <strong>2099</strong>, so they never pass</td></tr>
+</table>
+
+<footer>
+  Facts from <code>docs/sample-book/book.py</code>; figures from The Gold Chain Story, checked against the app by <code>001-what-the-app-does/scripts/check_figures.py</code> at commit <code>61bbea2</code>, and the served-book figures and ids by <code>002-find-your-way-and-run-it/scripts/run_throughs.py</code> at commit <code>55ee8cb</code>, the Closures by <code>005-replay-and-closures/scripts/run_throughs.py</code> at commit <code>16b855c</code>, and the people, Gold Rates and Collateral Values by <code>008-people-and-collateral/scripts/run_throughs.py</code> at commit <code>575437c</code>, and the follow-up rows by <code>009-follow-up/scripts/run_throughs.py</code> at commit <code>6e6b030</code>; the tests' cast by <code>013-testing/scripts/figures.py</code> at commit <code>bda77f1</code>.
+  · <a href="commands.html">Commands</a>
+  · <a href="../index.html">Course home</a> · <a href="glossary.html">Glossary</a>
+</footer>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

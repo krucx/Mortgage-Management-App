@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onboarding · Mortgage Management</title>
+<link rel="stylesheet" href="assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Developer onboarding</p>
+<h1>Mortgage Management, for new developers</h1>
+<p class="lede">Mortgage Management is the lending book of a single Lender who lends money against pledged gold jewellery. It runs on the Lender's own laptop and keeps track of who borrowed, against what, how interest grows, what has been paid, and how each pledge ended. This course takes you from never having seen the repo to making your first safe change in it.</p>
+
+<h2>How to use the course</h2>
+<ul>
+  <li>Read the chapters in order. Each one assumes only the ones before it. A chapter takes about an hour.</li>
+  <li>Each lesson ends with a short quiz, and each chapter with a check-yourself page and a hands-on exercise. Answer before you look: recalling is what makes it stick.</li>
+  <li>Every example uses the same invented sample book, The Gold Chain Story's, on 19 Oct 2026. The <a href="reference/cast.html">cast sheet</a> lists everyone in it.</li>
+  <li>The code is the source of truth. Each chapter records the commit it was written against; if the code has moved on, trust the code, and open an issue about the chapter.</li>
+  <li>Stuck? Ask an agent in this repo to explain anything that's unclear.</li>
+</ul>
+
+<h2>The chapters</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  A["001 · The business"] --> B["002 · Find your way<br/>and run it"]
+  B --> C["003 · One Payment,<br/>end to end"]
+  C --> D["004–006 · The engine<br/>Ledger, Closures, changes"]
+  D --> E["007–009 · Features<br/>Payments, people, follow-up"]
+  E --> F["010 · Platform<br/>and database"]
+  F --> G["011–012 · Frontend"]
+  G --> H["013 · Testing"]
+  H --> I["014–015 · Shipping<br/>laptop, releases, Backups"]
+  I --> J["016 · Your first change"]
+</pre>
+<figcaption>The business first, then one shallow journey through every layer, then each layer in depth, ending with a real change.</figcaption>
+</figure>
+
+<ol class="chapters">
+  <li><a href="001-what-the-app-does/index.html">001 · What the app does, in plain words</a><span class="sum">Mortgages, Payments, Closures and the Lender's day, with no code.</span></li>
+  <li><a href="002-find-your-way-and-run-it/index.html">002 · Find your way and run it</a><span class="sum">The repo's parts, the glossary and ADRs; serve the sample book and run it on scratch data.</span></li>
+  <li><a href="003-one-payment-end-to-end/index.html">003 · One Payment, end to end</a><span class="sum">Follow Meera's ₹6,600 from form to Preview, API, Ledger and Receipt.</span></li>
+  <li><a href="004-the-ledger-engine/index.html">004 · The Ledger engine</a><span class="sum">Hand-trace interest, Capitalisation, Payment order, Term Changes and Projections in <code>ledger.py</code>.</span></li>
+  <li><a href="005-replay-and-closures/index.html">005 · Replay and Closures</a><span class="sum">Outstanding, the quote on a date, Redeem, Waive, Forfeit, Dormant and Reopen in <code>replay.py</code> and <code>changes.py</code>.</span></li>
+  <li><a href="006-changes-and-previews/index.html">006 · Changes and Previews</a><span class="sum">One door for every change: refuse, write, <code>check_replays</code>, History, and Previews that run the real change and roll it back, in <code>changes.py</code>, <code>previews.py</code> and <code>audit.py</code>.</span></li>
+  <li><a href="007-payments-and-receipts/index.html">007 · Payments and Receipts</a><span class="sum">What a Payment stores and what it never stores, a Payment in parts through <code>received_with</code>, Voids, the Cash Limit's one sum, and Receipts replayed just after the Payment, in <code>changes.py</code>, <code>payments/</code> and <code>receipts.py</code>.</span></li>
+  <li><a href="008-people-and-collateral/index.html">008 · People and Collateral</a><span class="sum">Who a person is (the Primary Number), "new" Referrers and promotion, Customer changes and their 204 Previews, photo files kept in step with the database, and Collateral Value and Loan-to-Value worked by hand.</span></li>
+  <li><a href="009-follow-up/index.html">009 · Follow-up</a><span class="sum">Who is on the Call List and why, Call Notes one at a time or from a Call Sheet, the Notice queue kept in step by <code>sync</code> rather than a scheduler, a Notice frozen once sent, and messages built from templates and handed to WhatsApp.</span></li>
+  <li><a href="010-platform-database-and-migrations/index.html">010 · Platform, database and migrations</a><span class="sum">How <code>create_app</code> puts the backend together, where "today" comes from, the daily run with no scheduler, settings in <code>config</code>, Tables and paging, and migrations that run on every start, with a <code>-before-update</code> Backup and a drift test.</span></li>
+  <li><a href="011-the-frontends-data-layer/index.html">011 · The frontend's data layer</a><span class="sum">The types generated from the backend and the one typed client; reading through one cache, by key; lists a page at a time with the sort in the URL; Previews from a draft, 400 ms after the last key; saving, and what each change makes stale.</span></li>
+  <li><a href="012-frontend-pages-and-the-pwa/index.html">012 · Frontend pages and the PWA</a><span class="sum">The shell and a read page; a form page wired to its Preview, and a page you build; dividing a Payment and closing Mortgages; the Mortgage page's panels, ID numbers read in the browser and photos saved after the record; follow-up, Settings and the Dashboard; the installed app's service worker, StartGate and UpdateBanner.</span></li>
+  <li><a href="013-testing/index.html">013 · Testing</a><span class="sum">Every check CI runs, on your machine, and the lint it skips; tests through the API with <code>client</code> and <code>api_seed.py</code>; below it with <code>seed.py</code>, each change on its own date, and pure engine tests; page tests against <code>fakeServer</code> with <code>showPage</code>; and breaking a line to see whether any test pins it.</span></li>
+  <li><a href="014-how-it-runs-on-the-lenders-laptop/index.html">014 · How it runs on the Lender's laptop</a><span class="sum">The one Docker image, run on a copy of the book and debugged; the backend serving the screens without Docker, with the same caching; Setup on Windows read and tested with Pester; each version in its own folder behind the <code>app</code> junction; and the <code>mortgage-management://</code> link the installed app starts and updates with.</span></li>
+  <li><a href="015-releases-updates-and-backups/index.html">015 · Releases, updates and Backups</a><span class="sum">Cut a version tag, follow the update banner, make a Backup and restore it if a database migration prevents a rollback.</span></li>
+  <li><a href="016-your-first-change/index.html">016 · Your first change</a><span class="sum">Make one small change test-first through every layer, following the repo workflow.</span></li>
+</ol>
+
+<h2>Reference sheets</h2>
+<ul>
+  <li><a href="reference/glossary.html">Glossary</a>: the app's words, word for word from <code>GLOSSARY.md</code>, with the lesson that teaches each.</li>
+  <li><a href="reference/cast.html">The cast</a>: the sample book's people, Mortgages and figures on 19 Oct 2026, and how to serve it.</li>
+  <li><a href="reference/commands.html">Commands</a>: every command a developer runs, on scratch data.</li>
+  <li><a href="reference/routes.html">Routes</a>: each API route taught so far, its file, Preview twin and refusals.</li>
+  <li><a href="reference/ledger.html">Ledger</a>: the engine's rules on one page, for hand-tracing a Mortgage.</li>
+  <li><a href="reference/traps.html">Traps</a>: the newcomer surprises met so far, and the chapter that owns each.</li>
+</ul>
+
+<footer>
+  <a href="MISSION.md">Mission</a> · <a href="SYLLABUS.md">Syllabus</a> · <a href="RESOURCES.md">Resources</a>
+</footer>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

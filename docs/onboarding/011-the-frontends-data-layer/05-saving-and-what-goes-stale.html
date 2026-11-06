@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11.5 · Saving, and what goes stale</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 011 · Lesson 5</p>
+<h1>Saving, and what goes stale</h1>
+<p class="lede">A save changes something on the backend, so some answers in the cache are now wrong. Which ones? This lesson shows where that is declared (once, in <code>serverState.ts</code>), how a page saves through it, and why the Preview the Lender just looked at is deliberately <em>not</em> asked for again.</p>
+
+<div class="callout win"><strong>By the end</strong> you can save a change and declare what it makes stale.</div>
+
+<h2>The problem</h2>
+<p>Meera pays ₹8,000 towards her bangles. On the backend that's one Payment row and one Allocation. In the cache, it's a lot more: the bangles' Mortgage page (Ledger, Outstanding), every list that shows an Outstanding, the Dashboard's totals, the Dormant count, Meera's Customer History (which holds her Mortgages' History), and the Receipts of her other Payments (each says what's still owed). Miss one and the Lender sees an old figure. Every figure is replayed, so a back-dated Payment can change Payments other than the one saved (<a href="../reference/traps.html#t4">trap #4</a>).</p>
+<p>If each page listed what its own save makes stale, the lists would drift: a new screen that shows Outstanding would have to be added to every save in the app. And there's a trap. The Payment form's Preview previews <em>this very Payment</em>. Ask for it again after the save, and the backend would preview the Payment on top of itself, and might refuse it.</p>
+
+<h2>The idea</h2>
+<p><strong>Name the kinds of change, not the pages.</strong> There are two kinds:</p>
+<ul>
+  <li>A <strong>Ledger change</strong>: anything that can change what Mortgages owe (Payments, Voids, edits, Term Changes, Closures and Reopens). These all make the same things stale, listed once, in <code>ledgerChanged</code>.</li>
+  <li><strong>Every other change</strong> (approving a Notice, a Call Note, a Customer's details, Gold Rates…): each has its own entry in <code>STALE_AFTER</code>, the list of keys it makes stale.</li>
+</ul>
+<p><strong>Save through a hook that marks them.</strong> A page saves with <code>useLedgerChange</code>, <code>useMortgageChange</code> or <code>useChange(STALE_AFTER.…)</code>. The hook sends the change and then marks the right keys stale. TanStack Query's <code>invalidateQueries</code> marks a key stale and, by default, asks again at once for any of them on screen. Previews and Closure quotes are marked stale but not asked again.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant F as PaymentForm
+  participant U as useProposedChange
+  participant L as useLedgerChange
+  participant Q as cache
+  participant B as backend
+  F->>U: Confirm and save
+  U->>L: save(change)
+  L->>B: POST /api/payments (changes.recordPayment)
+  B-->>L: Payment 34
+  L->>L: keep?(result)
+  L->>Q: ledgerChanged()
+  Q->>B: on screen and stale: asked again now
+  Note over Q: Previews, Closure quotes:<br/>stale, not asked
+  L-->>U: Payment 34
+  U->>F: saved(payment): go to /payments/34/receipt
+</pre>
+<figcaption>The save resolves only after the cache has been told. Whatever the next screen reads is already stale.</figcaption>
+</figure>
+
+<h2>The code</h2>
+<h3>1. The changes, by name</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>changes</code> · lines 177–208, trimmed</figcaption>
+<pre data-file="frontend/src/requests.ts"><code>177  /** Each change that can alter what Mortgages owe; save them through useLedgerChange. */
+178  export const changes = {
+179    edit: (client: ApiClient, id: number, edit: MortgageEdit) =&gt;
+180      dataOrThrow(client.PUT('/api/mortgages/{mortgage_id}', { params: mortgagePath(id), body: edit })),
+⋮    … addTermChange, removeTermChange …
+194    recordPayment: (client: ApiClient, payment: PaymentIn) =&gt;
+195      dataOrThrow(client.POST('/api/payments', { body: payment })),      ◀
+196    voidPayment: (client: ApiClient, paymentId: number, reason: string) =&gt;
+⋮
+203    redeemAll: (client: ApiClient, redeem: RedeemAllIn) =&gt;
+204      dataOrThrow(client.POST('/api/closures/redeem', { body: redeem })),
+⋮    … waiveAll, forfeitAll, reopen, setCollateral …
+</code></pre>
+</figure>
+<p>Each is a plain function of the client: it sends one request and returns the data or throws. These are the save twins of lesson 4's <code>previews</code>. Other saves sit beside what they belong to: <code>noticeActions</code>, <code>customerChanges</code>, <code>settings.save…</code>.</p>
+
+<h3>2. What a Ledger change makes stale</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/serverState.ts">frontend/src/serverState.ts</a> · <code>REFRESHED_AFTER_LEDGER_CHANGE</code>, <code>OUTDATED_BY_LEDGER_CHANGE</code>, <code>ledgerChanged()</code> · lines 103–159, trimmed</figcaption>
+<pre data-file="frontend/src/serverState.ts"><code>103  /** What a change to what Mortgages owe makes stale, asked for again at once if shown. */
+104  const REFRESHED_AFTER_LEDGER_CHANGE = [
+105    keys.allMortgages,
+106    // How each Payment was applied, and its Receipt, are replayed too.
+107    keys.allPayments,
+108    // A Customer's History holds their Mortgages' History.
+109    keys.allCustomers,
+110    keys.lists,
+111    keys.dashboard,
+112    keys.dormant,
+113  ]
+114  /** Stale too, but asked for again only when next shown: one on screen is usually the
+115   *  Preview or quote of the very change just made, which the backend would now refuse. */
+116  const OUTDATED_BY_LEDGER_CHANGE = [keys.previews, keys.outstandingOnClosure]
+⋮
+152  export function ledgerChanged(queryClient: QueryClient): void {
+153    for (const queryKey of REFRESHED_AFTER_LEDGER_CHANGE) {
+154      void queryClient.invalidateQueries({ queryKey })                         // ①
+155    }
+156    for (const queryKey of OUTDATED_BY_LEDGER_CHANGE) {
+157      void queryClient.invalidateQueries({ queryKey, refetchType: 'none' })    // ②  ◀
+158    }
+159  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Every key under these six prefixes is marked stale, and those on screen (TanStack Query calls them <em>active</em>: a mounted <code>useQuery</code> is watching them) are asked for again now. <code>void</code> says "I'm not awaiting this promise", on purpose.</li>
+  <li><code>refetchType: 'none'</code>: mark them stale, but ask nothing now. Next time a Preview or quote is shown, it's asked for afresh.</li>
+</ol>
+
+<h3>3. What every other change makes stale</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/serverState.ts">frontend/src/serverState.ts</a> · <code>STALE_AFTER</code>, <code>markStale()</code> · lines 119–145, trimmed</figcaption>
+<pre data-file="frontend/src/serverState.ts"><code>119  /** A change to what Collateral is worth: Loan-to-Value, so the Call List, everywhere. */
+120  const STALE_AFTER_REVALUING = [keys.allMortgages, keys.lists, keys.dashboard]
+⋮
+123  export const STALE_AFTER = {
+124    /** Approving, skipping or sending a Notice: the Notices, and the Dashboard's counts. */
+125    notice: [keys.list('notices'), keys.dashboard],                          ◀
+126    /** Marking a Mortgage called: the Call List, the Call Notes and the Dashboard's count. */
+127    callNote: [keys.list('call-list'), keys.allCallNotes, keys.dashboard],
+⋮
+131    /** Saving or deleting a Customer: everything that shows their name or numbers. */
+132    customer: [keys.allCustomers, keys.allMortgages, keys.allPayments, keys.lists, keys.dashboard],
+133    /** A Collateral Value set by hand. */
+134    collateral: STALE_AFTER_REVALUING,
+135    /** New Gold Rates: every Collateral Value. */
+136    goldRates: STALE_AFTER_REVALUING,
+⋮
+139    /** New message settings: Notices are queued again to match them, Receipts reworded. */
+140    messageSettings: [keys.allPayments, keys.list('notices'), keys.dashboard],
+141  } satisfies Record&lt;string, readonly (readonly unknown[])[]&gt;
+142
+143  export function markStale(queryClient: QueryClient, stale: readonly (readonly unknown[])[]) {
+144    for (const queryKey of stale) void queryClient.invalidateQueries({ queryKey })
+145  }
+</code></pre>
+</figure>
+<p>Each entry is a plain list of keys, with a comment saying why. That comment is the rule: when you add a screen that shows something, check every entry whose reason covers it. <code>satisfies</code> checks every entry is a list of keys while keeping the names (<code>STALE_AFTER.notice</code>) typed.</p>
+
+<h3>4. The save hooks</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/serverState.ts">frontend/src/serverState.ts</a> · <code>useLedgerChange()</code>, <code>useMortgageChange()</code>, <code>useChange()</code> · lines 200–236, trimmed</figcaption>
+<pre data-file="frontend/src/serverState.ts"><code>200  export function useLedgerChange() {
+201    const { client, queryClient } = useServerState()
+202    return async &lt;T,&gt;(
+203      change: (client: ApiClient) =&gt; Promise&lt;T&gt;,
+204      keep?: (result: T) =&gt; void,
+205    ): Promise&lt;T&gt; =&gt; {
+206      const result = await change(client)          // ① send it
+207      keep?.(result)                               // ② put the answer in the cache first
+208      ledgerChanged(queryClient)                   // ③ then mark the rest stale  ◀
+209      return result
+210    }
+211  }
+⋮
+218  export function useMortgageChange() {
+219    const { queryClient } = useServerState()
+220    const changeLedger = useLedgerChange()
+221    return (change: (client: ApiClient) =&gt; Promise&lt;Mortgage&gt;): Promise&lt;Mortgage&gt; =&gt;
+222      changeLedger(change, (changed) =&gt; queryClient.setQueryData(keys.mortgage(changed.id), changed))   ◀
+223  }
+⋮
+229  export function useChange(stale: readonly (readonly unknown[])[]) {
+230    const { client, queryClient } = useServerState()
+231    return async &lt;T,&gt;(change: (client: ApiClient) =&gt; Promise&lt;T&gt;): Promise&lt;T&gt; =&gt; {
+232      const result = await change(client)
+233      markStale(queryClient, stale)
+234      return result
+235    }
+236  }
+</code></pre>
+</figure>
+<p>Each hook returns a function that takes the change as a function of the client, so the page writes <code>changeLedger((client) =&gt; changes.recordPayment(client, asked))</code>. (<code>&lt;T,&gt;</code> with its odd comma is how a <code>.tsx</code> file declares a generic arrow function: without it, <code>&lt;T&gt;</code> would be read as a JSX tag.) If the change throws, nothing is marked: a refused change changed nothing.</p>
+<p><code>useMortgageChange</code> is for changes that return the Mortgage they changed (an edit, a Term Change). It puts that answer under <code>['mortgage', id]</code> before marking anything stale, so the page shows the change immediately rather than the old Mortgage while it's asked again.</p>
+
+<h2>Run-through: Meera pays ₹8,000, then Sunita's Notice is approved</h2>
+<p>This saves on your scratch book. On <a href="http://localhost:5173/payments/new?customer=1&amp;mortgage=5">/payments/new?customer=1&amp;mortgage=5</a>, set the date to 19 Oct 2026, Method UPI, reference <strong>UPI 4417</strong>, amount <strong>8000</strong>. Press Save; the confirmation reads "Record a Payment of ₹8,000?", from Meera Sharma, 2026-Meera-PairBangles ₹8,000 · paid. Clear the Network tab, then press <strong>Confirm and save</strong>.</p>
+<table class="steps text">
+<tr><th>Time</th><th>Request</th><th>Why</th></tr>
+<tr><td>42 ms</td><td><code>POST /api/payments</code></td><td>the save: Payment 34</td></tr>
+<tr class="changed"><td>55 ms</td><td><code>GET /api/customers/1</code></td><td>on screen (the form's "From Meera Sharma"), under <code>allCustomers</code></td></tr>
+<tr class="changed"><td>55 ms</td><td><code>GET /api/mortgages?page=1&amp;customer_id=1&amp;status=active&amp;as_of=2026-10-19&amp;paged=false</code></td><td>on screen (the form's table), under <code>lists</code></td></tr>
+<tr class="changed"><td>55 ms</td><td><code>GET /api/closures/dormant?page=1</code></td><td>on screen (the menu's count), <code>dormant</code></td></tr>
+<tr><td>57 ms</td><td><code>GET /api/payments/34/receipt</code></td><td>the next page, <code>/payments/34/receipt</code></td></tr>
+</table>
+<p class="cite">From <code>scripts/network.mjs</code> (section L5), timed from the click.</p>
+<p>Three things to notice. Only what was <em>on screen</em> at the moment of <code>ledgerChanged</code> was asked again: the Payment form was still showing, because <code>saved</code> runs after the save hook returns. Everything else in the cache (the chain, the Dashboard, other lists) was only marked stale. And <strong>no <code>POST /api/payments/preview</code></strong>, though the form's Preview was on screen too.</p>
+<p>Now go on in the app, without reloading: click <strong>Payments</strong> in the menu, then the bangles' link.</p>
+<table class="steps text">
+<tr><th>Step</th><th>Requests</th></tr>
+<tr><td>Payments</td><td><code>GET /api/payments?page=1&amp;q=</code></td></tr>
+<tr><td>The bangles</td><td><code>/api/mortgages/5</code>, <code>…/call-notes</code>, <code>…/projection</code>, <code>…/history</code></td></tr>
+</table>
+<p class="cite">From <code>scripts/network.mjs</code> (section L5).</p>
+<p>Each page asks for its data when it's shown, as lesson 2 found every page does. Marking those keys stale changed nothing you can see here: with <code>staleTime</code> 0 they'd have been asked again anyway. What the declaration buys is the screen you're <em>on</em> when you save, and correctness the day someone gives one of those reads a longer <code>staleTime</code>.</p>
+<p>Now open <a href="http://localhost:5173/notices">Notices</a>, choose <strong>To approve</strong>, open Sunita's Notice (#58, for 21 Oct) and clear the Network tab. Press <strong>Approve</strong>.</p>
+<table class="steps text">
+<tr><th>Step</th><th>Requests</th></tr>
+<tr><td>Approve</td><td><code>POST /api/notices/58/approve</code>, then <code>GET /api/notices?page=1&amp;status=awaiting_approval</code></td></tr>
+<tr><td>Then click Dashboard</td><td><code>GET /api/dashboard</code></td></tr>
+</table>
+<p class="cite">From <code>scripts/network.mjs</code> (section L5).</p>
+<p><code>NoticesPage</code> saves with <code>useChange(STALE_AFTER.notice)</code>: the Notices list (on screen, asked again) and the Dashboard (not on screen, marked stale). The menu's Dormant count was <em>not</em> asked again this time: approving a Notice changes nothing anybody owes, so it isn't a Ledger change.</p>
+
+<h2>Nuances</h2>
+<h3>(a) The Preview on screen is not asked again</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on the Redeem form, the Lender confirms. <code>ledgerChanged</code> runs while the form, with its Preview, is still on screen. Suppose line 157 used plain <code>invalidateQueries({ queryKey })</code> like the others. What would the backend see next?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>A second <code>POST /api/closures/redeem-preview</code>, right after <code>POST /api/closures/redeem</code>: a Preview of Redeeming a Mortgage that is now Redeemed. The backend refuses that, and for an instant the form would show the refusal under a change that just succeeded. <code>closing.test.tsx</code>'s "a Waiver and a Redemption each go to their own routes" catches exactly this; the <a href="99-check-yourself.html">check-yourself exercise</a> has you break it and watch.</p>
+    <p>The same goes for a Payment's Preview: after the save, asking again would preview a second ₹8,000 on top of the first. So Previews and Closure quotes are only marked stale. If the Lender comes back to the form, the Preview is asked for afresh, against the new book.</p>
+  </div>
+</div>
+
+<h3>(b) Keep the answer first: a Voided Payment's Receipt</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/PaymentPage.tsx">frontend/src/pages/PaymentPage.tsx</a> · <code>PaymentPage</code> · lines 20 and 106–109</figcaption>
+<pre data-file="frontend/src/pages/PaymentPage.tsx"><code>20    const setPayment = (voided: Payment) =&gt; queryClient.setQueryData(keys.payment(id), voided)
+⋮
+106              await changeLedger(
+107                (client) =&gt; changes.voidPayment(client, payment.id, reason),
+108                setPayment,                                         ◀
+109              )
+</code></pre>
+</figure>
+<p>The Payment page shows the Payment and its Receipt. A Void returns the Payment, now with <code>voided_at</code> set, and <code>setPayment</code> keeps it under <code>['payment', id]</code> <em>before</em> <code>ledgerChanged</code> marks <code>['payment']</code> stale. So when the Receipt (<code>['payment', id, 'receipt']</code>, on screen) is asked again, <code>receiptQuery</code>'s guard (lesson 2, nuance b) finds the Voided Payment in the cache and doesn't ask the backend at all: a Voided Payment has no Receipt. Swap lines 207 and 208 and the Receipt would be asked for while the cache still held the Payment as it was before the Void.</p>
+
+<h3>(c) Why each <code>STALE_AFTER</code> entry is what it is</h3>
+<table class="steps text">
+<tr><th>Change</th><th>Makes stale</th><th>Why not less, or more</th></tr>
+<tr><td>A Notice approved, skipped or sent</td><td>the Notices list, the Dashboard</td><td>the Dashboard counts Notices; no figure owed changes</td></tr>
+<tr><td>A Call Note</td><td>the Call List, Call Notes, the Dashboard</td><td>the Call List puts Mortgages called today last, with today's Call Note</td></tr>
+<tr><td>A Customer saved or deleted</td><td>Customers, Mortgages, Payments, lists, the Dashboard</td><td>their name and numbers appear on all of them, Receipts included</td></tr>
+<tr class="changed"><td>A Collateral Value, new Gold Rates</td><td>Mortgages, lists, the Dashboard</td><td>Loan-to-Value changes, and with it the Call List (a list) and its count</td></tr>
+<tr class="changed"><td>New message settings</td><td>Payments, the Notices list, the Dashboard</td><td>Notices are queued again (<a href="../009-follow-up/03-the-notice-queue.html">chapter 009, lesson 3</a>), and every Receipt is reworded: <code>allPayments</code> reaches each Receipt under its Payment</td></tr>
+</table>
+<p><code>serverState.test.tsx</code> pins several of these by name: "new message settings reword the Receipts as well as the Notices", "a Customer's new name or number reaches everything that shows it", "marking a Mortgage called changes the Call List, its Call Notes and the Dashboard count".</p>
+
+<h3>(d) Almost never in a page</h3>
+<p>Search <code>src/</code> for <code>invalidateQueries</code> outside <code>serverState.ts</code> and you'll find exactly one, in <code>MortgagePage.tsx</code> (line 46). A photo or a Collateral Value saved from the Mortgage page returns the Mortgage; the page keeps it with <code>setQueryData</code> and marks only that Mortgage's History stale, because the History now holds the change. Every other save goes through one of the three hooks, with a <code>STALE_AFTER</code> entry or <code>ledgerChanged</code>. A page may put an answer it got back into the cache (<code>setQueryData</code>, as the Settings forms and the Void do), because that's the backend's own answer, not a guess about what's stale. If you find yourself writing a second <code>invalidateQueries</code> in a page, it probably belongs in <code>STALE_AFTER</code>.</p>
+
+<h2>The recipe: a new route, end to end</h2>
+<p>Everything in this chapter, in the order you'd do it for a new change:</p>
+<ol>
+  <li><strong>Backend:</strong> the change, its Preview twin and their routes, with Pydantic models (<a href="../006-changes-and-previews/05-adding-a-change-route.html">chapter 006, lesson 5</a>).</li>
+  <li><strong>Types:</strong> in <code>frontend/</code>, <code>npm run gen:types</code>; commit <code>openapi.json</code> and <code>api.gen.ts</code> (lesson 1, trap #10). Name the new types in <code>api.ts</code> if pages need them.</li>
+  <li><strong>Requests:</strong> a function in <code>requests.ts</code>: in <code>changes</code> if it can alter what Mortgages owe, otherwise beside what it belongs to; and its entry in <code>previews</code> (lesson 4).</li>
+  <li><strong>Stale:</strong> a Ledger change needs nothing more. Anything else: pick the <code>STALE_AFTER</code> entry whose reason fits, or add one with its reason, and a test in <code>serverState.test.tsx</code>.</li>
+  <li><strong>The page:</strong> <code>useProposedChange</code> with <code>save: (c) =&gt; changeLedger((client) =&gt; changes.yourChange(client, c))</code>, or <code>useChange(STALE_AFTER.yourEntry)</code>; <code>useMortgageChange</code> if it returns the Mortgage. Never <code>fetch</code> (trap #11), and no <code>invalidateQueries</code> of your own.</li>
+</ol>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">You add a "mark as sent by post" action for a Notice. It doesn't change what anybody owes. How should the page save it?</p>
+  <button class="opt"><code>useLedgerChange</code>, to be safe about stale figures</button>
+  <button class="opt"><code>useChange(STALE_AFTER.notice)</code></button>
+  <button class="opt">A plain call, then <code>invalidateQueries</code> in the page</button>
+  <div class="why">It's a Notice action: the Notices list and the Dashboard's counts are what change, which is what <code>STALE_AFTER.notice</code> says. <code>useLedgerChange</code> would ask every Mortgage, list and quote again for nothing. Invalidating in the page is exactly what <code>serverState.ts</code> exists to stop.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Right after a Payment is saved from the form, which of these is asked for again at once?</p>
+  <button class="opt">The Payment's Preview, still on screen</button>
+  <button class="opt">The Dashboard, which isn't on screen</button>
+  <button class="opt">The form's list of Meera's Mortgages</button>
+  <div class="why">It's on screen and under <code>keys.lists</code>, so <code>ledgerChanged</code> asks for it again (the run-through's <code>…&amp;paged=false</code>). The Preview is under <code>keys.previews</code>, marked with <code>refetchType: 'none'</code>. The Dashboard is marked stale but, not being on screen, waits until it's shown.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Why does <code>useMortgageChange</code> call <code>setQueryData</code> before marking anything stale?</p>
+  <button class="opt">So the page shows the change before it's asked again</button>
+  <button class="opt">So the Mortgage isn't asked again at all</button>
+  <button class="opt">Because <code>ledgerChanged</code> skips the Mortgage keys</button>
+  <div class="why">The backend's answer is the Mortgage as changed, so the page can show it at once. It's still marked stale and, being on screen, asked again (a Ledger change may touch more than this one Mortgage's figures). <code>ledgerChanged</code> includes <code>allMortgages</code>.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/serverState.test.tsx"><code>tests/serverState.test.tsx</code></a> whole (140 lines). Each test seeds the cache with <code>setQueryData</code>, makes a change stale, and reads which keys came out <code>isInvalidated</code>, which is how you'd test a new <code>STALE_AFTER</code> entry. Then TanStack Query's <a href="https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation">Query invalidation</a> guide, for <code>refetchType</code>.</p>
+
+<nav class="lessons">
+  <a href="04-previews-from-a-draft.html">← Previews from a draft</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Next: Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

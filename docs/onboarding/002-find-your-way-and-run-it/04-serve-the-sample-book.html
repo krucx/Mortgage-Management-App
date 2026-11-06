@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.4 · Serve the sample book</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 002 · Lesson 4</p>
+<h1>Serve the sample book</h1>
+<p class="lede">Time to run the app. Not on an empty database, where every screen is blank, and never on a real one: on the course's own invented lending book, frozen on 19 Oct 2026, so the figures you see are the ones chapter 001 taught.</p>
+
+<div class="callout win"><strong>By the end</strong> you can build and serve the sample book on scratch data and check a figure on it.</div>
+
+<h2>The problem</h2>
+<p>A fresh app has nothing in it. To see a Ledger, a Call List or a Dormant Mortgage you'd have to type in Customers and Mortgages by hand, and wait months for interest to build up. Worse, the obvious shortcut, opening the app on a copy of the Lender's database, puts real people's names, phone numbers and ID photos on your screen, and one wrong command could migrate or change it.</p>
+<p>What you want is a book full of realistic history, made safely, that looks the same on every developer's laptop and every day you open it.</p>
+
+<h2>The idea</h2>
+<p>The sample book, <code>docs/sample-book/book.py</code>, builds the Gold Chain Story's whole year <strong>through the app's own API</strong>, one dated change at a time, into a folder you choose. Then <code>serve.py</code> runs the real app on that folder with its clock <strong>held on 19 Oct 2026</strong>. Same code as the Lender's, invented data, and figures that never drift.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  B["book.py BOOK"] -->|"API calls, clock moved<br/>1 Jun 2025 → 19 Oct 2026"| D[("BOOK/data/mortgage.db<br/>BOOK/data/photos")]
+  NB["npm run build"] -->|writes| DIST["frontend/dist<br/>built screens"]
+  D --> S["serve.py BOOK [port]<br/>clock held on THE_DAY"]
+  DIST --> S
+  S -->|"http://127.0.0.1:8765"| BR["Browser"]
+  S -->|"first request: a Backup"| BK["BOOK/backups"]
+</pre>
+<figcaption>Build once, serve as often as you like. Everything lands inside the one scratch folder you name, <code>BOOK</code>.</figcaption>
+</figure>
+<p>Notice that nothing touches the repo's <code>data/</code> or <code>backups/</code>. Both scripts write only under the folder you give them.</p>
+
+<h2>The code</h2>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/book.py">docs/sample-book/book.py</a> · module docstring, <code>THE_DAY</code>, <code>Clock</code> · lines 1–43, trimmed</figcaption>
+<pre data-file="docs/sample-book/book.py"><code>1   """The Gold Chain Story's sample book: every person and figure the GitHub Pages screenshots
+2   show, made through the app's own API, day by day, as the Lender would have made it. Each
+3   change is made on its own date (the clock moves forward through the year), so the app
+4   refuses anything it would have refused then, and every check a save runs is run.  ①
+⋮
+8       cd backend &amp;&amp; uv run python ../docs/sample-book/book.py &lt;folder&gt;
+⋮
+10  writes &lt;folder&gt;/data (the database and photos); serve.py serves it. Amounts in paise.
+⋮
+24  THE_DAY = date(2026, 10, 19)  ◀
+⋮
+33  class Clock:
+34      """The app's today, moved forward as the book is written; changes at 10:30."""  ②
+36      def __init__(self) -&gt; None:
+37          self.day = date(2025, 6, 1)
+39      def today(self) -&gt; date:
+40          return self.day
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The book is made the way the Lender would make it: by HTTP requests, each on its date. If a rule in the app would refuse a step, <code>book.py</code> fails at once. So the sample book is also a test that the whole year is still possible.</li>
+  <li><code>Clock</code> is the "today" handed to <code>create_app</code> (lesson 2's <code>today</code> parameter). The book moves it forward day by day until <code>THE_DAY</code>.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/serve.py">docs/sample-book/serve.py</a> · the whole script · lines 19–31</figcaption>
+<pre data-file="docs/sample-book/serve.py"><code>19  if __name__ == "__main__":
+20      if len(sys.argv) not in (2, 3):
+21          sys.exit(__doc__)
+22      folder = Path(sys.argv[1]).resolve()
+23      port = int(sys.argv[2]) if len(sys.argv) == 3 else 8765   ①
+24      app = create_app(
+25          f"sqlite:///{folder / 'data' / 'mortgage.db'}",
+26          today=lambda: THE_DAY,  ◀ ②
+27          now=lambda: datetime.combine(THE_DAY, time(11, 0)),
+28          backup_dir=folder / "backups",                          ③
+29          screens_dir=Path(__file__).resolve().parents[2] / "frontend" / "dist",  ④
+30      )
+31      uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Port 8765 unless you give another.</li>
+  <li><code>lambda: THE_DAY</code> is a function that always returns 19 Oct 2026. Every figure is worked out "as of" that day, every time.</li>
+  <li>Backups go inside your scratch folder, never to the real <code>BACKUP_DIR</code>.</li>
+  <li>The screens are the <em>built</em> ones in <code>frontend/dist</code>, served by the backend itself, as on the Lender's laptop with Docker or without (lesson 1's second front door, ADRs 0010 and 0013).</li>
+</ol>
+
+<h2>Run-through: serve it, then recheck Meera's chain</h2>
+<p>You need <a href="https://docs.astral.sh/uv/">uv</a> and Node.js installed. From the repo root:</p>
+<pre><code># 1. A fresh, empty scratch folder for the book
+export BOOK=$(mktemp -d)
+
+# 2. Build the book into it (a few seconds)
+cd backend
+uv run python ../docs/sample-book/book.py "$BOOK"
+
+# 3. Build the screens (once, and after every frontend change)
+cd ../frontend
+npm install
+npm run build
+
+# 4. Serve it on http://127.0.0.1:8765
+cd ../backend
+uv run python ../docs/sample-book/serve.py "$BOOK"</code></pre>
+<p><code>mktemp -d</code> makes a new empty folder under your system's temporary area and prints its path; <code>$(…)</code> captures that path into <code>BOOK</code>. Keep the terminal open: <code>serve.py</code> runs until you press Ctrl-C.</p>
+<table class="steps">
+<tr><th>Step</th><th>What you should see</th></tr>
+<tr><td>2. <code>book.py</code></td><td>No output, then the prompt. <code>$BOOK/data/</code> now holds <code>mortgage.db</code> and <code>photos/</code>.</td></tr>
+<tr><td>3. <code>npm run build</code></td><td>Type-checks, then writes <code>frontend/dist/</code>, ending with the service worker files (<code>dist/sw.js</code>).</td></tr>
+<tr><td>4. <code>serve.py</code></td><td>Nothing printed (it logs warnings only). Open <a href="http://127.0.0.1:8765">http://127.0.0.1:8765</a>: the Dashboard of 19 Oct 2026.</td></tr>
+<tr class="changed"><td>First request</td><td><code>$BOOK/backups/mortgage-backup-2026-10-19-1100.zip</code> appears: the daily run took the week's Backup, dated by the held clock.</td></tr>
+</table>
+<p>Now recheck chapter 001's figures for Meera's chain. Open <a href="http://127.0.0.1:8765/mortgages/2">http://127.0.0.1:8765/mortgages/2</a> (lesson 2 showed why <code>/mortgages/2</code> is the chain's page), or ask the API directly in a second terminal:</p>
+<pre><code>curl -s http://127.0.0.1:8765/api/mortgages/2</code></pre>
+<table class="steps text">
+<tr><th>Figure</th><th>Chapter 001 said</th><th>Where in the JSON</th><th>Served book</th></tr>
+<tr><td>A month's interest</td><td>₹1,600</td><td>last <code>"event": "interest"</code> step, 10 Oct, <code>"amount"</code></td><td>160000 paise</td></tr>
+<tr><td>Interest to Date</td><td>₹533</td><td>last step, <code>"event": "interest_to_date"</code>, 10 days</td><td>53300 paise</td></tr>
+<tr class="changed"><td>Outstanding</td><td>₹83,333</td><td><code>"outstanding": {"total": …}</code></td><td>8333300 paise</td></tr>
+</table>
+<p class="cite">Figures from <code>scripts/run_throughs.py</code>, which builds the book and reads the chain through the real app, at commit 55ee8cb. The API's amounts are in paise (₹1 = 100 paise), integers so that no rupee is ever lost to rounding; the screens turn them into ₹ with Indian digit grouping.</p>
+<p>They match. The <code>outstanding</code> object reads <code>{"principal": 8000000, "unpaid_interest": 333300, "total": 8333300}</code>: ₹80,000 Principal, plus ₹3,333 unpaid, which is the ₹2,800 left over from earlier months and today's ₹533 of Interest to Date.</p>
+<div class="reveal">
+  <p><strong>Your turn:</strong> chapter 001, lesson 4 asked you to work out what Lakshmi paid to Redeem her temple necklace on 16 Oct: ₹2,00,000 Principal, nothing unpaid, and 27 days of Interest to Date since 20 Sep, at 2% a month pro-rata. Find the necklace on <a href="http://127.0.0.1:8765/mortgages">the Mortgages screen</a> (it's Redeemed, so choose that status), open it, and compare with your answer.</p>
+  <button class="show">I've checked. Show me the figures.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Figure</th><th>Worked out</th><th>Served book (<code>"closure"</code> of <code>/api/mortgages/4</code>)</th></tr>
+    <tr><td>Interest to Date</td><td>27 ÷ 30 × ₹4,000 = ₹3,600</td><td><code>"interest_to_date": 360000</code>, 27 days</td></tr>
+    <tr class="changed"><td>Paid to Redeem</td><td>₹2,00,000 + ₹3,600 = ₹2,03,600</td><td><code>"payment_amount": 20360000</code></td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code>. The necklace is id 4 on the sample book.</p>
+  </div>
+</div>
+
+<h2>Nuances</h2>
+<h3>(a) A fresh database is not the book</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> serve an <em>empty</em> folder (<code>serve.py "$(mktemp -d)" 8766</code>), which gives a brand-new database, and ask both apps for their Default Terms with <code>curl -s http://127.0.0.1:&lt;port&gt;/api/settings/default-terms</code>. Will the two answers match?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Database</th><th><code>monthly_rate_bps</code></th><th><code>interest_mode</code></th><th><code>part_month_rule</code></th></tr>
+    <tr><td>Fresh (port 8766)</td><td>300</td><td>compounded_yearly</td><td>full_month</td></tr>
+    <tr class="changed"><td>Sample book (port 8765)</td><td>200</td><td>compounded_yearly</td><td>pro_rata</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code>.</p>
+    <p>No. A fresh database starts with Default Terms of 3% a month (<code>bps</code> is basis points: 300 = 3.00%), Compounded Yearly, full month. Those come from the very first database migration, <code>0001_config_table.py</code>. The sample book changes them to 2% pro-rata as one of its first steps, through <code>PUT /api/settings/default-terms</code>. So when you see "2%" in this course, it's the <em>sample book's</em> Default Terms, not the app's. Serving an empty folder is also the quickest way to get a blank app on scratch data.</p>
+  </div>
+</div>
+<h3>(b) The clock is held</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> you serve the same book again next week. Is the chain's Interest to Date still ₹533?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>Yes, ₹533, next week and next year. <code>serve.py</code> passes <code>today=lambda: THE_DAY</code>, so the app always believes it's 19 Oct 2026. That's what makes the course's figures checkable. The backend you run while coding (lesson 5) uses the <em>real</em> today, so on any Mortgage there, Interest to Date grows a little every day you look.</p>
+  </div>
+</div>
+<h3>(c) <code>serve.py</code> shows the built screens</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> with <code>serve.py</code> running, you change a heading in <code>MortgagePage.tsx</code> and reload the page. Do you see it?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>No. <code>serve.py</code> serves <code>frontend/dist</code>, the output of the last <code>npm run build</code>. Your edit is in <code>src/</code> and isn't in <code>dist</code> until you build again. The installed app's service worker can also keep the old screens cached until the update is picked up. For live edits, use Vite's dev server instead (lesson 5).</p>
+  </div>
+</div>
+<h3>(d) Rebuilding needs a fresh, empty folder</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> you run <code>book.py "$BOOK"</code> a second time into the same folder. What happens?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>It stops early with an <code>AssertionError</code>:</p>
+    <pre><code>AssertionError: POST /api/customers: {"detail":"Contact number 1 9810012345 already belongs to Customer Meera Sharma"}</code></pre>
+    <p class="cite">From <code>scripts/run_throughs.py</code>.</p>
+    <p>The book adds Meera again through the API, and the app refuses: a Primary Number belongs to one person only (ADR 0005). The app is protecting the data, just as it would for the Lender. Make a new folder with <code>mktemp -d</code> each time you rebuild.</p>
+  </div>
+</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">Why does <code>book.py</code> make the book through the API, not by inserting rows?</p>
+  <button class="opt">Inserting rows into SQLite would be far too slow</button>
+  <button class="opt">So every rule and check runs, as for the Lender</button>
+  <button class="opt">Because the database file is locked while serving</button>
+  <div class="why">Through the API, each change is refused if the app would refuse it, and every check runs, on the date it happened. Rows inserted directly would skip all of that and could make a book the app itself could never produce. Speed and locking aren't the reason.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">On the served book, <code>"total": 8333300</code>. What does Meera owe?</p>
+  <button class="opt">₹8,333,300, the amount as printed</button>
+  <button class="opt">₹8,33,330, after removing a zero</button>
+  <button class="opt">₹83,333, since amounts are in paise</button>
+  <div class="why">The API works in paise, so divide by 100: ₹83,333. The screens show it with Indian grouping.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">A course page says the chain's rate is 2% a month. A fresh database says 3%. Which is a bug?</p>
+  <button class="opt">Neither; the book sets its own Default Terms</button>
+  <button class="opt">The course; the app's real rate is 3%</button>
+  <button class="opt">The app; migration 0001 has a wrong value</button>
+  <div class="why">Neither. A fresh database starts at 3% (migration 0001), and <code>book.py</code> sets the sample book's Default Terms to 2% pro-rata before making any Mortgage.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/README.md"><code>docs/sample-book/README.md</code></a>, then skim <code>book.py</code>'s <code>events()</code> function: it is the whole Gold Chain Story as a list of dated API calls, and the best map of the cast you'll find.</p>
+
+<nav class="lessons">
+  <a href="03-the-words-and-the-decisions.html">← The words and the decisions</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="05-run-it-while-you-code.html">Next: Run it while you code →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

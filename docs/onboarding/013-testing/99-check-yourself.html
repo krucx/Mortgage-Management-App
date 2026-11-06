@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.99 · Check yourself: Testing</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 013 · Check yourself</p>
+<h1>Check yourself: Testing</h1>
+<p class="lede">Questions from all five lessons, mixed up. Then make <code>seed.py</code> record every Payment on the tests' today, and see which tests the app itself refuses to set up.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">1. What date is "today" in a test that uses the <code>client</code> fixture, and where is it set?</p>
+  <button class="opt">19 Oct 2026, by the sample book's <code>serve.py</code></button>
+  <button class="opt">20 Apr 2026, by <code>TODAY</code> in <code>conftest.py</code></button>
+  <button class="opt">The computer's date, unless the test passes its own</button>
+  <div class="why"><code>client</code> builds the app with <code>create_app(database_url, today=lambda: TODAY)</code>, and <code>TODAY = date(2026, 4, 20)</code> at line 11. 19 Oct 2026 is the sample book's day, which no test uses. Moving <code>TODAY</code> a day fails 48 tests, which is why it's fixed (lesson 3, trap #17).</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">2. Which check that guards the frontend does CI <em>not</em> run, and what does it catch?</p>
+  <button class="opt"><code>tsc -b</code>: a type error inside a test file</button>
+  <button class="opt"><code>vitest</code>: a page that calls the wrong route</button>
+  <button class="opt"><code>oxlint</code>: <code>fetch</code> used outside the typed client</button>
+  <div class="why"><code>test.yml</code>'s frontend job runs <code>npm run typecheck</code> and <code>npm test</code>, never <code>npm run lint</code>. A <code>fetch</code> no test reaches passes CI; only oxlint's <code>no-restricted-globals</code> rule catches it (lesson 1, trap #11).</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">3. Trace it. A <code>client</code> test makes Ramesh with <code>person(client)</code> and his chain with <code>lend(client, ramesh)</code>, all defaults. What does the chain owe on the tests' today?</p>
+  <button class="opt">₹1,12,000: three months' ₹3,000 and the month under way</button>
+  <button class="opt">₹1,09,000: three months' ₹3,000 from 14 Feb to 14 Apr</button>
+  <button class="opt">₹1,00,000: no interest is added before the first Payment</button>
+  <div class="why"><code>lend</code>'s defaults are ₹1,00,000 from 14 Jan on <code>SIMPLE_3</code>. On 20 Apr the Ledger has ₹3,000 on each of 14 Feb, 14 Mar and 14 Apr, and ₹3,000 of Interest to Date for the month from 14 Apr, charged in full: ₹1,12,000 (<code>scripts/figures.py</code>). <code>test_seed.py</code>'s comment says ₹1,09,000; the app says otherwise (lessons 2 and 3).</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">4. You're adding three things: a new rounding rule in the Ledger, a new refusal of a Payment, and a new route listing Voided Payments. Which layers?</p>
+  <button class="opt">All three through <code>client</code>, the way the frontend calls them</button>
+  <button class="opt">Pure for the rule; <code>conn</code> for the refusal and the route</button>
+  <button class="opt">Pure for the rule; <code>client</code> for the refusal and the route</button>
+  <div class="why">An engine figure is pure: <code>compute_ledger</code> in <code>test_ledger.py</code>, no database. The Lender meets a refusal as a status and a message from a route, and a new route is best tested as the frontend calls it: both <code>client</code> with <code>api_seed.py</code>. <code>conn</code> is for functions with no route, or histories over many dates (lesson 3).</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">5. Why is the HTTP helper file called <code>api_seed.py</code> and not <code>http.py</code>?</p>
+  <button class="opt">pytest only collects helper files whose names end in <code>_seed</code></button>
+  <button class="opt"><code>tests/</code> is first on the import path, so it would hide Python's <code>http</code></button>
+  <button class="opt">FastAPI keeps the name <code>http</code> for its own test client</button>
+  <div class="why"><code>backend/tests/</code> has no <code>__init__.py</code>, so pytest puts it at the front of <code>sys.path</code>. FastAPI's own <code>import http</code> would load the test file, and every test fails at conftest with a circular-import error in FastAPI (lesson 2, trap #18).</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">6. A page test routes only <code>GET /api/mortgages/7</code>. What does <code>fakeServer</code> answer the page's other requests, and why does it matter?</p>
+  <button class="opt">A 404, which each panel already handles as a failure</button>
+  <button class="opt">An empty 200, so no panel shows an error in the test</button>
+  <button class="opt">Nothing: an unrouted request throws inside the test</button>
+  <div class="why">Unrouted is <code>404 {"detail": "Not Found"}</code>, as the backend says for an unknown route. Answering <code>200 {}</code> instead fails 17 tests: panels trust their types and crash on <code>{}</code> (<code>notes.map is not a function</code>). The fake answers only what the real backend could (lesson 4).</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">7. Trace it. In a <code>client</code> test, Ramesh's default chain is paid ₹12,000 on 20 Apr: <code>pay(client, ramesh, {chain["id"]: 12_000 * RUPEE}, on="2026-04-20")</code>. Is the chain on the Call List afterwards?</p>
+  <button class="opt">Yes, for <code>months_unpaid</code>: Feb, Mar and Apr were unpaid</button>
+  <button class="opt">Yes, for <code>accrues_today</code>: 20 Apr is an Accrual Date</button>
+  <button class="opt">No: it now owes ₹1,00,000, every month's interest paid</button>
+  <div class="why">₹12,000 pays the ₹9,000 of unpaid interest and the ₹3,000 Interest to Date, leaving the Principal, ₹1,00,000, and no Months Unpaid; the Call List is empty (<code>scripts/figures.py</code>). Its Accrual Date is the 14th. <code>test_call_list.py</code>'s <code>test_paying_the_interest_takes_a_mortgage_off_the_list</code> pays ₹9,000 and gets the same answer (lessons 2 and 5).</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">8. How do you know a line is pinned by a test?</p>
+  <button class="opt">A coverage report shows that some test runs the line</button>
+  <button class="opt">Breaking it makes a test fail, and undoing it fixes that</button>
+  <button class="opt">The line's module has a test file named after it</button>
+  <div class="why">Running a line isn't pinning it: the Loan-to-Value line ran in every Call List test, and <code>&gt;=</code> still passed all 708. Only a failure on the broken line proves a test cares what it says (lesson 5).</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Hands-on: seed every Payment on the tests' today</h2>
+<p><code>seed.py</code> passes each change its own date as the change's today (lesson 3). Here you make it pass one date instead, the tests' own today, and see what the app refuses. Work in <code>backend/</code>.</p>
+<ol>
+  <li>Run the tests as they are:
+<pre><code>uv run pytest -q</code></pre>
+    <strong>709 passed</strong> (at the commit on the <a href="index.html">overview</a>).</li>
+  <li>Open <code>tests/seed.py</code>. In <code>add_payment</code>, line 110 passes the Payment's date as the change's today:
+<pre><code>        paid_on,
+        _at(paid_on),</code></pre>
+    Change the first of those two lines to
+<pre><code>        date(2026, 4, 20),</code></pre>
+    so every seeded Payment is recorded on 20 Apr 2026, the tests' today, whatever day it was paid.</li>
+  <li><strong>Predict</strong> before you run anything: which tests fail, and why? Think about which tests seed with <code>seed.py</code> at all (they're <code>conn</code> tests), and which of those seed a Payment dated after 20 Apr.</li>
+</ol>
+<div class="reveal">
+  <p>Run <code>uv run pytest -q</code> again.</p>
+  <button class="show">I've run it. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>3 failed, 706 passed</strong>, all in <code>test_notices.py</code>:</p>
+    <table class="steps text">
+    <tr><th>Test</th><th>Why</th></tr>
+    <tr class="changed"><td><code>test_a_queued_notice_shows_what_is_owed_when_it_is_read</code></td><td rowspan="3">Each seeds a Payment in May, the month <code>test_notices.py</code> works in (its own <code>TODAY</code> is 12 May). Recorded "on 20 Apr", a May Payment is in the future.</td></tr>
+    <tr class="changed"><td><code>test_interest_paid_ahead_is_still_the_months_interest_added</code></td></tr>
+    <tr class="changed"><td><code>test_a_sent_notice_keeps_the_message_that_was_sent</code></td></tr>
+    </table>
+    <p>They fail while seeding, before any assertion, with the app's own refusal:</p>
+<pre><code>&gt;           raise unprocessable("The Payment date cannot be in the future")
+E           fastapi.exceptions.HTTPException: 422: The Payment date cannot be in the future
+src/mortgage_backend/lending/changes.py:259: HTTPException</code></pre>
+    <p>This is the seeds doing their job: the app refused to set up a history it would never have accepted, and the test failed at setup, not with a wrong figure. Every other seeded Payment is dated on or before 20 Apr, so recording it on 20 Apr is still allowed, which is why only three fail. A fixed today for seeds would work for most tests and quietly forbid the rest: each change on its own date is the only today that's right for all of them.</p>
+  </div>
+</div>
+<ol start="4">
+  <li>Undo it:
+<pre><code>git checkout -- tests/seed.py
+git status --short     # nothing left</code></pre>
+    and run <code>uv run pytest -q</code>: 709 pass.</li>
+</ol>
+
+<h2>Recap</h2>
+<ul>
+  <li>CI (<code>.github/workflows/test.yml</code>) runs <code>uv run mypy src</code> and <code>uv run pytest</code> in <code>backend/</code>, <code>npm run typecheck</code> (<code>tsc -b</code>) and <code>npm test</code> (<code>vitest run</code>) in <code>frontend/</code>, and the <code>image</code>, <code>pages</code> and <code>windows</code> jobs; the release runs it first. mypy reads <code>src</code> only; <code>tsc</code> reads the tests too. CI never runs <code>npm run lint</code>, the oxlint rule that bans <code>fetch</code>. <code>-k</code> and <code>-t</code> filter by name; a path runs one file. Pester runs locally in a Debian arm64 image with PowerShell unpacked (<a href="01-every-check-and-how-to-run-it.html">lesson 1</a>).</li>
+  <li><code>conftest.py</code> gives each test a new SQLite file in <code>tmp_path</code>, an app built on it with today fixed at 20 Apr 2026 (<code>client</code>), or a bare connection (<code>conn</code>). <code>api_seed.py</code>'s <code>person</code>, <code>lend</code> and <code>pay</code> send the frontend's requests and fail at once, with the backend's reason, if one is refused. Amounts are paise. Test names are sentences in glossary words. Never name a file in <code>tests/</code> after a standard-library module (<a href="02-backend-tests-through-the-api.html">lesson 2</a>).</li>
+  <li>Three layers: pure (<code>compute_ledger</code>, no database, the right place for figures), <code>conn</code> with <code>seed.py</code> (functions with no route, histories over many dates), <code>client</code> with <code>api_seed.py</code> (routes and refusals). <code>seed.py</code> goes through the change functions, each change on its own date at 10:00, so an impossible seed is refused and History is written (<a href="03-below-the-api-seeds-and-pure-tests.html">lesson 3</a>).</li>
+  <li><code>showPage</code> draws a page inside the real server state (<code>retry: false</code>) and a <code>MemoryRouter</code>, makes <code>fetch</code> throw, and shows "Now at …" for anywhere it wasn't given a page. <code>fakeServer</code> answers by <code>METHOD /path</code>, records every request, and answers 404 to anything unrouted, as the backend would. The shared <code>mortgage</code> is Asha Rao's, typed, with coming dates in 2099. <code>setup.ts</code> gives jsdom the dialog methods it lacks (<a href="04-frontend-tests-fakeserver-and-showpage.html">lesson 4</a>).</li>
+  <li>A line is pinned when breaking it makes a test fail. Break it, run, look; if nothing fails, write the test, see it fail on the broken line, then pass on the real one. A boundary needs a test on each side; a check every caller repeats needs a test below the callers (<a href="05-finding-what-no-test-pins.html">lesson 5</a>).</li>
+</ul>
+<p>The <a href="../reference/commands.html#testing">commands sheet</a> now has every check and how to run one test; the <a href="../reference/cast.html#tests-cast">cast sheet</a> the tests' own cast; the <a href="../reference/traps.html#t17">traps sheet</a> #17 and #18.</p>
+
+<nav class="lessons">
+  <a href="05-finding-what-no-test-pins.html">← Finding what no test pins</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="../index.html">Course home →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

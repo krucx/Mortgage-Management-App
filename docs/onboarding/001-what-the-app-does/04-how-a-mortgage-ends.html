@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.4 · How a Mortgage ends</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 001 · Lesson 4</p>
+<h1>How a Mortgage ends</h1>
+<p class="lede">October 2026 is a busy month in the sample book. Two pledges are paid off, one Customer comes in ₹180 short, one never comes back, and one anklet owes nothing though it is still in the safe. What does each ending mean, and what does the book record?</p>
+
+<div class="callout win"><strong>By the end</strong> you can name each way a Mortgage ends, say when each one applies, and tell a Dormant Mortgage from a closed one.</div>
+
+<h2>The problem</h2>
+<p>Every pledge must end, and how it ends decides two things: whether the jewellery goes back to the Customer, and how much money the Lender actually got. A Lender who just crosses out a line in the book can't say later whether the Customer paid everything, was let off a little, or lost the jewellery. Each ending has to be recorded with its date and its money, and once it's recorded, interest has to stop.</p>
+
+<h2>The idea</h2>
+<p>A Mortgage is <a href="../reference/glossary.html#active"><dfn class="term" title="A Mortgage still accruing interest with jewellery held.">Active</dfn></a> until it has a <a href="../reference/glossary.html#closure"><dfn class="term" title="The end of a Mortgage, by Redemption, Waiver or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened.">Closure</dfn></a>. There are exactly three Closures. After any of them, no interest accrues and no Payments are taken.</p>
+<table>
+<tr><th>Closure</th><th>The jewellery</th><th>The money</th></tr>
+<tr><td>Redeemed</td><td>goes back to the Customer</td><td>the whole Outstanding was paid</td></tr>
+<tr><td>Waived</td><td>goes back to the Customer</td><td>the Customer paid less; the Lender let off the rest</td></tr>
+<tr><td>Forfeited</td><td>kept or sold by the Lender</td><td>whatever the jewellery fetched</td></tr>
+</table>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> Active : lent
+  state Active {
+    state "Owes something" as Owing
+    state "Dormant: owes nothing" as Dormant
+    Owing --> Dormant : Payments cover everything
+    Dormant --> Owing : a Payment is corrected
+  }
+  Active --> Redeemed : the whole Outstanding is paid
+  Active --> Waived : paid short, the rest let off
+  Active --> Forfeited : the jewellery is kept or sold
+  Redeemed --> Active : Reopen, with a reason
+  Waived --> Active : Reopen, with a reason
+  Forfeited --> Active : Reopen, with a reason
+</pre>
+<figcaption>The three Closures, Reopen to undo one made by mistake, and Dormant, which is a kind of Active, not a Closure.</figcaption>
+</figure>
+<p>Notice that Dormant sits <em>inside</em> Active. A Dormant Mortgage hasn't ended. It's a warning that the book probably has a slip in it.</p>
+
+<h2>Run-through: October's endings</h2>
+<p>Each Outstanding below is worked out by hand from the Terms (2% a month, pro-rata, for all four), exactly as in lesson 2.</p>
+
+<h3>Kavita's coin: Redeemed</h3>
+<p><a href="../reference/glossary.html#redeemed"><dfn class="term" title="A Mortgage fully repaid with its jewellery returned to the Customer.">Redeemed</dfn></a> means fully repaid, with the jewellery returned. Kavita borrowed ₹50,000 against a gold coin on 18 Feb 2026: ₹1,000 interest on each 18th. She paid March, April and May, then stopped. She came back on 5 Oct to take the coin home.</p>
+<table class="steps">
+<tr><th>Part</th><th>Working</th><th>Amount</th></tr>
+<tr><td>Principal</td><td></td><td>50,000</td></tr>
+<tr><td>Unpaid interest</td><td>18 Jun, Jul, Aug, Sep: 4 × 1,000</td><td>4,000</td></tr>
+<tr><td>Interest to Date</td><td>18 Sep to 5 Oct, 18 days of 30 × 1,000</td><td>600</td></tr>
+<tr class="changed"><td>Outstanding on 5 Oct</td><td>what she paid; the coin went home</td><td>54,600</td></tr>
+</table>
+<p class="check">Check it: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">The Gold Chain Story, chapter 8 ("How pledges end")</a>: "Redeemed on 5 October, paying its Outstanding of ₹54,600".</p>
+
+<h3>Lakshmi's necklace: a Payment that Redeems</h3>
+<p>Lakshmi paid her temple necklace's ₹4,000 interest every month. On 16 Oct she paid its whole Outstanding as an ordinary Payment. Work it out: ₹2,00,000 Principal, nothing unpaid, and 27 days of Interest to Date since 20 Sep. Chapter 002 has you check your answer on the served book.</p>
+<div class="callout"><strong>Paying the whole Outstanding Redeems.</strong> A Payment of a Mortgage's whole Outstanding is never just a Payment: it Redeems the Mortgage there and then, so the last Payment and the jewellery's return are one step. That Allocation becomes the Mortgage's <a href="../reference/glossary.html#final-payment"><dfn class="term" title="What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.">Final Payment</dfn></a>. Chapter 005 shows how the app does it.</div>
+
+<h3>Farida's nose ring: Waived</h3>
+<p><a href="../reference/glossary.html#waived"><dfn class="term" title="A Mortgage closed with the jewellery returned although the Customer's final Payment fell short of its Outstanding on the Closure date (or there was none): the Lender, at their discretion, lets off the rest, the Waived Amount.">Waived</dfn></a> means closed with the jewellery returned, although the Customer's final Payment fell short of the Outstanding. The Lender lets off the rest, at their discretion. Farida borrowed ₹30,000 on 12 May (₹600 a month) and paid every month. On 16 Oct she came in to settle.</p>
+<table class="steps">
+<tr><th>Part</th><th>Working</th><th>Amount</th></tr>
+<tr><td>Principal</td><td></td><td>30,000</td></tr>
+<tr><td>Unpaid interest</td><td>12 Oct's month</td><td>600</td></tr>
+<tr><td>Interest to Date</td><td>12 to 16 Oct, 5 days of 30 × 600</td><td>100</td></tr>
+<tr><td>Outstanding on 16 Oct</td><td></td><td>30,700</td></tr>
+<tr><td>Farida paid</td><td></td><td>30,520</td></tr>
+<tr class="changed"><td>Waived Amount</td><td>let off: she pays every month</td><td>180</td></tr>
+</table>
+<p class="check">Check it: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">The Gold Chain Story, chapter 8</a>: "₹30,520 paid of ₹30,700, ₹180 let off".</p>
+
+<h3>Imran's earrings: Forfeited</h3>
+<p><a href="../reference/glossary.html#forfeited"><dfn class="term" title="A Mortgage on which the Customer defaulted and the Lender kept or sold the jewellery.">Forfeited</dfn></a> means the Customer defaulted, and the Lender kept or sold the jewellery. Imran borrowed ₹60,000 on 10 Jun (₹1,200 a month), paid ₹2,000 once in August, and never came back. On 10 Oct the Lender sold the earrings to a jeweller for ₹52,000. That is the <a href="../reference/glossary.html#recovered-amount"><dfn class="term" title="What a Forfeited Mortgage's jewellery fetched (or is worth, if kept); its difference from the Outstanding on the Closure date is the Lender's profit or loss.">Recovered Amount</dfn></a>.</p>
+<table class="steps">
+<tr><th>Part</th><th>Working</th><th>Amount</th></tr>
+<tr><td>Principal</td><td></td><td>60,000</td></tr>
+<tr><td>Unpaid interest</td><td>4 months × 1,200, less his 2,000</td><td>2,800</td></tr>
+<tr><td>Interest to Date</td><td>10 Oct, 1 day of 30 × 1,200</td><td>40</td></tr>
+<tr><td>Outstanding on 10 Oct</td><td></td><td>62,840</td></tr>
+<tr><td>Recovered Amount</td><td>sold to a jeweller</td><td>52,000</td></tr>
+<tr class="changed"><td>The Lender's loss</td><td>62,840 − 52,000</td><td>10,840</td></tr>
+</table>
+<p>The 10 Oct Interest to Date is one day: on an Accrual Date the new month has started, and today always counts.</p>
+<p class="check">Check it: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">The Gold Chain Story, chapter 8</a>: "Owed ₹62,840 that day, sold for ₹52,000: a loss of ₹10,840".</p>
+
+<h2>Nuances</h2>
+
+<h3>Dormant: Kavita's anklet</h3>
+<p>On 18 Oct the Lender copied Kavita's anklet into the app from the paper book: lent ₹15,000 in cash on 1 Jul, with three Payments. One of them, ₹15,000, was meant to be dated 25 Sep but was typed as 25 Aug.</p>
+<div class="reveal">
+  <p><strong>Predict:</strong> with those Payments, the anklet owes nothing on 19 Oct, but Kavita hasn't had it back. Is it Redeemed?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>No. It is still Active, and the app calls it <a href="../reference/glossary.html#dormant"><dfn class="term" title="An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it.">Dormant</dfn></a>: an Active Mortgage that owes nothing, so its jewellery should already have gone back. It is almost always a recording slip, here the mistyped date.</p>
+    <p>The app doesn't Redeem it automatically, because only the Lender knows whether the anklet really went back (<a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>). Instead it gets no Notices, stays off the Call List, and waits on the Closures page under a red dot. The Lender either Redeems it with no Payment, once they've checked, or corrects the Payment, and then it owes again and stops being Dormant by itself.</p>
+    <p>Dormant is also never stored: the app works it out from the Payments every time, so it appears and disappears as they change. Lesson 5 shows why everything works this way.</p>
+  </div>
+</div>
+
+<h3>Waiving the whole Outstanding is refused</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> Farida had brought the full ₹30,700. Could the Lender still record it as Waived, with nothing let off?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>No: the app refuses it. Paying the whole Outstanding is a Redemption, so it has to be recorded as one. A Waiver always lets something off.</p>
+  </div>
+</div>
+
+<h3>Outstanding is exactly what Redeems</h3>
+<p>Every Closure above used the same figure, the Outstanding on the Closure date, Interest to Date included. There is no separate "settlement amount". That is <a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>'s point: the figure a Customer is told is the figure that sends the jewellery home.</p>
+
+<h3>Reopen undoes a mistake</h3>
+<p>If a Closure was recorded by mistake, the Lender can <a href="../reference/glossary.html#reopen"><dfn class="term" title="Undoing a Closure made by mistake, with a reason: the Mortgage is Active again as if it had never been closed, and a Redemption's or Waiver's final Payment is Voided.">Reopen</dfn></a> it, with a reason. The Mortgage is Active again as if it had never been closed, and a Redemption's or Waiver's Final Payment is Voided. You'll Reopen a Mortgage yourself in chapter 005.</p>
+
+<h3>No closing before a Payment</h3>
+<p>A Closure can't be dated before a Payment already recorded on that Mortgage. Otherwise the book would show money paid on a Mortgage that had already ended.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">A Customer defaults, and the Lender keeps the jewellery to wear. Which Closure is it?</p>
+  <button class="opt">Waived, as the Lender lets the debt go</button>
+  <button class="opt">Dormant, as nothing more will be paid</button>
+  <button class="opt">Forfeited, with what it's worth recorded</button>
+  <div class="why">Forfeited: the Customer defaulted and the Lender kept or sold the jewellery. If it is kept, the Recovered Amount is what it's worth. Waived needs the jewellery to go back to the Customer. Dormant isn't a Closure at all.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">An Active Mortgage owes nothing and the jewellery is still in the safe. What does the app do?</p>
+  <button class="opt">Flags it as Dormant for the Lender to check</button>
+  <button class="opt">Redeems it automatically on the next day</button>
+  <button class="opt">Keeps adding interest and sends a Notice</button>
+  <div class="why">It flags it as Dormant. Only the Lender knows whether the jewellery went back, so the app never Redeems it on its own (ADR 0012). It gets no Notices, and it owes nothing, so nothing is added to what it owes.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Sunita's Mortgage owes ₹35,677 today and she pays exactly ₹35,677. What happens?</p>
+  <button class="opt">It's recorded as a Payment; the Lender closes it later</button>
+  <button class="opt">That Payment Redeems the Mortgage, in the same step</button>
+  <button class="opt">It is refused, since only a Closure takes the full sum</button>
+  <div class="why">The Payment Redeems it. A Payment of the whole Outstanding is never an ordinary Allocation: the last Payment and the jewellery's return are one change. Recording it as a plain Payment would leave the Mortgage owing nothing but still Active, which is exactly the Dormant slip the app avoids.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>, then the <em>Status</em> section of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md"><code>GLOSSARY.md</code></a> (Active to Recovered Amount). <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">The Gold Chain Story, chapter 8</a> shows every ending on the real screens.</p>
+
+<nav class="lessons">
+  <a href="03-paying-it-back.html">← Paying it back</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="05-the-lenders-day.html">Next: The Lender's day →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11.4 · Previews from a draft</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 011 · Lesson 4</p>
+<h1>Previews from a draft</h1>
+<p class="lede">Every form that changes what a Mortgage owes shows a <a href="../reference/glossary.html#preview">Preview</a> as the Lender types, and its Save button only works when the Preview says the change would be accepted. This lesson opens the two hooks that do that for every form, and shows when the Cash Limit's warning comes in.</p>
+
+<div class="callout win"><strong>By the end</strong> you can wire a form to its Preview, and say exactly when its Save button is enabled.</div>
+
+<h2>The problem</h2>
+<p>A <dfn class="term" title="What a change would do, shown before it is saved: the change is made and then undone, so a Preview is refused exactly when saving would be."><a href="../reference/glossary.html#preview">Preview</a></dfn> is what a change would do, shown before it's saved. On the backend, a Preview runs the real change and rolls it back (<a href="../006-changes-and-previews/04-previews.html">chapter 006, lesson 4</a>; <a href="../reference/traps.html#t5">trap #5</a>). That makes it exact, but not free: each one replays the Mortgage's whole Ledger.</p>
+<p>Now picture the Lender typing ₹8,000 into the Payment form. A Preview per keystroke would ask about ₹8, ₹80, ₹800 and ₹8,000: four replays, three of them for amounts nobody meant. The answers can come back in any order, so the screen might end up showing ₹800's Preview under an ₹8,000 draft. And Save needs rules: not while the draft is incomplete, not while its Preview is still loading, and never when the Preview says the backend would refuse it. A Payment of ₹20,000 or more in cash needs a warning first.</p>
+<p>Every form has these problems: the Payment form, Edit Mortgage, Change Terms, the Closures, a Void, a Reopen, a Collateral Value. Written into each form, they'd be written ten slightly different ways.</p>
+
+<h2>The idea</h2>
+<p><strong>The form only makes a draft.</strong> From its fields, a form works out <code>change</code>: exactly what saving would send, or <code>null</code> while it can't be saved. That's all it does.</p>
+<p><strong>A Preview is a key and a loader.</strong> <code>requests.ts</code>'s <code>previews</code> says, for each kind of change, what its Preview is called in the cache (the draft itself is in the key) and which route to ask.</p>
+<p><strong>Ask once the draft has settled, and only show the answer for the draft on screen.</strong> <code>usePreview</code> waits until the draft has stopped changing for 400 ms, then asks. An answer for an older draft stays on screen, marked as loading, until the current one arrives.</p>
+<p><strong>One hook owns Save.</strong> <code>useProposedChange</code> decides when Save is enabled and runs the steps in order: the Cash Limit's warning, the confirmation, the save, and what happens after.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  F["form fields"] -->|"change: PaymentIn or null"| UPC["useProposedChange"]
+  UPC -->|"previews.payment(change)"| UP["usePreview<br/>waits 400 ms of quiet"]
+  UP -->|"['preview', 'payment', change]"| Q[("cache")]
+  Q -->|"POST /api/payments/preview"| B["backend: make, replay, roll back"]
+  B -->|"PreviewOfChange or 422"| UP
+  UP -->|"previews, error, loading"| UPC
+  UPC -->|"canSave"| S{"Save pressed"}
+  S -->|"cash sum at or over the Cash Limit?"| W["useCashWarning<br/>Go back / Record in cash anyway"]
+  W -->|"go on"| C["useConfirm<br/>Keep editing / Confirm and save"]
+  S -->|"no cash warning"| C
+  C -->|"confirmed"| SV["save(change)"]
+  SV -->|"ok"| D["saved(result): e.g. go to the Receipt"]
+  SV -->|"refused"| E["error shown; Save again"]
+</pre>
+<figcaption>The top half runs while the Lender types; the bottom half when they press Save. Lesson 5 opens <code>save</code>.</figcaption>
+</figure>
+<p>Notice that the warning and the confirmation both read the Preview: the warning needs to know which sums go in cash, and the Payment form's confirmation says which Mortgages the Payment Redeems. That's why Save waits for the Preview.</p>
+
+<h2>The code</h2>
+<h3>1. A Preview, declared once</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>PreviewRequest</code>, <code>previews.payment</code> · lines 94–101 and 131–134, trimmed</figcaption>
+<pre data-file="frontend/src/requests.ts"><code>94   /** A Preview of an unsaved change: which change it is, and how to ask for it. */
+95   export interface PreviewRequest&lt;T = PreviewOfChange&gt; {
+96     key: readonly unknown[]
+97     load: (client: ApiClient) =&gt; Promise&lt;T&gt;
+98   }
+⋮
+100  /** The Preview of each change: what it would do, made and rolled back by the backend. */
+101  export const previews = {
+⋮
+131    payment: (payment: PaymentIn): PreviewRequest =&gt; ({
+132      key: ['payment', payment],                                       ◀
+133      load: (client) =&gt; dataOrThrow(client.POST('/api/payments/preview', { body: payment })),
+134    }),
+</code></pre>
+</figure>
+<p>The whole draft, <code>payment</code>, is part of the key. Two drafts that differ in any field are two different Previews; the same draft typed twice is the same one. There are eleven entries in <code>previews</code>, one per kind of change, and most of them share <code>PreviewOfChange</code>, the before-and-after of each Mortgage the change touches. (The new-Mortgage and Collateral Previews have their own shapes; ADR 0007 explains why each Preview route is written out by hand on the backend.)</p>
+
+<h3>2. Waiting for the draft to settle</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useDebounced.ts">frontend/src/components/useDebounced.ts</a> · lines 3–11</figcaption>
+<pre data-file="frontend/src/components/useDebounced.ts"><code>3   /** `value`, but only once it has stopped changing for `ms` milliseconds. */
+4   export function useDebounced&lt;T&gt;(value: T, ms = 200): T {
+5     const [settled, setSettled] = useState(value)
+6     useEffect(() =&gt; {
+7       const timer = setTimeout(() =&gt; setSettled(value), ms)   // a new value restarts the timer
+8       return () =&gt; clearTimeout(timer)                           ◀
+9     }, [value, ms])
+10    return settled
+11  }
+</code></pre>
+</figure>
+<p>A <em>debounce</em>. Each new <code>value</code> runs the effect again; React first runs the previous effect's clean-up (line 8), cancelling its timer. So the timer only fires once the value has stayed the same for <code>ms</code>.</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/usePreview.ts">frontend/src/components/usePreview.ts</a> · <code>previewQuery</code>, <code>usePreview()</code> · lines 14–48</figcaption>
+<pre data-file="frontend/src/components/usePreview.ts"><code>14  /** The query asking for `request`'s Preview, cached under one key wherever it is asked. */
+15  export const previewQuery = &lt;T&gt;(client: ApiClient, request: PreviewRequest&lt;T&gt;) =&gt; ({
+16    queryKey: [...keys.previews, ...request.key],                        // ①
+17    queryFn: () =&gt; request.load(client),
+18  })
+⋮
+25  export function usePreview&lt;T = PreviewOfChange&gt;(
+26    request: PreviewRequest&lt;T&gt; | null,
+27    delay = 400,
+28  ): Preview&lt;T&gt; {
+29    const { client } = useServerState()
+30    const wanted = request ? hashKey(request.key) : null
+31    const settled = useDebounced(wanted, delay) === wanted                // ②  ◀
+32    const query = useQuery({
+33      // Nothing is asked without a request: `enabled` is false then.
+34      ...previewQuery(client, request ?? { key: [], load: async () =&gt; null as T }),
+35      enabled: request !== null &amp;&amp; settled,                              // ③  ◀
+36      placeholderData: keepPreviousData,                                  // ④
+37      // The answer for an unchanged draft is the same: looking away and back asks nothing.
+38      refetchOnWindowFocus: false,                                        // ⑤
+39    })
+40
+41    if (!request) return { previews: null, error: null, loading: false }
+42    const current = settled &amp;&amp; !query.isPlaceholderData &amp;&amp; !query.isFetching   // ⑥  ◀
+43    return {
+44      previews: query.data ?? null,
+45      error: current ? (query.error?.message ?? null) : null,
+46      loading: !current,
+47    }
+48  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>['preview', 'payment', {…the draft…}]</code>: under <code>keys.previews</code>, which lesson 5 treats specially.</li>
+  <li>The draft's key, hashed to a string, is what's debounced. <code>settled</code> is true only when the debounced key has caught up with the current one: 400 ms with no change.</li>
+  <li><code>enabled: false</code> tells TanStack Query not to ask at all. So no Preview goes out until the draft has settled, and none for a <code>null</code> draft.</li>
+  <li>While a new key has no answer yet, keep showing the last answer, marked as a placeholder, rather than blanking the Preview.</li>
+  <li>TanStack Query normally asks again for what's on screen when the browser window regains focus (lesson 2). A Preview doesn't change while its draft doesn't, so not here.</li>
+  <li>The answer is <em>current</em> only if the draft has settled, the answer is really for this draft (not a placeholder), and nothing is in flight. Anything else is <code>loading</code>, and an old answer's error is never shown under a new draft.</li>
+</ol>
+
+<h3>3. Save, and its three locks</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useProposedChange.tsx">frontend/src/components/useProposedChange.tsx</a> · <code>useProposedChange()</code> · lines 45–69</figcaption>
+<pre data-file="frontend/src/components/useProposedChange.tsx"><code>45    const preview = usePreview(change === null ? null : previewOf(change))
+46    const [confirm, confirmDialog] = useConfirm()
+47    const [warnCash, cashDialog] = useCashWarning()
+48    const [saving, setSaving] = useState(false)
+49    const [error, setError] = useState&lt;string | null&gt;(null)
+50    // Not before the Preview is in: the confirmation and the Cash Limit's warning use it.
+51    const canSave = change !== null &amp;&amp; !saving &amp;&amp; !preview.loading &amp;&amp; !preview.error   ◀
+52
+53    async function submit(event: FormEvent) {
+54      event.preventDefault()
+55      if (change === null || !canSave) return
+56      if (!(await warnCash(preview.previews?.cash ?? []))) return            // ①
+57      if (confirmationOf &amp;&amp; !(await confirm(confirmationOf(change, preview)))) return   // ②
+58      setSaving(true)
+59      setError(null)
+60      let result: Saved
+61      try {
+62        result = await save(change)                                          // ③
+63      } catch (err) {
+64        setError((err as Error).message)                                     // ④
+65        setSaving(false)
+66        return
+67      }
+68      saved(result)                                                          // ⑤
+69    }
+</code></pre>
+</figure>
+<p>Line 51 is the rule for Save: there is a draft, it isn't being saved already, its Preview isn't loading, and its Preview wasn't refused. The page puts <code>disabled={!canSave}</code> on its button. Then <code>submit</code>:</p>
+<ol class="marks">
+  <li>The Cash Limit's warning, from the Preview's <code>cash</code>: the sums this change writes in cash (<a href="../007-payments-and-receipts/04-the-cash-limit.html">chapter 007, lesson 4</a>). "Go back" ends here.</li>
+  <li>The confirmation, worded from the draft and its Preview. A form whose own dialog has already asked passes <code>confirm: null</code>.</li>
+  <li>The save itself, as the form supplied it. Lesson 5.</li>
+  <li>A refused save: its reason is shown, <code>saving</code> goes back to false, and Save works again.</li>
+  <li>What the form wants after a save: the Payment form goes to the new Payment's Receipt. <code>saving</code> stays true, so Save stays disabled while the page moves on.</li>
+</ol>
+<p>Both dialogs are hooks that return a pair: a function that opens the dialog and returns a <code>Promise&lt;boolean&gt;</code>, and the dialog to render. <code>useConfirm</code> (line 11) stores the promise's <code>resolve</code> in state, renders the dialog, and calls <code>resolve(true)</code> or <code>resolve(false)</code> when a button is pressed. That's what lets <code>submit</code> read like a script: <code>if (!(await confirm(…))) return</code>.</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useCashWarning.tsx">frontend/src/components/useCashWarning.tsx</a> · <code>warnCash()</code> · lines 20–41, trimmed</figcaption>
+<pre data-file="frontend/src/components/useCashWarning.tsx"><code>20    async function warnCash(cash: number[]) {
+21      if (cash.length === 0) return true                                         // no cash: go on
+22      const largest = Math.max(...cash)
+23      let limit: number | null
+24      try {
+25        limit = (await queryClient.fetchQuery(settings.cashLimit(client))).cash_limit   // ①
+26      } catch {
+27        return true                                                              // ②
+28      }
+29      if (limit === null || largest &lt; limit) return true                         // ③  ◀
+30      return confirm({
+31        title: `${formatINR(largest)} in cash`,
+⋮
+38        cancelLabel: 'Go back',
+39        confirmLabel: 'Record in cash anyway',
+40      })
+41    }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>fetchQuery</code> reads through the cache: the Cash Limit is a settings group with <code>staleTime: Infinity</code> (lesson 2), so it's asked for at most once.</li>
+  <li>If the Cash Limit can't be read, don't block the save over a warning.</li>
+  <li>A cleared Cash Limit (<code>null</code>) never warns; below it never warns; <em>at</em> it or above warns. <code>formatINR</code> turns the paise into "₹20,000" (<a href="../reference/traps.html#t6">trap #6</a>).</li>
+</ol>
+
+<h3>4. A form, wired up</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx">frontend/src/pages/NewPaymentPage.tsx</a> · <code>PaymentForm</code> · lines 197–243, trimmed</figcaption>
+<pre data-file="frontend/src/pages/NewPaymentPage.tsx"><code>197    const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
+198      change: proposed,                                    // PaymentIn, or null while there are problems
+199      preview: (payment) =&gt; previews.payment(payment),
+200      confirm: (payment, preview) =&gt; {
+⋮    … "Record a Payment of ₹8,000?", or "Redeem and hand back the jewellery?" …
+241      },
+242      save: (asked) =&gt; changeLedger((client) =&gt; changes.recordPayment(client, asked)),
+243      saved: (payment) =&gt; navigate(`/payments/${payment.id}/receipt`),
+</code></pre>
+</figure>
+<p>That's the whole wiring. Above it (lines 146–169), the form builds <code>proposed</code> from its fields: <code>null</code> while there's any problem (no Mortgage ticked, no amount, Allocations that don't add up), otherwise the exact <code>PaymentIn</code> body.</p>
+
+<h2>Run-through: ₹8,000 to Meera's bangles, typed key by key</h2>
+<p>Open <a href="http://localhost:5173/payments/new?customer=1&amp;mortgage=5">/payments/new?customer=1&amp;mortgage=5</a>: Meera, with only her bangles (<code>2026-Meera-PairBangles</code>) ticked. Set the date to 19 Oct 2026 and the Method to UPI. Clear the Network tab, then type <strong>8000</strong> into "Amount received (₹)" at a steady pace.</p>
+<table class="steps text">
+<tr><th>Time</th><th>Event</th><th>Save</th></tr>
+<tr><td>8 ms</td><td>key "8"</td><td>disabled</td></tr>
+<tr><td>168 ms</td><td>key "0"</td><td>disabled</td></tr>
+<tr><td>330 ms</td><td>key "0"</td><td>disabled</td></tr>
+<tr><td>488 ms</td><td>key "0"</td><td>disabled (loading)</td></tr>
+<tr class="changed"><td>896 ms</td><td><code>POST /api/payments/preview</code> with <code>"amount": 800000</code>, <code>"method": "upi"</code>, <code>"allocations": [{"mortgage_id": 5, "amount": 800000}]</code></td><td>disabled until it answers</td></tr>
+<tr><td>after</td><td>the Preview shows</td><td><strong>enabled</strong></td></tr>
+</table>
+<p class="cite">From <code>scripts/network.mjs</code> (section L4): 150 ms between keys, every <code>/api/</code> request timed from the first key.</p>
+<p>Four keys, <strong>one</strong> Preview, 408 ms after the last key: 400 ms of quiet, plus a few for React to render. ₹8, ₹80 and ₹800 were never asked about.</p>
+
+<h3>The same draft in cash</h3>
+<p>Switch the Method to <strong>Cash</strong> and the amount to <strong>20000</strong>. Wait for the Preview, then press Save. Then do it again with <strong>19999</strong>.</p>
+<table class="steps text">
+<tr><th>Amount, in cash</th><th>The first dialog</th><th>Its buttons (the focused one first)</th><th>Requests on Save</th></tr>
+<tr class="changed"><td>₹20,000</td><td>"₹20,000 in cash"</td><td>Go back · Record in cash anyway</td><td><code>GET /api/settings/cash-limit</code>: <code>{"cash_limit": 2000000}</code></td></tr>
+<tr><td>₹19,999</td><td>"Record a Payment of ₹19,999?"</td><td>Keep editing · Confirm and save</td><td>none</td></tr>
+</table>
+<p class="cite">From <code>scripts/network.mjs</code> (section L4). Press Go back, and Keep editing: nothing is saved in this lesson.</p>
+<p>A fresh book has no Cash Limit stored, so the backend answers its default, ₹20,000 (<code>DEFAULT_CASH_LIMIT</code> in <code>payments/cash_limit.py</code>). ₹20,000 is <em>at</em> the limit, so it warns; ₹19,999 goes straight to the confirmation. The Cash Limit was asked for once, on the first Save that had cash in it, and the second Save found it in the cache.</p>
+
+<h2>Nuances</h2>
+<h3>(a) The same draft again, and looking away</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> with ₹8,000 (UPI) previewed, press Backspace (₹800), wait, then type the "0" back (₹8,000 again). The ₹8,000 Preview is in the cache. Is it asked for again? And if you switch to another window and back, is anything asked?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Step</th><th>Requests</th></tr>
+    <tr><td>Backspace (₹800)</td><td><code>POST /api/payments/preview</code>, 421 ms later</td></tr>
+    <tr class="changed"><td>"0" again (₹8,000)</td><td><code>POST /api/payments/preview</code>, 422 ms later, with <code>"amount": 800000</code></td></tr>
+    <tr class="changed"><td>The window regains focus</td><td><code>/api/customers/1</code>, the form's Mortgages (<code>…&amp;paged=false</code>), the menu's Dormant count: <strong>no Preview</strong></td></tr>
+    </table>
+    <p class="cite">From <code>scripts/network.mjs</code> (section L4).</p>
+    <p>Coming back to a draft asks again: every answer is stale at once (lesson 2), and the key changed and changed back. The cache still helps: the ₹8,000 answer is shown immediately, marked loading, while it's asked again. What asks nothing is looking away and back, which <code>refetchOnWindowFocus: false</code> turns off for Previews only: the other reads on the page are asked again as usual. (This lesson's plan, issue #186, expected an unchanged draft to ask nothing again; on the real app that holds for focus, not for a draft typed again.)</p>
+  </div>
+</div>
+
+<h3>(b) An old answer is never shown as the current one</h3>
+<p>Line 42's <code>current</code> covers a slow answer. Say the ₹800 Preview is still in flight when the Lender types the last "0". The key changes; <code>settled</code> becomes false for 400 ms, then a new request goes out. Meanwhile the screen shows the last answer it had, with <code>loading: true</code>, and Save stays disabled. When the ₹800 answer lands, it's filed under the ₹800 key, which the form is no longer asking about. It's the same trick as lesson 3's quick second click: one key per draft.</p>
+
+<h3>(c) The three locks on Save</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on Meera's chain, ₹90,000 in UPI (lesson 1's refusal). Is Save enabled 100 ms after typing? After the Preview answers? And for ₹0?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Draft</th><th><code>change</code></th><th><code>preview</code></th><th>Save</th></tr>
+    <tr><td>₹0 (or empty)</td><td><code>null</code>: "Enter the amount received."</td><td>none asked</td><td>disabled</td></tr>
+    <tr><td>₹90,000, 100 ms after typing</td><td>a <code>PaymentIn</code></td><td><code>loading</code> (not settled)</td><td>disabled</td></tr>
+    <tr class="changed"><td>₹90,000, answered</td><td>a <code>PaymentIn</code></td><td><code>error</code>: "…would be more than the ₹83,333 owed then"</td><td>disabled</td></tr>
+    <tr><td>₹8,000 to the bangles, answered</td><td>a <code>PaymentIn</code></td><td>the before and after</td><td>enabled</td></tr>
+    </table>
+    <p>The refused Preview disables Save because a Preview is refused exactly when saving would be (trap #5). There's no point letting the Lender press a button the backend will refuse. (Lesson 1's run-through saw Save disabled with the refusal on screen.)</p>
+  </div>
+</div>
+
+<h3>(d) A warning, never a refusal</h3>
+<p>The Cash Limit is the Lender's own setting, and the backend never refuses a cash Payment for it (<code>cash_limit.py</code>'s docstring: "Only a warning: no Payment or Mortgage is refused for it"). So the check lives in the screen, after the Preview has said which sums are cash. "Record in cash anyway" goes on to the usual confirmation. "Go back" is the focused button, so pressing Enter by habit doesn't record the cash. A Lender who clears the Cash Limit in Settings is never warned (<code>limit === null</code>).</p>
+
+<h3>(e) A refused save</h3>
+<p>The Preview and the save run the same check, so a save refused <em>after</em> a good Preview is rare, but possible: the book can change between the two (another tab, a back-dated Payment saved in the meantime). Then <code>save</code> throws a <code>BackendError</code>, line 64 shows its message, and Save works again with the same draft. Nothing was written: the backend's transaction rolled back (<a href="../006-changes-and-previews/02-the-check.html">chapter 006, lesson 2</a>).</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">You add a form for a new kind of change. What must it give <code>useProposedChange</code> to get a Preview?</p>
+  <button class="opt">A <code>useEffect</code> that posts the draft on change</button>
+  <button class="opt">A debounced copy of each field, and a Save handler</button>
+  <button class="opt">Its draft, and a function to a <code>PreviewRequest</code></button>
+  <div class="why"><code>change</code> (or <code>null</code>) and <code>preview: (change) =&gt; previews.yourChange(change)</code> are all it needs; the debounce, the cache key and the locks on Save come from the hooks. An effect that posts would bypass the cache and the debounce, and break trap #11's spirit if it used <code>fetch</code>.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">The Lender types "25000" in cash for the bangles and presses Save straight after the last key. What happens?</p>
+  <button class="opt">Nothing: Save is disabled until the Preview is in</button>
+  <button class="opt">The ₹25,000 in cash warning opens at once</button>
+  <button class="opt">The confirmation opens, then the warning</button>
+  <div class="why">Until 400 ms have passed and the Preview has answered, <code>preview.loading</code> is true, so <code>canSave</code> is false and the button is disabled; <code>submit</code> would return at line 55 anyway. Once it's in, Save opens the warning first (line 56), then the confirmation (line 57).</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">The Cash Limit is ₹20,000. A cash Payment of ₹30,000 is split ₹15,000 and ₹15,000 across two of the Customer's Mortgages. Is there a warning?</p>
+  <button class="opt">No: each Mortgage's part is under ₹20,000</button>
+  <button class="opt">Yes: the Payment is one ₹30,000 cash sum</button>
+  <button class="opt">No: only a single Allocation is ever checked</button>
+  <div class="why">The glossary's Cash Limit: "each Payment is one sum (its Final Payments included)". The backend's Preview lists the Payment's cash as one sum, ₹30,000, and <code>warnCash</code> compares the largest sum with the limit. Splitting a Payment across Mortgages doesn't split the cash (<a href="../007-payments-and-receipts/04-the-cash-limit.html">chapter 007, lesson 4</a>).</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useProposedChange.tsx"><code>useProposedChange.tsx</code></a> whole (84 lines), then one more form that uses it: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/EditMortgagePage.tsx"><code>EditMortgagePage.tsx</code></a>, whose <code>save</code> uses <code>useMortgageChange</code> (lesson 5). For the backend half, reread <a href="../006-changes-and-previews/04-previews.html">chapter 006, lesson 4</a> and <a href="../../adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a>.</p>
+
+<nav class="lessons">
+  <a href="03-lists-a-page-at-a-time.html">← Lists a page at a time</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="05-saving-and-what-goes-stale.html">Next: Saving, and what goes stale →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

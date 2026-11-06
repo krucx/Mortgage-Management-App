@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>012 · Frontend pages and the PWA</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 012</p>
+<h1>Frontend pages and the PWA</h1>
+
+<h2>The problem this chapter solves</h2>
+<p>The Lender spends the whole day in about twenty screens. They look up a Customer, record a Payment, print a Receipt, close a Mortgage, phone the people on the Call List and send Notices on WhatsApp. Each screen has to be quick to read, and hard to get wrong. Chapter 011 showed how a screen <em>asks</em> for data. This chapter is about the screens themselves: how one is put together from the pieces already there, and how the app keeps opening on a laptop whose server may not be running.</p>
+<p>Without a shared way of building pages, every new screen would choose its own loading message, its own error style, its own money format and its own confirmation. The Lender would learn twenty small dialects, and a developer would copy the wrong one. Without the installed app's service worker, the Lender who double-clicks the app's icon before starting the server gets a browser error page. And if the screens kept figures cached, they could show yesterday's Outstanding.</p>
+<p>So the pages share one shape (ask, show "Loading…" or the error, then draw), one set of components for the hard parts (a Preview's before and after, a confirmation, History, photos), and one shell around them. The installed app caches the screens, never the figures.</p>
+
+<h2>What you'll be able to do</h2>
+<ul>
+  <li>Find the file behind any screen from its URL, and read a page that loads and shows data.</li>
+  <li>Build a page from existing components, and wire a form to its Preview.</li>
+  <li>Follow how the screens divide a Payment and close a Mortgage.</li>
+  <li>Add a panel to the Mortgage page, and follow how photos and ID numbers are saved.</li>
+  <li>Change a follow-up screen or a setting, and say where each Dashboard figure comes from.</li>
+  <li>Say what the service worker caches and why, and what the Lender sees when the server is stopped or an update is out.</li>
+</ul>
+
+<h2>Before you start</h2>
+<p>This chapter builds on all of chapter 011, and on the business chapters it shows on screen:</p>
+<ul>
+  <li><strong>The data layer.</strong> <a href="../011-the-frontends-data-layer/index.html">Chapter 011</a>: the typed client, reading through one cache, <code>useListPage</code>, <code>usePreview</code> and <code>useProposedChange</code>, and what goes stale after a save. Every page here uses them; this chapter links back instead of teaching them again. The <a href="../reference/frontend.html">frontend sheet</a> lists them.</li>
+  <li><strong>Previews and changes.</strong> <a href="../006-changes-and-previews/index.html">Chapter 006</a>: a Preview runs the real change and rolls it back (<a href="../reference/traps.html#t5">trap #5</a>), and every change writes History.</li>
+  <li><strong>Closures.</strong> <a href="../005-replay-and-closures/index.html">Chapter 005</a>: Redeemed, Waived off, Forfeited, Dormant and Reopen, and why paying exactly the Outstanding is a Redemption (<a href="../reference/traps.html#t3">trap #3</a>).</li>
+  <li><strong>Payments, people and follow-up.</strong> <a href="../007-payments-and-receipts/index.html">007</a> (Receipts and the Cash Limit), <a href="../008-people-and-collateral/index.html">008</a> (the Primary Number, ID Photos, Collateral Value) and <a href="../009-follow-up/index.html">009</a> (the Call List, Notices and click-to-send).</li>
+</ul>
+<p><strong>Build the sample book fresh</strong> into a new, empty folder (chapter 011 saved a Payment and approved a Notice on the old one), then serve it on port 8000 and start the frontend:</p>
+<pre><code># terminal 1, from backend/
+export BOOK=$(mktemp -d)
+uv run python ../docs/sample-book/book.py "$BOOK"
+uv run python ../docs/sample-book/serve.py "$BOOK" 8000
+
+# terminal 2, from frontend/
+npm run dev</code></pre>
+<p>Open <a href="http://localhost:5173">localhost:5173</a>, with the browser's developer tools on the <strong>Network</strong> tab, filtered to <code>/api/</code>. Lessons 1–5 use this setup. Lesson 6 builds the screens and serves them on port 8765 instead, because the service worker only runs in a built app.</p>
+<div class="callout warn"><strong>Two "todays".</strong> The served book's clock is held on 19 Oct 2026. Your browser's clock isn't. The screens take their default dates (and the latest date a date field accepts) from the <em>browser</em>. On the served book, a form therefore starts on your real date, which the backend refuses as a future date. On every dated form in this chapter, <strong>set the date to 19 Oct 2026 first</strong>. Lesson 1 shows why.</div>
+<p>This chapter saves on your scratch book. In lesson 2 you add a Term Change to the bangles. In lesson 3 you Redeem Kavita's anklet. Lesson 4 replaces Meera's Aadhaar photo and adds a Customer, Deepa Nair. Lesson 5 adds a Call Note, sends Sunita's Notice, and saves the Notice template and puts it back. Lesson 6 starts again on a second fresh book. Rebuild before the next chapter.</p>
+
+<h2>The map</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  SW["service worker<br/>vite.config.ts  L6"] -->|"cached screens"| SG["StartGate  L6"]
+  SG -->|"backend answers"| SH["App.tsx: layout, Nav, ThemeToggle  L1"]
+  SH --> UB["UpdateBanner  L6"]
+  SH -->|"URL → Route"| P{"a page"}
+  P --> R["read pages<br/>ReceiptPage  L1"]
+  P --> F["form pages<br/>ChangeTermsPage  L2"]
+  P --> MF["money forms<br/>NewPaymentPage, ClosuresPage  L3"]
+  P --> MC["MortgagePage, CustomerFormPage  L4"]
+  P --> FU["CallListPage, NoticesPage,<br/>SettingsPage, DashboardPage  L5"]
+  F -->|"Preview drawn by"| BA["BeforeAfter  L2"]
+  MF --> BA
+  MC -->|"photos"| PH["useSaveWithPhotos, ocr.ts  L4"]
+  P -->|"every request: chapter 011"| DL[("requests.ts + cache")]
+</pre>
+<figcaption>From the outside in: the service worker, the gate, the shell, then one page per URL. L1–L6 are the lessons.</figcaption>
+</figure>
+<p>Notice that every page sits inside the same two wrappers. <code>StartGate</code> decides whether to show the app at all. The shell (header, menu, theme switch, update banner) is drawn once, around whichever page the URL picks. And every page reaches the backend only through chapter 011's data layer.</p>
+
+<h2>Where it lives</h2>
+<table class="wide">
+<tr><th>Path (under <code>frontend/</code>)</th><th>What it's responsible for</th><th>Lesson</th></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/App.tsx"><code>src/App.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/Nav.tsx"><code>components/Nav.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/ThemeToggle.tsx"><code>ThemeToggle.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/theme.ts"><code>src/theme.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/index.css"><code>src/index.css</code></a></td><td>The shell: every route, the menu with the Dormant dot, the light and dark theme, the shared CSS classes</td><td>1</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/money.ts"><code>src/money.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/format.ts"><code>format.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/paths.ts"><code>paths.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/PersonLink.tsx"><code>components/PersonLink.tsx</code></a></td><td>Showing money, dates and people; the browser's today</td><td>1</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/ReceiptPage.tsx"><code>pages/ReceiptPage.tsx</code></a></td><td>The pattern for a read page</td><td>1</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/ChangeTermsPage.tsx"><code>pages/ChangeTermsPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/TermsFields.tsx"><code>components/TermsFields.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/terms.ts"><code>src/terms.ts</code></a></td><td>The pattern for a form page</td><td>2</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/BeforeAfter.tsx"><code>components/BeforeAfter.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/ConfirmDialog.tsx"><code>ConfirmDialog.tsx</code></a></td><td>How a Preview is drawn; the confirmation and its <code>Summary</code></td><td>2</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx"><code>pages/NewPaymentPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/allocate.ts"><code>src/allocate.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/CustomerChooser.tsx"><code>components/CustomerChooser.tsx</code></a></td><td>Recording a Payment and dividing it into Allocations</td><td>3</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/CloseMortgage.tsx"><code>components/CloseMortgage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useClosing.tsx"><code>useClosing.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/ClosuresPage.tsx"><code>pages/ClosuresPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/RedeemPage.tsx"><code>RedeemPage.tsx</code></a></td><td>Closing one Mortgage, or several at once</td><td>3</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/MortgagePage.tsx"><code>pages/MortgagePage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/History.tsx"><code>components/History.tsx</code></a>, <code>TermsPanel</code>, <code>CollateralPanel</code>, <code>ProjectionPanel</code>, <code>ScrollPopup</code></td><td>The Mortgage page and its panels</td><td>4</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/CustomerFormPage.tsx"><code>pages/CustomerFormPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useSaveWithPhotos.ts"><code>components/useSaveWithPhotos.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useNumberOwner.ts"><code>useNumberOwner.ts</code></a>, <code>PhotoPicker</code>, <code>PhotoSource</code>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/ocr.ts"><code>src/ocr.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/idNumbers.ts"><code>idNumbers.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/phone.ts"><code>phone.ts</code></a></td><td>The Customer form: whose number it is, ID numbers read from photos, photos saved after the record</td><td>4</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/CallListPage.tsx"><code>pages/CallListPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/CallNotes.tsx"><code>components/CallNotes.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NoticesPage.tsx"><code>pages/NoticesPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/WhatsApp.tsx"><code>components/WhatsApp.tsx</code></a></td><td>The follow-up screens</td><td>5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/SettingsPage.tsx"><code>pages/SettingsPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/DashboardPage.tsx"><code>pages/DashboardPage.tsx</code></a>, <code>PaymentsByMonthChart</code></td><td>Settings, a section per setting; the Dashboard</td><td>5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/vite.config.ts"><code>vite.config.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/version.ts"><code>src/version.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/StartGate.tsx"><code>components/StartGate.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/UpdateBanner.tsx"><code>UpdateBanner.tsx</code></a>, <code>public/</code></td><td>The installed app: what the service worker caches, the screen shown while the server is stopped, the update banner</td><td>6</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/StartGate.test.tsx"><code>tests/StartGate.test.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/UpdateBanner.test.tsx"><code>tests/UpdateBanner.test.tsx</code></a></td><td>The tests behind lesson 6, and the check-yourself exercise</td><td>6, 99</td></tr>
+</table>
+<p class="aside">The other pages (Customers, Customer, Referrer, Mortgages, New Mortgage, Edit Mortgage, Payments, Payment) are built the same way, from the same parts. The Calculator is toured in <a href="../005-replay-and-closures/06-a-simulation.html">chapter 005, lesson 6</a>, beside the backend route it calls; this chapter links back to that tour instead of teaching the Calculator again. Its graph sits on the same <code>ChartFrame</code> as the Mortgage page's Projection graph (lesson 4). The <a href="../reference/frontend.html#pages">frontend sheet</a> lists every page and the routes it calls. Named here but taught elsewhere: the test harness <code>showPage</code> and <code>fakeServer</code> (<a href="../013-testing/04-frontend-tests-fakeserver-and-showpage.html">chapter 013</a>); <code>screens.py</code>, which serves the built screens, and the <code>mortgage-management://</code> link (<a href="../014-how-it-runs-on-the-lenders-laptop/index.html">chapter 014</a>); <code>/api/update</code> and the release notes (chapter 015); <code>messaging.ts</code> (<a href="../009-follow-up/05-messages-and-sending.html">chapter 009</a>).</p>
+
+<h2>Lessons</h2>
+<ol class="lessons-list">
+  <li><a href="01-the-shell-and-a-read-page.html">The shell and a read page</a><span class="sum">From Meera to her chain, her 10 Sep Payment and its Receipt; the red dot; the theme kept across a reload; the two "todays".</span></li>
+  <li><a href="02-a-form-page.html">A form page: draft, Preview, confirm, save</a><span class="sum">The bangles' Terms changed from the screen, and <code>BeforeAfter</code> drawing the effect; then build a throwaway page yourself.</span></li>
+  <li><a href="03-the-money-forms.html">The money forms: New Payment and Closures</a><span class="sum">₹6,600 split equally; "Pay the full Outstanding" turns into a Redemption; the Dormant anklet Redeemed; two Forfeitures previewed at once.</span></li>
+  <li><a href="04-the-mortgage-and-customer-pages.html">The Mortgage and Customer pages</a><span class="sum">Meera's chain, panel by panel; her Aadhaar Number read from a photo in the browser; whose number is it; a failed photo, retried.</span></li>
+  <li><a href="05-follow-up-dashboard-and-settings.html">Follow-up, the Dashboard and Settings</a><span class="sum">Arjun's Call List rows; Sunita's Notice approved and sent; a template changed; where each Dashboard figure comes from.</span></li>
+  <li><a href="06-the-installed-app.html">The installed app (PWA)</a><span class="sum">What the service worker caches (and never caches); the server stopped and started again; Later, and an update newer than offered.</span></li>
+  <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">Which file draws this screen? Why does this date refuse? Then make the update banner reload only for the exact version offered, and see which test catches it.</span></li>
+</ol>
+
+<footer>
+  <p>Written against commit <code>2c5e561</code>. Every screen, message, figure and request came from <a href="scripts/run_throughs.sh"><code>scripts/run_throughs.sh</code></a>. It builds the sample book in a temporary folder, serves it on port 8000 with the frontend's dev server in front, and drives the screens in a headless browser (<a href="scripts/screens.mjs"><code>scripts/screens.mjs</code></a>), doing what lessons 1–5 ask of you. Then it builds the screens, serves a second fresh book on port 8765, and drives the installed app's service worker (<a href="scripts/pwa.mjs"><code>scripts/pwa.mjs</code></a>). Run it from the repo root with <code>sh docs/onboarding/012-frontend-pages-and-the-pwa/scripts/run_throughs.sh</code>. The test counts came from <code>npm test</code> at that commit.</p>
+  <p>Anything unclear? Ask an agent in this repo to explain it: a component, why a page is built the way it is, or what the service worker did. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
+  <p><a href="../index.html">Course home</a> · Previous: <a href="../011-the-frontends-data-layer/index.html">chapter 011</a> · Next: <a href="../013-testing/index.html">chapter 013, Testing</a></p>
+</footer>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11.1 · The typed client and the generated types</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 011 · Lesson 1</p>
+<h1>The typed client and the generated types</h1>
+<p class="lede">The backend says what every route takes and returns in Python. The frontend is TypeScript. This lesson shows how the one becomes the other without anybody copying it by hand, and what the frontend does with an answer it didn't want: a refusal, a failure, or no answer at all.</p>
+
+<div class="callout win"><strong>By the end</strong> you can say how a backend model becomes a TypeScript type, what to run when you change one, and what happens to a refusal.</div>
+
+<h2>The problem</h2>
+<p>Here's the obvious way to read Meera's chain from a React page:</p>
+<figure class="snippet">
+<figcaption>Illustration, not from the codebase</figcaption>
+<pre><code>const response = await fetch('/api/mortgage/' + id)   // typo: "mortgage", not "mortgages"
+const chain = await response.json()                    // type: any
+show(chain.outstanding.totl)                           // typo: "totl"
+</code></pre>
+</figure>
+<p>All three lines compile. The first typo is found when the Lender opens the page and gets a 404. The second shows <code>undefined</code> where a figure should be. And when the backend renames a field next month, nothing tells the frontend at all. With 71 paths, and models that change every few releases, hand-written requests drift from the backend one by one.</p>
+<p>Errors have the same problem. FastAPI answers a refusal with a JSON body whose <code>detail</code> is sometimes a string, sometimes an object with a <code>message</code>, and sometimes a list of validation errors. Show <code>detail</code> as it comes and the Lender sees <code>[object Object]</code>.</p>
+
+<h2>The idea</h2>
+<p><strong>Generate the types from the backend.</strong> FastAPI can describe every route as an <em>OpenAPI schema</em> (a JSON document listing every path, its parameters, its request body and its answers), built from the Pydantic models the routes use. A tool, <code>openapi-typescript</code>, turns that schema into TypeScript types, <code>api.gen.ts</code>. Nobody writes those types; one command regenerates them.</p>
+<p><strong>Ask through one typed client.</strong> <code>openapi-fetch</code> is a thin wrapper around <code>fetch</code> that takes those types. Its <code>client.GET('/api/mortgages/{mortgage_id}', …)</code> only compiles if that path exists, with those parameters, and its answer has the right type. Every request in the app goes through one such client, and <code>fetch</code> itself is banned everywhere else.</p>
+<p><strong>Turn every answer into data or one readable error.</strong> <code>dataOrThrow</code> wraps each call: the data if the backend answered 2xx, otherwise an <code>Error</code> whose message is one sentence for the Lender.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  PM["class Mortgage(BaseModel)<br/>lending/mortgages.py"] -->|"create_app('sqlite://').openapi()"| OP["openapi.py"]
+  OP -->|"writes"| OJ["frontend/openapi.json"]
+  OJ -->|"openapi-typescript"| G["src/api.gen.ts<br/>paths, components, operations"]
+  G -->|"Schemas['Mortgage']"| A["src/api.ts<br/>type Mortgage"]
+  G -->|"createClient&lt;paths&gt;"| C["client.GET('/api/mortgages/{mortgage_id}')"]
+  T1["test_openapi.py"] -.->|"checks"| OJ
+  T2["api-types.test.ts"] -.->|"checks"| G
+</pre>
+<figcaption><code>npm run gen:types</code> runs the two solid arrows on the left. The two tests (dotted) fail if either generated file is out of date.</figcaption>
+</figure>
+<p>Notice that the chain has two links and each has its own test. The backend test checks that <code>openapi.json</code> matches what the backend would write now. The frontend test checks that <code>api.gen.ts</code> matches what <code>openapi-typescript</code> makes of <code>openapi.json</code>.</p>
+
+<h2>The code</h2>
+<h3>1. From the backend's models to a schema file</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/openapi.py">backend/src/mortgage_backend/openapi.py</a> · lines 14–24</figcaption>
+<pre data-file="backend/src/mortgage_backend/openapi.py"><code>14  def schema() -&gt; dict[str, Any]:
+15      # Building the schema never touches the database.
+16      return create_app("sqlite://").openapi()               # ①  ◀
+17
+18
+19  def schema_text() -&gt; str:
+20      return json.dumps(schema(), indent=2, sort_keys=True) + "
+"   # ②
+21
+22
+23  if __name__ == "__main__":
+24      Path(sys.argv[1]).write_text(schema_text())
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The schema comes from the real app, built by the composition root (<a href="../010-platform-database-and-migrations/01-the-composition-root.html">chapter 010, lesson 1</a>) on <code>sqlite://</code>, an in-memory database that is never used. FastAPI's <code>.openapi()</code> walks every route and its Pydantic models.</li>
+  <li>Sorted keys and a fixed indent, so the same backend always writes byte-for-byte the same file. That's what lets a test compare it.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/package.json">frontend/package.json</a> · the <code>gen:types</code> script · line 13</figcaption>
+<pre data-file="frontend/package.json"><code>13      "gen:types": "cd ../backend &amp;&amp; uv run python -m mortgage_backend.openapi ../frontend/openapi.json &amp;&amp; cd ../frontend &amp;&amp; openapi-typescript openapi.json -o src/api.gen.ts"
+</code></pre>
+</figure>
+<p>One command, two steps: write <code>openapi.json</code> from the backend, then generate <code>api.gen.ts</code> from it. Today's schema has 71 paths and 98 models; <code>openapi.json</code> is 7,602 lines and <code>api.gen.ts</code> 5,483.</p>
+
+<h3>2. What the generated types say</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/api.gen.ts">frontend/src/api.gen.ts</a> · <code>operations["read_mortgage_api_mortgages__mortgage_id__get"]</code> · lines 3799–3818, trimmed</figcaption>
+<pre data-file="frontend/src/api.gen.ts"><code>3799      read_mortgage_api_mortgages__mortgage_id__get: {
+3800          parameters: {
+3801              query?: never;
+⋮
+3803              path: {
+3804                  mortgage_id: number;                        ◀
+3805              };
+⋮
+3809          responses: {
+⋮
+3811              200: {
+⋮
+3816                      "application/json": components["schemas"]["Mortgage"];   ◀
+⋮
+3818              };
+</code></pre>
+</figure>
+<p>This is the backend's <code>def read_mortgage(mortgage_id: int, …) -&gt; Mortgage</code> (in <code>lending/mortgages.py</code>), as a type: the path needs a numeric <code>mortgage_id</code>, and a 200 answer is a <code>Mortgage</code>. The name is FastAPI's generated operation id: function name, path and method run together. The file starts "This file was auto-generated by openapi-typescript. Do not make direct changes to the file."</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/api.ts">frontend/src/api.ts</a> · lines 1–6 and 92, trimmed</figcaption>
+<pre data-file="frontend/src/api.ts"><code>1  // Request and response types are generated from the backend's OpenAPI schema into
+2  // api.gen.ts (`npm run gen:types`); this file names them. The requests themselves are
+3  // in requests.ts, through the typed client.
+4  import type { components, operations } from './api.gen'
+5
+6  type Schemas = components['schemas']
+⋮
+92  export type Mortgage = Schemas['Mortgage']                  ◀
+</code></pre>
+</figure>
+<p><code>api.ts</code> only gives generated types short names, so pages write <code>Mortgage</code>, not <code>components['schemas']['Mortgage']</code>. It never declares a field itself.</p>
+
+<h3>3. The one client</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/serverState.ts">frontend/src/serverState.ts</a> · <code>createServerState()</code> · lines 166–182</figcaption>
+<pre data-file="frontend/src/serverState.ts"><code>166  /** A typed client and an empty cache; tests pass a fake `fetch` and no retries. */
+167  export function createServerState({
+168    // The one place fetch itself is used: everything else goes through this client.
+169    // oxlint-disable-next-line no-restricted-properties
+170    fetch = (request: Request) =&gt; globalThis.fetch(request),    // ①  ◀
+171    retry = true,
+172  }: { fetch?: (request: Request) =&gt; Promise&lt;Response&gt;; retry?: boolean } = {}): ServerState {
+173    return {
+174      client: createClient&lt;paths&gt;({ baseUrl: window.location.origin, fetch }),   // ②
+175      queryClient: new QueryClient({
+176        defaultOptions: {
+177          queries: { retry: retry ? retryUnlessRefused : false },   // ③
+178          mutations: { retry: false },
+179        },
+180      }),
+181    }
+182  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The only line in <code>src/</code> that touches <code>fetch</code>. Tests pass their own <code>fetch</code> here (a fake backend), so the same code runs against canned answers.</li>
+  <li><code>createClient&lt;paths&gt;</code> is <code>openapi-fetch</code>. The <code>&lt;paths&gt;</code> type argument is the generated <code>paths</code> interface, which is what makes every <code>client.GET(…)</code> checked. <code>baseUrl</code> is wherever the page came from: <code>localhost:5173</code> in development (Vite passes <code>/api</code> on), the backend itself when it serves the screens.</li>
+  <li>The cache (lesson 2) is made here too, with one retry rule for every read: below.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>mortgageQuery()</code> · lines 53–60</figcaption>
+<pre data-file="frontend/src/requests.ts"><code>53  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
+54  export function mortgageQuery(client: ApiClient, id: number) {
+55    return queryOptions({
+56      queryKey: keys.mortgage(id),
+57      queryFn: () =&gt;
+58        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),   ◀
+59    })
+60  }
+</code></pre>
+</figure>
+<p>Line 58 is a typed request: the path is a string literal the compiler checks against <code>paths</code>, and <code>mortgagePath(id)</code> is <code>{ path: { mortgage_id: id } }</code>. Lesson 2 explains <code>queryOptions</code> and the key.</p>
+
+<h3>4. Data, or one readable error</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/serverState.ts">frontend/src/serverState.ts</a> · <code>BackendError</code>, <code>UNREACHABLE</code>, <code>dataOrThrow()</code> · lines 30–57, trimmed</figcaption>
+<pre data-file="frontend/src/serverState.ts"><code>30  /** The backend answered, but not with what was asked: a refusal (4xx) or a failure (5xx). */
+31  export class BackendError extends Error {
+32    readonly status: number
+⋮
+35    constructor(status: number, body: unknown) {
+36      super(errorMessage(status, body))                         // ①
+37      this.status = status
+⋮
+40  }
+⋮
+43  const UNREACHABLE = "The app's server isn't running: start Mortgage Management, then try again."
+⋮
+47  export async function dataOrThrow&lt;T&gt;(
+48    call: Promise&lt;{ data?: T; error?: unknown; response: Response }&gt;,
+49  ): Promise&lt;T&gt; {
+50    const { data, error, response } = await call.catch((failure: unknown) =&gt; {
+⋮
+52      if (failure instanceof TypeError) throw new Error(UNREACHABLE)   // ②
+53      throw failure
+54    })
+55    if (!response.ok) throw new BackendError(response.status, error)   // ③  ◀
+56    return data as T
+57  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>errorMessage</code> (lines 13–28) turns any FastAPI error body into one line: a string <code>detail</code> as it is; an object's <code>message</code>; a list of validation errors as <code>field: message; field: message</code>; otherwise <code>Request failed (status)</code>.</li>
+  <li><code>openapi-fetch</code> doesn't throw for a 4xx or 5xx; it returns <code>{ data, error, response }</code>. It only throws when <code>fetch</code> itself fails, and a browser's <code>fetch</code> throws a <code>TypeError</code> when it can't connect at all.</li>
+  <li>Any answer that isn't 2xx becomes a <code>BackendError</code> that remembers the status. Callers never check <code>response.ok</code> themselves.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/serverState.ts">frontend/src/serverState.ts</a> · <code>retryUnlessRefused</code> · lines 59–61</figcaption>
+<pre data-file="frontend/src/serverState.ts"><code>59  /** Asked again once, unless the backend refused: a refusal is the answer. */
+60  const retryUnlessRefused = (failures: number, error: Error) =&gt;
+61    failures &lt; 1 &amp;&amp; !(error instanceof BackendError &amp;&amp; error.status &lt; 500)   ◀
+</code></pre>
+</figure>
+<p>TanStack Query calls this after a read fails, with how many times it has failed so far. A refusal (4xx) is never asked again: asking twice gets the same "no". Anything else (a 5xx, or no connection) is asked once more, in case it was a blip.</p>
+
+<h2>Run-through: Meera's chain, and a Payment the backend refuses</h2>
+<p>With the book served on 8000 and <code>npm run dev</code> running, open <a href="http://localhost:5173/mortgages/2">localhost:5173/mortgages/2</a> with the Network tab filtered to <code>/api/</code>.</p>
+<table class="steps text">
+<tr><th>Request</th><th>Who asks</th></tr>
+<tr><td><code>GET /api/payment-methods</code> ×2</td><td><code>StartGate</code>, checking that the backend answers (twice: <code>StrictMode</code>)</td></tr>
+<tr><td><code>GET /api/closures/dormant?page=1</code></td><td>the menu's Dormant count (<code>dormantCountQuery</code>, lesson 2)</td></tr>
+<tr><td><code>GET /api/update</code></td><td>the update banner (chapter 012)</td></tr>
+<tr class="changed"><td><code>GET /api/mortgages/2</code></td><td>the page: <code>mortgageQuery(client, 2)</code></td></tr>
+<tr><td><code>GET /api/payment-methods</code></td><td>the payment methods' names, for the Ledger (<code>paymentMethodsQuery</code>)</td></tr>
+<tr><td><code>GET /api/mortgages/2/call-notes</code>, <code>…/projection</code>, <code>…/history</code></td><td>the page's panels</td></tr>
+</table>
+<p class="cite">Nine requests on a fresh load, from <code>scripts/network.mjs</code> (section L1).</p>
+<p>Click <code>GET /api/mortgages/2</code> and read its response: the 20 fields of the <code>Mortgage</code> model, exactly the 20 in <code>api.gen.ts</code>. Among them:</p>
+<pre><code>"name": "2025-Meera-GoldChainPendant", "status": "active", "as_of": "2026-10-19",
+"amount_lent": 8000000,
+"terms": {"monthly_rate_bps": 200, "interest_mode": "compounded_yearly", "part_month_rule": "pro_rata"},
+"outstanding": {"principal": 8000000, "unpaid_interest": 333300, "total": 8333300}</code></pre>
+<p>The amounts are paise (<a href="../reference/traps.html#t6">trap #6</a>): <code>8333300</code> is the ₹83,333 the page shows. The frontend's <code>formatINR</code> (in <code>money.ts</code>) only formats it; it never works a figure out.</p>
+<p>Now try a Payment the backend refuses. Open <a href="http://localhost:5173/payments/new?customer=1&amp;mortgage=2">/payments/new?customer=1&amp;mortgage=2</a> (Meera, with only the chain ticked), set the date to 19 Oct 2026, choose UPI, and type <strong>90000</strong> into "Amount received (₹)".</p>
+<table class="steps text">
+<tr><th>Step</th><th>What happens</th></tr>
+<tr><td>Request</td><td><code>POST /api/payments/preview</code> with <code>{"customer_id":1, "paid_on":"2026-10-19", "amount":9000000, "method":"upi", "reference":null, "allocations":[{"mortgage_id":2, "amount":9000000}]}</code></td></tr>
+<tr><td>Answer</td><td><strong>422</strong> <code>{"detail":"2025-Meera-GoldChainPendant: the Payment on 19 Oct 2026 would be more than the ₹83,333 owed then"}</code></td></tr>
+<tr class="changed"><td>On screen</td><td>2025-Meera-GoldChainPendant: the Payment on 19 Oct 2026 would be more than the ₹83,333 owed then</td></tr>
+<tr><td>Save</td><td>disabled</td></tr>
+</table>
+<p class="cite">From <code>scripts/network.mjs</code> (section L1). The browser's clock was held at 19 Oct 2026 there, so the date was already set.</p>
+<p>The <code>detail</code> was a string, so <code>errorMessage</code> passed it straight through. It was asked once: a 422 is a refusal. Lesson 4 shows why Save is disabled.</p>
+
+<h3>Hands-on: a path that doesn't exist</h3>
+<p>In <code>frontend/src/requests.ts</code>, line 58, change <code>'/api/mortgages/{mortgage_id}'</code> to <code>'/api/mortgage/{mortgage_id}'</code>. Then, from <code>frontend/</code>, run <code>npm run typecheck</code>.</p>
+<div class="reveal">
+  <p><strong>Predict:</strong> does it compile? If not, how many errors, and where?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>51 errors.</strong> The first one that matters is the line you changed:</p>
+<pre><code>src/requests.ts(58,30): error TS2345: Argument of type '"/api/mortgage/{mortgage_id}"' is not assignable to parameter of type 'PathsWithMethod&lt;paths, "get"&gt;'.</code></pre>
+    <p>The other 50 are knock-on errors in the pages that read a Mortgage: 43 in <code>MortgagePage.tsx</code>, 5 in <code>RedeemPage.tsx</code>, 1 each in <code>ChangeTermsPage.tsx</code> and <code>EditMortgagePage.tsx</code>. With a path it doesn't know, the client can't tell which answer comes back, so it types the data as any route's answer (the errors list the Backups settings among them), and every <code>mortgage.name</code> downstream stops type-checking. Always read the error in <code>requests.ts</code> first. (Run at commit 87a96c7.)</p>
+    <p>Undo it: <code>git checkout -- src/requests.ts</code>.</p>
+  </div>
+</div>
+
+<h2>Nuances</h2>
+<h3>(a) Change a model, regenerate, commit both files (trap #10)</h3>
+<div class="callout warn"><strong>Trap #10.</strong> Change a Pydantic model a route takes or returns, or add a route, and the types are out of date until you run <code>npm run gen:types</code> in <code>frontend/</code> and commit <strong>both</strong> <code>openapi.json</code> and <code>api.gen.ts</code>. Never edit <code>api.gen.ts</code> by hand: the next regeneration throws your edit away.</div>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_openapi.py">backend/tests/test_openapi.py</a> · lines 18–21</figcaption>
+<pre data-file="backend/tests/test_openapi.py"><code>18  def test_the_frontends_copy_of_the_openapi_schema_is_up_to_date() -&gt; None:
+19      assert CHECKED_IN.read_text() == schema_text(), (
+20          "The API changed: run `npm run gen:types` in frontend/ and commit the result"
+21      )
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/api-types.test.ts">frontend/tests/api-types.test.ts</a> · lines 9–16</figcaption>
+<pre data-file="frontend/tests/api-types.test.ts"><code>9   test('the generated API types match the OpenAPI schema', async () =&gt; {
+10    const schema = readFileSync(new URL('openapi.json', root), 'utf8')
+11    const generated = readFileSync(new URL('src/api.gen.ts', root), 'utf8')
+12
+13    const expected = astToString(await openapiTS(schema))
+14
+15    expect(generated.endsWith(expected), 'run `npm run gen:types` and commit the result').toBe(true)
+16  })
+</code></pre>
+</figure>
+<div class="reveal">
+  <p><strong>Predict:</strong> you add a field to the backend's <code>Mortgage</code> model and forget to regenerate. Which of the two tests fails?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>Only the backend one.</strong> <code>test_openapi.py</code> compares the checked-in <code>openapi.json</code> with what the backend writes now, so it sees the new field. <code>api-types.test.ts</code> only compares <code>api.gen.ts</code> with the checked-in <code>openapi.json</code>, and those two still agree with each other. It fails in the other case: you regenerate <code>openapi.json</code> but not <code>api.gen.ts</code> (run the backend half by hand, say), or edit <code>api.gen.ts</code> yourself. Between them, the two tests cover both links of the chain.</p>
+  </div>
+</div>
+<p>A new column you only store and never return through a model changes no schema, so it needs no regeneration (<a href="../010-platform-database-and-migrations/06-adding-a-migration-safely.html">chapter 010, lesson 6</a>).</p>
+
+<h3>(b) What the schema leaves out on purpose</h3>
+<p>The other test in <code>test_openapi.py</code>, <code>test_ready_to_redeem_is_retired_from_the_api</code>, checks that four words never appear in the schema: <code>ready_to_redeem</code>, <code>ready-to-redeem</code>, <code>ReadyToRedeem</code> and <code>received_with</code>. Paying the whole Outstanding Redeems a Mortgage (ADR 0011), so nothing waits to be Redeemed, and a Final Payment's link back to its first part is the backend's business (<a href="../007-payments-and-receipts/02-one-payment-several-parts.html">chapter 007, lesson 2</a>). If a field isn't in the schema, the frontend can't even name it.</p>
+
+<h3>(c) No <code>fetch</code> outside the client (trap #11)</h3>
+<div class="callout warn"><strong>Trap #11.</strong> The frontend never calls <code>fetch</code> itself: every request goes through the typed client, by way of a function in <code>requests.ts</code>. A request made with <code>fetch</code> isn't type-checked, isn't cached, and isn't made stale by any save.</div>
+<p>Two things enforce it, and only one runs in CI:</p>
+<table class="steps text">
+<tr><th>Guard</th><th>What it catches</th><th>Runs in CI?</th></tr>
+<tr><td><code>.oxlintrc.json</code>: <code>no-restricted-globals</code> for <code>fetch</code>, and <code>no-restricted-properties</code> for <code>window.fetch</code>, <code>globalThis.fetch</code>, <code>self.fetch</code></td><td>Any use in the source, with the message "Ask the backend through the typed client (src/serverState.ts, src/requests.ts), never with fetch directly." <code>createServerState</code>'s line 169 switches it off for the one allowed use.</td><td><strong>No.</strong> <code>.github/workflows/test.yml</code> runs <code>npm run typecheck</code> and <code>npm test</code>, not <code>npm run lint</code>. Run it yourself.</td></tr>
+<tr class="changed"><td><code>tests/showPage.tsx</code> replaces the global <code>fetch</code> with one that throws "fetch called outside the typed client"</td><td>A page under test that calls <code>fetch</code>: the test fails</td><td>Yes, but only for code a page test reaches. <a href="../013-testing/04-frontend-tests-fakeserver-and-showpage.html">Chapter 013, lesson 4</a> opens the harness.</td></tr>
+</table>
+<p>Two near-misses are fine: a link the browser follows itself, such as the Call Sheet download (<code>callSheet.exportUrl</code> in <code>requests.ts</code> is just a URL string), and an <code>&lt;img&gt;</code> showing a photo from <code>/api/photos/…</code>. Neither is a request your code makes.</p>
+
+<h3>(d) A refusal is the answer; a failure is asked again</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> the Dashboard's <code>GET /api/dashboard</code> answers 500 (a backend bug). How many times is it asked for before the error shows? And if it answered 422?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Answer</th><th>Asked</th><th>Shown</th></tr>
+    <tr class="changed"><td>500</td><td>2 times</td><td>the <code>detail</code>, as one line</td></tr>
+    <tr><td>422</td><td>1 time</td><td>the <code>detail</code>, as one line</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/network.mjs</code> (section L1), which made the served book's Dashboard answer each status in turn. <code>serverState.test.tsx</code> pins the same: "a refusal is the answer: it is not asked for again" and "a backend failure is asked for once more".</p>
+    <p>Saves (TanStack Query calls them <em>mutations</em>) are never retried, whatever the answer (<code>mutations: { retry: false }</code>, line 178). Sending a Payment twice because the first answer was slow would record it twice.</p>
+  </div>
+</div>
+
+<h3>(e) When the server stops</h3>
+<p>The Lender's app is installed as a PWA, so its screens open even when the backend isn't running. With the app open on Meera's chain, stop the backend (Ctrl-C in terminal 1) and click <strong>Customers</strong> in the menu.</p>
+<div class="reveal">
+  <p><strong>Predict:</strong> what does the Customers page say, and how many times did it try?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><code>GET /api/customers?page=1&amp;q=</code> was tried <strong>twice</strong> (no connection isn't a refusal, so it's asked once more), then the page says:</p>
+    <p class="status error">The app's server isn't running: start Mortgage Management, then try again.</p>
+    <p>That's <code>UNREACHABLE</code>, from <code>dataOrThrow</code>'s <code>TypeError</code> branch. Reload the page instead, and <code>StartGate</code> catches it before any page shows: "The app isn't running. Start its server: this page loads the app as soon as it is running." That screen is <a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>'s. (From <code>scripts/network.mjs</code>, section L1, which made every <code>/api/</code> request fail to connect.)</p>
+    <p>Start the backend again (<code>serve.py "$BOOK" 8000</code>) before you go on.</p>
+  </div>
+</div>
+
+<h3>(f) A sort column that doesn't exist won't compile</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/api.ts">frontend/src/api.ts</a> · <code>SortOf</code>, <code>columnsOf</code>, <code>CUSTOMER_SORTS</code> · lines 8–24</figcaption>
+<pre data-file="frontend/src/api.ts"><code>8   /** The columns a list endpoint can sort by. */
+9   type SortOf&lt;Operation extends keyof operations&gt; = NonNullable&lt;
+10    NonNullable&lt;operations[Operation]['parameters']['query']&gt; extends { sort?: infer S } ? S : never
+11  &gt;
+12  /** Every column of `Sort`, in the order given: one missing or not in the generated
+13   *  type fails to compile, so a column the backend adds or renames is never missed. */
+14  function columnsOf&lt;Sort extends string&gt;(columns: Record&lt;Sort, true&gt;): readonly Sort[] {
+15    return Object.keys(columns) as Sort[]
+16  }
+17
+18  export type CustomerSort = SortOf&lt;'list_customers_api_customers_get'&gt;   ◀
+19  export const CUSTOMER_SORTS = columnsOf&lt;CustomerSort&gt;({
+20    name: true,
+21    phone: true,
+22    address: true,
+23    referrer: true,
+24  })
+</code></pre>
+</figure>
+<p><code>SortOf</code> digs the type of the <code>sort</code> query parameter out of the generated route: for the Customers list, <code>"name" | "phone" | "address" | "referrer"</code>, the backend's <code>CustomerSort</code>. (<code>infer S</code> is TypeScript for "whatever type sits here, call it <code>S</code>".) <code>Record&lt;Sort, true&gt;</code> demands an object with <em>exactly</em> those keys. So if the backend adds a sort column, <code>columnsOf</code> fails to compile until the frontend lists it; rename one, and the old name fails too. A plain array, <code>['name', 'phone']</code>, would only catch the second. Lesson 3 uses <code>CUSTOMER_SORTS</code>.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">You add <code>nickname: str | None</code> to the backend's <code>Customer</code> response model. What must the commit also contain?</p>
+  <button class="opt">A <code>nickname</code> field typed by hand in <code>api.ts</code></button>
+  <button class="opt">The regenerated <code>openapi.json</code> and <code>api.gen.ts</code></button>
+  <button class="opt">Nothing more; the frontend reads the schema live</button>
+  <div class="why"><code>npm run gen:types</code> rewrites both files, and both are checked in; <code>test_openapi.py</code> fails until <code>openapi.json</code> is current. <code>api.ts</code> never declares fields: <code>Customer</code> there is just <code>Schemas['Customer']</code>, so it gets <code>nickname</code> for free. Nothing reads the schema at run time: it's a build-time input.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">A Payment Preview answers 422 with a string <code>detail</code>. What does <code>dataOrThrow</code> do?</p>
+  <button class="opt">Returns <code>undefined</code> data, for the page to check</button>
+  <button class="opt">Throws <code>UNREACHABLE</code>, and the read is retried once</button>
+  <button class="opt">Throws a <code>BackendError</code> whose message is that string</button>
+  <div class="why">Any answer that isn't 2xx becomes a <code>BackendError(status, error)</code>, and <code>errorMessage</code> passes a string <code>detail</code> straight through. <code>UNREACHABLE</code> is only for a <code>TypeError</code> from <code>fetch</code> itself (no connection). And a 4xx is never retried.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">A new page reads the Notices with <code>fetch('/api/notices')</code>. Which check fails?</p>
+  <button class="opt"><code>npm run lint</code>, and its page test via <code>showPage</code></button>
+  <button class="opt"><code>npm run typecheck</code>, as <code>fetch</code> is untyped</button>
+  <button class="opt">None: <code>fetch</code> is allowed for reads</button>
+  <div class="why">oxlint's <code>no-restricted-globals</code> rule flags it, and <code>showPage</code> swaps the global <code>fetch</code> for one that throws. The compiler is happy: <code>fetch</code> is a perfectly typed browser function. CI runs the typecheck and the tests, not lint, so only the page test stops it there.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/serverState.ts"><code>serverState.ts</code></a> lines 1–61, and then the <a href="https://openapi-ts.dev/openapi-fetch/">openapi-fetch documentation</a> (its first page shows how <code>client.GET</code> checks a path and its parameters). For the other end, <a href="../006-changes-and-previews/01-one-door-for-every-change.html">chapter 006, lesson 1</a> shows where the 422 messages are written.</p>
+
+<nav class="lessons">
+  <a href="index.html">← Chapter overview</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="02-reading-through-the-cache.html">Next: Reading through one cache →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

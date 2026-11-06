@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.4 · Frontend tests: fakeServer and showPage</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 013 · Lesson 4</p>
+<h1>Frontend tests: fakeServer and showPage</h1>
+<p class="lede">A frontend page test draws a real page and clicks it, the way the Lender would, with a stand-in for the backend that answers only what the test says. This lesson reads the two small files that make that work, then one real test line by line, then has you write one.</p>
+
+<div class="callout win"><strong>By the end</strong> you can write a page test against a fake backend, and a plain unit test.</div>
+
+<h2>The problem</h2>
+<p>A page is worth testing as a whole. "Type a new rate, see a Preview, press Save, confirm, end up back on the Mortgage" spans a form, the Preview hook, a dialog, a save and a navigation (<a href="../012-frontend-pages-and-the-pwa/02-a-form-page.html">chapter 012, lesson 2</a>). Testing each piece alone misses the bugs between them.</p>
+<p>But a page asks the backend for things, and in a test there's no backend. You could start a real one with a sample book. Then every test is slow, depends on the book's data, and breaks when a figure changes. You could replace the page's data hooks with fakes. Then the cache, the invalidation after a save and the request bodies (<a href="../011-the-frontends-data-layer/index.html">chapter 011</a>) are never tested, and that's where the subtle bugs live.</p>
+
+<h2>The idea</h2>
+<p><strong>Fake only the network.</strong> Everything inside the browser is real: the page, the router, the typed client, the cache. Only the last step, the HTTP request leaving the browser, is answered by <code>fakeServer</code>: a table of <code>"METHOD /api/path"</code> → answer, written by the test. <code>showPage</code> renders a page inside all the real wrappers, wired to that fake.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  T["a test<br/>fireEvent, screen"] -->|"clicks, types"| P["the real page<br/>ChangeTermsPage"]
+  P -->|"mortgageQuery, usePreview…"| C["the real cache and<br/>typed client<br/>createServerState"]
+  C -->|"Request"| F["fakeServer.fetch"]
+  F -->|"route in table: its answer<br/>else: 404 Not Found"| C
+  F -->|"push METHOD /path"| R["server.requests"]
+  T -.->|"asserts on"| R
+  G["global fetch"] -->|"throws"| X["fetch called outside<br/>the typed client"]
+</pre>
+<figcaption>The only fake is the box on the right. The test can see the screen and the list of requests.</figcaption>
+</figure>
+<p>Notice the dead end at the bottom: the browser's own <code>fetch</code> is replaced by one that throws. A page that skips the typed client fails its test (<a href="../reference/traps.html#t11">trap #11</a>).</p>
+
+<h2>The code</h2>
+<h3>1. <code>fakeServer</code>: a table of answers</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/fakeServer.ts">frontend/tests/fakeServer.ts</a> · the whole file · lines 1–33, trimmed</figcaption>
+<pre data-file="frontend/tests/fakeServer.ts"><code>1   // A stand-in for the backend in page tests: answers requests by method and path, and
+2   // records what was asked. Anything it has no answer for is a 404, as the backend would say.
+⋮
+14  export function fakeServer(routes: Record&lt;string, Answer&gt;): FakeServer {
+15    const requests: string[] = []
+16    return {
+17      requests,
+18      fetch: async (request) =&gt; {
+19        const route = `${request.method} ${new URL(request.url).pathname}`   // ①
+20        requests.push(route)                                                // ②
+21        if (!(route in routes)) {
+22          return Response.json({ detail: 'Not Found' }, { status: 404 })       // ③  ◀
+23        }
+24        const answer = routes[route]
+25        const body = typeof answer === 'function' ? await answer(request) : answer   // ④
+26        return body instanceof Response ? body : Response.json(body)        // ⑤
+27      },
+28    }
+29  }
+⋮
+33  export const changePreview = (mortgages: unknown[], cash: number[] = []) =&gt; ({ mortgages, cash })   // ⑥
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The key is the method and the path, without the query string: <code>GET /api/mortgages/7</code>. A test that cares about <code>?as_of=…</code> reads it from the request in a function answer.</li>
+  <li>Every request is recorded, in order, answered or not.</li>
+  <li>Not in the table: <code>404 {"detail": "Not Found"}</code>, what FastAPI answers for a route it doesn't know. Nuance (b) shows why it matters.</li>
+  <li>An answer can be a function of the request. It can read the body (<code>await request.json()</code>), count calls, or answer differently the second time.</li>
+  <li>A plain object is sent as JSON with status 200. A test that needs another status returns a <code>Response</code> itself: <code>new Response('Bad Gateway', { status: 502 })</code>, or <code>Response.json({ detail: '…' }, { status: 422 })</code> for a refusal.</li>
+  <li>The shape every change's Preview answers with (<a href="../006-changes-and-previews/04-previews.html">chapter 006</a>): the Mortgages it touches, and the cash sums it would write.</li>
+</ol>
+
+<h3>2. <code>showPage</code>: the page as the app draws it</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/showPage.tsx">frontend/tests/showPage.tsx</a> · <code>Elsewhere</code>, <code>showPage</code> · lines 13–37</figcaption>
+<pre data-file="frontend/tests/showPage.tsx"><code>13  /** Where the app went after leaving the page under test. */
+14  function Elsewhere() {
+15    return &lt;p&gt;Now at {useLocation().pathname}&lt;/p&gt;                      // ①
+16  }
+17
+18  /** Shows `at`, with each of `routes` (path → page) reachable; anywhere else is Elsewhere. */
+19  export function showPage(server: FakeServer, at: string, routes: Record&lt;string, ReactElement&gt;) {
+20    vi.stubGlobal('fetch', (input: unknown) =&gt; {                         // ②
+21      throw new Error(`fetch called outside the typed client: ${String(input)}`)
+22    })
+23    const state = createServerState({ fetch: server.fetch, retry: false })   // ③  ◀
+24    render(
+25      &lt;ServerStateProvider state={state}&gt;
+26        &lt;MemoryRouter initialEntries={[at]}&gt;                              // ④
+27          &lt;Routes&gt;
+28            {Object.entries(routes).map(([path, page]) =&gt; (
+29              &lt;Route key={path} path={path} element={page} /&gt;
+30            ))}
+31            &lt;Route path="*" element={&lt;Elsewhere /&gt;} /&gt;
+32          &lt;/Routes&gt;
+33        &lt;/MemoryRouter&gt;
+34      &lt;/ServerStateProvider&gt;,
+35    )
+36    return state                                                         // ⑤
+37  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>When the page navigates somewhere the test didn't give a page for, the screen says "Now at /mortgages/7". A test asserts where a save took the Lender by finding that text.</li>
+  <li><code>vi.stubGlobal</code> replaces a global for this test file (undone by <code>vi.unstubAllGlobals()</code>). Any <code>fetch</code> that doesn't go through the client throws.</li>
+  <li>The app's own <code>createServerState</code> (<a href="../011-the-frontends-data-layer/02-reading-through-the-cache.html">chapter 011, lesson 2</a>), given the fake's <code>fetch</code>. <code>retry: false</code>: in the app a failed read is tried again, which in a test would only slow a failure down; here it fails at once.</li>
+  <li><code>MemoryRouter</code> is React Router with the URL kept in memory instead of the address bar, starting at <code>at</code>.</li>
+  <li>The state, so a test can look into the cache (<code>state.queryClient</code>) if it needs to.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/showPage.tsx">frontend/tests/showPage.tsx</a> · the shared <code>mortgage</code> · lines 39–60, trimmed</figcaption>
+<pre data-file="frontend/tests/showPage.tsx"><code>39  /** An Active Mortgage owing ₹50,750, as the backend would send it. */
+40  export const mortgage: Mortgage = {                                    // ① typed
+41    id: 7,
+42    name: '2026GoldChain',
+43    customer: { kind: 'customer', id: 3, name: 'Asha Rao' },
+44    start_date: '2026-01-10',
+45    amount_lent: 5_000_000,                                              // ₹50,000 in paise
+⋮
+51    terms: { monthly_rate_bps: 150, interest_mode: 'simple', part_month_rule: 'pro_rata' },
+52    term_changes: [],
+53    upcoming_accrual_dates: ['2099-11-10', '2099-12-10'],                // ②  ◀
+⋮
+58    outstanding: { principal: 5_000_000, unpaid_interest: 75_000, total: 5_075_000 },
+⋮
+60  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Asha Rao's gold chain: ₹50,000 at 1.5% a month, owing ₹50,750. Typed as <code>Mortgage</code>, the generated type, so when the backend's model changes (<a href="../reference/traps.html#t10">trap #10</a>), <code>npm run typecheck</code> points at this fixture. Tests spread it and change one field: <code>{ ...mortgage, status: 'redeemed' }</code>.</li>
+  <li>The coming Accrual Dates are in 2099. The Change Terms form starts on the first of them that is after <em>the browser's real today</em> (<code>free.find((day) =&gt; day &gt; today)</code> in <code>ChangeTermsPage.tsx</code>): the frontend has no injected today like the backend's. With 2099 dates that is always 10 Nov 2099, which the test below asserts. Dates in this year would pick a different default once the real calendar passed the first.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/setup.ts">frontend/tests/setup.ts</a> · the whole file · lines 1–10</figcaption>
+<pre data-file="frontend/tests/setup.ts"><code>1   // jsdom has &lt;dialog&gt; but not its modal methods, which the app's in-app dialogs use.
+2   if (typeof HTMLDialogElement !== 'undefined' &amp;&amp; !HTMLDialogElement.prototype.showModal) {
+3     HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+4       this.open = true
+5     }
+6     HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+7       this.open = false
+8       this.dispatchEvent(new Event('close'))
+9     }
+10  }
+</code></pre>
+</figure>
+<p>vitest runs this before every test file (<code>setupFiles</code> in <code>vite.config.ts</code>). The confirmation before every save is a <code>&lt;dialog&gt;</code> (<code>ConfirmDialog</code>, chapter 012), and jsdom doesn't implement <code>showModal()</code>. This fills the gap with the two lines a test needs. If you hit another browser feature jsdom lacks, this is where its stand-in goes.</p>
+
+<h3>3. A page test, line by line</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/ChangeTermsPage.test.tsx">frontend/tests/ChangeTermsPage.test.tsx</a> · set-up · lines 1–22, trimmed</figcaption>
+<pre data-file="frontend/tests/ChangeTermsPage.test.tsx"><code>1   // @vitest-environment jsdom                                        ① a browser DOM
+⋮
+10  afterEach(() =&gt; {
+11    cleanup()                                                          // ② unmount the page
+12    vi.unstubAllGlobals()                                              // ③ give fetch back
+13  })
+14
+15  const side = (outstanding: number) =&gt; ({ outstanding, points: [], term_changes: [], closure: null })
+16  const preview: MortgagePreview = {                                   // ④
+17    mortgage_id: 7,
+18    mortgage_name: mortgage.name,
+19    before: side(5_075_000),
+20    after: side(5_075_000),
+21    ledger_changes: [],
+22  }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Lesson 1, nuance (b): page tests need jsdom.</li>
+  <li>Testing Library's <code>cleanup</code> removes what <code>render</code> drew, so the next test starts on an empty screen.</li>
+  <li>Undoes <code>showPage</code>'s <code>stubGlobal</code>.</li>
+  <li>The smallest Preview that type-checks: nothing changes. This test is about the form's flow, not the figures.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/ChangeTermsPage.test.tsx">frontend/tests/ChangeTermsPage.test.tsx</a> · the first test · lines 24–53</figcaption>
+<pre data-file="frontend/tests/ChangeTermsPage.test.tsx"><code>24  test('a new rate is previewed, then saved as a Term Change from the chosen Accrual Date', async () =&gt; {
+25    const previewed: TermChangeIn[] = []
+26    const saved: TermChangeIn[] = []
+27    const server = fakeServer({
+28      'GET /api/mortgages/7': mortgage,                                  // ①
+29      'POST /api/mortgages/7/term-changes/preview': async (request: Request) =&gt; {
+30        previewed.push(await request.json())                             // ② keep each body
+31        return changePreview([preview])
+32      },
+33      'POST /api/mortgages/7/term-changes': async (request: Request) =&gt; {
+34        saved.push(await request.json())
+35        return mortgage
+36      },
+37    })
+38    showPage(server, '/mortgages/7/terms', { '/mortgages/:id/terms': &lt;ChangeTermsPage /&gt; })
+39
+40    fireEvent.change(await screen.findByLabelText('Monthly interest rate (%)'), {   // ③
+41      target: { value: '2' },
+42    })
+43
+44    expect(await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 }))   // ④
+45    expect(previewed.at(-1)).toMatchObject({ effective_on: '2099-11-10', monthly_rate_bps: 200 })   // ⑤  ◀
+46
+47    fireEvent.click(screen.getByRole('button', { name: 'Save Term Change' }))
+48    const dialog = await screen.findByRole('dialog')
+49    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and save' }))
+50
+51    expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()   // ⑥  ◀
+52    expect(saved).toEqual([previewed.at(-1)])                          // ⑦
+53  })
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The page reads the Mortgage first; Asha's chain answers.</li>
+  <li>Function answers that keep every request body, so the test can check what the page sent.</li>
+  <li><code>findBy…</code> waits (up to 1 s by default) for the element to appear, since the page shows "Loading…" first. Elements are found the way a person finds them: by their label, role or text, never by CSS class. <code>fireEvent.change</code> types 2 into the field.</li>
+  <li>The Preview is asked 400 ms after the last key (<a href="../011-the-frontends-data-layer/04-previews-from-a-draft.html">chapter 011, lesson 4</a>), so this waits up to 2 s for the text <code>BeforeAfter</code> draws for it.</li>
+  <li>The Preview was asked for the right change: 200 basis points from the first coming Accrual Date. <code>toMatchObject</code> checks only the fields named.</li>
+  <li>Save, confirm in the dialog, and the page navigated to the Mortgage: <code>Elsewhere</code> says so.</li>
+  <li>And what was saved is exactly what was previewed. The Lender confirms what they saw.</li>
+</ol>
+<p>The second test (lines 55–92) starts on the Mortgage page with both pages routed, saves a Term Change, and checks that the Mortgage page shows it as "coming" at once. Its fake <code>GET /api/mortgages/7</code> never answers after the save (<code>new Promise(() =&gt; {})</code>), so the only way the page can show the change is from what the save returned: it tests the cache update of <a href="../011-the-frontends-data-layer/05-saving-and-what-goes-stale.html">chapter 011, lesson 5</a>, through the screen. Lines 121–133 assert on <code>server.requests</code>, with <code>toContain</code>, that the removal was previewed before it was made.</p>
+
+<h3>4. A pure test</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/allocate.test.ts">frontend/tests/allocate.test.ts</a> · the first test · lines 1–12</figcaption>
+<pre data-file="frontend/tests/allocate.test.ts"><code>1   import { describe, expect, it } from 'vitest'                       // no jsdom line
+2   import { allocateEqually, amountsFromPercentages, percentagesOf } from '../src/allocate'
+3
+4   const r = (rupees: number) =&gt; Math.round(rupees * 100) // rupees → paise   ◀
+5   const rupees = (paise: number[] | null) =&gt; paise?.map((p) =&gt; p / 100) ?? null
+6
+7   describe('allocateEqually', () =&gt; {
+8     it('splits in whole rupees, leftover rupees to the first Mortgages', () =&gt; {
+9       expect(rupees(allocateEqually(r(100_000), [r(90_000), r(90_000), r(90_000)]))).toEqual([
+10        33_334, 33_333, 33_333,
+11      ])
+12    })
+</code></pre>
+</figure>
+<p>No page, no server, no DOM: a function in, a value out. <code>allocateEqually</code> suggests how the Payment form divides an amount (<a href="../012-frontend-pages-and-the-pwa/03-the-money-forms.html">chapter 012, lesson 3</a>). The two little helpers on lines 4–5 let each case be written in rupees and still pass paise to the code (<a href="../reference/traps.html#t6">trap #6</a>). <code>describe</code> groups tests under a heading; <code>it</code> is another name for <code>test</code>. For any logic you can pull out of a page into a plain function in <code>src/</code>, test it this way.</p>
+
+<h2>Run-through: a page test of your own</h2>
+<p>Create <code>frontend/tests/TryMortgagePage.test.tsx</code>:</p>
+<pre><code>// @vitest-environment jsdom
+import { cleanup, screen } from '@testing-library/react'
+import { afterEach, expect, test, vi } from 'vitest'
+import { MortgagePage } from '../src/pages/MortgagePage'
+import { fakeServer } from './fakeServer'
+import { mortgage, showPage } from './showPage'
+
+afterEach(() =&gt; {
+  cleanup()
+  vi.unstubAllGlobals()
+})
+
+test('the Mortgage page shows whose jewellery it is and what it owes', async () =&gt; {
+  const server = fakeServer({ 'GET /api/mortgages/7': mortgage })
+  showPage(server, '/mortgages/7', { '/mortgages/:id': &lt;MortgagePage /&gt; })
+
+  expect(await screen.findByRole('link', { name: 'Asha Rao' })).toBeTruthy()
+  expect(screen.getAllByText('₹50,750').length).toBeGreaterThan(0)
+})</code></pre>
+<p>Run it with <code>npx vitest run tests/TryMortgagePage.test.tsx</code>: <strong>1 passed</strong>. (<code>getAllByText</code>, because ₹50,750 is on the page more than once.)</p>
+<p>Your fake answers only one route. What else did the page ask for? Add a second test that makes the fake tell you:</p>
+<pre><code>test('what the Mortgage page asks for', async () =&gt; {
+  const server = fakeServer({ 'GET /api/mortgages/7': mortgage })
+  showPage(server, '/mortgages/7', { '/mortgages/:id': &lt;MortgagePage /&gt; })
+
+  await screen.findByRole('link', { name: 'Asha Rao' })
+  await new Promise((resolve) =&gt; setTimeout(resolve, 300))
+  expect(server.requests).toEqual([])
+})</code></pre>
+<div class="reveal">
+  <p><strong>Predict:</strong> how many requests did the Mortgage page make, and which?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>The test fails, on purpose, and the failure is the answer:</p>
+<pre><code>- Expected
++ Received
+- []
++ [
++   "GET /api/mortgages/7",
++   "GET /api/payment-methods",
++   "GET /api/mortgages/7/call-notes",
++   "GET /api/mortgages/7/projection",
++   "GET /api/mortgages/7/history",
++ ]</code></pre>
+    <table class="steps text">
+    <tr><th>Request</th><th>Asked by</th><th>Fake's answer</th></tr>
+    <tr><td><code>GET /api/mortgages/7</code></td><td>the page itself</td><td>Asha's chain</td></tr>
+    <tr class="changed"><td><code>GET /api/payment-methods</code></td><td><code>usePaymentMethods</code>, to name how it was lent</td><td>404</td></tr>
+    <tr class="changed"><td><code>GET /api/mortgages/7/call-notes</code></td><td>the Call Notes panel</td><td>404</td></tr>
+    <tr class="changed"><td><code>GET /api/mortgages/7/projection</code></td><td>the Projection panel</td><td>404</td></tr>
+    <tr class="changed"><td><code>GET /api/mortgages/7/history</code></td><td>History</td><td>404</td></tr>
+    </table>
+    <p>Five requests, four of them refused, and the page still drew Asha's name and what she owes. Each panel asks for its own data and handles its own failure. "Make the test fail to see the value" is a quick way to learn what a page does, without reading it. (The 300 ms wait lets the panels' requests go out.)</p>
+  </div>
+</div>
+<p class="cite">From <code>scripts/run_throughs.sh</code>, section L4.</p>
+<p>Delete the file when you're done: <code>rm tests/TryMortgagePage.test.tsx</code>.</p>
+
+<h2>Nuances</h2>
+<h3>a. The cache is real, so it's tested too</h3>
+<p>Because <code>showPage</code> uses the app's own <code>createServerState</code>, whatever a save makes stale is asked again in the test as in the app, and shows up in <code>server.requests</code>. A test can check that a save didn't ask for the Mortgage again, or that it did. Chapter 011's <code>serverState.test.tsx</code> tests the rules themselves; page tests catch a page that forgets to use them.</p>
+
+<h3>b. Why an unknown request is a 404, not an empty answer</h3>
+<p>Most page tests route only what they're about, as yours did. Everything else gets the 404 the real backend would give an unknown route. What if the fake were "friendlier"?</p>
+<div class="reveal">
+  <p><strong>Predict:</strong> change <code>fakeServer.ts</code> line 22 to <code>return Response.json({})</code>, so anything unrouted is answered <code>200 {}</code>. Of the 230 frontend tests, how many fail?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>17 failed, 213 passed</strong>:</p>
+    <table class="steps">
+    <tr><th>File</th><th>Failed</th></tr>
+    <tr><td><code>MortgagePage.test.tsx</code></td><td>11</td></tr>
+    <tr><td><code>SettingsPage.test.tsx</code></td><td>3</td></tr>
+    <tr><td><code>ChangeTermsPage.test.tsx</code></td><td>3</td></tr>
+    </table>
+    <p>With them, uncaught errors such as <code>TypeError: notes.map is not a function</code> and <code>TypeError: rates.map is not a function</code>. The Call Notes panel was told "here are your notes: <code>{}</code>", trusted its types, and called <code>.map</code> on an object; one panel's crash took the whole page down. A 404 is a failed request, which every panel already handles; an empty 200 is a lie in the wrong shape. The fake answers as the backend would, so pages are tested against answers they can really get.</p>
+  </div>
+</div>
+<p class="cite">From <code>scripts/run_throughs.sh</code>, section L4. Undo with <code>git checkout -- tests/fakeServer.ts</code>.</p>
+
+<h3>c. Calling <code>fetch</code> fails the test</h3>
+<p>A page that calls <code>fetch</code> directly while a test draws it throws "fetch called outside the typed client: …". That's the test-time half of <a href="../reference/traps.html#t11">trap #11</a>; the other half is <code>npm run lint</code> (lesson 1), which CI doesn't run.</p>
+
+<h3>d. Change a backend model, regenerate the types</h3>
+<p>The fixtures are typed with the types generated from the backend's OpenAPI schema. Rename a field in a backend model and forget <code>npm run gen:types</code>, and the backend's <code>test_openapi.py</code> fails (the checked-in schema is stale), and once you regenerate, <code>npm run typecheck</code> fails on every fixture and page that used the old name (<a href="../reference/traps.html#t10">trap #10</a>, <a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011, lesson 1</a>). Both suites, on purpose.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">A page test routes only <code>GET /api/mortgages/7</code>. The page also asks for <code>/api/mortgages/7/history</code>. What does it get?</p>
+  <button class="opt">An empty list, so History shows "No changes"</button>
+  <button class="opt">A 404 <code>Not Found</code>, as the real backend would say</button>
+  <button class="opt">Nothing: the request waits until the test ends</button>
+  <div class="why">Anything not in the fake's table is answered <code>404 {"detail": "Not Found"}</code> and recorded in <code>server.requests</code>. Only a function answer that returns a never-settling promise makes a request wait, as <code>ChangeTermsPage.test.tsx</code>'s second test does on purpose.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">After a save, the page should go back to <code>/mortgages/7</code>. The test routes only <code>/mortgages/:id/terms</code>. How does it check?</p>
+  <button class="opt">It reads <code>window.location.pathname</code> after the click</button>
+  <button class="opt">It asserts that <code>GET /api/mortgages/7</code> is in the requests</button>
+  <button class="opt">It finds the text "Now at /mortgages/7" on the screen</button>
+  <div class="why">Any path the test gave no page for draws <code>Elsewhere</code>, which prints "Now at" and the path. <code>MemoryRouter</code> keeps the URL in memory, so <code>window.location</code> doesn't change. And a request for the Mortgage proves a read, not where the Lender ended up.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Why are the shared <code>mortgage</code> fixture's coming Accrual Dates in 2099?</p>
+  <button class="opt">The form compares them with the browser's real today</button>
+  <button class="opt">The backend refuses Term Changes dated this century</button>
+  <button class="opt">So they sort after every date the tests make up</button>
+  <div class="why">The frontend has no injected today: it uses the browser's (chapter 012, lesson 1). The Change Terms form starts on the first coming date after it. Dates in 2099 stay after it, so the default is always 10 Nov 2099, and the test's <code>effective_on: '2099-11-10'</code> holds whatever day it runs. The fake backend refuses nothing it isn't told to.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/ChangeTermsPage.test.tsx"><code>tests/ChangeTermsPage.test.tsx</code></a> to the end, then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/MortgagePage.test.tsx"><code>tests/MortgagePage.test.tsx</code></a>, which routes refusals (<code>Response.json({ detail }, { status: 422 })</code>) and photo uploads. Testing Library's page on <a href="https://testing-library.com/docs/queries/about/#priority">which query to use</a> explains why tests find elements by role and label, as a person would.</p>
+
+<nav class="lessons">
+  <a href="03-below-the-api-seeds-and-pure-tests.html">← Below the API: seeds and pure tests</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="05-finding-what-no-test-pins.html">Finding what no test pins →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.2 · Referrers, and a Referrer who borrows</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 008 · Lesson 2</p>
+<h1>Referrers, and a Referrer who borrows</h1>
+<p class="lede">When the Lender types who introduced a new Customer, the app has to decide: is this someone it already knows, or a new person? And when a person who only ever introduced others starts borrowing, how do they become a Customer without leaving a second record behind?</p>
+
+<div class="callout win"><strong>By the end</strong> you can resolve any Referrer choice to the row it writes, and explain promotion.</div>
+
+<h2>The problem</h2>
+<p>A <a href="../reference/glossary.html#referrer"><dfn class="term" title="A person who introduced one or more Customers to the Lender; either an existing Customer or a person known only as a Referrer.">Referrer</dfn></a> is whoever introduced a Customer to the Lender. Lenders like this kind of business care a lot about it: a good Referrer brings good Customers, and a Customer who stops paying is often reached through the person who brought them. A Referrer can be an existing Customer (Meera introduced Arjun) or someone who has never borrowed (Ravi Verma introduced Meera).</p>
+<p>On the Customer form, the Lender picks a Referrer from a search, or types a new one: name, address, phone. Three things can go wrong:</p>
+<ul>
+  <li>The Lender types Ravi as "new" again for a second Customer, not noticing he's already there. Now there are two Ravis.</li>
+  <li>Ravi starts borrowing himself. Added as a Customer, he'd be a third Ravi, and Meera would still be "referred by" the old one.</li>
+  <li>Someone ends up as their own Referrer, by picking themselves or by typing their own number.</li>
+</ul>
+
+<h2>The idea</h2>
+<p>A Referrer choice is one of three kinds: an existing Customer, an existing Standalone Referrer, or a "new" one. A "new" one is looked up by its number first (lesson 1's Primary Number): if the number is known, the choice is linked to that person instead of creating anyone. When a new Customer is added on a Standalone Referrer's number, that Referrer is <em>promoted</em>: the Customers they referred are moved over to the new Customer, and the Standalone Referrer row is deleted. A person is never their own Referrer.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  C{"referrer.kind"} -->|"none"| N0["both columns NULL"]
+  C -->|"customer, id"| EC{"exists?"}
+  EC -->|"yes"| L1["referred_by_customer_id = id"]
+  EC -->|"no"| X1["422 Referrer Customer not found"]
+  C -->|"referrer, id"| ER{"exists?"}
+  ER -->|"yes"| L2["referred_by_standalone_referrer_id = id"]
+  ER -->|"no"| X2["422 Referrer not found"]
+  C -->|"new: name, address, phone"| O{"owner_of(phone)"}
+  O -->|"a Customer"| L1
+  O -->|"a Standalone Referrer"| L2
+  O -->|"nobody"| INS["INSERT standalone_referrer, then link to it"]
+</pre>
+<figcaption><code>_referrer_columns</code>: every choice ends in the same two columns, with at most one of them set.</figcaption>
+</figure>
+<p>Notice that only one path, the bottom right, writes a new row. Every other "new" Referrer is really someone the book already has.</p>
+
+<h2>The code</h2>
+<h3>1. The three kinds of choice: <code>ReferrerChoice</code></h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/people/customers.py">people/customers.py</a> · <code>ReferrerChoice</code> · lines 92–115</figcaption>
+<pre data-file="backend/src/mortgage_backend/people/customers.py"><code>92  # --- Choosing a Referrer: an existing Customer, an existing standalone Referrer, or a new one.
+93
+94
+95  class ExistingCustomerReferrer(BaseModel):
+96      kind: Literal["customer"]
+97      id: int
+98
+99
+100  class ExistingStandaloneReferrer(BaseModel):
+101      kind: Literal["referrer"]
+102      id: int
+103
+104
+105  class NewStandaloneReferrer(BaseModel):
+106      kind: Literal["new"]
+107      name: Name
+108      address: str
+109      phone: Phone                     # cleaned to 10 digits, as in lesson 1
+110
+111
+112  ReferrerChoice = Annotated[
+113      ExistingCustomerReferrer | ExistingStandaloneReferrer | NewStandaloneReferrer,
+114      Field(discriminator="kind"),     ◀
+115  ]
+</code></pre>
+</figure>
+<p>This is a <a href="https://docs.pydantic.dev/latest/concepts/unions/#discriminated-unions">discriminated union</a>: Pydantic reads the <code>kind</code> field first and then checks the body against just that one model. A body of <code>{"kind": "new", …}</code> needs a name, address and phone; <code>{"kind": "customer", "id": 1}</code> needs only an id. Any other <code>kind</code> is a 422 before your code runs.</p>
+
+<h3>2. One choice → two columns: <code>_link_to</code> and <code>_referrer_columns</code></h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/people/customer_changes.py">people/customer_changes.py</a> · <code>_link_to()</code> · lines 112–122</figcaption>
+<pre data-file="backend/src/mortgage_backend/people/customer_changes.py"><code>112  def _link_to(person: PersonSummary | None) -&gt; dict[str, int | None]:
+113      """The customer row's two referrer columns (at most one set) pointing at
+114      `person`."""
+115      return {
+116          "referred_by_customer_id": person.id
+117          if person and person.kind == "customer"
+118          else None,
+119          "referred_by_standalone_referrer_id": person.id
+120          if person and person.kind == "referrer"
+121          else None,
+122      }
+</code></pre>
+</figure>
+<p>Every path builds both columns here, so a Customer can never end up with both set. The database itself doesn't forbid both; this function is why it never happens.</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/people/customer_changes.py">people/customer_changes.py</a> · <code>_referrer_columns()</code> · lines 125–153, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/people/customer_changes.py"><code>125  def _referrer_columns(
+126      conn: Connection, choice: ReferrerChoice | None
+127  ) -&gt; dict[str, int | None]:
+⋮
+133      match choice:                                          # ①
+134          case None:
+135              return _link_to(None)
+136          case ExistingCustomerReferrer(id=referrer_id):
+137              if not exists(conn, customer_table, referrer_id):
+138                  raise unprocessable("Referrer Customer not found")
+139              return _link_to(PersonSummary(kind="customer", id=referrer_id, name=""))
+140          case ExistingStandaloneReferrer(id=referrer_id):
+141              if not exists(conn, standalone_referrer_table, referrer_id):
+142                  raise unprocessable("Referrer not found")
+143              return _link_to(PersonSummary(kind="referrer", id=referrer_id, name=""))
+144          case NewStandaloneReferrer():
+145              existing = owner_of(conn, choice.phone)        # ② known number?
+146              if existing is not None:
+147                  return _link_to(existing)                  ◀
+148              new_id = conn.execute(
+149                  insert(standalone_referrer_table)          # ③ the only INSERT
+150                  .values(name=choice.name, address=choice.address, phone=choice.phone)
+151                  .returning(standalone_referrer_table.c.id)
+152              ).scalar_one()
+153              return _link_to(PersonSummary(kind="referrer", id=new_id, name=choice.name))
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>match … case</code> is Python's structural pattern matching (3.10+). <code>case ExistingCustomerReferrer(id=referrer_id):</code> means "if <code>choice</code> is that class, bind its <code>id</code> to <code>referrer_id</code>".</li>
+  <li>The "new" Referrer's name and address are ignored if the number is known: the existing person keeps theirs.</li>
+  <li><code>.returning(…)</code> makes the INSERT hand back the new row's id; <code>.scalar_one()</code> takes that single value.</li>
+</ol>
+
+<h3>3. Promotion: <code>_promote_referrer</code></h3>
+<p>Lesson 1's <code>_checked</code> set <code>promoted</code> to a Standalone Referrer's id when a new Customer takes their number. <code>create_customer</code> acts on it right after inserting the Customer:</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/people/customer_changes.py">people/customer_changes.py</a> · <code>create_customer()</code> · lines 202–209, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/people/customer_changes.py"><code>202  def create_customer(conn: Connection, customer: CustomerIn, now: datetime) -&gt; int:
+203      """Save a new Customer (or refuse); their id."""
+204      values, promoted = _checked(conn, customer, None)
+205      customer_id: int = conn.execute(
+206          insert(customer_table).values(**values).returning(customer_table.c.id)
+207      ).scalar_one()
+208      if promoted is not None:
+209          _promote_referrer(conn, promoted, customer_id)   ◀
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/people/customer_changes.py">people/customer_changes.py</a> · <code>_promote_referrer()</code> · lines 156–170</figcaption>
+<pre data-file="backend/src/mortgage_backend/people/customer_changes.py"><code>156  def _promote_referrer(conn: Connection, referrer_id: int, customer_id: int) -&gt; None:
+157      """A Standalone Referrer who became a Customer: move their referrals over, then
+158      remove them."""
+159      conn.execute(
+160          update(customer_table)
+161          .where(customer_table.c.referred_by_standalone_referrer_id == referrer_id)   # ①
+162          .values(
+163              referred_by_standalone_referrer_id=None, referred_by_customer_id=customer_id
+164          )
+165      )
+166      conn.execute(
+167          delete(standalone_referrer_table).where(                                    # ②
+168              standalone_referrer_table.c.id == referrer_id
+169          )
+170      )
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Everyone the Referrer introduced now points at the new Customer instead.</li>
+  <li>Then the Standalone Referrer row goes. The order matters: the foreign key on <code>referred_by_standalone_referrer_id</code> would refuse the delete while anyone still pointed at it.</li>
+</ol>
+<p>All of this happens in the one transaction the route opened, so if anything after it fails, the promotion is undone too.</p>
+
+<h3>4. Never their own Referrer: <code>_is_themselves</code></h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/people/customer_changes.py">people/customer_changes.py</a> · <code>_is_themselves()</code> · lines 84–109, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/people/customer_changes.py"><code>84  def _is_themselves(
+85      conn: Connection,
+86      choice: ReferrerChoice | None,
+87      customer_id: int | None,
+88      phone_1: str,
+89      owner: PersonSummary | None,
+90  ) -&gt; bool:
+⋮
+94      match choice:
+95          case ExistingCustomerReferrer(id=referrer_id):
+96              return referrer_id == customer_id                          # ① the same Customer
+97          case ExistingStandaloneReferrer(id=referrer_id):
+98              promoting = ("referrer", referrer_id)
+99              return owner is not None and (owner.kind, owner.id) == promoting   # ② the Referrer they're promoted from
+100          case NewStandaloneReferrer(phone=phone):
+101              if phone == phone_1:                                       # ③ their number, as typed now
+102                  return True
+103              known = owner_of(conn, phone)
+104              return known is not None and (known.kind, known.id) == (   # ③ their number before this edit
+105                  "customer",
+106                  customer_id,
+107              )
+108          case _:
+109              return False
+</code></pre>
+</figure>
+<p><code>_checked</code> calls it at line 185 and refuses with 422 "A Customer cannot be their own Referrer". The third case has two halves because of edits: if Meera changes her contact number 1 and, in the same edit, types a "new" Referrer with her <em>old</em> number, <code>owner_of</code> still finds her (the row isn't updated yet).</p>
+
+<h2>Run-through: Ravi Verma</h2>
+<p>On the sample book, Ravi Verma is Standalone Referrer 1, phone 9811122233, and he referred Meera. <code>book.py</code> made him by typing him as a "new" Referrer when it added Meera. Check:</p>
+<pre><code>sqlite3 -header -column "$BOOK/data/mortgage.db" \
+  "SELECT * FROM standalone_referrer;
+   SELECT id, name, referred_by_customer_id, referred_by_standalone_referrer_id FROM customer WHERE id IN (1, 2);"</code></pre>
+<p>Meera (1) has <code>referred_by_standalone_referrer_id</code> 1; Arjun (2) has <code>referred_by_customer_id</code> 1, because Meera referred him. Now <strong>save</strong> two Customers on your served book (this changes it; lessons 3–5 expect it):</p>
+<pre><code># 1. Deepa, with Ravi typed as "new", his number spelt differently
+curl -s -H 'content-type: application/json' -d '{"name": "Deepa Nair", "address": "1 Test Road",
+  "phone_1": "9822233344",
+  "referrer": {"kind": "new", "name": "Ravi V.", "address": "", "phone": "+91 98111 22233"}}' \
+  http://127.0.0.1:8765/api/customers
+
+# 2. Ravi himself starts borrowing
+curl -s -H 'content-type: application/json' -d '{"name": "Ravi Verma",
+  "address": "3 Defence Colony, New Delhi", "phone_1": "9811122233"}' \
+  http://127.0.0.1:8765/api/customers</code></pre>
+<table class="steps">
+<tr><th>After</th><th><code>standalone_referrer</code> rows</th><th>Meera's Referrer</th><th>Deepa's Referrer</th><th>Ravi</th></tr>
+<tr><td>the sample book</td><td>1 · Ravi Verma · 9811122233</td><td>referrer 1, Ravi Verma</td><td>—</td><td>Standalone Referrer 1</td></tr>
+<tr><td>1. Deepa saved (Customer 8)</td><td>1 · Ravi Verma · 9811122233 (no new row)</td><td>referrer 1, Ravi Verma</td><td>referrer 1, Ravi Verma</td><td>Standalone Referrer 1, now referring two</td></tr>
+<tr class="changed"><td>2. Ravi saved (Customer 9)</td><td><em>none</em></td><td>customer 9, Ravi Verma</td><td>customer 9, Ravi Verma</td><td>Customer 9; <code>referred</code>: Deepa Nair, Meera Sharma</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L2), at commit 575437c. <code>GET /api/referrers/1</code> now answers 404 "Referrer not found".</p>
+<p>Step 1 wrote no Referrer row: "Ravi V." was ignored, because 9811122233 already belonged to Ravi Verma. Step 2 is promotion: one person, still one record, now a Customer, and both people he introduced came with him.</p>
+
+<h2>Nuances</h2>
+<h3>(a) A "new" Referrer on a Customer's number</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> a new Customer, Neha, is typed with a "new" Referrer "M. Sharma", phone 9810012345 (Meera's contact number 1). Which column is set, and does a Standalone Referrer row appear?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong><code>referred_by_customer_id</code> = 1</strong>, and no row is written. <code>owner_of</code> finds Customer Meera, so Neha is linked to her. Typing a new Referrer "Salim Ali" on an unknown number 9855566677 is the only case that inserts: he becomes Standalone Referrer 2 (from <code>scripts/run_throughs.py</code>, section L2, on a separate copy).</p>
+  </div>
+</div>
+
+<h3>(b) Ravi as his own Referrer, three ways</h3>
+<table class="steps text">
+<tr><th>Request (Preview)</th><th>Which case of <code>_is_themselves</code></th><th>Answer</th></tr>
+<tr><td>New Customer Ravi on 9811122233, Referrer <code>{"kind": "referrer", "id": 1}</code></td><td>② the Standalone Referrer he'd be promoted from</td><td>422 · A Customer cannot be their own Referrer</td></tr>
+<tr><td>New Customer Ravi on 9811122233, Referrer "new" on 9811122233</td><td>③ his number as typed</td><td>422 · the same</td></tr>
+<tr><td>Edit Meera (1) with Referrer <code>{"kind": "customer", "id": 1}</code></td><td>① the same Customer</td><td>422 · the same</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L2), before Ravi was saved.</p>
+
+<h3>(c) Promotion only on create</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> instead of adding Ravi as a new Customer, the Lender edits Arjun and changes his contact number 1 to Ravi's 9811122233. Is Ravi promoted into Arjun?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>No: 409</strong>, "Contact number 1 9811122233 already belongs to Referrer Ravi Verma". Line 181 promotes only when <code>customer_id is None</code>, a new Customer. Promoting into an existing Customer would mean merging two records and choosing whose name and address win; the code doesn't attempt it. (<code>test_primary_number.py::test_editing_contact_number_1_to_a_standalone_referrers_number_is_rejected</code>.)</p>
+  </div>
+</div>
+
+<h3>(d) What History says about a promotion</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> after step 2, Meera's <code>referred_by_*</code> columns changed. What does her History show for it?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>Nothing.</strong> On 19 Oct, History has rows only for the two new Customers: Deepa's <code>created</code> rows (including <code>referrer</code> → "Ravi Verma") and Ravi's. <code>_promote_referrer</code> records nothing on the people it moves. That's consistent with how History records a Referrer: by <em>name</em> (lesson 3), and Meera's Referrer was "Ravi Verma" before and after. The person didn't change; only which table holds him did.</p>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L2): <code>audit_entry</code> rows for Customers 1, 8 and 9 on 19 Oct.</p>
+  </div>
+</div>
+
+<h3>(e) There's no route to edit or delete a Standalone Referrer</h3>
+<p>A Standalone Referrer can be read (<code>GET /api/referrers/{id}</code>: name, address, phone, and whom they referred), but no route changes or deletes one. They leave the book only by being promoted. To fix a Referrer's name today, the Lender would have to make them a Customer.</p>
+
+<div class="callout warn"><strong>Trap #19 again:</strong> it's <strong>Referrer</strong>, not "reference". The columns say <code>referred_by_…</code>, the API says <code>referrer</code>, and the glossary lists "Reference" under <em>Avoid</em>. Write it the same way in code and issues (<a href="../reference/traps.html#t19">trap #19</a>).</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">A new Customer is typed with a "new" Referrer whose phone is Arjun's contact number 1. What is written?</p>
+  <button class="opt">A Standalone Referrer row, with Arjun's number</button>
+  <button class="opt">Nothing: the request is refused with 409</button>
+  <button class="opt">The Customer, with <code>referred_by_customer_id</code> = 2</button>
+  <div class="why"><code>_referrer_columns</code> asks <code>owner_of</code> first, finds Customer Arjun (2), and links to him. Only an unknown number inserts a row. A known number is not a clash for a <em>Referrer</em>; it's the point.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">When Ravi is promoted, why are his referrals moved before his row is deleted?</p>
+  <button class="opt">The foreign key refuses deleting a row still pointed at</button>
+  <button class="opt">History must record the move before the delete</button>
+  <button class="opt">The new Customer id isn't known until the delete</button>
+  <div class="why"><code>referred_by_standalone_referrer_id</code> is a foreign key to <code>standalone_referrer.id</code>, and the app turns foreign keys on in SQLite. No History is written for the move, and the Customer id is known already: it was inserted at line 205.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Which of these can set both referrer columns on one Customer?</p>
+  <button class="opt">A "new" Referrer on a promoted Customer's number</button>
+  <button class="opt">None: every path goes through <code>_link_to</code></button>
+  <button class="opt">An edit choosing an existing Standalone Referrer</button>
+  <div class="why"><code>_link_to</code> sets at most one, and every case of <code>_referrer_columns</code> returns through it. <code>_promote_referrer</code> also clears one as it sets the other.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_primary_number.py"><code>tests/test_primary_number.py</code></a> from line 71 (the "new" Referrer tests) to 167 (own Referrer), then <code>_checked</code> again from line 173: the whole function is now readable.</p>
+
+<nav class="lessons">
+  <a href="01-the-primary-number.html">← The Primary Number</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="03-changing-a-customer.html">Next: Adding, editing and deleting a Customer →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

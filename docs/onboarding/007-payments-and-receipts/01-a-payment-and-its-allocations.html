@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.1 · A Payment and its Allocations</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 007 · Lesson 1</p>
+<h1>A Payment and its Allocations</h1>
+<p class="lede">What exactly is stored when a Customer pays? This lesson reads one real Payment straight out of the database, then shows what the app refuses to store, and what it deliberately never stores at all.</p>
+
+<div class="callout win"><strong>By the end</strong> you can read the <code>payment</code> and <code>allocation</code> tables, say what <code>PaymentIn</code> and <code>_refuse_payment</code> refuse, and say why the interest/Principal split is never stored.</div>
+
+<h2>The problem</h2>
+<p>On 10 Sep 2026 Meera Sharma sends the Lender ₹12,000 by UPI. She has two Mortgages: a gold chain and a pair of bangles. She says "₹2,000 for the chain, ₹10,000 for the bangles". That's one sum of money, from one person, on one date, with one UPI reference. But it changes two Ledgers.</p>
+<p>The obvious design is one row per Mortgage: "Meera paid ₹2,000 to the chain", "Meera paid ₹10,000 to the bangles". It falls apart quickly. The Lender's bank statement shows one ₹12,000, not two. The Receipt Meera gets should say "We have received ₹12,000". If the ₹12,000 was typed wrong, it should be corrected as one thing, not two that could drift apart.</p>
+<p>There's a second question: should the row also say how much of the ₹2,000 paid interest and how much paid Principal? That's what the Lender wants to see. But that split depends on everything paid <em>before</em> it. Kavita's anklet shows why: its Payments were typed in from a paper book weeks late, in the wrong order.</p>
+
+<h2>The idea</h2>
+<p>Store the sum once, as a <code>payment</code> row, and store how it was divided between Mortgages as one <a href="../reference/glossary.html#allocation"><dfn class="term" title="The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month's interest), then Principal.">Allocation</dfn></a> row per Mortgage. Store nothing about what each Allocation paid off. That's worked out by replaying the Mortgage's Ledger every time someone asks, so it is always right, whatever was typed in later.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+erDiagram
+  customer ||--o{ payment : "pays"
+  payment ||--|{ allocation : "is divided into"
+  mortgage ||--o{ allocation : "receives"
+  payment {
+    int id
+    int customer_id
+    date paid_on
+    int amount "paise"
+    string method "cash, upi, bank_transfer"
+    string reference "optional"
+    datetime voided_at "lesson 3"
+    string void_reason "lesson 3"
+    int received_with "lesson 2"
+  }
+  allocation {
+    int id
+    int payment_id
+    int mortgage_id
+    int amount "paise"
+  }
+</pre>
+<figcaption>A Payment is one row, and its Allocations add up to it. There is no column for interest paid or Principal paid.</figcaption>
+</figure>
+<p>Notice what's missing: no interest, no Principal, no "still owed". Those come from the replay (<a href="../reference/traps.html#t4">trap #4</a>, owned by chapter 004). Also notice <code>amount</code> is in <strong>paise</strong>, hundredths of a rupee, so ₹12,000 is stored as <code>1200000</code> (<a href="../reference/traps.html#t6">trap #6</a>, owned by chapter 004).</p>
+
+<h2>The code</h2>
+<h3>1. The tables</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/db.py">platform/db.py</a> · <code>payment_table</code> · lines 123–140</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/db.py"><code>123  payment_table = Table(
+124      "payment",
+125      metadata,
+126      Column("id", Integer, primary_key=True),
+127      Column(
+128          "customer_id", Integer, ForeignKey("customer.id"), nullable=False, index=True
+129      ),
+130      Column("paid_on", Date, nullable=False),
+131      Column("amount", Integer, nullable=False),  # paise                    ◀
+132      Column("method", String, nullable=False),
+133      Column("reference", String),
+134      Column("created_at", DateTime, nullable=False, server_default=func.now()),
+135      Column("voided_at", DateTime),  # a Void keeps the Payment but out of every Ledger
+136      Column("void_reason", String),
+137      # The first part of the Payment this is part of: a Payment's Final Payments are
+138      # kept as parts of their own, and all its parts share one Receipt.
+139      Column("received_with", Integer, ForeignKey("payment.id")),
+140  )
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/db.py">platform/db.py</a> · <code>allocation_table</code> · lines 186–196</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/db.py"><code>186  # The part of a Payment applied to one Mortgage.
+187  allocation_table = Table(
+188      "allocation",
+189      metadata,
+190      Column("id", Integer, primary_key=True),
+191      Column("payment_id", Integer, ForeignKey("payment.id"), nullable=False, index=True),
+192      Column(
+193          "mortgage_id", Integer, ForeignKey("mortgage.id"), nullable=False, index=True
+194      ),
+195      Column("amount", Integer, nullable=False),  # paise
+196  )
+</code></pre>
+</figure>
+<p>The tables are declared with SQLAlchemy Core: <code>Table(…)</code> describes a table in Python, and the code builds queries from it (<code>select(payment_table)</code>) instead of writing SQL strings. <code>method</code> is one of three values, from <code>PaymentMethod</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/payments.py"><code>payments/payments.py</code></a> (line 27): <code>cash</code>, <code>upi</code>, <code>bank_transfer</code>. <code>METHOD_NAMES</code> (line 34) turns them into "Cash", "UPI" and "Bank transfer" for the screens and Receipts.</p>
+
+<h3>2. What the request must look like: <code>PaymentIn</code></h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>AllocationIn</code>, <code>PaymentIn</code> · lines 62–82</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>62  class AllocationIn(BaseModel):
+63      mortgage_id: int
+64      amount: int = Field(gt=0)  # paise
+⋮
+67  class PaymentIn(BaseModel):
+68      customer_id: int
+69      paid_on: date
+70      amount: int = Field(gt=0)  # paise
+71      method: PaymentMethod
+72      reference: str | None = None
+73      allocations: list[AllocationIn] = Field(min_length=1)       ①
+74
+75      @model_validator(mode="after")                              ②
+76      def allocations_add_up(self) -&gt; "PaymentIn":
+77          if sum(allocation.amount for allocation in self.allocations) != self.amount:
+78              raise ValueError("Allocations must add up to the Payment amount")   ◀
+79          if len({a.mortgage_id for a in self.allocations}) != len(self.allocations):
+80              raise ValueError("Each Mortgage can appear only once in a Payment")
+81          self.reference = (self.reference or "").strip() or None   ③
+82          return self
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>A <a href="https://docs.pydantic.dev/latest/concepts/models/">Pydantic model</a> describes the JSON body. FastAPI checks every request against it before your code runs, and answers <strong>422</strong> with Pydantic's own message if it doesn't fit: a missing field, an amount of 0 (<code>gt=0</code> means "greater than 0"), no Allocations at all, or a method that isn't one of the three.</li>
+  <li>A <code>model_validator(mode="after")</code> runs once every field has been checked on its own, so it can compare fields with each other. Raising <code>ValueError</code> here also becomes a 422.</li>
+  <li>A blank or all-spaces reference is stored as <code>NULL</code>, not as an empty string.</li>
+</ol>
+
+<h3>3. What the database must allow: <code>_refuse_payment</code></h3>
+<p><code>PaymentIn</code> can only check the body on its own. Whether the Customer exists, or whether a Mortgage is theirs, needs the database. That's step 1 of every change (chapter 006: refuse → write → check → History):</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_refuse_payment()</code> · lines 254–279, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>254  def _refuse_payment(
+255      conn: Connection, payment: PaymentIn, today: date
+256  ) -&gt; list[RowMapping]:
+257      """The Mortgages the Payment is allocated to, unless it cannot be made at all."""
+258      if payment.paid_on &gt; today:
+259          raise unprocessable("The Payment date cannot be in the future")       ①
+260      if not exists(conn, customer_table, payment.customer_id):
+261          raise unprocessable("Customer not found")
+262      rows = []
+263      for allocation in payment.allocations:
+264          row = (
+⋮    … SELECT the Mortgage by allocation.mortgage_id …
+272          )
+273          if row is None or row["customer_id"] != payment.customer_id:
+274              raise unprocessable("Each Mortgage must belong to the paying Customer")   ②
+275          _refuse_unless_active(row)                                          ③  ◀
+276          if payment.paid_on &lt; row["start_date"]:
+277              raise unprocessable(f"{row['name']} had not started on that date")
+278          rows.append(row)
+279      return rows
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>unprocessable</code> (in <code>platform/errors.py</code>, chapter 006) raises a 422 with a message for the Lender.</li>
+  <li>A Mortgage that doesn't exist and a Mortgage of someone else get the same message: either way, the Payment can't go there.</li>
+  <li>A closed Mortgage (Redeemed, Waived or Forfeited) refuses with <strong>409</strong>, "reopen it first" (<code>_refuse_unless_active</code>, line 176). 409 means "conflicts with the current state": the body is fine, the Mortgage just isn't open.</li>
+</ol>
+<p>One refusal isn't here. A Payment larger than everything the Mortgage owed on its date is refused later, by <code>check_replays</code> after the write (chapter 006, lesson 2), because only a replay knows what was owed then.</p>
+
+<h3>4. The split, worked out on request</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/payments.py">payments/payments.py</a> · <code>load_payment()</code> · lines 127–152, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/payments.py"><code>127  def load_payment(conn: Connection, payment_id: int) -&gt; Payment:
+128      payment = conn.execute(
+⋮    … the payment row, with the Customer's name; 404 if missing …
+136      mortgages = mortgages_of(conn, payment_id)                   ①
+137      voided = payment.voided_at is not None
+138      # How it was applied comes from the replay, so it reflects every earlier Payment; a
+139      # Voided Payment is in no Ledger, so only its amounts remain.
+140      replayed = {} if voided else replays(conn, mortgages)        ②
+141      allocations = []
+142      for mortgage in mortgages:
+143          step = None if voided else replayed[mortgage["id"]].steps_by_payment()[payment_id]   ③  ◀
+144          allocations.append(
+145              AllocationOut(
+⋮
+149                  interest_paid=step.interest_paid if step else None,
+150                  principal_paid=step.principal_paid if step else None,
+151              )
+152          )
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>mortgages_of</code> (line 110) joins <code>allocation</code> to <code>mortgage</code>: each Mortgage the Payment went to, with its Allocation as <code>allocated</code>, in the order the Allocations were made.</li>
+  <li><code>replays</code> (chapter 005, lesson 1) replays each of those Mortgages from its facts.</li>
+  <li><code>steps_by_payment</code> (<code>lending/replay.py</code>, line 124) maps each Payment id to the Ledger step it made. That step knows its <code>interest_paid</code> and <code>principal_paid</code>, because the engine just applied it in date order.</li>
+</ol>
+
+<h2>Run-through: Meera's 10 Sep Payment</h2>
+<p>On your served book, look at the rows. Payment 23 is Meera's ₹12,000:</p>
+<pre><code>sqlite3 -header -column "$BOOK/data/mortgage.db" \
+  "SELECT id, customer_id, paid_on, amount, method, reference, received_with FROM payment WHERE id = 23;
+   SELECT id, payment_id, mortgage_id, amount FROM allocation WHERE payment_id = 23;"</code></pre>
+<table class="steps text">
+<tr><th>Table</th><th>Row</th><th>What it says</th></tr>
+<tr><td><code>payment</code></td><td>id 23 · customer 1 · 2026-09-10 · <code>1200000</code> · <code>upi</code> · "UPI 4419 0921 7731" · <code>received_with</code> empty</td><td>Meera paid ₹12,000 by UPI on 10 Sep</td></tr>
+<tr><td><code>allocation</code></td><td>id 23 · payment 23 · Mortgage 2 · <code>200000</code></td><td>₹2,000 of it to the chain</td></tr>
+<tr><td><code>allocation</code></td><td>id 24 · payment 23 · Mortgage 5 · <code>1000000</code></td><td>₹10,000 of it to the bangles</td></tr>
+</table>
+<p>Now ask the API: <code>curl -s http://127.0.0.1:8765/api/payments/23</code>. It returns the same Payment, and each Allocation gains two fields the tables don't have:</p>
+<table class="steps">
+<tr><th>Mortgage</th><th>Allocation</th><th><code>interest_paid</code></th><th><code>principal_paid</code></th></tr>
+<tr><td>2025-Meera-GoldChainPendant</td><td>₹2,000</td><td>₹2,000</td><td>₹0</td></tr>
+<tr><td>2026-Meera-PairBangles</td><td>₹10,000</td><td>₹10,000</td><td>₹0</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L1), at commit 15df77d.</p>
+<p>All of it went to interest. Meera owed months of unpaid interest on both, and an Allocation pays unpaid interest first (chapter 004, lesson 3).</p>
+
+<h2>Nuances</h2>
+<h3>(a) Payments typed in the wrong order</h3>
+<p>Kavita's anklet was lent ₹15,000 in cash on 1 Jul 2026, at 2% a month. Its three Payments were typed in from a paper book on 18 Oct, and the last one typed carries the earliest date (it should have said 25 Sep; the Lender wrote 25 Aug by mistake). The ids show the typing order:</p>
+<table class="steps">
+<tr><th>id (typing order)</th><th>Date</th><th>Amount</th><th>Method</th></tr>
+<tr><td>31</td><td>26 Aug</td><td>₹300</td><td>cash</td></tr>
+<tr><td>32</td><td>5 Sep</td><td>₹300</td><td>cash</td></tr>
+<tr><td>33</td><td>25 Aug</td><td>₹15,000</td><td>UPI</td></tr>
+</table>
+<div class="reveal">
+  <p><strong>Predict:</strong> the anklet's 1 Aug interest was ₹300. Which Payment pays it, and how much Principal does Payment 31 (₹300 on 26 Aug) pay?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Replay order</th><th>Payment</th><th>Date</th><th>Interest</th><th>Principal</th></tr>
+    <tr class="changed"><td>1</td><td>33</td><td>25 Aug</td><td>₹300</td><td>₹14,700</td></tr>
+    <tr class="changed"><td>2</td><td>31</td><td>26 Aug</td><td>₹0</td><td>₹300</td></tr>
+    <tr><td>3</td><td>32</td><td>5 Sep</td><td>₹300</td><td>₹0</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L1): <code>GET /api/payments/{31,32,33}</code>.</p>
+    <p>The replay goes by <strong>date</strong>, not id. Payment 33, typed last, is applied first: it pays the ₹300 of interest and ₹14,700 of Principal. Payment 31 then finds no interest left and pays the last ₹300 of Principal. Payment 32 pays the 1 Sep interest, which was charged on the ₹15,000 the month started with (<a href="../../adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a>, <a href="../reference/traps.html#t7">trap #7</a>). Had the split been stored when each Payment was typed, Payment 31 would say "₹300 interest" forever, and be wrong.</p>
+  </div>
+</div>
+<p>That's <a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>: anything that depends on earlier facts goes stale the moment an earlier fact changes, so it isn't stored. This includes the split.</p>
+
+<h3>(b) Every refusal, tried</h3>
+<p>Try these against the Preview route, <code>POST /api/payments/preview</code>. It runs the same <code>record_payment</code> and rolls back (chapter 006, lesson 4), so it refuses exactly as saving would, and saves nothing. A starting body, with the chain's id 2:</p>
+<pre><code>curl -s -w ' %{http_code}
+' -H 'content-type: application/json' \
+  -d '{"customer_id": 1, "paid_on": "2026-10-19", "amount": 100000, "method": "upi",
+       "allocations": [{"mortgage_id": 2, "amount": 100000}]}' \
+  http://127.0.0.1:8765/api/payments/preview</code></pre>
+<table class="steps text">
+<tr><th>Change to the body</th><th>Answer</th><th>Refused by</th></tr>
+<tr><td><code>"amount": 200000</code> (Allocations add up to ₹1,000)</td><td>422 · Value error, Allocations must add up to the Payment amount</td><td><code>PaymentIn</code></td></tr>
+<tr><td>Two Allocations of ₹500, both to Mortgage 2</td><td>422 · Value error, Each Mortgage can appear only once in a Payment</td><td><code>PaymentIn</code></td></tr>
+<tr><td><code>"method": "cheque"</code></td><td>422 · Input should be 'cash', 'upi' or 'bank_transfer'</td><td><code>PaymentIn</code></td></tr>
+<tr><td><code>"paid_on": "2026-10-20"</code></td><td>422 · The Payment date cannot be in the future</td><td><code>_refuse_payment</code></td></tr>
+<tr><td><code>"mortgage_id": 3</code> (Kavita's coin, paid by Meera)</td><td>422 · Each Mortgage must belong to the paying Customer</td><td><code>_refuse_payment</code></td></tr>
+<tr class="changed"><td><code>"customer_id": 3</code> and <code>"mortgage_id": 3</code> (Kavita's coin, Redeemed on 5 Oct)</td><td>409 · 2026-Kavita-GoldCoin is redeemed: reopen it first</td><td><code>_refuse_unless_active</code></td></tr>
+<tr><td><code>"paid_on": "2025-11-01"</code> (the chain started on 10 Nov)</td><td>422 · 2025-Meera-GoldChainPendant had not started on that date</td><td><code>_refuse_payment</code></td></tr>
+<tr><td>Kavita, ₹1 to the anklet (10) on <code>2026-08-25</code>, in cash</td><td>422 · 2026-Kavita-SilverGoldAnklet: the Payment on 26 Aug 2026 would be more than the ₹299 owed then</td><td><code>check_replays</code></td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L1), through <code>POST /api/payments</code> on a copy: the <code>payment</code> table still had 33 rows afterwards.</p>
+<p>The last row is worth a second look. The extra ₹1 on 25 Aug is fine on its own date. But it leaves ₹1 less owed on 26 Aug, so Payment 31's ₹300 is now more than the ₹299 owed then. The message names the <em>later</em> Payment, because that's the one the replay can't apply.</p>
+
+<h3>(c) Totals on the Payments list come from replay too</h3>
+<p>The Payments page can be filtered to a month or a year, and then shows how much interest the listed Payments paid. Since no split is stored, <code>list_payments</code> calls <code>_interest_paid</code> (line 168), which replays every Mortgage those Payments went to and adds up their steps' <code>interest_paid</code>.</p>
+<table class="steps">
+<tr><th>id</th><th>Date</th><th>Customer</th><th>Amount</th><th>Interest it paid</th></tr>
+<tr><td>25</td><td>20 Sep</td><td>Lakshmi Iyer</td><td>₹4,000</td><td>₹4,000</td></tr>
+<tr><td>24</td><td>12 Sep</td><td>Farida Khan</td><td>₹600</td><td>₹600</td></tr>
+<tr><td>23</td><td>10 Sep</td><td>Meera Sharma</td><td>₹12,000</td><td>₹12,000</td></tr>
+<tr><td>32</td><td>5 Sep</td><td>Kavita Joshi</td><td>₹300</td><td>₹300</td></tr>
+<tr class="changed"><td colspan="4"><code>GET /api/payments?month=2026-09</code> → <code>interest_paid</code></td><td>₹16,900</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L1). Without <code>month</code> or <code>year</code>, <code>interest_paid</code> is <code>null</code>.</p>
+
+<div class="callout warn"><strong>Trap #1: where the writes live.</strong> This lesson's reads are in <code>payments/payments.py</code>, but <code>PaymentIn</code>, <code>_refuse_payment</code> and <code>record_payment</code> are in <code>lending/changes.py</code>. Every write that can move a Ledger lives there (<a href="../reference/traps.html#t1">trap #1</a>, owned by chapter 003).</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">Where does <code>interest_paid</code> on <code>GET /api/payments/23</code> come from?</p>
+  <button class="opt">A column on the <code>allocation</code> row</button>
+  <button class="opt">A column on the <code>payment</code> row</button>
+  <button class="opt">The step the replay made for Payment 23</button>
+  <div class="why">Neither table has it. <code>load_payment</code> replays each Mortgage and reads the step for this Payment from <code>steps_by_payment()</code>. Storing it would go stale whenever an earlier Payment is added or Voided, as the anklet shows.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Meera pays ₹1,000 to Kavita's anklet. What answers?</p>
+  <button class="opt">422: the Mortgage must belong to the payer</button>
+  <button class="opt">409: the anklet must be reopened first</button>
+  <button class="opt">201: anyone may pay any Customer's Mortgage</button>
+  <div class="why"><code>_refuse_payment</code> compares each Mortgage's <code>customer_id</code> with the Payment's: "Each Mortgage must belong to the paying Customer". The anklet is Active, so 409 doesn't apply.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">A body's Allocations add up to ₹1,000 and its <code>amount</code> says ₹2,000. Which code refuses it?</p>
+  <button class="opt"><code>_refuse_payment</code>, inside the transaction</button>
+  <button class="opt"><code>PaymentIn</code>, before any route code runs</button>
+  <button class="opt"><code>check_replays</code>, after the rows are written</button>
+  <div class="why"><code>allocations_add_up</code> is a Pydantic validator on <code>PaymentIn</code>. FastAPI runs it while parsing the body, so the route function never even starts.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/replay.py"><code>lending/replay.py</code></a>, <code>steps_by_payment</code> at line 124, then <code>load_payment</code> again. Then open <a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a> and find the sentence that rules out a stored split.</p>
+
+<nav class="lessons">
+  <a href="index.html">← Chapter overview</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="02-one-payment-several-parts.html">Next: One Payment, several parts →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

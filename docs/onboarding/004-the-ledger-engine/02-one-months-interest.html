@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.2 · One month's interest</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 004 · Lesson 2</p>
+<h1>One month's interest</h1>
+<p class="lede">"2% a month" fits on a sticky note. Turning it into rupees means deciding which day it's added, in what unit it's counted, how it's rounded, what a short month does, and what a part of a month costs. This lesson reads the four small functions that decide all of that.</p>
+
+<div class="callout win"><strong>By the end</strong> you can work out any month's interest charge, and any Interest to Date, by hand from a Mortgage's Terms.</div>
+
+<h2>The problem</h2>
+<p>Here are the questions the code has to answer, each with a wrong answer that looks fine at first:</p>
+<table class="wide">
+<tr><th>Question</th><th>Tempting answer</th><th>Why it fails</th></tr>
+<tr><td>What unit is money in?</td><td>Rupees as a <code>float</code></td><td><code>0.1 + 0.2 != 0.3</code> in floating point. Sums of thousands of Payments drift by paise.</td></tr>
+<tr><td>What's 2.5% of ₹61,500?</td><td>₹1,537.50</td><td>The Lender charges whole rupees. Rounding has to be one fixed rule, written once.</td></tr>
+<tr><td>A Mortgage started on 31 Jan. When is February's interest?</td><td>31 Feb</td><td>There is no 31 Feb. Python's <code>date(2026, 2, 31)</code> raises an error.</td></tr>
+<tr><td>What's 10 days of a month worth?</td><td>10 ÷ days in that month</td><td>Then a day in February costs more than a day in March. The Lender wants every month to count the same.</td></tr>
+</table>
+
+<h2>The idea</h2>
+<p>Every money figure is an integer number of <strong>paise</strong>. A rate is an integer number of <strong>basis points per month</strong> (1 basis point = 0.01%, so 200 = 2% a month). One function, <code>monthly_interest</code>, turns a Principal and a rate into a charge for a month, or for some days of a month counted out of 30. It rounds half-up to the whole rupee. The <a href="../reference/glossary.html#accrual-date"><dfn class="term" title="The monthly day on which a month's interest is added, charged on the Principal as it stood when that month began, at the previous Accrual Date before that day's Payments; taken from the start date and clamped to month-end when the month is shorter.">Accrual Date</dfn></a> is the start date's day of the month, moved back to the month's last day when the month is too short.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  T["Terms<br/>monthly_rate_bps, interest_mode, part_month_rule"] --> Q{"Is it an Accrual Date?<br/>accrual_date(start, n)"}
+  Q -->|"yes"| M["monthly_interest(principal, terms)<br/>a whole month: days = 30"]
+  Q -->|"no, the month is under way"| D["interest_to_date_days(start, on)<br/>days since the Accrual Date, today included"]
+  D --> R{"part_month_rule"}
+  R -->|"pro_rata"| P["monthly_interest(principal, terms, min(days, 30))"]
+  R -->|"full_month"| F["monthly_interest(principal, terms)"]
+  R -->|"nothing"| N["0"]
+</pre>
+<figcaption>A whole month on an Accrual Date; part of one between them. Every path ends in the same <code>monthly_interest</code>.</figcaption>
+</figure>
+<p>Notice that there's only one formula. The Part-Month Rule only decides how many days to give it.</p>
+
+<h2>The code</h2>
+<h3>1. Terms: three fields</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/terms.py">lending/terms.py</a> · <code>InterestMode</code>, <code>PartMonthRule</code>, <code>Terms</code> · lines 8–24</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/terms.py"><code>8   class InterestMode(StrEnum):
+9       SIMPLE = "simple"
+10      COMPOUNDED_YEARLY = "compounded_yearly"
+11      COMPOUNDED_MONTHLY = "compounded_monthly"
+12
+13
+14  class PartMonthRule(StrEnum):
+15      PRO_RATA = "pro_rata"
+16      FULL_MONTH = "full_month"
+17      NOTHING = "nothing"
+18
+19
+20  class Terms(BaseModel):
+21      # Basis points per month: 300 = 3% a month. Integers avoid float drift.
+22      monthly_rate_bps: int = Field(gt=0, le=10_000)   ◀
+23      interest_mode: InterestMode
+24      part_month_rule: PartMonthRule
+</code></pre>
+</figure>
+<p>A <code>StrEnum</code> is an enum whose members are also plain strings, so <code>InterestMode.SIMPLE == "simple"</code>. That's what the API sends and the database stores. <code>Terms</code> is a Pydantic model: <code>Field(gt=0, le=10_000)</code> refuses a rate of zero or above 100% a month. The Interest Mode is lesson 4's. This lesson uses the other two fields.</p>
+
+<h3>2. Accrual Dates and the month-end clamp</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>accrual_date()</code>, <code>is_accrual_date()</code> · lines 106–115</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>106  def accrual_date(start: date, n: int) -&gt; date:
+107      """The n-th monthly Accrual Date: the start day, or month-end when the month is shorter."""
+108      months = start.month - 1 + n                                             ①
+109      year, month = start.year + months // 12, months % 12 + 1
+110      return date(year, month, min(start.day, calendar.monthrange(year, month)[1]))   ②
+⋮
+113  def is_accrual_date(start: date, day: date) -&gt; bool:
+114      months = (day.year - start.year) * 12 + day.month - start.month
+115      return months &gt;= 1 and accrual_date(start, months) == day             ③
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Counts months from January of the start year, then splits that count back into a year and a month. <code>//</code> is whole-number division and <code>%</code> the remainder.</li>
+  <li><code>calendar.monthrange(year, month)[1]</code> is the number of days in that month. Taking the smaller of it and the start day is the clamp: 31 becomes 28 in February.</li>
+  <li>The start date itself is Accrual Date number 0, not an Accrual Date: <code>months &gt;= 1</code>.</li>
+</ol>
+<p>Every Accrual Date is worked out from the <strong>start</strong>, never from the one before. So a short month doesn't drag the rest of the year earlier. A Mortgage started on 31 Jan 2026 accrues on 28 Feb, 31 Mar, 30 Apr, 31 May.</p>
+
+<h3>3. <code>monthly_interest</code>: the one formula</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>DAYS_IN_A_MONTH</code>, <code>monthly_interest()</code> · lines 118–128</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>118  DAYS_IN_A_MONTH = 30  # the pro-rata Part-Month Rule counts days out of 30
+⋮
+121  def monthly_interest(principal: int, terms: Terms, days: int = DAYS_IN_A_MONTH) -&gt; int:
+122      """Interest for a month (or `days` of 30) in paise, rounded half-up to the rupee."""
+123      paise_per_rupee = 100
+124      # basis points, then days of 30, then paise → rupees
+125      denominator = 10_000 * DAYS_IN_A_MONTH * paise_per_rupee        ①
+126      numerator = principal * terms.monthly_rate_bps * days
+127      rupees = (2 * numerator + denominator) // (2 * denominator)    ②  ◀
+128      return rupees * paise_per_rupee                                ③
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The charge in rupees is <code>principal_paise × bps × days ÷ (10,000 × 30 × 100)</code>: ÷10,000 turns basis points into a fraction, ÷30 turns days into a fraction of a month, ÷100 turns paise into rupees.</li>
+  <li>Integer rounding half-up. <code>(2n + d) // (2d)</code> is the same as <code>floor(n/d + ½)</code>, but uses whole numbers only, so it's exact. Python's own <code>round()</code> rounds halves to the nearest <em>even</em> number (<code>round(2.5) == 2</code>), which is why it isn't used.</li>
+  <li>Back to paise, always a whole rupee.</li>
+</ol>
+
+<h3>4. Part of a month: the Part-Month Rules</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/ledger.py">lending/ledger.py</a> · <code>interest_to_date_days()</code>, <code>interest_to_date_charge()</code> · lines 139–155</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/ledger.py"><code>139  def interest_to_date_days(start: date, on: date) -&gt; int:
+140      """Days of the month under way charged by `on`: from its first day (the start or
+141      the last Accrual Date) through `on` itself, so today always counts."""
+142      return days_since_accrual(start, on) + 1            ①
+⋮
+145  def interest_to_date_charge(principal: int, terms: Terms, days: int) -&gt; int:
+146      """The Interest to Date for `days` of a month, under its Part-Month Rule."""
+147      if days &lt;= 0:
+148          return 0
+149      match terms.part_month_rule:                        ②
+150          case PartMonthRule.FULL_MONTH:
+151              return monthly_interest(principal, terms)
+152          case PartMonthRule.PRO_RATA:
+153              return monthly_interest(principal, terms, min(days, DAYS_IN_A_MONTH))   ③
+154          case PartMonthRule.NOTHING:
+155              return 0
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The <code>+ 1</code> is "today always counts". On an Accrual Date itself that's 1 day of the new month.</li>
+  <li><code>match … case</code> (Python 3.10+) compares the value against each <code>case</code> in turn, like a <code>switch</code>.</li>
+  <li>A 31-day month's last day would be day 31. <code>min(…, 30)</code> caps it, so the Interest to Date never exceeds a whole month's charge.</li>
+</ol>
+
+<h2>Run-through: Meera's chain</h2>
+<p>The chain: ₹80,000 lent on 10 Nov 2025, on the sample book's <a href="../reference/glossary.html#default-terms"><dfn class="term" title="The Terms the Lender has set to be copied into every new Mortgage.">Default Terms</dfn></a>: 2% a month (200 bps), Compounded Yearly, pro-rata. Its Principal has stayed ₹80,000 all year.</p>
+<table class="steps">
+<tr><th>Charge</th><th>Numerator (paise × bps × days)</th><th>÷ 30,000,000</th><th>Rupees</th></tr>
+<tr><td>A whole month, each 10th</td><td>80,00,000 × 200 × 30</td><td>1,600</td><td>1,600</td></tr>
+<tr><td>Interest to Date, 1 day</td><td>80,00,000 × 200 × 1</td><td>53.33</td><td>53</td></tr>
+<tr><td>Interest to Date, 9 days</td><td>80,00,000 × 200 × 9</td><td>480</td><td>480</td></tr>
+<tr class="changed"><td>Interest to Date, 10 days (19 Oct)</td><td>80,00,000 × 200 × 10</td><td>533.33</td><td>533</td></tr>
+<tr><td>Interest to Date, 31 days (capped at 30)</td><td>80,00,000 × 200 × 30</td><td>1,600</td><td>1,600</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L2), which calls the real <code>monthly_interest</code> and <code>interest_to_date_charge</code>, at commit 6f1775b.</p>
+<p>On 19 Oct the month under way began on 10 Oct. From the 10th to the 19th, both included, is 10 days, so the Interest to Date is ₹533. On your served book, <a href="http://127.0.0.1:8765/mortgages/2"><code>/mortgages/2</code></a> ends its Ledger with "Interest to Date: 10 days of this month, today included (pro-rata) on ₹80,000", ₹533.</p>
+<p>Check a figure yourself, from <code>backend/</code>:</p>
+<pre><code>uv run python -c "
+from mortgage_backend.lending.ledger import monthly_interest
+from mortgage_backend.lending.terms import Terms
+t = Terms(monthly_rate_bps=200, interest_mode='compounded_yearly', part_month_rule='pro_rata')
+print(monthly_interest(80_000_00, t), monthly_interest(80_000_00, t, 10))"</code></pre>
+<p>It prints <code>160000 53300</code>: paise, as the engine always works.</p>
+
+<h2>Nuances</h2>
+<h3>(a) Rounding half-up</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> Arjun's ring is at 2.5% a month. After its first Capitalisation the Principal was ₹61,500, and 2.5% of that is ₹1,537.50 exactly. What does the Ledger charge? And on ₹61,540 (exactly ₹1,538.50)?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Principal</th><th>Exact 2.5%</th><th>Charged</th></tr>
+    <tr><td>61,500</td><td>1,537.50</td><td>1,538</td></tr>
+    <tr><td>61,520</td><td>1,538.00</td><td>1,538</td></tr>
+    <tr class="changed"><td>61,540</td><td>1,538.50</td><td>1,539</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L2).</p>
+    <p>Halves always go up. Python's <code>round()</code> would give 1,538 for both halves (it rounds to even), which is why the code doesn't use it. You can see the ₹1,538 on the ring's complete Ledger (<a href="http://127.0.0.1:8765/mortgages/1"><code>/mortgages/1</code></a>): "Interest: 2.5% of ₹61,500" on 15 Aug 2025.</p>
+  </div>
+</div>
+
+<h3>(b) A start on the 31st</h3>
+<p>The clamp happens one month at a time: <code>accrual_date(31 Jan 2026, n)</code> gives 28 Feb, 31 Mar, 30 Apr, 31 May. For a start on 31 Oct 2026 it gives 30 Nov, 31 Dec, 31 Jan, 28 Feb. The test <code>test_accrual_dates_fall_on_the_start_day_or_month_end</code> pins the same pattern for a start on 31 Jan 2024, a leap year: 29 Feb, then back to 31 Mar, not the 29th.</p>
+
+<h3>(c) Kavita's anklet and the "nothing" rule</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> the anklet's Part-Month Rule is "nothing". On 19 Oct, 19 days into its month, what is its Interest to Date, and what is the last step of its Ledger?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>₹0, and there's no <code>interest_to_date</code> step at all. The last step is 1 Oct's interest. <code>charge_interest_to_date</code> (line 322) adds the step only when there's something to show. Under "nothing", a Customer who settles mid-month pays nothing for the part month. Under "full month" they'd pay the whole month from its first day: ₹1,600 for Meera's chain, even on day 1.</p>
+  </div>
+</div>
+
+<h3>(d) Default Terms: the book is not a fresh database</h3>
+<p>The sample book's Default Terms are 2%, Compounded Yearly, pro-rata, set by <code>book.py</code>. A fresh database starts at 3%, Compounded Yearly, full month (migration 0001; see <a href="../002-find-your-way-and-run-it/04-serve-the-sample-book.html">002 · Lesson 4</a>). On a fresh database, the chain would be charged ₹2,400 a month, and ₹2,400 on day 1 of each month as its Interest to Date. When a test's figures surprise you, check which Terms it set up first.</p>
+
+<div class="callout warn"><strong>Newcomer trap #6: units.</strong> Money is paise (integers): <code>160000</code> is ₹1,600. Rates are basis points <em>per month</em>: <code>200</code> is 2% a month, not a year. Pro-rata counts days out of 30, whatever the month. And ₹1,00,000 (one lakh) is Indian digit grouping for a hundred thousand. Weights are milligrams (<a href="../008-people-and-collateral/05-gold-rates-collateral-ltv.html">chapter 008, lesson 5</a>). This chapter owns trap #6; see the <a href="../reference/traps.html#t6">traps sheet</a>.</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">A ₹50,000 Mortgage at 300 bps, pro-rata. What is its Interest to Date 7 days into a month?</p>
+  <button class="opt">₹1,500, the whole month's interest</button>
+  <button class="opt">₹339, using 7 days out of 31</button>
+  <button class="opt">₹350, using 7 days out of 30</button>
+  <div class="why">3% of ₹50,000 is ₹1,500 a month. Pro-rata counts days out of 30 in every month: 7/30 × ₹1,500 = ₹350. "Full month" would give ₹1,500. No rule uses the month's real length.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">A Mortgage started on 30 Jan 2026. When is its second Accrual Date?</p>
+  <button class="opt">30 Mar 2026, from the start again</button>
+  <button class="opt">28 Mar 2026, a month after 28 Feb</button>
+  <button class="opt">2 Mar 2026, thirty days after 30 Jan</button>
+  <div class="why">The first is 28 Feb (clamped). But each Accrual Date is <code>accrual_date(start, n)</code>, worked out from the start date, so the second is 30 Mar. Nothing is counted in 30-day steps.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">In the API, what does <code>"monthly_rate_bps": 150</code> mean?</p>
+  <button class="opt">1.5% a year, as banks quote it</button>
+  <button class="opt">1.5% a month, charged each month</button>
+  <button class="opt">₹150 a month, as a fixed charge</button>
+  <div class="why">Basis points per month: 150 bps = 1.50% a month. It's the rate Meera's bangles change to in lesson 5. Trap #6.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_ledger.py"><code>tests/test_ledger.py</code></a>, read <code>test_accrual_dates_fall_on_the_start_day_or_month_end</code> and <code>test_each_accrual_is_rounded_to_the_nearest_rupee</code> (from line 40). They're short and parametrised: one test function run once per row of inputs. Then read the Part-Month Rule entry in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md"><code>GLOSSARY.md</code></a>.</p>
+
+<nav class="lessons">
+  <a href="01-the-ledger-is-a-replay.html">← The Ledger is a replay</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="03-the-order-inside-a-day.html">Next: The order inside a day →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

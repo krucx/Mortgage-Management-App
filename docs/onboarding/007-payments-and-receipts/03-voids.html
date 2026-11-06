@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.3 · Voids: how a Payment is corrected</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 007 · Lesson 3</p>
+<h1>Voids: how a Payment is corrected</h1>
+<p class="lede">People type the wrong number. This lesson shows the only way the app lets you correct a Payment, what that leaves behind, and the three Voids it refuses.</p>
+
+<div class="callout win"><strong>By the end</strong> you can correct a wrong Payment, and say which Voids are refused.</div>
+
+<h2>The problem</h2>
+<p>On 10 Oct Meera paid ₹6,000 in cash towards her bangles. The Lender typed ₹16,000. Within the hour they noticed. What should the fix look like?</p>
+<p>The obvious fixes are "edit the amount to ₹6,000" or "delete the row and type it again". Both lose something that matters in a business that handles cash. After an edit, nothing shows that ₹16,000 was ever on record, and the bangles' Ledger silently changes under every figure the Lender has already told Meera. After a delete, a Receipt Meera might already have on her phone points at a Payment that no longer exists. If a figure is ever disputed, the Lender needs to see what was entered, when, and why it changed.</p>
+
+<h2>The idea</h2>
+<p>Never edit or delete a stored Payment. The only write allowed on one is the <a href="../reference/glossary.html#void"><dfn class="term" title="Cancelling a recorded Payment with a reason, keeping it on record but excluding it from every Ledger.">Void</dfn></a>: it stamps the row with when and why, and from then on every replay leaves it out. A correction is two steps: Void the wrong Payment, then enter the right one as a new Payment.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> Recorded: POST /payments
+  Recorded --> Voided: POST /payments/{id}/void<br/>with a reason
+  Voided --> [*]: kept for good,<br/>in no Ledger
+  Recorded --> Recorded: no edit, no delete
+  note right of Voided
+    voided_at and void_reason set.
+    Still listed; no Receipt (409);
+    no interest/Principal split.
+  end note
+</pre>
+<figcaption>A Payment has only two states. There's no way back from Voided: if the Void was the mistake, enter the Payment again.</figcaption>
+</figure>
+<p>Notice there's no arrow back. A Reopen does Void a Final Payment, but nothing ever un-Voids one.</p>
+
+<h2>The code</h2>
+<h3>1. The request: a reason, always</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>VoidIn</code> · lines 85–93</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>85  class VoidIn(BaseModel):
+86      reason: str = Field(min_length=1)
+87
+88      @model_validator(mode="after")
+89      def tidy(self) -&gt; "VoidIn":
+90          self.reason = self.reason.strip()
+91          if not self.reason:
+92              raise ValueError("A reason is needed")                     ◀
+93          return self
+</code></pre>
+</figure>
+<p><code>min_length=1</code> alone would let <code>"   "</code> through. The validator strips the spaces first, then refuses what's left if it's empty.</p>
+
+<h3>2. <code>void_payment</code>: refuse, write, check, History</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>340  def void_payment(
+341      conn: Connection, payment_id: int, reason: str, today: date, now: datetime
+342  ) -&gt; None:
+⋮    … why it reads voided_at straight from the table: chapter 006, lesson 2 …
+347      found = conn.execute(
+348          select(payment_table.c.voided_at).where(payment_table.c.id == payment_id)
+349      ).one_or_none()
+350      if found is None:
+351          raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
+352      if found.voided_at is not None:
+353          raise HTTPException(status.HTTP_409_CONFLICT, "Already voided")       ①
+354      rows = mortgages_of(conn, payment_id)
+355      for row in rows:
+356          if row["redemption_payment_id"] == payment_id:                         ②  ◀
+357              raise HTTPException(
+358                  status.HTTP_409_CONFLICT,
+359                  f"This is the final Payment of the closing of {row['name']}: "
+360                  "reopen the Mortgage instead, which voids it",
+361              )
+362          _refuse_unless_active(row)                                             ③
+363      _write_void(conn, payment_id, reason, now)
+364      check_replays(conn, rows, today)
+365      _record_void_history(conn, payment_id, reason, now)
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>A Payment can be Voided once. A second Void is a conflict with its state, so 409.</li>
+  <li>A Closure's Final Payment can't be Voided directly: that would leave a Redeemed or Waived Mortgage whose <code>redemption_payment_id</code> points at a Voided Payment. The Lender has to Reopen the Mortgage, which clears the Closure first and then Voids the Final Payment through this same function (chapter 006, lesson 2).</li>
+  <li>Any other Payment to a closed Mortgage is refused too: its Closure was worked out with that Payment in place, so changing what was paid means Reopening first.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_write_void()</code>, <code>_record_void_history()</code> · lines 233–251</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>233  def _write_void(conn: Connection, payment_id: int, reason: str, now: datetime) -&gt; None:
+234      conn.execute(
+235          update(payment_table)
+236          .where(payment_table.c.id == payment_id)
+237          .values(voided_at=now, void_reason=reason)                    ① the only UPDATE on a Payment
+238      )
+239
+240
+241  def _record_void_history(
+242      conn: Connection, payment_id: int, reason: str, now: datetime
+243  ) -&gt; None:
+244      audit.record(
+245          conn,
+246          now,
+247          "payment",
+248          payment_id,
+249          "voided",
+250          [audit.Change("void_reason", None, reason)],                  ②
+251      )
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Search the backend for <code>update(payment_table)</code>: this is the only one. There's no <code>delete(payment_table)</code> anywhere, and nothing updates or deletes an <code>allocation</code> row.</li>
+  <li>The reason is recorded as a change of <code>void_reason</code> from nothing to the reason, not as a <code>note</code> (chapter 006, lesson 3).</li>
+</ol>
+<p>After a Void, a replay simply doesn't see the Payment: <code>replays()</code> loads only non-Voided Allocations (chapter 005, lesson 1). That's why <code>load_payment</code> skips the replay for a Voided Payment (lines 137–140, lesson 1) and shows <code>interest_paid</code> and <code>principal_paid</code> as <code>null</code>: it's in no Ledger, so it paid nothing.</p>
+
+<h2>Run-through: the ₹16,000 that should have been ₹6,000</h2>
+<p>The sample book already holds this correction, made the way the Lender would. Look at it on your served book:</p>
+<pre><code>sqlite3 -header -column "$BOOK/data/mortgage.db" \
+  "SELECT id, paid_on, amount, method, voided_at, void_reason FROM payment WHERE id IN (27, 28);"
+curl -s http://127.0.0.1:8765/api/payments/27
+curl -s -w ' %{http_code}
+' http://127.0.0.1:8765/api/payments/27/receipt</code></pre>
+<table class="steps text">
+<tr><th>Step</th><th>What the book shows</th></tr>
+<tr><td>10 Oct, Payment 27 recorded</td><td>₹16,000 cash to the bangles. History #233–235: <code>created</code> (<code>paid_on</code>, <code>amount</code> 1600000, <code>method</code> cash)</td></tr>
+<tr class="changed"><td>10 Oct, Payment 27 Voided</td><td><code>voided_at</code> 2026-10-10 10:30, <code>void_reason</code> "Typed ₹16,000 instead of ₹6,000". History #236: <code>voided</code>, <code>void_reason</code> none → the reason</td></tr>
+<tr><td>10 Oct, Payment 28 recorded</td><td>₹6,000 cash to the bangles; it pays ₹6,000 of interest. History #237–239: <code>created</code></td></tr>
+<tr><td>Today, <code>GET /payments/27</code></td><td>Still there, ₹16,000, with its reason; <code>interest_paid</code> and <code>principal_paid</code> are <code>null</code></td></tr>
+<tr><td>Today, <code>GET /payments/27/receipt</code></td><td>409 · This Payment was Voided: it has no Receipt</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L3), at commit 15df77d.</p>
+<p>On the Payments page (<code>http://127.0.0.1:8765/payments</code>), Payment 27 is still listed, marked voided. <code>list_payments</code> includes Voided Payments unless asked not to (<code>include_voided</code>, line 218, defaults to <code>true</code>). For Meera in October, <code>GET /api/payments?q=Meera&amp;month=2026-10</code> lists 28 and 27; with <code>&amp;include_voided=false</code>, only 28. The interest total is ₹6,000 either way, because a Voided Payment is in no Ledger.</p>
+
+<h3>The correction, step by step</h3>
+<p>Here's a fresh correction, made on a copy of the book by the script (don't make it on your served book: lesson 5 reads the bangles' figures). Suppose Meera had actually paid ₹6,500 on 10 Oct, not ₹6,000:</p>
+<table class="steps">
+<tr><th>Step</th><th>Request</th><th>Bangles owe today</th></tr>
+<tr><td>Before</td><td></td><td>₹1,51,500</td></tr>
+<tr class="changed"><td>1. Void</td><td><code>POST /payments/28/void</code> · "Was ₹6,500, not ₹6,000"</td><td>₹1,57,500</td></tr>
+<tr><td>2. Enter it again</td><td><code>POST /payments</code> · ₹6,500 cash, dated 2026-10-10 → Payment 34</td><td>₹1,51,000</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L3).</p>
+<p>Between the two steps, the bangles owe ₹6,000 more, because the Ledger no longer has that Payment. Step 2 is an ordinary back-dated Payment: it slots into the Ledger on 10 Oct, and every later figure is replayed with it. The Void's response comes from <code>post_void</code> (line 913), which Voids and then returns <code>load_payment</code>: the Payment, now with <code>voided_at</code> set and no split.</p>
+<p>The Void has a Preview twin, <code>POST /payments/{id}/void-preview</code> (chapter 006 owns it). Try <code>curl -s -X POST http://127.0.0.1:8765/api/payments/28/void-preview</code>: the bangles go from ₹1,51,500 to ₹1,57,500, the 10 Oct <code>payment</code> step is removed, and nothing is saved.</p>
+
+<h2>Nuances</h2>
+<h3>(a) The three refusals</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on your served book, which of these Voids are refused, and with which status? (1) Payment 27 again. (2) Payment 26, Kavita's ₹54,600 that Redeemed her coin. (3) Payment 6, Kavita's ₹1,000 to the coin on 18 Mar. (4) Payment 23 with the reason <code>"   "</code>.</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Void</th><th>Answer</th></tr>
+    <tr><td>(1) 27 again</td><td>409 · Already voided</td></tr>
+    <tr class="changed"><td>(2) 26, the coin's Final Payment</td><td>409 · This is the final Payment of the closing of 2026-Kavita-GoldCoin: reopen the Mortgage instead, which voids it</td></tr>
+    <tr class="changed"><td>(3) 6, an ordinary Payment to the coin</td><td>409 · 2026-Kavita-GoldCoin is redeemed: reopen it first</td></tr>
+    <tr><td>(4) 23, blank reason</td><td>422 · Value error, A reason is needed</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L3). A missing Payment (999) gives 404 · Payment not found.</p>
+    <p>All four are refused, so it's safe to try them: <code>curl -s -w ' %{http_code}
+' -H 'content-type: application/json' -d '{"reason": "test"}' http://127.0.0.1:8765/api/payments/26/void</code>. (2) and (3) both point at Reopen, but differently: Payment 26 <em>is</em> the Closure's Final Payment, so the Reopen Voids it for you; Payment 6 just belongs to a closed Mortgage, so you Reopen first and Void after. Your served book's Payment 35, the chain's Final Payment from lesson 2, is refused the same way as 26.</p>
+  </div>
+</div>
+
+<h3>(b) Voiding the ordinary part of a split Payment</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> take lesson 2's Payment (34: bangles ₹1,000; 35: the chain's ₹83,333 Final Payment, <code>received_with</code> 34). Void 34. Is it refused? What happens to 35 and to the chain?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>It's allowed.</strong> 34 goes to the bangles, which are Active, and it isn't anyone's Final Payment. Only 34 is Voided. Payment 35 stays, still <code>received_with</code> 34, and the chain stays Redeemed with <code>redemption_payment_id</code> 35. The Receipt of 34 now answers 409; the Receipt of 35 covers just the chain: ₹83,333, nothing still owed.</p>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L3), on a copy. Pinned by <code>test_the_ordinary_part_can_be_voided_on_its_own</code>.</p>
+    <p>A Void works on a <em>part</em>, never on a whole Payment. That's the same rule as the Reopen in lesson 2, from the other side.</p>
+  </div>
+</div>
+
+<h3>(c) <code>check_replays</code> can't refuse a Void today</h3>
+<p>A Void only takes a Payment away, so what's owed afterwards can only go up. Chapter 006, lesson 2 shows that deleting line 364 fails no test. It stays so the Void follows the same four steps as every change.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">A ₹5,000 Payment should have been ₹500. What does the Lender do?</p>
+  <button class="opt">Edit its amount on the Payment page</button>
+  <button class="opt">Delete it, then enter ₹500 the same day</button>
+  <button class="opt">Void it with a reason, then enter ₹500</button>
+  <div class="why">There is no edit or delete for a Payment, in the API or the screens. The only write to a stored Payment is the Void, which keeps it on record with its reason. The correct amount is a new Payment, back-dated to the real date.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Why can't you Void Kavita's Payment 26 directly?</p>
+  <button class="opt">It was paid by UPI with a reference</button>
+  <button class="opt">It's the Final Payment of the coin's Closure</button>
+  <button class="opt">Payments older than a week are locked</button>
+  <div class="why"><code>void_payment</code> refuses when <code>redemption_payment_id</code> is this Payment. Reopen the coin instead: the Reopen clears the Closure, then Voids Payment 26 through the same function. There's no age limit, and the method doesn't matter.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">What does <code>GET /api/payments/27</code> show for its Allocation's <code>interest_paid</code>?</p>
+  <button class="opt"><code>null</code>: it's in no Ledger</button>
+  <button class="opt">₹16,000, what it paid before the Void</button>
+  <button class="opt">₹0, since the Void undid it</button>
+  <div class="why"><code>load_payment</code> skips the replay for a Voided Payment and sets both halves of the split to <code>None</code>. Nothing was ever stored, so there's no "what it paid before" to show.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/PaymentPage.tsx"><code>frontend/src/pages/PaymentPage.tsx</code></a> and find the <strong>Void…</strong> button (line 35) and what the page shows once <code>voided_at</code> is set (line 40). <a href="../012-frontend-pages-and-the-pwa/index.html">Chapter 012</a> covers the page itself. Then read <code>void_payment</code> again with the four steps of chapter 006 in mind.</p>
+
+<nav class="lessons">
+  <a href="02-one-payment-several-parts.html">← One Payment, several parts</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="04-the-cash-limit.html">Next: The Cash Limit →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

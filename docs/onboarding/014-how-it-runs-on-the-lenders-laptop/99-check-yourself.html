@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14 · Check yourself</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 014 · Check yourself</p>
+<h1>Check yourself</h1>
+<p class="lede">Eight questions from across the chapter, in no particular order, then a change to the Windows scripts that you predict before you run it.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">You changed a screen, then ran <code>docker compose up -d</code> with the scratch folders. Your change isn't there. Why?</p>
+  <button class="opt">Compose reuses the old container until you run <code>down</code></button>
+  <button class="opt">The plain file runs the published image; only the dev file builds</button>
+  <button class="opt">The service worker is still serving last week's screens</button>
+  <div class="why">Trap #12: <code>docker-compose.yml</code> names <code>krucx11/mortgage-management-app:latest</code>, whichever one you last pulled. Building your code needs <code>-f docker-compose.dev.yml</code> and <code>--build</code>. Compose recreates a container whose configuration changed without <code>down</code>, and the service worker checks <code>sw.js</code> on every load. (<a href="01-the-app-in-docker.html">Lesson 1</a>)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">In a clone with a <code>.env</code>, you run one dev <code>up -d --build</code> without <code>DATA_DIR</code> and <code>BACKUP_DIR</code>. What happens?</p>
+  <button class="opt">Compose stops at once: "required variable DATA_DIR is missing"</button>
+  <button class="opt">The app starts on empty folders inside the container</button>
+  <button class="opt">Your build starts on <code>.env</code>'s folders, and migrates them</button>
+  <div class="why">Compose fills missing variables from <code>.env</code>, silently. The <code>:?</code> refusal only fires when neither your shell nor <code>.env</code> has a value. On start the app migrates whatever database it's given, with no way back but a Backup (trap #9). (<a href="01-the-app-in-docker.html">Lesson 1</a>)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">Trace it: <code>dist/</code> holds <code>workbox-051dea9f.js</code> at its top level, not in <code>assets/</code>. Which <code>Cache-Control</code> does the backend send for it?</p>
+  <button class="opt"><code>no-cache</code>, like every file outside <code>assets/</code></button>
+  <button class="opt"><code>immutable</code>, because its name carries a hash</button>
+  <button class="opt">None: only <code>index.html</code> and <code>assets/</code> are served</button>
+  <div class="why"><code>screens.py</code> line 35 decides by folder, not by name: <code>kept = path.startswith("assets/")</code>. A hashed name outside <code>assets/</code> is still checked every time, which is harmless, just one extra conditional request. Any file in <code>dist/</code> is served. (<a href="02-without-docker-the-backend-serves-the-screens.html">Lesson 2</a>)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Where are the screens' cache headers set, in Docker and without it?</p>
+  <button class="opt">In <code>nginx.conf</code> in Docker, in <code>screens.py</code> without it</button>
+  <button class="opt">In <code>screens.py</code> in both, pinned by <code>test_screens.py</code></button>
+  <button class="opt">In <code>vite.config.ts</code>, which writes them into the build</button>
+  <div class="why">Since ADR 0013 the image sets <code>SCREENS_DIR</code>, so the same <code>serve_screens</code> answers in both modes; nginx and its config are gone (the gap #117 described went with them). <code>vite.config.ts</code> sets the service worker's caching; the backend sets the HTTP headers. (<a href="02-without-docker-the-backend-serves-the-screens.html">Lesson 2</a>)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Trace it: an update to Y fails at <code>Wait-Version</code>, before Y took any Backup. Where does <code>app</code> point, and what runs?</p>
+  <button class="opt">At Y, which Setup starts again once</button>
+  <button class="opt">At nothing: the junction was removed, and nothing runs</button>
+  <button class="opt">At X, and X runs again if it was running</button>
+  <div class="why"><code>Set-AppJunction</code> comes after <code>Wait-Version</code>, so it never ran: <code>app</code> still points at X. The catch stops Y and, if <code>Stop-RunningApp</code> said X was running, starts X. With no <code>-before-update</code> Backup found, the message names none. Then <code>setup.ps1</code> removes Y's folder. (<a href="04-each-version-in-its-own-folder.html">Lesson 4</a>)</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">What can't a failed update undo, and what does Setup do about it?</p>
+  <button class="opt">A migrated database; it names the Backup to restore</button>
+  <button class="opt">The deleted old version; it downloads that one again</button>
+  <button class="opt">The new <code>.env</code>; it asks the Lender for the folders again</button>
+  <div class="why">Once Y migrates the database, X may refuse it. Setup finds the <code>-before-update</code> Backup and puts its path in the error, leaving the restore to the Lender (ADR 0009). The old version isn't deleted until after a successful switch, and X's <code>.env</code> was never changed. (<a href="04-each-version-in-its-own-folder.html">Lesson 4</a>)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Why does the <code>mortgage-management://</code> link take two actions and no arguments?</p>
+  <button class="opt">Windows URL schemes can't pass more than one word</button>
+  <button class="opt">Any web page can open it, so it must do only what's safe</button>
+  <button class="opt">PowerShell 5.1 can't parse a query string in a link</button>
+  <div class="why">The link is reachable from any page the Lender visits, so it's treated as input from a stranger: at worst, start this app or update it to the newest release, and Windows asks first. Windows passes the whole link as <code>%1</code>, arguments and all; the script refuses them. (<a href="05-the-mortgage-management-link.html">Lesson 5</a>)</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Why must every file in <code>windows/</code> be ASCII only?</p>
+  <button class="opt"><code>cmp</code> in CI's <code>pages</code> job can only compare ASCII files</button>
+  <button class="opt">Pester in the arm64 Docker image misreads anything else</button>
+  <button class="opt">Windows PowerShell 5.1 reads a BOM-less script in the old code page</button>
+  <div class="why">Trap #14: on the Lender's PC, 5.1 decodes a UTF-8 script without a byte-order mark as the PC's ANSI code page, so a non-ASCII character becomes others and can break a string. Docker's Pester runs PowerShell 7, which reads UTF-8 fine, so it can't catch this. <code>cmp</code> compares bytes, any bytes. (<a href="03-setup-on-windows.html">Lesson 3</a>)</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Hands-on: loosen the link</h2>
+<p>You'll change the one line that decides which links <code>link.ps1</code> accepts, predict what Pester says, and check. You need Docker and chapter 013's <code>mm-pester</code> image (<a href="03-setup-on-windows.html">lesson 3</a> builds it). From the repo root:</p>
+<ol>
+  <li><strong>Run Pester as it is.</strong>
+    <pre><code>docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke-Pester windows/tests'</code></pre>
+    <p>Expect <code>Tests Passed: 65, Failed: 0</code>.</p></li>
+  <li><strong>Loosen the regex.</strong> In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/windows/link.ps1"><code>windows/link.ps1</code></a> line 28, change <code>(start|update)</code> to <code>(\w+)</code>, so the link accepts any word as its action:
+    <pre><code>if ($Arguments[0] -match '^mortgage-management://(\w+)/?$') { return $Matches[1].ToLower() }</code></pre></li>
+  <li><strong>Predict</strong>, using <a href="05-the-mortgage-management-link.html">lesson 5</a>'s list of the six link tests: how many fail, which, and why do the others still pass? Write it down.</li>
+  <li><strong>Run Pester again</strong>, with <code>-Output Detailed</code> to see each test.</li>
+</ol>
+<div class="reveal">
+  <p><strong>Check your prediction.</strong></p>
+  <button class="show">I've run it. Show me.</button>
+  <div class="reveal-body">
+    <pre><code>Describing the mortgage-management:// link
+  [-] does nothing for any other action 7ms
+   Expected $null or empty, but got 'uninstall'.
+Tests Passed: 64, Failed: 1, Skipped: 0, Inconclusive: 0, NotRun: 0</code></pre>
+    <p class="cite">From <code>scripts/run_throughs.sh</code>, section 99, at commit <code>36d403e</code> (on a copy of <code>windows/</code>).</p>
+    <p><strong>One fails</strong>: "does nothing for any other action", at its first line, <code>uninstall</code>. Two surprises in what passes:</p>
+    <ul>
+      <li>That same test's <code>start-everything</code> line would still have passed: <code>\w</code> matches letters, digits and <code>_</code>, not <code>-</code>, so <code>start-everything</code> still doesn't match. Pester stops a test at its first failing line, so you only see <code>uninstall</code>.</li>
+      <li>"runs Setup for the newest release on update, and the launcher on start" passes, though it opens <code>mortgage-management://anything</code>. With the loose regex <code>Select-LinkAction</code> returns <code>'anything'</code>, but <code>Open-Link</code>'s <code>switch</code> has no block for it, so neither mock is called. That's the second gate, holding.</li>
+      <li>"does nothing when anything more is passed" passes: <code>/?$</code> still refuses <code>?x=1</code> and <code>/now</code>, and the count check refuses two arguments.</li>
+    </ul>
+    <p>So the second gate would have kept this change harmless today, and exactly one test says the contract changed. That's what you want from a test: not that the app broke, but that a promise did.</p>
+  </div>
+</div>
+<ol start="5">
+  <li><strong>Undo it</strong>: <code>git checkout -- windows/link.ps1</code>, and check <code>git status --short</code> prints nothing.</li>
+</ol>
+
+<h3>Extra: test the server's cache headers</h3>
+<p>The plan for this step was to change <code>nginx.conf</code> and watch nothing fail. nginx is gone, so break the one place the headers live instead. In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a> line 35, change <code>kept = path.startswith("assets/")</code> to <code>kept = path.endswith(".js")</code>: "keep every script a year". Predict which of the ten tests in <code>test_screens.py</code> fail, then run <code>cd backend &amp;&amp; uv run pytest tests/test_screens.py -q</code>.</p>
+<div class="reveal">
+  <p><strong>Check your prediction.</strong></p>
+  <button class="show">I've run it. Show me.</button>
+  <div class="reveal-body">
+    <pre><code>E         - no-cache
+E         + public, max-age=31536000, immutable
+FAILED tests/test_screens.py::test_the_service_worker_and_manifest_are_always_checked[/sw.js]
+1 failed, 9 passed in 0.60s</code></pre>
+    <p>Only <code>/sw.js</code>. That one test is what stands between this change and an installed app that wouldn't see an update for a year: the browser would never re-fetch the service worker, so never learn of the new precache list. The asset test still passes (an <code>assets/</code> script ends in <code>.js</code> too), and so does the manifest's. Nothing notices <code>registerSW.js</code> going immutable as well, since the test's fake <code>dist/</code> has no such file: a candidate for a test of your own (<a href="../013-testing/05-finding-what-no-test-pins.html">chapter 013, lesson 5</a>). Undo it with <code>git checkout -- backend/src/mortgage_backend/platform/screens.py</code>.</p>
+  </div>
+</div>
+
+<h2>Recap</h2>
+<ul>
+  <li>The app ships as <strong>one image</strong>, run by Compose with the records in two host folders. Plain Compose runs the published image; the dev file builds yours. Pass scratch <code>DATA_DIR</code> and <code>BACKUP_DIR</code> on every compose command. (<a href="01-the-app-in-docker.html">Lesson 1</a>)</li>
+  <li>The backend <strong>serves the built screens itself</strong> when <code>SCREENS_DIR</code> is set, in both modes: pages and <code>sw.js</code> <code>no-cache</code>, <code>assets/</code> immutable, <code>/api</code> never the app. A stopped backend leaves nothing on the port. (<a href="02-without-docker-the-backend-serves-the-screens.html">Lesson 2</a>)</li>
+  <li>On Windows, <strong>Setup fetches a version's code and runs that version's own install</strong>: Docker or local, the <code>.env</code>, <code>uv sync</code> (no Node for a release), the shortcut and the link. Decisions are small functions, pinned by Pester; CI installs, updates and uninstalls for real. Scripts are ASCII. (<a href="03-setup-on-windows.html">Lesson 3</a>)</li>
+  <li><strong>Each version has its own folder; <code>app</code> is a junction moved only once the new version answers.</strong> A failure starts the old one again. A migrated database can't go back: Setup names the Backup to restore. (<a href="04-each-version-in-its-own-folder.html">Lesson 4</a>)</li>
+  <li>The installed app starts and updates the app through <strong><code>mortgage-management://start</code> and <code>update</code></strong>, registered per user, gated twice, taking nothing else. (<a href="05-the-mortgage-management-link.html">Lesson 5</a>)</li>
+</ul>
+<p>Cheat sheets: <a href="../reference/commands.html#laptop">Commands · How it runs on the Lender's laptop</a> and <a href="../reference/traps.html">Traps</a> #12, retired #13 and #14.</p>
+
+<nav class="lessons">
+  <a href="05-the-mortgage-management-link.html">← The mortgage-management:// link</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="../index.html">Course home →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

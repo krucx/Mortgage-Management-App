@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>010 · Platform, database and migrations</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 010</p>
+<h1>Platform, database and migrations</h1>
+
+<h2>The problem this chapter solves</h2>
+<p>Every chapter so far has been about the Lender's business: Mortgages, Payments, Closures, Notices. Underneath all of it sits a small amount of plumbing that every feature leans on. Something has to build the app and plug its parts together. Something has to say what day it is. Something has to run the once-a-day jobs on a laptop that has no scheduler and may be shut all weekend. Something has to keep the Lender's settings, talk to the database, and hand out long lists a page at a time.</p>
+<p>And the database has to change shape as the app grows, on a laptop nobody else can reach. When version 3.2.0 added a Customer's PAN, every Lender's existing database needed a new column, added safely, with a way back if it went wrong. There is no database administrator to run the change by hand. The app has to do it to itself, every time it starts, without ever losing a rupee of the Lender's records.</p>
+<p>Get this plumbing wrong and the damage is quiet and wide. A wrong "today" moves every interest figure. A daily job that silently stops means no Backups. A migration run against the wrong folder changes a real lending book for good. This chapter opens each piece, shows you where its rules live, and ends with you adding a migration safely.</p>
+
+<h2>What you'll be able to do</h2>
+<ul>
+  <li>Say what <code>create_app</code> builds, in what order the app starts, and how to start it differently (as the tests and the sample book do).</li>
+  <li>Say what date the app thinks it is, where that comes from, and whether a given request runs the daily jobs.</li>
+  <li>Read and add a group of settings in the <code>config</code> table, and make something react when it's saved.</li>
+  <li>Write a query against <code>db.py</code>'s Tables inside a transaction, and page and sort a list.</li>
+  <li>Say what happens to the database on every start, and add a migration with its <code>db.py</code> mirror, tested, without ever editing a released one.</li>
+</ul>
+
+<h2>Before you start</h2>
+<p>You need these ideas from earlier chapters:</p>
+<ul>
+  <li><strong>Where things live.</strong> <a href="../002-find-your-way-and-run-it/02-inside-backend-and-frontend.html">Chapter 002, lesson 2</a> pointed at <code>main.py</code> and called <code>create_app</code> the backend's <em>composition root</em>. Lesson 1 here opens it properly.</li>
+  <li><strong>Two warnings from chapter 002.</strong> <a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">Lesson 5</a> warned that the daily jobs run on the first request of the day (<a href="../reference/traps.html#t8">trap #8</a>) and that migrations run on every start (<a href="../reference/traps.html#t9">trap #9</a>). Its <a href="../002-find-your-way-and-run-it/99-check-yourself.html">check-yourself</a> had you edit migration 0001 and promised that this chapter would explain why you must never do that for real. Lesson 6 keeps the promise.</li>
+  <li><strong>Transactions and refusals.</strong> <a href="../006-changes-and-previews/index.html">Chapter 006</a> showed every change running inside <code>engine.begin()</code>, so a refused change leaves nothing behind. Lesson 4 shows where <code>engine</code> comes from.</li>
+  <li><strong>The Notice queue.</strong> <a href="../009-follow-up/03-the-notice-queue.html">Chapter 009, lesson 3</a> showed that <code>sync</code> is one of the two daily jobs and runs when the message settings are saved. Lessons 2 and 3 here show the machinery that calls it.</li>
+</ul>
+<p>Keep the sample book served from <a href="../002-find-your-way-and-run-it/04-serve-the-sample-book.html">chapter 002, lesson 4</a> (<code>http://127.0.0.1:8765</code>, held on 19 Oct 2026). <strong>Build it fresh</strong> into a new, empty folder and set <code>$BOOK</code> to that folder, because chapter 009 saved changes on the old one. In this chapter you mostly <em>read</em> the served book: its <code>config</code> rows, its <code>alembic_version</code>, its Backup folder. Lesson 3 saves one setting through the API and puts it back. Lessons 5 and 6 start the app on <strong>copies</strong> of the book (<code>cp -R "$BOOK" …</code>), never on the book you keep served, and never on real data.</p>
+
+<h2>The map</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  ENV["environment<br/>DATA_DIR, BACKUP_DIR"] -->|"main.py: app ="| CA["create_app<br/>main.py  L1"]
+  SV["serve.py, tests"] -->|"their own today, folders"| CA
+  CA -->|"make_engine"| DB[("SQLite<br/>db.py  L4")]
+  CA -->|"jobs"| DR["DailyRun<br/>daily_run.py  L2"]
+  CA -->|"lifespan: on start"| MG["migrate<br/>db.py, migrations/  L5, L6"]
+  MG -->|"alembic upgrade head"| DB
+  CA -->|"app.state"| DEP["EngineDep, TodayDep, NowDep<br/>db.py, clock.py  L1, L2"]
+  DEP -->|"into every route"| R["routes<br/>paging.py  L4"]
+  R -->|"settings"| CG["ConfigGroup<br/>settings.py  L3"]
+  CG -->|"config rows"| DB
+  DR -->|"last_daily_run"| CG
+</pre>
+<figcaption><code>create_app</code> builds everything once and puts it on <code>app.state</code>. Routes get it back through dependencies. Each box is labelled with its lesson (L1–L6).</figcaption>
+</figure>
+<p>Notice the two arrows into <code>create_app</code>. The real app (<code>main.py</code>'s last lines) builds it from environment variables. The tests and the sample book's <code>serve.py</code> call it themselves, with their own clock and folders. That one seam is why the whole course can hold the book on 19 Oct 2026.</p>
+
+<h2>Where it lives</h2>
+<table class="wide">
+<tr><th>Path</th><th>What it's responsible for</th><th>Lesson</th></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py"><code>main.py</code></a></td><td>The composition root: <code>create_app</code>, the lifespan (start and shutdown), the daily-run middleware, every router</td><td>1, 2, 5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/clock.py"><code>platform/clock.py</code></a></td><td>Today and now as dependencies (<code>TodayDep</code>, <code>NowDep</code>); a month as a query parameter</td><td>2</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/daily_run.py"><code>platform/daily_run.py</code></a></td><td>The once-a-day jobs and the date they last ran</td><td>2</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/settings.py"><code>platform/settings.py</code></a></td><td><code>ConfigGroup</code>: a group of <code>config</code> rows read and written as one model</td><td>3</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/db.py"><code>platform/db.py</code></a></td><td>The 12 Tables, <code>get_config</code>/<code>set_config</code>, where the database lives, the engine, <code>migrate</code></td><td>1, 3, 4, 5, 6</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/paging.py"><code>platform/paging.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/errors.py"><code>platform/errors.py</code></a></td><td>Lists a page at a time (<code>query_page</code>, <code>rows_page</code>); the 422 the Lender sees as a message</td><td>4</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/migrations/env.py"><code>migrations/env.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/migrations/script.py.mako"><code>script.py.mako</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/tree/main/backend/src/mortgage_backend/migrations/versions/"><code>versions/0001</code>–<code>0015</code></a></td><td>The migrations: how Alembic runs them, and the chain of revisions that builds the database</td><td>5, 6</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_migrations.py"><code>tests/test_migrations.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_settings.py"><code>test_settings.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_backups.py"><code>test_backups.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/conftest.py"><code>conftest.py</code></a></td><td>The tests behind every rule in this chapter</td><td>2–6, 99</td></tr>
+<tr><td><a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>, <a href="../../adr/0003-backup-to-synced-folder.md">ADR 0003</a>, <a href="../../adr/0009-each-version-in-its-own-folder.md">ADR 0009</a></td><td>Why there's no ledger table; why Backups go to a folder outside the app; why a migrated database can't simply be rolled back</td><td>4, 5, 6</td></tr>
+</table>
+<p class="aside">Named here but taught elsewhere: <code>safekeeping/backups.py</code> (chapter 015; here you only see how its Backups are wired in), <code>platform/screens.py</code> (<a href="../014-how-it-runs-on-the-lenders-laptop/02-without-docker-the-backend-serves-the-screens.html">chapter 014, lesson 2</a>), <code>platform/updates.py</code> (chapter 015), <code>platform/photos.py</code> (<a href="../008-people-and-collateral/04-photos-and-id-photos.html">chapter 008</a>), <code>platform/money.py</code> (<a href="../004-the-ledger-engine/02-one-months-interest.html">chapter 004</a>) and <code>openapi.py</code> (<a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011, lesson 1</a>). <code>openapi.py</code> writes the API schema the frontend's types are generated from: change a model a route returns and you must regenerate them (<a href="../reference/traps.html#t10">trap #10</a>). A new column you only store and never return needs no regeneration.</p>
+
+<h2>Lessons</h2>
+<ol class="lessons-list">
+  <li><a href="01-the-composition-root.html">The composition root: how the app is put together</a><span class="sum">What <code>create_app</code> builds, the start sequence, and how <code>serve.py</code> starts the same app on 19 Oct 2026.</span></li>
+  <li><a href="02-today-now-and-the-daily-run.html">Today, now and the daily run</a><span class="sum">Why the served book always says 19 Oct, and why its first request runs no daily jobs at all.</span></li>
+  <li><a href="03-settings-in-the-config-table.html">Settings in the config table</a><span class="sum">The book's 20 <code>config</code> rows, matched to their groups; a field set to <code>None</code> brings its default back.</span></li>
+  <li><a href="04-tables-engine-and-pages.html">Tables, the engine and lists a page at a time</a><span class="sum">The Customers list as the SQL <code>query_page</code> writes; a second Meera and the tie-breaker; foreign keys that only bite through <code>make_engine</code>.</span></li>
+  <li><a href="05-how-the-app-migrates.html">How the app migrates on every start</a><span class="sum">The book at <code>0015</code>; a copy from "a newer version" refused three times with no Backup; a copy at <code>0014</code> backed up, then migrated.</span></li>
+  <li><a href="06-adding-a-migration-safely.html">Adding a migration safely</a><span class="sum">Add 0016 and its <code>db.py</code> mirror, start a copy of the book, see the <code>-before-update</code> Backup; why a released migration is never edited.</span></li>
+  <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">Which day? Will this run? What reads back? Then add a column three ways and see which one the tests catch.</span></li>
+</ol>
+
+<footer>
+  <p>Written against commit <code>b34526a</code>. Every figure, file name and message came from <a href="scripts/run_throughs.py"><code>scripts/run_throughs.py</code></a>, which builds the sample book in a temporary folder and starts the real <code>create_app</code> on fresh copies of its data folder, each with its own Backup folder (some on later days, some with their <code>alembic_version</code> changed, one with migration 0016 in a temporary copy of the migrations folder). Run it from <code>backend/</code> with <code>uv run python ../docs/onboarding/010-platform-database-and-migrations/scripts/run_throughs.py</code>.</p>
+  <p>Anything unclear? Ask an agent in this repo to explain it: a function, a start-up error, or why a rule exists. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
+  <p><a href="../index.html">Course home</a> · Previous: <a href="../009-follow-up/index.html">chapter 009</a> · Next: <a href="../011-the-frontends-data-layer/index.html">chapter 011, The frontend's data layer</a></p>
+</footer>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

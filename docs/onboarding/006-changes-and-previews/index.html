@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>006 · Changes and Previews</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 006</p>
+<h1>Changes and Previews</h1>
+
+<h2>The problem this chapter solves</h2>
+<p>The Lender changes the book many times a day. They record a Payment, correct a Principal they typed wrong, move the bangles to 1.5% a month, Void a ₹16,000 that should have been ₹6,000, close a Mortgage, and Reopen one closed by mistake. Every one of these changes raises the same four questions. Is it allowed? What does it write? Does every Ledger it touches still make sense afterwards? And who changed what, and when?</p>
+<p>There's a fifth question, too: what <em>would</em> it do? The Lender sees a <a href="../reference/glossary.html#preview"><dfn class="term" title="What a change would do, shown before it is saved: the change is made and then undone, so a Preview is refused exactly when saving would be.">Preview</dfn></a> of every change before saving it. If the Preview had its own copy of the rules, sooner or later the two copies would drift apart. The Lender would see a Preview of a change that then fails to save, or worse, a Preview with different figures from the ones that get saved. If each save route checked things in its own way, one of them would forget to record <a href="../reference/glossary.html#history"><dfn class="term" title="The record of every change to a Customer, Mortgage or Payment — when, what, and the old and new values — which is never edited or removed.">History</dfn></a>, or forget to check that a correction doesn't leave an old Payment larger than what was owed.</p>
+<p>This app answers all five questions in one place. Every change to a Mortgage or Payment is one function in <code>lending/changes.py</code>, and every one follows the same four steps: <strong>refuse → write → check → History</strong>. A Preview doesn't copy any of it. It runs that same function and then rolls the database back.</p>
+
+<h2>What you'll be able to do</h2>
+<ul>
+  <li>Name every change in <code>changes.py</code>, find its save route and its Preview route, and walk one through refuse → write → check → History.</li>
+  <li>Say why the check comes <em>after</em> the write, and which changes it can refuse.</li>
+  <li>Read a Mortgage's History and say what each kind of change records.</li>
+  <li>Say exactly what a Preview runs, and why it is refused exactly when saving would be.</li>
+  <li>List everything a new change needs: the change function, the save route, the Preview route, a History <code>Action</code>, and tests.</li>
+</ul>
+
+<h2>Before you start</h2>
+<p><a href="../003-one-payment-end-to-end/03-saving-it.html">Chapter 003, lesson 3</a> saved one Payment and showed you <code>record_payment</code> once. Here you meet the pattern that every change follows. <a href="../004-the-ledger-engine/01-the-ledger-is-a-replay.html">Chapter 004</a> taught that nothing owed is stored: every figure is replayed from facts. That idea is why the check in lesson 2 works the way it does. <a href="../005-replay-and-closures/index.html">Chapter 005</a> taught the Closure rules. This chapter shows the routes that apply them.</p>
+<p>Keep the sample book served from <a href="../002-find-your-way-and-run-it/04-serve-the-sample-book.html">chapter 002, lesson 4</a> (<code>http://127.0.0.1:8765</code>, held on 19 Oct 2026). <strong>Build it fresh</strong> into a new empty folder and set <code>$BOOK</code> to that folder. Chapter 003's Payment and chapter 005's Reopens change the figures and refusals quoted here. In this chapter you'll try changes that are refused, and ask for Previews. Neither saves anything. Never try them against real data.</p>
+
+<h2>The map</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  UI["a page in the frontend"] -->|"save: PUT/POST/DELETE  L1"| SR["save route<br/>changes.py router"]
+  UI -->|"Preview: POST …-preview  L4"| PR["Preview route<br/>previews.py router"]
+  SR -->|"inside engine.begin()"| CF["change function<br/>e.g. add_term_change"]
+  PR -->|"inside engine.connect(),<br/>through _preview()"| CF
+  CF -->|"1 refuse: 409 / 422  L1"| X["HTTPException"]
+  CF -->|"2 write"| DB[("mortgage, payment,<br/>term_change rows")]
+  CF -->|"3 check_replays()  L2"| RP["replays()<br/>replay.py"]
+  CF -->|"4 audit.record()  L3"| H[("audit_entry rows:<br/>History")]
+  PR -->|"rollback"| DB
+</pre>
+<figcaption>One change function, two doors. The save route commits what it did; the Preview route reads the result and rolls everything back. Each box is labelled with the lesson (L1–L5) that opens it.</figcaption>
+</figure>
+<p>Notice that the rules live only in the middle box. The routes on either side only parse the request, call the function, and answer. Lesson 5 puts all the boxes together for one small change.</p>
+
+<h2>Where it lives</h2>
+<table class="wide">
+<tr><th>Path</th><th>What it's responsible for</th><th>Lesson</th></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a></td><td>Every change to a Mortgage or Payment, as one function each; <code>check_replays</code>; the save routes</td><td>1, 2, 5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py"><code>lending/previews.py</code></a></td><td>Every Preview route, and <code>_preview</code>, which runs a change and rolls it back</td><td>4, 5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/safekeeping/audit.py"><code>safekeeping/audit.py</code></a></td><td>History: writing entries (<code>record</code>), working out what changed (<code>changes</code>), and reading a Mortgage's or Customer's History</td><td>3</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/errors.py"><code>platform/errors.py</code></a></td><td><code>unprocessable</code>: the 422 refusal with a message for the Lender</td><td>1</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_changes.py"><code>tests/test_changes.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_previews.py"><code>test_previews.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_corrections.py"><code>test_corrections.py</code></a></td><td>The change functions called directly; the Preview routes through the API; corrections and History through the API</td><td>5, 99</td></tr>
+<tr><td><a href="../../adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a></td><td>Why each Preview route is written out by hand beside its save route</td><td>4</td></tr>
+</table>
+
+<h2>Lessons</h2>
+<ol class="lessons-list">
+  <li><a href="01-one-door-for-every-change.html">One door for every change</a><span class="sum">The four steps, the bangles' Term Change, and the two refusals you can provoke: 422 and 409.</span></li>
+  <li><a href="02-the-check.html">The check: replay, then refuse</a><span class="sum">Lower Meera's chain to ₹1,000 and watch the replay refuse it, naming a Payment from last December.</span></li>
+  <li><a href="03-history.html">History</a><span class="sum">What each change records: the chain's description edit, the Voided ₹16,000, and a Term Change that stores only the rate.</span></li>
+  <li><a href="04-previews.html">Previews: make it, then roll it back</a><span class="sum">Remove the bangles' coming Term Change, then pay off the chain, both without saving anything.</span></li>
+  <li><a href="05-adding-a-change-route.html">Adding a change route</a><span class="sum">Collateral Value, the smallest complete example, as a checklist. Then sketch a change of your own on paper.</span></li>
+  <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">Which step refuses it? 409 or 422? Then delete one line from <code>edit_mortgage</code> and see the refusal, the History and the Preview all fail together.</span></li>
+</ol>
+
+<footer>
+  <p>Written against commit <code>d6a92ab</code>. Every figure and message came from <a href="scripts/run_throughs.py"><code>scripts/run_throughs.py</code></a>, which builds the sample book in a temporary folder and makes every change, refusal and Preview through the real API, on fresh copies of the book. Run it from <code>backend/</code> with <code>uv run python ../docs/onboarding/006-changes-and-previews/scripts/run_throughs.py</code>.</p>
+  <p>Anything unclear? Ask an agent in this repo to explain it: a function, a refusal, or why a rule exists. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
+  <p><a href="../index.html">Course home</a> · Previous: <a href="../005-replay-and-closures/index.html">chapter 005</a> · Next: <a href="../007-payments-and-receipts/index.html">chapter 007, Payments and Receipts</a></p>
+</footer>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

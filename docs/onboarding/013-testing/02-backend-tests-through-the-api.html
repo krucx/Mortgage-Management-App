@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.2 · Backend tests through the API</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 013 · Lesson 2</p>
+<h1>Backend tests through the API</h1>
+<p class="lede">Most backend tests in this repo talk to the app the way the frontend does: they send HTTP requests and read the JSON that comes back. This lesson takes apart the fixtures and helpers that make such a test a few lines long, then has you write one.</p>
+
+<div class="callout win"><strong>By the end</strong> you can write a test of a route the way the frontend calls it.</div>
+
+<h2>The problem</h2>
+<p>Say you want to test the <dfn class="term" title="A setting: at or above this amount of cash, the Lender is warned on screen before lending or receiving it. ₹20,000 unless changed; cleared, there is no warning."><a href="../reference/glossary.html#cash-limit">Cash Limit</a></dfn> (the amount of cash at or above which the Lender is warned on screen; <a href="../007-payments-and-receipts/04-the-cash-limit.html">chapter 007</a>). Every test of it needs the same things before it can start: a database with the right tables, the app built on it, a way to send it requests, and a date for "today". Written out in each test, that's a dozen lines of setup before the one line that matters.</p>
+<p>Shared setup has its own risk. If two tests share one database, the second sees what the first saved. It passes when run after the first and fails when run alone, or the other way round. Tests that depend on their order are worse than no tests: they fail at random and teach you to ignore failures.</p>
+
+<h2>The idea</h2>
+<p><strong>pytest fixtures give each test a fresh app, on a fresh database, on a fixed today.</strong> A <em>fixture</em> is a function pytest runs for you before a test: name it as a test's parameter, and pytest calls it and passes in what it returns. <code>conftest.py</code> defines the fixtures all backend tests share. Then <strong><code>api_seed.py</code> makes test data by sending the same requests the frontend sends</strong>, and fails the test at once if the app refuses one.</p>
+
+<h2>The flow</h2>
+<figure class="sequence diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant T as test_…(client)
+  participant P as pytest
+  participant C as conftest.py
+  participant A as the app (create_app)
+  P->>C: database_url(tmp_path)
+  C-->>P: sqlite:///…/test_x0/mortgage.db
+  P->>C: client(database_url)
+  C->>A: create_app(url, today=lambda: TODAY)
+  A->>A: start-up: migrate the empty file
+  C-->>P: TestClient
+  P->>T: run the test with client
+  T->>A: client.post("/api/customers", …) via person()
+  A-->>T: 201 + the new Customer
+  T->>A: client.get / put … the request under test
+  A-->>T: status + JSON, then assert
+  P->>C: test over: close the client
+</pre>
+<figcaption>What happens around one test that asks for <code>client</code>. pytest makes a fresh temporary folder for each test.</figcaption>
+</figure>
+<p>Notice that the test never builds anything itself. It names <code>client</code>, and pytest works backwards: <code>client</code> needs <code>database_url</code>, which needs <code>tmp_path</code> (a pytest built-in: a new empty folder per test). So each test gets its own database file, made fresh by the real migrations.</p>
+
+<h2>The code</h2>
+<h3>1. The fixtures</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/conftest.py">backend/tests/conftest.py</a> · whole file but the imports · lines 11–30</figcaption>
+<pre data-file="backend/tests/conftest.py"><code>11  TODAY = date(2026, 4, 20)                                     # ①  ◀
+12
+13
+14  @pytest.fixture
+15  def database_url(tmp_path):                                   # ②
+16      return f"sqlite:///{tmp_path / 'mortgage.db'}"
+17
+18
+19  @pytest.fixture
+20  def client(database_url):
+21      with TestClient(create_app(database_url, today=lambda: TODAY)) as client:   # ③  ◀
+22          yield client                                          # ④
+23
+24
+25  @pytest.fixture
+26  def conn(database_url: str) -&gt; Iterator[Connection]:         # ⑤ lesson 3
+27      """A connection to a fresh database (no app), in a transaction committed at the end."""
+28      migrate(database_url)
+29      with make_engine(database_url).begin() as conn:
+30          yield conn
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The tests' today: <strong>20 Apr 2026</strong>, for ever. The app never reads the computer's clock; <code>create_app</code> takes a function that says what day it is (<a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">chapter 010, lesson 2</a>). A test that says "Ramesh's chain owes ₹1,09,000 today" stays true next year. Lesson 3 shows what moving it does.</li>
+  <li>pytest gives <code>tmp_path</code> to any fixture or test that names it. The database is one SQLite file inside it.</li>
+  <li><code>TestClient</code>, from FastAPI, sends requests straight into the app in the same process: no server, no port. Using it in a <code>with</code> block runs the app's start-up, which migrates the empty file (<a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">chapter 010, lesson 5</a>).</li>
+  <li><code>yield</code> instead of <code>return</code> makes a fixture with a clean-up: the test runs at the <code>yield</code>, and when it's done pytest finishes the <code>with</code> block, which shuts the app down.</li>
+  <li><code>conn</code> skips the app entirely: a migrated database and a connection to it. Lesson 3.</li>
+</ol>
+<p>A file called <code>conftest.py</code> is special to pytest: its fixtures are available to every test file in its folder without an import.</p>
+
+<h3>2. Test data through the API</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/api_seed.py">backend/tests/api_seed.py</a> · the docstring, <code>RING</code>, <code>SIMPLE_3</code>, <code>_created</code>, <code>person</code>, <code>nth_person</code> · lines 1–42, trimmed</figcaption>
+<pre data-file="backend/tests/api_seed.py"><code>1   """Test data made through the HTTP interface, for tests of it: the requests the
+2   frontend sends, failing the test at once if the app refuses one. Amounts are in paise.
+3
+4   (Not `http.py`: the tests folder is on the import path, and that would hide Python's     ◀
+5   own `http`.)
+6   """
+⋮
+10  import seed
+⋮
+12  from seed import LAKH, RUPEE                                   # ① money in paise
+⋮
+15  RING = {"amount": 10_000 * RUPEE, "description": "Gold ring", "net_weight_mg": 5_000}
+⋮
+18  SIMPLE_3 = seed.SIMPLE_3.model_dump(mode="json")              # ② the Terms, as JSON
+⋮
+21  def _created(response: Any) -&gt; Any:
+22      assert response.status_code == 201, response.text          # ③  ◀
+23      return response.json()
+⋮
+26  def person(
+27      client: TestClient,
+28      name: str = "Ramesh Kumar",                                # ④
+29      phone: str = "9829012345",
+30      **fields: Any,
+31  ) -&gt; Any:
+⋮
+33      details = {"name": name, "address": "", "phone_1": phone, **fields}
+34      return _created(client.post("/api/customers", json=details))
+⋮
+37  def nth_person(
+38      client: TestClient, n: int, name: str | None = None, **fields: Any
+39  ) -&gt; Any:
+⋮
+42      return person(client, name or f"Customer {n:02d}", f"98290{n:05d}", **fields)   # ⑤
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>RUPEE = 100</code> and <code>LAKH = 1_00_000 * RUPEE</code> come from <code>seed.py</code>. Every amount the API takes or gives is in <strong>paise</strong>, whole numbers (<a href="../reference/traps.html#t6">trap #6</a>). Tests write <code>9_000 * RUPEE</code> or <code>20_000_00</code>; Python ignores the underscores, so <code>20_000_00</code> is 2000000 paise, ₹20,000, grouped the Indian way.</li>
+  <li><code>SIMPLE_3</code> is 3% a month, Simple, a full month charged on redemption: the Terms most tests use, because they make the figures easy to work out by hand (₹3,000 a month on ₹1,00,000). <code>model_dump(mode="json")</code> turns the Pydantic object into the dict the API expects.</li>
+  <li>Every helper checks for <code>201 Created</code>. If the app refuses, the assertion's message is <code>response.text</code>: the backend's own reason.</li>
+  <li>The default Customer is the tests' Ramesh Kumar. Two Customers need two different Primary Numbers, or the second is refused (<a href="../008-people-and-collateral/01-the-primary-number.html">chapter 008</a>).</li>
+  <li>For tests that need a crowd (paging, sorting): <code>nth_person(client, 7)</code> is "Customer 07" on 9829000007.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/api_seed.py">backend/tests/api_seed.py</a> · <code>lend</code>, <code>pay</code> · lines 45–94, trimmed</figcaption>
+<pre data-file="backend/tests/api_seed.py"><code>45  def lend(
+46      client: TestClient,
+47      owner: Any,
+48      start: str = "2026-01-14",                                 # ①
+49      amount: int = LAKH,
+⋮
+52      terms: Any = SIMPLE_3,
+53      lent_through: str = "upi",
+54      **fields: Any,
+55  ) -&gt; Any:
+⋮
+59      details = {
+60          "customer_id": owner["id"],
+⋮
+69          **fields,                                              # ② override anything
+70      }
+71      return _created(client.post("/api/mortgages", json=details))
+⋮
+74  def pay(
+75      client: TestClient,
+76      owner: Any,
+77      allocations: dict[int, int],                               # ③ {mortgage id: paise}
+78      on: str = "2026-04-15",
+⋮
+83      details = {
+84          "customer_id": owner["id"],
+85          "paid_on": on,
+86          "amount": sum(allocations.values()),
+⋮
+94      return _created(client.post("/api/payments", json=details))
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>By default <code>lend</code> makes the tests' standard Mortgage: ₹1,00,000 against a 19 g chain, from 14 Jan 2026, on <code>SIMPLE_3</code>. On the tests' today it owes ₹1,12,000 (three months' ₹3,000, and the month under way, charged in full).</li>
+  <li>Every helper ends with <code>**fields</code>, so a test can add or change any field of the request without a new helper.</li>
+  <li>A Payment is given as its <dfn class="term" title="The part of one Payment that goes to one Mortgage."><a href="../reference/glossary.html#allocation">Allocations</a></dfn>, one amount per Mortgage; <code>pay</code> works out the total.</li>
+</ol>
+
+<h3>3. The pattern: <code>test_cash_limit.py</code></h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_cash_limit.py">backend/tests/test_cash_limit.py</a> · the whole file · lines 1–33</figcaption>
+<pre data-file="backend/tests/test_cash_limit.py"><code>1   """The Cash Limit: at or above it, the Lender is warned on screen before lending or     ①
+2   receiving cash. A setting, ₹20,000 unless changed; cleared, there is no warning."""
+3
+4
+5   def cash_limit(client):                                       # ② one helper per request
+6       response = client.get("/api/settings/cash-limit")
+7       assert response.status_code == 200, response.text
+8       return response.json()
+9
+10
+11  def set_cash_limit(client, value):
+12      response = client.put("/api/settings/cash-limit", json={"cash_limit": value})
+13      assert response.status_code == 200, response.text
+14      return response.json()
+15
+16
+17  def test_the_cash_limit_is_20000_rupees_unless_changed(client):          # ③  ◀
+18      assert cash_limit(client) == {"cash_limit": 20_000_00}
+19
+20
+21  def test_the_lender_can_change_the_cash_limit(client):
+22      assert set_cash_limit(client, 10_000_00) == {"cash_limit": 10_000_00}
+23      assert cash_limit(client) == {"cash_limit": 10_000_00}       # ④
+24
+25
+26  def test_clearing_the_cash_limit_turns_the_warning_off_and_it_stays_off(client):
+27      assert set_cash_limit(client, None) == {"cash_limit": None}
+28      assert cash_limit(client) == {"cash_limit": None}
+29
+30
+31  def test_a_cash_limit_of_nothing_is_refused(client):
+32      response = client.put("/api/settings/cash-limit", json={"cash_limit": 0})
+33      assert response.status_code == 422                            # ⑤
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The module's docstring states the rule under test in business words. Read it first: it's the spec.</li>
+  <li>A small helper per request, with its status check inside, so each test reads as a sentence about the business.</li>
+  <li>Test names are sentences about behaviour, in glossary words: "the Cash Limit is ₹20,000 unless changed", not <code>test_get_settings_2</code>. When it fails, the name says what broke. Use the glossary's words exactly, and none of its <em>Avoid</em> words: nothing checks this for you (<a href="../reference/traps.html#t19">trap #19</a>).</li>
+  <li>A setting is checked twice: what the save answered, and what a fresh read says. A save that answers right but stores wrong is caught.</li>
+  <li>A refusal is tested by its status, with the request written out, since the helper would fail on anything but 200.</li>
+</ol>
+
+<h3>4. A test with data: <code>test_call_list.py</code></h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_call_list.py">backend/tests/test_call_list.py</a> · <code>listed</code>, <code>ramesh</code>, two tests · lines 1–72, trimmed</figcaption>
+<pre data-file="backend/tests/test_call_list.py"><code>1   """The Call List: Mortgages to phone about today (today is 20 Apr 2026, see conftest)."""
+⋮
+4   from api_seed import lend, pay, person                         # ① plain imports
+5   from seed import LAKH, RUPEE
+⋮
+14  def listed(client):
+15      """(Mortgage Name, reasons) in Call List order."""            # ②
+⋮
+23  @pytest.fixture
+24  def ramesh(client):                                             # ③  ◀
+25      return person(client)
+⋮
+35  def test_a_mortgage_with_too_many_months_unpaid_is_listed(client, ramesh):
+36      three = lend(client, ramesh, "2026-01-14")  # Feb, Mar, Apr unpaid
+37      lend(client, ramesh, "2026-02-10")  # Mar, Apr: not yet
+38
+39      assert listed(client) == [(three["name"], ["months_unpaid"])]
+⋮
+59  def test_a_mortgage_with_loan_to_value_too_high_is_listed(client, ramesh):
+⋮
+72      assert rows[0]["loan_to_value"] == pytest.approx(1_03_000 / 96_000)   # ④
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>api_seed</code> and <code>seed</code> are imported like installed packages, though they're just files in <code>tests/</code>. Why that works, and its catch, is nuance (c).</li>
+  <li>A helper that boils the answer down to just what the tests compare: a list of (Mortgage Name, reasons). Assertions on a short tuple read better, and fail with a readable diff.</li>
+  <li>A fixture of this file's own: a test that names <code>ramesh</code> gets a Customer already made. Fixtures can use other fixtures (<code>client</code>), and pytest makes each once per test.</li>
+  <li><code>pytest.approx</code>: a float compared within a tiny tolerance. Loan-to-Value is a ratio of two money figures, so it's a float; <code>==</code> on floats can fail by the last digit. Money itself is never a float (it's whole paise), so money is compared with <code>==</code>.</li>
+</ol>
+
+<h2>Run-through: a test of your own</h2>
+<p>The Cash Limit's tests cover the default, a change, a clearing and a refusal. One thing is missing: once cleared, can the Lender turn the warning back on? Add this at the end of <code>backend/tests/test_cash_limit.py</code>:</p>
+<pre><code>def test_the_cash_limit_can_be_set_back_to_20000_rupees_after_being_cleared(client):
+    set_cash_limit(client, None)
+
+    assert set_cash_limit(client, 20_000_00) == {"cash_limit": 20_000_00}
+    assert cash_limit(client) == {"cash_limit": 20_000_00}</code></pre>
+<p>Arrange (clear it), blank line, act and assert. Then run the file:</p>
+<pre><code>cd backend
+uv run pytest tests/test_cash_limit.py -v</code></pre>
+<table class="steps text">
+<tr><th>Test</th><th>Result</th></tr>
+<tr><td><code>test_the_cash_limit_is_20000_rupees_unless_changed</code></td><td>PASSED</td></tr>
+<tr><td><code>test_the_lender_can_change_the_cash_limit</code></td><td>PASSED</td></tr>
+<tr><td><code>test_clearing_the_cash_limit_turns_the_warning_off_and_it_stays_off</code></td><td>PASSED</td></tr>
+<tr><td><code>test_a_cash_limit_of_nothing_is_refused</code></td><td>PASSED</td></tr>
+<tr class="changed"><td><code>test_the_cash_limit_can_be_set_back_to_20000_rupees_after_being_cleared</code></td><td>PASSED</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.sh</code>, section L2: "5 passed".</p>
+<p>A test you've only seen pass hasn't shown you it can fail. Make it fail on purpose.</p>
+<div class="reveal">
+  <p><strong>Predict:</strong> change both <code>20_000_00</code> in your test to <code>20_000</code>, as if you'd written rupees. What does pytest print?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+<pre><code>E       AssertionError: assert {'cash_limit': 2000000} == {'cash_limit': 20000}
+E         Differing items:
+E         {'cash_limit': 2000000} != {'cash_limit': 20000}</code></pre>
+    <p>It fails at the first <code>assert</code>: the app saved ₹200 (20,000 paise) and answered so, and the test expected 2000000. pytest rewrites every plain <code>assert</code> to print both sides, so you see the two numbers without a debugger. A factor of 100 in a failure is almost always rupees written where paise were meant (<a href="../reference/traps.html#t6">trap #6</a>).</p>
+  </div>
+</div>
+<p class="cite">From <code>scripts/run_throughs.sh</code>, section L2.</p>
+<p>Put it back to <code>20_000_00</code>. Keep the test or drop it (<code>git checkout -- tests/test_cash_limit.py</code>); it's a fine test, but this course doesn't commit it for you.</p>
+
+<h2>Nuances</h2>
+<h3>a. No test depends on another</h3>
+<p>Each test's database is a new file in its own <code>tmp_path</code>, built by the migrations. Your new test cleared the Cash Limit, and the next test still saw ₹20,000. You can run any one test alone, or all of them in any order, and get the same result. Never write a test that needs another to have run first; if two tests need the same data, give them a fixture (like <code>ramesh</code>) or a helper.</p>
+
+<h3>b. A refused seed fails with the app's own reason</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> a test calls <code>lend(client, {"id": 99})</code>, lending to a Customer that was never made. Where does it fail, and with what message?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+<pre><code>E       AssertionError: {"detail":"Customer not found"}
+1 failed</code></pre>
+    <p>It fails inside <code>_created</code>, before the test's own assertions, and the message is the backend's answer, word for word. A test whose <em>setup</em> the app refuses never gets to assert something false about an impossible state. Lesson 3 gives the layer below the API the same guarantee.</p>
+  </div>
+</div>
+<p class="cite">From <code>scripts/run_throughs.sh</code>, section L2.</p>
+
+<h3>c. Why it's <code>api_seed.py</code> and not <code>http.py</code> (trap #18)</h3>
+<p><code>backend/tests/</code> has no <code>__init__.py</code>, so it isn't a package. pytest, in its default import mode, puts the folder of such a test file at the <em>front</em> of Python's import path (<code>sys.path</code>) before importing it. That is what lets a test write <code>import seed</code> or <code>from api_seed import lend</code>.</p>
+<p>It also means any file in <code>tests/</code> wins over a module of the same name anywhere else, including Python's own. Python's standard library has a module called <code>http</code>, and FastAPI imports it.</p>
+<div class="reveal">
+  <p><strong>Predict:</strong> copy <code>api_seed.py</code> to <code>tests/http.py</code> (a natural name for "helpers that make HTTP requests") and run <code>uv run pytest</code>. What happens?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+<pre><code>ImportError while loading conftest '…/backend/tests/conftest.py'.
+E   ImportError: cannot import name 'APIRouter' from partially initialized module 'fastapi'
+    (most likely due to a circular import)</code></pre>
+    <p>Not one test runs. <code>conftest.py</code> imports FastAPI; FastAPI's start imports <code>http</code> and gets <em>your</em> <code>tests/http.py</code>; that imports <code>seed</code>, which imports the app, which imports FastAPI, which is only half loaded. The message blames a circular import in FastAPI, and says nothing about your file. That's why <code>api_seed.py</code>'s docstring explains its own name. Delete the file to recover.</p>
+  </div>
+</div>
+<p class="cite">From <code>scripts/run_throughs.sh</code>, section L2.</p>
+<div class="callout warn"><strong>Trap #18.</strong> Never name a file in <code>backend/tests/</code> after a standard-library module: <code>http.py</code>, <code>json.py</code>, <code>types.py</code>, <code>email.py</code>, <code>calendar.py</code>…</div>
+
+<h3>d. Through the API is the default</h3>
+<p>Most backend test files use <code>client</code>, because that's how the Lender's actions arrive: as requests from the frontend. A test through the API checks the route, the request and answer models, the status codes and the logic behind them in one go, and it keeps passing when the code behind the route is reorganised. Lesson 3 is about when to go below it.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">A new test calls <code>pay(client, ramesh, {chain["id"]: 9_000})</code>, meaning ₹9,000 of interest. What does the Payment really pay?</p>
+  <button class="opt">₹9,000: the helper converts rupees into paise</button>
+  <button class="opt">₹90: amounts are in paise, so 9,000 is ₹90</button>
+  <button class="opt">Nothing: <code>pay</code> refuses an amount that isn't in rupees</button>
+  <div class="why">Every amount in the API and in the helpers is whole paise; nothing converts. ₹9,000 is <code>9_000 * RUPEE</code> (900000). The test runs, pays ₹90, and probably fails later with a figure 100 times off (trap #6).</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Your test saves a Cash Limit of ₹5,000. Another test, run right after it, reads the Cash Limit. What does it read?</p>
+  <button class="opt">₹5,000, if the two tests sit in the same file</button>
+  <button class="opt">₹5,000, unless your test clears it at the end</button>
+  <button class="opt">₹20,000: every test gets a new database</button>
+  <div class="why"><code>database_url</code> is built from <code>tmp_path</code>, a new folder for each test, and <code>client</code> migrates a new file in it. Nothing is shared between tests, so nothing needs cleaning up.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">A test's call to <code>person(client, "Sita Devi")</code> fails before any of the test's own assertions. What's the likeliest reason?</p>
+  <button class="opt">Ramesh already has the default number, 9829012345</button>
+  <button class="opt"><code>person</code> needs an address, and none was given</button>
+  <button class="opt">The test forgot to ask for the <code>conn</code> fixture</button>
+  <div class="why"><code>person</code>'s <code>phone</code> defaults to 9829012345. If the test already made Ramesh with the default, Sita on the same Primary Number is refused, and <code>_created</code> fails with the backend's reason. Give her her own: <code>person(client, "Sita Devi", "9829054321")</code>, as <code>test_call_list.py</code> does. The address defaults to <code>""</code>, and <code>client</code> tests don't use <code>conn</code>.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_call_list.py"><code>tests/test_call_list.py</code></a> whole (about 150 lines): its tests build each situation in two or three lines with <code>person</code> and <code>lend</code>, and the comments say what the figures will be. Then pytest's own <a href="https://docs.pytest.org/en/stable/how-to/fixtures.html">guide to fixtures</a>, for <code>yield</code> fixtures and how they're shared through <code>conftest.py</code>.</p>
+
+<nav class="lessons">
+  <a href="01-every-check-and-how-to-run-it.html">← Every check, and how to run it</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="03-below-the-api-seeds-and-pure-tests.html">Below the API: seeds and pure tests →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

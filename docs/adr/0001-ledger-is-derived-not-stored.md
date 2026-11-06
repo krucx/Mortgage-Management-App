@@ -1,0 +1,3 @@
+# The Ledger is derived, not stored
+
+The original spec stored a `MortgageLedger` table, updated on view, on payment, and by a catch-up job at startup. We instead compute each Mortgage's Ledger on demand by replaying its terms, term changes and Payment Allocations up to a given date. Stored ledger rows go stale whenever an earlier input changes (back-dated payment, corrected amount, rate edit) and must be rewritten downstream; a pure replay can't drift, removes the startup catch-up, and still gives full point-in-time history because the inputs are immutable facts. Replaying a few hundred Mortgages takes milliseconds on a laptop.

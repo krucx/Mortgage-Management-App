@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12.6 · The installed app (PWA)</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 012 · Lesson 6</p>
+<h1>The installed app (PWA)</h1>
+<p class="lede">The Lender doesn't open a browser and type an address. They click the app's icon, like any other program. This lesson is about what makes that work: the service worker that caches the screens (and never the figures), the screen shown while the server is stopped, and the banner that offers an update.</p>
+
+<div class="callout win"><strong>By the end</strong> you can say what the service worker caches and why, and what the Lender sees when the server is stopped or an update is out.</div>
+
+<h2>The problem</h2>
+<p>The app runs on the Lender's own laptop: a backend serving the API and the built screens on one port. Chrome lets a website be <em>installed</em> as a Progressive Web App (PWA): it gets an icon and opens in its own window. But an installed website is still a website. Click the icon while the server isn't running, and the Lender gets Chrome's "This site can't be reached" page.</p>
+<p>A cache seems to be the fix: keep a copy of the screens, so the app opens either way. But cache the wrong things and it goes wrong. Cache the API's answers, and the app could show what Meera owed last week. Cache the pages too eagerly, and after an update the Lender keeps getting the old app. Even once the app opens without a server, it can't start that server itself: a web page can't run programs on the laptop.</p>
+
+<h2>The idea</h2>
+<p><strong>Cache the app, never the figures.</strong> A <em>service worker</em> is a script the browser keeps installed for a site. It sits between the page and the network and can answer requests from its own cache. This one keeps the built screens, and fetches every page from the server first whenever the server answers. It never caches <code>/api</code>.</p>
+<p><strong>A gate in front of the app.</strong> <code>StartGate</code> pings the backend before drawing anything. If it doesn't answer, it says so (on Windows, with a Start button: <a href="../../adr/0008-pwa-starts-the-app-through-a-link.md">ADR 0008</a>). It keeps checking, and reloads the app the moment the backend answers.</p>
+<p><strong>A banner for updates.</strong> <code>UpdateBanner</code> asks the backend whether a newer release is out, and offers it with its notes: Install now, or Later.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  I["Lender clicks the icon"] --> N{"a page (navigation):<br/>server answers within 5 s?"}
+  N -->|"yes"| F["the page from the server<br/>(and kept in 'pages')"]
+  N -->|"no"| C["the cached /index.html<br/>(handlerDidError)"]
+  F --> A["the app's files: precache"]
+  C --> A
+  A --> G{"StartGate: GET /api/payment-methods<br/>answers below 500?"}
+  G -->|"yes"| APP["the app; UpdateBanner asks /api/update"]
+  G -->|"no"| S["'The app isn't running…'<br/>checks again every 2 s"]
+  S -->|"it answers"| R["window.location.reload()"]
+  R --> N
+</pre>
+<figcaption>Two caches and one gate. <code>/api</code> requests never pass through a cache: they always go to the server.</figcaption>
+</figure>
+<p>Notice that the gate runs <em>after</em> the cached app has loaded. The service worker's job is only to get the app's own code onto the screen. Whether there's a server to talk to is the gate's question, asked through the same typed client as everything else.</p>
+
+<h2>The code</h2>
+<h3>1. What the service worker keeps</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/vite.config.ts">frontend/vite.config.ts</a> · <code>VitePWA</code> · lines 17–44, trimmed</figcaption>
+<pre data-file="frontend/vite.config.ts"><code>17      // Installable as an app, and opens without the server: the app itself is cached by a
+18      // service worker, but never /api, so every figure is always fresh from the backend.
+19      VitePWA({
+20        registerType: 'autoUpdate',                                       // ①
+21        includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+22        manifest: {
+⋮         … name "Mortgage Management", short_name "Mortgages", display "standalone",
+⋮           start_url "/", theme colours, three icons from public/ …
+38        workbox: {
+39          globPatterns: ['**/*.{js,css,html,svg,png}'],                     // ② the precache
+40          // The text reader's files (several MB) load only when an ID Photo is read.
+41          globIgnores: ['ocr/**'],                                          // ③
+42          // Pages come from the server whenever it answers, so the first start after an
+43          // update runs the new app; the cached one is only for when it can't be reached.
+44          navigateFallback: null,                                           // ④  ◀
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>vite-plugin-pwa</code> writes the service worker (<code>sw.js</code>, made with Google's Workbox library) when you <code>npm run build</code>. <code>autoUpdate</code>: a new service worker takes over as soon as it's installed, with no "reload to update" prompt.</li>
+  <li>The <em>precache</em>: every built file that matches, fetched and stored when the service worker installs. That's the whole app, so it can open offline.</li>
+  <li>Except Tesseract's 10 MB (lesson 4): they'd slow every install, for a feature used now and then.</li>
+  <li>By default a Workbox app answers every page from the precached <code>index.html</code>, without asking the server at all. That would keep the Lender on the old app after an update until a second start. <code>null</code> turns that off; the rule below fetches pages instead.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/vite.config.ts">frontend/vite.config.ts</a> · <code>runtimeCaching</code>, <code>__APP_VERSION__</code> · lines 45–70, trimmed</figcaption>
+<pre data-file="frontend/vite.config.ts"><code>45        runtimeCaching: [
+46          {
+47            urlPattern: ({ request, url }) =&gt;
+48              request.mode === 'navigate' &amp;&amp; !url.pathname.startsWith('/api/'),   // ① pages only
+49            handler: 'NetworkFirst',                                          // ②  ◀
+50            options: {
+51              cacheName: 'pages',
+52              networkTimeoutSeconds: 5,
+53              plugins: [
+54                {
+55                  // Offline: the cached app, whichever page was asked for.
+56                  handlerDidError: async () =&gt;                                 // ③
+57                    (globalThis as unknown as ServiceWorkerGlobal).caches.match('/index.html', {
+58                      ignoreSearch: true,
+59                    }),
+⋮
+65        cleanupOutdatedCaches: true,
+⋮
+70    define: { __APP_VERSION__: JSON.stringify(version) },                    // ④
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>A <em>navigation</em> is the browser loading a page (a URL typed, a reload, the icon), not a <code>fetch</code> from the page's code. <code>/api</code> requests are never navigations, and would be refused here anyway.</li>
+  <li><code>NetworkFirst</code>: ask the server first and keep the answer in the <code>pages</code> cache; use the cache only if the server fails or takes more than 5 seconds.</li>
+  <li>Offline, and asked for a page that was never cached: answer with the precached <code>index.html</code> anyway. The app finds its page from the URL (lesson 1), so any URL works offline.</li>
+  <li>The version in the top bar ("v3.4.1") is written into the build from <code>package.json</code>. <code>src/version.ts</code> names it <code>APP_VERSION</code>.</li>
+</ol>
+
+<h3>2. The gate</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/StartGate.tsx">frontend/src/components/StartGate.tsx</a> · <code>backendAnswers</code>, <code>StartGate</code> · lines 8–72, trimmed</figcaption>
+<pre data-file="frontend/src/components/StartGate.tsx"><code>8   /** Whether the backend answers: not when fetch itself fails, nor when what passes /api on
+9    *  says the backend behind it is down (5xx). */
+10  async function backendAnswers(client: ApiClient): Promise&lt;boolean&gt; {
+11    try {
+12      const { response } = await client.GET('/api/payment-methods')
+13      return response.status &lt; 500                                         // ①  ◀
+14    } catch {
+15      return false                                                         // ② nothing answered
+16    }
+17  }
+⋮
+51    useEffect(() =&gt; {
+52      void backendAnswers(client).then((running) =&gt; setState(running ? 'running' : 'stopped'))
+53    }, [client])
+⋮
+56    const stopped = state === 'stopped' || state === 'starting' || state === 'late'
+57    useEffect(() =&gt; {
+58      if (!stopped) return
+⋮
+60      const timer = setInterval(() =&gt; {
+⋮
+63        void backendAnswers(client).then((running) =&gt; {
+⋮
+65          if (running) {
+66            clearInterval(timer)
+67            reload()                                                         // ③
+68          }
+69        })
+70      }, checkEveryMs)                                                     // 2000 ms
+71      return () =&gt; clearInterval(timer)
+72    }, [stopped, client, checkEveryMs, reload])
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Any answer below 500 means a backend is there. A 5xx means something answered <em>for</em> it: Vite's dev server answers <code>502</code> when the backend behind its proxy is down (checked: the script got <code>502</code> from <code>/api/payment-methods</code> with no backend on port 8000), and so did nginx in Docker before <a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>.</li>
+  <li>With no server at all, <code>fetch</code> throws: stopped.</li>
+  <li>Once it answers, reload the whole page rather than just drawing the app. The server may now be a newer version than the cached screens, and a reload is a navigation: <code>NetworkFirst</code> fetches the new app.</li>
+</ol>
+<p>The rest of <code>StartGate</code> is the screen itself. On Windows (<code>navigator.userAgent</code> includes "Windows") it shows <strong>Start Mortgage Management</strong>, which opens <code>mortgage-management://start</code>: a link Setup registered with Windows that runs the app's launcher (ADR 0008; <a href="../014-how-it-runs-on-the-lenders-laptop/05-the-mortgage-management-link.html">chapter 014, lesson 5</a>). Elsewhere there's no such link, so it says "The app isn't running. Start its server: this page loads the app as soon as it is running." After five minutes of Starting… it says to use the Desktop shortcut to see what went wrong.</p>
+
+<h3>3. The update banner</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/UpdateBanner.tsx">frontend/src/components/UpdateBanner.tsx</a> · <code>UpdateBanner</code> · lines 116–159, trimmed</figcaption>
+<pre data-file="frontend/src/components/UpdateBanner.tsx"><code>116   const { client } = useServerState()
+117   const status = useQuery(updateStatusQuery(client)).data                // { running, available }
+118   const available = status?.available
+119   const [phase, setPhase] = useState&lt;'offered' | 'installing' | 'failed' | 'late'&gt;('offered')
+120   const [putOff, setPutOff] = useState(readPutOff)                       // ① localStorage
+⋮
+124   useEffect(() =&gt; {
+125     if (!installing || !status || !available) return
+⋮
+128     const timer = setInterval(() =&gt; {
+⋮
+131       client
+132         .GET('/api/update')
+133         .then(
+134           ({ data, response }) =&gt; {
+135             if (!response.ok || !data) {
+136               stopped = true                                               // Setup stopped the app
+137             } else if (data.running !== status.running) {                  // ②  ◀
+138               // A new version runs: the one offered, or a newer one released meanwhile.
+139               clearInterval(timer)
+140               reload()
+141             } else if (stopped) {
+142               clearInterval(timer)
+143               setPhase('failed')                                           // ③
+144             }
+⋮
+159   if (!available || (putOff &amp;&amp; !newer(available.version, putOff))) return null   // ④
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The version the Lender last put off with <strong>Later</strong>, kept in this browser's <code>localStorage</code> under <code>mortgage-management.update-put-off</code>.</li>
+  <li>While installing (after <strong>Install now</strong> opened <code>mortgage-management://update</code> and Setup began), ask every 3 seconds which version runs. Any version other than the one running before means the update worked: reload into it.</li>
+  <li>The app went away and came back as the <em>same</em> version: Setup put the old one back, so the update failed. "Update failed; still on 3.4.1. The Setup window says why."</li>
+  <li>Nothing to offer, or this version (or a newer one) was put off.</li>
+</ol>
+<p>What's "available" is the backend's answer from <code>GET /api/update</code>, which compares the running version with the latest release (chapter 015). The banner only shows it, renders its release notes from Markdown (<code>ReleaseNotes</code>, line 46), and watches the install.</p>
+
+<h2>Run-through: build it, install it, stop the server</h2>
+<p>The service worker exists only in a built app (<code>npm run dev</code> has none). Build the screens, and serve a <strong>fresh</strong> book with them on <code>serve.py</code>'s own port:</p>
+<pre><code># from frontend/
+npm run build
+
+# from backend/, a new book in a new folder
+export PWA=$(mktemp -d)
+uv run python ../docs/sample-book/book.py "$PWA"
+uv run python ../docs/sample-book/serve.py "$PWA"      # http://127.0.0.1:8765</code></pre>
+<p>Open <a href="http://127.0.0.1:8765">127.0.0.1:8765</a> in Chrome. The top bar says <strong>v3.4.1</strong>. Install it with Chrome's install icon at the right of the address bar (or the Install item in Chrome's ⋮ menu; its place varies between Chrome versions). It opens in its own window, named "Mortgage Management".</p>
+<h3>What's cached</h3>
+<p>In the app's window, open the developer tools → <strong>Application</strong> → Cache storage. Visit <code>/mortgages/2</code> and <code>/customers/1</code> first.</p>
+<table class="steps text">
+<tr><th>Cache</th><th>Entries</th><th>What</th><th>Any <code>/api/</code>?</th><th>Any <code>/ocr/</code>?</th></tr>
+<tr><td><code>workbox-precache-v2-http://127.0.0.1:8765/</code></td><td>11</td><td><code>index.html</code>, <code>registerSW.js</code>, <code>manifest.webmanifest</code>, the icons, and the hashed <code>assets/index-….js</code>, <code>assets/src-….js</code>, <code>assets/index-….css</code></td><td>no</td><td>no</td></tr>
+<tr class="changed"><td><code>pages</code></td><td>2</td><td><code>/mortgages/2</code>, <code>/customers/1</code>: the pages you navigated to</td><td>no</td><td>no</td></tr>
+</table>
+<p class="cite">From <code>scripts/pwa.mjs</code> (section L6), at commit 2c5e561. The built app had 17 files; <code>dist/ocr/</code> held 4 of them, 10 MB.</p>
+
+<h3>Stop the server, and start it again</h3>
+<table class="steps text">
+<tr><th>Step</th><th>Requests</th><th>What shows</th></tr>
+<tr><td>Stop <code>serve.py</code> (Ctrl-C); reload the app</td><td>The page from the <code>pages</code> cache; then <code>GET /api/payment-methods</code>, which fails</td><td>At once: "Mortgage Management · The app isn't running. Start its server: this page loads the app as soon as it is running."</td></tr>
+<tr><td>Go to <code>/mortgages/7</code>, never visited</td><td>No page cached for it: <code>handlerDidError</code> answers with <code>/index.html</code></td><td>The same screen</td></tr>
+<tr><td>Wait</td><td><code>GET /api/payment-methods</code> every 2 seconds</td><td>The same screen</td></tr>
+<tr class="changed"><td>Start <code>serve.py</code> again (the same command)</td><td>The next check answers</td><td>The app reloads by itself, about a second later, onto <code>/mortgages/7</code>: "2026-Imran-GoldEarrings forfeited"</td></tr>
+</table>
+<p class="cite">From <code>scripts/pwa.mjs</code> (section L6), which starts and stops <code>serve.py</code> itself. Off Windows, so no Start button.</p>
+
+<h3>The update banner, from its tests</h3>
+<p><code>serve.py</code> passes no latest release, so <code>/api/update</code> answers <code>{"running": "3.4.1", "available": null}</code> and the banner never shows on the served book. Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/UpdateBanner.test.tsx"><code>tests/UpdateBanner.test.tsx</code></a> instead. Each test runs the real banner against a fake backend (<code>fakeServer</code>, <a href="../013-testing/04-frontend-tests-fakeserver-and-showpage.html">chapter 013</a>) whose version can be changed mid-test, checking every 5 ms instead of every 3 s:</p>
+<table class="steps text">
+<tr><th>Test (line)</th><th>The backend does</th><th>The banner</th></tr>
+<tr><td>"a newer release is offered with its notes" (40)</td><td>runs 1.5.1; 1.6.0 is out</td><td>"Version 1.6.0 is available", its notes, Install now</td></tr>
+<tr><td>"Later hides it until a newer version than the one put off" (56)</td><td>1.6.0 out; then 1.6.1</td><td>Later: gone, and still gone when the app is opened again; back for 1.6.1</td></tr>
+<tr><td>"Install now runs Setup through the link…" (85)</td><td>stops, then runs 1.6.0</td><td>opens <code>mortgage-management://update</code>; "Updating to version 1.6.0…"; reloads once 1.6.0 runs</td></tr>
+<tr><td>"when the version before comes back instead…" (101)</td><td>stops, then runs 1.5.1 again</td><td>"Update failed; still on 1.5.1"; no reload</td></tr>
+<tr class="changed"><td>"the app loads whichever new version Setup installed, even one newer than offered" (125)</td><td>stops, then runs <strong>1.6.1</strong> (offered: 1.6.0)</td><td>reloads</td></tr>
+</table>
+<p>Run them: <code>cd frontend &amp;&amp; npx vitest run tests/UpdateBanner.test.tsx tests/StartGate.test.tsx</code>. All 13 pass.</p>
+
+<h2>Nuances</h2>
+<h3>(a) No figure is ever stale</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> the Lender opens Meera's chain in the installed app on Monday. On Tuesday they open it with the server stopped. Do they see Monday's ₹83,333?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>No: they see "The app isn't running…". The page and its code are cached, but <code>/api/mortgages/2</code> never is (neither cache has any <code>/api/</code> entry), and <code>StartGate</code> draws nothing until the backend answers. The app is either live or not shown. Every figure on screen came from the backend just now. (Chapter 011's in-memory cache lasts only while the page is open; a reload empties it.)</p>
+  </div>
+</div>
+
+<h3>(b) The first start after an update runs the new app</h3>
+<p>The cached screens are an old version once the Lender updates. With <code>NetworkFirst</code> and <code>navigateFallback: null</code>, the first page load after the update asks the server, which now serves the new <code>index.html</code>; it names new hashed <code>assets/</code> files, which the browser fetches. Meanwhile the new <code>sw.js</code> installs and, with <code>autoUpdate</code>, takes over and replaces the precache. <code>cleanupOutdatedCaches</code> deletes the old one. The 5-second timeout only matters when the server is slow to answer: then the cached app opens, and <code>StartGate</code> takes it from there.</p>
+
+<h3>(c) The server's cache headers must agree</h3>
+<p>The service worker isn't the only cache. The browser's own HTTP cache follows the server's <code>Cache-Control</code> headers, and <code>sw.js</code> itself is fetched through it. If <code>sw.js</code> or <code>index.html</code> were kept for an hour, the Lender could stay on the old app for that hour, whatever the service worker says. The backend sends:</p>
+<table class="steps text">
+<tr><th>Path</th><th><code>Cache-Control</code></th></tr>
+<tr><td><code>/</code>, <code>/index.html</code>, <code>/sw.js</code>, <code>/manifest.webmanifest</code>, <code>/registerSW.js</code></td><td><code>no-cache</code> (always check with the server)</td></tr>
+<tr><td><code>/assets/index-….js</code></td><td><code>public, max-age=31536000, immutable</code> (its name changes when it does)</td></tr>
+</table>
+<p class="cite">From <code>scripts/pwa.mjs</code> (section L6), asking the served book.</p>
+<p>These come from <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a>. The service worker's caching in <code>vite.config.ts</code> and the server's headers in <code>screens.py</code> are separate rules that both affect updates. Change either one, then check the installed app's behavior. Chapter <a href="../014-how-it-runs-on-the-lenders-laptop/02-without-docker-the-backend-serves-the-screens.html">014, lesson 2</a> explains how one backend now serves screens in both modes.</p>
+
+<h3>(d) Later is per device</h3>
+<p>Later is remembered in the browser's <code>localStorage</code>, not on the backend. The Lender's laptop and phone each decide for themselves, and a private window forgets it once closed. And Later only means "not this version": a newer release than the one put off shows the banner again (line 159; the test at line 56).</p>
+
+<h3>(e) Reloading for the version that runs</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> the banner offers 1.6.0. While the Lender is installing, 1.6.1 is released, and Setup installs the newest. If line 137 were <code>data.running === available.version</code> ("reload once 1.6.0 runs"), what would the Lender see?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>"Updating to version 1.6.0…" forever, then, after 20 minutes, "The update hasn't finished…": 1.6.1 is never 1.6.0. Comparing with the version that ran <em>before</em> catches any successful update. This is the check-yourself exercise: make the change, and exactly one test fails.</p>
+  </div>
+</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">The server is stopped. Which cache does a reload of the installed app use for the page?</p>
+  <button class="opt">The precache, always, without asking the server</button>
+  <button class="opt">The <code>pages</code> cache, after the server fails to answer</button>
+  <button class="opt">None: the browser shows "This site can't be reached"</button>
+  <div class="why">Pages are <code>NetworkFirst</code>: the server is asked first, and when that fails the <code>pages</code> cache answers. For a page never visited, <code>handlerDidError</code> falls back to the precached <code>/index.html</code>. The precache alone answers only the app's files.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Why does <code>StartGate</code> count a <code>502</code> from <code>/api/payment-methods</code> as stopped?</p>
+  <button class="opt">The backend answers 502 while it migrates the database</button>
+  <button class="opt">The payment methods route can fail, and must be retried</button>
+  <button class="opt">A proxy in front answers 502 when the backend is down</button>
+  <div class="why">A 5xx means something answered for the backend: Vite's dev server answers 502 when nothing listens on 8000, as nginx did before ADR 0013. Pinned by <code>StartGate.test.tsx</code>'s "a 502 from a proxy in front of a stopped backend counts as stopped".</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">The Lender presses Later on 1.6.0. What does the app remember, and where?</p>
+  <button class="opt">"1.6.0", in this browser's <code>localStorage</code></button>
+  <button class="opt">"put off", in the book's settings on the backend</button>
+  <button class="opt">Nothing: the banner shows again on the next start</button>
+  <div class="why"><code>writePutOff(available.version)</code> stores the version under <code>mortgage-management.update-put-off</code>. The banner hides while the offered version isn't newer than it. Nothing is sent to the backend.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/StartGate.tsx"><code>StartGate.tsx</code></a> (123 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/UpdateBanner.tsx"><code>UpdateBanner.tsx</code></a> (209 lines) whole, each with its test. Then <a href="../../adr/0008-pwa-starts-the-app-through-a-link.md">ADR 0008</a>, for why the app starts through a link, and <a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a> and <a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>, for how the screens are served. Workbox's own guide to <a href="https://developer.chrome.com/docs/workbox/caching-strategies-overview">caching strategies</a> explains <code>NetworkFirst</code> and the precache in general.</p>
+
+<nav class="lessons">
+  <a href="05-follow-up-dashboard-and-settings.html">← Follow-up, the Dashboard and Settings</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Next: Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

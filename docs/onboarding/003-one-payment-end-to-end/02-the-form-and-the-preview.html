@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.2 · The form and the Preview</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 003 · Lesson 2</p>
+<h1>The form and the Preview</h1>
+<p class="lede">The Lender types ₹6,600, picks UPI and divides it between two Mortgages. Before they press Save, the screen already shows what each Mortgage will owe afterwards. Where is that draft built, and who works out the "afterwards"?</p>
+
+<div class="callout win"><strong>By the end</strong> you can say where the draft is built and how the Preview reaches the backend and returns.</div>
+
+<h2>The problem</h2>
+<p>Money mistakes are expensive to undo. If the Lender types ₹50,000 instead of ₹5,000, or puts the money on the wrong Mortgage, they want to see it <em>before</em> it's saved, in figures they recognise: "the bangles will owe ₹1,46,500".</p>
+<p>The obvious design is for the screen to work those figures out itself. But the rules for what a Payment pays first are subtle (chapter 004 needs a whole chapter for them), and a second copy of them in TypeScript would drift from the Python one. Then the Preview would say one thing and the save would do another, which is worse than no Preview at all.</p>
+
+<h2>The idea</h2>
+<p>The form only <em>describes</em> the Payment it would save, as the exact JSON body the save would send. It hands that body to the backend's <a href="../reference/glossary.html#preview"><dfn class="term" title="What a change would do, shown before it is saved: the change is made and then undone, so a Preview is refused exactly when saving would be.">Preview</dfn></a> route, which makes the real change inside a database transaction, reads every figure, and rolls the transaction back. One set of rules, used twice.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  F["PaymentForm<br/>NewPaymentPage.tsx"] -->|"proposed: PaymentIn or null"| UPC["useProposedChange()"]
+  UPC -->|"previews.payment(proposed)"| UP["usePreview()<br/>waits 400 ms of quiet"]
+  UP -->|"POST /api/payments/preview<br/>body = proposed"| PP["preview_payment()<br/>lending/previews.py"]
+  PP --> PR["_preview(): snapshot,<br/>record_payment(), snapshot"]
+  PR -->|"conn.rollback()"| PR
+  PR -->|"PreviewOfChange:<br/>before / after per Mortgage"| UP
+  UP -->|"preview"| BA["PreviewSection, BeforeAfter<br/>'What changes'"]
+</pre>
+<figcaption>The draft goes down as a request body; figures come back up. Nothing on the way down computes money.</figcaption>
+</figure>
+<p>Notice that <code>record_payment</code>, the very function the save calls (lesson 3), runs inside the Preview. The only difference is the <code>rollback</code> at the end.</p>
+
+<h2>The code</h2>
+<h3>1. The list: what each Mortgage owes on the Payment's date</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx">frontend/src/pages/NewPaymentPage.tsx</a> · <code>PaymentForm</code> · lines 95–101</figcaption>
+<pre data-file="frontend/src/pages/NewPaymentPage.tsx"><code>95    // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
+96    const { client } = useServerState()
+97    const listed = useQuery({
+98      ...everyMortgageQuery(client, { customerId: customer.id, status: 'active', asOf: paidOn }),  ◀
+99      enabled: paidOn !== '',
+100     placeholderData: (previous) =&gt; previous,
+101   })
+</code></pre>
+</figure>
+<p>That's request 1, <code>GET /api/mortgages?…&amp;as_of=2026-10-19</code>. <code>asOf: paidOn</code> asks for each Outstanding on the Payment's date, not today, because a Payment can be back-dated. <code>placeholderData</code> keeps the old list on screen while a new date loads.</p>
+
+<h3>2. The draft: exactly what saving would send</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx">frontend/src/pages/NewPaymentPage.tsx</a> · <code>PaymentForm</code> · lines 127–169, trimmed</figcaption>
+<pre data-file="frontend/src/pages/NewPaymentPage.tsx"><code>127   const total = rupeesToPaise(totalText)            ①
+⋮    … amounts: equal shares, typed amounts, or percentages …
+147   const problems: string[] = []
+148   if (chosen.length === 0) problems.push('Choose at least one Mortgage.')
+149   if (total &lt;= 0) problems.push('Enter the amount received.')
+⋮    … the Allocations must add up to the total …
+156   // What saving would send; previewed (and refused, if it would be) by the backend.
+157   const proposed: PaymentIn | null =                 ②
+158     problems.length || !amounts
+159       ? null
+160       : {
+161           customer_id: customer.id,
+162           paid_on: paidOn,
+163           amount: total,
+164           method,
+165           reference: reference.trim() || null,
+166           allocations: chosen
+167             .map((m, i) =&gt; ({ mortgage_id: m.id, amount: amounts[i] }))
+168             .filter((allocation) =&gt; allocation.amount &gt; 0),
+169         }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The Lender types rupees; everything below works in <strong>paise</strong> (₹1 = 100 paise), as integers. See nuance (a).</li>
+  <li><code>proposed</code> is either a complete request body or <code>null</code>. The form checks only what it can see by itself: something chosen, an amount, Allocations that add up. Whether the Payment is <em>allowed</em> (too large? before the Mortgage started?) is for the backend to say, in the Preview.</li>
+</ol>
+
+<h3>3. From draft to Preview</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx">frontend/src/pages/NewPaymentPage.tsx</a> · <code>PaymentForm</code> · lines 197–199, 242–243, trimmed</figcaption>
+<pre data-file="frontend/src/pages/NewPaymentPage.tsx"><code>197   const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
+198     change: proposed,
+199     preview: (payment) =&gt; previews.payment(payment),   ◀
+⋮    … confirm: the dialog's title and summary (nuance c) …
+242     save: (asked) =&gt; changeLedger((client) =&gt; changes.recordPayment(client, asked)),
+243     saved: (payment) =&gt; navigate(`/payments/${payment.id}/receipt`),
+</code></pre>
+</figure>
+<p><code>useProposedChange</code> is a custom React hook: a function, named <code>use…</code> by React's convention, that bundles state and behaviour a component can reuse. Every form that changes a Ledger uses this one hook, so they all behave alike: preview, confirm, save, go somewhere. Inside it:</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useProposedChange.tsx">frontend/src/components/useProposedChange.tsx</a> · <code>useProposedChange()</code> · lines 45–51, trimmed</figcaption>
+<pre data-file="frontend/src/components/useProposedChange.tsx"><code>45    const preview = usePreview(change === null ? null : previewOf(change))
+⋮
+50    // Not before the Preview is in: the confirmation and the Cash Limit's warning use it.
+51    const canSave = change !== null &amp;&amp; !saving &amp;&amp; !preview.loading &amp;&amp; !preview.error  ◀
+</code></pre>
+</figure>
+<p>Line 51 is why the <em>Record Payment</em> button stays disabled until the Preview has come back without an error. If the backend would refuse the Payment, the Preview shows the reason and Save never lights up.</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>previews.payment</code> · lines 130–133</figcaption>
+<pre data-file="frontend/src/requests.ts"><code>130   payment: (payment: PaymentIn): PreviewRequest =&gt; ({
+131     key: ['payment', payment],
+132     load: (client) =&gt; dataOrThrow(client.POST('/api/payments/preview', { body: payment })),  ◀
+133   }),
+</code></pre>
+</figure>
+<p>The Preview's cache key is the draft itself, so an unchanged draft is never asked for twice.</p>
+
+<h3>4. The backend makes it, reads it, undoes it</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">backend/src/mortgage_backend/lending/previews.py</a> · <code>preview_payment()</code> · lines 340–351</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>340  @router.post("/payments/preview")
+341  def preview_payment(
+342      payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
+343  ) -&gt; PreviewOfChange:
+344      """Every Mortgage the Payment is allocated to, before and after recording it."""
+345      with engine.connect() as conn:
+346          return _preview(
+347              conn,
+348              [allocation.mortgage_id for allocation in payment.allocations],
+349              today,
+350              lambda: record_payment(conn, payment, today, now),  ◀ the real save
+351          )
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">backend/src/mortgage_backend/lending/previews.py</a> · <code>_preview()</code> · lines 149–164</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>149  def _preview(
+150      conn: Connection,
+151      mortgage_ids: Sequence[int],
+152      today: date,
+153      change: Callable[[], object],
+154  ) -&gt; PreviewOfChange:
+155      """Each Mortgage before and after `change`, which is then undone, and what it
+156      would write in cash."""
+157      try:
+158          before = _snapshot(conn, mortgage_ids, today)   # replay each Mortgage
+159          written = before_change(conn)
+160          change()                                        # write it, every check included
+161          after = _snapshot(conn, mortgage_ids, today)    # replay again
+162          cash = cash_sums(conn, written)
+163      finally:
+164          conn.rollback()  ◀ nothing stays
+</code></pre>
+</figure>
+<p><code>try … finally</code> guarantees the rollback even when <code>change()</code> raises. A refusal inside <code>record_payment</code> is an <code>HTTPException</code> (a 422 or 409), so the Preview is refused with exactly the message saving would give.</p>
+
+<h2>Run-through: draft Meera's Payment</h2>
+<p>On your served book, at <code>/payments/new?customer=1</code> with the date already set to 19 Oct 2026 (lesson 1):</p>
+<table class="steps text">
+<tr><th>You do</th><th>The form</th><th>Network tab</th></tr>
+<tr><td>Amount received: <code>6600</code></td><td>Equal shares suggested at first</td><td>maybe a Preview of the equal shares</td></tr>
+<tr><td>Method: <strong>UPI</strong></td><td>Cash is the default. UPI keeps the Cash Limit warning out of the way (<a href="../007-payments-and-receipts/04-the-cash-limit.html">chapter 007, lesson 4</a>)</td><td></td></tr>
+<tr><td>Allocate: <strong>By amount</strong></td><td>Each Mortgage gets a box</td><td></td></tr>
+<tr class="changed"><td><code>5000</code> for 2026-Meera-PairBangles, <code>1600</code> for 2025-Meera-GoldChainPendant</td><td><em>What changes</em> appears below</td><td><code>POST /api/payments/preview</code> → 200</td></tr>
+</table>
+<p>Click the Preview request in the Network tab and look at its <strong>Payload</strong>. It's <code>proposed</code>, in paise:</p>
+<pre><code>{"customer_id":1,"paid_on":"2026-10-19","amount":660000,"method":"upi","reference":null,
+ "allocations":[{"mortgage_id":5,"amount":500000},{"mortgage_id":2,"amount":160000}]}</code></pre>
+<p class="cite">The body recorded from the real form at commit 361c7fa. The bangles are Mortgage 5 and the chain Mortgage 2; the list shows the newest Mortgage first.</p>
+<div class="reveal">
+  <p><strong>Read it yourself:</strong> under <em>What changes</em>, each Mortgage has a heading "Owed today ₹… → ₹…". Write down both pairs of figures before you open this. You'll find them again on the Receipt in lesson 5.</p>
+  <button class="show">I've read them. Check my figures.</button>
+  <div class="reveal-body">
+    <table class="steps">
+    <tr><th>Mortgage</th><th>Owed today, before</th><th>After</th></tr>
+    <tr><td>2026-Meera-PairBangles</td><td>₹1,51,500</td><td>₹1,46,500</td></tr>
+    <tr><td>2025-Meera-GoldChainPendant</td><td>₹83,333</td><td>₹81,733</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (step 3), which sends the same body to <code>POST /api/payments/preview</code>.</p>
+    <p>Each Mortgage owes exactly its Allocation less. That's because neither Payment is large enough to do anything unusual. <em>Why</em> the bangles' ₹5,000 lowers its Principal while the chain's ₹1,600 doesn't is lesson 4's question.</p>
+  </div>
+</div>
+
+<h2>Nuances</h2>
+<h3>(a) Paise on the wire, rupees on the screen</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/money.ts">frontend/src/money.ts</a> · <code>rupeesToPaise</code> · lines 17–18</figcaption>
+<pre data-file="frontend/src/money.ts"><code>17  /** What the Lender types in rupees (e.g. "1234.5") → paise; blank or invalid text is 0. */
+18  export const rupeesToPaise = (rupees: string) =&gt; Math.round(Number(rupees) * 100) || 0
+</code></pre>
+</figure>
+<p>Every amount in the API and the database is an integer number of paise, so ₹6,600 travels as <code>660000</code>. Integers never pick up floating-point dust like 0.1 + 0.2 = 0.30000000000000004. When you read a request or a test, divide by 100 in your head. The app has other units of this kind (milligrams for weight, basis points a month for rates); chapter 004 lists them.</p>
+
+<h3>(b) One Preview, however fast you type</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> you type <code>5000</code> and <code>1600</code>, nine keystrokes in two boxes. How many <code>POST /api/payments/preview</code> requests appear?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p>One, if you type briskly. A draft that's incomplete (the Allocations don't add up to ₹6,600 yet) is <code>null</code> and asks for nothing. And <code>usePreview</code> waits until the draft has stopped changing for 400 ms before it asks:</p>
+    <figure class="snippet">
+    <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/usePreview.ts">frontend/src/components/usePreview.ts</a> · <code>usePreview()</code> · lines 25–35, trimmed</figcaption>
+<pre data-file="frontend/src/components/usePreview.ts"><code>25  export function usePreview&lt;T = PreviewOfChange&gt;(
+26    request: PreviewRequest&lt;T&gt; | null,
+27    delay = 400,                                   ◀
+⋮
+30    const wanted = request ? hashKey(request.key) : null
+31    const settled = useDebounced(wanted, delay) === wanted
+⋮
+35      enabled: request !== null &amp;&amp; settled,
+</code></pre>
+    </figure>
+    <p><em>Debouncing</em> means waiting for a pause before acting. Without it, every keystroke would make the backend write and roll back a Payment.</p>
+  </div>
+</div>
+
+<h3>(c) A Preview that Redeems changes the question</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> instead, allocate the chain's whole Outstanding, ₹83,333, and nothing to the bangles. What does the Preview show for the chain, and what does the confirm dialog ask when you press Save?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Draft</th><th>Chain: owed today</th><th>Closure after</th><th>Dialog title</th></tr>
+    <tr><td>₹1,600 to the chain</td><td>₹83,333 → ₹81,733</td><td>none</td><td>Record a Payment of ₹6,600?</td></tr>
+    <tr class="changed"><td>₹83,333 to the chain</td><td>₹83,333 → ₹0</td><td><code>redeemed</code></td><td>Redeem and hand back the jewellery?</td></tr>
+    </table>
+    <p class="cite">Preview figures from <code>scripts/run_throughs.py</code>; dialog titles from <code>NewPaymentPage.tsx</code>, lines 201–213.</p>
+    <p>Paying a Mortgage's whole Outstanding <a href="../reference/glossary.html#redeemed"><dfn class="term" title="A Mortgage fully repaid with its jewellery returned to the Customer.">Redeems</dfn></a> it, in the same request (<a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>). The form doesn't decide that: it reads <code>after.closure?.kind === 'redeemed'</code> from the Preview and words the dialog to match, with buttons <em>Redeem</em> and <em>Go back</em>, because the Lender must now hand the jewellery back. Don't save this one; leave the chain at ₹1,600 for the rest of the chapter. Chapter 005 covers Redemption.</p>
+  </div>
+</div>
+
+<h3>(d) Two warnings for later</h3>
+<div class="callout warn">
+  <p><strong>A bug in a change shows up in its Preview too.</strong> Because the Preview runs <code>record_payment</code> for real, a bug there breaks the Preview as well as the save. That's by design: they can never disagree. Each change's Preview route is written out by hand beside its save route (<a href="../../adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a>). Chapter 006 explains both.</p>
+  <p><strong><code>PaymentIn</code> is generated, not written.</strong> The TypeScript type <code>PaymentIn</code> comes from the backend's Pydantic model of the same name, through <code>openapi.json</code> and <code>api.gen.ts</code>. Change the model and run <code>npm run gen:types</code>, or tests fail in both languages. <a href="../011-the-frontends-data-layer/01-the-typed-client.html">Chapter 011, lesson 1</a> covers it.</p>
+</div>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">Who works out the "Owed today ₹1,51,500 → ₹1,46,500" figures?</p>
+  <button class="opt">The form, from the list's Outstanding figures</button>
+  <button class="opt">The browser, with a TypeScript copy of the rules</button>
+  <button class="opt">The backend, by saving and then rolling back</button>
+  <div class="why"><code>_preview</code> replays each Mortgage, runs <code>record_payment</code>, replays again, and rolls back. The frontend has no copy of the money rules, so the Preview can't drift from the save.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">The Allocations add up to ₹6,500 but the total says ₹6,600. What happens?</p>
+  <button class="opt">The form lists a problem and asks no Preview</button>
+  <button class="opt">The Preview is asked for, and refuses with 422</button>
+  <button class="opt">The save goes ahead with the larger amount</button>
+  <div class="why">The form can check this itself: <code>problems</code> gets "The Allocations add up to…", so <code>proposed</code> is <code>null</code>, no Preview is asked for, and Save stays disabled. (The backend would refuse it too, in <code>PaymentIn</code>'s validator.)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">Why is the Record Payment button disabled while the Preview is loading?</p>
+  <button class="opt">Saving and previewing at once would lock SQLite</button>
+  <button class="opt">The confirm dialog and Cash warning need the Preview</button>
+  <button class="opt">The save request is built from the Preview's reply</button>
+  <div class="why"><code>canSave</code> waits for the Preview because the confirmation (Redeem or not) and the Cash Limit warning are worded from it, and a Preview error means saving would be refused. The save sends <code>proposed</code>, not the Preview.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read all of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useProposedChange.tsx"><code>useProposedChange.tsx</code></a> (about 80 lines), then <a href="../../adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a>.</p>
+
+<nav class="lessons">
+  <a href="01-the-journey-on-one-page.html">← The journey on one page</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="03-saving-it.html">Next: Saving it →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

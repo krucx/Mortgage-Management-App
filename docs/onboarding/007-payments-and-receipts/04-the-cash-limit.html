@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.4 · The Cash Limit</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 007 · Lesson 4</p>
+<h1>The Cash Limit</h1>
+<p class="lede">Large sums in cash are something the Lender is supposed to avoid. This lesson shows how the app spots them before they're saved, what it counts as one sum, and why it warns but never refuses.</p>
+
+<div class="callout win"><strong>By the end</strong> you can say what counts as one cash sum, and why the Cash Limit only warns.</div>
+
+<h2>The problem</h2>
+<p>Government of India rules ask for sums of ₹20,000 or more to be lent or received by UPI or bank transfer, not in cash. That's what the app tells the Lender, in <code>useCashWarning.tsx</code>. Meera's chain was lent ₹80,000 in cash on 10 Nov 2025: well over. Every Payment the Lender records, every Mortgage they lend, could cross that line.</p>
+<p>Two things make it harder than "is <code>amount</code> ≥ ₹20,000?":</p>
+<ul>
+  <li><strong>What is "one sum"?</strong> In lesson 2, Meera's ₹84,333 transfer became two <code>payment</code> rows: ₹1,000 and ₹83,333. If that had been cash, Meera would have handed over ₹84,333 in notes. Checking each row would miss the point.</li>
+  <li><strong>Many changes can write cash.</strong> A Payment, but also a Redemption's Final Payment, a Waiver's, a new Mortgage lent in cash, or an edit that raises a cash Principal. A rule in each place would be a rule forgotten somewhere.</li>
+</ul>
+
+<h2>The idea</h2>
+<p>Let the Preview find the cash. Every change already has a Preview that runs the real change and rolls it back (chapter 006). Just before the change, note the highest <code>payment</code> id and each Mortgage's Principal and <a href="../reference/glossary.html#lent-through"><dfn class="term" title="How a Mortgage's Principal was handed to the Customer: Cash, UPI or bank transfer.">Lent Through</dfn></a>. Just after, list every new cash sum: each new Payment, its parts added together, and each Principal now lent in cash that is new or larger. The screen compares the largest with the <a href="../reference/glossary.html#cash-limit"><dfn class="term" title="The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage's Principal lent.">Cash Limit</dfn></a> and, at or above it, asks the Lender to confirm. Saving checks nothing.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant Page as New Payment page
+  participant PV as _preview (previews.py)
+  participant CL as cash_limit.py
+  participant DB as database
+  Page->>PV: POST /payments/preview
+  PV->>CL: before_change(conn)
+  CL->>DB: max payment id, each Mortgage's lent_through and amount_lent
+  PV->>DB: record_payment(...) writes rows
+  PV->>CL: cash_sums(conn, before)
+  CL-->>PV: cash, e.g. [2500000]
+  PV->>DB: rollback
+  PV-->>Page: mortgages, cash
+  Note over Page: on Save: useCashWarning(cash)<br/>largest at or above GET /settings/cash-limit?<br/>ask "Record in cash anyway" or "Go back"
+  Page->>PV: (if confirmed) POST /payments, no cash check
+</pre>
+<figcaption>The backend only reports what a change would write in cash. Whether to warn is decided on the screen, against the Lender's setting.</figcaption>
+</figure>
+<p>Notice the save request at the bottom goes straight through. The warning lives entirely in the Preview and the page.</p>
+
+<h2>The code</h2>
+<h3>1. The setting: default, cleared, or set</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/cash_limit.py">payments/cash_limit.py</a> · the setting · lines 21–36</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/cash_limit.py"><code>21  # Kept as text; an empty value means the Lender cleared it (no warning), while no
+22  # value at all means it was never set. (Not a ConfigGroup: that forgets a field set to
+23  # None, which would bring the default back.)
+24  _KEY = "cash_limit"
+25  DEFAULT_CASH_LIMIT = 20_000_00  # paise                                  ①
+26
+27
+28  class CashLimit(BaseModel):
+29      cash_limit: int | None = Field(gt=0)  # paise; None: never warn
+30
+31
+32  def get_cash_limit(conn: Connection) -&gt; CashLimit:
+33      stored = get_config(conn, [_KEY]).get(_KEY)
+34      if stored is None:
+35          return CashLimit(cash_limit=DEFAULT_CASH_LIMIT)                 ②
+36      return CashLimit(cash_limit=int(stored) if stored else None)         ③  ◀
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>₹20,000 in paise. Python allows <code>_</code> in number literals for readability; <code>20_000_00</code> is <code>2000000</code>, written so the rupees and the paise stand apart.</li>
+  <li>No row in the <code>config</code> table at all: the Lender never set one, so the default applies.</li>
+  <li>A row with an empty string: the Lender cleared the limit on purpose, so <code>None</code>, never warn. Any other value is the limit in paise. "Missing" and "empty" mean different things, which is why the comment explains it isn't stored like the other settings (<a href="../010-platform-database-and-migrations/03-settings-in-the-config-table.html">chapter 010, lesson 3</a> covers the <code>config</code> table).</li>
+</ol>
+
+<h3>2. What was there before the change</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/cash_limit.py">payments/cash_limit.py</a> · <code>before_change()</code>, <code>_lends_more_cash()</code> · lines 51–62</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/cash_limit.py"><code>51  def before_change(conn: Connection) -&gt; CashBefore:
+52      """The Payments and Mortgages as they stand, before a change is made."""
+53      last = conn.execute(select(func.max(payment_table.c.id))).scalar_one()    ①
+54      rows = conn.execute(
+55          select(mortgage_table.c.id, mortgage_table.c.lent_through, mortgage_table.c.amount_lent)
+56      )
+57      return CashBefore(last or 0, {r.id: Lent(r.lent_through, r.amount_lent) for r in rows})
+58
+59
+60  def _lends_more_cash(was: Lent | None, amount_lent: int) -&gt; bool:
+61      """Whether Principal now lent in cash is new, newly in cash, or larger."""
+62      return was is None or was.lent_through != "cash" or amount_lent &gt; was.amount_lent   ②
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Payments are never edited (lesson 3), so any Payment the change writes has an id above this one.</li>
+  <li>A Mortgage that didn't exist before (<code>was is None</code>), one that wasn't lent in cash before, or one now lent more. Lowering a cash Principal hands out no new cash, so it doesn't count.</li>
+</ol>
+
+<h3>3. The sums the change wrote in cash</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/cash_limit.py">payments/cash_limit.py</a> · <code>cash_sums()</code> · lines 65–90</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/cash_limit.py"><code>65  def cash_sums(conn: Connection, before: CashBefore) -&gt; list[int]:
+66      """The sums the change since `before` wrote in cash: each new Payment, its parts
+67      together (its Final Payments included), and each Mortgage's Principal lent in cash
+68      that is new, newly in cash, or larger."""
+69      paid: dict[int, int] = {}
+70      for part in conn.execute(
+71          select(payment_table.c.id, payment_table.c.received_with, payment_table.c.amount)
+72          .where(
+73              payment_table.c.id &gt; before.last_payment_id,
+74              payment_table.c.method == "cash",
+75              payment_table.c.voided_at.is_(None),
+76          )
+77          .order_by(payment_table.c.id)
+78      ):
+79          payment = part.received_with or part.id                            ①  ◀
+80          paid[payment] = paid.get(payment, 0) + part.amount
+81      lent = [
+82          row.amount_lent
+83          for row in conn.execute(
+84              select(mortgage_table.c.id, mortgage_table.c.amount_lent)
+85              .where(mortgage_table.c.lent_through == "cash")
+86              .order_by(mortgage_table.c.id)
+87          )
+88          if _lends_more_cash(before.lent.get(row.id), row.amount_lent)
+89      ]
+90      return [*paid.values(), *lent]                                         ②
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>The heart of it: each part is added to its first part's total. A first part has <code>received_with</code> empty, so <code>received_with or id</code> is its own id; every other part names the first. That's <a href="../reference/traps.html#t2">trap #2</a>'s grouping, and the line the check-yourself exercise breaks from the other end.</li>
+  <li>A list, not a total. Each sum is judged on its own: two different Payments of ₹15,000 aren't one sum of ₹30,000.</li>
+</ol>
+<p><code>_preview</code> (<code>lending/previews.py</code>, lines 157–164) calls <code>before_change</code> before running the change and <code>cash_sums</code> after, then rolls everything back. The New Mortgage Preview does the same (line 370). So every Preview answers with a <code>cash</code> list, whatever the change.</p>
+
+<h3>4. The warning, on the screen</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useCashWarning.tsx">frontend/src/components/useCashWarning.tsx</a> · <code>warnCash()</code> · lines 20–40, trimmed</figcaption>
+<pre data-file="frontend/src/components/useCashWarning.tsx"><code>20    async function warnCash(cash: number[]) {
+21      if (cash.length === 0) return true
+22      const largest = Math.max(...cash)
+23      let limit: number | null
+24      try {
+25        limit = (await queryClient.fetchQuery(settings.cashLimit(client))).cash_limit
+⋮      … if the setting can't be fetched, go on …
+29      if (limit === null || largest &lt; limit) return true                  ◀
+30      return confirm({
+31        title: `${formatINR(largest)} in cash`,
+⋮      … the rule, in the Lender's words …
+38        cancelLabel: 'Go back',
+39        confirmLabel: 'Record in cash anyway',
+40      })
+</code></pre>
+</figure>
+<p>A React hook that returns a function. Every form that proposes a change calls <code>await warnCash(preview.previews?.cash ?? [])</code> when the Lender presses Save (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useProposedChange.tsx"><code>useProposedChange.tsx</code></a>, line 56), and only saves if it comes back <code>true</code>. "Go back" is the default button. <a href="../011-the-frontends-data-layer/04-previews-from-a-draft.html">Chapter 011, lesson 4</a> covers hooks like this one; here, just notice that the comparison is <em>at or above</em> (<code>largest &lt; limit</code> means "below, so go on"), and that a cleared limit (<code>null</code>) never asks.</p>
+
+<h2>Run-through: ₹25,000, in cash and by UPI</h2>
+<p>On a fresh book, Meera pays ₹25,000 to her chain on 19 Oct. The same Preview, twice, with only the method changed:</p>
+<table class="steps">
+<tr><th>Preview</th><th>Chain owes before → after</th><th><code>cash</code></th><th>On Save</th></tr>
+<tr class="changed"><td>₹25,000, <code>"method": "cash"</code></td><td>₹83,333 → ₹58,333</td><td>[₹25,000]</td><td>Asks: "₹25,000 in cash"</td></tr>
+<tr><td>₹25,000, <code>"method": "upi"</code></td><td>₹83,333 → ₹58,333</td><td>[ ]</td><td>Saves</td></tr>
+<tr><td>₹15,000, <code>"method": "cash"</code></td><td></td><td>[₹15,000]</td><td>Saves: below ₹20,000</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L4), at commit 15df77d. <code>GET /api/settings/cash-limit</code> gives <code>{"cash_limit": 2000000}</code>, with no <code>cash_limit</code> row in <code>config</code>.</p>
+<p>The ₹15,000 is still listed: the backend reports every cash sum, and the screen decides. On your served book the chain is Redeemed since lesson 2, so try it on the bangles (Mortgage 5) instead; the <code>cash</code> list comes out the same:</p>
+<pre><code>for M in cash upi; do
+  curl -s -H 'content-type: application/json' \
+    -d '{"customer_id": 1, "paid_on": "2026-10-19", "amount": 2500000, "method": "'$M'",
+         "allocations": [{"mortgage_id": 5, "amount": 2500000}]}' \
+    http://127.0.0.1:8765/api/payments/preview | python3 -c 'import json,sys; print(json.load(sys.stdin)["cash"])'
+done</code></pre>
+<p>It prints <code>[2500000]</code>, then <code>[]</code>. (The bangles go from ₹1,50,500 to ₹1,25,500 either way.)</p>
+
+<h2>Nuances</h2>
+<h3>(a) A Payment that Redeems, in cash</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> lesson 2's Payment, but in cash: the chain's ₹83,333 and ₹1,000 on the bangles. It writes two <code>payment</code> rows. What is <code>cash</code>?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><code>[8433300]</code>: <strong>one sum of ₹84,333.</strong> Row 35's <code>received_with</code> is 34, so line 79 adds it to 34's ₹1,000. Meera handed over ₹84,333 in notes, and that's what the rule cares about.</p>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L4). Pinned by <code>test_a_payment_that_redeems_is_one_sum_with_its_final_payment</code>.</p>
+  </div>
+</div>
+
+<h3>(b) Which changes write cash?</h3>
+<p>Every Preview reports <code>cash</code>, so each change can be asked. On a fresh book:</p>
+<table class="steps text">
+<tr><th>Preview</th><th><code>cash</code></th><th>Why</th></tr>
+<tr><td>Redeem the chain, <code>"method": "cash"</code></td><td>[₹83,333]</td><td>A Redemption on its own is its Final Payment, one sum</td></tr>
+<tr><td>Waive the chain, ₹50,000 paid in cash</td><td>[₹50,000]</td><td>The Waiver's Final Payment</td></tr>
+<tr class="changed"><td>Forfeit the chain, ₹90,000 recovered</td><td>[ ]</td><td>No Payment: the Lender sold the jewellery, nobody paid them cash for the Mortgage</td></tr>
+<tr class="changed"><td>Reopen Farida's nose ring (its ₹30,520 Final Payment was cash)</td><td>[ ]</td><td>A Reopen Voids; it writes no new Payment</td></tr>
+<tr class="changed"><td>Void Payment 20 (Meera's ₹1,600 in cash, 10 Aug)</td><td>[ ]</td><td>A Void writes no new Payment</td></tr>
+<tr><td>Edit the chain: lent ₹90,000 (was ₹80,000, cash)</td><td>[₹90,000]</td><td>Larger: the whole Principal is reported, not the ₹10,000 more</td></tr>
+<tr><td>Edit the chain: description only</td><td>[ ]</td><td>Same Principal, same method</td></tr>
+<tr><td>Edit the chain: lent ₹70,000</td><td>[ ]</td><td>Smaller: no new cash handed out</td></tr>
+<tr><td>Edit the bangles: Lent Through bank transfer → cash</td><td>[₹1,50,000]</td><td>Newly in cash</td></tr>
+<tr><td>New Mortgage for Meera, ₹30,000 lent in cash</td><td>[₹30,000]</td><td>New</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L4).</p>
+<p>The glossary sums it up: "each Payment is one sum (its Final Payments included), and so is each Mortgage's Principal lent".</p>
+
+<h3>(c) It only warns</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> the Lender sets the Cash Limit to ₹10,000, then something sends <code>POST /api/payments</code> for ₹25,000 in cash directly, with no Preview. What happens?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <p><strong>201: it's saved.</strong> Nothing on the save path reads the Cash Limit. The module says so in its first lines: "Only a warning: no Payment or Mortgage is refused for it, so nothing here is checked when saving." The app is a record of what happened. If Meera has already handed over the notes, refusing to record them would only make the book wrong. The Lender is warned, and decides.</p>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L4), on a copy.</p>
+  </div>
+</div>
+
+<h3>(d) Setting it</h3>
+<p><code>PUT /api/settings/cash-limit</code> (lines 102–107) stores the value as text, or an empty string for <code>null</code>. On a copy of the book:</p>
+<table class="steps text">
+<tr><th>Body</th><th>Answer</th><th><code>config</code> row afterwards</th></tr>
+<tr><td><code>{"cash_limit": null}</code></td><td>200, <code>{"cash_limit": null}</code></td><td><code>cash_limit</code> · <em>empty</em>: never warn</td></tr>
+<tr><td><code>{"cash_limit": 0}</code></td><td>422 · Input should be greater than 0</td><td>unchanged</td></tr>
+<tr><td><code>{"cash_limit": 1000000}</code></td><td>200</td><td><code>cash_limit</code> · <code>1000000</code>: warn from ₹10,000</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L4). On a fresh book there's no row: the ₹20,000 default.</p>
+<p>The Lender sets it on the Settings page. Don't change it on your served book; nothing in this chapter needs it.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">A Payment of ₹12,000 in cash goes to two Mortgages, ₹6,000 each, neither Redeemed. What is <code>cash</code>?</p>
+  <button class="opt">[₹6,000, ₹6,000], one per Allocation</button>
+  <button class="opt">[₹12,000], the Payment as one sum</button>
+  <button class="opt">[ ], since it is below the limit</button>
+  <div class="why">One <code>payment</code> row, so one entry: its <code>amount</code>, ₹12,000. Allocations aren't separate sums. And the backend lists every cash sum whatever the limit; the page compares.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">Where is a ₹25,000 cash Payment checked against the Cash Limit?</p>
+  <button class="opt">In <code>record_payment</code>, before it writes</button>
+  <button class="opt">In <code>check_replays</code>, after it writes</button>
+  <button class="opt">On the page, using the Preview's <code>cash</code></button>
+  <div class="why">The backend only reports what a change writes in cash, through the Preview. <code>useCashWarning</code> compares the largest sum with the setting and asks. The save itself is never refused.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">The <code>config</code> table has no <code>cash_limit</code> row. What does <code>GET /api/settings/cash-limit</code> answer?</p>
+  <button class="opt">₹20,000, the default</button>
+  <button class="opt"><code>null</code>, so never warn</button>
+  <button class="opt">404, until the Lender sets it</button>
+  <div class="why">No row means never set, so <code>DEFAULT_CASH_LIMIT</code>. An <em>empty</em> row means the Lender cleared it: <code>null</code>.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_cash_sums.py"><code>tests/test_cash_sums.py</code></a> from the top. Each test is one row of the table in nuance (b), plus a few more: several Redemptions at once, a new Mortgage. Then read the whole of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/cash_limit.py"><code>cash_limit.py</code></a>: it's 107 lines.</p>
+
+<nav class="lessons">
+  <a href="03-voids.html">← Voids</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="05-receipts.html">Next: Receipts →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

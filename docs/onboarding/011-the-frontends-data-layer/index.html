@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>011 · The frontend's data layer</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 011</p>
+<h1>The frontend's data layer</h1>
+
+<h2>The problem this chapter solves</h2>
+<p>The Lender only ever sees the screens. Every figure on them comes from the backend: the frontend works out no money of its own. So the frontend's whole job, as far as data goes, is asking the backend the right questions and showing the answers. There are 71 paths to ask, and the answers have to stay right while the Lender works.</p>
+<p>That's harder than it sounds. Meera's chain appears on her Customer page, on its own Mortgage page, in the Mortgages list and on the Payment form. Ask the backend for it separately on each screen, and the app feels slow. Keep one copy and never ask again, and the screen still says she owes ₹83,333 after she has paid. A Preview asked for on every keystroke runs the real change four times for "8000". A request written by hand as <code>fetch('/api/mortgage/' + id)</code> compiles fine and fails only when the Lender opens the page. A refusal from the backend has to reach the Lender as one sentence they can act on, not as <code>[object Object]</code>.</p>
+<p>This chapter opens the small layer that handles all of that: one typed client generated from the backend's own schema, one cache that every screen reads through, one hook for a paged list, one for a Preview, and one place that says what each kind of change makes stale.</p>
+
+<h2>What you'll be able to do</h2>
+<ul>
+  <li>Say how a backend Pydantic model becomes a TypeScript type, what to run when you change one, and what happens to a refusal and to a failure.</li>
+  <li>Write a read in <code>requests.ts</code> with the right query key, and say when it is asked for again.</li>
+  <li>Add a sortable, paged list whose sort lives in the URL.</li>
+  <li>Wire a form to its Preview, and say exactly when its Save button is enabled.</li>
+  <li>Save a change, and declare in <code>serverState.ts</code> what it makes stale.</li>
+</ul>
+
+<h2>Before you start</h2>
+<p>You need these ideas from earlier chapters:</p>
+<ul>
+  <li><strong>Running the frontend.</strong> <a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">Chapter 002, lesson 5</a> showed the "serve the sample book on port 8000, then <code>npm run dev</code>" trick. This chapter uses it throughout.</li>
+  <li><strong>One Payment, end to end.</strong> <a href="../003-one-payment-end-to-end/index.html">Chapter 003</a> followed a Payment from the form through its Preview to the save and the refresh. It showed you <code>usePreview</code>, <code>useProposedChange</code> and <code>ledgerChanged</code> from the outside. This chapter opens them.</li>
+  <li><strong>Previews, from the backend.</strong> <a href="../006-changes-and-previews/04-previews.html">Chapter 006, lesson 4</a>: a Preview runs the real change and rolls it back (<a href="../reference/traps.html#t5">trap #5</a>), so it's refused exactly when saving would be. Here you see the other end: how the screen asks for one.</li>
+  <li><strong>The Cash Limit.</strong> <a href="../007-payments-and-receipts/04-the-cash-limit.html">Chapter 007, lesson 4</a>: the backend's Preview says which sums a change writes in cash; the screen warns. Lesson 4 here shows where the warning sits in Save.</li>
+  <li><strong>Lists a page at a time, on the backend.</strong> <a href="../010-platform-database-and-migrations/04-tables-engine-and-pages.html">Chapter 010, lesson 4</a>: <code>query_page</code> sorts and pages in SQL, 20 rows a page, with <code>total</code> on every page. Lesson 3 is the screen's half.</li>
+</ul>
+<p>Keep this open while you read. <strong>Build the sample book fresh</strong> into a new, empty folder (earlier chapters saved changes on the old one), then serve it on port 8000 and start the frontend:</p>
+<pre><code># terminal 1, from backend/
+export BOOK=$(mktemp -d)
+uv run python ../docs/sample-book/book.py "$BOOK"
+uv run python ../docs/sample-book/serve.py "$BOOK" 8000
+
+# terminal 2, from frontend/
+npm run dev</code></pre>
+<p>Open <a href="http://localhost:5173">localhost:5173</a>, open your browser's developer tools, and on the <strong>Network</strong> tab type <code>/api/</code> in the filter box. Every lesson has you watch that tab. Lessons 1–4 only read and Preview. Lesson 5 saves one Payment and approves one Notice on that scratch book. It's a scratch book, so that's fine, but rebuild it before the next chapter.</p>
+<div class="callout warn"><strong>Two things you'll see in development only.</strong> First, <code>/api/payment-methods</code> appears three times on a fresh load. Two are <code>StartGate</code>'s check that the backend answers (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>), made twice because React's <code>StrictMode</code> (in <code>main.tsx</code>) runs every effect twice in development to flush out bugs. The third is the query for the payment methods themselves. The built app makes the check once. Second, a form's date is your <em>browser's</em> today, not the served book's 19 Oct 2026. On the Payment form, set the date to 19 Oct 2026 first, or the backend refuses the list of Mortgages with "The date cannot be in the future".</div>
+
+<h2>The map</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  M["Pydantic models<br/>backend"] -->|"openapi.py"| OJ["openapi.json"]
+  OJ -->|"npm run gen:types"| G["api.gen.ts<br/>L1"]
+  G -->|"names"| A["api.ts"]
+  G -->|"checks every path"| C["typed client<br/>serverState.ts  L1"]
+  P["a page"] -->|"useQuery(…Query)"| R["requests.ts<br/>reads  L2"]
+  P -->|"useListPage"| LP["lists  L3"]
+  P -->|"useProposedChange"| PV["previews  L4"]
+  P -->|"useLedgerChange, useChange"| CH["changes  L5"]
+  R --> Q[("one cache<br/>keys, STALE_AFTER")]
+  LP --> Q
+  PV --> Q
+  CH -->|"marks stale"| Q
+  Q -->|"asks"| C
+  C -->|"fetch /api/…"| B["backend"]
+</pre>
+<figcaption>Every request goes through the one typed client; every answer is kept in the one cache. The labels L1–L5 are the lessons.</figcaption>
+</figure>
+<p>Notice that no page talks to the backend directly. A page names what it wants from <code>requests.ts</code> and hands it to a hook. The hooks talk to the cache, and only the cache's query functions reach the client. The left-hand arrows run at build time, not in the browser: they turn the backend's models into the types every request is checked against.</p>
+
+<h2>Where it lives</h2>
+<table class="wide">
+<tr><th>Path</th><th>What it's responsible for</th><th>Lesson</th></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/openapi.py"><code>backend/…/openapi.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/openapi.json"><code>frontend/openapi.json</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/api.gen.ts"><code>src/api.gen.ts</code></a></td><td>The backend's schema, the frontend's copy of it, and the TypeScript types generated from it (<code>npm run gen:types</code>)</td><td>1</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/api.ts"><code>src/api.ts</code></a></td><td>Short names for the generated types; each list's sort columns</td><td>1, 3</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/serverState.ts"><code>src/serverState.ts</code></a></td><td>The typed client, errors and retries, the cache's keys, what each change makes stale, and the save hooks</td><td>1, 2, 5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts"><code>src/requests.ts</code></a></td><td>Everything the frontend asks, by name: reads (with their keys), lists, Previews and changes</td><td>1–5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/main.tsx"><code>src/main.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/ServerStateProvider.tsx"><code>components/ServerStateProvider.tsx</code></a></td><td>Where the one client and the one cache are made and handed to every page</td><td>2</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useListPage.tsx"><code>components/useListPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useUrlSort.ts"><code>useUrlSort.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/sort.ts"><code>src/sort.ts</code></a></td><td>A list a page at a time, its sort kept in the URL</td><td>3</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/usePreview.ts"><code>components/usePreview.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useProposedChange.tsx"><code>useProposedChange.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useCashWarning.tsx"><code>useCashWarning.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useConfirm.tsx"><code>useConfirm.tsx</code></a></td><td>A form's Preview as the Lender types; Save, with the Cash Limit's warning and the confirmation</td><td>4</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/serverState.test.tsx"><code>tests/serverState.test.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/api-types.test.ts"><code>tests/api-types.test.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_openapi.py"><code>backend/tests/test_openapi.py</code></a></td><td>The tests behind the rules in this chapter</td><td>1, 5, 99</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/.oxlintrc.json"><code>frontend/.oxlintrc.json</code></a></td><td>The lint rule that bans <code>fetch</code> outside the typed client</td><td>1</td></tr>
+</table>
+<p class="aside">Named here but taught elsewhere: the pages themselves, <code>BeforeAfter.tsx</code> (how a Preview is drawn), <code>History.tsx</code>, <code>StartGate.tsx</code> and <code>UpdateBanner.tsx</code> (<a href="../012-frontend-pages-and-the-pwa/index.html">chapter 012</a>); the <code>showPage</code> and <code>fakeServer</code> test harness (<a href="../013-testing/04-frontend-tests-fakeserver-and-showpage.html">chapter 013</a>); the backend side of every Preview and save route (<a href="../006-changes-and-previews/index.html">chapter 006</a>).</p>
+
+<h2>Lessons</h2>
+<ol class="lessons-list">
+  <li><a href="01-the-typed-client.html">The typed client and the generated types</a><span class="sum">From a Pydantic model to <code>api.gen.ts</code>; Meera's chain in the Network tab; a misspelt path that won't compile; a refusal shown as one line, a failure asked twice.</span></li>
+  <li><a href="02-reading-through-the-cache.html">Reading through one cache</a><span class="sum">Query keys as paths; Back to Meera's page shows at once and asks again behind the scenes; Settings asked for once.</span></li>
+  <li><a href="03-lists-a-page-at-a-time.html">Lists a page at a time</a><span class="sum">The Customers list sorted by name, then reversed, in the URL and the request; page 2 of the Payments, and a filter that goes back to page 1; a quick second click.</span></li>
+  <li><a href="04-previews-from-a-draft.html">Previews from a draft</a><span class="sum">"8000" typed into Meera's bangles' Payment: four keys, one Preview, 400 ms later; Save's three locks; ₹20,000 in cash warns, ₹19,999 doesn't.</span></li>
+  <li><a href="05-saving-and-what-goes-stale.html">Saving, and what goes stale</a><span class="sum">Save the Payment and watch what is asked again (and what isn't); approve Sunita's Notice; the recipe for a new route.</span></li>
+  <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">Where does this type come from? Is this asked again? Then make Previews refetch after a save, and see which two tests catch it.</span></li>
+</ol>
+
+<footer>
+  <p>Written against commit <code>87a96c7</code>. Every request, message and count came from <a href="scripts/run_throughs.sh"><code>scripts/run_throughs.sh</code></a>, which builds the sample book in a temporary folder, serves it on port 8000, runs the frontend's own dev server in front of it, and drives the screens in a headless browser (<a href="scripts/network.mjs"><code>scripts/network.mjs</code></a>), printing every <code>/api/</code> request each step makes. Run it from the repo root with <code>sh docs/onboarding/011-the-frontends-data-layer/scripts/run_throughs.sh</code>. The test counts and compiler errors came from running <code>npm test</code> and <code>npm run typecheck</code> at that commit.</p>
+  <p>Anything unclear? Ask an agent in this repo to explain it: a hook, a query key, or why a request was (or wasn't) made. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
+  <p><a href="../index.html">Course home</a> · Previous: <a href="../010-platform-database-and-migrations/index.html">chapter 010</a> · Next: <a href="../012-frontend-pages-and-the-pwa/index.html">chapter 012, Frontend pages and the PWA</a></p>
+</footer>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

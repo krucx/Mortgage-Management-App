@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10.1 · The composition root</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 010 · Lesson 1</p>
+<h1>The composition root: how the app is put together</h1>
+<p class="lede">The same backend runs in Docker on the Lender's laptop, in hundreds of tests, and as the sample book frozen on 19 Oct 2026. Each time it needs a different database, a different clock and different folders. This lesson shows the one function that builds it, and what happens, in order, when it starts.</p>
+
+<div class="callout win"><strong>By the end</strong> you can say what <code>create_app</code> builds, in what order the app starts, and how to start it differently.</div>
+
+<h2>The problem</h2>
+<p>A backend needs a few shared things: a connection to the database, a way to know today's date, a place to put <a href="../reference/glossary.html#backup"><dfn class="term" title="A copy of all the Lender's data — the database and photos — kept in a folder outside the app, from which everything can be restored.">Backups</dfn></a>, the once-a-day jobs. The easy way is to create each one wherever it's needed: <code>create_engine("sqlite:///data/mortgage.db")</code> at the top of each module, <code>date.today()</code> inside each route.</p>
+<p>That fails the moment you want the app to behave differently. A test needs a throwaway database, not <code>data/</code>, which may hold the Lender's real lending book. A test about interest needs "today" to be a fixed date, or its figures change every night. The sample book needs to stay on 19 Oct 2026 forever. With the shared things created all over the code, you'd have to patch every module to change any of them.</p>
+
+<h2>The idea</h2>
+<p>Create every shared thing in <strong>one</strong> place, a function called <code>create_app</code>, and pass in the things that vary as arguments. That one place is called the <em>composition root</em>: where the app's parts are composed into a whole. Everything else in the backend receives what it needs rather than creating it.</p>
+<p>Think of a theatre's stage manager. The actors don't each fetch their own props and lights; the stage manager sets the stage once before the curtain goes up, and each actor finds what they need in its place. A different production (a test, the sample book) just has a different stage manager's list.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant C as caller (main.py, serve.py, a test)
+  participant CA as create_app
+  participant LS as lifespan
+  participant R as routes
+  C->>CA: database_url, today, now, backup_dir, …
+  CA->>CA: make_engine, Backups, DailyRun
+  CA->>CA: app.state = engine, today, now, …
+  CA->>CA: middleware, 22 routers, screens last
+  CA-->>C: app (nothing has run yet)
+  C->>LS: start the server
+  LS->>LS: 1 · backup.clean_leftovers()
+  LS->>LS: 2 · migrate(…, before_update)
+  LS->>LS: 3 · backup.start_if_due(today())
+  LS-->>R: now serving requests
+  R->>LS: at shutdown
+  LS->>LS: backup.wait(timeout=8)
+</pre>
+<figcaption>Building the app and starting it are two different moments. <code>create_app</code> only wires things together; the database is touched first when the server starts and runs the lifespan.</figcaption>
+</figure>
+<p>Notice the gap between "app" and "start the server". <code>create_app</code> returns without opening the database once. Migrations and the start-up Backup wait for the <em>lifespan</em>, the code FastAPI runs as the server starts and stops.</p>
+
+<h2>The code</h2>
+<h3>1. What can vary: the arguments</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 53–74</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>53  def create_app(
+54      database_url: str,
+55      today: Callable[[], date] = date.today,             # ①
+56      now: Callable[[], datetime] = datetime.now,
+57      backup_dir: Path | None = None,                     # ②
+58      backup_password: str = "",
+59      screens_dir: Path | None = None,
+60      latest_release: LatestRelease | None = None,
+61  ) -&gt; FastAPI:
+⋮    … docstring …
+65      engine = make_engine(database_url)                  # ③  ◀
+66      backup = Backups(engine, database_url, backup_dir, backup_password, now)
+67
+68      def sync_notices(day: date) -&gt; None:
+69          with engine.begin() as conn:
+70              notices.sync(conn, day)
+71
+72      daily_run = DailyRun(
+73          engine, today, jobs=[backup.start_if_due, sync_notices]   # ④
+74      )
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>today</code> is a <em>function</em> that returns a date, not a date. <code>Callable[[], date]</code> means "something you can call with no arguments that gives back a <code>date</code>". The default is <code>date.today</code> itself (no brackets: the function, not its result). Lesson 2 is about why.</li>
+  <li>Each optional argument switches a feature on. Leave <code>backup_dir</code> out and the app takes no Backups; leave out <code>screens_dir</code> and it serves no screens; leave out <code>latest_release</code> and it never looks for an update.</li>
+  <li>One engine for the whole app. An <em>engine</em> is SQLAlchemy's object that hands out database connections (lesson 4).</li>
+  <li>The two daily jobs, built from the pieces just made. Lesson 2 opens <code>DailyRun</code>.</li>
+</ol>
+
+<h3>2. The start sequence: the lifespan</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>lifespan()</code> · lines 76–89</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>76      @asynccontextmanager
+77      async def lifespan(app: FastAPI) -&gt; AsyncIterator[None]:
+78          backup.clean_leftovers()                                    # ①
+79          # Every start brings the schema up to date, backing up the old one first.
+80          migrate(                                                    # ②  ◀
+81              database_url,
+82              before_update=(
+83                  (lambda: backup.make("before-update")) if backup.backup_dir else None
+84              ),
+85          )
+86          # Also retries a weekly Backup that a shutdown interrupted.
+87          backup.start_if_due(today())                                # ③
+88          yield                                                       # ④ the app serves here
+89          backup.wait(timeout=8)  # let a running Backup finish if it can   ⑤
+</code></pre>
+</figure>
+<p>A <em>lifespan</em> is a FastAPI hook for "on start" and "on stop" work. It's written as an async generator: everything before <code>yield</code> runs as the server starts, everything after it runs as the server stops. <code>@asynccontextmanager</code> is the standard-library decorator that turns such a generator into something FastAPI can enter and leave.</p>
+<ol class="marks">
+  <li>A Backup that was interrupted (the laptop shut mid-write) can leave a half-written <code>.partial</code> file and a <code>.backup-work</code> folder. They're removed first.</li>
+  <li>The database is brought up to date, every start. If it's about to change, a Backup marked <code>before-update</code> is taken first, but only if there's a Backup folder. Lessons 5 and 6 are all about this line.</li>
+  <li>The weekly Backup, if one is due. This is the same function the daily run calls; running it here as well means a Backup that a shutdown cut short is retried at the next start.</li>
+  <li>The server answers requests while the generator is paused here.</li>
+  <li>At shutdown, a Backup that is still being written gets up to 8 seconds to finish.</li>
+</ol>
+
+<h3>3. Putting the shared things where routes can find them</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 92–101</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>92      app = FastAPI(
+93          title="Mortgage Management", version=version("mortgage-backend"), lifespan=lifespan
+94      )
+95      app.state.engine = engine                                       ◀
+96      app.state.photos_dir = photos_dir(database_url)
+97      app.state.today = today
+98      app.state.now = now
+99      app.state.backups = backup
+100     app.state.daily_run = daily_run
+101     app.state.update_check = UpdateCheck(app.version, latest_release, now)
+</code></pre>
+</figure>
+<p><code>app.state</code> is a plain bag of attributes that FastAPI keeps for you on the app. Routes never import the engine. They ask for it through a <em>dependency</em>, a function FastAPI calls for each request and whose result it passes in as an argument:</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/db.py">platform/db.py</a> · <code>get_engine()</code>, <code>EngineDep</code> · lines 276–282</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/db.py"><code>276  def get_engine(request: Request) -&gt; Engine:
+277      """FastAPI dependency: the app's database engine."""
+278      engine: Engine = request.app.state.engine                      ◀
+279      return engine
+280
+281
+282  EngineDep = Annotated[Engine, Depends(get_engine)]
+</code></pre>
+</figure>
+<p><code>Annotated[Engine, Depends(get_engine)]</code> is FastAPI's way of saying "this argument is an <code>Engine</code>, and you get it by calling <code>get_engine</code>". So a route written <code>def read_default_terms(engine: EngineDep)</code> receives whichever engine <em>this</em> app was built with. <code>TodayDep</code> and <code>NowDep</code> work the same way (lesson 2).</p>
+
+<h3>4. The routes, and the screens last</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 111–135, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>111     app.include_router(default_terms.router)
+112     app.include_router(customers.router)
+⋮    … 19 more routers, one per feature module …
+132     app.include_router(updates.router)
+133     if screens_dir is not None:
+134         serve_screens(app, screens_dir)  # last, so it never answers for the API   ◀
+135     return app
+</code></pre>
+</figure>
+<p>Each feature module (<code>customers.py</code>, <code>notices.py</code>, …) declares its routes on its own <code>APIRouter</code>, all under <code>/api</code>. <code>include_router</code> adds them to the app. <code>serve_screens</code> adds one catch-all route, <code>/{path:path}</code>, that answers <em>any</em> path with a screen. FastAPI tries routes in the order they were added, so it must come last, or it would swallow <code>/api/customers</code> too. It also refuses any path starting <code>api/</code> itself, so a mistyped API path is a JSON 404, not a web page.</p>
+
+<h3>5. The real app: built from the environment</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · module level · lines 138–144</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>138  app = create_app(                                                  ◀
+139      database_url_from_env(),
+140      backup_dir=backup_dir_from_env(),
+141      backup_password=backup_password_from_env(),
+142      screens_dir=screens_dir_from_env(),
+143      latest_release=latest_release_from_env(),
+144  )
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/db.py">platform/db.py</a> · <code>data_dir()</code>, <code>database_url_from_env()</code>, <code>photos_dir()</code> · lines 248–263</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/db.py"><code>248  def data_dir() -&gt; Path:
+249      """Host folder (bind-mounted in Docker) holding the database and photos."""
+250      return Path(os.environ.get("DATA_DIR", "data"))                 ◀
+251
+252
+253  def database_url_from_env() -&gt; str:
+254      return f"sqlite:///{data_dir() / 'mortgage.db'}"
+⋮
+261  def photos_dir(database_url: str) -&gt; Path:
+262      """Photos live beside the database, so one folder holds all of the Lender's data."""
+263      return database_file(database_url).parent / "photos"
+</code></pre>
+</figure>
+<p>This is what <code>uvicorn mortgage_backend.main:app</code> loads: the module-level <code>app</code>. It's built the moment <code>main.py</code> is <em>imported</em>, from environment variables. With no <code>DATA_DIR</code> set, it's <code>data</code>, relative to wherever you started it. Run from the repo root, that's the folder that may hold the Lender's real book. <code>today</code> and <code>now</code> aren't passed, so the real clock is used.</p>
+<div class="callout warn"><strong>Importing <code>main.py</code> builds an app.</strong> Any script that does <code>from mortgage_backend.main import create_app</code> also runs line 138, building an app from the environment. It's harmless, because building touches nothing (the database is first opened when a server <em>starts</em>). But it's why the tests and <code>serve.py</code> import <code>create_app</code> and call it themselves, rather than using <code>main.app</code>.</div>
+
+<h2>Run-through: the sample book is a second caller</h2>
+<p>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/serve.py"><code>docs/sample-book/serve.py</code></a>. It's 31 lines, and it is the whole reason the course can hold the book on 19 Oct 2026:</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/serve.py">docs/sample-book/serve.py</a> · lines 24–31</figcaption>
+<pre data-file="docs/sample-book/serve.py"><code>24      app = create_app(
+25          f"sqlite:///{folder / 'data' / 'mortgage.db'}",
+26          today=lambda: THE_DAY,                                      # ① always 19 Oct 2026  ◀
+27          now=lambda: datetime.combine(THE_DAY, time(11, 0)),         # 11:00 that day
+28          backup_dir=folder / "backups",                              # ② $BOOK/backups
+29          screens_dir=Path(__file__).resolve().parents[2] / "frontend" / "dist",
+30      )
+31      uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+</code></pre>
+</figure>
+<p>A <code>lambda</code> is a one-line anonymous function. <code>lambda: THE_DAY</code> is a function that takes nothing and always returns 19 Oct 2026, exactly the shape <code>today</code> needs. No password is passed, so its Backups are plain zips. No <code>latest_release</code>, so it never looks for updates.</p>
+<p>Now trace what happens when you start it. The script starts the real <code>create_app</code> the way <code>serve.py</code> does, on a fresh copy of the book's data folder, after planting the leftovers of an interrupted Backup:</p>
+<table class="steps text">
+<tr><th>Step</th><th>Code</th><th>What you'd see</th></tr>
+<tr><td>before start</td><td>(built by <code>book.py</code>)</td><td><code>backups/.mortgage-backup-2026-10-18-2200.zip.partial</code> and <code>data/.backup-work</code> exist; <code>config</code> has <code>last_daily_run = 2026-10-19</code> and no Backup rows</td></tr>
+<tr><td>build</td><td><code>create_app(…)</code></td><td>nothing on disk changes; <code>app.state</code> holds <code>backups</code>, <code>daily_run</code>, <code>engine</code>, <code>now</code>, <code>photos_dir</code>, <code>today</code>, <code>update_check</code></td></tr>
+<tr><td>1 · clean</td><td><code>clean_leftovers()</code></td><td>the <code>.partial</code> file and <code>.backup-work</code> are gone</td></tr>
+<tr><td>2 · migrate</td><td><code>migrate(…)</code></td><td>the database is at <code>0015</code>, the newest revision: nothing to do, no <code>before-update</code> Backup</td></tr>
+<tr class="changed"><td>3 · weekly Backup</td><td><code>start_if_due(19 Oct)</code></td><td>no Backup was ever recorded, so one is due: <code>backups/mortgage-backup-2026-10-19-1100.zip</code>, and <code>config</code> gains <code>backup_last_at = 2026-10-19T11:00:00</code></td></tr>
+<tr><td>serving</td><td><code>yield</code></td><td><code>GET /api/backups</code> → <code>enabled: true</code>, <code>encrypted: false</code>, <code>keep: 4</code>, last file as above</td></tr>
+</table>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L1). The Backup is named from <code>now()</code>: 11:00 on 19 Oct, hence <code>-1100</code>.</p>
+<p>Check it on your own book: <code>ls "$BOOK/backups"</code> shows the same file, made the moment you started <code>serve.py</code>. You've met this before: chapter 002 noted that "a fresh app takes a Backup at start-up". Now you know which line does it.</p>
+
+<h2>Nuances</h2>
+<h3>(a) Leave out an argument, lose a feature</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> the same copy is started without a <code>backup_dir</code>. What does <code>GET /api/backups</code> say, and what does pressing "Back up now" (<code>POST /api/backups</code>) do?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Request</th><th>Answer</th></tr>
+    <tr><td><code>GET /api/backups</code></td><td>200, <code>enabled: false</code>, no last Backup</td></tr>
+    <tr class="changed"><td><code>POST /api/backups</code></td><td>409, <code>"No backup folder is configured"</code></td></tr>
+    <tr><td><code>GET /api/update</code></td><td><code>{"running": "3.2.1", "available": null}</code>: no <code>latest_release</code>, so it never looks</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L1).</p>
+    <p>The app still starts and works; it just has no Backups. That's why most tests can call <code>create_app(database_url, today=…)</code> with two arguments: everything they leave out is simply off. It's also why <code>lifespan</code> passes <code>before_update=None</code> when there's no Backup folder: a test database is migrated without being backed up.</p>
+  </div>
+</div>
+
+<h3>(b) Screens last</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> with and without a <code>screens_dir</code>, what do <code>GET /customers</code> and <code>GET /api/nothing-here</code> return?</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Started with</th><th><code>/customers</code></th><th><code>/api/customers</code></th><th><code>/api/nothing-here</code></th></tr>
+    <tr><td>no <code>screens_dir</code></td><td>404, JSON</td><td>200, JSON</td><td>404, JSON</td></tr>
+    <tr class="changed"><td>a <code>screens_dir</code></td><td>200, <code>index.html</code></td><td>200, JSON</td><td>404, JSON</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L1), with a one-file stand-in for <code>frontend/dist</code>.</p>
+    <p><code>/customers</code> is a screen's address: the browser loads <code>index.html</code> and the frontend picks the page from the path. An unknown <code>/api/</code> path stays a JSON 404 either way, so the frontend never mistakes a web page for an API answer. The real app always has a <code>screens_dir</code>: in Docker the image sets <code>SCREENS_DIR</code> to the screens built into it, and without Docker it points at the release's <code>frontend/dist</code> (<a href="../014-how-it-runs-on-the-lenders-laptop/02-without-docker-the-backend-serves-the-screens.html">chapter 014, lesson 2</a>; ADRs 0010 and 0013). Only the tests and the Vite dev set-up run without one.</p>
+  </div>
+</div>
+
+<h3>(c) The tests are a third caller</h3>
+<p><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/conftest.py"><code>tests/conftest.py</code></a> builds the app for most tests: <code>create_app(database_url, today=lambda: TODAY)</code>, a fresh database in pytest's <code>tmp_path</code>, and <code>TODAY = date(2026, 4, 20)</code>. <code>TestClient</code> used as <code>with TestClient(app) as client:</code> runs the lifespan on entry, so every test's database is migrated before its first request. <a href="../013-testing/02-backend-tests-through-the-api.html">Chapter 013, lesson 2</a> covers the fixtures.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="1">
+  <p class="q">You run <code>uv run uvicorn mortgage_backend.main:app</code> from <code>backend/</code>, with no environment variables set. Which database does it open?</p>
+  <button class="opt"><code>data/mortgage.db</code> at the root of the repository</button>
+  <button class="opt"><code>backend/data/mortgage.db</code>, made if it's missing</button>
+  <button class="opt">None: it refuses to start without <code>DATA_DIR</code></button>
+  <div class="why"><code>data_dir()</code> falls back to the relative path <code>data</code>, so it depends on where you start it: from <code>backend/</code>, that's <code>backend/data/</code>. <code>migrate</code> creates the folder and a fresh database if they're missing. Started from the repo root, it would be the root <code>data/</code>, which may hold real data. That's why the commands sheet always sets <code>DATA_DIR</code>.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">In which order does the app start?</p>
+  <button class="opt">Weekly Backup, then migrate, then clean leftovers</button>
+  <button class="opt">Migrate, then clean leftovers, then weekly Backup</button>
+  <button class="opt">Clean leftovers, then migrate, then weekly Backup</button>
+  <div class="why">Lines 78, 80 and 87. Leftovers go first so a half-written file can't be mistaken for a Backup. Migration comes before the weekly Backup so that Backup is of the database the app will actually use.</div>
+</div>
+<div class="quiz" data-answer="0">
+  <p class="q">A new route needs today's date. How should it get it?</p>
+  <button class="opt">Take a <code>today: TodayDep</code> argument</button>
+  <button class="opt">Call <code>date.today()</code> inside the route</button>
+  <button class="opt">Import <code>today</code> from <code>main.py</code></button>
+  <div class="why"><code>TodayDep</code> reads <code>app.state.today</code>, so the route gets 19 Oct 2026 in the sample book and 20 Apr 2026 in tests. <code>date.today()</code> would ignore both. <code>main.py</code> exports no <code>today</code>; and importing from it would tie the route to the environment-built app.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py"><code>main.py</code></a> top to bottom: it's 144 lines and this lesson has shown almost all of it. Then compare its last lines with <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/serve.py"><code>serve.py</code></a> and with <code>start()</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_backups.py"><code>tests/test_backups.py</code></a> (lines 39–48), a third caller that controls the clock to the minute.</p>
+
+<nav class="lessons">
+  <a href="index.html">← Chapter overview</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="02-today-now-and-the-daily-run.html">Next: Today, now and the daily run →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.99 · Check yourself</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 005 · Check yourself</p>
+<h1>Check yourself</h1>
+<p class="lede">Questions mixed from all six lessons: work out a quote by hand, choose the Closure, predict whether a Payment Redeems or is refused. Then make the quote count its own Final Payment, and see which tests notice.</p>
+
+<h2>Quiz</h2>
+<p>Questions 1 and 2 use Sunita's mangalsutra: ₹35,000 lent on 21 Sep 2026, on the sample book's Default Terms (2% a month, Compounded Yearly, pro-rata), with no Payments. That's ₹700 a month, and it accrues on the 21st.</p>
+
+<div class="quiz" data-answer="1">
+  <p class="q">1. What does closing the mangalsutra on 20 Oct take?</p>
+  <button class="opt">₹35,677, today's Outstanding</button>
+  <button class="opt">₹35,700, thirty days of interest</button>
+  <button class="opt">₹36,400, two whole months</button>
+  <div class="why">21 Sep to 20 Oct is 30 days, today included, so pro-rata charges the whole ₹700: ₹35,700. ₹35,677 is the quote for 19 Oct (29 days). From <code>scripts/run_throughs.py</code>, section 99.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">2. And closing it on 21 Oct, its first Accrual Date?</p>
+  <button class="opt">₹35,723: the month, plus a day of the next</button>
+  <button class="opt">₹35,700: the month just added, nothing more</button>
+  <button class="opt">₹35,000: the interest is added only after</button>
+  <div class="why">On 21 Oct, ₹700 is added as unpaid, and the new month has begun: one day, ₹23, today included. 35,000 + 700 + 23 = ₹35,723 (trap #7: a month starts before the day's Payments, and today always counts).</div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">3. On an Active necklace whose quote is ₹2,03,600 on 16 Oct, Lakshmi pays ₹2,03,599 that day. What then?</p>
+  <button class="opt">Redeemed, with ₹1 waived by the app</button>
+  <button class="opt">422: a Payment must match the quote</button>
+  <button class="opt">An ordinary Payment; it stays Active</button>
+  <div class="why"><code>_redeemed_by</code> only matches the quote exactly. A rupee less is an ordinary Payment, and the necklace owes ₹1 that day, then ₹401 by 19 Oct, as the month from 20 Sep is still charged on ₹2,00,000. Lesson 3.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">4. A Customer owes ₹40,250 on the Closure date, pays ₹40,000, and takes the jewellery home. Which Closure is it?</p>
+  <button class="opt">Redeemed, since nearly all was paid</button>
+  <button class="opt">Waived, with ₹250 let off by the Lender</button>
+  <button class="opt">Forfeited, since it was not paid in full</button>
+  <div class="why">Jewellery back, paid short: a Waiver. The Ledger ends with a <code>waived</code> step of ₹250, which is the <code>waived_amount</code>. Forfeited means the Lender kept or sold the jewellery.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">5. Lakshmi's ₹4,000 Payments are on each 20th. A Payment of exactly the 1 Sep quote, dated 1 Sep, is recorded on an Active necklace. What happens?</p>
+  <button class="opt">422: a later Payment blocks the Redemption</button>
+  <button class="opt">Saved as an ordinary Payment instead</button>
+  <button class="opt">Redeemed on 1 Sep; the 20 Sep one is Voided</button>
+  <div class="why">It matches the quote, so it's a Redemption; <code>not_closable</code> refuses one before the 20 Sep Payment, and the whole Payment is refused (trap #3). Nothing is ever Voided for you.</div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">6. Which field of a Forfeiture's <code>Closure</code> is read from a column, not replayed?</p>
+  <button class="opt"><code>profit_loss</code></button>
+  <button class="opt"><code>outstanding</code></button>
+  <button class="opt"><code>recovered_amount</code></button>
+  <div class="why"><code>recovered_amount</code> is on the <code>mortgage</code> row. <code>outstanding</code> is the quote on the Closure date, replayed, and <code>profit_loss</code> is recovered − outstanding, worked out in <code>closure()</code>.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">7. Kavita's anklet is Dormant. The Lender Voids its 5 Sep Payment of ₹300. What happens to the Dormant flag?</p>
+  <button class="opt">It stays until the Lender clears it</button>
+  <button class="opt">It's gone: the anklet owes ₹300 again</button>
+  <button class="opt">The Void is refused while it's Dormant</button>
+  <div class="why">Dormant is derived on every replay. With one Allocation fewer, the anklet owes September's ₹300, so <code>dormant()</code> is False and the Closures list is empty. Lesson 5.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">8. What does Reopening Farida's Waived nose ring do to her ₹30,520 Final Payment?</p>
+  <button class="opt">Voids it, with the Reopen's reason</button>
+  <button class="opt">Deletes it, with the Closure columns</button>
+  <button class="opt">Keeps it as an ordinary Payment</button>
+  <div class="why"><code>reopen</code> clears the Closure columns, then calls <code>void_payment</code> on the old <code>redemption_payment_id</code>. The row stays, Voided, so every Ledger leaves it out. On a copy, the reopened nose ring owed ₹30,760 on 19 Oct.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">9. Type Sunita's mangalsutra into the Calculator: ₹35,000 from 21 Sep 2026, the sample book's Default Terms, no planned Payments, Closed on 21 Oct 2026. What does the Outstanding tile show?</p>
+  <button class="opt">₹35,677, 29 days of Interest to Date</button>
+  <button class="opt">₹35,700, a whole month and no more</button>
+  <button class="opt">₹35,723, a month plus one day's</button>
+  <div class="why">21 Oct is an Accrual Date. The month from 21 Sep (₹700) is charged that day, and the new month already has one day of Interest to Date, today included (₹23). ₹35,000 + ₹700 + ₹23 = ₹35,723: question 2's answer for the real mangalsutra, because the Simulation runs the same replay and the same quote reader. ₹35,677 is what it owes on 19 Oct, and ₹35,700 is question 1's 20 Oct figure. From <code>scripts/run_throughs.py</code> (sections L6 and 99).</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">10. <code>POST /api/simulation</code> is a POST. Why can't it store anything, even by mistake?</p>
+  <button class="opt">It opens a transaction and always rolls it back</button>
+  <button class="opt">The route takes no database connection to use</button>
+  <button class="opt">Its tables are wiped by the daily run each day</button>
+  <div class="why"><code>simulate(simulation: SimulationIn)</code> has no <code>EngineDep</code>: it hands the inputs straight to <code>compute_ledger</code>. Rolling back is how a Preview works (chapter 006), on a real Mortgage. There are no Simulation tables. <code>test_a_simulation_stores_nothing</code> counts every table's rows before and after to pin it (lesson 6).</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Hands-on: make the quote count its own Final Payment</h2>
+<p>Lesson 2's <code>outstanding_on_closure</code> leaves out the Closure's own Final Payment. You'll remove that, so a closed Mortgage's quote counts the Payment that closed it. Work from the repo root. This touches only source code, never data.</p>
+<ol>
+  <li>
+    <p>Run all the backend tests. All 709 pass:</p>
+    <pre><code>cd backend &amp;&amp; uv run pytest -q</code></pre>
+  </li>
+  <li>
+    <p>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/replay.py"><code>backend/src/mortgage_backend/lending/replay.py</code></a> at line 209, in <code>outstanding_on_closure</code>. Replace</p>
+    <pre><code>            [a for a in self.allocations if a.payment_id != final_payment],</code></pre>
+    <p>with</p>
+    <pre><code>            self.allocations,</code></pre>
+  </li>
+  <li>
+    <p><strong>Predict</strong> before you run: which tests fail? Ask yourself when <code>redemption_payment_id</code> is set. Does the change matter when the Lender asks for a quote before closing? When the app reads a Closure back? And the Calculator's Simulations, which go through <code>outstanding_on_closure_of</code> too (lesson 6)? Write your guess down.</p>
+    <pre><code>uv run pytest -q</code></pre>
+  </li>
+</ol>
+<div class="reveal">
+  <p><strong>Check your prediction.</strong></p>
+  <button class="show">I've run it. Show me what fails.</button>
+  <div class="reveal-body">
+    <p>Exactly <strong>6 fail, 703 pass</strong> (checked at commit <code>756ae3a</code>; the same 6 as at <code>16b855c</code>, when there were 607 tests):</p>
+    <ul>
+      <li><code>test_closing.py::test_redeeming_records_the_final_payment_and_closes_the_mortgage</code></li>
+      <li><code>test_closing.py::test_waiving_records_the_final_payment_and_lets_off_the_rest</code></li>
+      <li><code>test_redeeming_payments.py::test_the_outstanding_listed_for_a_back_dated_payment_is_what_redeems_it</code></li>
+      <li><code>test_redeeming_payments.py::test_the_preview_of_a_payment_that_redeems_shows_the_redemption_and_saves_nothing</code></li>
+      <li><code>test_replay.py::test_the_outstanding_on_a_closure_date_leaves_out_its_own_final_payment</code></li>
+      <li><code>test_replay.py::test_a_waived_mortgage_closure_has_its_final_payment_and_what_was_let_off</code></li>
+    </ul>
+    <p>Before a Closure, <code>redemption_payment_id</code> is <code>None</code> and no Allocation has that id, so the filter you removed did nothing. Quoting, Redeeming, Waiving and the Redeeming Payment all still work. What breaks is reading a Closure <em>back</em>. <code>closure()</code> gets its <code>outstanding</code> from this quote (lesson 4). Now the quote's replay applies the Final Payment as an ordinary one, before the Interest to Date is fixed, and counts it against itself. On the sample book, the necklace's "Outstanding on the Closure date" would read ₹0 instead of ₹2,03,600, the coin's ₹0 instead of ₹54,600, and Farida's ₹180, her Waived Amount, instead of ₹30,700 (from <code>scripts/run_throughs.py</code>, section 99).</p>
+    <p>Each failing test reads a closed Mortgage's Closure, or a Preview's "after" side, which is a closed Mortgage too. The bug would show on every closed Mortgage's page, while every save still worked. That's why the tests read back what was saved, not just the status code.</p>
+    <p><strong>No Simulation test fails.</strong> All 100 in <code>test_simulation.py</code> pass. The line you changed is in <code>MortgageReplay.outstanding_on_closure</code>, before it calls the shared <code>outstanding_on_closure_of</code>. A Simulation has no Final Payment to leave out, so it never went through that line. Lesson 6, nuance (f), breaks the shared function itself, and then the Calculator moves with the Close this Mortgage form.</p>
+  </div>
+</div>
+<ol start="4">
+  <li>
+    <p>Undo the change (you're still in <code>backend/</code>), and check that all 709 pass again:</p>
+    <pre><code>git checkout -- src/mortgage_backend/lending/replay.py
+uv run pytest -q</code></pre>
+  </li>
+</ol>
+
+<h2>Recap</h2>
+<ul>
+  <li>The Outstanding is the last Ledger step's Principal plus unpaid interest. The Interest to Date is in it, so it's exactly what Redeems today. Every screen gets it from <code>MortgageReplay</code>, built by <code>replays()</code> in two queries, with Voided Payments left out (<a href="01-outstanding.html">lesson 1</a>, ADR 0011).</li>
+  <li><code>outstanding_on_closure(on)</code> replays as if closed on <code>on</code>: other Payments that day first, then the Interest to Date is fixed, and the Final Payment comes last. <code>closable</code> refuses a closed Mortgage, a date before the start or before a later Payment, and a future date unless it's only a quote (<a href="02-closing-on-a-date.html">lesson 2</a>).</li>
+  <li>The Redeem route and a Payment of exactly the quote both end in <code>_close_redeemed</code> → <code>_close_with_payment</code>. A whole Outstanding that can't Redeem is refused, and a rupee less is ordinary. The cap keeps a Redeemed Mortgage at ₹0 (<a href="03-redeemed.html">lesson 3</a>, trap #3).</li>
+  <li>A Waiver is a Final Payment short of the quote, plus a <code>waived</code> step. A Forfeiture is no Payment plus a <code>forfeited</code> step. <code>closure()</code> reads back the Waived Amount and profit or loss; only the Recovered Amount is stored (<a href="04-waived-and-forfeited.html">lesson 4</a>).</li>
+  <li>Dormant is Active and owing ₹0, derived and never stored, and the Lender Redeems it once they've checked. Reopen clears the Closure, then Voids its Final Payment through the ordinary Void, with the same reason (<a href="05-dormant-and-reopen.html">lesson 5</a>, ADR 0012).</li>
+  <li>A Simulation is the inputs alone replayed by <code>compute_ledger</code>, closed on Closed on, and read by the same <code>outstanding_on_closure_of</code> as a real quote, so it owes exactly what a real Mortgage would. It touches no database. A Lump Sum larger than what is owed is refused on its row; one after Closed on is ignored. Lend this carries only the amount, start date and Terms (<a href="06-a-simulation.html">lesson 6</a>).</li>
+</ul>
+<p>Keep the <a href="../reference/ledger.html">Ledger cheat sheet</a> open when you work on Closures: it now has the Outstanding and Closure rules. The <a href="../reference/routes.html">routes sheet</a> has every Closure route and its refusals, and the <a href="../reference/traps.html">traps sheet</a> marks #3 as this chapter's.</p>
+
+<nav class="lessons">
+  <a href="06-a-simulation.html">← A Simulation</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="../index.html">Course home →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>15.4 · When an update changes the database</title><link rel="stylesheet" href="../assets/course.css"><script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head><body>
+<p class="kicker">Chapter 015 · Lesson 4</p><h1>When an update changes the database</h1><p class="lede">A new version can fail before it starts, or it can change the database and then fail. Those failures have different ways back.</p><div class="callout win"><strong>By the end</strong> you can explain which rollback is safe by switching app versions, and when restoring a <code>-before-update</code> Backup is necessary.</div>
+<h2>The problem</h2><p>Each release has its own code and may introduce a database migration. Switching back to old code is safe only while the database is still in a format that code understands. Once the new code migrates the database, the old version may refuse to start.</p><h2>The idea</h2><p>Windows Setup installs each version into its own folder, starts it, then points the stable <code>app</code> junction at it only once it answers. The prior version stays available. Before any schema migration, app startup creates a specially named Backup. If the new app cannot run on its migrated database, Setup identifies that Backup; a person restores it deliberately.</p><p>ADR 0009 avoids automatic restore because Setup should not silently replace the Lender's data. A code rollback and a data restore are separate decisions. Chapter 010 taught the migration runner; here we focus on the Backup hook and what Setup locates. This chapter also warns traps <a href="../reference/traps.html#t8">#8</a> (the daily run has no scheduler) and <a href="../reference/traps.html#t9">#9</a> (unreleased code can migrate the database).</p>
+<h2>The flow</h2><figure class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --> OldVersionRunning
+  OldVersionRunning --> BackupTaken: new version starts
+  BackupTaken --> Migration: before-update zip exists
+  Migration --> NewVersionRunning: migration + startup succeed
+  Migration --> RestoreNeeded: migration succeeded, app cannot run
+  BackupTaken --> OldVersionRunning: migration fails before changing schema
+  RestoreNeeded --> RestoredOldSchema: person restores named Backup
+  RestoredOldSchema --> OldVersionRunning
+</pre><figcaption>Code folders support a version switch; restoring the old database is needed after a schema change.</figcaption></figure>
+<h2>The code</h2><figure class="snippet"><figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py"><code>main.py</code></a> · app startup · lines 78–91</figcaption><pre data-file="backend/src/mortgage_backend/main.py"><code>78  @asynccontextmanager
+79  async def lifespan(app: FastAPI) -&gt; AsyncIterator[None]:
+80      backup.clean_leftovers()
+81      # Every start brings the schema up to date, backing up the old one first.
+82      migrate(
+83          database_url,
+84          before_update=(
+85              (lambda: backup.make("before-update")) if backup.backup_dir else None
+86          ),
+87      )
+88      # Also retries a weekly Backup that a shutdown interrupted.
+89      backup.start_if_due(today())
+90      yield
+91      backup.wait(timeout=8)
+</code></pre></figure><p>The migration code invokes the callback immediately before applying the migration. If a Backup destination is not configured, this callback is absent. A Backup failure prevents the migration from proceeding.</p>
+<h2>Run-through: move a copied book to a later revision</h2><p>Use the <code>$COPY</code> data folder from lesson 1, in the same terminal where the path is exported and with the current directory still <code>backend/</code>. Stop its server. For a temporary demonstration, add a no-op revision to your code, then restart the app on the copy. The migration marks the database as being at revision 0016; it does not change a Table.</p><pre><code>cat &gt; src/mortgage_backend/migrations/versions/0016_onboarding.py &lt;&lt;'PY'
+revision = "0016"
+down_revision = "0015"
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    pass
+
+def downgrade():
+    pass
+PY
+uv run python ../docs/sample-book/serve.py "$COPY" 8766</code></pre><p>While that copy is serving, its existing 0015 database produces a <code>-before-update</code> Backup before it advances to 0016. Stop the server again. Remove <code>src/mortgage_backend/migrations/versions/0016_onboarding.py</code> (the file you just made), then start the same command once more. The older code refuses revision 0016 before the Backup hook, so the 0015 recovery archive remains. Stop the app. The sample book data and every archive are still under <code>$COPY</code>.</p><table class="steps"><tr><th>Restart</th><th>Database revision</th><th>Backup outcome</th></tr><tr><td>Code knows 0016</td><td>0015 → 0016</td><td>Create <code>-before-update</code> first</td></tr><tr class="changed"><td>Code no longer knows 0016</td><td>0016</td><td>Refuse startup before taking or pruning a Backup</td></tr></table><p class="cite">This uses the real migration runner and <code>Backups</code> against the copied sample book; ADR 0009 explains why Setup identifies the archive instead of restoring it automatically.</p><h2>Nuances</h2><p>When <code>BACKUP_DIR</code> is configured, a pre-update Backup is made only for an existing database whose schema is behind this version; a fresh install takes none. If making that Backup fails, migration does not run and the app does not start. Without a Backup folder, the callback is absent, so migration has no pre-update archive. The CHANGELOG tells the Lender whether the release changed the database and whether the previous version still starts on it.</p><div class="reveal"><p><strong>Predict:</strong> An older version starts on a database from a newer version whose migration is unknown to it. Will it make a Backup and then fail?</p><button class="show">Show the answer</button><div class="reveal-body"><p>Current code refuses the unknown revision before calling the Backup hook. This protects the real pre-update Backup from being pruned by repeated failed starts; issue <a href="https://github.com/krucx/Mortgage-Management-App/issues/118">#118</a> described the earlier failure mode, now fixed in <code>platform/db.py</code>.</p></div></div>
+<h2>Quiz</h2><div class="quiz" data-answer="1"><p class="q">Why does the app take a Backup before a migration?</p><button class="opt">The new release zip contains no Python code.</button><button class="opt">The migration may change the database so old code can no longer read it.</button><button class="opt">Docker images cannot be versioned.</button><div class="why">A code folder rollback cannot reverse a database schema change; the pre-update Backup preserves the earlier database.</div></div><p><span class="score"></span></p><h2>Go deeper</h2><p>Read <a href="https://github.com/krucx/Mortgage-Management-App/tree/main/Documentation/adr/0009-each-version-in-its-own-folder.md">ADR 0009</a>, then the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/db.py">migration implementation</a> and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_backups.py">Backup tests</a>, especially <code>test_a_older_version_takes_no_backup_of_a_newer_database_and_does_not_start</code>.</p><nav><a href="03-how-an-update-reaches-the-lender.html">Previous</a> · <a href="index.html">Chapter overview</a> · <a href="05-bringing-a-backup-back.html">Next: bringing a Backup back</a></nav>
+<script src="../assets/quiz.js"></script><script src="../assets/snippet.js"></script><script src="../assets/mermaid.min.js"></script><script src="../assets/diagrams.js"></script><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body></html>

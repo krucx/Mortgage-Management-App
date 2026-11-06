@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12.3 · The money forms: New Payment and Closures</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 012 · Lesson 3</p>
+<h1>The money forms: New Payment and Closures</h1>
+<p class="lede">The two biggest forms move the most money: recording a Payment, and closing Mortgages. They follow lesson 2's pattern, with two extra jobs. The Payment form suggests how to divide a sum across Mortgages. The Closure forms close several Mortgages in one save.</p>
+
+<div class="callout win"><strong>By the end</strong> you can follow how a Payment is divided and how a Mortgage is closed from the screens.</div>
+
+<h2>The problem</h2>
+<p>Meera walks in with ₹6,600 in UPI and two Mortgages open: the chain (owing ₹83,333) and the bangles (₹1,51,500). One Payment can pay several of a Customer's Mortgages. Each Mortgage's share is an <dfn class="term" title="The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date, then Principal."><a href="../reference/glossary.html#allocation">Allocation</a></dfn>. The Lender wants a sensible split suggested, and to change it if Meera says otherwise. If she pays a Mortgage's whole Outstanding, the form must say so before saving: the Mortgage will be Redeemed and the jewellery handed back (<a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>).</p>
+<p>Closing is the other big job. Kavita's anklet owes nothing but is still Active (Dormant): the Lender has to Redeem it. Arjun has defaulted on two Mortgages, and the Lender might Forfeit both at once, each with its own Recovered Amount. Every figure these forms show (each Outstanding, each profit or loss, each amount let off) must be the backend's, and closing two Mortgages must close both or neither.</p>
+
+<h2>The idea</h2>
+<p><strong>The suggestion is the screen's, the rules are the backend's.</strong> <code>allocateEqually</code> in <code>allocate.ts</code> proposes equal whole-rupee shares, each at most that Mortgage's Outstanding. It's only a starting point; the Preview says whether the Payment is acceptable, as saving would.</p>
+<p><strong>A Redemption is read from the Preview, not worked out.</strong> If the Preview says a Mortgage would be Redeemed, the confirmation changes to "Redeem and hand back the jewellery?".</p>
+<p><strong>A Closure is a draft too.</strong> <code>useClosing</code> wraps <code>useProposedChange</code> for the three kinds (Redeem, Waive off, Forfeit), each of which takes a list of Mortgages. Each Mortgage's <dfn class="term" title="The end of a Mortgage, by Redemption, Waiver or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened."><a href="../reference/glossary.html#closure">Closure</a></dfn> figures are read from the Preview, and one save closes them all.</p>
+
+<h2>The flow</h2>
+<figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  T["total typed: 6600"] --> M{"mode"}
+  M -->|"Equally"| AE["suggestEqually → allocateEqually(total, caps)"]
+  M -->|"By amount"| BA["the amounts typed"]
+  M -->|"By percentage"| AP["amountsFromPercentages"]
+  AE --> PR["problems?"]
+  BA --> PR
+  AP --> PR
+  PR -->|"none"| PI["PaymentIn: customer, date, method, allocations"]
+  PR -->|"some"| NUL["null: listed, Save disabled"]
+  PI -->|"POST /api/payments/preview"| PV["Preview"]
+  PV --> RD{"after.closure is redeemed?"}
+  RD -->|"yes"| CR["'Redeem and hand back the jewellery?'"]
+  RD -->|"no"| CP["'Record a Payment of ₹6,600?'"]
+</pre>
+<figcaption>The Payment form. The modes only decide the Allocations; from <code>PaymentIn</code> on, it is lesson 2's pattern.</figcaption>
+</figure>
+<p>Notice where "Redeems it" comes from: the Preview's <code>after.closure</code>, not a comparison the screen makes. The screen can't know whether ₹83,333 pays the whole Outstanding to the paisa on a back-dated day; the backend can.</p>
+
+<h2>The code</h2>
+<h3>1. Equal shares, each up to its Outstanding</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/allocate.ts">frontend/src/allocate.ts</a> · <code>allocateEqually()</code> · lines 30–58</figcaption>
+<pre data-file="frontend/src/allocate.ts"><code>30  /**
+31   * The default Allocations: equal whole-rupee shares, each Mortgage taking at most its cap
+32   * (its Outstanding). One whose cap is less than its share gets
+33   * exactly its cap and the excess is shared among the rest, repeating until stable.
+34   * Leftover rupees (and any paise) go to the first Mortgages. Null if the total is more
+35   * than all the caps.
+36   */
+37  export function allocateEqually(total: number, caps: number[]): number[] | null {
+38    if (total &gt; caps.reduce((a, b) =&gt; a + b, 0)) return null               // ①
+39    const amounts = caps.map(() =&gt; 0)
+40    let open = caps.map((_, i) =&gt; i).filter((i) =&gt; caps[i] &gt; 0)
+41    let remaining = total
+42
+43    for (;;) {
+44      const share = Math.floor(remaining / open.length / RUPEE) * RUPEE     // ② whole rupees
+45      const paidOff = open.filter((i) =&gt; caps[i] &lt;= share)
+46      if (paidOff.length === 0) {
+47        for (const i of open) amounts[i] = share
+48        giveLeftover(amounts, (i) =&gt; caps[i] - amounts[i], open, remaining - share * open.length)   // ③
+49        return amounts
+50      }
+51      for (const i of paidOff) {                                             // ④  ◀
+52        amounts[i] = caps[i]
+53        remaining -= caps[i]
+54      }
+55      open = open.filter((i) =&gt; !paidOff.includes(i))
+56      if (open.length === 0) return amounts
+57    }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>More than everything owed can't be divided within the caps.</li>
+  <li>All amounts are paise; <code>RUPEE</code> is 100. Each share is rounded down to a whole rupee.</li>
+  <li>What rounding left over goes, a rupee at a time, to the first Mortgages that have room.</li>
+  <li>A Mortgage owing less than the share gets exactly its Outstanding, and the loop shares the rest among the others. <code>for (;;)</code> is a loop with no condition: it runs until a <code>return</code>.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx">frontend/src/pages/NewPaymentPage.tsx</a> · <code>suggestEqually()</code> · lines 30–43</figcaption>
+<pre data-file="frontend/src/pages/NewPaymentPage.tsx"><code>30  /**
+31   * Equal shares as a suggestion only, each up to its cap. More than all of them can take
+32   * is still split equally: whether a Payment is too large is for the preview to say, as
+33   * saving would.
+34   */
+35  function suggestEqually(total: number, caps: number[]): number[] | null {
+36    return (
+37      allocateEqually(total, caps) ??                                         ◀
+38      allocateEqually(
+39        total,
+40        caps.map(() =&gt; Infinity),
+41      )
+42    )
+43  }
+</code></pre>
+</figure>
+<p><code>??</code> uses the right-hand side only when the left is <code>null</code>. So a total bigger than everything owed is still split equally, with no caps, and the Preview refuses it with the backend's reason. The screen never refuses a Payment on its own.</p>
+
+<h3>2. The form: the date, the list, the full Outstanding</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx">frontend/src/pages/NewPaymentPage.tsx</a> · <code>PaymentForm</code> · lines 83–102, trimmed</figcaption>
+<pre data-file="frontend/src/pages/NewPaymentPage.tsx"><code>83  function PaymentForm({ customer, preselected }: { customer: Customer; preselected?: number }) {
+84    const navigate = useNavigate()
+85    const [paidOn, setPaidOn] = useState(todayIso())                       // ① the browser's today  ◀
+86    const [totalText, setTotalText] = useState('')
+87    const [mode, setMode] = useState&lt;AllocationMode&gt;('equal')
+⋮     … amounts and percentages as typed; the method (cash at first); the reference …
+95    // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
+96    const { client } = useServerState()
+97    const listed = useQuery({
+98      ...everyMortgageQuery(client, { customerId: customer.id, status: 'active', asOf: paidOn }),   // ②
+99      enabled: paidOn !== '',
+100     placeholderData: (previous) =&gt; previous,
+101   })
+102   const mortgages = listed.data?.items ?? null
+</code></pre>
+</figure>
+<ol class="marks">
+  <li>Lesson 1's two "todays": on the served book, set the date back to 19 Oct 2026 first.</li>
+  <li>The Outstanding of each Mortgage <em>on the Payment's date</em>, which may be in the past: <code>as_of=2026-10-19</code>. These are the caps <code>allocateEqually</code> uses.</li>
+</ol>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx">frontend/src/pages/NewPaymentPage.tsx</a> · <code>fillOutstanding()</code> · lines 183–188</figcaption>
+<pre data-file="frontend/src/pages/NewPaymentPage.tsx"><code>183   /** Each chosen Mortgage's whole Outstanding, by amount. */
+184   function fillOutstanding() {
+185     setAmountText(Object.fromEntries(chosen.map((m, i) =&gt; [m.id, paiseToRupees(outstanding[i])])))
+186     setTotalText(paiseToRupees(totalOutstanding))
+187     setMode('amount')                                                    ◀
+188   }
+</code></pre>
+</figure>
+<p>"Pay the full Outstanding (₹83,333)" (line 278) fills each ticked Mortgage with its whole Outstanding, and switches to <em>By amount</em>. It's disabled while a new date's rows are loading, and replaced by "Can't pay it in full" (with the reason) when the backend says a Mortgage can't be Redeemed on that date.</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx">frontend/src/pages/NewPaymentPage.tsx</a> · the confirmation, and <code>RedeemedInFull</code> · lines 200–213 and 446–451, trimmed</figcaption>
+<pre data-file="frontend/src/pages/NewPaymentPage.tsx"><code>200     confirm: (payment, preview) =&gt; {
+201       // The Mortgages it pays their whole Outstanding: the Preview has them Redeemed.
+202       const redeemed = (preview.previews?.mortgages ?? []).flatMap((p) =&gt;
+203         p.after.closure?.kind === 'redeemed' ? [{ ...p, closure: p.after.closure }] : [],   ◀
+204       )
+205       return {
+206         ...(redeemed.length &gt; 0 &amp;&amp; {
+207           confirmLabel: 'Redeem',
+208           cancelLabel: 'Go back',
+209         }),
+210         title:
+211           redeemed.length &gt; 0
+212             ? 'Redeem and hand back the jewellery?'
+213             : `Record a Payment of ${formatINR(payment.amount)}?`,
+⋮       … the body: a RedeemedInFull line per Redeemed Mortgage, then a Summary …
+446 function RedeemedInFull({ name, closure }: { name: string; closure: Closure }) {
+447   const charge =
+448     closure.interest_to_date &gt; 0
+449       ? `, including ${formatDays(closure.interest_to_date_days)} of Interest to Date`
+450       : ''
+451   return `This pays the full Outstanding of ${name} (${formatINR(closure.outstanding)}${charge}).`
+</code></pre>
+</figure>
+<p><code>flatMap</code> maps each item to a list and joins the lists, so returning <code>[]</code> drops an item: line 203 keeps only the Mortgages the Preview has Redeemed. <code>...(cond &amp;&amp; {…})</code> spreads the object's fields in only when <code>cond</code> is true (spreading <code>false</code> adds nothing). Paying exactly the Outstanding is a Redemption in the same request (<a href="../reference/traps.html#t3">trap #3</a>, owned by <a href="../005-replay-and-closures/03-redeemed.html">chapter 005, lesson 3</a>); this is the screen's half, asking the Lender before the jewellery goes back.</p>
+
+<h3>3. Closing several at once</h3>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useClosing.tsx">frontend/src/components/useClosing.tsx</a> · <code>useClosing()</code> · lines 48–80, trimmed</figcaption>
+<pre data-file="frontend/src/components/useClosing.tsx"><code>48  export function useClosing({
+49    closing,
+50    confirm,
+51    saved,
+52  }: {
+⋮     … closing: { kind: 'redeem' | 'waive' | 'forfeit', … } or null …
+60    const { queryClient } = useServerState()
+61    const changeLedger = useLedgerChange()
+62    const proposed = useProposedChange({
+63      change: closing,
+64      preview: (closing) =&gt; requestsFor(closing).preview(),               // ①
+65      confirm,
+66      save: (closing) =&gt;
+67        changeLedger(
+68          (client) =&gt; requestsFor(closing).save(client),
+69          (closed) =&gt; closed.forEach((m) =&gt; queryClient.setQueryData(keys.mortgage(m.id), m)),   // ②
+70        ),
+71      saved,
+72    })
+73    // Only the Preview of this draft: while a newer one loads, nothing is shown.
+74    const current = proposed.preview.loading ? [] : (proposed.preview.previews?.mortgages ?? [])
+75    const closures = new Map(current.map((p) =&gt; [p.mortgage_id, p.after.closure]))
+76    return {
+77      ...proposed,
+78      /** The Mortgage's Closure as the Preview has it; undefined until it is worked out. */
+79      closureOf: (mortgageId: number): Closure | null | undefined =&gt; closures.get(mortgageId),   // ③  ◀
+80    }
+</code></pre>
+</figure>
+<ol class="marks">
+  <li><code>requestsFor</code> (line 20) picks the Preview and save routes for the kind: <code>POST /api/closures/redeem-preview</code> and <code>/redeem</code>, and the same for <code>waive</code> and <code>forfeit</code>. Each takes a list of Mortgages, and the backend closes all of them or, if it refuses any, none (<a href="../006-changes-and-previews/02-the-check.html">chapter 006, lesson 2</a>).</li>
+  <li>The save returns each closed Mortgage; they go straight into the cache.</li>
+  <li><code>closureOf(id)</code>: that Mortgage's Closure as the Preview has it: its Outstanding, Final Payment, amount waived, Recovered Amount, profit or loss. The forms show these and compute none.</li>
+</ol>
+<p>Two forms use it. <code>CloseMortgage</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/CloseMortgage.tsx">CloseMortgage.tsx</a>, line 40) closes one Mortgage, with three buttons: Redeem…, Waive off…, Forfeit…. It sits on the Mortgage page, and on <code>RedeemPage</code> at <code>/mortgages/:id/redeem</code>. The Closures page's <code>ForfeitChosen</code> (line 214) and <code>WaiveChosen</code> (line 343) close several at once.</p>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/ClosuresPage.tsx">frontend/src/pages/ClosuresPage.tsx</a> · <code>ForfeitChosen</code> · lines 214–261, trimmed</figcaption>
+<pre data-file="frontend/src/pages/ClosuresPage.tsx"><code>214 function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () =&gt; void }) {
+215   const [on, setOn] = useState(todayIso())
+216   const [recovered, setRecovered] = useState&lt;Record&lt;number, string&gt;&gt;({})
+⋮
+220   const entered = chosen.every((m) =&gt; recovered[m.id])                   // every one filled in
+221   const closing: Closing | null = entered
+222     ? {
+223         kind: 'forfeit',
+224         forfeit: {
+225           forfeited_on: on,
+226           note,
+227           mortgages: chosen.map((m) =&gt; ({
+228             mortgage_id: m.id,
+229             recovered_amount: rupeesToPaise(recovered[m.id]),
+230           })),
+231         },
+232       }
+233     : null
+⋮     … useClosing({ closing, confirm: "Forfeit 2 Mortgages?", saved: onDone }) …
+259   const profitLosses = chosen.map((m) =&gt; closureOf(m.id)?.profit_loss ?? null)   ◀
+260   const previewed = closing !== null &amp;&amp; !preview.error &amp;&amp; profitLosses.every((r) =&gt; r !== null)
+261   const total = profitLosses.reduce&lt;number&gt;((sum, r) =&gt; sum + (r ?? 0), 0)
+</code></pre>
+</figure>
+<p>Line 261 adds up the profits and losses the Preview gave, for the "Total loss" label. That's the only sum here, of figures the backend worked out.</p>
+
+<h2>Run-through</h2>
+<p>Set every date to <strong>19 Oct 2026</strong>, and the Method to <strong>UPI</strong>, as Meera pays.</p>
+<h3>Meera's ₹6,600, split equally</h3>
+<p>Open <a href="http://localhost:5173/payments/new?customer=1">/payments/new?customer=1</a>. Both Mortgages are ticked: the list shows the bangles first (newest first), then the chain. Type <strong>6600</strong>.</p>
+<table class="steps text">
+<tr><th>Total</th><th>Bangles (owes ₹1,51,500)</th><th>Chain (owes ₹83,333)</th><th>What happens</th></tr>
+<tr class="changed"><td>₹6,600</td><td>₹3,300</td><td>₹3,300</td><td>One Preview; "Record Payment of ₹6,600"</td></tr>
+<tr><td>₹6,601</td><td>₹3,301</td><td>₹3,300</td><td>The leftover rupee goes to the first in the list</td></tr>
+<tr><td>₹6,600.50</td><td>₹3,300.50</td><td>₹3,300</td><td>So do leftover paise</td></tr>
+<tr><td>₹2,00,000</td><td>₹1,16,667</td><td>₹83,333</td><td>The chain is capped at its Outstanding; the bangles take the rest</td></tr>
+<tr><td>₹2,40,000</td><td>₹1,20,000</td><td>₹1,20,000</td><td>More than the ₹2,34,833 owed in all: split with no caps, and the Preview refuses: "2025-Meera-GoldChainPendant: the Payment on 19 Oct 2026 would be more than the ₹83,333 owed then"</td></tr>
+</table>
+<p class="cite">The splits from <code>scripts/run_throughs.sh</code> (section L3), which calls the real <code>allocateEqually</code> under Node, and the screens from <code>scripts/screens.mjs</code> (section L3).</p>
+<p>Switch to <em>By percentage</em> at ₹6,600: the boxes start at 50 and 50 (<code>percentagesOf</code>), and the amounts stay ₹3,300 each. Don't save; the next step uses the same book.</p>
+
+<h3>"Pay the full Outstanding" on the chain</h3>
+<p>Open <a href="http://localhost:5173/payments/new?customer=1&amp;mortgage=2">/payments/new?customer=1&amp;mortgage=2</a>: only the chain is ticked. Set the date and UPI, then click "Pay the full Outstanding (₹83,333)".</p>
+<table class="steps text">
+<tr><th>Step</th><th>What shows</th></tr>
+<tr><td>The link</td><td>Amount ₹83,333; the mode switches to <em>By amount</em>; "Record Payment of ₹83,333"</td></tr>
+<tr class="changed"><td>Record Payment</td><td><strong>"Redeem and hand back the jewellery?"</strong> "This pays the full Outstanding of 2025-Meera-GoldChainPendant (₹83,333, including 10 days of Interest to Date)." · From Meera Sharma · Received 19 Oct 2026 · Method UPI · 2025-Meera-GoldChainPendant ₹83,333 · Redeems it. Buttons: <strong>Go back</strong> · Redeem</td></tr>
+</table>
+<p class="cite">From <code>scripts/screens.mjs</code> (section L3).</p>
+<p>Press <strong>Go back</strong>: lesson 4 walks the chain while it's still Active. The ₹83,333 includes 10 days of Interest to Date because the Outstanding counts the month under way (<a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>).</p>
+
+<h3>Kavita's Dormant anklet</h3>
+<p>Open <a href="http://localhost:5173/closures">Closures</a> (the menu item with the red dot).</p>
+<table class="steps text">
+<tr><th>Step</th><th>Requests</th><th>What shows</th></tr>
+<tr><td>The page</td><td><code>GET /api/closures/dormant?page=1</code>; <code>GET /api/mortgages?…&amp;status=active&amp;owing=true</code></td><td>Dormant (1): 2026-Kavita-SilverGoldAnklet, Kavita Joshi, Redeem…. Below, under "Forfeit or Waive off", the five Active Mortgages still owing</td></tr>
+<tr><td>Redeem…</td><td><code>GET /api/mortgages/10</code>; <code>…/outstanding-on-closure?on=2026-10-19</code>; <code>POST /api/closures/redeem-preview</code></td><td><code>/mortgages/10/redeem</code>: Principal ₹0, Unpaid interest ₹0, Interest to Date ₹0, Outstanding on 19 Oct 2026 ₹0. Button "Redeem for ₹0"</td></tr>
+<tr><td>Redeem for ₹0</td><td>none</td><td>"Redeem 2026-Kavita-SilverGoldAnklet?" Redeemed on 19 Oct 2026 · Final Payment ₹0 · "Return the jewellery to Kavita Joshi."</td></tr>
+<tr class="changed"><td>Confirm Redemption</td><td><code>POST /api/closures/redeem</code>; then the anklet, the Dormant count and both lists again</td><td>Back on Closures. The red dot is gone; "None: every Active Mortgage owes something."</td></tr>
+</table>
+<p class="cite">From <code>scripts/screens.mjs</code> (section L3). This saves: the anklet is Redeemed on your scratch book.</p>
+
+<h3>Farida's Waiver</h3>
+<p>Open <a href="http://localhost:5173/mortgages/6">/mortgages/6</a>, Farida's nose ring. In place of the Close buttons, <code>ClosureSummary</code> (also in <code>CloseMortgage.tsx</code>) reads back her <dfn class="term" title="A Mortgage closed with the jewellery returned although the final Payment fell short of its Outstanding on the Closure date (or there was none): the Lender lets off the rest."><a href="../reference/glossary.html#waived">Waiver</a></dfn>: "Waived off on 16 Oct 2026 · Outstanding on the Closure date ₹30,700 · Final Payment ₹30,520 (receipt) · Waived off ₹180 · Reason: Pays every month; ₹180 let off". Every figure is the Mortgage's <code>closure</code>, as the backend sent it.</p>
+
+<h2>Nuances</h2>
+<h3>(a) A rupee short</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> after "Pay the full Outstanding", change the amount from 83333 to <strong>83332</strong>. What happens? Then switch to <em>Equally</em>.</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Mode</th><th>What shows</th><th>Save</th></tr>
+    <tr class="changed"><td>By amount</td><td>"The Allocations add up to ₹83,333, not ₹83,332." The chain's own box still says 83333</td><td>disabled</td></tr>
+    <tr><td>Equally</td><td>The chain gets ₹83,332; the confirmation is "Record a Payment of ₹83,332?"</td><td>enabled</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/screens.mjs</code> (section L3).</p>
+    <p>By amount, the total and the Allocations are typed separately, and the form refuses a mismatch itself (this is one of the form's <code>problems</code>, so <code>change</code> is <code>null</code>). Once they agree, ₹1 short is an ordinary Payment, not a Redemption, and the jewellery stays. <a href="../005-replay-and-closures/index.html">Chapter 005</a> showed how expensive that rupee gets.</p>
+  </div>
+</div>
+
+<h3>(b) Two of Arjun's at once</h3>
+<div class="reveal">
+  <p><strong>Predict:</strong> on Closures, tick Arjun's ring (owes ₹85,184) and chain (₹46,830). Forfeit: Recovered Amount ₹81,216 for the ring (its value at the Gold Rate) and ₹50,000 for the chain. Profit or loss on each, and in total? Then switch to Waive off, with ₹80,000 and ₹46,000 received.</p>
+  <button class="show">I've made my prediction. Show me.</button>
+  <div class="reveal-body">
+    <table class="steps text">
+    <tr><th>Mortgage</th><th>Outstanding on 19 Oct</th><th>Forfeit: profit / loss</th><th>Waive off: waived</th></tr>
+    <tr><td>2026-Arjun-GoldChain</td><td>₹46,830</td><td>₹3,170</td><td>₹830</td></tr>
+    <tr><td>2025-Arjun-GoldRingRuby</td><td>₹85,184</td><td>-₹3,968</td><td>₹5,184</td></tr>
+    <tr class="changed"><td>The button and total</td><td></td><td>"Forfeit 2" · Total loss ₹798</td><td>Total waived off ₹6,014</td></tr>
+    </table>
+    <p class="cite">From <code>scripts/screens.mjs</code> (section L3). Nothing saved: don't press Forfeit 2.</p>
+    <p>The Recovered Amount minus the Outstanding is the profit or loss (<a href="../005-replay-and-closures/04-waived-and-forfeited.html">chapter 005, lesson 4</a>); every figure in the table came from the one Preview of both. The ticked rows move to the top of the list (<code>tickedFirst</code>), so the Mortgages being closed sit together. Saving sends one <code>POST /api/closures/forfeit</code> with both: if the backend refused one, neither would be Forfeited.</p>
+  </div>
+</div>
+
+<h3>(c) One count, two places</h3>
+<p>The menu's red dot (lesson 1) and the Closures page's Dormant list both come from the same route, <code>GET /api/closures/dormant</code>: the dot reads its <code>total</code>, the page lists its <code>items</code>. The backend decides what is Dormant (<a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>; <a href="../005-replay-and-closures/05-dormant-and-reopen.html">chapter 005, lesson 5</a>), so the two can never disagree. On the Payment form a Dormant Mortgage can't be ticked: it owes nothing, so the form offers "owes nothing: Redeem it →" instead (<code>owesSomething</code>, line 28).</p>
+
+<h3>(d) The date, again</h3>
+<p>Every form in this lesson starts on <code>todayIso()</code>: the Payment form, <code>CloseMortgage</code>, <code>ForfeitChosen</code> and <code>WaiveChosen</code>. On the served book, each one is refused until you set 19 Oct 2026 (lesson 1). On the Lender's laptop it's the right default: most Payments and Closures are recorded the day they happen.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="0">
+  <p class="q">Meera pays ₹1,00,001 equally across the bangles (₹1,51,500) and the chain (₹83,333). What does the form suggest?</p>
+  <button class="opt">Bangles ₹50,001, chain ₹50,000</button>
+  <button class="opt">Bangles ₹50,000, chain ₹50,001</button>
+  <button class="opt">Bangles ₹16,668, chain ₹83,333</button>
+  <div class="why">Neither cap is below the ₹50,000 share, so both get it, and the leftover rupee goes to the first in the list: the bangles, listed first (newest first). <code>scripts/run_throughs.sh</code> (section L3) gives [50,001, 50,000]. The chain is capped only when the share is more than its ₹83,333.</div>
+</div>
+<div class="quiz" data-answer="2">
+  <p class="q">How does the Payment form know a Payment would Redeem a Mortgage?</p>
+  <button class="opt">It compares each Allocation with that Mortgage's Outstanding</button>
+  <button class="opt">"Pay the full Outstanding" marks the Payment as a Redemption</button>
+  <button class="opt">The Preview's <code>after.closure.kind</code> is <code>'redeemed'</code></button>
+  <div class="why">Line 203 reads it from the Preview. The backend's <code>record_payment</code> decides, comparing each Allocation with the quote on its date (trap #3); the screen only asks the Lender before the jewellery goes back. Typing 83333 by hand gives the same question as the link.</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">On Closures you Forfeit three Mortgages, and the backend refuses the third. What is saved?</p>
+  <button class="opt">The first two: each Closure is its own save</button>
+  <button class="opt">Nothing: one request closes all three or none</button>
+  <button class="opt">All three, with the third's refusal noted in History</button>
+  <div class="why"><code>ForfeitChosen</code> sends one <code>POST /api/closures/forfeit</code> with every chosen Mortgage, and the backend's transaction closes all or rolls back. In fact the Preview would have been refused first, keeping Save disabled.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Go deeper</h2>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/allocate.ts"><code>allocate.ts</code></a> whole (100 lines) with <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/allocate.test.ts"><code>tests/allocate.test.ts</code></a> beside it. Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useClosing.tsx"><code>useClosing.tsx</code></a> (81 lines) and <code>CloseMortgage</code> from line 40. For the rules behind them, <a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a> and <a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>.</p>
+
+<nav class="lessons">
+  <a href="02-a-form-page.html">← A form page</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="04-the-mortgage-and-customer-pages.html">Next: The Mortgage and Customer pages →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

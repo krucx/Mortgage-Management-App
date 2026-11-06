@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.99 · Check yourself</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 006 · Check yourself</p>
+<h1>Check yourself</h1>
+<p class="lede">Questions mixed from all five lessons: which step refuses it, 409 or 422, what a History entry records, what a Preview saves. Then delete one line from <code>edit_mortgage</code>, and watch the refusal, the History and the Preview fail together.</p>
+
+<h2>Quiz</h2>
+<div class="quiz" data-answer="2">
+  <p class="q">1. On the served book (19 Oct), the Lender asks for a Term Change on the bangles from 19 Oct. What's the answer?</p>
+  <button class="opt">201: today is allowed, as it isn't in the past</button>
+  <button class="opt">409: the bangles already have a Term Change</button>
+  <button class="opt">422: 19 Oct isn't one of the bangles' Accrual Dates</button>
+  <div class="why">Line 379 of <code>add_term_change</code> needs both "today or later" and an Accrual Date. The bangles accrue on the 25th, so it's "422 A Term Change starts on an Accrual Date, today or later (the next is 25 Oct 2026)". The 409 only comes for the same date as an existing one. From <code>scripts/run_throughs.py</code>, section 99. Lesson 1.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">2. Someone deletes <code>conn.rollback()</code> from <code>_preview</code>. The Lender Previews a Payment. What is saved?</p>
+  <button class="opt">Nothing: <code>engine.connect()</code> never commits</button>
+  <button class="opt">The Payment, but not its History rows</button>
+  <button class="opt">The Payment and its History, as a save would</button>
+  <div class="why">The Preview route opened the connection with <code>engine.connect()</code>, and closing it rolls back anything uncommitted. All 607 tests still pass. The real guard is never using <code>engine.begin()</code> in a Preview; making <code>_preview</code> commit breaks 13 tests. Lesson 4.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">3. A trace. The Lender lowers Meera's chain to ₹1,000. The refusal names her 10 Dec 2025 Payment of ₹1,600. What did it say was owed then?</p>
+  <button class="opt">₹1,020: the Principal plus one month at 2%</button>
+  <button class="opt">₹1,021: that, plus one day of the next month</button>
+  <button class="opt">₹1,000: only the Principal, as no interest was paid</button>
+  <div class="why">On 10 Dec, ₹20 of interest is added for the month from 10 Nov, and the new month's Interest to Date already has one day (today always counts): ₹0.67, rounded to ₹1. ₹1,000 + ₹20 + ₹1 = ₹1,021, less than ₹1,600, so <code>Overpayment</code>. Lesson 2.</div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">4. In the bangles' History you find one row: action <code>term_change_removed</code>, no field, note "from 25 Oct 2026". What happened?</p>
+  <button class="opt">The 25 Oct Term Change took effect that day</button>
+  <button class="opt">A Term Change Preview was asked for, then undone</button>
+  <button class="opt">The coming 25 Oct Term Change was removed</button>
+  <div class="why"><code>remove_term_change</code> records no fields, just the date in its note. A Preview leaves no History: it's rolled back. Taking effect isn't a change at all; nothing is recorded. From <code>scripts/run_throughs.py</code>, section 99, on a copy. Lesson 3.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">5. A Void is sent with the reason <code>"   "</code> (just spaces). Which part refuses it?</p>
+  <button class="opt">The request model, <code>VoidIn</code>, before any change runs</button>
+  <button class="opt">The change function, <code>void_payment</code>, as a 409</button>
+  <button class="opt"><code>check_replays</code>, since the Payment still counts</button>
+  <div class="why"><code>VoidIn.tidy</code> strips the reason and raises "A reason is needed", so FastAPI answers 422 with a list <code>detail</code> before <code>post_void</code> calls anything. A rule about one field's shape belongs on the model. Lessons 1 and 5.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">6. A trace. Meera's chain owes ₹83,333 on 19 Oct. The Lender Previews a cash Payment of ₹83,333 to it. Which is true of the Preview?</p>
+  <button class="opt">The chain is still Active, owing ₹0 today</button>
+  <button class="opt">After: Redeemed; <code>cash</code> lists ₹83,333</button>
+  <button class="opt">It's refused: a Redemption needs the Redeem form</button>
+  <div class="why">Paying exactly the Outstanding Redeems in the same request (trap #3), so the "after" side has a <code>closure</code> of kind redeemed. Paid in cash, the sum appears in <code>cash</code> for the Cash Limit's warning. Nothing is saved. Lesson 4.</div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">7. Which of these changes never calls <code>check_replays</code>?</p>
+  <button class="opt"><code>void_payment</code>, because a Void raises what's owed</button>
+  <button class="opt"><code>forfeit</code>, because it writes no Payment</button>
+  <button class="opt"><code>set_collateral</code>, because no Ledger reads it</button>
+  <div class="why"><code>void_payment</code> calls it, although it can't trip today. <code>forfeit</code> calls it at line 757. A Collateral Value isn't a fact any Ledger is replayed from, so <code>set_collateral</code> has nothing to check. Lessons 2 and 5.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">8. The Lender Reopens the coin. In what order do the new History rows appear, newest first?</p>
+  <button class="opt"><code>reopened</code> only; the Void isn't recorded</button>
+  <button class="opt"><code>reopened</code> on the coin, then <code>voided</code> on Payment 26</button>
+  <button class="opt"><code>voided</code> on Payment 26, then <code>reopened</code> on the coin</button>
+  <div class="why"><code>reopen</code> calls <code>void_payment</code>, which records its own <code>voided</code> row first; <code>reopen</code> records <code>reopened</code> last. Newest first, <code>reopened</code> is at the top. Lessons 2 and 3.</div>
+</div>
+<p><span class="score"></span></p>
+
+<h2>Hands-on: delete the check from <code>edit_mortgage</code></h2>
+<p>You'll remove the one line that checks an edit by replaying it. Work from the repo root. This touches only source code, never data.</p>
+<ol>
+  <li>
+    <p>Run all the backend tests. All 607 pass:</p>
+    <pre><code>cd backend &amp;&amp; uv run pytest -q</code></pre>
+  </li>
+  <li>
+    <p>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>backend/src/mortgage_backend/lending/changes.py</code></a> at line 468, in <code>edit_mortgage</code>, and delete this line:</p>
+    <pre><code>    check_replays(conn, [mortgage_row(conn, mortgage_id)], today)</code></pre>
+  </li>
+  <li>
+    <p><strong>Predict</strong> before you run: which tests fail? Think about all three ideas of this chapter. Which test checks the refusal itself? Which checks that a refused edit leaves no History? And which checks a Preview of an edit? Write your guess down.</p>
+    <pre><code>uv run pytest -q</code></pre>
+  </li>
+</ol>
+<div class="reveal">
+  <p><strong>Check your prediction.</strong></p>
+  <button class="show">I've run it. Show me what fails.</button>
+  <div class="reveal-body">
+    <p>Exactly <strong>4 fail, 603 pass</strong> (checked at commit <code>d6a92ab</code>):</p>
+    <ul>
+      <li><code>test_changes.py::test_an_edit_that_would_make_a_payment_too_large_is_refused</code></li>
+      <li><code>test_changes.py::test_a_refused_change_records_no_history</code></li>
+      <li><code>test_corrections.py::test_an_edit_that_would_leave_a_payment_too_large_is_refused</code></li>
+      <li><code>test_previews.py::test_an_edit_that_would_be_refused_cannot_be_previewed</code></li>
+    </ul>
+    <p>One missing line, and all three of the chapter's ideas fail together:</p>
+    <ul>
+      <li><strong>The refusal.</strong> The first and third tests make an edit that leaves a Payment too large, once by calling <code>edit_mortgage</code> directly and once through <code>PUT /api/mortgages/{id}</code>. Without the check, the edit simply saves.</li>
+      <li><strong>The History.</strong> <code>test_a_refused_change_records_no_history</code> makes the same edit and expects no <code>edited</code> entry. Now the edit isn't refused, so it reaches <code>audit.record</code>, and the History says the Mortgage was edited.</li>
+      <li><strong>The Preview.</strong> <code>test_an_edit_that_would_be_refused_cannot_be_previewed</code> expects a 422 from <code>/edit-preview</code>. The Preview runs the same <code>edit_mortgage</code>, so it lost its refusal too. Nobody touched <code>previews.py</code> (trap #5).</li>
+    </ul>
+    <p>Notice what <em>didn't</em> fail: every test of an edit that should save. A missing check makes the app accept too much, which only a test of a refusal can catch. That's why each change has tests for its refusals as well as its saves.</p>
+  </div>
+</div>
+<ol start="4">
+  <li>
+    <p>Undo the change (you're still in <code>backend/</code>), and check that all 607 pass again:</p>
+    <pre><code>git checkout -- src/mortgage_backend/lending/changes.py
+uv run pytest -q</code></pre>
+  </li>
+</ol>
+
+<h2>Recap</h2>
+<ul>
+  <li>Every change to a Mortgage or Payment is one function in <code>lending/changes.py</code>: refuse (409 for a state that blocks it, 422 for a request that can't stand) → write → check → History. Its route only parses, calls and answers, inside one <code>engine.begin()</code> transaction, so any refusal saves nothing (<a href="01-one-door-for-every-change.html">lesson 1</a>).</li>
+  <li><code>check_replays</code> writes first and replays after, because every figure is replayed from stored facts. It refuses if any Payment is now larger than what was owed on its date, naming the first one. Pass the row as it is after the write (<a href="02-the-check.html">lesson 2</a>).</li>
+  <li>History is append-only, one row per changed field, written by each change function itself as its last step, so a refused change leaves none. A Mortgage's History includes its Payments'; every entry shows the Mortgage's current name (<a href="03-history.html">lesson 3</a>).</li>
+  <li>A Preview runs the real change inside <code>engine.connect()</code>, reads before and after, and rolls back, so it's refused exactly when saving would be (trap #5). The routes are hand-written on purpose; the rules live once (<a href="04-previews.html">lesson 4</a>, ADR 0007).</li>
+  <li>A new change needs a request model, a change function, a History <code>Action</code>, a save route, a Preview route, tests at both levels, and regenerated types (<a href="05-adding-a-change-route.html">lesson 5</a>).</li>
+</ul>
+<p>Keep the <a href="../reference/routes.html">routes sheet</a> open when you work on changes: it now has every save and Preview route, with its refusals and History <code>Action</code>. The <a href="../reference/traps.html">traps sheet</a> marks #5 as this chapter's.</p>
+
+<nav class="lessons">
+  <a href="05-adding-a-change-route.html">← Adding a change route</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="../index.html">Course home →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>
