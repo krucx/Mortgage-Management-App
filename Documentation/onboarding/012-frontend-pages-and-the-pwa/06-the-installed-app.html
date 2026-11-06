@@ -243,7 +243,7 @@ uv run python ../docs/sample-book/serve.py "$PWA"      # http://127.0.0.1:8765</
 <tr><td><code>/assets/index-….js</code></td><td><code>public, max-age=31536000, immutable</code> (its name changes when it does)</td></tr>
 </table>
 <p class="cite">From <code>scripts/pwa.mjs</code> (section L6), asking the served book.</p>
-<p>These come from <a href="../../../backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a>. This is <a href="../reference/traps.html#t13">trap #13</a>, owned by <a href="../014-how-it-runs-on-the-lenders-laptop/02-without-docker-the-backend-serves-the-screens.html">chapter 014, lesson 2</a>: the service worker's caching in <code>vite.config.ts</code> and the server's headers in <code>screens.py</code> are two halves of one policy. Change one and check the other.</p>
+<p>These come from <a href="../../../backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a>. The service worker's caching in <code>vite.config.ts</code> and the server's headers in <code>screens.py</code> are separate rules that both affect updates. Change either one, then check the installed app's behavior. Chapter <a href="../014-how-it-runs-on-the-lenders-laptop/02-without-docker-the-backend-serves-the-screens.html">014, lesson 2</a> explains how one backend now serves screens in both modes.</p>
 
 <h3>(d) Later is per device</h3>
 <p>Later is remembered in the browser's <code>localStorage</code>, not on the backend. The Lender's laptop and phone each decide for themselves, and a private window forgets it once closed. And Later only means "not this version": a newer release than the one put off shows the banner again (line 159; the test at line 56).</p>

@@ -38,7 +38,7 @@
   <button class="opt">In <code>nginx.conf</code> in Docker, in <code>screens.py</code> without it</button>
   <button class="opt">In <code>screens.py</code> in both, pinned by <code>test_screens.py</code></button>
   <button class="opt">In <code>vite.config.ts</code>, which writes them into the build</button>
-  <div class="why">Since ADR 0013 the image sets <code>SCREENS_DIR</code>, so the same <code>serve_screens</code> answers in both modes; nginx and its config are gone (the gap #117 described went with them). <code>vite.config.ts</code> sets the service worker's caching, the other half of trap #13, not HTTP headers. (<a href="02-without-docker-the-backend-serves-the-screens.html">Lesson 2</a>)</div>
+  <div class="why">Since ADR 0013 the image sets <code>SCREENS_DIR</code>, so the same <code>serve_screens</code> answers in both modes; nginx and its config are gone (the gap #117 described went with them). <code>vite.config.ts</code> sets the service worker's caching; the backend sets the HTTP headers. (<a href="02-without-docker-the-backend-serves-the-screens.html">Lesson 2</a>)</div>
 </div>
 <div class="quiz" data-answer="2">
   <p class="q">Trace it: an update to Y fails at <code>Wait-Version</code>, before Y took any Backup. Where does <code>app</code> point, and what runs?</p>
@@ -103,7 +103,7 @@ Tests Passed: 64, Failed: 1, Skipped: 0, Inconclusive: 0, NotRun: 0</code></pre>
   <li><strong>Undo it</strong>: <code>git checkout -- windows/link.ps1</code>, and check <code>git status --short</code> prints nothing.</li>
 </ol>
 
-<h3>Extra: trap #13, made concrete</h3>
+<h3>Extra: test the server's cache headers</h3>
 <p>The plan for this step was to change <code>nginx.conf</code> and watch nothing fail. nginx is gone, so break the one place the headers live instead. In <a href="../../../backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a> line 35, change <code>kept = path.startswith("assets/")</code> to <code>kept = path.endswith(".js")</code>: "keep every script a year". Predict which of the ten tests in <code>test_screens.py</code> fail, then run <code>cd backend &amp;&amp; uv run pytest tests/test_screens.py -q</code>.</p>
 <div class="reveal">
   <p><strong>Check your prediction.</strong></p>
@@ -125,7 +125,7 @@ FAILED tests/test_screens.py::test_the_service_worker_and_manifest_are_always_ch
   <li><strong>Each version has its own folder; <code>app</code> is a junction moved only once the new version answers.</strong> A failure starts the old one again. A migrated database can't go back: Setup names the Backup to restore. (<a href="04-each-version-in-its-own-folder.html">Lesson 4</a>)</li>
   <li>The installed app starts and updates the app through <strong><code>mortgage-management://start</code> and <code>update</code></strong>, registered per user, gated twice, taking nothing else. (<a href="05-the-mortgage-management-link.html">Lesson 5</a>)</li>
 </ul>
-<p>Cheat sheets: <a href="../reference/commands.html#laptop">Commands · How it runs on the Lender's laptop</a> and <a href="../reference/traps.html">Traps</a> #12, #13 and #14.</p>
+<p>Cheat sheets: <a href="../reference/commands.html#laptop">Commands · How it runs on the Lender's laptop</a> and <a href="../reference/traps.html">Traps</a> #12, retired #13 and #14.</p>
 
 <nav class="lessons">
   <a href="05-the-mortgage-management-link.html">← The mortgage-management:// link</a>

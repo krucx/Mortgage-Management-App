@@ -131,9 +131,9 @@ done</code></pre>
 
 <h2>Nuances</h2>
 
-<h3>Trap #13: what still has to agree</h3>
+<h3>The old two-server mismatch is gone</h3>
 <p>Before ADR 0013, Docker's screens came from nginx, whose <code>add_header</code> lines had to match <code>screens.py</code> by hand, and no test compared them. That gap was filed while planning this chapter as <a href="https://github.com/krucx/Mortgage-Management-App/issues/117">#117</a>; it closed when nginx went. The plan for this lesson was to show that gap. It no longer exists: <code>screens.py</code> is the only place the headers are set.</p>
-<p>What's left of <a href="../reference/traps.html#t13">trap #13</a> is the agreement between <em>two caches</em>: the browser's HTTP cache, which follows these headers, and the service worker's own, set in <code>vite.config.ts</code> (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>). If <code>sw.js</code> were kept a year, the browser would never fetch the new service worker, and the new precache list inside it, until the year was up. <a href="../../../backend/tests/test_screens.py"><code>tests/test_screens.py</code></a> pins the headers:</p>
+<p>The retired <a href="../reference/traps.html#t13">trap #13</a> was the risk of keeping two servers' HTTP headers in sync. ADR 0013 removed that second path. The browser's HTTP cache and the service worker's own cache still follow separate rules: HTTP headers come from <code>screens.py</code>, while <code>vite.config.ts</code> defines the service worker's cache (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>). If <code>sw.js</code> were kept a year, the browser would not fetch the new service worker and its precache list until the year was up. <a href="../../../backend/tests/test_screens.py"><code>tests/test_screens.py</code></a> pins the HTTP headers:</p>
 <table class="wide">
 <tr><th>Test</th><th>Pins</th></tr>
 <tr><td><code>test_the_app_opens_at_any_of_its_paths_checked_for_a_new_version_each_time</code></td><td><code>/</code>, <code>/mortgages/7</code>, <code>/payments/new</code> get <code>index.html</code>, <code>no-cache</code></td></tr>

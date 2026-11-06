@@ -156,7 +156,7 @@
 <table class="wide">
 <tr><th>From</th><th>Command</th><th>What it does</th></tr>
 <tr><td>anywhere</td><td><code>export COPY=$(mktemp -d); cp -R "$BOOK/data" "$COPY/" &amp;&amp; mkdir "$COPY/backups"</code></td><td>A copy of the served book's data for Docker, so the book itself stays on <code>serve.py</code></td></tr>
-<tr><td>repo root</td><td><code>$DC up -d --build</code></td><td>Builds this folder's code (<code>mortgage-management-app:dev</code>) and runs it on the copy, on <code>localhost:8081</code>. First build a few minutes, then seconds</td></tr>
+<tr><td>repo root</td><td><code>$DC up -d --build --remove-orphans</code></td><td>Builds this folder's single <code>:dev</code> image and runs its <code>app</code> service on the copy at <code>localhost:8081</code>. <code>--remove-orphans</code> clears old containers for services removed from this Compose file. First build takes a few minutes, then seconds</td></tr>
 <tr><td>repo root</td><td><code>$DC ps</code> · <code>$DC logs app</code> · <code>$DC exec app ls -la /data /backups</code> · <code>$DC exec app date</code></td><td>Running? From which image, on which port? Did it start (migrations), which files does it see, and what's its today (<code>TZ</code>)?</td></tr>
 <tr><td>repo root</td><td><code>$DC config</code></td><td>The merged configuration, with every variable filled in: check which folders it will mount before you <code>up</code></td></tr>
 <tr><td>repo root</td><td><code>$DC stop app</code> · <code>$DC start app</code> · <code>$DC down</code></td><td>Stop and start the container; <code>down</code> removes it and its network, never the mounted folders</td></tr>
@@ -169,7 +169,7 @@
 </table>
 
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>; release and Backup rows at <code>5cfbec5</code>; workflow rows at <code>93de7a7</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>; release and Backup rows at <code>5cfbec5</code>; workflow rows at <code>93de7a7</code>; Docker's single-image commands at <code>0abacac</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 </body>

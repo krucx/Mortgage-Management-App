@@ -236,7 +236,7 @@ docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="../../../.github/workflows/test.yml"><code>.github/workflows/test.yml</code></a> whole (about 150 lines): every job's steps, including the <code>image</code> job's checks of the cache headers that <a href="../reference/traps.html#t13">trap #13</a> is about. Then the "Tests and type checks" section of the <a href="../../../README.md">README</a>. For the tools themselves, pytest's guide to <a href="https://docs.pytest.org/en/stable/how-to/usage.html">choosing which tests to run</a> covers <code>-k</code>, <code>::</code> and more.</p>
+<p>Read <a href="../../../.github/workflows/test.yml"><code>.github/workflows/test.yml</code></a> whole (about 150 lines): every job's steps, including the <code>image</code> job's cache-header checks. They help keep the retired <a href="../reference/traps.html#t13">trap #13</a> from returning: only one backend serves screens in both modes now. Then the "Tests and type checks" section of the <a href="../../../README.md">README</a>. For the tools themselves, pytest's guide to <a href="https://docs.pytest.org/en/stable/how-to/usage.html">choosing which tests to run</a> covers <code>-k</code>, <code>::</code> and more.</p>
 
 <nav class="lessons">
   <a href="index.html">← Chapter overview</a>

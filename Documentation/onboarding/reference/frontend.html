@@ -162,7 +162,7 @@
 <tr><td>The built app (<code>**/*.{js,css,html,svg,png}</code>), but not <code>ocr/**</code></td><td>Precached when the service worker installs; replaced on the next build (<code>autoUpdate</code>, <code>cleanupOutdatedCaches</code>)</td><td><code>vite.config.ts</code>, <code>workbox</code></td></tr>
 <tr><td>Pages (navigations, not <code>/api/</code>)</td><td><code>NetworkFirst</code>, 5 s timeout, cache <code>pages</code>; offline, any page gets the cached <code>/index.html</code></td><td><code>vite.config.ts</code>, <code>runtimeCaching</code></td></tr>
 <tr><td><code>/api/…</code></td><td>Never cached by the service worker</td><td></td></tr>
-<tr><td>HTTP headers</td><td>Pages, <code>sw.js</code>, the manifest: <code>no-cache</code>; <code>/assets/</code>: <code>public, max-age=31536000, immutable</code>. Must agree with the above (<a href="traps.html#t13">trap #13</a>)</td><td><code>backend/…/platform/screens.py</code></td></tr>
+<tr><td>HTTP headers</td><td>Pages, <code>sw.js</code>, the manifest: <code>no-cache</code>; <code>/assets/</code>: <code>public, max-age=31536000, immutable</code>. The backend sends them in both modes; the service worker has its own caching rules.</td><td><code>backend/…/platform/screens.py</code></td></tr>
 </table>
 
 
