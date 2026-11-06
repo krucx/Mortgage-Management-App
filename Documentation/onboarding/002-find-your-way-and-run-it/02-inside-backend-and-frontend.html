@@ -36,24 +36,24 @@ flowchart TD
 <h2>The backend: <code>main.py</code> is the map</h2>
 <p><code>create_app</code> builds the whole FastAPI app. It is the backend's <em>composition root</em>: the one place where every part is created and plugged together. <a href="../010-platform-database-and-migrations/01-the-composition-root.html">Chapter 010, lesson 1</a> explains it properly; for finding your way, only its end matters.</p>
 <figure class="snippet">
-<figcaption><a href="../../../backend/src/mortgage_backend/main.py">backend/src/mortgage_backend/main.py</a> · <code>create_app()</code> · lines 53–135, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>53  def create_app(
-54      database_url: str,
-55      today: Callable[[], date] = date.today,   ①
+<figcaption><a href="../../../backend/src/mortgage_backend/main.py">backend/src/mortgage_backend/main.py</a> · <code>create_app()</code> · lines 55–141, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>55  def create_app(
+56      database_url: str,
+57      today: Callable[[], date] = date.today,   ①
 ⋮    … backup_dir, screens_dir and other settings …
-65      engine = make_engine(database_url)
+67      engine = make_engine(database_url)
 ⋮    … Backups, the daily run, start-up migrations …
-92      app = FastAPI(
+94      app = FastAPI(
 ⋮
-111     app.include_router(default_terms.router)   ②
-112     app.include_router(customers.router)
-114     app.include_router(mortgages.router)  ◀
-115     app.include_router(payments.router)
-117     app.include_router(changes.router)
+116     app.include_router(default_terms.router)   ②
+117     app.include_router(customers.router)
+119     app.include_router(mortgages.router)  ◀
+120     app.include_router(payments.router)
+122     app.include_router(changes.router)
 ⋮    … 17 more routers …
-133     if screens_dir is not None:
-134         serve_screens(app, screens_dir)  # last, so it never answers for the API
-135     return app
+139     if screens_dir is not None:
+140         serve_screens(app, screens_dir)  # last, so it never answers for the API
+141     return app
 </code></pre>
 </figure>
 <ol class="marks">
@@ -76,15 +76,15 @@ flowchart TD
 <h2>The frontend: <code>App.tsx</code> is the map</h2>
 <p>The frontend is a single-page app: the browser loads it once and React Router swaps pages as the address changes. <code>App.tsx</code> lists every address.</p>
 <figure class="snippet">
-<figcaption><a href="../../../frontend/src/App.tsx">frontend/src/App.tsx</a> · <code>App</code> · lines 44–65, trimmed</figcaption>
-<pre data-file="frontend/src/App.tsx"><code>44              &lt;Routes&gt;
-45                &lt;Route path="/" element={&lt;DashboardPage /&gt;} /&gt;
+<figcaption><a href="../../../frontend/src/App.tsx">frontend/src/App.tsx</a> · <code>App</code> · lines 45–67, trimmed</figcaption>
+<pre data-file="frontend/src/App.tsx"><code>45              &lt;Routes&gt;
+46                &lt;Route path="/" element={&lt;DashboardPage /&gt;} /&gt;
 ⋮    … Payments and Customers …
-54                &lt;Route path="/mortgages" element={&lt;MortgagesPage /&gt;} /&gt;
-55                &lt;Route path="/mortgages/new" element={&lt;NewMortgagePage /&gt;} /&gt;
-56                &lt;Route path="/mortgages/:id" element={&lt;MortgagePage /&gt;} /&gt;  ◀
+55                &lt;Route path="/mortgages" element={&lt;MortgagesPage /&gt;} /&gt;
+56                &lt;Route path="/mortgages/new" element={&lt;NewMortgagePage /&gt;} /&gt;
+57                &lt;Route path="/mortgages/:id" element={&lt;MortgagePage /&gt;} /&gt;  ◀
 ⋮    … Call List, Notices, Closures, Settings …
-65              &lt;/Routes&gt;
+67              &lt;/Routes&gt;
 </code></pre>
 </figure>
 <p><code>:id</code> is a placeholder: <code>/mortgages/2</code> draws <code>MortgagePage</code> with <code>id</code> = 2. The rest of <code>frontend/src/</code> is laid out like this:</p>
@@ -114,15 +114,15 @@ flowchart TD
 <p><code>useQuery</code> comes from TanStack Query, a library that fetches data, caches it and re-renders the page when it arrives. The page doesn't build the request itself; it names one from <code>requests.ts</code>.</p>
 <p><strong>Hop 2: the request.</strong></p>
 <figure class="snippet">
-<figcaption><a href="../../../frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>mortgageQuery()</code> · lines 52–59</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>52  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
-53  export function mortgageQuery(client: ApiClient, id: number) {
-54    return queryOptions({
-55      queryKey: keys.mortgage(id),
-56      queryFn: () =&gt;
-57        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),  ◀
-58    })
-59  }
+<figcaption><a href="../../../frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>mortgageQuery()</code> · lines 53–60</figcaption>
+<pre data-file="frontend/src/requests.ts"><code>53  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
+54  export function mortgageQuery(client: ApiClient, id: number) {
+55    return queryOptions({
+56      queryKey: keys.mortgage(id),
+57      queryFn: () =&gt;
+58        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),  ◀
+59    })
+60  }
 </code></pre>
 </figure>
 <p>The URL template <code>'/api/mortgages/{mortgage_id}'</code> is the thread. It is written exactly as the backend declares it, and TypeScript checks it against the generated types, so a typo won't compile. Copy it and search the backend.</p>

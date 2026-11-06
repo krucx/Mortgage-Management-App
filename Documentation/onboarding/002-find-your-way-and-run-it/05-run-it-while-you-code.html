@@ -106,11 +106,11 @@ npm run dev</code></pre>
 <h3>The checks before you commit</h3>
 <p>From the README's <em>Tests and type checks</em>:</p>
 <figure class="snippet">
-<figcaption><a href="../../../README.md">README.md</a> · <em>Tests and type checks</em> · lines 186–189</figcaption>
-<pre data-file="README.md"><code>186  ```sh
-187  cd backend &amp;&amp; uv run pytest &amp;&amp; uv run mypy src    # backend tests, then strict type check
-188  cd frontend &amp;&amp; npm test &amp;&amp; npm run typecheck      # vitest, then tsc
-189  ```
+<figcaption><a href="../../../README.md">README.md</a> · <em>Tests and type checks</em> · lines 195–198</figcaption>
+<pre data-file="README.md"><code>195  ```sh
+196  cd backend &amp;&amp; uv run pytest &amp;&amp; uv run mypy src
+197  cd frontend &amp;&amp; npm test &amp;&amp; npm run typecheck
+198  ```
 </code></pre>
 </figure>
 <p>Neither needs a server or any data: each backend test makes its own throwaway database in a temporary folder, and the frontend tests answer requests with a fake server. That's why the check-yourself exercise can safely break a migration. <a href="../013-testing/index.html">Chapter 013</a> covers both test suites.</p>
@@ -140,14 +140,14 @@ npm run dev</code></pre>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <figure class="snippet">
-    <figcaption><a href="../../../backend/src/mortgage_backend/main.py">backend/src/mortgage_backend/main.py</a> · <code>run_daily_jobs()</code> · lines 103–109</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>103      @app.middleware("http")
-104      async def run_daily_jobs(
-105          request: Request, call_next: Callable[[Request], Awaitable[Response]]
-106      ) -&gt; Response:
-107          if request.url.path.startswith("/api/"):  ◀
-108              await run_in_threadpool(daily_run.run_if_due)
-109          return await call_next(request)
+    <figcaption><a href="../../../backend/src/mortgage_backend/main.py">backend/src/mortgage_backend/main.py</a> · <code>run_daily_jobs()</code> · lines 108–114</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>108      @app.middleware("http")
+109      async def run_daily_jobs(
+110          request: Request, call_next: Callable[[Request], Awaitable[Response]]
+111      ) -&gt; Response:
+112          if request.url.path.startswith("/api/"):  ◀
+113              await run_in_threadpool(daily_run.run_if_due)
+114          return await call_next(request)
 </code></pre>
     </figure>
     <p>On the first <code>/api/</code> request of each day. A <em>middleware</em> is a function FastAPI runs around every request; this one runs the daily jobs first if they haven't run today. The jobs are: take a Backup into <code>BACKUP_DIR</code> if the last is a week old, and queue Notices. The app also tries a Backup when it starts. So simply opening your dev app writes a Backup zip into <code>BACKUP_DIR</code>, which is one more reason that must be a scratch folder, not the Lender's synced folder. <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">Chapter 010, lesson 2</a> explains the daily run.</p>
