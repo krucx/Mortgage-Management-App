@@ -270,6 +270,23 @@ def report(built: Path) -> None:
     l3b.sql("SELECT id, status, redemption_payment_id FROM mortgage WHERE id = 2")
     l3b.receipt(34)
     l3b.receipt(35)
+    print("   Discount plus cash Redeems the bangles, then Reopen reverses both:")
+    l3_discount = Copy(built, "l3-discount-reopen")
+    quote = l3_discount.owes(BANGLES)
+    cash = quote // 2
+    discount = quote - cash
+    _, discounted = l3_discount.call("post", "/payments", json={
+        "customer_id": MEERA, "paid_on": "2026-10-19", "method": "upi",
+        "amount": cash,
+        "allocations": [{"mortgage_id": BANGLES, "amount": cash, "discount": discount}],
+    })
+    print("     quote", rs(quote), "cash", rs(cash), "Discount", rs(discount),
+          "status", l3_discount.call("get", f"/mortgages/{BANGLES}", quiet=True)[1]["status"])
+    l3_discount.receipt(discounted["id"])
+    _, reopened = l3_discount.call("post", f"/mortgages/{BANGLES}/reopen",
+                                   json={"reason": "Discount Redemption entered in error"})
+    print("     Reopen status", reopened["status"], "restored Outstanding",
+          rs(reopened["outstanding"]["total"]))
     print("   Void Preview of 28 (cash sums):")
     _, vp = ro.call("post", "/payments/28/void-preview")
     preview_lines(vp)
