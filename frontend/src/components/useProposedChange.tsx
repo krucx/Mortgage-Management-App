@@ -19,6 +19,7 @@ export function useProposedChange<Change, Saved>({
   change,
   preview: previewOf,
   confirm: confirmationOf,
+  beforeConfirm,
   save,
   saved,
 }: {
@@ -28,6 +29,8 @@ export function useProposedChange<Change, Saved>({
   /** The confirmation asked for when Save is pressed, from `change` and its Preview;
    *  null to save straight away. */
   confirm: ((change: Change, preview: Preview) => ConfirmOptions) | null
+  /** An additional confirmation step before the change's usual confirmation. */
+  beforeConfirm?: (change: Change, preview: Preview) => Promise<boolean>
   save: (change: Change) => Promise<Saved>
   /** What happens once it is saved: usually going to what changed. */
   saved: (result: Saved) => void
@@ -54,6 +57,7 @@ export function useProposedChange<Change, Saved>({
     event.preventDefault()
     if (change === null || !canSave) return
     if (!(await warnCash(preview.previews?.cash ?? []))) return
+    if (beforeConfirm && !(await beforeConfirm(change, preview))) return
     if (confirmationOf && !(await confirm(confirmationOf(change, preview)))) return
     setSaving(true)
     setError(null)

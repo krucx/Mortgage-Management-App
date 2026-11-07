@@ -98,6 +98,81 @@ test('a Discount can be recorded without cash', async () => {
   expect(asked?.allocations).toEqual([{ mortgage_id: 7, amount: 0, discount: 5_150_000 }])
 })
 
+test('a ₹500 Discount needs no extra confirmation, while a larger one does', async () => {
+  const backend = server()
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  const discount = await screen.findByLabelText('Discount for 2026GoldChain')
+  fireEvent.change(discount, { target: { value: '500' } })
+  const save = await screen.findByRole('button', { name: 'Record Payment with ₹500 Discount' })
+  await vi.waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(save)
+  const regular = await screen.findByRole('dialog')
+  expect(within(regular).getByRole('heading', { name: /Record a Payment/ })).toBeTruthy()
+  expect(screen.queryByRole('heading', { name: 'Confirm a Discount over ₹500?' })).toBeNull()
+  fireEvent.click(within(regular).getByRole('button', { name: 'Keep editing' }))
+
+  fireEvent.change(discount, { target: { value: '500.01' } })
+  await vi.waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(save)
+  expect(await screen.findByRole('heading', { name: 'Confirm a Discount over ₹500?' })).toBeTruthy()
+})
+
+test('an over-balance Discount is capped after cash and confirmed before a large Discount', async () => {
+  let saved: PaymentIn | undefined
+  const backend = server({
+    'POST /api/payments': async (request: Request) => {
+      saved = (await request.json()) as PaymentIn
+      return { ...saved, id: 9, customer: { kind: 'customer', id: 3, name: customer.name }, allocations: [], voided_at: null, void_reason: null }
+    },
+  })
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.change(await screen.findByLabelText('Amount received (₹)'), { target: { value: '50000' } })
+  fireEvent.change(await screen.findByLabelText('Discount for 2026GoldChain'), { target: { value: '3000' } })
+  const save = await screen.findByRole('button', { name: 'Record Payment of ₹50,000 with ₹3,000 Discount' })
+  await vi.waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(save)
+  const cap = await screen.findByRole('heading', { name: 'Reduce Discount to the remaining balance?' })
+  expect(cap).toBeTruthy()
+  expect(saved).toBeUndefined()
+  fireEvent.click(screen.getByRole('button', { name: 'Reduce and continue' }))
+
+  const large = await screen.findByRole('dialog')
+  expect(within(large).getByRole('heading', { name: 'Confirm a Discount over ₹500?' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  const regular = await screen.findByRole('dialog')
+  expect(within(regular).getByRole('heading', { name: /Record a Payment of/ })).toBeTruthy()
+  fireEvent.click(within(regular).getByRole('button', { name: 'Confirm and save' }))
+  await vi.waitFor(() => expect(saved?.allocations).toEqual([{ mortgage_id: 7, amount: 5_000_000, discount: 150_000 }]))
+})
+
+test('declining the cap or the large-Discount confirmation saves nothing', async () => {
+  let saves = 0
+  const backend = server({
+    'POST /api/payments': async (request: Request) => {
+      saves += 1
+      return { ...((await request.json()) as Record<string, unknown>), id: 9, customer: { kind: 'customer', id: 3, name: customer.name }, allocations: [], voided_at: null, void_reason: null }
+    },
+  })
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  const discount = await screen.findByLabelText('Discount for 2026GoldChain')
+  fireEvent.change(discount, { target: { value: '52000' } })
+  let save = await screen.findByRole('button', { name: 'Record Payment with ₹52,000 Discount' })
+  await vi.waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(save)
+  await screen.findByRole('heading', { name: 'Reduce Discount to the remaining balance?' })
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  expect(saves).toBe(0)
+
+  fireEvent.change(discount, { target: { value: '501' } })
+  save = await screen.findByRole('button', { name: 'Record Payment with ₹501 Discount' })
+  await vi.waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(save)
+  const large = await screen.findByRole('dialog')
+  await within(large).findByRole('heading', { name: 'Confirm a Discount over ₹500?' })
+  fireEvent.click(within(large).getByRole('button', { name: 'Keep editing' }))
+  expect(saves).toBe(0)
+})
+
 // --- Each Mortgage's one figure: its Outstanding on the Payment date.
 
 const ring = { ...row, id: 8, name: '2026GoldRing', outstanding_total: 2_000_000 }

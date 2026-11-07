@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   type Closure,
@@ -11,6 +11,7 @@ import {
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { CustomerChooser } from '../components/CustomerChooser'
+import { useConfirm } from '../components/useConfirm'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
@@ -91,6 +92,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const methods = usePaymentMethods()
   const [reference, setReference] = useState('')
+  const [confirmCap, capDialog] = useConfirm()
+  const submitAfterCap = useRef(false)
   const changeLedger = useLedgerChange()
 
   // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
@@ -247,13 +250,82 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         ),
       }
     },
+    beforeConfirm: async (payment) => {
+      const largeDiscounts = payment.allocations.filter(
+        (allocation) => allocation.discount > 50_000,
+      )
+      if (largeDiscounts.length === 0) return true
+      return confirmCap({
+        title: 'Confirm a Discount over ₹500?',
+        body: (
+          <Summary
+            rows={largeDiscounts.map((allocation): [string, string] => [
+              chosen.find((m) => m.id === allocation.mortgage_id)?.name ?? '',
+              formatINR(allocation.discount),
+            ])}
+          />
+        ),
+        confirmLabel: 'Continue',
+      })
+    },
     save: (asked) => changeLedger((client) => changes.recordPayment(client, asked)),
     saved: (payment) => navigate(`/payments/${payment.id}/receipt`),
   })
 
+  // After accepting the cap, wait for the edited draft's Preview before continuing through
+  // the usual cash warning, large-Discount confirmation, and Payment confirmation.
+  useEffect(() => {
+    if (!submitAfterCap.current || !canSave) return
+    submitAfterCap.current = false
+    void submit({ preventDefault() {} } as React.FormEvent)
+  }, [canSave, submit])
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    if (!proposed || !canSave) return
+    const caps = new Map(
+      chosen.map((mortgage, index) => [
+        mortgage.id,
+        Math.max(0, outstanding[index] - (amounts?.[index] ?? 0)),
+      ]),
+    )
+    const capped = proposed.allocations
+      .map((allocation) => ({
+        ...allocation,
+        discount: Math.min(allocation.discount, caps.get(allocation.mortgage_id) ?? 0),
+      }))
+    if (capped.some((allocation, index) => allocation.discount < proposed.allocations[index].discount)) {
+      const over = proposed.allocations.filter((allocation, index) => allocation.discount > capped[index].discount)
+      const accepted = await confirmCap({
+        title: 'Reduce Discount to the remaining balance?',
+        body: (
+          <Summary
+            rows={over.map((allocation): [string, string] => [
+              chosen.find((m) => m.id === allocation.mortgage_id)?.name ?? '',
+              `${formatINR(allocation.discount)} → ${formatINR(caps.get(allocation.mortgage_id) ?? 0)}`,
+            ])}
+          />
+        ),
+        confirmLabel: 'Reduce and continue',
+      })
+      if (!accepted) return
+      setDiscountText(
+        Object.fromEntries(
+          capped.map((allocation) => [
+            allocation.mortgage_id,
+            paiseToRupees(allocation.discount),
+          ]),
+        ),
+      )
+      submitAfterCap.current = true
+      return
+    }
+    await submit(event)
+  }
+
   return (
     <>
-      <form onSubmit={submit}>
+      <form onSubmit={handleSubmit}>
         <div className="grid-3">
           <label>
             Date received
@@ -466,6 +538,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           <p className="status error">{error ?? listed.error?.message}</p>
         )}
         {confirmDialog}
+        {capDialog}
       </form>
     </>
   )
