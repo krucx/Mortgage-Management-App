@@ -146,6 +146,10 @@ _Avoid_: Invoice, bill
 The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date (paid ahead of that month's interest), then Principal.
 _Avoid_: Split, contribution
 
+**Discount**:
+A non-cash reduction to what a Customer owes on a Mortgage, recorded with a Payment and applied after its cash Allocation: first to unpaid interest, then the Interest to Date, then Principal.
+_Avoid_: Waiver (a Discount does not itself close a Mortgage)
+
 **Cash Limit**:
 The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage's Principal lent.
 _Avoid_: Cash cap, cash ceiling
