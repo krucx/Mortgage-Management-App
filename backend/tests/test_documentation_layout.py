@@ -21,7 +21,7 @@ def test_canonical_domain_docs_and_architecture_records_are_present():
 
     adr_dir = DOCUMENTATION / "adr"
     adrs = sorted(adr_dir.glob("*.md"))
-    assert [path.stem[:4] for path in adrs] == [f"{number:04d}" for number in range(1, 17)]
+    assert [path.stem[:4] for path in adrs] == [f"{number:04d}" for number in range(1, 18)]
     assert all(path.read_text().strip() for path in adrs)
     assert "The Ledger is derived, not stored" in (
         adr_dir / "0001-ledger-is-derived-not-stored.md"
