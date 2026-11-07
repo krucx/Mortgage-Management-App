@@ -94,7 +94,7 @@ def report(api: TestClient) -> None:
     print("\nLesson 5: chain History:")
     for h in api.get(f"/api/mortgages/{chain['id']}/history").json()[:20]:
         print("  ", h)
-    print("\nNotices:", str(api.get("/api/notices").json())[:800])
+    print("\nReminders:", str(api.get("/api/reminders").json())[:800])
     print("\nPayments:")
     for p in api.get("/api/payments", params={"limit": 100}).json()["items"]:
         print("  ", {k: p.get(k) for k in ("paid_on", "customer", "amount", "method", "voided", "void_reason",

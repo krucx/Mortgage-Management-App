@@ -97,7 +97,7 @@ grep -E '^FAILED tests/test_call_list' "$WT/l3.txt"
 undo
 
 section "L3 the three layers' speed"
-for f in test_ledger test_notices test_call_list; do (cd "$B" && printf '%s: ' $f && uv run pytest -q -p no:cacheprovider tests/$f.py | tail -1); done
+for f in test_ledger test_reminders test_call_list; do (cd "$B" && printf '%s: ' $f && uv run pytest -q -p no:cacheprovider tests/$f.py | tail -1); done
 
 section "L4 the reader's page test"
 cat > "$F/tests/TryMortgagePage.test.tsx" <<'EOF'
@@ -237,5 +237,5 @@ section "99 add_payment records every Payment on the tests' today (20 Apr 2026)"
 sed -i.bak '110s/        paid_on,/        date(2026, 4, 20),/' "$B/tests/seed.py"
 sed -n '108,112p' "$B/tests/seed.py"
 pytest_summary
-(cd "$B" && uv run pytest -q -p no:cacheprovider tests/test_notices.py 2>&1 | grep -E 'HTTPException|cannot be in the future' | sort -u | head -3)
+(cd "$B" && uv run pytest -q -p no:cacheprovider tests/test_reminders.py 2>&1 | grep -E 'HTTPException|cannot be in the future' | sort -u | head -3)
 undo

@@ -132,7 +132,7 @@ flowchart LR
 105      "mortgages",
 106      "total_owed",
 107  )
-108  NOTICE_PLACEHOLDERS = ("customer_name", "date", "interest", "mortgages", "total_owed")
+108  REMINDER_PLACEHOLDERS = ("customer_name", "date", "interest", "mortgages", "total_owed")
 109
 110  _PLACEHOLDER = re.compile(r"\{(\w+)\}")
 111  _BRACED = re.compile(r"\{[^{}]*\}?")  # a brace, up to the next brace or closing one   ①
@@ -166,7 +166,7 @@ flowchart LR
 ⋮
 80      for name, template, allowed in (
 81          ("Receipt", settings.receipt_template, RECEIPT_PLACEHOLDERS),
-82          ("Reminder", settings.reminder_template, NOTICE_PLACEHOLDERS),
+82          ("Reminder", settings.reminder_template, REMINDER_PLACEHOLDERS),
 83      ):
 84          if unknown := unknown_placeholders(template, allowed):
 85              usable = " ".join("{" + placeholder + "}" for placeholder in allowed)
@@ -187,7 +187,7 @@ flowchart LR
 110          return MESSAGE_SETTINGS.get(conn)
 </code></pre>
 </figure>
-<p>The refusal names each bad brace and lists the usable ones, so the Lender can fix it. <code>GET /api/settings/messages/placeholders</code> (line 113) publishes both lists, and the Settings page shows them. The defaults are <code>RECEIPT_TEMPLATE</code> and <code>NOTICE_TEMPLATE</code> (lines 20–41); <code>MessageSettings</code> (line 44) uses them until the Lender saves their own, and refuses an empty template (<code>min_length=1</code>).</p>
+<p>The refusal names each bad brace and lists the usable ones, so the Lender can fix it. <code>GET /api/settings/messages/placeholders</code> (line 113) publishes both lists, and the Settings page shows them. The defaults are <code>RECEIPT_TEMPLATE</code> and <code>REMINDER_TEMPLATE</code> (lines 20–41); <code>MessageSettings</code> (line 44) uses them until the Lender saves their own, and refuses an empty template (<code>min_length=1</code>).</p>
 
 <h3>5. Out to WhatsApp</h3>
 <figure class="snippet">

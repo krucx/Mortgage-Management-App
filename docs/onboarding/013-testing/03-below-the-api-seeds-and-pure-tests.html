@@ -15,7 +15,7 @@
 <div class="callout win"><strong>By the end</strong> you can choose the layer for a test (pure, <code>seed</code> with <code>conn</code>, or <code>client</code> with <code>api_seed</code>) and seed a realistic history.</div>
 
 <h2>The problem</h2>
-<p>Notices are queued a few days before each <dfn class="term" title="The day each month on which a Mortgage's interest is added: the same day of the month as its start date."><a href="../reference/glossary.html#accrual-date">Accrual Date</a></dfn> by a function, <code>notices.sync</code>, that the daily run calls (<a href="../009-follow-up/03-the-notice-queue.html">chapter 009</a>). There's no route that means "run sync on 12 May". To test it through the API, you'd have to build an app whose today is 12 May, and another for 13 May, and so on. And the Ledger engine is pure arithmetic: going through HTTP and a database to test that 3% of ₹1,00,000 is ₹3,000 is slow and hides the arithmetic behind a lot of machinery.</p>
+<p>Reminders are queued a few days before each <dfn class="term" title="The day each month on which a Mortgage's interest is added: the same day of the month as its start date."><a href="../reference/glossary.html#accrual-date">Accrual Date</a></dfn> by a function, <code>reminders.sync</code>, that the daily run calls (<a href="../009-follow-up/03-the-notice-queue.html">chapter 009</a>). There's no route that means "run sync on 12 May". To test it through the API, you'd have to build an app whose today is 12 May, and another for 13 May, and so on. And the Ledger engine is pure arithmetic: going through HTTP and a database to test that 3% of ₹1,00,000 is ₹3,000 is slow and hides the arithmetic behind a lot of machinery.</p>
 <p>So test below the API. But then where does the test data come from? The obvious answer is to <code>INSERT</code> rows straight into the tables. That's fast, and dangerous: an insert happily writes a Payment larger than what was owed, or a Customer on someone else's Primary Number. The app would never allow either. A test that starts from a state the app can't reach proves nothing about the app.</p>
 
 <h2>The idea</h2>
@@ -27,7 +27,7 @@
 <pre class="mermaid">
 flowchart TD
   Q{"What are you testing?"} -->|"a figure or rule of<br/>the Ledger engine"| PURE["pure: compute_ledger, project…<br/>test_ledger.py · no database"]
-  Q -->|"a function with no route,<br/>or a long history on many dates"| CONN["conn + seed.py<br/>test_notices.py"]
+  Q -->|"a function with no route,<br/>or a long history on many dates"| CONN["conn + seed.py<br/>test_reminders.py"]
   Q -->|"a route, a refusal's status,<br/>what the frontend receives"| API["client + api_seed.py<br/>test_cash_limit.py, test_call_list.py"]
   CONN -->|"add_payment → changes.record_payment"| CH["lending/changes.py<br/>(the same functions the routes call)"]
   API -->|"POST /api/payments → route → record_payment"| CH
@@ -164,8 +164,8 @@ flowchart TD
 
 <h3>4. A <code>conn</code> test, and a pure one</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_notices.py">backend/tests/test_notices.py</a> · its own today, and its first test · lines 33–69, trimmed</figcaption>
-<pre data-file="backend/tests/test_notices.py"><code>33  TODAY = date(2026, 5, 12)                                      # ① not conftest's
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_reminders.py">backend/tests/test_reminders.py</a> · its own today, and its first test · lines 33–69, trimmed</figcaption>
+<pre data-file="backend/tests/test_reminders.py"><code>33  TODAY = date(2026, 5, 12)                                      # ① not conftest's
 ⋮
 53  def test_a_notice_is_queued_days_before_the_accrual_date(conn: Connection) -&gt; None:
 54      ramesh = add_customer(conn)
@@ -173,7 +173,7 @@ flowchart TD
 56
 57      sync(conn, date(2026, 5, 12))                              # ③  ◀
 58
-59      [notice] = list_notices(conn)                              # ④
+59      [notice] = list_reminders(conn)                              # ④
 60      assert (notice.customer.name, notice.accrues_on, notice.status) == (
 61          "Ramesh Kumar",
 62          date(2026, 5, 14),
@@ -221,7 +221,7 @@ flowchart TD
 <table class="steps text">
 <tr><th>You're adding…</th><th>Layer</th><th>Why</th><th>Example</th></tr>
 <tr><td>A new Ledger figure: how a Term Change, a part month or Capitalisation works out</td><td>pure</td><td>The engine is pure; give it facts, compare steps. No machinery to get in the way</td><td><code>test_ledger.py</code></td></tr>
-<tr><td>A function the daily run calls, or anything that needs a history over many dates</td><td><code>conn</code> + <code>seed.py</code></td><td>Each seed and each call takes its own date; no app needs building for each day</td><td><code>test_notices.py</code></td></tr>
+<tr><td>A function the daily run calls, or anything that needs a history over many dates</td><td><code>conn</code> + <code>seed.py</code></td><td>Each seed and each call takes its own date; no app needs building for each day</td><td><code>test_reminders.py</code></td></tr>
 <tr><td>A new refusal</td><td><code>client</code> + <code>api_seed.py</code></td><td>The Lender meets it as a status code and a message from a route; test that</td><td><code>test_cash_limit.py</code> line 31</td></tr>
 <tr><td>A new route, or a field in an answer</td><td><code>client</code> + <code>api_seed.py</code></td><td>Checks the route, its models and the logic in one go</td><td><code>test_call_list.py</code></td></tr>
 </table>
@@ -229,7 +229,7 @@ flowchart TD
 <table class="steps">
 <tr><th>File</th><th>Layer</th><th>Tests</th><th>Time</th><th>Per test</th></tr>
 <tr><td><code>test_ledger.py</code></td><td>pure</td><td>84</td><td>0.02 s</td><td>0.0002 s</td></tr>
-<tr><td><code>test_notices.py</code></td><td><code>conn</code> (mostly)</td><td>34</td><td>1.58 s</td><td>0.05 s</td></tr>
+<tr><td><code>test_reminders.py</code></td><td><code>conn</code> (mostly)</td><td>34</td><td>1.58 s</td><td>0.05 s</td></tr>
 <tr><td><code>test_call_list.py</code></td><td><code>client</code></td><td>12</td><td>0.79 s</td><td>0.07 s</td></tr>
 </table>
 <p class="cite">Times from <code>uv run pytest -q tests/&lt;file&gt;</code> on a laptop, at the commit on the <a href="index.html">overview</a>.</p>
@@ -239,10 +239,10 @@ flowchart TD
 <h3>a. Why the tests hold today still (trap #17)</h3>
 <p>Every <code>client</code> test runs on 20 Apr 2026, because <code>conftest.TODAY</code> says so. Many of their expected figures depend on it: "three months unpaid", "accrues today", a Call Note "dated today".</p>
 <div class="reveal">
-  <p><strong>Predict:</strong> in <code>conftest.py</code>, change line 11 to <code>TODAY = date(2026, 4, 21)</code>, one day later. Of the 709 tests, how many fail, and does <code>test_notices.py</code> fail?</p>
+  <p><strong>Predict:</strong> in <code>conftest.py</code>, change line 11 to <code>TODAY = date(2026, 4, 21)</code>, one day later. Of the 709 tests, how many fail, and does <code>test_reminders.py</code> fail?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p><strong>48 failed, 661 passed.</strong> None of them in <code>test_notices.py</code>.</p>
+    <p><strong>48 failed, 661 passed.</strong> None of them in <code>test_reminders.py</code>.</p>
     <table class="steps">
     <tr><th>File</th><th>Failed</th></tr>
     <tr><td><code>test_call_list_sheets</code></td><td>14</td></tr>
@@ -259,7 +259,7 @@ E     Right contains one more item: ('2026-Ramesh-GoldChain', ['accrues_today'])
 
 test_call_notes_are_kept_on_the_mortgage_newest_first
 E   AssertionError: assert [('2026-04-21... 'No answer')] == [('2026-04-20... 'No answer')]</code></pre>
-    <p>A Mortgage started on 20 Mar accrues on 20 Apr, not 21 Apr; a Call Note is dated the app's today. Nothing in the app broke: the tests' expectations are about 20 Apr. If <code>TODAY</code> were the computer's real date, these 48 would fail on most days of the year. <code>test_notices.py</code> doesn't care, because its tests are <code>conn</code> tests that pass every date themselves. Put line 11 back with <code>git checkout -- tests/conftest.py</code>.</p>
+    <p>A Mortgage started on 20 Mar accrues on 20 Apr, not 21 Apr; a Call Note is dated the app's today. Nothing in the app broke: the tests' expectations are about 20 Apr. If <code>TODAY</code> were the computer's real date, these 48 would fail on most days of the year. <code>test_reminders.py</code> doesn't care, because its tests are <code>conn</code> tests that pass every date themselves. Put line 11 back with <code>git checkout -- tests/conftest.py</code>.</p>
   </div>
 </div>
 <p class="cite">From <code>scripts/run_throughs.sh</code>, section L3.</p>
@@ -278,7 +278,7 @@ E   AssertionError: assert [('2026-04-21... 'No answer')] == [('2026-04-20... 'N
 <div class="quiz" data-answer="2">
   <p class="q">You're adding a rule to the Ledger engine: a part month at the end of a Mortgage is charged by the day. Where does its first test go?</p>
   <button class="opt"><code>test_closing.py</code>, Redeeming through <code>client</code></button>
-  <button class="opt"><code>test_notices.py</code>, seeding with <code>seed.py</code></button>
+  <button class="opt"><code>test_reminders.py</code>, seeding with <code>seed.py</code></button>
   <button class="opt"><code>test_ledger.py</code>, calling <code>compute_ledger</code></button>
   <div class="why">A figure the engine computes is tested pure: facts in, steps out, in a fraction of a millisecond, with no database to get in the way. Add a test through the API too if a route's answer changes, but the rule itself belongs with the engine.</div>
 </div>

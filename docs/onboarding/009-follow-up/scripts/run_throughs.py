@@ -39,7 +39,7 @@ from mortgage_backend.follow_up.message_settings import (  # noqa: E402
     template_refusal,
 )
 from mortgage_backend.follow_up.messages import (  # noqa: E402
-    NOTICE_PLACEHOLDERS,
+    REMINDER_PLACEHOLDERS,
     ReminderLine,
     ReminderMessage,
     fill,
@@ -502,7 +502,7 @@ def report(built: Path) -> None:
         print(f"     | {line}")
     print("   unknown_placeholders and fill:")
     for t in ("Namaste {name}", "Pay { amount } by {date", "{interest} on {date}", "{customer_name}{{x}}"):
-        print(f"     {t!r}: unknown={unknown_placeholders(t, NOTICE_PLACEHOLDERS)}"
+        print(f"     {t!r}: unknown={unknown_placeholders(t, REMINDER_PLACEHOLDERS)}"
               f" fill={fill(t, {'date': '21 Oct 2026', 'interest': '₹700'})!r}")
     print("   template_refusal:", template_refusal(MessageSettings(reminder_template="Namaste {name}")))
     l5 = Copy(built, "l5")

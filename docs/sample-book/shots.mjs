@@ -158,7 +158,7 @@ await shot('settings-discount', card(4))
 await shot('settings-messages', card(5), {
   template: card(5).locator('textarea').first(),
   preview: card(5).locator('.whatsapp, .bubble, [class*=preview]').first(),
-  approve: card(5).getByText('Approve each Notice', { exact: false }),
+  approve: card(5).getByText('Approve each Reminder', { exact: false }),
 })
 await shot('settings-backups', card(6), { last: card(6).locator('dl, table, p').filter({ hasText: 'mortgage-backup' }) })
 
@@ -426,10 +426,10 @@ await page.unroute('**/api/update')
 // Scenes that change the book -------------------------------------------------------------
 
 // Sunita's Notice: read, approved, then To send.
-await open('/notices')
+await open('/reminders')
 await page.getByLabel('To approve', { exact: true }).click()
 await settle()
-await shot('notices', card(), {
+await shot('reminders', card(), {
   tabs: card().locator('label', { hasText: 'To approve' }).locator('..'),
   row: card().locator('tbody tr').first(),
 })
@@ -440,7 +440,7 @@ await dialog().getByRole('button', { name: 'Approve' }).click()
 await settle()
 await page.getByLabel('To send', { exact: true }).click()
 await settle()
-await shot('notices-send', card(), { send: card().getByRole('button', { name: /Send/ }).first() })
+await shot('reminders-send', card(), { send: card().getByRole('button', { name: /Send/ }).first() })
 
 // Arjun pays his chain's whole Outstanding: it is Redeemed with the Payment.
 await open('/payments/new?customer=2')

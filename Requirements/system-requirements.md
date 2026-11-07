@@ -1,6 +1,6 @@
 Mortgage Management system
 
-To build a jewellery mortgage management system for the loaner to manage and keep track of the different mortgages and payments etc. automatically - with functionality to automatically send reminder for payments,
+To build a jewellery mortgage management system for the Lender to manage and keep track of Mortgages and Payments, with Reminders prepared before Accrual Dates for the Lender to review and send,
 And which mortgages to call for repayments everyday. Also all information can be combined in a clean UI where the loaner can add customer, new mortgages, payments for one or more existing mortgages, and also a dashboard
 to view the KPIs and metrics for the total loan portfolio. Keep it such a way that the data is saved on the loaners laptop only - with functionality of backing it up every Sunday by sending it initially over the mail to the loaners account as attachment
 
@@ -9,7 +9,7 @@ Database Model:
 2. Mortgage : customer_id, mortgage_id, item_name, item_photo, description, weight, mortgage_amount, current_product_value, rate_of_interest, date_of_mortgage
 3. Payments : customer_id, mortgage_id, amount_recieved, payment_date
 4. MortgageLedger : mortgage_id, principal, interest, event (Interest added, Payment done)
-5. Notices : notice_id, customer_id, mortgage_id, notice_message, notice_date
+5. Reminders : reminder_id, customer_id, mortgage_id, reminder_message, reminder_date
 
 In the database model - the reference is the person from who we got the loanee - can be an existing customer too
 The default rate_of_interest is 3% monthly - compounded yearly (this should be given as a setting to change)
@@ -40,9 +40,9 @@ Accept payments flow:
 Edit customer or mortgage flow:
 - On the UI allow the loanee to see the customer and mortgage details and give intuitive interface to allow it to edit them safely
 
-Send notices and makes calls for payments flow:
-Notice for payments to be sent monthly automatically to the customers 2 days prior to their interest date - have a setting config to send automatically or only after the loanee approves the notifs on the UI
-This page should also show a dashboard everyday to show what payments are due that day for making calls thereby showing the customer number to call them
+Send reminders and makes calls for payments flow:
+Prepare a Reminder for each Customer before an Accrual Date, including only their Active Mortgages that accrue on that date. The Lender can choose whether each Reminder needs approval before sending it on WhatsApp. Closed or otherwise ineligible Mortgages are excluded from unsent Reminders; sent and skipped Reminders remain as history.
+This page should also show the day's Call List and the Customer numbers to call.
 
 Main Dashboard page:
 The loanee should be able to see the full mortgage portfolio here with the appropriate KPIs as the total amount given, payments due today, interest earned, customers, value of the collateral etc.

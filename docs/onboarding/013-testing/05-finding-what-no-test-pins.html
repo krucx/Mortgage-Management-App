@@ -10,7 +10,7 @@
 <body>
 <p class="kicker">Chapter 013 · Lesson 5</p>
 <h1>Finding what no test pins</h1>
-<p class="lede">709 passing tests tell you nothing about a line that none of them reaches. This lesson is a quick, honest way to find out whether a line is <em>pinned</em> (held in place by a test that fails if it changes): break it on purpose and see whether anything notices. Then you write the missing test, on two real lines.</p>
+<p class="lede">709 passing tests tell you nothing about a line that none of them reaches. This lesson is a quick, honest way to find out whether a line is <em>pinned</em> (held in place by a test that fails if it changes): break it on purpose and see whether anything reminders. Then you write the missing test, on two real lines.</p>
 
 <div class="callout win"><strong>By the end</strong> you can check whether a line is pinned by a test, and write the missing test.</div>
 
@@ -82,7 +82,7 @@ flowchart TD
   <p><strong>Predict:</strong> 708 tests remain. How many fail?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p><strong>708 passed.</strong> Not one test notices that a Mortgage at exactly 85% is now on the Call List. <code>test_a_mortgage_with_loan_to_value_too_high_is_listed</code> still passes: its risky Mortgage is at 107%, far from the line, and its safe one at 82%.</p>
+    <p><strong>708 passed.</strong> Not one test reminders that a Mortgage at exactly 85% is now on the Call List. <code>test_a_mortgage_with_loan_to_value_too_high_is_listed</code> still passes: its risky Mortgage is at 107%, far from the line, and its safe one at 82%.</p>
   </div>
 </div>
 <p class="cite">From <code>scripts/run_throughs.sh</code>, section L5.</p>
@@ -179,7 +179,7 @@ def test_a_mortgage_owing_a_rupee_over_85_percent_is_listed(client, ramesh):
 186         )
 </code></pre>
 </figure>
-<p>But every caller (the Dormant list in <code>closing.py</code>, the Call List, the Notices) only ever passes it Active Mortgages: <code>closing.py</code> line 64 selects <code>.where(mortgage_table.c.status == MortgageStatus.ACTIVE)</code> before it asks. So deleting line 184 changed no answer any route gave, and no test failed. That was <a href="https://github.com/krucx/Mortgage-Management-App/issues/113">#113</a>.</p>
+<p>But every caller (the Dormant list in <code>closing.py</code>, the Call List, the Reminders) only ever passes it Active Mortgages: <code>closing.py</code> line 64 selects <code>.where(mortgage_table.c.status == MortgageStatus.ACTIVE)</code> before it asks. So deleting line 184 changed no answer any route gave, and no test failed. That was <a href="https://github.com/krucx/Mortgage-Management-App/issues/113">#113</a>.</p>
 <div class="reveal">
   <p><strong>Predict:</strong> today, delete line 184 (keep <code>self.outstanding(on).total == 0</code>) and run the backend tests. What fails?</p>
   <button class="show">I've made my prediction. Show me.</button>

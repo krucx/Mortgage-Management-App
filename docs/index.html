@@ -168,7 +168,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
 <header class="intro">
   <div class="eyebrow">Mortgage Management 3.4.2 · documentation</div>
   <h1>Mortgage Management</h1>
-  <p class="lede">A lending book for a jeweller who lends against gold. One Lender keeps every Customer, every pledged packet of jewellery, every Payment and every follow-up in one app on their own laptop. The app works out what each Mortgage owes on any date, prepares the day's Notices and phone calls, and keeps every change.</p>
+  <p class="lede">A lending book for a jeweller who lends against gold. One Lender keeps every Customer, every pledged packet of jewellery, every Payment and every follow-up in one app on their own laptop. The app works out what each Mortgage owes on any date, prepares the day's Reminders and phone calls, and keeps every change.</p>
   <div class="facts">
     <span>Version: <b>3.4.2</b></span>
     <span>Runs on: <b>the Lender's laptop, Windows or anywhere with Docker</b></span>
@@ -217,12 +217,12 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <h2 id="overview-title">What it is</h2>
     <p>A Customer pledges a packet of jewellery and borrows against it. That loan is a Mortgage. Interest is added each month on its Accrual Date. Payments come in, sometimes one sum for several Mortgages. Each Mortgage ends when the jewellery goes home or is kept.</p>
   </div>
-  <div class="life" role="img" aria-label="The life of a Mortgage: a Customer pledges jewellery, interest accrues on each Accrual Date, Notices and the Call List follow up, Payments are allocated, and the Mortgage is Redeemed, Waived off or Forfeited.">
+  <div class="life" role="img" aria-label="The life of a Mortgage: a Customer pledges jewellery, interest accrues on each Accrual Date, Reminders and the Call List follow up, Payments are allocated, and the Mortgage is Redeemed, Waived off or Forfeited.">
     <div class="life-track">
       <div class="life-step"><b>Customer</b><span>Known by their Primary Number, maybe introduced by a Referrer</span></div>
       <div class="life-step"><b>Mortgage</b><span>One packet of jewellery, weighed and valued, on its Terms</span></div>
       <div class="life-step"><b>Accrual Dates</b><span>Interest added monthly; capitalised by the Interest Mode</span></div>
-      <div class="life-step"><b>Follow-up</b><span>Notices before each Accrual Date; the Call List each day</span></div>
+      <div class="life-step"><b>Follow-up</b><span>Reminders before each Accrual Date; the Call List each day</span></div>
       <div class="life-step"><b>Payments</b><span>One sum split across Mortgages, interest first</span></div>
       <div class="life-step"><b>Closure</b><span>Redeemed or Waived off and handed back, or Forfeited</span></div>
     </div>
@@ -272,7 +272,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </article>
 
     <article class="feature" style="--tone: var(--accent)">
-      <img src="shots/settings-messages.webp" width="1068" height="1116" alt="WhatsApp message settings: the Receipt and Notice templates with live previews." loading="lazy">
+      <img src="shots/settings-messages.webp" width="1068" height="1116" alt="WhatsApp message settings: the Receipt and Reminder templates with live previews." loading="lazy">
       <div class="feature-body">
         <h3>Settings</h3>
         <p>The Lender's house rules, set once and applied everywhere.</p>
@@ -368,9 +368,9 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </article>
 
     <article class="feature" style="--tone: var(--warning)">
-      <img src="shots/notices-send.webp" width="1068" height="374" alt="Notices, To send: a Notice with a green WhatsApp Send button beside Skip." loading="lazy">
+      <img src="shots/reminders-send.webp" width="1068" height="374" alt="Reminders, To send: a Reminder with a green WhatsApp Send button beside Skip." loading="lazy">
       <div class="feature-body">
-        <h3>Notices</h3>
+        <h3>Reminders</h3>
         <p>A WhatsApp message to each Customer ahead of an Accrual Date, covering every Mortgage accruing that day.</p>
         <ul>
           <li>Queued daily, a set number of days ahead</li>
@@ -481,16 +481,16 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </details>
 
     <details class="flow">
-      <summary><b>Each morning: follow up</b><span>Notices to send and calls to make</span></summary>
+      <summary><b>Each morning: follow up</b><span>Reminders to send and calls to make</span></summary>
       <div class="flow-body">
         <ol class="steps">
-          <li><span>Open the app. The Dashboard's <span class="ui">Follow-up</span> tile shows today's Call List and the Notices waiting.</span></li>
-          <li><span><span class="ui">Notices</span>: on <span class="ui">To approve</span> (if approve-first is on), read each and approve or skip it. On <span class="ui">To send</span>, press the green WhatsApp <span class="ui">Send</span>; WhatsApp opens with the message ready.</span></li>
+          <li><span>Open the app. The Dashboard's <span class="ui">Follow-up</span> tile shows today's Call List and the Reminders waiting.</span></li>
+          <li><span><span class="ui">Reminders</span>: on <span class="ui">To approve</span> (if approve-first is on), read each and approve or skip it. On <span class="ui">To send</span>, press the green WhatsApp <span class="ui">Send</span>; WhatsApp opens with the message ready.</span></li>
           <li><span><span class="ui">Call List</span>: read why each Mortgage is listed, then <span class="ui">Call</span> or open a WhatsApp chat.</span></li>
           <li><span>After each call, <span class="ui">Mark called…</span> and note what was said. If someone else makes the calls, <span class="ui">Export to Excel</span> or <span class="ui">Export to PDF</span> gives them the day's Call Sheet; then <span class="ui">Import Call Notes from Excel</span> when it comes back filled in.</span></li>
           <li><span>A red dot on <span class="ui">Closures</span>: a Mortgage is Dormant, owing nothing though its jewellery is held. Check it, then <span class="ui">Redeem…</span> it (or correct the Payment that slipped).</span></li>
         </ol>
-        <p class="tip">The first time the app is opened each day, its daily run queues that day's Notices and takes the weekly Backup when one is due. Days the app wasn't opened are made up then.</p>
+        <p class="tip">The first time the app is opened each day, its daily run queues that day's Reminders and takes the weekly Backup when one is due. Days the app wasn't opened are made up then.</p>
       </div>
     </details>
 
@@ -589,7 +589,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div class="nuance"><b>The final Payment includes the Interest to Date</b><span>Redeeming records the Outstanding on the Closure date as a Payment, so the Receipt and the Ledger agree. A Waived Amount and a Forfeiture's profit or loss are worked out from that Outstanding too.</span></div>
         <div class="nuance"><b>A Waiver is the Lender's choice</b><span>What the Customer pays is the final Payment; the rest is let off and counted on the Dashboard. Paying the full amount is a Redemption, not a Waiver.</span></div>
         <div class="nuance"><b>No closing before a later Payment</b><span>A Closure can't be dated before a Payment already recorded on that Mortgage.</span></div>
-        <div class="nuance rule"><b>Dormant is flagged, not Redeemed</b><span>An Active Mortgage owing nothing is Dormant: worked out, never stored, it gets no Notices, stays off the Call List and waits on Closures until the Lender Redeems it or it owes again.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR-0012</a></div>
+        <div class="nuance rule"><b>Dormant is flagged, not Redeemed</b><span>An Active Mortgage owing nothing is Dormant: worked out, never stored, it gets no Reminders, stays off the Call List and waits on Closures until the Lender Redeems it or it owes again.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR-0012</a></div>
         <div class="nuance"><b>Cash is warned about, not refused</b><span>Lending or receiving the Cash Limit or more in cash (₹20,000 unless changed) asks first, as Government of India rules ask for UPI or bank transfer. Nothing is refused.</span></div>
         <div class="nuance"><b>Closed means locked</b><span>A closed Mortgage takes no Payments, accrues nothing, and its start date and Principal can't be edited until it is Reopened.</span></div>
       </div>
@@ -623,9 +623,9 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <h3>Messages</h3>
       <div class="nuances">
         <div class="nuance rule"><b>The app never sends by itself</b><span>WhatsApp opens with the message ready and the Lender presses Send. No WhatsApp account setup or API is needed.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR-0002</a></div>
-        <div class="nuance"><b>Customers see their jewellery, not codes</b><span>Receipts and Notices name each Mortgage by its description ("Gold chain"), never its Mortgage Name.</span></div>
+        <div class="nuance"><b>Customers see their jewellery, not codes</b><span>Receipts and Reminders name each Mortgage by its description ("Gold chain"), never its Mortgage Name.</span></div>
         <div class="nuance"><b>Templates can't break</b><span>A template with a placeholder the app can't fill is refused on save, so a Customer never receives <code>{typo}</code>.</span></div>
-        <div class="nuance"><b>Notices always match today</b><span>Until it is sent, a Notice's amounts and wording are worked out each time it is read, so a later Payment or edit shows in it; if none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on approve-first holds those already queued.</span></div>
+        <div class="nuance"><b>Reminders always match today</b><span>Until it is sent, a Reminder's amounts and wording are worked out each time it is read, so a later Payment or edit shows in it; if none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on approve-first holds those already queued.</span></div>
       </div>
     </div>
 
@@ -666,7 +666,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <div><dt>Allocation</dt><dd>The part of a Payment applied to one Mortgage.</dd></div>
     <div><dt>Final Payment</dt><dd>What a Mortgage is paid as it is Redeemed or Waived off: a part of its own of the Payment it came in, so a Reopen Voids it alone.</dd></div>
     <div><dt>Receipt</dt><dd>The Customer's acknowledgement of a Payment, covering every part of it and marking any jewellery it Redeemed.</dd></div>
-    <div><dt>Notice</dt><dd>A message to a Customer ahead of an Accrual Date, covering every Mortgage accruing that day.</dd></div>
+    <div><dt>Reminder</dt><dd>A message to a Customer ahead of an Accrual Date, covering every Active Mortgage accruing that day.</dd></div>
     <div><dt>Months Unpaid</dt><dd>How many of the latest monthly interest charges are still unpaid.</dd></div>
     <div><dt>Lump Sum</dt><dd>A one-off planned Payment in a Simulation: an amount on a date, beside any monthly amount.</dd></div>
     <div><dt>Simulation</dt><dd>A made-up Mortgage on the Calculator, worked out as a real one's Ledger would be, to size up a loan; never kept.</dd></div>

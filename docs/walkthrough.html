@@ -150,7 +150,7 @@ code, .path { font-family: var(--font-mono); font-size: 0.86em; }
 .wa { background: var(--wa-chat); border-radius: 8px; padding: 0.9rem; }
 .wa pre { margin: 0; background: var(--wa-bubble); color: var(--wa-text); border-radius: 8px; padding: 0.6rem 0.75rem; font: 0.82rem/1.45 var(--font-mono); white-space: pre-wrap; max-width: 21rem; }
 
-/* Notice lifecycle */
+/* Reminder lifecycle */
 .states { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.88rem; }
 .state { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 0.2rem 0.7rem; }
 .state.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
@@ -232,12 +232,12 @@ nav.bar > ol { flex: 1; min-width: 0; }
   <button type="button" class="theme-toggle" id="theme-toggle"></button>
 </nav>
 
-<div class="life" role="img" aria-label="The life of a Mortgage: a Customer pledges jewellery, interest accrues on each Accrual Date, Notices and the Call List follow up, Payments are allocated, and the Mortgage is Redeemed, Waived off or Forfeited.">
+<div class="life" role="img" aria-label="The life of a Mortgage: a Customer pledges jewellery, interest accrues on each Accrual Date, Reminders and the Call List follow up, Payments are allocated, and the Mortgage is Redeemed, Waived off or Forfeited.">
   <div class="life-track">
     <div class="life-step"><i>Stop 3</i><b>Customer</b><span>Known by their Primary Number, maybe introduced by a Referrer</span></div>
     <div class="life-step"><i>Stop 4</i><b>Mortgage</b><span>One packet of jewellery, weighed and valued, on its Terms</span></div>
     <div class="life-step"><i>Stop 5</i><b>Accrual Dates</b><span>Interest added monthly; capitalised by the Interest Mode</span></div>
-    <div class="life-step"><i>Stop 8</i><b>Follow-up</b><span>Notices before each Accrual Date; the Call List each day</span></div>
+    <div class="life-step"><i>Stop 8</i><b>Follow-up</b><span>Reminders before each Accrual Date; the Call List each day</span></div>
     <div class="life-step"><i>Stop 7</i><b>Payments</b><span>One sum split across Mortgages, interest first</span></div>
     <div class="life-step"><i>Stop 9</i><b>Closure</b><span>Redeemed or Waived off and handed back, or Forfeited</span></div>
   </div>
@@ -256,7 +256,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div class="tile" style="--tone: var(--owed)"><span>Principal Outstanding</span><strong data-fig="dashboard.principal">₹3,94,831</strong><small data-fig="dashboard.unpaid">plus ₹7,693 unpaid interest</small></div>
     <div class="tile" style="--tone: var(--money-in)"><span>Interest collected</span><strong data-fig="dashboard.collected">₹14,900</strong><small data-fig="dashboard.collected-year">this month · ₹74,100 this year</small></div>
     <div class="tile" style="--tone: var(--collateral)"><span>Collateral Value</span><strong data-fig="dashboard.collateral">₹11,09,952</strong><small data-fig="dashboard.ltv-tile">Loan-to-Value 36.3%</small></div>
-    <div class="tile" style="--tone: var(--accent)"><span>Follow-up</span><strong data-fig="dashboard.follow">2 · 1</strong><small>on today's Call List · Notices to approve or send</small></div>
+    <div class="tile" style="--tone: var(--accent)"><span>Follow-up</span><strong data-fig="dashboard.follow">2 · 1</strong><small>on today's Call List · Reminders to approve or send</small></div>
     <div class="tile" style="--tone: var(--closed)"><span>Closed in October</span><strong data-fig="dashboard.redeemed">2 Redeemed</strong><small data-fig="dashboard.closed">1 Waived off · 1 Forfeited</small></div>
   </div>
   <div class="cols">
@@ -320,7 +320,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <li><span><span class="ui">Call List</span>: how many Months Unpaid, or how high a Loan-to-Value, puts a Mortgage on the day's Call List.</span></li>
         <li><span><span class="ui">Cash Limit</span>: lending or receiving this much or more in cash asks first, since Government of India rules ask for UPI or bank transfer instead (₹20,000 unless changed; empty for no warning). It only warns.</span></li>
         <li><span><span class="ui">Discount confirmation</span>: ask before recording a per-Mortgage Discount above ₹500. Set another amount or leave it empty to skip this extra confirmation; Discounts remain capped at the remaining Outstanding.</span></li>
-        <li><span><span class="ui">WhatsApp messages</span>: the Receipt and Notice templates with their placeholders, a live preview, how many days ahead Notices are queued, and whether each needs approving first.</span></li>
+        <li><span><span class="ui">WhatsApp messages</span>: the Receipt and Reminder templates with their placeholders, a live preview, how many days ahead Reminders are queued, and whether each needs approving first.</span></li>
         <li><span><span class="ui">Backups</span>: when the last one was taken, <span class="ui">Back up now</span>, and how many to keep.</span></li>
       </ol>
     </div>
@@ -333,7 +333,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <dt>Rates last updated</dt><dd data-fig="settings.gold-updated">19 Oct 2026</dd>
         <dt>Call List</dt><dd data-fig="settings.call-list">3+ Months Unpaid, or Loan-to-Value above 85%</dd>
         <dt>Discount confirmation</dt><dd>Ask above ₹500; empty disables the extra confirmation</dd>
-        <dt>Notices</dt><dd data-fig="settings.notices">2 days before, approved first</dd>
+        <dt>Reminders</dt><dd data-fig="settings.reminders">2 days before, approved first</dd>
         <dt>Last Backup</dt><dd data-fig="settings.backup">19 Oct 2026, 11:00</dd>
       </dl>
     </div>
@@ -574,23 +574,23 @@ We have received *₹…* by Cash on <span data-fig="payments.day">19 Oct 2026</
 <section class="stop" id="s8" aria-labelledby="s8-title">
   <div class="stop-head">
     <div class="stop-no">8</div>
-    <h2 id="s8-title">Follow-up: Notices and the Call List</h2>
-    <p class="open">Open <span class="path">/notices</span>, then <span class="path">/call-list</span></p>
+    <h2 id="s8-title">Follow-up: Reminders and the Call List</h2>
+    <p class="open">Open <span class="path">/reminders</span>, then <span class="path">/call-list</span></p>
   </div>
   <p class="say">"The app never sends anything by itself. It prepares reminders and a calling list each day; the Lender reviews them and presses Send in WhatsApp."</p>
   <div class="cols">
     <div>
       <div class="block-title">Show</div>
       <ol class="steps">
-        <li><span><span class="ui">Notices</span>: one per Customer for each coming Accrual Date, covering all their Mortgages accruing that day. Tabs: To approve, To send, Sent, Skipped, All.</span></li>
-        <li><span>Open a Notice to read the message, then <span class="ui">Send on WhatsApp</span>, mark it sent, or <span class="ui">Skip</span>. On the To send tab, each row has a compact green WhatsApp <span class="ui">Send</span> beside <span class="ui">Skip</span>. (Show, don't send.)</span></li>
+        <li><span><span class="ui">Reminders</span>: one per Customer for each coming Accrual Date, covering all their Mortgages accruing that day. Tabs: To approve, To send, Sent, Skipped, All.</span></li>
+        <li><span>Open a Reminder to read the message, then <span class="ui">Send on WhatsApp</span>, mark it sent, or <span class="ui">Skip</span>. On the To send tab, each row has a compact green WhatsApp <span class="ui">Send</span> beside <span class="ui">Skip</span>. (Show, don't send.)</span></li>
         <li><span><span class="ui">Call List</span>: one table, a row per Mortgage, grouped by Customer. The Customer appears once beside their rows, with how many Mortgages are listed, their total, and a <span class="ui">Call</span> button showing each number next to a WhatsApp chat button.</span></li>
         <li><span>Point to the <span class="ui">Why</span> markers: amber for Months Unpaid ("<span data-fig="follow.months-example">15 mo</span>"), red for Loan-to-Value too high ("<span data-fig="follow.ltv-example">104.9%</span>"), teal for accruing today ("Today"), with the legend above the table. Hover one for the full wording.</span></li>
         <li><span>Click a Customer's <span class="ui">2 Mortgages</span>: the Mortgages page opens with only theirs, and <span class="ui">Show every Customer</span> goes back.</span></li>
         <li><span><span class="ui">Mark called…</span> takes a note of what was said (one is needed, and only an Active Mortgage takes one); the row then shows ✓ Called with the note. The Mortgage keeps every Call Note.</span></li>
         <li><span>For whoever makes the calls: <span class="ui">Export to Excel</span> or <span class="ui">Export to PDF</span> gives the day's Call Sheet, a row per Mortgage with <span class="ui">Called on</span> and <span class="ui">Call Note</span> to fill in. <span class="ui">Import Call Notes from Excel</span> takes the filled sheet back with a Preview, in a pop-up: the notes it adds, and each row it can't take, by row number and why. It adds the rest. (Show the Preview, then <span class="ui">Keep editing</span>.)</span></li>
       </ol>
-      <div class="states" aria-label="A Notice's life">
+      <div class="states" aria-label="A Reminder's life">
         <span class="state">Queued by the daily run</span><span class="arrow">→</span>
         <span class="state">To approve</span><span class="arrow">→</span>
         <span class="state on">To send</span><span class="arrow">→</span>
@@ -600,18 +600,18 @@ We have received *₹…* by Cash on <span data-fig="payments.day">19 Oct 2026</
     <div class="live">
       <div class="block-title">Today</div>
       <dl>
-        <dt>Notices to approve or send</dt><dd data-fig="follow.to-send">1</dd>
-        <dt>Notices sent</dt><dd data-fig="follow.sent">57</dd>
+        <dt>Reminders to approve or send</dt><dd data-fig="follow.to-send">1</dd>
+        <dt>Reminders sent</dt><dd data-fig="follow.sent">57</dd>
         <dt>On the Call List</dt><dd data-fig="follow.listed">2 Mortgages, 1 Customer</dd>
         <dt>listed for Months Unpaid</dt><dd data-fig="follow.months-unpaid">1</dd>
         <dt>for Loan-to-Value</dt><dd data-fig="follow.ltv">1</dd>
         <dt>Call Notes so far</dt><dd data-fig="follow.call-notes">1</dd>
       </dl>
-      <p class="note">A Dormant Mortgage, owing nothing, gets no Notices and stays off the Call List.</p>
+      <p class="note">A Dormant Mortgage, owing nothing, gets no Reminders and stays off the Call List.</p>
     </div>
   </div>
   <div class="nuances">
-    <div class="nuance rule"><b>Notices always match today</b><span>Until it is sent, a Notice is worded from today's figures each time it is read, so later Payments and edits show. If none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on "approve first" holds those already queued.</span></div>
+    <div class="nuance rule"><b>Reminders always match today</b><span>Until it is sent, a Reminder is worded from today's figures each time it is read, so later Payments and edits show. If none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on "approve first" holds those already queued.</span></div>
     <div class="nuance rule"><b>A Call Sheet imports what it can</b><span>A note naming no Mortgage, an unknown or closed one, or without a usable Called on date (a date, not after today or before the Mortgage started) is left out and listed by its row; the rest are added. Rows without a note are only counted, and so is a note the Mortgage already has for that date, so importing a corrected sheet again adds only what was missing.</span></div>
     <div class="nuance"><b>Months Unpaid counts the oldest first</b><span>Payments clear the oldest interest first; capitalised interest still counts as unpaid.</span></div>
     <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed. Messages arrive exactly as previewed, emoji included.</span></div>

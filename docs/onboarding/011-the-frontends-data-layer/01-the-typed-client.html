@@ -349,7 +349,7 @@ flowchart LR
   <div class="why">Any answer that isn't 2xx becomes a <code>BackendError(status, error)</code>, and <code>errorMessage</code> passes a string <code>detail</code> straight through. <code>UNREACHABLE</code> is only for a <code>TypeError</code> from <code>fetch</code> itself (no connection). And a 4xx is never retried.</div>
 </div>
 <div class="quiz" data-answer="0">
-  <p class="q">A new page reads the Notices with <code>fetch('/api/notices')</code>. Which check fails?</p>
+  <p class="q">A new page reads the Reminders with <code>fetch('/api/reminders')</code>. Which check fails?</p>
   <button class="opt"><code>npm run lint</code>, and its page test via <code>showPage</code></button>
   <button class="opt"><code>npm run typecheck</code>, as <code>fetch</code> is untyped</button>
   <button class="opt">None: <code>fetch</code> is allowed for reads</button>

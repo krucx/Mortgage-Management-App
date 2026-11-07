@@ -49,11 +49,11 @@
   <div class="why"><code>canSave</code> needs <code>!preview.error</code>, and the Preview answered 422 "…would be more than the ₹83,333 owed then". The draft isn't <code>null</code>: it's a complete <code>PaymentIn</code>. The Cash Limit only warns, never blocks, and this is UPI anyway. (Lessons 1 and 4.)</div>
 </div>
 <div class="quiz" data-answer="0">
-  <p class="q">6. You add "skip all Notices for a Customer". It changes nothing owed. Which save hook does its page use?</p>
-  <button class="opt"><code>useChange(STALE_AFTER.notice)</code></button>
+  <p class="q">6. You add "skip all Reminders for a Customer". It changes nothing owed. Which save hook does its page use?</p>
+  <button class="opt"><code>useChange(STALE_AFTER.reminder)</code></button>
   <button class="opt"><code>useLedgerChange()</code>, as it's a bulk change</button>
-  <button class="opt"><code>useMortgageChange()</code>, as Notices are per Mortgage</button>
-  <div class="why">It's a Notice action, and <code>STALE_AFTER.notice</code> already says what those make stale: the Notices list and the Dashboard. Bulk or not, it isn't a Ledger change. <code>useMortgageChange</code> is only for changes that return the Mortgage they changed. (Lesson 5.)</div>
+  <button class="opt"><code>useMortgageChange()</code>, as Reminders are per Mortgage</button>
+  <div class="why">It's a Reminder action, and <code>STALE_AFTER.reminder</code> already says what those make stale: the Reminders list and the Dashboard. Bulk or not, it isn't a Ledger change. <code>useMortgageChange</code> is only for changes that return the Mortgage they changed. (Lesson 5.)</div>
 </div>
 <div class="quiz" data-answer="2">
   <p class="q">7. The backend is stopped while the app is open. The Lender clicks Customers. What do they see, and how many tries were made?</p>
@@ -72,7 +72,7 @@
 <p><span class="score"></span></p>
 
 <h2>Hands-on: make Previews refetch after a save</h2>
-<p>Lesson 5 said Previews and Closure quotes are only marked stale after a Ledger change, never asked again on the spot. Here you take that rule out and see what notices. Work in <code>frontend/</code>.</p>
+<p>Lesson 5 said Previews and Closure quotes are only marked stale after a Ledger change, never asked again on the spot. Here you take that rule out and see what reminders. Work in <code>frontend/</code>.</p>
 <ol>
   <li>Run the tests as they are:
 <pre><code>npm test</code></pre>

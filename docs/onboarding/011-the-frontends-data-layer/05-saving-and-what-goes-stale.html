@@ -22,7 +22,7 @@
 <p><strong>Name the kinds of change, not the pages.</strong> There are two kinds:</p>
 <ul>
   <li>A <strong>Ledger change</strong>: anything that can change what Mortgages owe (Payments, Voids, edits, Term Changes, Closures and Reopens). These all make the same things stale, listed once, in <code>ledgerChanged</code>.</li>
-  <li><strong>Every other change</strong> (approving a Notice, a Call Note, a Customer's details, Gold Rates…): each has its own entry in <code>STALE_AFTER</code>, the list of keys it makes stale.</li>
+  <li><strong>Every other change</strong> (approving a Reminder, a Call Note, a Customer's details, Gold Rates…): each has its own entry in <code>STALE_AFTER</code>, the list of keys it makes stale.</li>
 </ul>
 <p><strong>Save through a hook that marks them.</strong> A page saves with <code>useLedgerChange</code>, <code>useMortgageChange</code> or <code>useChange(STALE_AFTER.…)</code>. The hook sends the change and then marks the right keys stale. TanStack Query's <code>invalidateQueries</code> marks a key stale and, by default, asks again at once for any of them on screen. Previews and Closure quotes are marked stale but not asked again.</p>
 
@@ -67,7 +67,7 @@ sequenceDiagram
 ⋮    … waiveAll, forfeitAll, reopen, setCollateral …
 </code></pre>
 </figure>
-<p>Each is a plain function of the client: it sends one request and returns the data or throws. These are the save twins of lesson 4's <code>previews</code>. Other saves sit beside what they belong to: <code>noticeActions</code>, <code>customerChanges</code>, <code>settings.save…</code>.</p>
+<p>Each is a plain function of the client: it sends one request and returns the data or throws. These are the save twins of lesson 4's <code>previews</code>. Other saves sit beside what they belong to: <code>reminderActions</code>, <code>customerChanges</code>, <code>settings.save…</code>.</p>
 
 <h3>2. What a Ledger change makes stale</h3>
 <figure class="snippet">
@@ -109,8 +109,8 @@ sequenceDiagram
 120  const STALE_AFTER_REVALUING = [keys.allMortgages, keys.lists, keys.dashboard]
 ⋮
 123  export const STALE_AFTER = {
-124    /** Approving, skipping or sending a Notice: the Notices, and the Dashboard's counts. */
-125    notice: [keys.list('notices'), keys.dashboard],                          ◀
+124    /** Approving, skipping or sending a Reminder: the Reminders, and the Dashboard's counts. */
+125    reminder: [keys.list('reminders'), keys.dashboard],                        ◀
 126    /** Marking a Mortgage called: the Call List, the Call Notes and the Dashboard's count. */
 127    callNote: [keys.list('call-list'), keys.allCallNotes, keys.dashboard],
 ⋮
@@ -121,8 +121,8 @@ sequenceDiagram
 135    /** New Gold Rates: every Collateral Value. */
 136    goldRates: STALE_AFTER_REVALUING,
 ⋮
-139    /** New message settings: Notices are queued again to match them, Receipts reworded. */
-140    messageSettings: [keys.allPayments, keys.list('notices'), keys.dashboard],
+139    /** New message settings: Reminders are queued again to match them, Receipts reworded. */
+140    messageSettings: [keys.allPayments, keys.list('reminders'), keys.dashboard],
 141  } satisfies Record&lt;string, readonly (readonly unknown[])[]&gt;
 142
 143  export function markStale(queryClient: QueryClient, stale: readonly (readonly unknown[])[]) {
@@ -130,7 +130,7 @@ sequenceDiagram
 145  }
 </code></pre>
 </figure>
-<p>Each entry is a plain list of keys, with a comment saying why. That comment is the rule: when you add a screen that shows something, check every entry whose reason covers it. <code>satisfies</code> checks every entry is a list of keys while keeping the names (<code>STALE_AFTER.notice</code>) typed.</p>
+<p>Each entry is a plain list of keys, with a comment saying why. That comment is the rule: when you add a screen that shows something, check every entry whose reason covers it. <code>satisfies</code> checks every entry is a list of keys while keeping the names (<code>STALE_AFTER.reminder</code>) typed.</p>
 
 <h3>4. The save hooks</h3>
 <figure class="snippet">
@@ -168,7 +168,7 @@ sequenceDiagram
 <p>Each hook returns a function that takes the change as a function of the client, so the page writes <code>changeLedger((client) =&gt; changes.recordPayment(client, asked))</code>. (<code>&lt;T,&gt;</code> with its odd comma is how a <code>.tsx</code> file declares a generic arrow function: without it, <code>&lt;T&gt;</code> would be read as a JSX tag.) If the change throws, nothing is marked: a refused change changed nothing.</p>
 <p><code>useMortgageChange</code> is for changes that return the Mortgage they changed (an edit, a Term Change). It puts that answer under <code>['mortgage', id]</code> before marking anything stale, so the page shows the change immediately rather than the old Mortgage while it's asked again.</p>
 
-<h2>Run-through: Meera pays ₹8,000, then Sunita's Notice is approved</h2>
+<h2>Run-through: Meera pays ₹8,000, then Sunita's Reminder is approved</h2>
 <p>This saves on your scratch book. On <a href="http://localhost:5173/payments/new?customer=1&amp;mortgage=5">/payments/new?customer=1&amp;mortgage=5</a>, set the date to 19 Oct 2026, Method UPI, reference <strong>UPI 4417</strong>, amount <strong>8000</strong>. Press Save; the confirmation reads "Record a Payment of ₹8,000?", from Meera Sharma, 2026-Meera-PairBangles ₹8,000 · paid. Clear the Network tab, then press <strong>Confirm and save</strong>.</p>
 <table class="steps text">
 <tr><th>Time</th><th>Request</th><th>Why</th></tr>
@@ -188,14 +188,14 @@ sequenceDiagram
 </table>
 <p class="cite">From <code>scripts/network.mjs</code> (section L5).</p>
 <p>Each page asks for its data when it's shown, as lesson 2 found every page does. Marking those keys stale changed nothing you can see here: with <code>staleTime</code> 0 they'd have been asked again anyway. What the declaration buys is the screen you're <em>on</em> when you save, and correctness the day someone gives one of those reads a longer <code>staleTime</code>.</p>
-<p>Now open <a href="http://localhost:5173/notices">Notices</a>, choose <strong>To approve</strong>, open Sunita's Notice (#58, for 21 Oct) and clear the Network tab. Press <strong>Approve</strong>.</p>
+<p>Now open <a href="http://localhost:5173/reminders">Reminders</a>, choose <strong>To approve</strong>, open Sunita's Notice (#58, for 21 Oct) and clear the Network tab. Press <strong>Approve</strong>.</p>
 <table class="steps text">
 <tr><th>Step</th><th>Requests</th></tr>
-<tr><td>Approve</td><td><code>POST /api/notices/58/approve</code>, then <code>GET /api/notices?page=1&amp;status=awaiting_approval</code></td></tr>
+<tr><td>Approve</td><td><code>POST /api/reminders/58/approve</code>, then <code>GET /api/reminders?page=1&amp;status=awaiting_approval</code></td></tr>
 <tr><td>Then click Dashboard</td><td><code>GET /api/dashboard</code></td></tr>
 </table>
 <p class="cite">From <code>scripts/network.mjs</code> (section L5).</p>
-<p><code>NoticesPage</code> saves with <code>useChange(STALE_AFTER.notice)</code>: the Notices list (on screen, asked again) and the Dashboard (not on screen, marked stale). The menu's Dormant count was <em>not</em> asked again this time: approving a Notice changes nothing anybody owes, so it isn't a Ledger change.</p>
+<p><code>RemindersPage</code> saves with <code>useChange(STALE_AFTER.reminder)</code>: the Reminders list (on screen, asked again) and the Dashboard (not on screen, marked stale). The menu's Dormant count was <em>not</em> asked again this time: approving a Reminder changes nothing anybody owes, so it isn't a Ledger change.</p>
 
 <h2>Nuances</h2>
 <h3>(a) The Preview on screen is not asked again</h3>
@@ -224,13 +224,13 @@ sequenceDiagram
 <h3>(c) Why each <code>STALE_AFTER</code> entry is what it is</h3>
 <table class="steps text">
 <tr><th>Change</th><th>Makes stale</th><th>Why not less, or more</th></tr>
-<tr><td>A Notice approved, skipped or sent</td><td>the Notices list, the Dashboard</td><td>the Dashboard counts Notices; no figure owed changes</td></tr>
+<tr><td>A Notice approved, skipped or sent</td><td>the Reminders list, the Dashboard</td><td>the Dashboard counts Reminders; no figure owed changes</td></tr>
 <tr><td>A Call Note</td><td>the Call List, Call Notes, the Dashboard</td><td>the Call List puts Mortgages called today last, with today's Call Note</td></tr>
 <tr><td>A Customer saved or deleted</td><td>Customers, Mortgages, Payments, lists, the Dashboard</td><td>their name and numbers appear on all of them, Receipts included</td></tr>
 <tr class="changed"><td>A Collateral Value, new Gold Rates</td><td>Mortgages, lists, the Dashboard</td><td>Loan-to-Value changes, and with it the Call List (a list) and its count</td></tr>
-<tr class="changed"><td>New message settings</td><td>Payments, the Notices list, the Dashboard</td><td>Notices are queued again (<a href="../009-follow-up/03-the-notice-queue.html">chapter 009, lesson 3</a>), and every Receipt is reworded: <code>allPayments</code> reaches each Receipt under its Payment</td></tr>
+<tr class="changed"><td>New message settings</td><td>Payments, the Reminders list, the Dashboard</td><td>Reminders are queued again (<a href="../009-follow-up/03-the-notice-queue.html">chapter 009, lesson 3</a>), and every Receipt is reworded: <code>allPayments</code> reaches each Receipt under its Payment</td></tr>
 </table>
-<p><code>serverState.test.tsx</code> pins several of these by name: "new message settings reword the Receipts as well as the Notices", "a Customer's new name or number reaches everything that shows it", "marking a Mortgage called changes the Call List, its Call Notes and the Dashboard count".</p>
+<p><code>serverState.test.tsx</code> pins several of these by name: "new message settings reword the Receipts as well as the Reminders", "a Customer's new name or number reaches everything that shows it", "marking a Mortgage called changes the Call List, its Call Notes and the Dashboard count".</p>
 
 <h3>(d) Almost never in a page</h3>
 <p>Search <code>src/</code> for <code>invalidateQueries</code> outside <code>serverState.ts</code> and you'll find exactly one, in <code>MortgagePage.tsx</code> (line 46). A photo or a Collateral Value saved from the Mortgage page returns the Mortgage; the page keeps it with <code>setQueryData</code> and marks only that Mortgage's History stale, because the History now holds the change. Every other save goes through one of the three hooks, with a <code>STALE_AFTER</code> entry or <code>ledgerChanged</code>. A page may put an answer it got back into the cache (<code>setQueryData</code>, as the Settings forms and the Void do), because that's the backend's own answer, not a guess about what's stale. If you find yourself writing a second <code>invalidateQueries</code> in a page, it probably belongs in <code>STALE_AFTER</code>.</p>
@@ -247,11 +247,11 @@ sequenceDiagram
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="1">
-  <p class="q">You add a "mark as sent by post" action for a Notice. It doesn't change what anybody owes. How should the page save it?</p>
+  <p class="q">You add a "mark as sent by post" action for a Reminder. It doesn't change what anybody owes. How should the page save it?</p>
   <button class="opt"><code>useLedgerChange</code>, to be safe about stale figures</button>
-  <button class="opt"><code>useChange(STALE_AFTER.notice)</code></button>
+  <button class="opt"><code>useChange(STALE_AFTER.reminder)</code></button>
   <button class="opt">A plain call, then <code>invalidateQueries</code> in the page</button>
-  <div class="why">It's a Notice action: the Notices list and the Dashboard's counts are what change, which is what <code>STALE_AFTER.notice</code> says. <code>useLedgerChange</code> would ask every Mortgage, list and quote again for nothing. Invalidating in the page is exactly what <code>serverState.ts</code> exists to stop.</div>
+  <div class="why">It's a Reminder action: the Reminders list and the Dashboard's counts are what change, which is what <code>STALE_AFTER.reminder</code> says. <code>useLedgerChange</code> would ask every Mortgage, list and quote again for nothing. Invalidating in the page is exactly what <code>serverState.ts</code> exists to stop.</div>
 </div>
 <div class="quiz" data-answer="2">
   <p class="q">Right after a Payment is saved from the form, which of these is asked for again at once?</p>

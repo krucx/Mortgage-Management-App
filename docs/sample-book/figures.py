@@ -200,7 +200,7 @@ def figures(book: ServedBook) -> dict[str, str]:
     mortgages = {m["name"]: m for m in book.every("/api/mortgages")}
     payments = book.every("/api/payments", show_voided=True)
     customers = book.every("/api/customers")
-    notices = book.every("/api/notices")
+    reminders = book.every("/api/reminders")
     call_list = book.get("/api/call-list")
     rows = [row for group in call_list["items"] for row in group["rows"]]
     dormant = book.every("/api/closures/dormant")
@@ -226,7 +226,7 @@ def figures(book: ServedBook) -> dict[str, str]:
     split = [p for p in payments if len(p["mortgages"]) > 1 and not p["voided"]]
     kept = [p for p in payments if not p["voided"]]
     methods = Counter(p["method"] for p in kept)
-    by_status = Counter(n["status"] for n in notices)
+    by_status = Counter(n["status"] for n in reminders)
     owed = dash["principal_outstanding"] + dash["unpaid_interest"]
     horizon = {h["months"]: h for h in dash["projections"]}
     months_unpaid = [r for r in rows if "months_unpaid" in r["reasons"]]
@@ -245,7 +245,7 @@ def figures(book: ServedBook) -> dict[str, str]:
         "dashboard.collateral": format_inr(dash["collateral_value"]),
         "dashboard.ltv": percent(dash["loan_to_value"]),
         "dashboard.ltv-tile": f"Loan-to-Value {percent(dash['loan_to_value'])}",
-        "dashboard.follow": f"{dash['call_list_count']} · {dash['notices_to_send'] + dash['notices_to_approve']}",
+        "dashboard.follow": f"{dash['call_list_count']} · {dash['reminders_to_send'] + dash['reminders_to_approve']}",
         "dashboard.call-list": plural(dash["call_list_count"], "Mortgage"),
         "dashboard.redeemed": f"{dash['redeemed_this_month']} Redeemed",
         "dashboard.closed": f"{dash['waived_this_month']} Waived off · {dash['forfeited_this_month']} Forfeited",
@@ -259,8 +259,8 @@ def figures(book: ServedBook) -> dict[str, str]:
         "settings.gold-updated": day(rates[22]["updated_on"]),
         "settings.call-list": f"{calls['months_unpaid']}+ Months Unpaid, or Loan-to-Value above "
         f"{calls['loan_to_value_pct']}%",
-        "settings.notices": f"{plural(messages['notice_days_before'], 'day')} before, "
-        + ("approved first" if messages["notice_approve_first"] else "sent without approval"),
+        "settings.reminders": f"{plural(messages['reminder_days_before'], 'day')} before, "
+        + ("approved first" if messages["reminder_approve_first"] else "sent without approval"),
         "settings.backup": f"{day(backup[:10])}, {backup[11:16]}",
         "customers.count": str(len(customers)),
         "customers.active": str(dash["customers_with_active_mortgages"]),

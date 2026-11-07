@@ -308,7 +308,7 @@ await settle()
 show('the bangles')
 
 console.log("== L5: approving Sunita's Notice")
-await page.goto(`${base}/notices`)
+await page.goto(`${base}/reminders`)
 await settle()
 await page.getByLabel('To approve', { exact: true }).click()
 await settle()

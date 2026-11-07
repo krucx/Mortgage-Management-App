@@ -89,12 +89,12 @@
   <p>Run <code>uv run pytest -q</code> again.</p>
   <button class="show">I've run it. Show me.</button>
   <div class="reveal-body">
-    <p><strong>3 failed, 706 passed</strong>, all in <code>test_notices.py</code>:</p>
+    <p><strong>3 failed, 706 passed</strong>, all in <code>test_reminders.py</code>:</p>
     <table class="steps text">
     <tr><th>Test</th><th>Why</th></tr>
-    <tr class="changed"><td><code>test_a_queued_notice_shows_what_is_owed_when_it_is_read</code></td><td rowspan="3">Each seeds a Payment in May, the month <code>test_notices.py</code> works in (its own <code>TODAY</code> is 12 May). Recorded "on 20 Apr", a May Payment is in the future.</td></tr>
+    <tr class="changed"><td><code>test_a_queued_reminder_shows_what_is_owed_when_it_is_read</code></td><td rowspan="3">Each seeds a Payment in May, the month <code>test_reminders.py</code> works in (its own <code>TODAY</code> is 12 May). Recorded "on 20 Apr", a May Payment is in the future.</td></tr>
     <tr class="changed"><td><code>test_interest_paid_ahead_is_still_the_months_interest_added</code></td></tr>
-    <tr class="changed"><td><code>test_a_sent_notice_keeps_the_message_that_was_sent</code></td></tr>
+    <tr class="changed"><td><code>test_a_sent_reminder_keeps_the_message_that_was_sent</code></td></tr>
     </table>
     <p>They fail while seeding, before any assertion, with the app's own refusal:</p>
 <pre><code>&gt;           raise unprocessable("The Payment date cannot be in the future")

@@ -10,7 +10,7 @@
 <body>
 <p class="kicker">Chapter 011 · Lesson 3</p>
 <h1>Lists a page at a time</h1>
-<p class="lede">The Customers, Mortgages, Payments, Notices, Call List and Dormant lists all work the same way: sorted by the backend, 20 rows a page, the sort kept in the URL. This lesson shows the one hook behind all six, and the small rules that keep a list from showing the wrong page.</p>
+<p class="lede">The Customers, Mortgages, Payments, Reminders, Call List and Dormant lists all work the same way: sorted by the backend, 20 rows a page, the sort kept in the URL. This lesson shows the one hook behind all six, and the small rules that keep a list from showing the wrong page.</p>
 
 <div class="callout win"><strong>By the end</strong> you can add a sortable, paged list.</div>
 
@@ -148,7 +148,7 @@ flowchart TD
   <li>The key names the list and its filters, nothing else. <code>useListPage</code> adds the prefix and the page and sort.</li>
   <li><code>satisfies</code> checks the object against <code>ListRequest&lt;CustomerSort, …&gt;</code> without widening its type: <code>sort</code> must be a Customers sort, and the answer keeps its exact generated type (<code>Page_CustomerRow_</code>), not <code>unknown</code>.</li>
 </ol>
-<p>Line 234 leaves <code>descending</code> out unless it's true, and <code>sortQuery(null)</code> sends no <code>sort</code> at all, so the backend uses the list's own default order. The Mortgages, Payments, Notices, Call List and Dormant lists below it follow the same pattern.</p>
+<p>Line 234 leaves <code>descending</code> out unless it's true, and <code>sortQuery(null)</code> sends no <code>sort</code> at all, so the backend uses the list's own default order. The Mortgages, Payments, Reminders, Call List and Dormant lists below it follow the same pattern.</p>
 
 <h3>3. The hook</h3>
 <figure class="snippet">
@@ -226,7 +226,7 @@ flowchart TD
 
 <h3>(b) A page that comes back empty steps back</h3>
 <div class="reveal">
-  <p><strong>Predict:</strong> you're on page 2 of the Payments. Its rows stop being listed (on the Notices list, approving the last Notice on page 2 does exactly this). The page is asked for again and comes back with no items, and <code>total</code> is now 20. What does the Lender see?</p>
+  <p><strong>Predict:</strong> you're on page 2 of the Payments. Its rows stop being listed (on the Reminders list, approving the last Notice on page 2 does exactly this). The page is asked for again and comes back with no items, and <code>total</code> is now 20. What does the Lender see?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <p>Page 1. The script made page 2 answer <code>{"items": [], "total": 20, "page": 2, "page_size": 20}</code> and let the window regain focus, which asks for whatever is on screen again:</p>

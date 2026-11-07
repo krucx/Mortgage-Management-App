@@ -95,23 +95,23 @@ class Book:
     # Moving through the year
 
     def on(self, day: str) -> "Book":
-        """Move the clock to `day`, handling the Notices the morning run queued up to then
+        """Move the clock to `day`, handling the Reminders the morning run queued up to then
         as the Lender would have: approved and sent."""
         target = date.fromisoformat(day)
         assert target >= self.clock.day, f"{day} is before {self.clock.day}"
         while self.clock.day < target:
             self.clock.day += timedelta(days=1)
             if self.clock.day < THE_DAY:
-                self.send_notices()
+                self.send_reminders()
         return self
 
-    def send_notices(self) -> None:
+    def send_reminders(self) -> None:
         for status in ("awaiting_approval", "queued"):
-            for notice in self.get("/api/notices", status=status)["items"]:
-                if notice["accrues_on"] <= (self.clock.day + timedelta(days=1)).isoformat():
+            for reminder in self.get("/api/reminders", status=status)["items"]:
+                if reminder["accrues_on"] <= (self.clock.day + timedelta(days=1)).isoformat():
                     if status == "awaiting_approval":
-                        self.post(f"/api/notices/{notice['id']}/approve")
-                    self.post(f"/api/notices/{notice['id']}/sent")
+                        self.post(f"/api/reminders/{reminder['id']}/approve")
+                    self.post(f"/api/reminders/{reminder['id']}/sent")
 
     # Requests, refused at once if the app refuses one
 
@@ -329,7 +329,7 @@ def write(folder: Path) -> None:
             "monthly_rate_bps": 200, "interest_mode": "compounded_yearly", "part_month_rule": "pro_rata"})
         book.put("/api/settings/call-list", {"months_unpaid": 3, "loan_to_value_pct": 85})
         messages = book.get("/api/settings/messages")
-        book.put("/api/settings/messages", {**messages, "notice_days_before": 2, "notice_approve_first": True})
+        book.put("/api/settings/messages", {**messages, "reminder_days_before": 2, "reminder_approve_first": True})
         book.put("/api/settings/gold-rates", [
             {"purity_karat": karat, "rate_per_gram": rupees(rate)}
             for karat, rate in ((24, 14_200), (22, 13_000), (20, 11_850), (18, 10_650), (14, 8_280))
