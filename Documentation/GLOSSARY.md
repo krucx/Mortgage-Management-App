@@ -182,6 +182,10 @@ _Avoid_: Export, call report
 
 ## Safekeeping
 
+**Secret scanning alert**:
+A GitHub finding that a credential may be exposed in repository content or history; its issue tracker entry contains metadata and location, never the secret value.
+_Avoid_: Secret, credential issue
+
 **History**:
 The record of every change to a Customer, Mortgage or Payment — when, what, and the old and new values — which is never edited or removed.
 _Avoid_: Log, changelog, activity
