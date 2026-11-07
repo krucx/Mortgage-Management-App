@@ -104,6 +104,7 @@ export function DashboardPage() {
   const { client } = useServerState()
   const [startDate, setStartDate] = useState<string>()
   const [endDate, setEndDate] = useState<string>()
+  const [timeframeMode, setTimeframeMode] = useState<'month' | 'custom'>('month')
   // Figures cached from an earlier visit show at once, dimmed until they are refreshed.
   const { data: figures, error, isFetching } = useQuery(
     dashboardQuery(client, startDate, endDate),
@@ -159,11 +160,30 @@ export function DashboardPage() {
 
       <div className="group activity">
         <div className="activity-controls">
-          <label>
+          <div className="activity-mode" role="group" aria-label="Activity timeframe type">
+            <button
+              type="button"
+              className={timeframeMode === 'month' ? 'active' : 'secondary'}
+              aria-pressed={timeframeMode === 'month'}
+              onClick={() => setTimeframeMode('month')}
+            >
+              Calendar month
+            </button>
+            <button
+              type="button"
+              className={timeframeMode === 'custom' ? 'active' : 'secondary'}
+              aria-pressed={timeframeMode === 'custom'}
+              onClick={() => setTimeframeMode('custom')}
+            >
+              Custom dates
+            </button>
+          </div>
+          <label className={timeframeMode === 'custom' ? 'inactive' : undefined}>
             Month
             <input
               aria-label="Activity month"
               type="month"
+              disabled={timeframeMode === 'custom'}
               value={selectedMonth}
               onChange={(event) => {
                 const [year, month] = event.target.value.split('-').map(Number)
@@ -171,30 +191,35 @@ export function DashboardPage() {
                 const lastDay = new Date(year, month, 0).getDate()
                 setStartDate(`${event.target.value}-01`)
                 setEndDate(`${event.target.value}-${String(lastDay).padStart(2, '0')}`)
+                setTimeframeMode('month')
               }}
             />
           </label>
-          <label>
+          <label className={timeframeMode === 'month' ? 'inactive' : undefined}>
             From
             <input
               aria-label="Activity start date"
               type="date"
+              disabled={timeframeMode === 'month'}
               value={selectedStart}
               onChange={(event) => {
                 setStartDate(event.target.value)
                 setEndDate(selectedEnd)
+                setTimeframeMode('custom')
               }}
             />
           </label>
-          <label>
+          <label className={timeframeMode === 'month' ? 'inactive' : undefined}>
             To
             <input
               aria-label="Activity end date"
               type="date"
+              disabled={timeframeMode === 'month'}
               value={selectedEnd}
               onChange={(event) => {
                 setStartDate(selectedStart)
                 setEndDate(event.target.value)
+                setTimeframeMode('custom')
               }}
             />
           </label>
