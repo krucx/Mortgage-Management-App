@@ -97,25 +97,25 @@ def test_a_closed_mortgage_owing_nothing_is_never_dormant(conn):
         assert not closed.dormant(TODAY)
 
 
-def notices(client):
-    """Each Notice's Customer and Mortgage Names, for Accrual Dates up to 18 May."""
+def reminders(client):
+    """Each Reminder's Customer and Mortgage Names, for Accrual Dates up to 18 May."""
     settings = client.get("/api/settings/messages").json()
-    client.put("/api/settings/messages", json={**settings, "notice_days_before": 28})
+    client.put("/api/settings/messages", json={**settings, "reminder_days_before": 28})
     return [
         (n["customer"]["name"], [m["name"] for m in n["mortgages"]])
-        for n in client.get("/api/notices").json()["items"]
+        for n in client.get("/api/reminders").json()["items"]
     ]
 
 
-def test_a_dormant_mortgage_gets_no_notice(client, ramesh, chain):
+def test_a_dormant_mortgage_gets_no_reminder(client, ramesh, chain):
     ring = lend(client, ramesh, "2026-02-14", amount=10_000_00, description="Ring")
     sita = person(client, "Sita Devi", "9829054321")
     bangle = lend(client, sita, terms=NOTHING, description="Bangle")
     owe_nothing(client, ramesh, chain)
     owe_nothing(client, sita, bangle)
 
-    # Ramesh's Notice for 14 May covers only the ring; Sita, owing nothing, gets none.
-    assert notices(client) == [("Ramesh Kumar", [ring["name"]])]
+    # Ramesh's Reminder for 14 May covers only the ring; Sita, owing nothing, gets none.
+    assert reminders(client) == [("Ramesh Kumar", [ring["name"]])]
 
 
 def test_a_dormant_mortgage_is_not_on_the_call_list(client, ramesh):

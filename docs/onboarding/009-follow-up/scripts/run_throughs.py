@@ -40,10 +40,10 @@ from mortgage_backend.follow_up.message_settings import (  # noqa: E402
 )
 from mortgage_backend.follow_up.messages import (  # noqa: E402
     NOTICE_PLACEHOLDERS,
-    NoticeLine,
-    NoticeMessage,
+    ReminderLine,
+    ReminderMessage,
     fill,
-    notice_text,
+    reminder_text,
     unknown_placeholders,
 )
 from mortgage_backend.lending.ledger import months_unpaid  # noqa: E402
@@ -112,20 +112,20 @@ class Copy:
                       f" months_unpaid={row['months_unpaid']} ltv={pct(row['loan_to_value'])}"
                       f" outstanding={rs(row['outstanding'])} {called or 'not called'}")
 
-    def notices(self, status: str | None = None) -> list[dict]:
-        """Every Notice (each read syncs first), across all pages."""
+    def reminders(self, status: str | None = None) -> list[dict]:
+        """Every Reminder (each read syncs first), across all pages."""
         params = {"status": status} if status else {}
         items, number = [], 1
         while True:
-            _, page = self.call("get", "/notices", quiet=True, params={**params, "page": number})
+            _, page = self.call("get", "/reminders", quiet=True, params={**params, "page": number})
             items += page["items"]
             if len(items) >= page["total"]:
                 return items
             number += 1
 
     def unsent(self) -> None:
-        rows = [n for n in self.notices() if n["status"] in ("awaiting_approval", "queued")]
-        print(f"   unsent Notices: {len(rows)}")
+        rows = [n for n in self.reminders() if n["status"] in ("awaiting_approval", "queued")]
+        print(f"   unsent Reminders: {len(rows)}")
         for n in rows:
             print(f"     #{n['id']} {n['customer']['name']} accrues {n['accrues_on']}"
                   f" created {n['created_on']} {n['status']}"
@@ -133,9 +133,9 @@ class Copy:
 
     def by_status(self) -> None:
         counts: dict[str, int] = {}
-        for n in self.notices():
+        for n in self.reminders():
             counts[n["status"]] = counts.get(n["status"], 0) + 1
-        print(f"   Notices by status: {counts}")
+        print(f"   Reminders by status: {counts}")
 
 
 def main() -> None:
@@ -316,19 +316,19 @@ def report(built: Path) -> None:
     ro.sql("SELECT count(*) AS history_rows FROM audit_entry")
 
     # ------------------------------------------------------------ lesson 3
-    print("\n== L3. The Notice queue")
+    print("\n== L3. The Reminder queue")
     l3 = Copy(built, "l3")
     print("   settings:", {k: v for k, v in l3.call("get", "/settings/messages", quiet=True)[1].items()
                             if not k.endswith("template")})
     l3.by_status()
     l3.unsent()
     l3.sql("SELECT id, customer_id, accrues_on, created_on, status, approved, sent_at, length(message) AS msg_len"
-           " FROM notice WHERE status != 'sent'")
-    l3.sql("SELECT count(*) AS sent, min(accrues_on), max(accrues_on) FROM notice WHERE status='sent'")
-    l3.sql("SELECT count(*) AS notice_mortgage_rows FROM notice_mortgage")
-    l3.sql("SELECT accrues_on, count(*) FROM notice GROUP BY accrues_on HAVING count(*) > 1")
+           " FROM reminder WHERE status != 'sent'")
+    l3.sql("SELECT count(*) AS sent, min(accrues_on), max(accrues_on) FROM reminder WHERE status='sent'")
+    l3.sql("SELECT count(*) AS reminder_mortgage_rows FROM reminder_mortgage")
+    l3.sql("SELECT accrues_on, count(*) FROM reminder GROUP BY accrues_on HAVING count(*) > 1")
     _, dash = l3.call("get", "/dashboard", quiet=True)
-    print("   Dashboard notices:", {k: v for k, v in dash.items() if "notice" in k.lower()})
+    print("   Dashboard reminders:", {k: v for k, v in dash.items() if "reminder" in k.lower()})
     print("   Sync again by reading twice: unsent unchanged?")
     l3.unsent()
     print("   Coming Accrual Dates of each Active Mortgage, 19–21 Oct:")
@@ -338,124 +338,124 @@ def report(built: Path) -> None:
 
     print("   Turn approve first off:")
     msgs = l3.call("get", "/settings/messages", quiet=True)[1]
-    l3.call("put", "/settings/messages", json={**msgs, "notice_approve_first": False})
+    l3.call("put", "/settings/messages", json={**msgs, "reminder_approve_first": False})
     l3.unsent()
-    l3.sql("SELECT id, status, approved FROM notice WHERE status != 'sent'")
+    l3.sql("SELECT id, status, approved FROM reminder WHERE status != 'sent'")
     print("   And on again:")
-    l3.call("put", "/settings/messages", json={**msgs, "notice_approve_first": True})
+    l3.call("put", "/settings/messages", json={**msgs, "reminder_approve_first": True})
     l3.unsent()
 
     print("   (a) Approve, then turn approve-first off and on again:")
     ap = Copy(built, "l3-approve")
-    sunita = [n for n in ap.notices() if n["status"] == "awaiting_approval"][0]
-    ap.call("post", f"/notices/{sunita['id']}/approve")
-    ap.sql("SELECT id, status, approved FROM notice WHERE status != 'sent'")
+    sunita = [n for n in ap.reminders() if n["status"] == "awaiting_approval"][0]
+    ap.call("post", f"/reminders/{sunita['id']}/approve")
+    ap.sql("SELECT id, status, approved FROM reminder WHERE status != 'sent'")
     m2 = ap.call("get", "/settings/messages", quiet=True)[1]
-    ap.call("put", "/settings/messages", json={**m2, "notice_days_before": 3})
-    ap.sql("SELECT id, status, approved FROM notice WHERE status != 'sent'")
-    ap.call("put", "/settings/messages", json={**m2, "notice_approve_first": False})
-    ap.call("put", "/settings/messages", json={**m2, "notice_approve_first": True})
-    ap.sql("SELECT id, status, approved FROM notice WHERE status != 'sent'")
+    ap.call("put", "/settings/messages", json={**m2, "reminder_days_before": 3})
+    ap.sql("SELECT id, status, approved FROM reminder WHERE status != 'sent'")
+    ap.call("put", "/settings/messages", json={**m2, "reminder_approve_first": False})
+    ap.call("put", "/settings/messages", json={**m2, "reminder_approve_first": True})
+    ap.sql("SELECT id, status, approved FROM reminder WHERE status != 'sent'")
 
     print("   (b) Days ahead 2 -> 7, then back to 2:")
     ahead = Copy(built, "l3-ahead")
     m3 = ahead.call("get", "/settings/messages", quiet=True)[1]
-    ahead.call("put", "/settings/messages", json={**m3, "notice_days_before": 7})
+    ahead.call("put", "/settings/messages", json={**m3, "reminder_days_before": 7})
     ahead.unsent()
-    ahead.call("put", "/settings/messages", json={**m3, "notice_days_before": 2})
+    ahead.call("put", "/settings/messages", json={**m3, "reminder_days_before": 2})
     ahead.unsent()
-    ahead.sql("SELECT max(id) AS highest_notice_id FROM notice")
+    ahead.sql("SELECT max(id) AS highest_reminder_id FROM reminder")
 
     print("   (c) The app off from 19 Oct, opened again on 24 Oct (days ahead 2):")
     off = Copy(built, "l3-off", day=date(2026, 10, 24))
     off.unsent()
-    off.sql("SELECT id, customer_id, accrues_on, created_on, status FROM notice WHERE created_on >= '2026-10-19'")
+    off.sql("SELECT id, customer_id, accrues_on, created_on, status FROM reminder WHERE created_on >= '2026-10-19'")
     print("   (c2) ...and on 23 Oct:")
     off2 = Copy(built, "l3-off2", day=date(2026, 10, 23))
     off2.unsent()
     print("   (c3) ...and on 26 Oct, the day after the bangles' 25 Oct:")
     off3 = Copy(built, "l3-off3", day=date(2026, 10, 26))
     off3.unsent()
-    print("   Sunita's 21 Oct Notice, read on 24 Oct:")
-    print("\n".join("     | " + line for line in off.notices("awaiting_approval")[0]["message"].splitlines()))
+    print("   Sunita's 21 Oct Reminder, read on 24 Oct:")
+    print("\n".join("     | " + line for line in off.reminders("awaiting_approval")[0]["message"].splitlines()))
 
     print("   (d) the daily run on 20 Oct, through any /api/ request first:")
     d20 = Copy(built, "l3-20oct", day=date(2026, 10, 20))
     d20.call("get", "/payment-methods", quiet=True)
-    d20.sql("SELECT id, customer_id, accrues_on, created_on, status FROM notice WHERE created_on >= '2026-10-19'")
+    d20.sql("SELECT id, customer_id, accrues_on, created_on, status FROM reminder WHERE created_on >= '2026-10-19'")
 
     print("   (e) the anklet (Dormant) accrues on 1 Nov; days ahead 14 on 19 Oct:")
     dorm = Copy(built, "l3-dormant")
     m4 = dorm.call("get", "/settings/messages", quiet=True)[1]
-    dorm.call("put", "/settings/messages", json={**m4, "notice_days_before": 14})
+    dorm.call("put", "/settings/messages", json={**m4, "reminder_days_before": 14})
     dorm.unsent()
 
     # ------------------------------------------------------------ lesson 4
-    print("\n== L4. A Notice's life")
+    print("\n== L4. A Reminder's life")
     l4 = Copy(built, "l4")
-    [awaiting] = l4.notices("awaiting_approval")
+    [awaiting] = l4.reminders("awaiting_approval")
     nid = awaiting["id"]
-    print(f"   Sunita's Notice #{nid}: {awaiting['status']}, phones {awaiting['phones']},"
+    print(f"   Sunita's Reminder #{nid}: {awaiting['status']}, phones {awaiting['phones']},"
           f" mortgages {awaiting['mortgages']}")
     print("   message:\n" + "\n".join("     | " + line for line in awaiting["message"].splitlines()))
-    l4.sql(f"SELECT id, status, approved, message, sent_at FROM notice WHERE id={nid}")
-    l4.call("post", f"/notices/{nid}/sent")
-    s, after = l4.call("post", f"/notices/{nid}/approve")
+    l4.sql(f"SELECT id, status, approved, message, sent_at FROM reminder WHERE id={nid}")
+    l4.call("post", f"/reminders/{nid}/sent")
+    s, after = l4.call("post", f"/reminders/{nid}/approve")
     print("    ", after["status"])
-    l4.sql(f"SELECT id, status, approved, message, sent_at FROM notice WHERE id={nid}")
-    l4.call("post", f"/notices/{nid}/approve")
-    s, sent = l4.call("post", f"/notices/{nid}/sent")
+    l4.sql(f"SELECT id, status, approved, message, sent_at FROM reminder WHERE id={nid}")
+    l4.call("post", f"/reminders/{nid}/approve")
+    s, sent = l4.call("post", f"/reminders/{nid}/sent")
     print("    ", sent["status"], sent["sent_at"])
-    l4.sql(f"SELECT id, status, approved, length(message) AS msg_len, sent_at FROM notice WHERE id={nid}")
-    l4.sql(f"SELECT * FROM notice_mortgage WHERE notice_id={nid}")
-    l4.call("post", f"/notices/{nid}/sent")
-    l4.call("post", f"/notices/{nid}/skip")
-    l4.call("post", "/notices/999/approve")
+    l4.sql(f"SELECT id, status, approved, length(message) AS msg_len, sent_at FROM reminder WHERE id={nid}")
+    l4.sql(f"SELECT * FROM reminder_mortgage WHERE reminder_id={nid}")
+    l4.call("post", f"/reminders/{nid}/sent")
+    l4.call("post", f"/reminders/{nid}/skip")
+    l4.call("post", "/reminders/999/approve")
     print("   Now a Payment of Rs 5,000 on the mangalsutra, 19 Oct:")
     l4.call("post", "/payments", json={"customer_id": 7, "paid_on": THE_DAY.isoformat(), "method": "upi",
                                          "amount": 5_000 * RUPEE,
                                          "allocations": [{"mortgage_id": MANGALSUTRA, "amount": 5_000 * RUPEE}]})
-    [still] = [n for n in l4.notices() if n["id"] == nid]
+    [still] = [n for n in l4.reminders() if n["id"] == nid]
     print("   the sent message unchanged:", still["message"] == awaiting["message"])
     _, m9 = l4.call("get", f"/mortgages/{MANGALSUTRA}", quiet=True)
     print("   mangalsutra outstanding now:", rs(m9["outstanding"]["total"]))
     print("   the dashboard:", {k: v for k, v in l4.call("get", "/dashboard", quiet=True)[1].items()
-                                 if "notice" in k.lower()})
+                                 if "reminder" in k.lower()})
 
-    print("   The same Payment before the Notice is sent, on a copy:")
+    print("   The same Payment before the Reminder is sent, on a copy:")
     pay = Copy(built, "l4-pay-first")
     pay.call("post", "/payments", json={"customer_id": 7, "paid_on": THE_DAY.isoformat(), "method": "upi",
                                           "amount": 5_000 * RUPEE,
                                           "allocations": [{"mortgage_id": MANGALSUTRA, "amount": 5_000 * RUPEE}]})
-    [reworded] = pay.notices("awaiting_approval")
+    [reworded] = pay.reminders("awaiting_approval")
     print("   message:\n" + "\n".join("     | " + line for line in reworded["message"].splitlines()))
 
     print("   Skip it instead, on a copy:")
     sk = Copy(built, "l4-skip")
-    sk.call("post", f"/notices/{nid}/skip")
-    sk.sql(f"SELECT id, status, approved, length(message) AS msg_len, sent_at FROM notice WHERE id={nid}")
-    sk.sql(f"SELECT * FROM notice_mortgage WHERE notice_id={nid}")
-    sk.call("post", f"/notices/{nid}/approve")
+    sk.call("post", f"/reminders/{nid}/skip")
+    sk.sql(f"SELECT id, status, approved, length(message) AS msg_len, sent_at FROM reminder WHERE id={nid}")
+    sk.sql(f"SELECT * FROM reminder_mortgage WHERE reminder_id={nid}")
+    sk.call("post", f"/reminders/{nid}/approve")
 
-    print("   Nothing left to say: Sunita's mangalsutra Redeemed before the Notice is sent:")
+    print("   Nothing left to say: Sunita's mangalsutra Redeemed before the Reminder is sent:")
     red = Copy(built, "l4-redeemed")
     red.call("post", f"/mortgages/{MANGALSUTRA}/redeem", json={"redeemed_on": THE_DAY.isoformat(), "method": "upi"})
-    [n] = [n for n in red.notices() if n["id"] == nid]
+    [n] = [n for n in red.reminders() if n["id"] == nid]
     print(f"     #{nid} {n['status']} message={n['message']!r} mortgages={n['mortgages']}")
     print("     dashboard:", {k: v for k, v in red.call("get", "/dashboard", quiet=True)[1].items()
-                               if "notice" in k.lower()})
-    red.call("post", f"/notices/{nid}/approve")
-    red.call("post", f"/notices/{nid}/sent")
-    s, n = red.call("post", f"/notices/{nid}/skip")
+                               if "reminder" in k.lower()})
+    red.call("post", f"/reminders/{nid}/approve")
+    red.call("post", f"/reminders/{nid}/sent")
+    s, n = red.call("post", f"/reminders/{nid}/skip")
     print("    ", n["status"], repr(n["message"]))
 
     print("   A template edit before sending rewords; after sending doesn't:")
     tpl = Copy(built, "l4-template")
     m5 = tpl.call("get", "/settings/messages", quiet=True)[1]
-    tpl.call("put", "/settings/messages", json={**m5, "notice_template": "Hello {customer_name}: {interest} on {date}."})
-    print("    ", repr(tpl.notices("awaiting_approval")[0]["message"]))
-    one_sent = tpl.notices("sent")[-1]
-    print(f"     a sent Notice (#{one_sent['id']}) still starts:", repr(one_sent["message"][:40]))
+    tpl.call("put", "/settings/messages", json={**m5, "reminder_template": "Hello {customer_name}: {interest} on {date}."})
+    print("    ", repr(tpl.reminders("awaiting_approval")[0]["message"]))
+    one_sent = tpl.reminders("sent")[-1]
+    print(f"     a sent Reminder (#{one_sent['id']}) still starts:", repr(one_sent["message"][:40]))
 
     # ------------------------------------------------------------ lesson 5
     print("\n== L5. Messages")
@@ -463,23 +463,23 @@ def report(built: Path) -> None:
     for line in awaiting["message"].splitlines():
         print(f"     [{len(line):2}] {line!r}")
     print("   The default templates:")
-    print(repr(MessageSettings().notice_template))
+    print(repr(MessageSettings().reminder_template))
     print(repr(MessageSettings().receipt_template))
-    print("   A two-card Notice: Meera given a second Mortgage from 25 Sep, days ahead 7, on a copy:")
+    print("   A two-card Reminder: Meera given a second Mortgage from 25 Sep, days ahead 7, on a copy:")
     two = Copy(built, "l5-two-cards")
     two.call("post", "/mortgages", json={
         "customer_id": 1, "start_date": "2026-09-25", "amount_lent": 20_000 * RUPEE,
         "description": "Gold earrings", "gross_weight_mg": 5_500, "net_weight_mg": 5_000,
         "purity_karat": 22, "lent_through": "cash", "terms": None})
     m8 = two.call("get", "/settings/messages", quiet=True)[1]
-    two.call("put", "/settings/messages", json={**m8, "notice_days_before": 7})
-    [meera] = [n for n in two.notices("awaiting_approval") if n["customer"]["id"] == 1]
+    two.call("put", "/settings/messages", json={**m8, "reminder_days_before": 7})
+    [meera] = [n for n in two.reminders("awaiting_approval") if n["customer"]["id"] == 1]
     print(f"     #{meera['id']} accrues {meera['accrues_on']} mortgages={[m['name'] for m in meera['mortgages']]}")
     for line in meera["message"].splitlines():
         print(f"     [{len(line):2}] {line}")
-    print("   A card that must widen (notice_text called directly, amounts made up):")
-    big = notice_text("{mortgages}", NoticeMessage(customer_name="x", accrues_on=date(2026, 11, 10), lines=[
-        NoticeLine(description="Necklace", interest=12_34_567 * RUPEE, owed_after=1_23_45_678 * RUPEE)]))
+    print("   A card that must widen (reminder_text called directly, amounts made up):")
+    big = reminder_text("{mortgages}", ReminderMessage(customer_name="x", accrues_on=date(2026, 11, 10), lines=[
+        ReminderLine(description="Necklace", interest=12_34_567 * RUPEE, owed_after=1_23_45_678 * RUPEE)]))
     for line in big.splitlines():
         print(f"     [{len(line):2}] {line}")
     print("   The WhatsApp link, from frontend/src/messaging.ts run by Node with window.open stubbed:")
@@ -504,33 +504,33 @@ def report(built: Path) -> None:
     for t in ("Namaste {name}", "Pay { amount } by {date", "{interest} on {date}", "{customer_name}{{x}}"):
         print(f"     {t!r}: unknown={unknown_placeholders(t, NOTICE_PLACEHOLDERS)}"
               f" fill={fill(t, {'date': '21 Oct 2026', 'interest': '₹700'})!r}")
-    print("   template_refusal:", template_refusal(MessageSettings(notice_template="Namaste {name}")))
+    print("   template_refusal:", template_refusal(MessageSettings(reminder_template="Namaste {name}")))
     l5 = Copy(built, "l5")
     m6 = l5.call("get", "/settings/messages", quiet=True)[1]
     for t in ("Namaste {name}, {interest} will be added on {date}.",
               "Namaste {customer_name}, { interest } on {date",
               "Namaste {customer_name}, {interest} will be added on {date}.\n\n{mortgages}"):
-        l5.call("put", "/settings/messages", json={**m6, "notice_template": t})
-    print("   Sunita's Notice after the accepted template:")
-    print("\n".join("     | " + line for line in l5.notices("awaiting_approval")[0]["message"].splitlines()))
+        l5.call("put", "/settings/messages", json={**m6, "reminder_template": t})
+    print("   Sunita's Reminder after the accepted template:")
+    print("\n".join("     | " + line for line in l5.reminders("awaiting_approval")[0]["message"].splitlines()))
     l5.call("put", "/settings/messages", json={**m6, "receipt_template": "Paid {amount}, owed {interest}"})
     print("   placeholders:", l5.call("get", "/settings/messages/placeholders", quiet=True)[1])
-    l5.call("put", "/settings/messages", json={**m6, "notice_template": ""})
-    l5.call("put", "/settings/messages", json={**m6, "notice_days_before": 29})
+    l5.call("put", "/settings/messages", json={**m6, "reminder_template": ""})
+    l5.call("put", "/settings/messages", json={**m6, "reminder_days_before": 29})
 
     # ------------------------------------------------------------ check yourself
     print("\n== 99. Check yourself")
     print("   Arjun's chain on 19 Nov, with no Payments:")
     q = Copy(built, "q-19nov", day=date(2026, 11, 19))
     q.call_list()
-    print("   Sunita's notice on 20 Oct when the Lender changes days ahead to 1 (on 19 Oct):")
+    print("   Sunita's reminder on 20 Oct when the Lender changes days ahead to 1 (on 19 Oct):")
     q2 = Copy(built, "q-1day")
     m7 = q2.call("get", "/settings/messages", quiet=True)[1]
-    q2.call("put", "/settings/messages", json={**m7, "notice_days_before": 1})
+    q2.call("put", "/settings/messages", json={**m7, "reminder_days_before": 1})
     q2.unsent()
     print("   Receipt template with {total_owed} and {reference}: ")
     print("    ", template_refusal(MessageSettings(receipt_template="{reference} {total_owed}")))
-    print("    ", template_refusal(MessageSettings(notice_template="{reference} {total_owed}")))
+    print("    ", template_refusal(MessageSettings(reminder_template="{reference} {total_owed}")))
 
 
 if __name__ == "__main__":

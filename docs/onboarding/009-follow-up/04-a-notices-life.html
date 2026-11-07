@@ -3,24 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>9.4 · A Notice's life: approve, skip, send</title>
+<title>9.4 · A Reminder's life: approve, skip, send</title>
 <link rel="stylesheet" href="../assets/course.css">
 <script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
 </head>
 <body>
 <p class="kicker">Chapter 009 · Lesson 4</p>
-<h1>A Notice's life: approve, skip, send</h1>
-<p class="lede">Sunita's Notice #58 is waiting for the Lender. This lesson approves it, sends it, and then records a Payment from Sunita, to show exactly what the database keeps at each step, and why the message she was sent never changes afterwards.</p>
+<h1>A Reminder's life: approve, skip, send</h1>
+<p class="lede">Sunita's Reminder #58 is waiting for the Lender. This lesson approves it, sends it, and then records a Payment from Sunita, to show exactly what the database keeps at each step, and why the message she was sent never changes afterwards.</p>
 
-<div class="callout win"><strong>By the end</strong> you can follow a Notice from awaiting approval to sent or skipped, and say what is stored at each step.</div>
+<div class="callout win"><strong>By the end</strong> you can follow a Reminder from awaiting approval to sent or skipped, and say what is stored at each step.</div>
 
 <h2>The problem</h2>
-<p>A Notice's figures depend on the Ledger. Until it is sent, they should be as fresh as possible. If Sunita pays ₹5,000 this afternoon, a Notice sent tomorrow should say what she owes <em>after</em> that Payment. So the wording can't be fixed when the Notice is made.</p>
+<p>A Reminder's figures depend on the Ledger. Until it is sent, they should be as fresh as possible. If Sunita pays ₹5,000 this afternoon, a Reminder sent tomorrow should say what she owes <em>after</em> that Payment. So the wording can't be fixed when the Reminder is made.</p>
 <p>Once it's sent, it's the opposite. Sunita received a particular message on a particular day. If she rings next week and says "your message said ₹35,723", the Lender needs to see exactly that message, not one rewritten with today's figures. A log that rewrites itself is not a log.</p>
-<p>And the Lender's actions need guarding. Sending a Notice twice, or approving one that has already gone, would make the log lie.</p>
+<p>And the Lender's actions need guarding. Sending a Reminder twice, or approving one that has already gone, would make the log lie.</p>
 
 <h2>The idea</h2>
-<p>Until a Notice is sent or skipped, its row is only <strong>a Customer and a date</strong>. Which Mortgages it covers, the amounts and the wording are all worked out whenever it is read, from the replay (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md\">ADR 0001</a>). The moment it is sent or skipped, the app <strong>freezes it</strong>: it stores the message and the list of Mortgages as they were at that instant.</p>
+<p>Until a Reminder is sent or skipped, its row is only <strong>a Customer and a date</strong>. Which Mortgages it covers, the amounts and the wording are all worked out whenever it is read, from the replay (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md\">ADR 0001</a>). The moment it is sent or skipped, the app <strong>freezes it</strong>: it stores the message and the list of Mortgages as they were at that instant.</p>
 <p>Each action is allowed only from certain statuses. Anything else is refused with a 409.</p>
 
 <h2>The flow</h2>
@@ -30,31 +30,31 @@ stateDiagram-v2
   [*] --> queued: sync makes it
   queued --> awaiting_approval: sync, approve first on and not approved
   awaiting_approval --> queued: approve (or sync, approve first off)
-  queued --> sent: send (stores message, notice_mortgage, sent_at)
-  awaiting_approval --> skipped: skip (stores message, notice_mortgage)
+  queued --> sent: send (stores message, reminder_mortgage, sent_at)
+  awaiting_approval --> skipped: skip (stores message, reminder_mortgage)
   queued --> skipped: skip
   sent --> [*]
   skipped --> [*]
 </pre>
-<figcaption>The two unsent statuses, <code>queued</code> and <code>awaiting_approval</code>, are re-decided by <code>sync</code> (lesson 3) and worded on every read. The two at the bottom, <code>sent</code> and <code>skipped</code>, are final: nothing moves a Notice out of them.</figcaption>
+<figcaption>The two unsent statuses, <code>queued</code> and <code>awaiting_approval</code>, are re-decided by <code>sync</code> (lesson 3) and worded on every read. The two at the bottom, <code>sent</code> and <code>skipped</code>, are final: nothing moves a Reminder out of them.</figcaption>
 </figure>
-<p>Notice there's no arrow from <code>awaiting_approval</code> straight to <code>sent</code>. A held Notice has to be approved first.</p>
+<p>Reminder there's no arrow from <code>awaiting_approval</code> straight to <code>sent</code>. A held Reminder has to be approved first.</p>
 
 <h2>The code</h2>
 <h3>1. What each action needs, and what it makes</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>NoticeAction</code>, <code>_ACTIONS</code> · lines 343–354</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>343  class NoticeAction(StrEnum):
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>ReminderAction</code>, <code>_ACTIONS</code> · lines 343–354</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>343  class ReminderAction(StrEnum):
 344      APPROVE = "approve"
 345      SKIP = "skip"
 346      SEND = "send"
 347
 348
-349  # What each action needs the Notice to be, and what it becomes.
-350  _ACTIONS: dict[NoticeAction, tuple[set[NoticeStatus], NoticeStatus]] = {
-351      NoticeAction.APPROVE: ({NoticeStatus.AWAITING_APPROVAL}, NoticeStatus.QUEUED),
-352      NoticeAction.SKIP: (_UNSENT, NoticeStatus.SKIPPED),
-353      NoticeAction.SEND: ({NoticeStatus.QUEUED}, NoticeStatus.SENT),
+349  # What each action needs the Reminder to be, and what it becomes.
+350  _ACTIONS: dict[ReminderAction, tuple[set[ReminderStatus], ReminderStatus]] = {
+351      ReminderAction.APPROVE: ({ReminderStatus.AWAITING_APPROVAL}, ReminderStatus.QUEUED),
+352      ReminderAction.SKIP: (_UNSENT, ReminderStatus.SKIPPED),
+353      ReminderAction.SEND: ({ReminderStatus.QUEUED}, ReminderStatus.SENT),
 354  }
 </code></pre>
 </figure>
@@ -62,59 +62,59 @@ stateDiagram-v2
 
 <h3>2. <code>act</code>: check, freeze, update</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>act()</code> · lines 365–401, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>365  def act(
-366      conn: Connection, notice_id: int, action: NoticeAction, now: datetime
-367  ) -&gt; Notice:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>act()</code> · lines 365–401, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>365  def act(
+366      conn: Connection, reminder_id: int, action: ReminderAction, now: datetime
+367  ) -&gt; Reminder:
 ⋮
-369      found = list_notices(conn, notice_id=notice_id)           # ① worded as it stands now
-⋮    … NoticeNotFound if there is none …
-372      notice = found[0]
+369      found = list_reminders(conn, reminder_id=reminder_id)           # ① worded as it stands now
+⋮    … ReminderNotFound if there is none …
+372      reminder = found[0]
 373      allowed, becomes = _ACTIONS[action]
-374      if notice.status not in allowed:
-375          raise NoticeRefused(
-376              f"This Notice is already {notice.status.value.replace('_', ' ')}"
+374      if reminder.status not in allowed:
+375          raise ReminderRefused(
+376              f"This Reminder is already {reminder.status.value.replace('_', ' ')}"
 377          )
-378      if action == NoticeAction.SEND and not notice.mortgages:  # ② nothing to say
-379          raise NoticeRefused(
+378      if action == ReminderAction.SEND and not reminder.mortgages:  # ② nothing to say
+379          raise ReminderRefused(
 380              "None of their Mortgages accruing that day still owes anything: skip it"
 381          )
 382      values: dict[str, object] = {"status": becomes}
-383      if action == NoticeAction.APPROVE:
+383      if action == ReminderAction.APPROVE:
 384          values["approved"] = True
 385      if becomes not in _UNSENT:
 386          # Sent or skipped: keep it as it was, for the log.
-387          values["message"] = notice.message                    # ③ freeze the text  ◀
-388          if notice.mortgages:
+387          values["message"] = reminder.message                    # ③ freeze the text  ◀
+388          if reminder.mortgages:
 389              conn.execute(
-390                  insert(notice_mortgage_table),                # ③ and the Mortgages
+390                  insert(reminder_mortgage_table),                # ③ and the Mortgages
 ⋮
 395              )
-396      if becomes == NoticeStatus.SENT:
+396      if becomes == ReminderStatus.SENT:
 397          values["sent_at"] = now
 398      conn.execute(
-399          update(notice_table).where(notice_table.c.id == notice_id).values(**values)
+399          update(reminder_table).where(reminder_table.c.id == reminder_id).values(**values)
 400      )
-401      return list_notices(conn, notice_id=notice_id)[0]
+401      return list_reminders(conn, reminder_id=reminder_id)[0]
 </code></pre>
 </figure>
 <ol class="marks">
-  <li><code>act</code> reads the Notice through the same <code>list_notices</code> the page uses. So the message it freezes is exactly the one the Lender was looking at.</li>
-  <li>A Notice can lose everything it had to say: its Mortgage was Redeemed, or became Dormant, after the Notice was made. Sending an empty message is refused; skipping it is fine.</li>
-  <li>Freezing happens for both sent <em>and</em> skipped. A skipped Notice keeps the message the Lender decided not to send, so the log shows what was skipped.</li>
+  <li><code>act</code> reads the Reminder through the same <code>list_reminders</code> the page uses. So the message it freezes is exactly the one the Lender was looking at.</li>
+  <li>A Reminder can lose everything it had to say: its Mortgage was Redeemed, or became Dormant, after the Reminder was made. Sending an empty message is refused; skipping it is fine.</li>
+  <li>Freezing happens for both sent <em>and</em> skipped. A skipped Reminder keeps the message the Lender decided not to send, so the log shows what was skipped.</li>
 </ol>
-<p>The routes (lines 438–451) are <code>POST /api/notices/{id}/approve</code>, <code>/skip</code> and <code>/sent</code>. All three call <code>_answer</code> (line 426), which runs <code>act</code> in <code>engine.begin()</code> and turns <code>NoticeNotFound</code> into a 404 and <code>NoticeRefused</code> into a 409. Note the route is <code>/sent</code>, past tense: it records that the Lender <em>has</em> sent it (below).</p>
+<p>The routes (lines 438–451) are <code>POST /api/reminders/{id}/approve</code>, <code>/skip</code> and <code>/sent</code>. All three call <code>_answer</code> (line 426), which runs <code>act</code> in <code>engine.begin()</code> and turns <code>ReminderNotFound</code> into a 404 and <code>ReminderRefused</code> into a 409. Note the route is <code>/sent</code>, past tense: it records that the Lender <em>has</em> sent it (below).</p>
 
 <h3>3. Worded on read, or kept</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>list_notices()</code> · lines 276–303, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>276      template = MESSAGE_SETTINGS.get(conn).notice_template
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>list_reminders()</code> · lines 276–303, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>276      template = MESSAGE_SETTINGS.get(conn).reminder_template
 277      kept: dict[int, list[MortgageLink]] = defaultdict(list)
-⋮    … kept = each Notice's notice_mortgage rows, as links …
+⋮    … kept = each Reminder's reminder_mortgage rows, as links …
 291      accruing = _accruing(
 292          conn, [row for row in rows if row["status"] in _UNSENT], replayed   ① ◀
 293      )
-294      notices = []
+294      reminders = []
 295      for row in rows:
 296          if row["id"] in accruing:                             # unsent: work it out now
 297              mortgages = accruing[row["id"]]
@@ -132,12 +132,12 @@ stateDiagram-v2
 
 <h3>4. Which Mortgages, and which figures</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>_notice_line()</code> · lines 164–172</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>164  def _notice_line(mortgage: MortgageReplay, description: str, on: date) -&gt; NoticeLine:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>_reminder_line()</code> · lines 164–172</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>164  def _reminder_line(mortgage: MortgageReplay, description: str, on: date) -&gt; ReminderLine:
 165      """The month's interest `mortgage` will be charged on `on`, and its Outstanding
 166      then, with no further Payments."""
 167      [then] = mortgage.projection([on]).snapshots            # ① a Projection to that day
-168      return NoticeLine(
+168      return ReminderLine(
 169          description=description,
 170          interest=then.interest_charged,
 171          owed_after=then.outstanding,
@@ -145,8 +145,8 @@ stateDiagram-v2
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>_accruing()</code> · lines 202–210</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>202      return {
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>_accruing()</code> · lines 202–210</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>202      return {
 203          row["id"]: [
 204              m
 205              for m in by_customer[row["customer_id"]]          # the Customer's Active Mortgages
@@ -159,39 +159,39 @@ stateDiagram-v2
 </figure>
 <ol class="marks">
   <li>A Projection (chapter 004, lesson 5) replays the Mortgage forward to a future day, assuming no more Payments. <code>[then] = …</code> unpacks a one-item list, and fails loudly if there isn't exactly one. The figures are 004's; this function only picks two of them.</li>
-  <li>The Notice row doesn't say which Mortgages it covers. They're found again on every read: the Customer's Active Mortgages that accrue on <code>accrues_on</code> and aren't Dormant then. A Mortgage added after the Notice was made, accruing the same day, joins it (<code>test_a_queued_notice_covers_a_mortgage_added_later</code>).</li>
+  <li>The Reminder row doesn't say which Mortgages it covers. They're found again on every read: the Customer's Active Mortgages that accrue on <code>accrues_on</code> and aren't Dormant then. A Mortgage added after the Reminder was made, accruing the same day, joins it (<code>test_a_queued_reminder_covers_a_mortgage_added_later</code>).</li>
 </ol>
-<p>The Dashboard's counts use <code>unsent_counts</code> (line 213). It runs the same <code>_accruing</code> and counts only Notices that still have a Mortgage to talk about, without wording any. So a Notice with nothing to say doesn't show up as work to do.</p>
+<p>The Dashboard's counts use <code>unsent_counts</code> (line 213). It runs the same <code>_accruing</code> and counts only Reminders that still have a Mortgage to talk about, without wording any. So a Reminder with nothing to say doesn't show up as work to do.</p>
 
 <h2>Run-through: approve, send, then pay</h2>
-<p>This saves on your served book: an approval, a send and a Payment. Read the Notice first, then the row behind it:</p>
-<pre><code>curl -s 'http://127.0.0.1:8765/api/notices?status=awaiting_approval'
-sqlite3 "$BOOK/data/mortgage.db" "SELECT id, status, approved, message, sent_at FROM notice WHERE id = 58"</code></pre>
+<p>This saves on your served book: an approval, a send and a Payment. Read the Reminder first, then the row behind it:</p>
+<pre><code>curl -s 'http://127.0.0.1:8765/api/reminders?status=awaiting_approval'
+sqlite3 "$BOOK/data/mortgage.db" "SELECT id, status, approved, message, sent_at FROM reminder WHERE id = 58"</code></pre>
 <p>The API's <code>message</code> is the full text (lesson 5 reads it line by line): "On 21 Oct 2026, interest of ₹700 will be added", "Owed after ₹35,723". The row's <code>message</code> is NULL. Now act on it, in this order:</p>
-<pre><code>curl -s -X POST http://127.0.0.1:8765/api/notices/58/sent
-curl -s -X POST http://127.0.0.1:8765/api/notices/58/approve
-curl -s -X POST http://127.0.0.1:8765/api/notices/58/approve
-curl -s -X POST http://127.0.0.1:8765/api/notices/58/sent</code></pre>
+<pre><code>curl -s -X POST http://127.0.0.1:8765/api/reminders/58/sent
+curl -s -X POST http://127.0.0.1:8765/api/reminders/58/approve
+curl -s -X POST http://127.0.0.1:8765/api/reminders/58/approve
+curl -s -X POST http://127.0.0.1:8765/api/reminders/58/sent</code></pre>
 <table class="steps text">
-<tr><th>Request</th><th>Answer</th><th><code>status</code></th><th><code>approved</code></th><th><code>message</code> (stored)</th><th><code>sent_at</code></th><th><code>notice_mortgage</code></th></tr>
+<tr><th>Request</th><th>Answer</th><th><code>status</code></th><th><code>approved</code></th><th><code>message</code> (stored)</th><th><code>sent_at</code></th><th><code>reminder_mortgage</code></th></tr>
 <tr><td>(before)</td><td>—</td><td>awaiting_approval</td><td>0</td><td>NULL</td><td>NULL</td><td>none</td></tr>
-<tr><td><code>/sent</code></td><td>409 · This Notice is already awaiting approval</td><td>awaiting_approval</td><td>0</td><td>NULL</td><td>NULL</td><td>none</td></tr>
+<tr><td><code>/sent</code></td><td>409 · This Reminder is already awaiting approval</td><td>awaiting_approval</td><td>0</td><td>NULL</td><td>NULL</td><td>none</td></tr>
 <tr><td><code>/approve</code></td><td>200</td><td>queued</td><td>1</td><td>NULL</td><td>NULL</td><td>none</td></tr>
-<tr><td><code>/approve</code></td><td>409 · This Notice is already queued</td><td>queued</td><td>1</td><td>NULL</td><td>NULL</td><td>none</td></tr>
+<tr><td><code>/approve</code></td><td>409 · This Reminder is already queued</td><td>queued</td><td>1</td><td>NULL</td><td>NULL</td><td>none</td></tr>
 <tr class="changed"><td><code>/sent</code></td><td>200</td><td>sent</td><td>1</td><td>the text, 239 characters</td><td>2026-10-19 11:00</td><td>(58, 9)</td></tr>
 </table>
-<p class="cite">From <code>scripts/run_throughs.py</code> (section L4). <code>sent_at</code> comes from the app's clock (<code>now</code>); the served book's clock says 11:00. A further <code>/sent</code> or <code>/skip</code> is a 409, "This Notice is already sent"; <code>/notices/999/approve</code> is a 404.</p>
-<p>"Already awaiting approval" reads oddly as a reason not to send. The message is built from the Notice's status, the same way for every refusal (line 376).</p>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L4). <code>sent_at</code> comes from the app's clock (<code>now</code>); the served book's clock says 11:00. A further <code>/sent</code> or <code>/skip</code> is a 409, "This Reminder is already sent"; <code>/reminders/999/approve</code> is a 404.</p>
+<p>"Already awaiting approval" reads oddly as a reason not to send. The message is built from the Reminder's status, the same way for every refusal (line 376).</p>
 <p>Now Sunita pays ₹5,000 on her mangalsutra (Customer 7, Mortgage 9). On a fresh book this becomes Payment 34:</p>
 <pre><code>curl -s -X POST -H 'content-type: application/json' http://127.0.0.1:8765/api/payments -d '{
   "customer_id": 7, "paid_on": "2026-10-19", "method": "upi", "amount": 500000,
   "allocations": [{"mortgage_id": 9, "amount": 500000}]}'
-curl -s 'http://127.0.0.1:8765/api/notices?status=sent&amp;sort=accrues&amp;descending=true'</code></pre>
+curl -s 'http://127.0.0.1:8765/api/reminders?status=sent&amp;sort=accrues&amp;descending=true'</code></pre>
 <table class="steps">
 <tr><th></th><th>Before the Payment</th><th>After the Payment</th></tr>
 <tr><td>Mangalsutra's Outstanding today</td><td>35,677</td><td>30,677</td></tr>
 <tr class="changed"><td>#58's message: "Owed after"</td><td>₹35,723</td><td>₹35,723, unchanged</td></tr>
-<tr><td>Dashboard: <code>notices_to_send</code>, <code>notices_to_approve</code></td><td>0, 0</td><td>0, 0</td></tr>
+<tr><td>Dashboard: <code>reminders_to_send</code>, <code>reminders_to_approve</code></td><td>0, 0</td><td>0, 0</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L4).</p>
 <p>The Ledger moved; the sent message didn't. That's the log doing its job: it says what Sunita was actually told.</p>
@@ -199,7 +199,7 @@ curl -s 'http://127.0.0.1:8765/api/notices?status=sent&amp;sort=accrues&amp;desc
 <h2>Nuances</h2>
 <h3>(a) Pay first, then look</h3>
 <div class="reveal">
-  <p><strong>Predict:</strong> on a fresh copy, Sunita pays the same ₹5,000 <em>before</em> the Notice is approved. What do "Interest added" and "Owed after" say now?</p>
+  <p><strong>Predict:</strong> on a fresh copy, Sunita pays the same ₹5,000 <em>before</em> the Reminder is approved. What do "Interest added" and "Owed after" say now?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <table class="steps">
@@ -207,13 +207,13 @@ curl -s 'http://127.0.0.1:8765/api/notices?status=sent&amp;sort=accrues&amp;desc
     <tr><td>Interest added</td><td>₹700</td><td>₹700</td></tr>
     <tr class="changed"><td>Owed after</td><td>₹35,723</td><td>₹30,720</td></tr>
     </table>
-    <p class="cite">From <code>scripts/run_throughs.py</code> (section L4), on a copy: <code>GET /api/notices?status=awaiting_approval</code>.</p>
-    <p>The unsent Notice was worded again on read, so it shows the new Outstanding. The interest stays ₹700: the month from 21 Sep is charged on the Principal at its start, ₹35,000 (<a href="../reference/traps.html#t7">trap #7</a>, <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md\">ADR 0006</a>). A Notice quotes the month's interest even when some of it was paid ahead (<code>test_interest_paid_ahead_is_still_the_months_interest_added</code>).</p>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L4), on a copy: <code>GET /api/reminders?status=awaiting_approval</code>.</p>
+    <p>The unsent Reminder was worded again on read, so it shows the new Outstanding. The interest stays ₹700: the month from 21 Sep is charged on the Principal at its start, ₹35,000 (<a href="../reference/traps.html#t7">trap #7</a>, <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md\">ADR 0006</a>). A Reminder quotes the month's interest even when some of it was paid ahead (<code>test_interest_paid_ahead_is_still_the_months_interest_added</code>).</p>
   </div>
 </div>
 
 <h3>(b) Skip instead</h3>
-<p>On a copy, <code>POST /api/notices/58/skip</code> straight from <code>awaiting_approval</code> gives <code>status</code> skipped, <code>approved</code> 0, the 239-character message stored, <code>notice_mortgage</code> (58, 9), and <code>sent_at</code> NULL. Approving it afterwards is a 409: "This Notice is already skipped". (From <code>scripts/run_throughs.py</code>, section L4.)</p>
+<p>On a copy, <code>POST /api/reminders/58/skip</code> straight from <code>awaiting_approval</code> gives <code>status</code> skipped, <code>approved</code> 0, the 239-character message stored, <code>reminder_mortgage</code> (58, 9), and <code>sent_at</code> NULL. Approving it afterwards is a 409: "This Reminder is already skipped". (From <code>scripts/run_throughs.py</code>, section L4.)</p>
 
 <h3>(c) Nothing left to say</h3>
 <div class="reveal">
@@ -223,51 +223,51 @@ curl -s 'http://127.0.0.1:8765/api/notices?status=sent&amp;sort=accrues&amp;desc
     <table class="steps text">
     <tr><th>Step</th><th>Answer</th></tr>
     <tr><td>read #58</td><td>still <code>awaiting_approval</code>, <code>message</code> "" (empty), <code>mortgages</code> []</td></tr>
-    <tr><td>Dashboard</td><td><code>notices_to_approve</code> 0: <code>unsent_counts</code> leaves it out</td></tr>
+    <tr><td>Dashboard</td><td><code>reminders_to_approve</code> 0: <code>unsent_counts</code> leaves it out</td></tr>
     <tr><td><code>/approve</code></td><td>200 · queued (the status allows it)</td></tr>
     <tr class="changed"><td><code>/sent</code></td><td>409 · None of their Mortgages accruing that day still owes anything: skip it</td></tr>
     <tr><td><code>/skip</code></td><td>200 · skipped, message ""</td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L4), on a copy.</p>
-    <p>The row is still there, because <code>sync</code> only removes Notices that are too far ahead. But <code>_accruing</code> finds no Active Mortgage of Sunita's accruing on 21 Oct, so there's nothing to say, and only skipping finishes it.</p>
+    <p>The row is still there, because <code>sync</code> only removes Reminders that are too far ahead. But <code>_accruing</code> finds no Active Mortgage of Sunita's accruing on 21 Oct, so there's nothing to say, and only skipping finishes it.</p>
   </div>
 </div>
 
 <h3>(d) "Sent" means "the Lender opened WhatsApp"</h3>
-<p>The app never talks to WhatsApp's servers. On the Notices page, the Send button opens WhatsApp with the message ready, and at the same moment tells the backend it was sent (<code>WhatsApp.tsx</code> calls <code>sender.send</code>, then <code>onSent</code>; <a href="../012-frontend-pages-and-the-pwa/05-follow-up-dashboard-and-settings.html">chapter 012, lesson 5</a>). The Lender still has to press Send in WhatsApp. If they close it instead, the app already says "sent". That's the price of click-to-send, which <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a> chose over automating WhatsApp Web. Lesson 5 shows the link.</p>
+<p>The app never talks to WhatsApp's servers. On the Reminders page, the Send button opens WhatsApp with the message ready, and at the same moment tells the backend it was sent (<code>WhatsApp.tsx</code> calls <code>sender.send</code>, then <code>onSent</code>; <a href="../012-frontend-pages-and-the-pwa/05-follow-up-dashboard-and-settings.html">chapter 012, lesson 5</a>). The Lender still has to press Send in WhatsApp. If they close it instead, the app already says "sent". That's the price of click-to-send, which <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a> chose over automating WhatsApp Web. Lesson 5 shows the link.</p>
 
-<h3>(e) A template edit only rewords unsent Notices</h3>
-<p>On a copy, the Lender saves the Notice template <code>Hello {customer_name}: {interest} on {date}.</code>. #58 now reads "Hello Sunita Rao: ₹700 on 21 Oct 2026." Sent Notice #57, to Arjun, still begins "*Interest notice* 🔔 … Namaste Arjun Patel": its text was frozen when it was sent. (From <code>scripts/run_throughs.py</code>, section L4.)</p>
+<h3>(e) A template edit only rewords unsent Reminders</h3>
+<p>On a copy, the Lender saves the Reminder template <code>Hello {customer_name}: {interest} on {date}.</code>. #58 now reads "Hello Sunita Rao: ₹700 on 21 Oct 2026." Sent Reminder #57, to Arjun, still begins "*Interest reminder* 🔔 … Namaste Arjun Patel": its text was frozen when it was sent. (From <code>scripts/run_throughs.py</code>, section L4.)</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="1">
-  <p class="q">A Notice is <code>queued</code>. What does the <code>notice</code> row hold in its <code>message</code> column?</p>
+  <p class="q">A Reminder is <code>queued</code>. What does the <code>reminder</code> row hold in its <code>message</code> column?</p>
   <button class="opt">The text as it was when it was queued</button>
   <button class="opt">NULL: it's worded each time it's read</button>
   <button class="opt">The template, with placeholders unfilled</button>
-  <div class="why">Only <code>act</code> writes <code>message</code>, and only when the Notice becomes sent or skipped (line 387). Until then the API words it on every read, from the replay and the current template.</div>
+  <div class="why">Only <code>act</code> writes <code>message</code>, and only when the Reminder becomes sent or skipped (line 387). Until then the API words it on every read, from the replay and the current template.</div>
 </div>
 <div class="quiz" data-answer="2">
-  <p class="q">"Approve first" is on. Which request moves an <code>awaiting_approval</code> Notice to <code>sent</code>?</p>
+  <p class="q">"Approve first" is on. Which request moves an <code>awaiting_approval</code> Reminder to <code>sent</code>?</p>
   <button class="opt"><code>/sent</code> alone, as it implies approval</button>
   <button class="opt"><code>/skip</code>, then <code>/sent</code></button>
   <button class="opt"><code>/approve</code>, then <code>/sent</code></button>
-  <div class="why">Send needs <code>queued</code> (<code>_ACTIONS</code>). <code>/sent</code> on an awaiting Notice is a 409. Skipped is final, so nothing can follow a skip.</div>
+  <div class="why">Send needs <code>queued</code> (<code>_ACTIONS</code>). <code>/sent</code> on an awaiting Reminder is a 409. Skipped is final, so nothing can follow a skip.</div>
 </div>
 <div class="quiz" data-answer="0">
-  <p class="q">Which table tells you, months later, which Mortgages a sent Notice talked about?</p>
-  <button class="opt"><code>notice_mortgage</code>, written when it was sent</button>
-  <button class="opt"><code>notice</code>, in a <code>mortgage_id</code> column</button>
+  <p class="q">Which table tells you, months later, which Mortgages a sent Reminder talked about?</p>
+  <button class="opt"><code>reminder_mortgage</code>, written when it was sent</button>
+  <button class="opt"><code>reminder</code>, in a <code>mortgage_id</code> column</button>
   <button class="opt">None: it's worked out again from the replay</button>
-  <div class="why"><code>notice</code> has no Mortgage column: a Notice is a Customer and a date. While unsent, its Mortgages are worked out; once sent or skipped, <code>act</code> writes one <code>notice_mortgage</code> row per Mortgage, and <code>list_notices</code> reads those.</div>
+  <div class="why"><code>reminder</code> has no Mortgage column: a Reminder is a Customer and a date. While unsent, its Mortgages are worked out; once sent or skipped, <code>act</code> writes one <code>reminder_mortgage</code> row per Mortgage, and <code>list_reminders</code> reads those.</div>
 </div>
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <code>list_notices</code> and <code>act</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py"><code>follow_up/notices.py</code></a> (lines 252–401), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_notices.py"><code>tests/test_notices.py</code></a> line 324, <code>test_a_sent_notice_keeps_the_message_that_was_sent</code>: the whole lesson in ten lines.</p>
+<p>Read <code>list_reminders</code> and <code>act</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py"><code>follow_up/reminders.py</code></a> (lines 252–401), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_reminders.py"><code>tests/test_reminders.py</code></a> line 324, <code>test_a_sent_reminder_keeps_the_message_that_was_sent</code>: the whole lesson in ten lines.</p>
 
 <nav class="lessons">
-  <a href="03-the-notice-queue.html">← The Notice queue</a>
+  <a href="03-the-reminder-queue.html">← The Reminder queue</a>
   <a href="index.html">Chapter overview</a>
   <a href="05-messages-and-sending.html">Next: Messages and sending →</a>
 </nav>

@@ -41,7 +41,7 @@ flowchart TD
 </pre>
 <figcaption>Every URL goes through the same shell. The page itself only decides what to ask for and how to draw the answer.</figcaption>
 </figure>
-<p>Notice that <code>Nav</code> and <code>UpdateBanner</code> are drawn on every page, so they make requests on every fresh load. You'll see them in the Network tab before the page's own request.</p>
+<p>Reminder that <code>Nav</code> and <code>UpdateBanner</code> are drawn on every page, so they make requests on every fresh load. You'll see them in the Network tab before the page's own request.</p>
 
 <h2>The code</h2>
 <h3>1. Every URL, in one file</h3>
@@ -67,7 +67,7 @@ flowchart TD
 57                &lt;Route path="/mortgages/:id" element={&lt;MortgagePage /&gt;} /&gt;
 ⋮
 62                &lt;Route path="/call-list" element={&lt;CallListPage /&gt;} /&gt;
-63                &lt;Route path="/notices" element={&lt;NoticesPage /&gt;} /&gt;
+63                &lt;Route path="/reminders" element={&lt;RemindersPage /&gt;} /&gt;
 64                &lt;Route path="/closures" element={&lt;ClosuresPage /&gt;} /&gt;
 65                &lt;Route path="/referrers/:id" element={&lt;ReferrerPage /&gt;} /&gt;
 66                &lt;Route path="/settings" element={&lt;SettingsPage /&gt;} /&gt;
@@ -95,7 +95,7 @@ flowchart TD
 15          Dashboard
 16        &lt;/NavLink&gt;
 17        &lt;NavLink to="/payments"&gt;Payments&lt;/NavLink&gt;
-⋮       … Customers, Mortgages, Calculator, Call List, Notices …
+⋮       … Customers, Mortgages, Calculator, Call List, Reminders …
 23        &lt;NavLink
 24          to="/closures"
 25          title={dormant ? `${dormant} Dormant: owing nothing, to Redeem` : undefined}
@@ -251,7 +251,7 @@ flowchart TD
 <p>Every amount crosses the API as integer paise, and becomes rupees only in <code>formatINR</code>, at the last moment. If you see a figure a hundred times too big, someone skipped it; if you see ₹151,500, someone formatted it by hand. Units are <a href="../reference/traps.html#t6">trap #6</a> (owned by <a href="../004-the-ledger-engine/02-one-months-interest.html">chapter 004</a>).</p>
 
 <h3>(c) Descriptions, never Mortgage Names, on what the Customer sees</h3>
-<p>The Receipt says "Gold chain with Lakshmi pendant", not <code>2025-Meera-GoldChainPendant</code>. A <dfn class="term" title="A human-readable label for a Mortgage, beginning with the year it started."><a href="../reference/glossary.html#mortgage-name">Mortgage Name</a></dfn> is the Lender's own filing label; the Customer knows their jewellery. So anything the Customer reads (a Receipt, a Notice) names the jewellery by its description (<a href="../reference/traps.html#t16">trap #16</a>, owned by <a href="../007-payments-and-receipts/05-receipts.html">chapter 007</a>). The Lender's own screens, like the Mortgage page, use the Mortgage Name.</p>
+<p>The Receipt says "Gold chain with Lakshmi pendant", not <code>2025-Meera-GoldChainPendant</code>. A <dfn class="term" title="A human-readable label for a Mortgage, beginning with the year it started."><a href="../reference/glossary.html#mortgage-name">Mortgage Name</a></dfn> is the Lender's own filing label; the Customer knows their jewellery. So anything the Customer reads (a Receipt, a Reminder) names the jewellery by its description (<a href="../reference/traps.html#t16">trap #16</a>, owned by <a href="../007-payments-and-receipts/05-receipts.html">chapter 007</a>). The Lender's own screens, like the Mortgage page, use the Mortgage Name.</p>
 
 <h3>(d) The two "todays"</h3>
 <div class="reveal">

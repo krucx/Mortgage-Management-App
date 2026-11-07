@@ -34,7 +34,7 @@ flowchart LR
   QP -->|"ORDER BY … LIMIT 20 OFFSET …"| DB
   DB -->|"rows"| TI["to_items"]
   TI --> P["Page: items, total, page, page_size"]
-  W["worked out in Python<br/>Call List, Notices"] -->|"rows_page"| P
+  W["worked out in Python<br/>Call List, Reminders"] -->|"rows_page"| P
 </pre>
 <figcaption>Two ways to a <code>Page</code>. Lists that are plain table rows are paged in SQL; lists worked out in Python from the replay are paged in Python. The answer has the same shape either way.</figcaption>
 </figure>
@@ -65,7 +65,7 @@ flowchart LR
   <li><code>metadata</code> collects every Table declared against it. Lesson 6 shows a test that compares it with the real database.</li>
   <li>A <code>ForeignKey</code>: the value must be the <code>id</code> of an existing <code>customer</code> row (or <code>NULL</code>), but only if SQLite is told to check (below).</li>
 </ol>
-<p>The 12 Tables are <code>config</code>, <code>standalone_referrer</code>, <code>customer</code>, <code>mortgage</code>, <code>mortgage_photo</code>, <code>payment</code>, <code>term_change</code>, <code>audit_entry</code> (History), <code>call_note</code>, <code>allocation</code>, <code>notice</code> and <code>notice_mortgage</code>. Read <code>mortgage_table</code> (lines 81–109) and you'll see the units again (<a href="../reference/traps.html#t6">trap #6</a>): Meera's chain is stored as <code>amount_lent</code> = <code>8000000</code> (paise, so ₹80,000) and <code>monthly_rate_bps</code> = <code>200</code> (basis points, so 2% a month).</p>
+<p>The 12 Tables are <code>config</code>, <code>standalone_referrer</code>, <code>customer</code>, <code>mortgage</code>, <code>mortgage_photo</code>, <code>payment</code>, <code>term_change</code>, <code>audit_entry</code> (History), <code>call_note</code>, <code>allocation</code>, <code>notice</code> and <code>reminder_mortgage</code>. Read <code>mortgage_table</code> (lines 81–109) and you'll see the units again (<a href="../reference/traps.html#t6">trap #6</a>): Meera's chain is stored as <code>amount_lent</code> = <code>8000000</code> (paise, so ₹80,000) and <code>monthly_rate_bps</code> = <code>200</code> (basis points, so 2% a month).</p>
 <div class="callout"><strong>There is no ledger table,</strong> and no column for Outstanding, interest or Months Unpaid. Every money figure is worked out by replaying the stored facts (<a href="../004-the-ledger-engine/01-the-ledger-is-a-replay.html">chapter 004</a>, <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md\">ADR 0001</a>). If you catch yourself adding an <code>outstanding</code> column, stop and reread that ADR.</div>
 
 <h3>2. The engine and foreign keys</h3>
@@ -91,7 +91,7 @@ flowchart LR
 <table class="steps text">
 <tr><th>Code</th><th>What it is</th><th>Used for</th></tr>
 <tr><td><code>with engine.connect() as conn:</code></td><td>a connection; nothing is committed</td><td>reads</td></tr>
-<tr><td><code>with engine.begin() as conn:</code></td><td>a transaction: committed when the block ends normally, rolled back if an exception escapes it</td><td>every change (and the reads that write, like <code>GET /api/notices</code>)</td></tr>
+<tr><td><code>with engine.begin() as conn:</code></td><td>a transaction: committed when the block ends normally, rolled back if an exception escapes it</td><td>every change (and the reads that write, like <code>GET /api/reminders</code>)</td></tr>
 </table>
 <figure class="snippet">
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/errors.py">platform/errors.py</a> · <code>unprocessable()</code> · lines 6–8</figcaption>
@@ -235,7 +235,7 @@ LIMIT 20 OFFSET 0</code></pre>
 208      )
 </code></pre>
 </figure>
-<p>The Call List can't be sorted by SQL: Months Unpaid and Loan-to-Value aren't columns, they come from replaying each Mortgage. So the route works out every row, then <code>rows_page</code> sorts them with Python's <code>sorted</code> (which keeps equal rows in their original order) and slices out the page with <code>page_of</code>. On the book, <code>GET /api/call-list</code> has <code>total</code> 1 (Arjun), <code>page_size</code> 20, and <code>mortgages</code> 2. The Notices and Closures lists work the same way. <code>rows_page</code> also accepts <code>page=None</code>, meaning "every row on one page".</p>
+<p>The Call List can't be sorted by SQL: Months Unpaid and Loan-to-Value aren't columns, they come from replaying each Mortgage. So the route works out every row, then <code>rows_page</code> sorts them with Python's <code>sorted</code> (which keeps equal rows in their original order) and slices out the page with <code>page_of</code>. On the book, <code>GET /api/call-list</code> has <code>total</code> 1 (Arjun), <code>page_size</code> 20, and <code>mortgages</code> 2. The Reminders and Closures lists work the same way. <code>rows_page</code> also accepts <code>page=None</code>, meaning "every row on one page".</p>
 
 <h3>(d) The schema is declared twice</h3>
 <p>The Tables in <code>db.py</code> are what the <em>code</em> queries. But they don't create the database: the migrations do (lessons 5 and 6). So every column exists in two places, and a new column means editing both. If they disagree, the code asks for a column the database doesn't have, or the reverse. Until recently nothing caught that. Now one test does, <code>test_the_migrations_build_the_tables_the_app_declares</code>, added for <a href="https://github.com/krucx/Mortgage-Management-App/issues/115">#115</a>. Lesson 6 has you watch it fail, and this chapter's check-yourself has you break it on purpose.</p>
@@ -260,7 +260,7 @@ LIMIT 20 OFFSET 0</code></pre>
   <button class="opt"><code>engine.begin()</code>, as every query needs one</button>
   <button class="opt"><code>engine.connect()</code>: no transaction to commit</button>
   <button class="opt"><code>sqlite3.connect()</code>, as it's quicker</button>
-  <div class="why">Reads use <code>engine.connect()</code>. <code>engine.begin()</code> is for changes, and for the few reads that write, like the Notices list. Plain <code>sqlite3</code> skips the engine, and with it the foreign-key <code>PRAGMA</code>.</div>
+  <div class="why">Reads use <code>engine.connect()</code>. <code>engine.begin()</code> is for changes, and for the few reads that write, like the Reminders list. Plain <code>sqlite3</code> skips the engine, and with it the foreign-key <code>PRAGMA</code>.</div>
 </div>
 <p><span class="score"></span></p>
 

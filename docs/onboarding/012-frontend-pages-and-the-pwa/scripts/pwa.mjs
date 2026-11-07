@@ -95,7 +95,7 @@ for (const [name, urls] of Object.entries(caches)) {
 console.log('== L6: the Dashboard on a fresh book')
 const dash = await (await fetch(`${base}/api/dashboard`)).json()
 say('collateral_value, loan_to_value', `${dash.collateral_value} ${dash.loan_to_value}`)
-say('notices_to_send, notices_to_approve, call_list_count', `${dash.notices_to_send} ${dash.notices_to_approve} ${dash.call_list_count}`)
+say('reminders_to_send, reminders_to_approve, call_list_count', `${dash.reminders_to_send} ${dash.reminders_to_approve} ${dash.call_list_count}`)
 const active = (await (await fetch(`${base}/api/mortgages?status=active&paged=false`)).json()).items
 let owed = 0
 let valued = 0

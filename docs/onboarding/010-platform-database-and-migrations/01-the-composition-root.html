@@ -64,12 +64,12 @@ sequenceDiagram
 65      engine = make_engine(database_url)                  # ③  ◀
 66      backup = Backups(engine, database_url, backup_dir, backup_password, now)
 67
-68      def sync_notices(day: date) -&gt; None:
+68      def sync_reminders(day: date) -&gt; None:
 69          with engine.begin() as conn:
-70              notices.sync(conn, day)
+70              reminders.sync(conn, day)
 71
 72      daily_run = DailyRun(
-73          engine, today, jobs=[backup.start_if_due, sync_notices]   # ④
+73          engine, today, jobs=[backup.start_if_due, sync_reminders]   # ④
 74      )
 </code></pre>
 </figure>
@@ -149,7 +149,7 @@ sequenceDiagram
 135     return app
 </code></pre>
 </figure>
-<p>Each feature module (<code>customers.py</code>, <code>notices.py</code>, …) declares its routes on its own <code>APIRouter</code>, all under <code>/api</code>. <code>include_router</code> adds them to the app. <code>serve_screens</code> adds one catch-all route, <code>/{path:path}</code>, that answers <em>any</em> path with a screen. FastAPI tries routes in the order they were added, so it must come last, or it would swallow <code>/api/customers</code> too. It also refuses any path starting <code>api/</code> itself, so a mistyped API path is a JSON 404, not a web page.</p>
+<p>Each feature module (<code>customers.py</code>, <code>reminders.py</code>, …) declares its routes on its own <code>APIRouter</code>, all under <code>/api</code>. <code>include_router</code> adds them to the app. <code>serve_screens</code> adds one catch-all route, <code>/{path:path}</code>, that answers <em>any</em> path with a screen. FastAPI tries routes in the order they were added, so it must come last, or it would swallow <code>/api/customers</code> too. It also refuses any path starting <code>api/</code> itself, so a mistyped API path is a JSON 404, not a web page.</p>
 
 <h3>5. The real app: built from the environment</h3>
 <figure class="snippet">

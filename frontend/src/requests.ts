@@ -19,8 +19,8 @@ import type {
   MortgageSort,
   MortgageStatus,
   NewMortgagePreview,
-  NoticeSort,
-  NoticeStatus,
+  ReminderSort,
+  ReminderStatus,
   Payment,
   PaymentIn,
   PaymentSort,
@@ -38,7 +38,7 @@ import type { Sort } from './sort'
 const mortgagePath = (id: number) => ({ path: { mortgage_id: id } })
 const paymentPath = (id: number) => ({ path: { payment_id: id } })
 const customerPath = (id: number) => ({ path: { customer_id: id } })
-const noticePath = (id: number) => ({ path: { notice_id: id } })
+const reminderPath = (id: number) => ({ path: { reminder_id: id } })
 
 /** How many Mortgages are Dormant: Active yet owing nothing, to be Redeemed. */
 export function dormantCountQuery(client: ApiClient) {
@@ -306,12 +306,12 @@ export const lists = {
           }),
         ),
     }) satisfies ListRequest<PaymentSort, unknown>,
-  notices: (status?: NoticeStatus) =>
+  reminders: (status?: ReminderStatus) =>
     ({
-      key: ['notices', { status }],
+      key: ['reminders', { status }],
       load: (client, page, sort) =>
-        dataOrThrow(client.GET('/api/notices', { params: { query: { page, status, ...sortQuery(sort) } } })),
-    }) satisfies ListRequest<NoticeSort, unknown>,
+        dataOrThrow(client.GET('/api/reminders', { params: { query: { page, status, ...sortQuery(sort) } } })),
+    }) satisfies ListRequest<ReminderSort, unknown>,
   callList: () =>
     ({
       key: ['call-list'],
@@ -328,14 +328,14 @@ export const lists = {
     }) satisfies ListRequest<DormantSort, unknown>,
 }
 
-/** What the Lender does with a queued Notice. */
-export const noticeActions = {
+/** What the Lender does with a queued Reminder. */
+export const reminderActions = {
   approve: (client: ApiClient, id: number) =>
-    dataOrThrow(client.POST('/api/notices/{notice_id}/approve', { params: noticePath(id) })),
+    dataOrThrow(client.POST('/api/reminders/{reminder_id}/approve', { params: reminderPath(id) })),
   skip: (client: ApiClient, id: number) =>
-    dataOrThrow(client.POST('/api/notices/{notice_id}/skip', { params: noticePath(id) })),
+    dataOrThrow(client.POST('/api/reminders/{reminder_id}/skip', { params: reminderPath(id) })),
   markSent: (client: ApiClient, id: number) =>
-    dataOrThrow(client.POST('/api/notices/{notice_id}/sent', { params: noticePath(id) })),
+    dataOrThrow(client.POST('/api/reminders/{reminder_id}/sent', { params: reminderPath(id) })),
 }
 
 /** Delete a Customer (refused while they have Mortgages). */

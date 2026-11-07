@@ -78,9 +78,9 @@ def test_the_call_list_comes_a_page_of_customers_at_a_time(client, accruing_cust
     assert first["mortgages"] == get(client, "dashboard")["call_list_count"] == 23
 
 
-def test_notices_come_a_page_at_a_time(client, accruing_customers):
-    first = get(client, "notices", status="queued")
-    second = get(client, "notices", status="queued", page=2)
+def test_reminders_come_a_page_at_a_time(client, accruing_customers):
+    first = get(client, "reminders", status="queued")
+    second = get(client, "reminders", status="queued", page=2)
 
     assert (len(first["items"]), len(second["items"]), first["total"]) == (20, 1, 21)
-    assert get(client, "dashboard")["notices_to_send"] == 21
+    assert get(client, "dashboard")["reminders_to_send"] == 21

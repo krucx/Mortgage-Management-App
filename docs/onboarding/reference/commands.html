@@ -73,8 +73,8 @@
 <tr><th>From</th><th>Command</th><th>What it does</th></tr>
 <tr><td>anywhere</td><td><code>curl -s -o "$BOOK/call-list.xlsx" http://127.0.0.1:8765/api/call-list/export.xlsx</code></td><td>Downloads today's Call Sheet (009 · Lesson 2); <code>export.pdf</code> for the printable one</td></tr>
 <tr><td>anywhere</td><td><code>curl -s -F file=@"$BOOK/call-list.xlsx" http://127.0.0.1:8765/api/call-list/import-preview</code></td><td>What importing the filled-in sheet would add and leave out; <code>…/import</code> saves it</td></tr>
-<tr><td>anywhere</td><td><code>S=$(curl -s http://127.0.0.1:8765/api/settings/messages)</code>, then <code>printf '%s' "$S" | jq '.notice_approve_first = false' | curl -s -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages</code></td><td>Changes one message setting and keeps the rest (009 · Lessons 3, 5). Use <code>printf</code> and <code>--data-binary</code>: zsh's <code>echo</code> and <code>curl -d @-</code> together strip the templates' newlines</td></tr>
-<tr><td>anywhere</td><td><code>curl -s -X POST http://127.0.0.1:8765/api/notices/58/approve</code> (then <code>…/sent</code> or <code>…/skip</code>)</td><td>Acts on Sunita's Notice (009 · Lesson 4)</td></tr>
+<tr><td>anywhere</td><td><code>S=$(curl -s http://127.0.0.1:8765/api/settings/messages)</code>, then <code>printf '%s' "$S" | jq '.reminder_approve_first = false' | curl -s -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages</code></td><td>Changes one message setting and keeps the rest (009 · Lessons 3, 5). Use <code>printf</code> and <code>--data-binary</code>: zsh's <code>echo</code> and <code>curl -d @-</code> together strip the templates' newlines</td></tr>
+<tr><td>anywhere</td><td><code>curl -s -X POST http://127.0.0.1:8765/api/reminders/58/approve</code> (then <code>…/sent</code> or <code>…/skip</code>)</td><td>Acts on Sunita's Reminder (009 · Lesson 4)</td></tr>
 </table>
 
 <h2 id="platform">Platform and migrations</h2>

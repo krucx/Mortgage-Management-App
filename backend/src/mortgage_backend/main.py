@@ -15,7 +15,7 @@ from mortgage_backend.follow_up import (
     call_notes,
     call_sheets,
     message_settings,
-    notices,
+    reminders,
 )
 from mortgage_backend.lending import (
     changes,
@@ -72,12 +72,12 @@ def create_app(
     engine = make_engine(database_url)
     backup = Backups(engine, database_url, backup_dir, backup_password, now)
 
-    def sync_notices(day: date) -> None:
+    def sync_reminders(day: date) -> None:
         with engine.begin() as conn:
-            notices.sync(conn, day)
+            reminders.sync(conn, day)
 
     daily_run = DailyRun(
-        engine, today, jobs=[backup.start_if_due, sync_notices]
+        engine, today, jobs=[backup.start_if_due, sync_reminders]
     )
 
     @asynccontextmanager
@@ -140,7 +140,7 @@ def create_app(
     app.include_router(previews.router)
     app.include_router(receipts.router)
     app.include_router(message_settings.router)
-    app.include_router(notices.router)
+    app.include_router(reminders.router)
     app.include_router(updates.router)
     if screens_dir is not None:
         serve_screens(app, screens_dir)  # last, so it never answers for the API

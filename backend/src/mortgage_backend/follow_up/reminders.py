@@ -1,16 +1,16 @@
-"""Notices (see Documentation/GLOSSARY.md): the Notice queue.
+"""Reminders (see Documentation/GLOSSARY.md): the Reminder queue.
 
-Every Notice status rule lives here, behind two calls. `sync` makes the unsent Notices
+Every Reminder status rule lives here, behind two calls. `sync` makes the unsent Reminders
 what they should be today under the current settings: one per Customer per Accrual Date
-coming up within `notice_days_before` days, none further ahead, each awaiting approval or
+coming up within `reminder_days_before` days, none further ahead, each awaiting approval or
 queued: held for approval while "approve first" is on and the Lender has not approved
 it, queued otherwise. The daily run, reading the
-Notices or the Dashboard, and saving message settings all sync. `act` approves, skips
-or sends one Notice. Until it is sent or skipped, a Notice is only that Customer
+Reminders or the Dashboard, and saving message settings all sync. `act` approves, skips
+or sends one Reminder. Until it is sent or skipped, a Reminder is only that Customer
 and date: which of their Active Mortgages accrue then, the amounts and the wording are
 worked out whenever it is read (ADR 0001), so a later Payment, Mortgage or template edit
 shows. Sending or skipping keeps the message as it was then, for the log. The Lender
-sends by click-to-send WhatsApp (ADR 0002), which marks the Notice sent.
+sends by click-to-send WhatsApp (ADR 0002), which marks the Reminder sent.
 """
 
 from collections import defaultdict
@@ -26,10 +26,10 @@ from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.follow_up.message_settings import MESSAGE_SETTINGS
 from mortgage_backend.follow_up.messages import (
-    NoticeLine,
-    NoticeMessage,
+    ReminderLine,
+    ReminderMessage,
     descriptions,
-    notice_text,
+    reminder_text,
 )
 from mortgage_backend.lending.ledger import accrual_date, is_accrual_date
 from mortgage_backend.lending.replay import (
@@ -45,29 +45,29 @@ from mortgage_backend.platform.db import (
     EngineDep,
     customer_table,
     mortgage_table,
-    notice_mortgage_table,
-    notice_table,
+    reminder_mortgage_table,
+    reminder_table,
 )
 from mortgage_backend.platform.paging import Page, PageNumber, rows_page
 
 
-class NoticeStatus(StrEnum):
+class ReminderStatus(StrEnum):
     AWAITING_APPROVAL = "awaiting_approval"
     QUEUED = "queued"
     SENT = "sent"
     SKIPPED = "skipped"
 
 
-_UNSENT = {NoticeStatus.AWAITING_APPROVAL, NoticeStatus.QUEUED}
+_UNSENT = {ReminderStatus.AWAITING_APPROVAL, ReminderStatus.QUEUED}
 
 
-class Notice(BaseModel):
+class Reminder(BaseModel):
     id: int
     customer: PersonSummary
     phones: list[str]  # the Customer's numbers, primary first
     accrues_on: date
     created_on: date
-    status: NoticeStatus
+    status: ReminderStatus
     # As it stands now, or as it was sent or skipped; empty if no Active Mortgage of
     # the Customer accrues that day any more, or each that does is Dormant
     message: str
@@ -91,23 +91,23 @@ def sync(
     today: date,
     replayed: Mapping[int, MortgageReplay] | None = None,
 ) -> None:
-    """Make the unsent Notices what they should be today under the current settings.
+    """Make the unsent Reminders what they should be today under the current settings.
 
-    A Notice for each Customer with Active Mortgages accruing in the coming
-    `notice_days_before` days and none yet; days the app was off are made up this way,
-    but never for an Accrual Date already past. Unsent Notices further ahead (queued
-    before `notice_days_before` was lowered) are withdrawn: until sent or skipped a
-    Notice is only its Customer and date, so it is queued again in time. Dormant
-    Mortgages, owing nothing, get no Notice (ADR 0012); they are worked out from
+    A Reminder for each Customer with Active Mortgages accruing in the coming
+    `reminder_days_before` days and none yet; days the app was off are made up this way,
+    but never for an Accrual Date already past. Unsent Reminders further ahead (queued
+    before `reminder_days_before` was lowered) are withdrawn: until sent or skipped a
+    Reminder is only its Customer and date, so it is queued again in time. Dormant
+    Mortgages, owing nothing, get no Reminder (ADR 0012); they are worked out from
     `replayed` (covering every Active Mortgage) when the caller has replayed them.
-    Every unsent Notice then awaits approval if "approve first" is on and the Lender
+    Every unsent Reminder then awaits approval if "approve first" is on and the Lender
     has not approved it, and is queued otherwise; while it is off, approvals are forgotten, so turning it
-    on again holds every unsent Notice. Syncing twice changes nothing."""
+    on again holds every unsent Reminder. Syncing twice changes nothing."""
     settings = MESSAGE_SETTINGS.get(conn)
-    until = today + timedelta(days=settings.notice_days_before)
+    until = today + timedelta(days=settings.reminder_days_before)
     conn.execute(
-        delete(notice_table).where(
-            notice_table.c.status.in_(_UNSENT), notice_table.c.accrues_on > until
+        delete(reminder_table).where(
+            reminder_table.c.status.in_(_UNSENT), reminder_table.c.accrues_on > until
         )
     )
     coming = [
@@ -126,46 +126,59 @@ def sync(
         for on in dates
         if not replayed[row["id"]].dormant(on)
     }
+    # Unsent Reminders are only actionable while at least one Mortgage remains
+    # Active and accrues on their date. A future reopen can queue a fresh one.
+    unsent_rows = conn.execute(
+        select(reminder_table).where(reminder_table.c.status.in_(_UNSENT))
+    ).mappings().all()
+    still_eligible = _accruing(conn, unsent_rows, replayed)
+    ineligible = [
+        row["id"]
+        for row in unsent_rows
+        if not still_eligible[row["id"]]
+    ]
+    if ineligible:
+        conn.execute(delete(reminder_table).where(reminder_table.c.id.in_(ineligible)))
     already = {
         (row.customer_id, row.accrues_on)
         for row in conn.execute(
-            select(notice_table.c.customer_id, notice_table.c.accrues_on).where(
-                notice_table.c.accrues_on > today
+            select(reminder_table.c.customer_id, reminder_table.c.accrues_on).where(
+                reminder_table.c.accrues_on > today
             )
         )
     }
     for customer_id, on in sorted(accruing - already, key=lambda due: due[1]):
         conn.execute(
-            insert(notice_table).values(
+            insert(reminder_table).values(
                 customer_id=customer_id,
                 accrues_on=on,
                 created_on=today,
-                status=NoticeStatus.QUEUED,
+                status=ReminderStatus.QUEUED,
             )
         )
-    unsent = notice_table.c.status.in_(_UNSENT)
-    if settings.notice_approve_first:
-        held = not_(notice_table.c.approved)
+    unsent = reminder_table.c.status.in_(_UNSENT)
+    if settings.reminder_approve_first:
+        held = not_(reminder_table.c.approved)
     else:
         held = false()
-        conn.execute(update(notice_table).where(unsent).values(approved=False))
+        conn.execute(update(reminder_table).where(unsent).values(approved=False))
     conn.execute(
-        update(notice_table)
+        update(reminder_table)
         .where(unsent, held)
-        .values(status=NoticeStatus.AWAITING_APPROVAL)
+        .values(status=ReminderStatus.AWAITING_APPROVAL)
     )
     conn.execute(
-        update(notice_table)
+        update(reminder_table)
         .where(unsent, not_(held))
-        .values(status=NoticeStatus.QUEUED)
+        .values(status=ReminderStatus.QUEUED)
     )
 
 
-def _notice_line(mortgage: MortgageReplay, description: str, on: date) -> NoticeLine:
+def _reminder_line(mortgage: MortgageReplay, description: str, on: date) -> ReminderLine:
     """The month's interest `mortgage` will be charged on `on`, and its Outstanding
     then, with no further Payments."""
     [then] = mortgage.projection([on]).snapshots
-    return NoticeLine(
+    return ReminderLine(
         description=description,
         interest=then.interest_charged,
         owed_after=then.outstanding,
@@ -177,7 +190,7 @@ def _accruing(
     unsent: Sequence[RowMapping],
     replayed: Mapping[int, MortgageReplay] | None = None,
 ) -> dict[int, list[MortgageReplay]]:
-    """Each unsent Notice's Mortgages, by Notice id: its Customer's Active ones accruing
+    """Each unsent Reminder's Mortgages, by Reminder id: its Customer's Active ones accruing
     that day and not Dormant then, by name; loaded in one query, and replayed unless
     `replayed` has them already."""
     mortgages = (
@@ -194,8 +207,10 @@ def _accruing(
         .mappings()
         .all()
     )
-    if replayed is None:
-        replayed = replays(conn, mortgages)
+    missing = [m for m in mortgages if replayed is None or m["id"] not in replayed]
+    if missing:
+        replayed = {**(replayed or {}), **replays(conn, missing)}
+    replayed = replayed or {}
     by_customer: dict[int, list[MortgageReplay]] = defaultdict(list)
     for mortgage in mortgages:
         by_customer[mortgage["customer_id"]].append(replayed[mortgage["id"]])
@@ -212,12 +227,12 @@ def _accruing(
 
 def unsent_counts(
     conn: Connection, replayed: Mapping[int, MortgageReplay] | None = None
-) -> dict[NoticeStatus, int]:
-    """Unsent Notices that still have something to say, by status (one whose Mortgages
+) -> dict[ReminderStatus, int]:
+    """Unsent Reminders that still have something to say, by status (one whose Mortgages
     no longer accrue that day, or are Dormant, has not); nothing is worded, and only
     what `replayed` lacks is replayed."""
     unsent = (
-        conn.execute(select(notice_table).where(notice_table.c.status.in_(_UNSENT)))
+        conn.execute(select(reminder_table).where(reminder_table.c.status.in_(_UNSENT)))
         .mappings()
         .all()
     )
@@ -234,64 +249,64 @@ def _message(
     mortgages: Sequence[MortgageReplay],
     template: str,
 ) -> str:
-    """An unsent Notice's message, worked out now; empty without Mortgages."""
+    """An unsent Reminder's message, worked out now; empty without Mortgages."""
     if not mortgages:
         return ""
     on = row["accrues_on"]
     described = descriptions([m.row for m in mortgages])
-    return notice_text(
+    return reminder_text(
         template,
-        NoticeMessage(
+        ReminderMessage(
             customer_name=row["name"],
             accrues_on=on,
-            lines=[_notice_line(m, described[m.row["id"]], on) for m in mortgages],
+            lines=[_reminder_line(m, described[m.row["id"]], on) for m in mortgages],
         ),
     )
 
 
-def list_notices(
+def list_reminders(
     conn: Connection,
-    status_filter: NoticeStatus | None = None,
-    notice_id: int | None = None,
+    status_filter: ReminderStatus | None = None,
+    reminder_id: int | None = None,
     replayed: Mapping[int, MortgageReplay] | None = None,
-) -> list[Notice]:
-    """Notices by Accrual Date, then Customer; optionally one status, or one Notice.
+) -> list[Reminder]:
+    """Reminders by Accrual Date, then Customer; optionally one status, or one Reminder.
     Unsent ones are worded from `replayed` (covering every Active Mortgage) when the
     caller has replayed them already."""
     query = (
         select(
-            notice_table,
+            reminder_table,
             customer_table.c.name,
             customer_table.c.phone_1,
             customer_table.c.phone_2,
         )
-        .join(customer_table, customer_table.c.id == notice_table.c.customer_id)
-        .order_by(notice_table.c.accrues_on, customer_table.c.name, notice_table.c.id)
+        .join(customer_table, customer_table.c.id == reminder_table.c.customer_id)
+        .order_by(reminder_table.c.accrues_on, customer_table.c.name, reminder_table.c.id)
     )
     if status_filter is not None:
-        query = query.where(notice_table.c.status == status_filter)
-    if notice_id is not None:
-        query = query.where(notice_table.c.id == notice_id)
+        query = query.where(reminder_table.c.status == status_filter)
+    if reminder_id is not None:
+        query = query.where(reminder_table.c.id == reminder_id)
     rows = conn.execute(query).mappings().all()
-    template = MESSAGE_SETTINGS.get(conn).notice_template
+    template = MESSAGE_SETTINGS.get(conn).reminder_template
     kept: dict[int, list[MortgageLink]] = defaultdict(list)
     for link in conn.execute(
         select(
-            notice_mortgage_table.c.notice_id,
+            reminder_mortgage_table.c.reminder_id,
             mortgage_table.c.id,
             mortgage_table.c.name,
         )
         .join(
-            mortgage_table, mortgage_table.c.id == notice_mortgage_table.c.mortgage_id
+            mortgage_table, mortgage_table.c.id == reminder_mortgage_table.c.mortgage_id
         )
-        .where(notice_mortgage_table.c.notice_id.in_([row["id"] for row in rows]))
+        .where(reminder_mortgage_table.c.reminder_id.in_([row["id"] for row in rows]))
         .order_by(mortgage_table.c.name)
     ):
-        kept[link.notice_id].append(MortgageLink(id=link.id, name=link.name))
+        kept[link.reminder_id].append(MortgageLink(id=link.id, name=link.name))
     accruing = _accruing(
         conn, [row for row in rows if row["status"] in _UNSENT], replayed
     )
-    notices = []
+    reminders = []
     for row in rows:
         if row["id"] in accruing:
             mortgages = accruing[row["id"]]
@@ -301,8 +316,8 @@ def list_notices(
             ]
         else:
             message, links = row["message"], kept[row["id"]]
-        notices.append(
-            Notice(
+        reminders.append(
+            Reminder(
                 id=row["id"],
                 customer=PersonSummary(
                     kind="customer", id=row["customer_id"], name=row["name"]
@@ -316,136 +331,136 @@ def list_notices(
                 sent_at=row["sent_at"],
             )
         )
-    return notices
+    return reminders
 
 
-# A column of the Notices list to sort it by.
-NoticeSort = Literal["customer", "accrues", "mortgages", "status"]
+# A column of the Reminders list to sort it by.
+ReminderSort = Literal["customer", "accrues", "mortgages", "status"]
 
-# The order the Notices page shows the statuses in.
+# The order the Reminders page shows the statuses in.
 _STATUS_ORDER = [
-    NoticeStatus.AWAITING_APPROVAL,
-    NoticeStatus.QUEUED,
-    NoticeStatus.SENT,
-    NoticeStatus.SKIPPED,
+    ReminderStatus.AWAITING_APPROVAL,
+    ReminderStatus.QUEUED,
+    ReminderStatus.SENT,
+    ReminderStatus.SKIPPED,
 ]
-_SORT_KEYS: dict[NoticeSort, Callable[[Notice], Any]] = {
-    "customer": lambda notice: notice.customer.name.casefold(),
-    "accrues": lambda notice: notice.accrues_on,
+_SORT_KEYS: dict[ReminderSort, Callable[[Reminder], Any]] = {
+    "customer": lambda reminder: reminder.customer.name.casefold(),
+    "accrues": lambda reminder: reminder.accrues_on,
     # By the first of its Mortgages, by name; none sorts first.
-    "mortgages": lambda notice: (
-        notice.mortgages[0].name.casefold() if notice.mortgages else ""
+    "mortgages": lambda reminder: (
+        reminder.mortgages[0].name.casefold() if reminder.mortgages else ""
     ),
-    "status": lambda notice: _STATUS_ORDER.index(notice.status),
+    "status": lambda reminder: _STATUS_ORDER.index(reminder.status),
 }
 
 
-class NoticeAction(StrEnum):
+class ReminderAction(StrEnum):
     APPROVE = "approve"
     SKIP = "skip"
     SEND = "send"
 
 
-# What each action needs the Notice to be, and what it becomes.
-_ACTIONS: dict[NoticeAction, tuple[set[NoticeStatus], NoticeStatus]] = {
-    NoticeAction.APPROVE: ({NoticeStatus.AWAITING_APPROVAL}, NoticeStatus.QUEUED),
-    NoticeAction.SKIP: (_UNSENT, NoticeStatus.SKIPPED),
-    NoticeAction.SEND: ({NoticeStatus.QUEUED}, NoticeStatus.SENT),
+# What each action needs the Reminder to be, and what it becomes.
+_ACTIONS: dict[ReminderAction, tuple[set[ReminderStatus], ReminderStatus]] = {
+    ReminderAction.APPROVE: ({ReminderStatus.AWAITING_APPROVAL}, ReminderStatus.QUEUED),
+    ReminderAction.SKIP: (_UNSENT, ReminderStatus.SKIPPED),
+    ReminderAction.SEND: ({ReminderStatus.QUEUED}, ReminderStatus.SENT),
 }
 
 
-class NoticeNotFound(LookupError):
-    """No Notice has that id."""
+class ReminderNotFound(LookupError):
+    """No Reminder has that id."""
 
 
-class NoticeRefused(Exception):
-    """The Notice can't be acted on as asked; the message is for the Lender."""
+class ReminderRefused(Exception):
+    """The Reminder can't be acted on as asked; the message is for the Lender."""
 
 
 def act(
-    conn: Connection, notice_id: int, action: NoticeAction, now: datetime
-) -> Notice:
-    """Approve, skip or send one Notice, or refuse to."""
-    found = list_notices(conn, notice_id=notice_id)
+    conn: Connection, reminder_id: int, action: ReminderAction, now: datetime
+) -> Reminder:
+    """Approve, skip or send one Reminder, or refuse to."""
+    found = list_reminders(conn, reminder_id=reminder_id)
     if not found:
-        raise NoticeNotFound(notice_id)
-    notice = found[0]
-    allowed, becomes = _ACTIONS[action]
-    if notice.status not in allowed:
-        raise NoticeRefused(
-            f"This Notice is already {notice.status.value.replace('_', ' ')}"
-        )
-    if action == NoticeAction.SEND and not notice.mortgages:
-        raise NoticeRefused(
+        raise ReminderNotFound(reminder_id)
+    reminder = found[0]
+    if action in {ReminderAction.APPROVE, ReminderAction.SEND} and not reminder.mortgages:
+        raise ReminderRefused(
             "None of their Mortgages accruing that day still owes anything: skip it"
         )
+    allowed, becomes = _ACTIONS[action]
+    if reminder.status not in allowed:
+        raise ReminderRefused(
+            f"This Reminder is already {reminder.status.value.replace('_', ' ')}"
+        )
     values: dict[str, object] = {"status": becomes}
-    if action == NoticeAction.APPROVE:
+    if action == ReminderAction.APPROVE:
         values["approved"] = True
     if becomes not in _UNSENT:
         # Sent or skipped: keep it as it was, for the log.
-        values["message"] = notice.message
-        if notice.mortgages:
+        values["message"] = reminder.message
+        if reminder.mortgages:
             conn.execute(
-                insert(notice_mortgage_table),
+                insert(reminder_mortgage_table),
                 [
-                    {"notice_id": notice_id, "mortgage_id": m.id}
-                    for m in notice.mortgages
+                    {"reminder_id": reminder_id, "mortgage_id": m.id}
+                    for m in reminder.mortgages
                 ],
             )
-    if becomes == NoticeStatus.SENT:
+    if becomes == ReminderStatus.SENT:
         values["sent_at"] = now
     conn.execute(
-        update(notice_table).where(notice_table.c.id == notice_id).values(**values)
+        update(reminder_table).where(reminder_table.c.id == reminder_id).values(**values)
     )
-    return list_notices(conn, notice_id=notice_id)[0]
+    return list_reminders(conn, reminder_id=reminder_id)[0]
 
 
 router = APIRouter(prefix="/api")
 
 
-@router.get("/notices")
-def read_notices(
+@router.get("/reminders")
+def read_reminders(
     engine: EngineDep,
     today: TodayDep,
-    status: NoticeStatus | None = None,
+    status: ReminderStatus | None = None,
     page: PageNumber = 1,
-    sort: NoticeSort | None = None,
+    sort: ReminderSort | None = None,
     descending: bool = False,
-) -> Page[Notice]:
-    """Notices by Accrual Date, then Customer (or by `sort`, reversed when
+) -> Page[Reminder]:
+    """Reminders by Accrual Date, then Customer (or by `sort`, reversed when
     `descending`), synced first: a Mortgage added today or a reopened Mortgage shows at
     once, not after the next daily run."""
     with engine.begin() as conn:
         replayed = active_replays(conn)
         sync(conn, today, replayed)
-        notices = list_notices(conn, status, replayed=replayed)
-    return rows_page(notices, page, _SORT_KEYS, sort=sort, descending=descending)
+        reminders = list_reminders(conn, status, replayed=replayed)
+    return rows_page(reminders, page, _SORT_KEYS, sort=sort, descending=descending)
 
 
 def _answer(
-    engine: EngineDep, notice_id: int, action: NoticeAction, now: datetime
-) -> Notice:
+    engine: EngineDep, reminder_id: int, action: ReminderAction, now: datetime
+) -> Reminder:
     try:
         with engine.begin() as conn:
-            return act(conn, notice_id, action, now)
-    except NoticeNotFound:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Notice not found") from None
-    except NoticeRefused as refused:
+            return act(conn, reminder_id, action, now)
+    except ReminderNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Reminder not found") from None
+    except ReminderRefused as refused:
         raise HTTPException(status.HTTP_409_CONFLICT, str(refused)) from None
 
 
-@router.post("/notices/{notice_id}/approve")
-def approve_notice(notice_id: int, engine: EngineDep, now: NowDep) -> Notice:
-    return _answer(engine, notice_id, NoticeAction.APPROVE, now)
+@router.post("/reminders/{reminder_id}/approve")
+def approve_reminder(reminder_id: int, engine: EngineDep, now: NowDep) -> Reminder:
+    return _answer(engine, reminder_id, ReminderAction.APPROVE, now)
 
 
-@router.post("/notices/{notice_id}/skip")
-def skip_notice(notice_id: int, engine: EngineDep, now: NowDep) -> Notice:
-    return _answer(engine, notice_id, NoticeAction.SKIP, now)
+@router.post("/reminders/{reminder_id}/skip")
+def skip_reminder(reminder_id: int, engine: EngineDep, now: NowDep) -> Reminder:
+    return _answer(engine, reminder_id, ReminderAction.SKIP, now)
 
 
-@router.post("/notices/{notice_id}/sent")
-def mark_notice_sent(notice_id: int, engine: EngineDep, now: NowDep) -> Notice:
+@router.post("/reminders/{reminder_id}/sent")
+def mark_reminder_sent(reminder_id: int, engine: EngineDep, now: NowDep) -> Reminder:
     """The Lender opened the prefilled WhatsApp chat (click-to-send counts that as sent)."""
-    return _answer(engine, notice_id, NoticeAction.SEND, now)
+    return _answer(engine, reminder_id, ReminderAction.SEND, now)

@@ -10,14 +10,14 @@
 <body>
 <p class="kicker">Chapter 010 · Lesson 2</p>
 <h1>Today, now and the daily run</h1>
-<p class="lede">Almost every figure in this app depends on what day it is: the Interest to Date, Months Unpaid, the Call List, which Notices exist. This lesson shows where the app's "today" comes from, and how the once-a-day jobs run on a laptop with no scheduler.</p>
+<p class="lede">Almost every figure in this app depends on what day it is: the Interest to Date, Months Unpaid, the Call List, which Reminders exist. This lesson shows where the app's "today" comes from, and how the once-a-day jobs run on a laptop with no scheduler.</p>
 
 <div class="callout win"><strong>By the end</strong> you can say which date the app thinks it is, and what runs on the first request of each day.</div>
 
 <h2>The problem</h2>
 <p>Two problems, both about time.</p>
 <p><strong>Which day is it?</strong> Meera's chain owes ₹83,333 on 19 Oct and more on 20 Oct, because the <a href="../reference/glossary.html#interest-to-date"><dfn class="term" title="The interest for the month under way, as of a date, under its Part-Month Rule: counted from its first day (the start or an Accrual Date) through that date, so today is always charged; it changes from day to day until the month's interest is charged on the next Accrual Date, and is fixed at a Closure.">Interest to Date</dfn></a> grows every day. A test that checks that figure must get the same answer tonight and next year. The sample book must stay on 19 Oct 2026 forever. And on the Lender's laptop, "today" must be the Lender's today in India, not the server's idea of it in some other time zone: at 2 a.m. on 20 Oct in Delhi, it is still 19 Oct in London.</p>
-<p><strong>Who runs the daily jobs?</strong> Two things should happen once a day: a Backup when the last one is a week old, and the Notice queue brought up to date. A server would use a scheduler (cron, or a timer thread) set for, say, 6 a.m. But this app runs on the Lender's laptop, which may be asleep at 6 a.m., shut for the weekend, or left running for weeks (<a href="../reference/traps.html#t8">trap #8</a>). A job that fires at a set time misses every day the laptop was off, and nobody notices.</p>
+<p><strong>Who runs the daily jobs?</strong> Two things should happen once a day: a Backup when the last one is a week old, and the Reminder queue brought up to date. A server would use a scheduler (cron, or a timer thread) set for, say, 6 a.m. But this app runs on the Lender's laptop, which may be asleep at 6 a.m., shut for the weekend, or left running for weeks (<a href="../reference/traps.html#t8">trap #8</a>). A job that fires at a set time misses every day the laptop was off, and nobody reminders.</p>
 
 <h2>The idea</h2>
 <p><strong>Today is an argument.</strong> The app never asks the computer for the date directly. It calls whatever <code>today</code> function it was built with (lesson 1). Nothing outside <code>create_app</code>'s defaults calls <code>date.today()</code> or <code>datetime.now()</code>.</p>
@@ -35,7 +35,7 @@ flowchart TD
   Q -->|"yes"| NEXT
   Q -->|"no"| W["write last_daily_run = today<br/>count += 1, commit"]
   W --> J1["job 1: backup.start_if_due(today)"]
-  J1 -->|"a failure is logged"| J2["job 2: sync_notices(today)"]
+  J1 -->|"a failure is logged"| J2["job 2: sync_reminders(today)"]
   J2 --> NEXT
 </pre>
 <figcaption>The middleware runs before every <code>/api/</code> request. Most of the time the answer is "already ran today" and the request goes straight on.</figcaption>
@@ -65,7 +65,7 @@ flowchart TD
 25  NowDep = Annotated[datetime, Depends(get_now)]
 </code></pre>
 </figure>
-<p>The same pattern as <code>EngineDep</code> in lesson 1: read what <code>create_app</code> put on <code>app.state</code>. <code>today</code> is the <em>business date</em>: the day used for interest, Accrual Dates and Notices. <code>now</code> is a full date and time, used where the minute matters: History entries (chapter 006) and Backup file names.</p>
+<p>The same pattern as <code>EngineDep</code> in lesson 1: read what <code>create_app</code> put on <code>app.state</code>. <code>today</code> is the <em>business date</em>: the day used for interest, Accrual Dates and Reminders. <code>now</code> is a full date and time, used where the minute matters: History entries (chapter 006) and Backup file names.</p>
 <p>The rest of <code>clock.py</code> is two small helpers for lists filtered by month: <code>MonthQuery</code> accepts a query parameter like <code>2026-04</code> (a regular expression rejects <code>2026-13</code>), and <code>month_span("2026-04")</code> gives its first and last days. The Payments list (<code>?month=</code>) and the Closures list (<code>?closed_in=</code>) use them.</p>
 
 <h3>2. The middleware</h3>
@@ -122,7 +122,7 @@ flowchart TD
   <li>The check and the write happen in one transaction, inside the lock, and the transaction commits when the <code>with</code> block ends, before any job runs.</li>
   <li>Each job gets the business date. One failing is logged, and the next still runs.</li>
 </ol>
-<p>The two jobs are the ones you saw in lesson 1 (<code>main.py</code> lines 72–74): <code>backup.start_if_due</code>, which only <em>starts</em> a Backup on a background thread when the last one is 7 or more days old, and <code>sync_notices</code> (<a href="../009-follow-up/03-the-notice-queue.html">chapter 009, lesson 3</a>). Both return quickly, which matters: the day's first request waits for them.</p>
+<p>The two jobs are the ones you saw in lesson 1 (<code>main.py</code> lines 72–74): <code>backup.start_if_due</code>, which only <em>starts</em> a Backup on a background thread when the last one is 7 or more days old, and <code>sync_reminders</code> (<a href="../009-follow-up/03-the-notice-queue.html">chapter 009, lesson 3</a>). Both return quickly, which matters: the day's first request waits for them.</p>
 
 <h2>Run-through: why the served book runs nothing</h2>
 <p>Here's a surprise. On your served book, the first request runs <strong>no</strong> daily jobs at all. Check it:</p>
@@ -134,7 +134,7 @@ flowchart TD
 <tr><td>19 Oct</td><td>first <code>/api/</code> request</td><td>2026-10-19</td><td>0</td><td>the same one: already ran today</td></tr>
 <tr><td>20 Oct</td><td>after start</td><td>2026-10-19</td><td>0</td><td>the same one: last Backup 1 day old</td></tr>
 <tr><td>20 Oct</td><td><code>GET /docs</code>, <code>GET /openapi.json</code></td><td>2026-10-19</td><td>0</td><td>not <code>/api/</code>: nothing runs</td></tr>
-<tr class="changed"><td>20 Oct</td><td>first <code>/api/</code> request</td><td><strong>2026-10-20</strong></td><td><strong>1</strong></td><td>the same one: not due; Notices synced</td></tr>
+<tr class="changed"><td>20 Oct</td><td>first <code>/api/</code> request</td><td><strong>2026-10-20</strong></td><td><strong>1</strong></td><td>the same one: not due; Reminders synced</td></tr>
 <tr><td>20 Oct</td><td>a second request</td><td>2026-10-20</td><td>1</td><td>nothing runs</td></tr>
 <tr><td>20 Oct</td><td>restarted, then a request</td><td>2026-10-20</td><td>0</td><td>nothing runs: the date is in <code>config</code></td></tr>
 <tr><td>25 Oct</td><td>start, then a request</td><td>2026-10-25</td><td>1</td><td>not due: 6 days</td></tr>
@@ -142,7 +142,7 @@ flowchart TD
 <tr><td>26 Oct</td><td>first <code>/api/</code> request</td><td>2026-10-26</td><td>1</td><td>no third one: the last is from this morning</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L2). Each "served on" is a new <code>create_app</code> on the same copy with <code>today</code> set to that day, as if the laptop were opened that morning. <code>count</code> is in memory, so a restart sets it back to 0.</p>
-<p>On 20 Oct the Notice sync ran but made nothing new: Sunita's 21 Oct Notice (#58) already existed from 19 Oct. The restart row is the point of storing the date in the database. If <code>count</code> were the only record, every restart would run the jobs again.</p>
+<p>On 20 Oct the Reminder sync ran but made nothing new: Sunita's 21 Oct Notice (#58) already existed from 19 Oct. The restart row is the point of storing the date in the database. If <code>count</code> were the only record, every restart would run the jobs again.</p>
 
 <h2>Nuances</h2>
 <h3>(a) Two places start a Backup</h3>
@@ -189,7 +189,7 @@ flowchart TD
   <p class="q">The app was restarted at noon on 20 Oct after running the daily jobs at 9 a.m. What happens on the first request after the restart?</p>
   <button class="opt">Nothing: <code>last_daily_run</code> is already 20 Oct</button>
   <button class="opt">The jobs run again, as <code>count</code> is back to 0</button>
-  <button class="opt">Only the Notices sync, the Backup is skipped</button>
+  <button class="opt">Only the Reminders sync, the Backup is skipped</button>
   <div class="why">The check reads the date from <code>config</code>, which survived the restart. <code>count</code> is only an in-memory counter for tests. (The lifespan's own <code>start_if_due</code> still checks the Backup at the restart, but a Backup taken that morning means none is due.)</div>
 </div>
 <div class="quiz" data-answer="1">

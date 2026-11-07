@@ -468,7 +468,7 @@ function TemplateField({
   )
 }
 
-/** The wording of Receipts and Notices, and when Notices are queued. */
+/** The wording of Receipts and Reminders, and when Reminders are queued. */
 function MessageSettingsForm() {
   const { client, queryClient } = useServerState()
   const saved = useQuery(settings.messages(client))
@@ -499,7 +499,7 @@ function MessageSettingsForm() {
     <section className="card wide">
       <h2>WhatsApp messages</h2>
       <p className="hint">
-        Receipts and Notices open in WhatsApp ready to send; you press Send.
+        Receipts and Reminders open in WhatsApp ready to send; you press Send.
       </p>
       {draft && (
         <form onSubmit={save} className="stack">
@@ -510,35 +510,35 @@ function MessageSettingsForm() {
             onChange={(receipt_template) => setDraft({ ...draft, receipt_template })}
           />
           <TemplateField
-            label="Notice"
-            placeholders={placeholders?.notice}
-            value={draft.notice_template}
-            onChange={(notice_template) => setDraft({ ...draft, notice_template })}
+            label="Reminder"
+            placeholders={placeholders?.reminder}
+            value={draft.reminder_template}
+            onChange={(reminder_template) => setDraft({ ...draft, reminder_template })}
           />
           <div className="grid-2">
             <label>
-              Queue Notices this many days before an Accrual Date
+              Queue Reminders this many days before an Accrual Date
               <input
                 type="number"
                 required
                 min="1"
                 max="28"
                 step="1"
-                value={draft.notice_days_before}
+                value={draft.reminder_days_before}
                 onChange={(event) =>
-                  setDraft({ ...draft, notice_days_before: Number(event.target.value) })
+                  setDraft({ ...draft, reminder_days_before: Number(event.target.value) })
                 }
               />
             </label>
             <label className="inline">
               <input
                 type="checkbox"
-                checked={draft.notice_approve_first}
+                checked={draft.reminder_approve_first}
                 onChange={(event) =>
-                  setDraft({ ...draft, notice_approve_first: event.target.checked })
+                  setDraft({ ...draft, reminder_approve_first: event.target.checked })
                 }
               />
-              Approve each Notice before it can be sent
+              Approve each Reminder before it can be sent
             </label>
           </div>
           <div>

@@ -110,22 +110,22 @@ flowchart LR
 </figure>
 <p><code>class ConfigGroup[M: BaseModel]</code> is Python 3.12's syntax for a generic class: <code>M</code> stands for whichever model the group holds, so <code>MESSAGE_SETTINGS.get(conn)</code> is typed as a <code>MessageSettings</code>.</p>
 <ol class="marks">
-  <li>Most groups use <code>prefixed</code>: each field is stored under the prefix plus its name. <code>MessageSettings.notice_days_before</code> becomes the key <code>message_notice_days_before</code>.</li>
+  <li>Most groups use <code>prefixed</code>: each field is stored under the prefix plus its name. <code>MessageSettings.reminder_days_before</code> becomes the key <code>message_reminder_days_before</code>.</li>
   <li>Only the keys that exist are passed to the model. A key that was never set is simply absent, so Pydantic fills in the field's default.</li>
   <li><code>model_dump(mode="json")</code> turns the model into plain JSON-style values: dates become <code>"2026-10-19"</code>, enums their string values.</li>
   <li><strong>A field set to <code>None</code> deletes its row</strong>, rather than storing the text <code>"None"</code>. Read back, the field gets its default again.</li>
   <li>Then each reaction is called with the <em>same</em> connection.</li>
 </ol>
 
-<h3>3. A reaction: saving message settings syncs the Notices</h3>
+<h3>3. A reaction: saving message settings syncs the Reminders</h3>
 <figure class="snippet">
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/message_settings.py">follow_up/message_settings.py</a> · <code>MESSAGE_SETTINGS</code> · lines 60–62</figcaption>
 <pre data-file="backend/src/mortgage_backend/follow_up/message_settings.py"><code>60  MESSAGE_SETTINGS = ConfigGroup.prefixed(
-61      "message_", MessageSettings, after_set=[_sync_notices]          ◀
+61      "message_", MessageSettings, after_set=[_sync_reminders]          ◀
 62  )
 </code></pre>
 </figure>
-<p>You met <code>_sync_notices</code> in <a href="../009-follow-up/03-the-notice-queue.html">chapter 009, lesson 3</a>: it calls <code>notices.sync</code>. Because it runs on the connection the PUT route opened with <code>engine.begin()</code>, the new settings and the re-synced Notices are committed together, or not at all. If the sync raised an error, the settings wouldn't be saved either.</p>
+<p>You met <code>_sync_reminders</code> in <a href="../009-follow-up/03-the-notice-queue.html">chapter 009, lesson 3</a>: it calls <code>reminders.sync</code>. Because it runs on the connection the PUT route opened with <code>engine.begin()</code>, the new settings and the re-synced Reminders are committed together, or not at all. If the sync raised an error, the settings wouldn't be saved either.</p>
 
 <h3>4. The exception: the Cash Limit</h3>
 <figure class="snippet">
@@ -154,7 +154,7 @@ flowchart LR
 <tr><td><code>default_monthly_rate_bps</code>, <code>default_interest_mode</code>, <code>default_part_month_rule</code></td><td>200, compounded_yearly, pro_rata</td><td><code>DEFAULT_TERMS</code>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/default_terms.py"><code>lending/default_terms.py</code></a> line 11</td><td><code>Terms</code>: 2% a month, Compounded Yearly, pro-rata</td></tr>
 <tr class="changed"><td><code>last_daily_run</code></td><td>2026-10-19</td><td><code>_LAST_RUN</code>, <code>platform/daily_run.py</code> line 25 (a key named by hand)</td><td><code>_LastRun(ran_on=date(2026, 10, 19))</code></td></tr>
 <tr><td><code>call_list_months_unpaid</code>, <code>call_list_loan_to_value_pct</code></td><td>3, 85</td><td><code>CALL_LIST_SETTINGS</code>, <code>follow_up/call_list.py</code> line 85</td><td>the Call List limits (chapter 009)</td></tr>
-<tr><td><code>message_receipt_template</code>, <code>message_notice_template</code>, <code>message_notice_days_before</code>, <code>message_notice_approve_first</code></td><td>the two templates, 2, <code>true</code></td><td><code>MESSAGE_SETTINGS</code>, <code>follow_up/message_settings.py</code> line 60</td><td><code>MessageSettings</code>, with <code>after_set</code></td></tr>
+<tr><td><code>message_receipt_template</code>, <code>message_reminder_template</code>, <code>message_reminder_days_before</code>, <code>message_reminder_approve_first</code></td><td>the two templates, 2, <code>true</code></td><td><code>MESSAGE_SETTINGS</code>, <code>follow_up/message_settings.py</code> line 60</td><td><code>MessageSettings</code>, with <code>after_set</code></td></tr>
 <tr><td><code>gold_rate_24</code> … <code>gold_rate_14</code>, each with <code>…_updated_on</code></td><td>1476600 … 860100, 2026-10-19</td><td>five groups in <code>_GOLD_RATES</code>, <code>collateral/collateral.py</code> line 42</td><td>paise per gram, one group per purity (chapter 008)</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L3): 20 rows on a fresh book, before it is served. The values are text, as stored: <code>200</code> is basis points, <code>1476600</code> is paise (<a href="../reference/traps.html#t6">trap #6</a>).</p>
@@ -164,19 +164,19 @@ flowchart LR
 <h3>Save a setting and watch it react</h3>
 <p>This saves on your served book and then puts it back. Read the message settings, turn "approve first" off, and look at Sunita's Notice in the same breath:</p>
 <pre><code>S=$(curl -s http://127.0.0.1:8765/api/settings/messages)
-printf '%s' "$S" | jq '.notice_approve_first = false' | curl -s -o /dev/null -w '%{http_code}
+printf '%s' "$S" | jq '.reminder_approve_first = false' | curl -s -o /dev/null -w '%{http_code}
 ' -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages
-sqlite3 "$BOOK/data/mortgage.db" "SELECT value FROM config WHERE key = 'message_notice_approve_first'; SELECT id, status, approved FROM notice WHERE status != 'sent'"
-printf '%s' "$S" | jq '.notice_approve_first = true' | curl -s -o /dev/null -w '%{http_code}
+sqlite3 "$BOOK/data/mortgage.db" "SELECT value FROM config WHERE key = 'message_reminder_approve_first'; SELECT id, status, approved FROM reminder WHERE status != 'sent'"
+printf '%s' "$S" | jq '.reminder_approve_first = true' | curl -s -o /dev/null -w '%{http_code}
 ' -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages</code></pre>
 <table class="steps">
-<tr><th>Step</th><th><code>message_notice_approve_first</code></th><th>Notice #58</th></tr>
+<tr><th>Step</th><th><code>message_reminder_approve_first</code></th><th>Notice #58</th></tr>
 <tr><td>before</td><td><code>true</code></td><td>awaiting_approval</td></tr>
 <tr class="changed"><td>PUT with <code>false</code> → 200</td><td><code>false</code></td><td><strong>queued</strong>, in the same request</td></tr>
 <tr><td>PUT with <code>true</code> → 200</td><td><code>true</code></td><td>awaiting_approval</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L3). Use <code>printf '%s'</code> and <code>--data-binary</code>, not <code>echo</code> and <code>-d</code>: chapter 009 found that zsh's <code>echo</code> and <code>curl -d</code> together strip the templates' line breaks.</p>
-<p>No page was reloaded and no daily run happened. The status changed because <code>set</code> called <code>after_set</code> on the same connection. A bad value never gets that far: <code>notice_days_before: 0</code> is a 422, "Input should be greater than or equal to 1", from the model's <code>Field(ge=1, le=28)</code>, before <code>set</code> is called.</p>
+<p>No page was reloaded and no daily run happened. The status changed because <code>set</code> called <code>after_set</code> on the same connection. A bad value never gets that far: <code>reminder_days_before: 0</code> is a 422, "Input should be greater than or equal to 1", from the model's <code>Field(ge=1, le=28)</code>, before <code>set</code> is called.</p>
 
 <h2>Nuances</h2>
 <h3>(a) Setting a field to <code>None</code></h3>
@@ -195,7 +195,7 @@ printf '%s' "$S" | jq '.notice_approve_first = true' | curl -s -o /dev/null -w '
 </div>
 
 <h3>(b) A model's default isn't the book's value</h3>
-<p><code>MessageSettings</code> declares <code>notice_approve_first: bool = False</code>, but the book's row says <code>true</code>, because <code>book.py</code> saved it. The default only applies while a key has never been written. The same goes for Default Terms in the other direction: <code>Terms</code> has no defaults at all, which is safe only because migration 0001 writes all three rows when the database is created (the comment at <code>default_terms.py</code> line 10 says so). A fresh database's Default Terms are therefore 3%, Compounded Yearly, full month, the values in that migration.</p>
+<p><code>MessageSettings</code> declares <code>reminder_approve_first: bool = False</code>, but the book's row says <code>true</code>, because <code>book.py</code> saved it. The default only applies while a key has never been written. The same goes for Default Terms in the other direction: <code>Terms</code> has no defaults at all, which is safe only because migration 0001 writes all three rows when the database is created (the comment at <code>default_terms.py</code> line 10 says so). A fresh database's Default Terms are therefore 3%, Compounded Yearly, full month, the values in that migration.</p>
 
 <h3>(c) Adding a group of your own</h3>
 <p>The tests show the whole recipe in a few lines. A model with defaults, a prefix, and optionally a reaction:</p>
@@ -224,7 +224,7 @@ printf '%s' "$S" | jq '.notice_approve_first = true' | curl -s -o /dev/null -w '
   <div class="why"><code>get</code> passes only the keys it found; Pydantic fills <code>keep</code> from <code>_StoredBackupSettings</code>' <code>default=DEFAULT_KEEP</code>, which is 4. (From <code>scripts/run_throughs.py</code>, section L3.)</div>
 </div>
 <div class="quiz" data-answer="2">
-  <p class="q">How is <code>notice_approve_first = True</code> stored in <code>config</code>?</p>
+  <p class="q">How is <code>reminder_approve_first = True</code> stored in <code>config</code>?</p>
   <button class="opt">As the integer 1, SQLite's usual boolean</button>
   <button class="opt">As the text <code>True</code>, Python's own spelling</button>
   <button class="opt">As the text <code>true</code>, in lower case</button>
@@ -233,7 +233,7 @@ printf '%s' "$S" | jq '.notice_approve_first = true' | curl -s -o /dev/null -w '
 <div class="quiz" data-answer="0">
   <p class="q">A <code>PUT /api/settings/messages</code> saves the new days ahead, then its <code>after_set</code> sync raises an error. What's saved?</p>
   <button class="opt">Nothing: settings and sync share one transaction</button>
-  <button class="opt">The settings, but the Notices aren't synced</button>
+  <button class="opt">The settings, but the Reminders aren't synced</button>
   <button class="opt">The settings and whatever the sync did first</button>
   <div class="why"><code>set</code> calls each reaction with the same connection, and the route opened it with <code>engine.begin()</code>. An exception rolls the whole transaction back, the settings rows included.</div>
 </div>

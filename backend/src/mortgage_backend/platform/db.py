@@ -196,9 +196,9 @@ allocation_table = Table(
     Column("discount", Integer, nullable=False, default=0),  # paise, non-cash
 )
 
-# A message to a Customer ahead of an Accrual Date (see Documentation/GLOSSARY.md: Notice).
-notice_table = Table(
-    "notice",
+# A message to a Customer ahead of an Accrual Date (see Documentation/GLOSSARY.md: Reminder).
+reminder_table = Table(
+    "reminder",
     metadata,
     Column("id", Integer, primary_key=True),
     Column("customer_id", Integer, ForeignKey("customer.id"), nullable=False),
@@ -212,11 +212,11 @@ notice_table = Table(
     UniqueConstraint("customer_id", "accrues_on"),
 )
 
-# The Mortgages a Notice covers.
-notice_mortgage_table = Table(
-    "notice_mortgage",
+# The Mortgages a Reminder covers.
+reminder_mortgage_table = Table(
+    "reminder_mortgage",
     metadata,
-    Column("notice_id", Integer, ForeignKey("notice.id"), primary_key=True),
+    Column("reminder_id", Integer, ForeignKey("reminder.id"), primary_key=True),
     Column("mortgage_id", Integer, ForeignKey("mortgage.id"), primary_key=True),
 )
 

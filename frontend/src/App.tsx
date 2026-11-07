@@ -16,7 +16,7 @@ import { MortgagePage } from './pages/MortgagePage'
 import { MortgagesPage } from './pages/MortgagesPage'
 import { NewMortgagePage } from './pages/NewMortgagePage'
 import { NewPaymentPage } from './pages/NewPaymentPage'
-import { NoticesPage } from './pages/NoticesPage'
+import { RemindersPage } from './pages/RemindersPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { PaymentsPage } from './pages/PaymentsPage'
 import { RedeemPage } from './pages/RedeemPage'
@@ -60,7 +60,7 @@ export default function App() {
               <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
               <Route path="/calculator" element={<CalculatorPage />} />
               <Route path="/call-list" element={<CallListPage />} />
-              <Route path="/notices" element={<NoticesPage />} />
+              <Route path="/reminders" element={<RemindersPage />} />
               <Route path="/closures" element={<ClosuresPage />} />
               <Route path="/referrers/:id" element={<ReferrerPage />} />
               <Route path="/settings" element={<SettingsPage />} />

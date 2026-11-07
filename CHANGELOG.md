@@ -5,6 +5,17 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [Documentation/GLOSSARY.md](Documentation/GLOSSARY.md).
 
+## Unreleased
+
+### Changed
+
+- **Reminders:** renamed the follow-up feature across the app, API, database and
+  documentation. Migration 0017 preserves existing Reminders, Mortgage links and
+  message settings while renaming their database names.
+- **Sendable Reminders:** unsent Reminders are removed when no Active Mortgage
+  accrues on their date. Remaining eligible Mortgages stay on the Reminder; sent and
+  skipped Reminders keep their recorded message and Mortgage details.
+
 ## [3.4.3] - 2026-11-07
 
 Edit Mortgage can correct the starting Terms and shows how existing Payments replay.

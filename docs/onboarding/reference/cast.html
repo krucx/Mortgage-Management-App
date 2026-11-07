@@ -34,7 +34,7 @@ uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</
 <tr><th>Setting</th><th>In the sample book</th><th>Note</th></tr>
 <tr><td>Default Terms</td><td>2% a month, Compounded Yearly, pro-rata</td><td>Set by <code>book.py</code>. A fresh database starts at 3%, Compounded Yearly, full month.</td></tr>
 <tr><td>Call List</td><td>3 Months Unpaid, or Loan-to-Value above 85%</td><td>Or accruing today.</td></tr>
-<tr><td>Notices</td><td>2 days before each Accrual Date, approved first</td><td></td></tr>
+<tr><td>Reminders</td><td>2 days before each Accrual Date, approved first</td><td></td></tr>
 <tr><td>Cash Limit</td><td>₹20,000</td><td>The app's default; it warns, never refuses.</td></tr>
 <tr><td>Discount confirmation</td><td>₹500</td><td>The app's default threshold; clear it to skip the extra confirmation.</td></tr>
 <tr><td>Gold Rates</td><td>24K ₹14,766 · 22K ₹13,536 · 20K ₹12,332 · 18K ₹11,075 · 14K ₹8,601 a gram</td><td>All five changed on 19 Oct 2026, so each says <code>updated_on</code> 19 Oct.</td></tr>
@@ -81,7 +81,7 @@ uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</
 <tr><td>2026-Lakshmi-TempleNecklace</td><td>Temple necklace, 30 g of 22K</td><td>₹2,00,000 bank transfer, 20 Feb 2026</td><td>Default</td><td>Redeemed on 16 Oct by a Payment of its whole Outstanding</td></tr>
 <tr><td>2026-Farida-GoldNoseRing</td><td>Gold nose ring, 2.5 g of 22K</td><td>₹30,000 UPI, 12 May 2026</td><td>Default</td><td>Waived on 16 Oct: ₹30,520 paid of ₹30,700, ₹180 let off (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">story, ch. 8</a>)</td></tr>
 <tr><td>2026-Imran-GoldEarrings</td><td>Gold earrings, 8 g of 22K</td><td>₹60,000 UPI, 10 Jun 2026</td><td>Default</td><td>Forfeited on 10 Oct: owed ₹62,840, sold for ₹52,000, a loss of ₹10,840 (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">story, ch. 8</a>)</td></tr>
-<tr><td>2026-Sunita-Mangalsutra</td><td>Mangalsutra, 10 g of 22K</td><td>₹35,000 UPI, 21 Sep 2026</td><td>Default</td><td>Active; its first Notice waits for approval</td></tr>
+<tr><td>2026-Sunita-Mangalsutra</td><td>Mangalsutra, 10 g of 22K</td><td>₹35,000 UPI, 21 Sep 2026</td><td>Default</td><td>Active; its first Reminder waits for approval</td></tr>
 </table>
 
 <h2>Meera's Payments on the chain and bangles</h2>
@@ -112,7 +112,7 @@ uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</
 <tr><td>Call List</td><td>One group, Arjun Patel (9820023456): 2026-Arjun-GoldChain first (<code>accrues_today</code>; 2 Months Unpaid, 28.8%), then 2025-Arjun-GoldRingRuby (<code>months_unpaid</code> 15 and <code>loan_to_value</code> 104.9%; called today, so it sorts second)</td></tr>
 <tr><td>Months Unpaid of the other Active Mortgages</td><td>Meera's chain 2 (part of September and all of October, not April: Payments cover the oldest month first), the bangles 0, the mangalsutra 0; the anklet is Dormant and skipped. Meera's chain reaches 3 on 10 Nov</td></tr>
 <tr><td>Call Notes</td><td>One: <code>call_note</code> 1, the ring, 19 Oct, "Will pay after Diwali". The next one saved is 2</td></tr>
-<tr><td>Notices</td><td>58 rows. 1–57 sent (Accrual Dates 15 Jul 2025 to 19 Oct 2026), each with one <code>notice_mortgage</code> row. <strong>#58</strong>: Sunita (Customer 7), accrues 21 Oct, <code>awaiting_approval</code>, <code>message</code> NULL; worded as ₹700 interest, ₹35,723 owed after. The Dashboard: 0 to send, 1 to approve. The next Notice made is 59 (Meera's 25 Oct, once it's within the days ahead)</td></tr>
+<tr><td>Reminders</td><td>58 rows. 1–57 sent (Accrual Dates 15 Jul 2025 to 19 Oct 2026), each with one <code>reminder_mortgage</code> row. <strong>#58</strong>: Sunita (Customer 7), accrues 21 Oct, <code>awaiting_approval</code>, <code>message</code> NULL; worded as ₹700 interest, ₹35,723 owed after. The Dashboard: 0 to send, 1 to approve. The next Reminder made is 59 (Meera's 25 Oct, once it's within the days ahead)</td></tr>
 <tr><td>Settings</td><td>Call List 3 Months Unpaid, above 85%. Messages: the default templates, 2 days ahead, approve first on</td></tr>
 </table>
 
@@ -120,7 +120,7 @@ uv run python ../docs/sample-book/serve.py "$BOOK"     # http://127.0.0.1:8765</
 <p>The automated tests don't use the sample book. Each test makes the little it needs, fresh, with these defaults (<a href="../013-testing/index.html">chapter 013</a>). Figures from <code>013-testing/scripts/figures.py</code>, which runs the real app.</p>
 <table class="wide">
 <tr><th>Who or what</th><th>Where it's made</th><th>Facts</th></tr>
-<tr><td>Today</td><td><code>backend/tests/conftest.py</code>, <code>TODAY</code></td><td><strong>20 Apr 2026</strong> for every <code>client</code> test. <code>conn</code> tests pass their own dates (<code>test_notices.py</code> works on 12 May 2026). The frontend uses the browser's real date (<a href="traps.html#t17">trap #17</a>)</td></tr>
+<tr><td>Today</td><td><code>backend/tests/conftest.py</code>, <code>TODAY</code></td><td><strong>20 Apr 2026</strong> for every <code>client</code> test. <code>conn</code> tests pass their own dates (<code>test_reminders.py</code> works on 12 May 2026). The frontend uses the browser's real date (<a href="traps.html#t17">trap #17</a>)</td></tr>
 <tr><td>Ramesh Kumar</td><td><code>api_seed.person</code>, <code>seed.add_customer</code></td><td>Primary Number 9829012345. A second Customer needs another number: the tests use Sita Devi, 9829054321; <code>nth_person(client, n)</code> makes "Customer 0n" on 98290000nn</td></tr>
 <tr><td>Ramesh's gold chain</td><td><code>api_seed.lend</code>, <code>seed.add_mortgage</code></td><td>₹1,00,000 from 14 Jan 2026, 19 g net of 22K, lent by UPI, on <code>SIMPLE_3</code> (3% a month, Simple, full month: ₹3,000 on each 14th). Owes <strong>₹1,12,000</strong> on 20 Apr: ₹9,000 to 14 Apr and the month under way. Named "2026-Ramesh-GoldChain" through the API; "2026-Ramesh-Chain" by <code>seed.py</code></td></tr>
 <tr><td>A Payment</td><td><code>api_seed.pay</code>, <code>seed.add_payment</code></td><td>By Allocation, <code>{mortgage id: paise}</code>; <code>pay</code> defaults to cash on 15 Apr. ₹12,000 on 20 Apr leaves the chain owing ₹1,00,000, off the Call List</td></tr>

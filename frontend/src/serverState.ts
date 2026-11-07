@@ -121,8 +121,8 @@ const STALE_AFTER_REVALUING = [keys.allMortgages, keys.lists, keys.dashboard]
 
 /** What each other kind of change makes stale. */
 export const STALE_AFTER = {
-  /** Approving, skipping or sending a Notice: the Notices, and the Dashboard's counts. */
-  notice: [keys.list('notices'), keys.dashboard],
+  /** Approving, skipping or sending a Reminder: the Reminders, and the Dashboard's counts. */
+  reminder: [keys.list('reminders'), keys.dashboard],
   /** Marking a Mortgage called: the Call List, the Call Notes and the Dashboard's count. */
   callNote: [keys.list('call-list'), keys.allCallNotes, keys.dashboard],
   /** Adding or removing a Mortgage's photo: the Mortgage and its History, and the
@@ -136,8 +136,8 @@ export const STALE_AFTER = {
   goldRates: STALE_AFTER_REVALUING,
   /** New Call List thresholds: the Call List, and the Dashboard's count of it. */
   callListThresholds: [keys.list('call-list'), keys.dashboard],
-  /** New message settings: Notices are queued again to match them, Receipts reworded. */
-  messageSettings: [keys.allPayments, keys.list('notices'), keys.dashboard],
+  /** New message settings: Reminders are queued again to match them, Receipts reworded. */
+  messageSettings: [keys.allPayments, keys.list('reminders'), keys.dashboard],
 } satisfies Record<string, readonly (readonly unknown[])[]>
 
 export function markStale(queryClient: QueryClient, stale: readonly (readonly unknown[])[]) {
@@ -224,7 +224,7 @@ export function useMortgageChange() {
 
 /**
  * Saves a change that cannot alter what Mortgages owe, then makes `stale` stale (one
- * of STALE_AFTER): `const actOnNotice = useChange(STALE_AFTER.notice)`.
+ * of STALE_AFTER): `const actOnReminder = useChange(STALE_AFTER.reminder)`.
  */
 export function useChange(stale: readonly (readonly unknown[])[]) {
   const { client, queryClient } = useServerState()

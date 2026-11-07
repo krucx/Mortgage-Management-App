@@ -1,4 +1,4 @@
-"""WhatsApp messages: Receipts and Notices rendered from the Lender's templates.
+"""WhatsApp messages: Receipts and Reminders rendered from the Lender's templates.
 
 WhatsApp has no tables, so each Mortgage is a small card in a monospace block, its
 amounts right-aligned. Customers see the item, never the Mortgage Name.
@@ -9,14 +9,14 @@ from datetime import date
 from seed import RUPEE
 
 from mortgage_backend.follow_up.messages import (
-    NOTICE_PLACEHOLDERS,
+    REMINDER_PLACEHOLDERS,
     RECEIPT_PLACEHOLDERS,
-    NoticeLine,
-    NoticeMessage,
+    ReminderLine,
+    ReminderMessage,
     ReceiptLine,
     ReceiptMessage,
     fill,
-    notice_text,
+    reminder_text,
     receipt_text,
     unknown_placeholders,
 )
@@ -127,26 +127,26 @@ def test_unknown_placeholders_are_left_as_written() -> None:
     )
 
 
-def test_a_notice_shows_the_interest_about_to_be_added() -> None:
-    notice = NoticeMessage(
+def test_a_reminder_shows_the_interest_about_to_be_added() -> None:
+    reminder = ReminderMessage(
         customer_name="Ramesh Kumar",
         accrues_on=date(2026, 5, 14),
         lines=[
-            NoticeLine(
+            ReminderLine(
                 description="Gold chain",
                 interest=3_000 * RUPEE,
                 owed_after=1_12_000 * RUPEE,
             ),
-            NoticeLine(
+            ReminderLine(
                 description="Ring", interest=1_500 * RUPEE, owed_after=51_500 * RUPEE
             ),
         ],
     )
 
-    text = notice_text(
+    text = reminder_text(
         "On {date}, *{interest}* of interest will be added.\n{mortgages}\n"
         "You will owe *{total_owed}*.",
-        notice,
+        reminder,
     )
 
     assert text == (
@@ -173,13 +173,13 @@ def test_every_placeholder_a_template_may_use_is_filled() -> None:
 
     worded = [
         receipt_text(every(RECEIPT_PLACEHOLDERS), receipt(chain())),
-        notice_text(
-            every(NOTICE_PLACEHOLDERS),
-            NoticeMessage(
+        reminder_text(
+            every(REMINDER_PLACEHOLDERS),
+            ReminderMessage(
                 customer_name="Ramesh Kumar",
                 accrues_on=date(2026, 5, 14),
                 lines=[
-                    NoticeLine(
+                    ReminderLine(
                         description="Gold chain",
                         interest=3_000 * RUPEE,
                         owed_after=1_12_000 * RUPEE,

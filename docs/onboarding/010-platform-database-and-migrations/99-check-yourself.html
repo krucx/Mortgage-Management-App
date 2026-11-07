@@ -16,7 +16,7 @@
 <div class="quiz" data-answer="2">
   <p class="q">1. You build a fresh sample book and serve it. Its first <code>/api/</code> request arrives. Do the daily jobs run?</p>
   <button class="opt">Yes: it's the first request since the server started</button>
-  <button class="opt">Yes, but only the Notice sync, as a Backup was taken</button>
+  <button class="opt">Yes, but only the Reminder sync, as a Backup was taken</button>
   <button class="opt">No: <code>last_daily_run</code> is already 19 Oct 2026</button>
   <div class="why"><code>book.py</code> builds the book through the API up to 19 Oct, so the daily run already ran that day and wrote <code>last_daily_run</code>. The check reads the database, not anything about this server. The start-up Backup came from the lifespan, not the daily run. (Lesson 2; <code>scripts/run_throughs.py</code>, section L2.)</div>
 </div>
@@ -100,7 +100,7 @@
     <tr><th>Test</th><th>Why it fails</th></tr>
     <tr class="changed"><td><code>test_migrations.py::test_the_migrations_build_the_tables_the_app_declares</code></td><td><code>AssertionError: assert [('remove_col...=&lt;customer&gt;))] == []</code>: "Left contains one more item: <code>('remove_column', None, 'customer', Column('nickname', VARCHAR(), table=&lt;customer&gt;))</code>". The migrated database has a column <code>db.py</code> doesn't declare.</td></tr>
     </table>
-    <p>Every test database now has a <code>nickname</code> column that no query asks for, so nothing else notices. Before <a href="https://github.com/krucx/Mortgage-Management-App/issues/115">#115</a> added this test, this step passed every test (600 at the time), and the drift would have shipped. One test is the whole guard: if you ever see it fail, the fix is to make the two halves agree, not to change the test.</p>
+    <p>Every test database now has a <code>nickname</code> column that no query asks for, so nothing else reminders. Before <a href="https://github.com/krucx/Mortgage-Management-App/issues/115">#115</a> added this test, this step passed every test (600 at the time), and the drift would have shipped. One test is the whole guard: if you ever see it fail, the fix is to make the two halves agree, not to change the test.</p>
   </div>
 </div>
 <ol start="4">
@@ -115,7 +115,7 @@ git status --short     # nothing left</code></pre>
 <h2>Recap</h2>
 <ul>
   <li><code>create_app</code> is the composition root: it builds the engine, Backups and the daily run, puts them on <code>app.state</code>, adds the routers and the screens last. The real app builds it from the environment (<code>DATA_DIR</code>, the Backup and screens folders); tests and <code>serve.py</code> call it with their own clock and folders. Leave out an argument and that feature is off. Starting runs the lifespan: clean leftovers, migrate, the weekly Backup if due (<a href="01-the-composition-root.html">lesson 1</a>).</li>
-  <li>"Today" is whatever <code>today</code> function the app was built with, read through <code>TodayDep</code>; nothing else calls <code>date.today()</code>. Business dates follow <code>TZ</code>. There is no scheduler: the first <code>/api/</code> request of each day runs the Backup check and the Notice sync, under a lock, with the date in <code>config</code> so a restart doesn't repeat them. A failing job is logged and the next still runs (<a href="02-today-now-and-the-daily-run.html">lesson 2</a>, trap #8).</li>
+  <li>"Today" is whatever <code>today</code> function the app was built with, read through <code>TodayDep</code>; nothing else calls <code>date.today()</code>. Business dates follow <code>TZ</code>. There is no scheduler: the first <code>/api/</code> request of each day runs the Backup check and the Reminder sync, under a lock, with the date in <code>config</code> so a restart doesn't repeat them. A failing job is logged and the next still runs (<a href="02-today-now-and-the-daily-run.html">lesson 2</a>, trap #8).</li>
   <li>Settings are text rows in <code>config</code>. A <code>ConfigGroup</code> declares a model and its keys once: <code>get</code> fills missing keys from defaults, <code>set</code> stores text (<code>true</code>/<code>false</code>), deletes fields set to <code>None</code>, and runs <code>after_set</code> on the same transaction. The Cash Limit isn't one, because cleared must differ from never set (<a href="03-settings-in-the-config-table.html">lesson 3</a>).</li>
   <li><code>db.py</code> declares 12 Tables, with no ledger table (ADR 0001). <code>make_engine</code> switches on foreign keys; <code>engine.begin()</code> rolls a refused change back. <code>query_page</code> sorts and pages in SQL; <code>rows_page</code> pages lists worked out in Python. 20 rows a page, <code>total</code> on every page, and <code>ties</code> make descending the exact reverse (<a href="04-tables-engine-and-pages.html">lesson 4</a>).</li>
   <li>Every start runs <code>migrate</code>: a revision this code doesn't know is refused before anything runs; an existing database that isn't at the head gets a <code>-before-update</code> Backup first, and if that fails nothing is migrated; a fresh install gets none. Every test database is built by the chain, so migrations run on whatever <code>DATA_DIR</code> they're given (<a href="05-how-the-app-migrates.html">lesson 5</a>, trap #9, ADRs 0003 and 0009).</li>

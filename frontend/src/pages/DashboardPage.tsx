@@ -194,20 +194,20 @@ export function DashboardPage() {
           />
           <Figure
             to={
-              figures.notices_to_send === 0 && figures.notices_to_approve > 0
-                ? '/notices?status=awaiting_approval'
-                : '/notices?status=queued'
+              figures.reminders_to_send === 0 && figures.reminders_to_approve > 0
+                ? '/reminders?status=awaiting_approval'
+                : '/reminders?status=queued'
             }
-            label="Notices to send"
-            value={figures.notices_to_send}
+            label="Reminders to send"
+            value={figures.reminders_to_send}
             note={
               <>
-                {figures.notices_to_send > 0 ? (
+                {figures.reminders_to_send > 0 ? (
                   <span className="flag warn">To send on WhatsApp</span>
                 ) : (
                   'Nothing to send'
                 )}
-                {figures.notices_to_approve > 0 && ` · ${figures.notices_to_approve} to approve`}
+                {figures.reminders_to_approve > 0 && ` · ${figures.reminders_to_approve} to approve`}
               </>
             }
           />

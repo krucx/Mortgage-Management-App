@@ -1,4 +1,4 @@
-"""WhatsApp messages to Customers: Receipts and Notices, from the Lender's templates.
+"""WhatsApp messages to Customers: Receipts and Reminders, from the Lender's templates.
 
 WhatsApp has no tables, so each Mortgage becomes a small card inside a monospace block
 (```), its amounts right-aligned so the columns line up on a phone. A Customer sees
@@ -48,7 +48,7 @@ class ReceiptMessage(BaseModel):
         return sum(line.owed_after for line in self.lines)
 
 
-class NoticeLine(BaseModel):
+class ReminderLine(BaseModel):
     """The interest one Mortgage is about to be charged."""
 
     description: str
@@ -56,10 +56,10 @@ class NoticeLine(BaseModel):
     owed_after: int  # Outstanding once it is added
 
 
-class NoticeMessage(BaseModel):
+class ReminderMessage(BaseModel):
     customer_name: str
     accrues_on: date
-    lines: list[NoticeLine]
+    lines: list[ReminderLine]
 
 
 Row = tuple[str, int]  # label, paise
@@ -108,7 +108,7 @@ RECEIPT_PLACEHOLDERS = (
     "mortgages",
     "total_owed",
 )
-NOTICE_PLACEHOLDERS = ("customer_name", "date", "interest", "mortgages", "total_owed")
+REMINDER_PLACEHOLDERS = ("customer_name", "date", "interest", "mortgages", "total_owed")
 
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
 _BRACED = re.compile(r"\{[^{}]*\}?")  # a brace, up to the next brace or closing one
@@ -171,24 +171,24 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
     )
 
 
-def notice_text(template: str, notice: NoticeMessage) -> str:
-    interest = sum(line.interest for line in notice.lines)
-    owed = sum(line.owed_after for line in notice.lines)
+def reminder_text(template: str, reminder: ReminderMessage) -> str:
+    interest = sum(line.interest for line in reminder.lines)
+    owed = sum(line.owed_after for line in reminder.lines)
     block = _card_block(
         [
             (
                 line.description,
                 [("Interest added", line.interest), ("Owed after", line.owed_after)],
             )
-            for line in notice.lines
+            for line in reminder.lines
         ],
         [("Total interest", interest), ("Total owed", owed)],
     )
     return fill(
         template,
         {
-            "customer_name": notice.customer_name,
-            "date": _date(notice.accrues_on),
+            "customer_name": reminder.customer_name,
+            "date": _date(reminder.accrues_on),
             "interest": format_inr(interest),
             "mortgages": block,
             "total_owed": format_inr(owed),

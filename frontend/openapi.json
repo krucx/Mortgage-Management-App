@@ -1220,14 +1220,6 @@
             ],
             "title": "Loan To Value"
           },
-          "notices_to_approve": {
-            "title": "Notices To Approve",
-            "type": "integer"
-          },
-          "notices_to_send": {
-            "title": "Notices To Send",
-            "type": "integer"
-          },
           "payments_by_month": {
             "items": {
               "$ref": "#/components/schemas/MonthlyPayments"
@@ -1248,6 +1240,14 @@
           },
           "redeemed_this_month": {
             "title": "Redeemed This Month",
+            "type": "integer"
+          },
+          "reminders_to_approve": {
+            "title": "Reminders To Approve",
+            "type": "integer"
+          },
+          "reminders_to_send": {
+            "title": "Reminders To Send",
             "type": "integer"
           },
           "trend_months": {
@@ -1281,8 +1281,8 @@
           "collateral_value",
           "loan_to_value",
           "call_list_count",
-          "notices_to_send",
-          "notices_to_approve",
+          "reminders_to_send",
+          "reminders_to_approve",
           "redeemed_this_month",
           "waived_this_month",
           "waived_amount_this_month",
@@ -1736,52 +1736,52 @@
       "MessagePlaceholders": {
         "description": "The placeholders each template may use.",
         "properties": {
-          "notice": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Notice",
-            "type": "array"
-          },
           "receipt": {
             "items": {
               "type": "string"
             },
             "title": "Receipt",
             "type": "array"
+          },
+          "reminder": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reminder",
+            "type": "array"
           }
         },
         "required": [
           "receipt",
-          "notice"
+          "reminder"
         ],
         "title": "MessagePlaceholders",
         "type": "object"
       },
       "MessageSettings": {
         "properties": {
-          "notice_approve_first": {
-            "default": false,
-            "title": "Notice Approve First",
-            "type": "boolean"
-          },
-          "notice_days_before": {
-            "default": 2,
-            "maximum": 28.0,
-            "minimum": 1.0,
-            "title": "Notice Days Before",
-            "type": "integer"
-          },
-          "notice_template": {
-            "default": "*Interest notice* \ud83d\udd14\n\nNamaste {customer_name},\nOn *{date}*, interest of *{interest}* will be added.\n\n{mortgages}\n\nTotal owed after that: *{total_owed}*\nPlease get in touch with any questions. \ud83d\ude4f",
-            "minLength": 1,
-            "title": "Notice Template",
-            "type": "string"
-          },
           "receipt_template": {
             "default": "*Payment received* \u2705\n\nNamaste {customer_name},\nWe have received *{amount}* by {method} on {date}. Thank you!\n\n{mortgages}\n\nTotal still owed: *{total_owed}*",
             "minLength": 1,
             "title": "Receipt Template",
+            "type": "string"
+          },
+          "reminder_approve_first": {
+            "default": false,
+            "title": "Reminder Approve First",
+            "type": "boolean"
+          },
+          "reminder_days_before": {
+            "default": 2,
+            "maximum": 28.0,
+            "minimum": 1.0,
+            "title": "Reminder Days Before",
+            "type": "integer"
+          },
+          "reminder_template": {
+            "default": "*Interest reminder* \ud83d\udd14\n\nNamaste {customer_name},\nOn *{date}*, interest of *{interest}* will be added.\n\n{mortgages}\n\nTotal owed after that: *{total_owed}*\nPlease get in touch with any questions. \ud83d\ude4f",
+            "minLength": 1,
+            "title": "Reminder Template",
             "type": "string"
           }
         },
@@ -2338,83 +2338,6 @@
         "title": "NotImported",
         "type": "object"
       },
-      "Notice": {
-        "properties": {
-          "accrues_on": {
-            "format": "date",
-            "title": "Accrues On",
-            "type": "string"
-          },
-          "created_on": {
-            "format": "date",
-            "title": "Created On",
-            "type": "string"
-          },
-          "customer": {
-            "$ref": "#/components/schemas/PersonSummary"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "mortgages": {
-            "items": {
-              "$ref": "#/components/schemas/MortgageLink"
-            },
-            "title": "Mortgages",
-            "type": "array"
-          },
-          "phones": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Phones",
-            "type": "array"
-          },
-          "sent_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sent At"
-          },
-          "status": {
-            "$ref": "#/components/schemas/NoticeStatus"
-          }
-        },
-        "required": [
-          "id",
-          "customer",
-          "phones",
-          "accrues_on",
-          "created_on",
-          "status",
-          "message",
-          "mortgages",
-          "sent_at"
-        ],
-        "title": "Notice",
-        "type": "object"
-      },
-      "NoticeStatus": {
-        "enum": [
-          "awaiting_approval",
-          "queued",
-          "sent",
-          "skipped"
-        ],
-        "title": "NoticeStatus",
-        "type": "string"
-      },
       "Outstanding": {
         "description": "What would redeem it on a date: Principal plus unpaid interest, its Interest to\nDate included (ADR 0011).",
         "properties": {
@@ -2547,11 +2470,11 @@
         "title": "Page[MortgageRow]",
         "type": "object"
       },
-      "Page_Notice_": {
+      "Page_Reminder_": {
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/Notice"
+              "$ref": "#/components/schemas/Reminder"
             },
             "title": "Items",
             "type": "array"
@@ -2575,7 +2498,7 @@
           "page",
           "page_size"
         ],
-        "title": "Page[Notice]",
+        "title": "Page[Reminder]",
         "type": "object"
       },
       "PartMonthRule": {
@@ -3357,6 +3280,83 @@
         ],
         "title": "Release",
         "type": "object"
+      },
+      "Reminder": {
+        "properties": {
+          "accrues_on": {
+            "format": "date",
+            "title": "Accrues On",
+            "type": "string"
+          },
+          "created_on": {
+            "format": "date",
+            "title": "Created On",
+            "type": "string"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/PersonSummary"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "mortgages": {
+            "items": {
+              "$ref": "#/components/schemas/MortgageLink"
+            },
+            "title": "Mortgages",
+            "type": "array"
+          },
+          "phones": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Phones",
+            "type": "array"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReminderStatus"
+          }
+        },
+        "required": [
+          "id",
+          "customer",
+          "phones",
+          "accrues_on",
+          "created_on",
+          "status",
+          "message",
+          "mortgages",
+          "sent_at"
+        ],
+        "title": "Reminder",
+        "type": "object"
+      },
+      "ReminderStatus": {
+        "enum": [
+          "awaiting_approval",
+          "queued",
+          "sent",
+          "skipped"
+        ],
+        "title": "ReminderStatus",
+        "type": "string"
       },
       "SearchHit": {
         "properties": {
@@ -6530,214 +6530,6 @@
         "summary": "Preview Waive"
       }
     },
-    "/api/notices": {
-      "get": {
-        "description": "Notices by Accrual Date, then Customer (or by `sort`, reversed when\n`descending`), synced first: a Mortgage added today or a reopened Mortgage shows at\nonce, not after the next daily run.",
-        "operationId": "read_notices_api_notices_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/NoticeStatus"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "default": 1,
-              "minimum": 1,
-              "title": "Page",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "sort",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "customer",
-                    "accrues",
-                    "mortgages",
-                    "status"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Sort"
-            }
-          },
-          {
-            "in": "query",
-            "name": "descending",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Descending",
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Page_Notice_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Read Notices"
-      }
-    },
-    "/api/notices/{notice_id}/approve": {
-      "post": {
-        "operationId": "approve_notice_api_notices__notice_id__approve_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "notice_id",
-            "required": true,
-            "schema": {
-              "title": "Notice Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Notice"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Approve Notice"
-      }
-    },
-    "/api/notices/{notice_id}/sent": {
-      "post": {
-        "description": "The Lender opened the prefilled WhatsApp chat (click-to-send counts that as sent).",
-        "operationId": "mark_notice_sent_api_notices__notice_id__sent_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "notice_id",
-            "required": true,
-            "schema": {
-              "title": "Notice Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Notice"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Mark Notice Sent"
-      }
-    },
-    "/api/notices/{notice_id}/skip": {
-      "post": {
-        "operationId": "skip_notice_api_notices__notice_id__skip_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "notice_id",
-            "required": true,
-            "schema": {
-              "title": "Notice Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Notice"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Skip Notice"
-      }
-    },
     "/api/payment-methods": {
       "get": {
         "description": "Every way a Payment can be made, with its name.",
@@ -7256,6 +7048,214 @@
           }
         },
         "summary": "Read Referrer"
+      }
+    },
+    "/api/reminders": {
+      "get": {
+        "description": "Reminders by Accrual Date, then Customer (or by `sort`, reversed when\n`descending`), synced first: a Mortgage added today or a reopened Mortgage shows at\nonce, not after the next daily run.",
+        "operationId": "read_reminders_api_reminders_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReminderStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "customer",
+                    "accrues",
+                    "mortgages",
+                    "status"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "descending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Descending",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Reminder_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Reminders"
+      }
+    },
+    "/api/reminders/{reminder_id}/approve": {
+      "post": {
+        "operationId": "approve_reminder_api_reminders__reminder_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reminder_id",
+            "required": true,
+            "schema": {
+              "title": "Reminder Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reminder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Reminder"
+      }
+    },
+    "/api/reminders/{reminder_id}/sent": {
+      "post": {
+        "description": "The Lender opened the prefilled WhatsApp chat (click-to-send counts that as sent).",
+        "operationId": "mark_reminder_sent_api_reminders__reminder_id__sent_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reminder_id",
+            "required": true,
+            "schema": {
+              "title": "Reminder Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reminder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Reminder Sent"
+      }
+    },
+    "/api/reminders/{reminder_id}/skip": {
+      "post": {
+        "operationId": "skip_reminder_api_reminders__reminder_id__skip_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reminder_id",
+            "required": true,
+            "schema": {
+              "title": "Reminder Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reminder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skip Reminder"
       }
     },
     "/api/search": {

@@ -926,82 +926,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/notices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Notices
-         * @description Notices by Accrual Date, then Customer (or by `sort`, reversed when
-         *     `descending`), synced first: a Mortgage added today or a reopened Mortgage shows at
-         *     once, not after the next daily run.
-         */
-        get: operations["read_notices_api_notices_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/notices/{notice_id}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Approve Notice */
-        post: operations["approve_notice_api_notices__notice_id__approve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/notices/{notice_id}/sent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Mark Notice Sent
-         * @description The Lender opened the prefilled WhatsApp chat (click-to-send counts that as sent).
-         */
-        post: operations["mark_notice_sent_api_notices__notice_id__sent_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/notices/{notice_id}/skip": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Skip Notice */
-        post: operations["skip_notice_api_notices__notice_id__skip_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/payment-methods": {
         parameters: {
             query?: never;
@@ -1187,6 +1111,82 @@ export interface paths {
         get: operations["read_referrer_api_referrers__referrer_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Reminders
+         * @description Reminders by Accrual Date, then Customer (or by `sort`, reversed when
+         *     `descending`), synced first: a Mortgage added today or a reopened Mortgage shows at
+         *     once, not after the next daily run.
+         */
+        get: operations["read_reminders_api_reminders_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reminders/{reminder_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Reminder */
+        post: operations["approve_reminder_api_reminders__reminder_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reminders/{reminder_id}/sent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Reminder Sent
+         * @description The Lender opened the prefilled WhatsApp chat (click-to-send counts that as sent).
+         */
+        post: operations["mark_reminder_sent_api_reminders__reminder_id__sent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reminders/{reminder_id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Skip Reminder */
+        post: operations["skip_reminder_api_reminders__reminder_id__skip_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1799,10 +1799,6 @@ export interface components {
             interest_collected_this_year: number;
             /** Loan To Value */
             loan_to_value: number | null;
-            /** Notices To Approve */
-            notices_to_approve: number;
-            /** Notices To Send */
-            notices_to_send: number;
             /** Payments By Month */
             payments_by_month: components["schemas"]["MonthlyPayments"][];
             /** Principal Outstanding */
@@ -1811,6 +1807,10 @@ export interface components {
             projections: components["schemas"]["ProjectionHorizon"][];
             /** Redeemed This Month */
             redeemed_this_month: number;
+            /** Reminders To Approve */
+            reminders_to_approve: number;
+            /** Reminders To Send */
+            reminders_to_send: number;
             /** Trend Months */
             trend_months: string[];
             /** Unpaid Interest */
@@ -2031,36 +2031,13 @@ export interface components {
          * @description The placeholders each template may use.
          */
         MessagePlaceholders: {
-            /** Notice */
-            notice: string[];
             /** Receipt */
             receipt: string[];
+            /** Reminder */
+            reminder: string[];
         };
         /** MessageSettings */
         MessageSettings: {
-            /**
-             * Notice Approve First
-             * @default false
-             */
-            notice_approve_first: boolean;
-            /**
-             * Notice Days Before
-             * @default 2
-             */
-            notice_days_before: number;
-            /**
-             * Notice Template
-             * @default *Interest notice* 🔔
-             *
-             *     Namaste {customer_name},
-             *     On *{date}*, interest of *{interest}* will be added.
-             *
-             *     {mortgages}
-             *
-             *     Total owed after that: *{total_owed}*
-             *     Please get in touch with any questions. 🙏
-             */
-            notice_template: string;
             /**
              * Receipt Template
              * @default *Payment received* ✅
@@ -2073,6 +2050,29 @@ export interface components {
              *     Total still owed: *{total_owed}*
              */
             receipt_template: string;
+            /**
+             * Reminder Approve First
+             * @default false
+             */
+            reminder_approve_first: boolean;
+            /**
+             * Reminder Days Before
+             * @default 2
+             */
+            reminder_days_before: number;
+            /**
+             * Reminder Template
+             * @default *Interest reminder* 🔔
+             *
+             *     Namaste {customer_name},
+             *     On *{date}*, interest of *{interest}* will be added.
+             *
+             *     {mortgages}
+             *
+             *     Total owed after that: *{total_owed}*
+             *     Please get in touch with any questions. 🙏
+             */
+            reminder_template: string;
         };
         /** MonthlyPayments */
         MonthlyPayments: {
@@ -2276,36 +2276,6 @@ export interface components {
             /** Row */
             row: number;
         };
-        /** Notice */
-        Notice: {
-            /**
-             * Accrues On
-             * Format: date
-             */
-            accrues_on: string;
-            /**
-             * Created On
-             * Format: date
-             */
-            created_on: string;
-            customer: components["schemas"]["PersonSummary"];
-            /** Id */
-            id: number;
-            /** Message */
-            message: string;
-            /** Mortgages */
-            mortgages: components["schemas"]["MortgageLink"][];
-            /** Phones */
-            phones: string[];
-            /** Sent At */
-            sent_at: string | null;
-            status: components["schemas"]["NoticeStatus"];
-        };
-        /**
-         * NoticeStatus
-         * @enum {string}
-         */
-        NoticeStatus: "awaiting_approval" | "queued" | "sent" | "skipped";
         /**
          * Outstanding
          * @description What would redeem it on a date: Principal plus unpaid interest, its Interest to
@@ -2367,10 +2337,10 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** Page[Notice] */
-        Page_Notice_: {
+        /** Page[Reminder] */
+        Page_Reminder_: {
             /** Items */
-            items: components["schemas"]["Notice"][];
+            items: components["schemas"]["Reminder"][];
             /** Page */
             page: number;
             /** Page Size */
@@ -2670,6 +2640,36 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** Reminder */
+        Reminder: {
+            /**
+             * Accrues On
+             * Format: date
+             */
+            accrues_on: string;
+            /**
+             * Created On
+             * Format: date
+             */
+            created_on: string;
+            customer: components["schemas"]["PersonSummary"];
+            /** Id */
+            id: number;
+            /** Message */
+            message: string;
+            /** Mortgages */
+            mortgages: components["schemas"]["MortgageLink"][];
+            /** Phones */
+            phones: string[];
+            /** Sent At */
+            sent_at: string | null;
+            status: components["schemas"]["ReminderStatus"];
+        };
+        /**
+         * ReminderStatus
+         * @enum {string}
+         */
+        ReminderStatus: "awaiting_approval" | "queued" | "sent" | "skipped";
         /** SearchHit */
         SearchHit: {
             /** Id */
@@ -4673,133 +4673,6 @@ export interface operations {
             };
         };
     };
-    read_notices_api_notices_get: {
-        parameters: {
-            query?: {
-                status?: components["schemas"]["NoticeStatus"] | null;
-                page?: number;
-                sort?: ("customer" | "accrues" | "mortgages" | "status") | null;
-                descending?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_Notice_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    approve_notice_api_notices__notice_id__approve_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                notice_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Notice"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    mark_notice_sent_api_notices__notice_id__sent_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                notice_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Notice"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    skip_notice_api_notices__notice_id__skip_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                notice_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Notice"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     read_payment_methods_api_payment_methods_get: {
         parameters: {
             query?: never;
@@ -5131,6 +5004,133 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StandaloneReferrer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_reminders_api_reminders_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ReminderStatus"] | null;
+                page?: number;
+                sort?: ("customer" | "accrues" | "mortgages" | "status") | null;
+                descending?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_Reminder_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_reminder_api_reminders__reminder_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reminder_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reminder"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_reminder_sent_api_reminders__reminder_id__sent_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reminder_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reminder"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    skip_reminder_api_reminders__reminder_id__skip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reminder_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reminder"];
                 };
             };
             /** @description Validation Error */

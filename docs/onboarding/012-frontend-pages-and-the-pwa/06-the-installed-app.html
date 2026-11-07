@@ -40,7 +40,7 @@ flowchart TD
 </pre>
 <figcaption>Two caches and one gate. <code>/api</code> requests never pass through a cache: they always go to the server.</figcaption>
 </figure>
-<p>Notice that the gate runs <em>after</em> the cached app has loaded. The service worker's job is only to get the app's own code onto the screen. Whether there's a server to talk to is the gate's question, asked through the same typed client as everything else.</p>
+<p>Reminder that the gate runs <em>after</em> the cached app has loaded. The service worker's job is only to get the app's own code onto the screen. Whether there's a server to talk to is the gate's question, asked through the same typed client as everything else.</p>
 
 <h2>The code</h2>
 <h3>1. What the service worker keeps</h3>

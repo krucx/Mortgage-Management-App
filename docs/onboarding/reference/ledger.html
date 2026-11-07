@@ -110,7 +110,7 @@
 
 <h2>Dormant and Reopen</h2>
 <ul>
-  <li><code>dormant(on)</code>: Active and <code>outstanding(on).total == 0</code>. Derived, never stored; listed by <code>GET /closures/dormant</code>; no Notices, off the Call List. Put right by Redeeming (no Final Payment) or correcting a Payment. ADR 0012.</li>
+  <li><code>dormant(on)</code>: Active and <code>outstanding(on).total == 0</code>. Derived, never stored; listed by <code>GET /closures/dormant</code>; no Reminders, off the Call List. Put right by Redeeming (no Final Payment) or correcting a Payment. ADR 0012.</li>
   <li><code>reopen</code>: 409 if Active. Clears <code>status</code>, <code>closed_on</code>, <code>redemption_payment_id</code>, <code>recovered_amount</code>, <code>closure_note</code>; then Voids the old Final Payment, if any, with the reason; History <code>reopened</code>.</li>
   <li>A closed Mortgage refuses Payments, Voids and Term Changes (409 "… reopen it first"). Its Final Payment can't be Voided directly (409 "reopen the Mortgage instead, which voids it").</li>
 </ul>

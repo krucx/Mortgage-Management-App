@@ -10,12 +10,12 @@
 <body>
 <p class="kicker">Chapter 009 · Lesson 5</p>
 <h1>Messages: templates, cards and click-to-send</h1>
-<p class="lede">Sunita's Notice is thirteen lines of text with a small table in the middle. This lesson reads it line by line, shows which parts the Lender can rewrite and which they can't, and follows the text out of the app into WhatsApp.</p>
+<p class="lede">Sunita's Reminder is thirteen lines of text with a small table in the middle. This lesson reads it line by line, shows which parts the Lender can rewrite and which they can't, and follows the text out of the app into WhatsApp.</p>
 
 <div class="callout win"><strong>By the end</strong> you can change a template safely, and explain how a message reaches WhatsApp.</div>
 
 <h2>The problem</h2>
-<p>Receipts and Notices go to Customers on WhatsApp, usually read on a phone. That brings three problems.</p>
+<p>Receipts and Reminders go to Customers on WhatsApp, usually read on a phone. That brings three problems.</p>
 <ul>
   <li><strong>WhatsApp has no tables.</strong> A Customer with two Mortgages needs to see two sets of figures that line up. In an ordinary font, "₹700" and "₹35,723" won't line up however many spaces you add.</li>
   <li><strong>The Lender wants their own words.</strong> "Namaste" or "Dear", Hindi or English, with or without emoji. So the text around the figures is a template the Lender edits. But a template with a typo, like <code>{name}</code> for <code>{customer_name}</code>, would reach the Customer as "Namaste {name}". That's embarrassing, and it can't be unsent.</li>
@@ -31,11 +31,11 @@
 <figure class="diagram">
 <pre class="mermaid">
 flowchart LR
-  T[("config: message_notice_template")] -->|"template"| NT["notice_text<br/>messages.py"]
-  L["NoticeLine per Mortgage<br/>description, interest, owed_after"] --> CB["_card_block<br/>cards + totals"]
+  T[("config: message_reminder_template")] -->|"template"| NT["reminder_text<br/>messages.py"]
+  L["ReminderLine per Mortgage<br/>description, interest, owed_after"] --> CB["_card_block<br/>cards + totals"]
   CB -->|"{mortgages}"| NT
   NT -->|"fill"| TXT["message text"]
-  TXT -->|"GET /api/notices"| P["NoticesPage<br/>WhatsApp.tsx (012)"]
+  TXT -->|"GET /api/reminders"| P["RemindersPage<br/>WhatsApp.tsx (012)"]
   P -->|"sender.send(phone, text)"| S["messaging.ts<br/>clickToSend"]
   S -->|"window.open<br/>api.whatsapp.com/send"| WA["WhatsApp,<br/>message prefilled"]
   E["Settings: save template"] -->|"PUT /api/settings/messages"| R{"template_refusal"}
@@ -44,7 +44,7 @@ flowchart LR
 </pre>
 <figcaption>The backend builds the whole text. The frontend only hands it to WhatsApp. A template is checked once, when it's saved.</figcaption>
 </figure>
-<p>Notice that the frontend never builds a message. Receipts take the same path: <code>receipt_text</code> sits next to <code>notice_text</code>, and the Receipt route returns its <code>text</code> (chapter 007).</p>
+<p>Reminder that the frontend never builds a message. Receipts take the same path: <code>receipt_text</code> sits next to <code>reminder_text</code>, and the Receipt route returns its <code>text</code> (chapter 007).</p>
 
 <h2>The code</h2>
 <h3>1. Cards</h3>
@@ -89,27 +89,27 @@ flowchart LR
   <li>Totals only appear with two or more cards. With one card they'd just repeat it.</li>
 </ol>
 
-<h3>2. A Notice's text</h3>
+<h3>2. A Reminder's text</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/messages.py">follow_up/messages.py</a> · <code>notice_text()</code> · lines 162–184, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/messages.py"><code>162  def notice_text(template: str, notice: NoticeMessage) -&gt; str:
-163      interest = sum(line.interest for line in notice.lines)
-164      owed = sum(line.owed_after for line in notice.lines)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/messages.py">follow_up/messages.py</a> · <code>reminder_text()</code> · lines 162–184, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/messages.py"><code>162  def reminder_text(template: str, reminder: ReminderMessage) -&gt; str:
+163      interest = sum(line.interest for line in reminder.lines)
+164      owed = sum(line.owed_after for line in reminder.lines)
 165      block = _card_block(
 166          [
 167              (
 168                  line.description,                             # never the Mortgage Name
 169                  [("Interest added", line.interest), ("Owed after", line.owed_after)],
 170              )
-171              for line in notice.lines
+171              for line in reminder.lines
 172          ],
 173          [("Total interest", interest), ("Total owed", owed)],
 174      )
 175      return fill(
 176          template,
 177          {
-178              "customer_name": notice.customer_name,
-179              "date": _date(notice.accrues_on),
+178              "customer_name": reminder.customer_name,
+179              "date": _date(reminder.accrues_on),
 180              "interest": format_inr(interest),
 181              "mortgages": block,                               ◀
 182              "total_owed": format_inr(owed),
@@ -157,7 +157,7 @@ flowchart LR
   <li><code>dict.fromkeys</code> removes repeats but keeps the order they were first seen in (a set wouldn't keep the order).</li>
   <li><code>fill</code> is forgiving: an unknown placeholder stays as written. It doesn't need to be strict, because a template can't be saved with one. The strictness lives in one place, the save.</li>
 </ol>
-<p>A Notice has no <code>{amount}</code> or <code>{method}</code>, because nothing was paid. A Receipt has no <code>{interest}</code>. Each list matches what its <code>…_text</code> function fills in.</p>
+<p>A Reminder has no <code>{amount}</code> or <code>{method}</code>, because nothing was paid. A Receipt has no <code>{interest}</code>. Each list matches what its <code>…_text</code> function fills in.</p>
 
 <h3>4. Refusing a template at save</h3>
 <figure class="snippet">
@@ -166,7 +166,7 @@ flowchart LR
 ⋮
 80      for name, template, allowed in (
 81          ("Receipt", settings.receipt_template, RECEIPT_PLACEHOLDERS),
-82          ("Notice", settings.notice_template, NOTICE_PLACEHOLDERS),
+82          ("Reminder", settings.reminder_template, NOTICE_PLACEHOLDERS),
 83      ):
 84          if unknown := unknown_placeholders(template, allowed):
 85              usable = " ".join("{" + placeholder + "}" for placeholder in allowed)
@@ -220,13 +220,13 @@ flowchart LR
   <li>Phone numbers are stored as 10 digits (chapter 008). WhatsApp wants the full international number, so <code>91</code> is added here and nowhere else. <code>URLSearchParams</code> URL-encodes the text: newlines, ₹ and emoji included.</li>
   <li><code>wa.me</code> is WhatsApp's short link, but it redirects to this one and the redirect turns emoji into "�" (the comment at lines 24–27). So the app uses the long link directly.</li>
 </ol>
-<p>Only two places call <code>sender</code>: <code>SendOnWhatsApp</code> in <code>components/WhatsApp.tsx</code> (Receipts and Notices) uses <code>send</code>; <code>CallListPage</code> uses <code>chat</code>, to open a conversation with no text. Both are <a href="../012-frontend-pages-and-the-pwa/05-follow-up-dashboard-and-settings.html">chapter 012, lesson 5</a>'s.</p>
+<p>Only two places call <code>sender</code>: <code>SendOnWhatsApp</code> in <code>components/WhatsApp.tsx</code> (Receipts and Reminders) uses <code>send</code>; <code>CallListPage</code> uses <code>chat</code>, to open a conversation with no text. Both are <a href="../012-frontend-pages-and-the-pwa/05-follow-up-dashboard-and-settings.html">chapter 012, lesson 5</a>'s.</p>
 
 <h2>Run-through: Sunita's card, line by line</h2>
 <p>Here is #58's message, with each line's length in characters:</p>
 <table class="steps text">
 <tr><th>Chars</th><th>Line</th><th>Where it comes from</th></tr>
-<tr><td>19</td><td><code>*Interest notice* 🔔</code></td><td>template (<code>*…*</code> is WhatsApp bold)</td></tr>
+<tr><td>19</td><td><code>*Interest reminder* 🔔</code></td><td>template (<code>*…*</code> is WhatsApp bold)</td></tr>
 <tr><td>0</td><td></td><td>template</td></tr>
 <tr><td>19</td><td><code>Namaste Sunita Rao,</code></td><td>template, <code>{customer_name}</code></td></tr>
 <tr><td>51</td><td><code>On *21 Oct 2026*, interest of *₹700* will be added.</code></td><td>template, <code>{date}</code>, <code>{interest}</code></td></tr>
@@ -247,20 +247,20 @@ flowchart LR
 <p>This saves a template on your served book, then puts the old settings back. Capture the current settings first:</p>
 <pre><code>S=$(curl -s http://127.0.0.1:8765/api/settings/messages)
 put() { curl -s -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages; }
-printf '%s' "$S" | jq '.notice_template = "Namaste {name}, {interest} will be added on {date}."' | put
-printf '%s' "$S" | jq '.notice_template = "Namaste {customer_name}, { interest } on {date"' | put
-printf '%s' "$S" | jq '.notice_template = "Namaste {customer_name}, {interest} will be added on {date}.
+printf '%s' "$S" | jq '.reminder_template = "Namaste {name}, {interest} will be added on {date}."' | put
+printf '%s' "$S" | jq '.reminder_template = "Namaste {customer_name}, { interest } on {date"' | put
+printf '%s' "$S" | jq '.reminder_template = "Namaste {customer_name}, {interest} will be added on {date}.
 
 {mortgages}"' | put
 printf '%s' "$S" | put      # back to how it was</code></pre>
 <table class="steps text">
 <tr><th>Template</th><th>Answer</th></tr>
-<tr><td><code>Namaste {name}, …</code></td><td>422 · The Notice template can't fill {name}. It can use: {customer_name} {date} {interest} {mortgages} {total_owed}</td></tr>
-<tr><td><code>… { interest } on {date</code></td><td>422 · The Notice template can't fill { interest }, {date. It can use: …</td></tr>
+<tr><td><code>Namaste {name}, …</code></td><td>422 · The Reminder template can't fill {name}. It can use: {customer_name} {date} {interest} {mortgages} {total_owed}</td></tr>
+<tr><td><code>… { interest } on {date</code></td><td>422 · The Reminder template can't fill { interest }, {date. It can use: …</td></tr>
 <tr class="changed"><td><code>Namaste {customer_name}, {interest} will be added on {date}.</code> + cards</td><td>200</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L5). A Receipt template using <code>{interest}</code> is refused the same way: "The Receipt template can't fill {interest}. It can use: {customer_name} {amount} {method} {reference} {date} {mortgages} {total_owed}".</p>
-<p>On your book, the accepted template rewords nothing you can see: Sunita's Notice was sent in lesson 4, and its text was frozen then. On a fresh copy, where #58 is still unsent, it reads at once:</p>
+<p>On your book, the accepted template rewords nothing you can see: Sunita's Reminder was sent in lesson 4, and its text was frozen then. On a fresh copy, where #58 is still unsent, it reads at once:</p>
 <pre><code>Namaste Sunita Rao, ₹700 will be added on 21 Oct 2026.
 
 ```
@@ -272,7 +272,7 @@ Owed after       ₹35,723
 <h2>Nuances</h2>
 <h3>(a) Two cards, and totals</h3>
 <div class="reveal">
-  <p><strong>Predict:</strong> on a copy, Meera is given a second Mortgage, "Gold earrings", ₹20,000 from 25 Sep 2026, so it accrues on the 25th, like her bangles. With days ahead at 7, her 25 Oct Notice covers both. What does the block look like?</p>
+  <p><strong>Predict:</strong> on a copy, Meera is given a second Mortgage, "Gold earrings", ₹20,000 from 25 Sep 2026, so it accrues on the 25th, like her bangles. With days ahead at 7, her 25 Oct Reminder covers both. What does the block look like?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
 <pre><code>```
@@ -287,13 +287,13 @@ Owed after     ₹1,52,075
 Total interest    ₹3,400
 Total owed     ₹1,72,488
 ```</code></pre>
-    <p class="cite">From <code>scripts/run_throughs.py</code> (section L5), on a copy: Notice #59, Mortgages 2026-Meera-GoldEarrings and 2026-Meera-PairBangles.</p>
-    <p>One Notice, two cards, ordered by Mortgage Name (<code>_accruing</code> sorts by name), with a 24-character rule and the totals. The line above the block says "interest of *₹3,400*". The bangles' Term Change to 1.5% from 25 Oct (chapter 006) doesn't lower this month: the month ending on 25 Oct is charged at 2%.</p>
+    <p class="cite">From <code>scripts/run_throughs.py</code> (section L5), on a copy: Reminder #59, Mortgages 2026-Meera-GoldEarrings and 2026-Meera-PairBangles.</p>
+    <p>One Reminder, two cards, ordered by Mortgage Name (<code>_accruing</code> sorts by name), with a 24-character rule and the totals. The line above the block says "interest of *₹3,400*". The bangles' Term Change to 1.5% from 25 Oct (chapter 006) doesn't lower this month: the month ending on 25 Oct is charged at 2%.</p>
   </div>
 </div>
 
 <h3>(b) A card that has to widen</h3>
-<p>Calling <code>notice_text</code> directly with a made-up ₹12,34,567 of interest: <code>"Interest added"</code> (14) + a space + <code>"₹12,34,567"</code> (10) is 25 characters, so every line of the block becomes 25 wide, and the amounts still line up. (From <code>scripts/run_throughs.py</code>, section L5; <code>test_messages.py::test_a_card_widens_for_a_large_amount_and_wraps_a_long_item</code>.)</p>
+<p>Calling <code>reminder_text</code> directly with a made-up ₹12,34,567 of interest: <code>"Interest added"</code> (14) + a space + <code>"₹12,34,567"</code> (10) is 25 characters, so every line of the block becomes 25 wide, and the amounts still line up. (From <code>scripts/run_throughs.py</code>, section L5; <code>test_messages.py::test_a_card_widens_for_a_large_amount_and_wraps_a_long_item</code>.)</p>
 
 <h3>(c) A Receipt's card</h3>
 <p>Receipt 26, Kavita's coin, Redeemed on 5 Oct:</p>
@@ -309,20 +309,20 @@ Still owed            ₹0
 
 <h3>(d) The link WhatsApp opens</h3>
 <p>Running the real <code>messaging.ts</code> under Node, with <code>window.open</code> replaced by a function that records its arguments, <code>sender.send("9860067890", message)</code> opens:</p>
-<pre><code>https://api.whatsapp.com/send/?phone=919860067890&amp;text=*Interest+notice*+%F0%9F%94%94%0A%0ANamaste+Sunita+Rao%2C%0A…</code></pre>
+<pre><code>https://api.whatsapp.com/send/?phone=919860067890&amp;text=*Interest+reminder*+%F0%9F%94%94%0A%0ANamaste+Sunita+Rao%2C%0A…</code></pre>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L5), which runs <code>frontend/src/messaging.ts</code> with Node 26's built-in TypeScript support. Target <code>_blank</code>, features <code>noopener</code>. <code>sender.chat</code> opens the same link with no <code>text</code>.</p>
 <p><code>%F0%9F%94%94</code> is 🔔 in UTF-8, and <code>%0A</code> a newline. Everything the backend built arrives in WhatsApp's text box, character for character. Don't press Send on the sample book: its numbers are invented but realistic.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">
-  <p class="q">The Lender saves the Notice template <code>Dear {customer_name}, pay {amount} by {date}.</code> What happens?</p>
+  <p class="q">The Lender saves the Reminder template <code>Dear {customer_name}, pay {amount} by {date}.</code> What happens?</p>
   <button class="opt">It saves, and <code>{amount}</code> shows as typed</button>
   <button class="opt">It saves, and <code>{amount}</code> is left blank</button>
-  <button class="opt">422: a Notice can't fill <code>{amount}</code></button>
-  <div class="why"><code>amount</code> is a Receipt placeholder, not a Notice one. <code>template_refusal</code> finds <code>{amount}</code> among the braces and refuses the save. Only <code>fill</code> would leave it as typed, and it never sees a refused template.</div>
+  <button class="opt">422: a Reminder can't fill <code>{amount}</code></button>
+  <div class="why"><code>amount</code> is a Receipt placeholder, not a Reminder one. <code>template_refusal</code> finds <code>{amount}</code> among the braces and refuses the save. Only <code>fill</code> would leave it as typed, and it never sees a refused template.</div>
 </div>
 <div class="quiz" data-answer="0">
-  <p class="q">Why does a Notice with one card show no "Total owed" line in the block?</p>
+  <p class="q">Why does a Reminder with one card show no "Total owed" line in the block?</p>
   <button class="opt">Totals are added only for two or more cards</button>
   <button class="opt">The template's <code>{total_owed}</code> replaces it</button>
   <button class="opt">One card is too narrow to fit the total</button>
@@ -341,7 +341,7 @@ Still owed            ₹0
 <p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/messages.py"><code>follow_up/messages.py</code></a> (184 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/messaging.ts"><code>frontend/src/messaging.ts</code></a> (32 lines) whole, then <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>: one paragraph on why the app opens a link instead of driving WhatsApp Web.</p>
 
 <nav class="lessons">
-  <a href="04-a-notices-life.html">← A Notice's life</a>
+  <a href="04-a-reminders-life.html">← A Reminder's life</a>
   <a href="index.html">Chapter overview</a>
   <a href="99-check-yourself.html">Next: Check yourself →</a>
 </nav>

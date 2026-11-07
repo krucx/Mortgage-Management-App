@@ -16,7 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.collateral.collateral import collateral_of, gold_rates
-from mortgage_backend.follow_up import notices
+from mortgage_backend.follow_up import reminders
 from mortgage_backend.follow_up.call_list import call_list
 from mortgage_backend.lending.ledger import accrual_date
 from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus, replays
@@ -63,8 +63,8 @@ class Dashboard(BaseModel):
     # Their Outstanding ÷ their Collateral Value; None if none has a value
     loan_to_value: float | None
     call_list_count: int  # Mortgages on today's Call List
-    notices_to_send: int  # queued, with something to send
-    notices_to_approve: int  # waiting for the Lender's approval
+    reminders_to_send: int  # queued, with something to send
+    reminders_to_approve: int  # waiting for the Lender's approval
     redeemed_this_month: int
     waived_this_month: int
     waived_amount_this_month: int  # what the Lender let off on them
@@ -238,7 +238,7 @@ def dashboard(
                 profit_loss += closure.profit_loss or 0
 
     projections, trend_months, coming_months = _projections(conn, active, today)
-    to_send = notices.unsent_counts(conn, replayed)
+    to_send = reminders.unsent_counts(conn, replayed)
     return Dashboard(
         as_of=today,
         active_mortgages=len(active),
@@ -252,8 +252,8 @@ def dashboard(
         call_list_count=sum(
             len(group.rows) for group in call_list(conn, today, replayed)
         ),
-        notices_to_send=to_send[notices.NoticeStatus.QUEUED],
-        notices_to_approve=to_send[notices.NoticeStatus.AWAITING_APPROVAL],
+        reminders_to_send=to_send[reminders.ReminderStatus.QUEUED],
+        reminders_to_approve=to_send[reminders.ReminderStatus.AWAITING_APPROVAL],
         redeemed_this_month=redeemed,
         waived_this_month=waived,
         waived_amount_this_month=waived_amount,
@@ -273,6 +273,6 @@ router = APIRouter(prefix="/api")
 def read_dashboard(engine: EngineDep, today: TodayDep) -> Dashboard:
     with engine.begin() as conn:
         replayed = all_replays(conn)
-        # As the Notices page does, so the two always agree.
-        notices.sync(conn, today, replayed)
+        # As the Reminders page does, so the two always agree.
+        reminders.sync(conn, today, replayed)
         return dashboard(conn, today, replayed)

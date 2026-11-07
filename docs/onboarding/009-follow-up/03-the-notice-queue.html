@@ -3,66 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>9.3 · The Notice queue is synced, not scheduled</title>
+<title>9.3 · The Reminder queue is synced, not scheduled</title>
 <link rel="stylesheet" href="../assets/course.css">
 <script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
 </head>
 <body>
 <p class="kicker">Chapter 009 · Lesson 3</p>
-<h1>The Notice queue is synced, not scheduled</h1>
-<p class="lede">On 19 Oct there is a Notice waiting for Sunita, about interest that will be added on 21 Oct. Nobody created it by hand, and no timer fired. This lesson shows what made it, and when the queue is worked out again.</p>
+<h1>The Reminder queue is synced, not scheduled</h1>
+<p class="lede">On 19 Oct there is a Reminder waiting for Sunita, about interest that will be added on 21 Oct. Nobody created it by hand, and no timer fired. This lesson shows what made it, and when the queue is worked out again.</p>
 
-<div class="callout win"><strong>By the end</strong> you can say which unsent Notices should exist today, and when they are worked out again.</div>
+<div class="callout win"><strong>By the end</strong> you can say which unsent Reminders should exist today, and when they are worked out again.</div>
 
 <h2>The problem</h2>
-<p>A <a href="../reference/glossary.html#notice"><dfn class="term" title="A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped.">Notice</dfn></a> tells a Customer, a day or two ahead, that interest is about to be added: "On 21 Oct, interest of ₹700 will be added." The Lender wants these ready each morning, without remembering anyone's Accrual Date.</p>
-<p>The usual answer is a scheduler: a job that runs at 6 a.m. and creates the day's Notices. This app has none. It runs on the Lender's laptop, which may be shut all weekend, or asleep at 6 a.m. (<a href="../reference/traps.html#t8">trap #8</a>). A job that only runs at a set time would miss those days, and nobody would notice.</p>
-<p>Settings change too. If the Lender switches from "2 days ahead" to "5 days ahead", Notices should appear for the next 5 days at once, not tomorrow morning. And a Mortgage that is Redeemed today shouldn't still get a Notice on Thursday.</p>
+<p>A <a href="../reference/glossary.html#reminder"><dfn class="term" title="A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped.">Reminder</dfn></a> tells a Customer, a day or two ahead, that interest is about to be added: "On 21 Oct, interest of ₹700 will be added." The Lender wants these ready each morning, without remembering anyone's Accrual Date.</p>
+<p>The usual answer is a scheduler: a job that runs at 6 a.m. and creates the day's Reminders. This app has none. It runs on the Lender's laptop, which may be shut all weekend, or asleep at 6 a.m. (<a href="../reference/traps.html#t8">trap #8</a>). A job that only runs at a set time would miss those days, and nobody would reminder.</p>
+<p>Settings change too. If the Lender switches from "2 days ahead" to "5 days ahead", Reminders should appear for the next 5 days at once, not tomorrow morning. And a Mortgage that is Redeemed today shouldn't still get a Reminder on Thursday.</p>
 
 <h2>The idea</h2>
-<p>One function, <code>sync</code>, makes the unsent Notices what they <em>should</em> be today, under the current settings. It doesn't add "today's batch". It compares the queue with what ought to exist and fixes the difference. So it can be run as often as you like: running it twice changes nothing. In the code's word, it's a <em>sync</em>, not a job.</p>
-<p>Because it's safe to repeat, the app runs it whenever the queue might be looked at: on the first <code>/api/</code> request of each day, on every read of the Notices page or the Dashboard, and whenever the message settings are saved.</p>
+<p>One function, <code>sync</code>, makes the unsent Reminders what they <em>should</em> be today, under the current settings. It doesn't add "today's batch". It compares the queue with what ought to exist and fixes the difference. So it can be run as often as you like: running it twice changes nothing. In the code's word, it's a <em>sync</em>, not a job.</p>
+<p>Because it's safe to repeat, the app runs it whenever the queue might be looked at: on the first <code>/api/</code> request of each day, on every read of the Reminders page or the Dashboard, and whenever the message settings are saved.</p>
 <p>Think of a thermostat rather than an alarm clock. An alarm goes off at 6 a.m. and does something once. A thermostat checks the room whenever it looks and nudges it towards the setting. Looking twice does no harm.</p>
 
 <h2>The flow</h2>
 <figure class="diagram">
 <pre class="mermaid">
 flowchart TD
-  S["sync(conn, today)"] --> W["1 · withdraw unsent Notices<br/>after today + notice_days_before"]
+  S["sync(conn, today)"] --> W["1 · withdraw unsent Reminders<br/>after today + reminder_days_before"]
   W --> C["2 · each Active Mortgage's Accrual Dates<br/>after today, up to until"]
   C --> D{"Dormant on that date?"}
-  D -->|"yes"| X["no Notice (ADR 0012)"]
+  D -->|"yes"| X["no Reminder (ADR 0012)"]
   D -->|"no"| P["(customer_id, accrues_on) pairs"]
-  P -->|"minus those already in notice"| I["3 · insert the missing ones, queued"]
+  P -->|"minus those already in reminder"| I["3 · insert the missing ones, queued"]
   I --> H{"4 · approve first on?"}
   H -->|"on: not approved"| AW["awaiting_approval"]
   H -->|"on: approved"| Q["queued"]
   H -->|"off: forget approvals"| Q
 </pre>
-<figcaption>Four steps, each safe to repeat. Step 4 re-decides every unsent Notice's status from the setting, every time.</figcaption>
+<figcaption>Four steps, each safe to repeat. Step 4 re-decides every unsent Reminder's status from the setting, every time.</figcaption>
 </figure>
-<p>Notice what a pair is: a <strong>Customer and a date</strong>, not a Mortgage. If two of a Customer's Mortgages accrue on the same day, they share one Notice.</p>
+<p>Reminder what a pair is: a <strong>Customer and a date</strong>, not a Mortgage. If two of a Customer's Mortgages accrue on the same day, they share one Reminder.</p>
 
 <h2>The code</h2>
 <h3>1. The statuses</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>NoticeStatus</code>, <code>_UNSENT</code> · lines 54–61</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>54  class NoticeStatus(StrEnum):
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>ReminderStatus</code>, <code>_UNSENT</code> · lines 54–61</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>54  class ReminderStatus(StrEnum):
 55      AWAITING_APPROVAL = "awaiting_approval"
 56      QUEUED = "queued"
 57      SENT = "sent"
 58      SKIPPED = "skipped"
 59
 60
-61  _UNSENT = {NoticeStatus.AWAITING_APPROVAL, NoticeStatus.QUEUED}   ◀
+61  _UNSENT = {ReminderStatus.AWAITING_APPROVAL, ReminderStatus.QUEUED}   ◀
 </code></pre>
 </figure>
-<p>A <code>StrEnum</code> is an enum whose members are also plain strings, so <code>NoticeStatus.SENT == "sent"</code> and the database stores the text. <code>sync</code> only ever touches the two <em>unsent</em> statuses. A sent or skipped Notice is history: <code>sync</code> never changes or removes it. Lesson 4 follows a Notice through all four.</p>
+<p>A <code>StrEnum</code> is an enum whose members are also plain strings, so <code>ReminderStatus.SENT == "sent"</code> and the database stores the text. <code>sync</code> only ever touches the two <em>unsent</em> statuses. A sent or skipped Reminder is history: <code>sync</code> never changes or removes it. Lesson 4 follows a Reminder through all four.</p>
 
 <h3>2. Which dates are coming</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>_coming_accrual_dates()</code> · lines 78–86</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>78  def _coming_accrual_dates(start: date, after: date, until: date) -&gt; list[date]:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>_coming_accrual_dates()</code> · lines 78–86</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>78  def _coming_accrual_dates(start: date, after: date, until: date) -&gt; list[date]:
 79      """A Mortgage's Accrual Dates after `after`, up to and including `until`."""
 80      n = max(1, (after.year - start.year) * 12 + after.month - start.month)   ①
 81      found = []
@@ -76,25 +76,25 @@ flowchart TD
 <ol class="marks">
   <li>The month count from the start to <code>after</code>: a good first guess at which Accrual Date comes next. The first Accrual Date is one month after the start, so <code>n</code> is at least 1.</li>
   <li><code>:=</code> is Python's "walrus" operator: it assigns and tests in one go. <code>accrual_date(start, n)</code> (chapter 004) is the n-th Accrual Date, clamped to month-end when the month is shorter.</li>
-  <li>Strictly <em>after</em> today. A Notice is advance warning, so an Accrual Date today, or already past, never gets one.</li>
+  <li>Strictly <em>after</em> today. A Reminder is advance warning, so an Accrual Date today, or already past, never gets one.</li>
 </ol>
 
 <h3>3. <code>sync</code>, step by step</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>sync()</code> · lines 106–112</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>106      settings = MESSAGE_SETTINGS.get(conn)
-107      until = today + timedelta(days=settings.notice_days_before)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>sync()</code> · lines 106–112</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>106      settings = MESSAGE_SETTINGS.get(conn)
+107      until = today + timedelta(days=settings.reminder_days_before)
 108      conn.execute(
-109          delete(notice_table).where(                                   # step 1
-110              notice_table.c.status.in_(_UNSENT), notice_table.c.accrues_on &gt; until
+109          delete(reminder_table).where(                                   # step 1
+110              reminder_table.c.status.in_(_UNSENT), reminder_table.c.accrues_on &gt; until
 111          )
 112      )
 </code></pre>
 </figure>
-<p>Step 1 withdraws unsent Notices that are now too far ahead. That only happens after the Lender <em>lowers</em> the days ahead. Deleting them loses nothing: an unsent Notice is only a Customer and a date, so it will be made again when its date comes within range.</p>
+<p>Step 1 withdraws unsent Reminders that are now too far ahead. That only happens after the Lender <em>lowers</em> the days ahead. Deleting them loses nothing: an unsent Reminder is only a Customer and a date, so it will be made again when its date comes within range.</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>sync()</code> · lines 113–145, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>113      coming = [
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>sync()</code> · lines 113–145, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>113      coming = [
 114          (row, _coming_accrual_dates(row["start_date"], today, until))  # step 2
 ⋮    … for each Active Mortgage …
 120      ]
@@ -107,15 +107,15 @@ flowchart TD
 128      }
 129      already = {
 130          (row.customer_id, row.accrues_on)
-⋮    … every Notice, of any status, dated after today …
+⋮    … every Reminder, of any status, dated after today …
 136      }
 137      for customer_id, on in sorted(accruing - already, key=lambda due: due[1]):   ◀
 138          conn.execute(
-139              insert(notice_table).values(                            # step 3
+139              insert(reminder_table).values(                            # step 3
 140                  customer_id=customer_id,
 141                  accrues_on=on,
 142                  created_on=today,
-143                  status=NoticeStatus.QUEUED,
+143                  status=ReminderStatus.QUEUED,
 ⋮
 145          )
 </code></pre>
@@ -124,38 +124,38 @@ flowchart TD
   <li>A set of <code>(customer_id, date)</code> tuples, so two Mortgages of one Customer on the same day collapse into one entry. The table backs this up with <code>UniqueConstraint("customer_id", "accrues_on")</code> in <code>platform/db.py</code>.</li>
   <li>Dormant is checked <em>on the Accrual Date</em>, from the replay. A Mortgage that owes nothing then has nothing to warn about.</li>
 </ol>
-<p>Line 137 is the heart of it: <code>accruing - already</code> is set difference, "what should exist, minus what does". On a second run that difference is empty, which is why syncing twice changes nothing. <code>already</code> includes sent and skipped Notices too, so a Notice the Lender skipped is never made again.</p>
+<p>Line 137 is the heart of it: <code>accruing - already</code> is set difference, "what should exist, minus what does". On a second run that difference is empty, which is why syncing twice changes nothing. <code>already</code> includes sent and skipped Reminders too, so a Reminder the Lender skipped is never made again.</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>sync()</code> · lines 146–161</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>146      unsent = notice_table.c.status.in_(_UNSENT)
-147      if settings.notice_approve_first:
-148          held = not_(notice_table.c.approved)                        # step 4
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>sync()</code> · lines 146–161</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>146      unsent = reminder_table.c.status.in_(_UNSENT)
+147      if settings.reminder_approve_first:
+148          held = not_(reminder_table.c.approved)                        # step 4
 149      else:
 150          held = false()
-151          conn.execute(update(notice_table).where(unsent).values(approved=False))   ◀
+151          conn.execute(update(reminder_table).where(unsent).values(approved=False))   ◀
 152      conn.execute(
-153          update(notice_table)
+153          update(reminder_table)
 154          .where(unsent, held)
-155          .values(status=NoticeStatus.AWAITING_APPROVAL)
+155          .values(status=ReminderStatus.AWAITING_APPROVAL)
 156      )
 157      conn.execute(
-158          update(notice_table)
+158          update(reminder_table)
 159          .where(unsent, not_(held))
-160          .values(status=NoticeStatus.QUEUED)
+160          .values(status=ReminderStatus.QUEUED)
 161      )
 </code></pre>
 </figure>
-<p>Step 4 decides each unsent Notice's status from scratch. With "approve first" on, a Notice is held (<code>awaiting_approval</code>) until the Lender has approved it, and <code>queued</code> after. With it off, nothing is held, and line 151 forgets every approval. <code>not_</code> and <code>false()</code> are SQLAlchemy's way of writing SQL <code>NOT</code> and <code>FALSE</code>.</p>
+<p>Step 4 decides each unsent Reminder's status from scratch. With "approve first" on, a Reminder is held (<code>awaiting_approval</code>) until the Lender has approved it, and <code>queued</code> after. With it off, nothing is held, and line 151 forgets every approval. <code>not_</code> and <code>false()</code> are SQLAlchemy's way of writing SQL <code>NOT</code> and <code>FALSE</code>.</p>
 
 <h3>4. Who calls <code>sync</code></h3>
 <figure class="snippet">
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 68–74</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>68      def sync_notices(day: date) -&gt; None:
+<pre data-file="backend/src/mortgage_backend/main.py"><code>68      def sync_reminders(day: date) -&gt; None:
 69          with engine.begin() as conn:
-70              notices.sync(conn, day)
+70              reminders.sync(conn, day)
 71
 72      daily_run = DailyRun(
-73          engine, today, jobs=[backup.start_if_due, sync_notices]      # ① the daily run
+73          engine, today, jobs=[backup.start_if_due, sync_reminders]      # ① the daily run
 74      )
 </code></pre>
 </figure>
@@ -165,48 +165,48 @@ flowchart TD
 273  def read_dashboard(engine: EngineDep, today: TodayDep) -&gt; Dashboard:
 274      with engine.begin() as conn:                                     # a GET that writes
 275          replayed = all_replays(conn)
-276          # As the Notices page does, so the two always agree.
-277          notices.sync(conn, today, replayed)                          # ② the Dashboard  ◀
+276          # As the Reminders page does, so the two always agree.
+277          reminders.sync(conn, today, replayed)                          # ② the Dashboard  ◀
 278          return dashboard(conn, today, replayed)
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py">follow_up/notices.py</a> · <code>read_notices()</code> · lines 407–423, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/notices.py"><code>407  @router.get("/notices")
-408  def read_notices(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>read_reminders()</code> · lines 407–423, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>407  @router.get("/reminders")
+408  def read_reminders(
 ⋮
 419      with engine.begin() as conn:
 420          replayed = active_replays(conn)
-421          sync(conn, today, replayed)                                  # ③ the Notices page
-422          notices = list_notices(conn, status, replayed=replayed)
-423      return rows_page(notices, page, _SORT_KEYS, sort=sort, descending=descending)
+421          sync(conn, today, replayed)                                  # ③ the Reminders page
+422          reminders = list_reminders(conn, status, replayed=replayed)
+423      return rows_page(reminders, page, _SORT_KEYS, sort=sort, descending=descending)
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/message_settings.py">follow_up/message_settings.py</a> · <code>_sync_notices()</code>, <code>MESSAGE_SETTINGS</code> · lines 52–62</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/message_settings.py"><code>52  def _sync_notices(conn: Connection, today: date) -&gt; None:
-53      """Saving these syncs the Notices to them at once."""
-54      # Imported here: the Notice queue reads these settings itself.
-55      from mortgage_backend.follow_up import notices
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/message_settings.py">follow_up/message_settings.py</a> · <code>_sync_reminders()</code>, <code>MESSAGE_SETTINGS</code> · lines 52–62</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/message_settings.py"><code>52  def _sync_reminders(conn: Connection, today: date) -&gt; None:
+53      """Saving these syncs the Reminders to them at once."""
+54      # Imported here: the Reminder queue reads these settings itself.
+55      from mortgage_backend.follow_up import reminders
 56
-57      notices.sync(conn, today)
+57      reminders.sync(conn, today)
 58
 59
 60  MESSAGE_SETTINGS = ConfigGroup.prefixed(
-61      "message_", MessageSettings, after_set=[_sync_notices]           # ④ saving settings
+61      "message_", MessageSettings, after_set=[_sync_reminders]           # ④ saving settings
 62  )
 </code></pre>
 </figure>
 <ol class="marks">
-  <li><code>DailyRun</code> runs its jobs once per business day, on the first <code>/api/</code> request of that day, from middleware. How it does that is <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">chapter 010, lesson 2</a>'s; here it's enough that <code>sync_notices</code> is one of its two jobs.</li>
-  <li>The Dashboard counts Notices to send and to approve. Syncing first means those counts match what the Notices page will show.</li>
-  <li>So a Mortgage added this morning, or one just Reopened, gets its Notice the moment anyone looks.</li>
-  <li><code>after_set</code> is a list of functions <code>ConfigGroup.set</code> calls after saving, on the same connection. The import sits inside the function because <code>notices.py</code> imports this module: importing it at the top would make a circle.</li>
+  <li><code>DailyRun</code> runs its jobs once per business day, on the first <code>/api/</code> request of that day, from middleware. How it does that is <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">chapter 010, lesson 2</a>'s; here it's enough that <code>sync_reminders</code> is one of its two jobs.</li>
+  <li>The Dashboard counts Reminders to send and to approve. Syncing first means those counts match what the Reminders page will show.</li>
+  <li>So a Mortgage added this morning, or one just Reopened, gets its Reminder the moment anyone looks.</li>
+  <li><code>after_set</code> is a list of functions <code>ConfigGroup.set</code> calls after saving, on the same connection. The import sits inside the function because <code>reminders.py</code> imports this module: importing it at the top would make a circle.</li>
 </ol>
-<div class="callout warn"><strong>These GETs write.</strong> <code>GET /api/notices</code> and <code>GET /api/dashboard</code> open <code>engine.begin()</code>, not <code>engine.connect()</code>, because the sync inside them can insert, delete and update <code>notice</code> rows. If a page "changed the database" when you only loaded it, this is why.</div>
+<div class="callout warn"><strong>These GETs write.</strong> <code>GET /api/reminders</code> and <code>GET /api/dashboard</code> open <code>engine.begin()</code>, not <code>engine.connect()</code>, because the sync inside them can insert, delete and update <code>reminder</code> rows. If a page "changed the database" when you only loaded it, this is why.</div>
 
-<h2>Run-through: Sunita's 21 Oct Notice</h2>
-<p>The sample book's settings: <code>curl -s http://127.0.0.1:8765/api/settings/messages</code> shows <code>"notice_days_before": 2</code> and <code>"notice_approve_first": true</code>. Work out the queue on 19 Oct by hand. <code>until</code> is 19 Oct + 2 = 21 Oct, so look for Accrual Dates on 20 or 21 Oct:</p>
+<h2>Run-through: Sunita's 21 Oct Reminder</h2>
+<p>The sample book's settings: <code>curl -s http://127.0.0.1:8765/api/settings/messages</code> shows <code>"reminder_days_before": 2</code> and <code>"reminder_approve_first": true</code>. Work out the queue on 19 Oct by hand. <code>until</code> is 19 Oct + 2 = 21 Oct, so look for Accrual Dates on 20 or 21 Oct:</p>
 <table class="steps text">
 <tr><th>Active Mortgage</th><th>Started</th><th>Accrues on the</th><th>Coming date in 20–21 Oct?</th></tr>
 <tr><td>2025-Arjun-GoldRingRuby</td><td>15 Jun 2025</td><td>15th</td><td>no</td></tr>
@@ -216,21 +216,21 @@ flowchart TD
 <tr class="changed"><td>2026-Sunita-Mangalsutra</td><td>21 Sep 2026</td><td>21st</td><td><strong>21 Oct</strong>: Sunita (Customer 7)</td></tr>
 <tr><td>2026-Kavita-SilverGoldAnklet</td><td>1 Jul 2026</td><td>1st</td><td>no (and Dormant)</td></tr>
 </table>
-<p>So exactly one unsent Notice should exist: Sunita, 21 Oct. "Approve first" is on and nobody has approved it, so it's <code>awaiting_approval</code>. Check it:</p>
-<pre><code>curl -s 'http://127.0.0.1:8765/api/notices?status=awaiting_approval'
-sqlite3 "$BOOK/data/mortgage.db" "SELECT id, customer_id, accrues_on, created_on, status, approved, message FROM notice WHERE status != 'sent'"</code></pre>
+<p>So exactly one unsent Reminder should exist: Sunita, 21 Oct. "Approve first" is on and nobody has approved it, so it's <code>awaiting_approval</code>. Check it:</p>
+<pre><code>curl -s 'http://127.0.0.1:8765/api/reminders?status=awaiting_approval'
+sqlite3 "$BOOK/data/mortgage.db" "SELECT id, customer_id, accrues_on, created_on, status, approved, message FROM reminder WHERE status != 'sent'"</code></pre>
 <table class="steps">
 <tr><th>id</th><th><code>customer_id</code></th><th><code>accrues_on</code></th><th><code>created_on</code></th><th><code>status</code></th><th><code>approved</code></th><th><code>message</code></th></tr>
 <tr class="changed"><td>58</td><td>7</td><td>2026-10-21</td><td>2026-10-19</td><td>awaiting_approval</td><td>0</td><td>NULL</td></tr>
 </table>
-<p class="cite">From <code>scripts/run_throughs.py</code> (section L3). The other 57 Notices are <code>sent</code>, for Accrual Dates from 15 Jul 2025 to 19 Oct 2026: <code>book.py</code> approves and sends each one the day before, as the Lender would. The Dashboard says <code>notices_to_send: 0</code>, <code>notices_to_approve: 1</code>.</p>
-<p>The row's <code>message</code> is NULL. The text you see in the API is worked out as it's read (lesson 4). Load the Notices list again and nothing changes: the second sync finds nothing missing.</p>
+<p class="cite">From <code>scripts/run_throughs.py</code> (section L3). The other 57 Reminders are <code>sent</code>, for Accrual Dates from 15 Jul 2025 to 19 Oct 2026: <code>book.py</code> approves and sends each one the day before, as the Lender would. The Dashboard says <code>reminders_to_send: 0</code>, <code>reminders_to_approve: 1</code>.</p>
+<p>The row's <code>message</code> is NULL. The text you see in the API is worked out as it's read (lesson 4). Load the Reminders list again and nothing changes: the second sync finds nothing missing.</p>
 
 <h3>Turn "approve first" off, then on</h3>
 <p>This saves a setting on your served book, then puts it back. <code>PUT</code> takes the whole settings object, so read it, change one field, and send it back (<code>jq</code> does the edit):</p>
 <pre><code>S=$(curl -s http://127.0.0.1:8765/api/settings/messages)
-printf '%s' "$S" | jq '.notice_approve_first = false' | curl -s -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages
-printf '%s' "$S" | jq '.notice_approve_first = true'  | curl -s -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages</code></pre>
+printf '%s' "$S" | jq '.reminder_approve_first = false' | curl -s -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages
+printf '%s' "$S" | jq '.reminder_approve_first = true'  | curl -s -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages</code></pre>
 <div class="callout warn"><strong>Keep the templates' line breaks.</strong> The settings include both templates, whose JSON holds <code>
 </code> escapes. In zsh, the macOS default shell, <code>echo "$S"</code> turns those escapes into real newlines, and <code>curl -d @-</code> then strips real newlines from what it sends. The PUT still succeeds, and every template is saved run together on one line. Use <code>printf '%s'</code> and <code>--data-binary @-</code>, which pass the bytes through unchanged. (Found while checking this lesson.)</div>
 <table class="steps">
@@ -255,7 +255,7 @@ printf '%s' "$S" | jq '.notice_approve_first = true'  | curl -s -X PUT -H 'conte
     <tr class="changed"><td>approve first on again</td><td>awaiting_approval</td><td>0</td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L3 (a)), on a copy.</p>
-    <p>Saving other settings keeps an approval (<code>test_saving_settings_with_approval_on_keeps_approved_notices_approved</code>). Turning approval off wipes it (line 151). So turning it back on holds <em>every</em> unsent Notice, even ones approved before. The reasoning: if the Lender turns checking back on, they want to check everything that hasn't gone out yet.</p>
+    <p>Saving other settings keeps an approval (<code>test_saving_settings_with_approval_on_keeps_approved_reminders_approved</code>). Turning approval off wipes it (line 151). So turning it back on holds <em>every</em> unsent Reminder, even ones approved before. The reasoning: if the Lender turns checking back on, they want to check everything that hasn't gone out yet.</p>
   </div>
 </div>
 
@@ -265,13 +265,13 @@ printf '%s' "$S" | jq '.notice_approve_first = true'  | curl -s -X PUT -H 'conte
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <table class="steps text">
-    <tr><th>Days ahead</th><th><code>until</code></th><th>Unsent Notices</th></tr>
+    <tr><th>Days ahead</th><th><code>until</code></th><th>Unsent Reminders</th></tr>
     <tr><td>2</td><td>21 Oct</td><td>#58 Sunita, 21 Oct</td></tr>
     <tr class="changed"><td>7</td><td>26 Oct</td><td>#58 Sunita, 21 Oct · <strong>#59 Meera, 25 Oct</strong> (the bangles), awaiting approval</td></tr>
     <tr><td>2</td><td>21 Oct</td><td>#58 only: #59 is deleted (step 1)</td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L3 (b)), on a copy.</p>
-    <p>Meera's Notice is withdrawn, not lost. On 23 Oct, 25 Oct comes within 2 days and step 3 makes it again. Days ahead must be from 1 to 28 (<code>MessageSettings</code>, <code>Field(ge=1, le=28)</code>); 29 is a 422.</p>
+    <p>Meera's Reminder is withdrawn, not lost. On 23 Oct, 25 Oct comes within 2 days and step 3 makes it again. Days ahead must be from 1 to 28 (<code>MessageSettings</code>, <code>Field(ge=1, le=28)</code>); 29 is a 422.</p>
   </div>
 </div>
 
@@ -281,52 +281,52 @@ printf '%s' "$S" | jq '.notice_approve_first = true'  | curl -s -X PUT -H 'conte
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <table class="steps text">
-    <tr><th>Opened on</th><th>Unsent Notices</th></tr>
+    <tr><th>Opened on</th><th>Unsent Reminders</th></tr>
     <tr class="changed"><td>24 Oct</td><td>#58 Sunita, 21 Oct (still awaiting) · #59 Meera, 25 Oct, <code>created_on</code> 24 Oct</td></tr>
     <tr class="changed"><td>26 Oct</td><td>#58 Sunita, 21 Oct (still awaiting) · nothing for 25 Oct</td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L3 (c)): the same database served on each day.</p>
-    <p>The missed days are made up, but only for Accrual Dates still to come (<code>on &gt; after</code> in <code>_coming_accrual_dates</code>). A warning about the 25th is useless on the 26th, so it is never made. Sunita's Notice was already made, so it stays, awaiting approval, after its date. <code>sync</code> doesn't tidy old unsent Notices; the Lender skips them (lesson 4).</p>
+    <p>The missed days are made up, but only for Accrual Dates still to come (<code>on &gt; after</code> in <code>_coming_accrual_dates</code>). A warning about the 25th is useless on the 26th, so it is never made. Sunita's Reminder was already made, so it stays, awaiting approval, after its date. <code>sync</code> doesn't tidy old unsent Reminders; the Lender skips them (lesson 4).</p>
   </div>
 </div>
 
-<h3>(d) A Dormant Mortgage gets no Notice</h3>
-<p>Kavita's anklet accrues on 1 Nov. With days ahead set to 14 on 19 Oct (<code>until</code> 2 Nov), the queue gains Meera's 25 Oct Notice, but nothing for Kavita: the anklet is Dormant on 1 Nov, so line 127 drops it (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>). (From <code>scripts/run_throughs.py</code>, section L3 (e).)</p>
+<h3>(d) A Dormant Mortgage gets no Reminder</h3>
+<p>Kavita's anklet accrues on 1 Nov. With days ahead set to 14 on 19 Oct (<code>until</code> 2 Nov), the queue gains Meera's 25 Oct Reminder, but nothing for Kavita: the anklet is Dormant on 1 Nov, so line 127 drops it (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>). (From <code>scripts/run_throughs.py</code>, section L3 (e).)</p>
 
 <h3>(e) One per Customer per date</h3>
-<p>From July to October 2026, the 10th has two sent Notices each month. They aren't duplicates: they're two Customers, Meera (her chain) and Imran (his earrings, until they were Forfeited). If Meera had a second Mortgage accruing on the 10th, she'd still get one Notice, covering both. Lesson 5 shows such a Notice.</p>
+<p>From July to October 2026, the 10th has two sent Reminders each month. They aren't duplicates: they're two Customers, Meera (her chain) and Imran (his earrings, until they were Forfeited). If Meera had a second Mortgage accruing on the 10th, she'd still get one Reminder, covering both. Lesson 5 shows such a Reminder.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="0">
-  <p class="q">On 19 Oct the Lender lowers days ahead from 2 to 1. What happens to Sunita's 21 Oct Notice?</p>
+  <p class="q">On 19 Oct the Lender lowers days ahead from 2 to 1. What happens to Sunita's 21 Oct Reminder?</p>
   <button class="opt">It's deleted now, and made again on 20 Oct</button>
   <button class="opt">It stays, since it was made before the change</button>
   <button class="opt">It's marked skipped, so it is kept in the log</button>
-  <div class="why"><code>until</code> becomes 20 Oct, so step 1 deletes the unsent Notice for 21 Oct (from <code>scripts/run_throughs.py</code>, section 99). On 20 Oct, 21 Oct is within 1 day and the first request of the day makes it again. Only sent or skipped Notices are kept as they are.</div>
+  <div class="why"><code>until</code> becomes 20 Oct, so step 1 deletes the unsent Reminder for 21 Oct (from <code>scripts/run_throughs.py</code>, section 99). On 20 Oct, 21 Oct is within 1 day and the first request of the day makes it again. Only sent or skipped Reminders are kept as they are.</div>
 </div>
 <div class="quiz" data-answer="2">
   <p class="q">Which of these does <em>not</em> run <code>sync</code>?</p>
   <button class="opt">Opening the Dashboard</button>
   <button class="opt">Saving the message settings</button>
   <button class="opt">Recording a Payment</button>
-  <div class="why">Payments don't sync. They don't need to: the next read of the Notices or the Dashboard syncs, and an unsent Notice's figures are worked out on read anyway. The daily run, both reads and the message settings' <code>after_set</code> are the four callers.</div>
+  <div class="why">Payments don't sync. They don't need to: the next read of the Reminders or the Dashboard syncs, and an unsent Reminder's figures are worked out on read anyway. The daily run, both reads and the message settings' <code>after_set</code> are the four callers.</div>
 </div>
 <div class="quiz" data-answer="1">
-  <p class="q">With "approve first" on, the Lender skips a Notice for 25 Oct. The page is reloaded. Is a new Notice made for that Customer and day?</p>
+  <p class="q">With "approve first" on, the Lender skips a Reminder for 25 Oct. The page is reloaded. Is a new Reminder made for that Customer and day?</p>
   <button class="opt">Yes, as there is no unsent one any more</button>
   <button class="opt">No: <code>already</code> counts skipped ones too</button>
   <button class="opt">Only once the Lender approves it again</button>
-  <div class="why"><code>already</code> is every Notice dated after today, whatever its status. Skipping is a decision, and <code>sync</code> respects it.</div>
+  <div class="why"><code>already</code> is every Reminder dated after today, whatever its status. Skipping is a decision, and <code>sync</code> respects it.</div>
 </div>
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <code>sync</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/notices.py"><code>follow_up/notices.py</code></a> (lines 89–161) with its docstring, then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_notices.py"><code>tests/test_notices.py</code></a> from line 53 to line 161: one test per rule in this lesson, from <code>test_a_notice_is_queued_days_before_the_accrual_date</code> to <code>test_closed_mortgages_get_no_notices</code>.</p>
+<p>Read <code>sync</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py"><code>follow_up/reminders.py</code></a> (lines 89–161) with its docstring, then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_reminders.py"><code>tests/test_reminders.py</code></a> from line 53 to line 161: one test per rule in this lesson, from <code>test_a_reminder_is_queued_days_before_the_accrual_date</code> to <code>test_closed_mortgages_get_no_reminders</code>.</p>
 
 <nav class="lessons">
   <a href="02-call-notes-and-call-sheets.html">← Call Notes and Call Sheets</a>
   <a href="index.html">Chapter overview</a>
-  <a href="04-a-notices-life.html">Next: A Notice's life →</a>
+  <a href="04-a-reminders-life.html">Next: A Reminder's life →</a>
 </nav>
 <script src="../assets/quiz.js"></script>
 <script src="../assets/snippet.js"></script>

@@ -1,5 +1,5 @@
-"""The Lender's settings for messages to Customers: the Receipt and Notice templates,
-how many days ahead Notices are queued, and whether they need approving first."""
+"""The Lender's settings for messages to Customers: the Receipt and Reminder templates,
+how many days ahead Reminders are queued, and whether they need approving first."""
 
 from datetime import date
 
@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.follow_up.messages import (
-    NOTICE_PLACEHOLDERS,
+    REMINDER_PLACEHOLDERS,
     RECEIPT_PLACEHOLDERS,
     unknown_placeholders,
 )
@@ -28,8 +28,8 @@ RECEIPT_TEMPLATE = (
     "Total still owed: *{total_owed}*"
 )
 
-NOTICE_TEMPLATE = (
-    "*Interest notice* 🔔\n"
+REMINDER_TEMPLATE = (
+    "*Interest reminder* 🔔\n"
     "\n"
     "Namaste {customer_name},\n"
     "On *{date}*, interest of *{interest}* will be added.\n"
@@ -43,22 +43,22 @@ NOTICE_TEMPLATE = (
 
 class MessageSettings(BaseModel):
     receipt_template: str = Field(default=RECEIPT_TEMPLATE, min_length=1)
-    notice_template: str = Field(default=NOTICE_TEMPLATE, min_length=1)
-    notice_days_before: int = Field(default=2, ge=1, le=28)
-    # Notices wait for the Lender's approval before they can be sent
-    notice_approve_first: bool = False
+    reminder_template: str = Field(default=REMINDER_TEMPLATE, min_length=1)
+    reminder_days_before: int = Field(default=2, ge=1, le=28)
+    # Reminders wait for the Lender's approval before they can be sent
+    reminder_approve_first: bool = False
 
 
-def _sync_notices(conn: Connection, today: date) -> None:
-    """Saving these syncs the Notices to them at once."""
-    # Imported here: the Notice queue reads these settings itself.
-    from mortgage_backend.follow_up import notices
+def _sync_reminders(conn: Connection, today: date) -> None:
+    """Saving these syncs the Reminders to them at once."""
+    # Imported here: the Reminder queue reads these settings itself.
+    from mortgage_backend.follow_up import reminders
 
-    notices.sync(conn, today)
+    reminders.sync(conn, today)
 
 
 MESSAGE_SETTINGS = ConfigGroup.prefixed(
-    "message_", MessageSettings, after_set=[_sync_notices]
+    "message_", MessageSettings, after_set=[_sync_reminders]
 )
 
 
@@ -66,11 +66,11 @@ class MessagePlaceholders(BaseModel):
     """The placeholders each template may use."""
 
     receipt: list[str]
-    notice: list[str]
+    reminder: list[str]
 
 
 PLACEHOLDERS = MessagePlaceholders(
-    receipt=list(RECEIPT_PLACEHOLDERS), notice=list(NOTICE_PLACEHOLDERS)
+    receipt=list(RECEIPT_PLACEHOLDERS), reminder=list(REMINDER_PLACEHOLDERS)
 )
 
 
@@ -79,7 +79,7 @@ def template_refusal(settings: MessageSettings) -> str | None:
     (it would reach the Customer as written)."""
     for name, template, allowed in (
         ("Receipt", settings.receipt_template, RECEIPT_PLACEHOLDERS),
-        ("Notice", settings.notice_template, NOTICE_PLACEHOLDERS),
+        ("Reminder", settings.reminder_template, REMINDER_PLACEHOLDERS),
     ):
         if unknown := unknown_placeholders(template, allowed):
             usable = " ".join("{" + placeholder + "}" for placeholder in allowed)

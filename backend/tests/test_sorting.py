@@ -186,22 +186,22 @@ def book(database_url, start):
             )
 
 
-def test_notices_sort_by_customer_across_pages(client, database_url):
+def test_reminders_sort_by_customer_across_pages(client, database_url):
     book(database_url, date(2026, 1, 21))  # all accrue tomorrow
 
-    notices = every_page(client, "notices", sort="customer", descending=True)
+    reminders = every_page(client, "reminders", sort="customer", descending=True)
 
-    assert [n["customer"]["name"] for n in notices] == [
+    assert [n["customer"]["name"] for n in reminders] == [
         f"Customer {n:02d}" for n in range(25, 0, -1)
     ]
 
 
-def test_notices_keep_their_own_order_unsorted(client, database_url):
+def test_reminders_keep_their_own_order_unsorted(client, database_url):
     book(database_url, date(2026, 1, 21))
 
-    notices = every_page(client, "notices")
+    reminders = every_page(client, "reminders")
 
-    assert [n["customer"]["name"] for n in notices] == [
+    assert [n["customer"]["name"] for n in reminders] == [
         f"Customer {n:02d}" for n in range(1, 26)
     ]
 

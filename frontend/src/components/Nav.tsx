@@ -19,7 +19,7 @@ export function Nav() {
       <NavLink to="/mortgages">Mortgages</NavLink>
       <NavLink to="/calculator">Calculator</NavLink>
       <NavLink to="/call-list">Call List</NavLink>
-      <NavLink to="/notices">Notices</NavLink>
+      <NavLink to="/reminders">Reminders</NavLink>
       <NavLink
         to="/closures"
         title={dormant ? `${dormant} Dormant: owing nothing, to Redeem` : undefined}

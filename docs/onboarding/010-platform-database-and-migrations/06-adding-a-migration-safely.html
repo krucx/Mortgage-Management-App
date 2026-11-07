@@ -181,7 +181,7 @@ rm src/mortgage_backend/migrations/versions/0016_customer_nickname.py</code></pr
     <table class="steps text">
     <tr><th>Edits</th><th><code>uv run pytest -q</code></th><th>Why</th></tr>
     <tr class="changed"><td><code>db.py</code> only</td><td>179 failed, 243 errors, 185 passed</td><td>Every query that selects from <code>customer_table</code> asks for <code>customer.nickname</code>, which the migrated database doesn't have: <code>sqlite3.OperationalError: no such column: customer.nickname</code></td></tr>
-    <tr class="changed"><td>0016 only</td><td>1 failed, 606 passed</td><td>Only the drift test: <code>('remove_column', None, 'customer', Column('nickname', …))</code>. The code never asks for the extra column, so nothing else notices</td></tr>
+    <tr class="changed"><td>0016 only</td><td>1 failed, 606 passed</td><td>Only the drift test: <code>('remove_column', None, 'customer', Column('nickname', …))</code>. The code never asks for the extra column, so nothing else reminders</td></tr>
     <tr><td>both</td><td>607 passed</td><td>the two halves agree</td></tr>
     </table>
     <p class="cite">Run on the real repo at <code>b34526a</code>, then undone. This is the check-yourself exercise; try it there.</p>

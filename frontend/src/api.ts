@@ -39,8 +39,8 @@ export const PAYMENT_SORTS = columnsOf<PaymentSort>({
   method: true,
   amount: true,
 })
-export type NoticeSort = SortOf<'read_notices_api_notices_get'>
-export const NOTICE_SORTS = columnsOf<NoticeSort>({
+export type ReminderSort = SortOf<'read_reminders_api_reminders_get'>
+export const REMINDER_SORTS = columnsOf<ReminderSort>({
   customer: true,
   accrues: true,
   mortgages: true,
@@ -147,8 +147,8 @@ export type MonthlyPayments = Schemas['MonthlyPayments']
 export type ProjectionHorizon = Schemas['ProjectionHorizon']
 export type ComingMonth = Schemas['ComingMonth']
 export type Receipt = Schemas['Receipt']
-export type Notice = Schemas['Notice']
-export type NoticeStatus = Notice['status']
+export type Reminder = Schemas['Reminder']
+export type ReminderStatus = Reminder['status']
 export type MessageSettings = Schemas['MessageSettings']
 export type MessagePlaceholders = Schemas['MessagePlaceholders']
 export type UpdateStatus = Schemas['UpdateStatus']

@@ -50,7 +50,7 @@ sequenceDiagram
 </pre>
 <figcaption>The page loads; the form drafts; <code>useProposedChange</code> does the asking and the saving.</figcaption>
 </figure>
-<p>Notice that the form never talks to the backend itself. It only produces <code>change</code>; everything that crosses the network goes through the hook and <code>requests.ts</code>.</p>
+<p>Reminder that the form never talks to the backend itself. It only produces <code>change</code>; everything that crosses the network goes through the hook and <code>requests.ts</code>.</p>
 
 <h2>The code</h2>
 <h3>1. The page: load, then a form keyed by id</h3>
@@ -272,7 +272,7 @@ export function TryPage() {
     <p><strong>Then delete it:</strong> <code>rm frontend/src/pages/TryPage.tsx</code> and <code>git checkout -- frontend/src/App.tsx</code>. <code>git status</code> should be clean.</p>
   </div>
 </div>
-<p>Notice what you didn't write: no <code>fetch</code>, no cache key, no number formatting, no error wording. That is the point of the shared parts. A real page differs only in what it asks for and what it draws.</p>
+<p>Reminder what you didn't write: no <code>fetch</code>, no cache key, no number formatting, no error wording. That is the point of the shared parts. A real page differs only in what it asks for and what it draws.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">

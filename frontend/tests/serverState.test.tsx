@@ -103,15 +103,15 @@ test("a Customer's new name or number reaches everything that shows it", () => {
     payment: keys.payment(9),
     receipt: [...keys.payment(9), 'receipt'],
     callList: [...keys.list('call-list'), { page: 1 }],
-    notices: [...keys.list('notices'), { page: 1 }],
+    reminders: [...keys.list('reminders'), { page: 1 }],
     dashboard: keys.dashboard,
   }
   expect(staleAfter(STALE_AFTER.customer, cached)).toEqual(Object.keys(cached))
 })
 
-test('new message settings reword the Receipts as well as the Notices', () => {
-  const cached = { receipt: [...keys.payment(9), 'receipt'], notices: keys.list('notices') }
-  expect(staleAfter(STALE_AFTER.messageSettings, cached)).toEqual(['receipt', 'notices'])
+test('new message settings reword the Receipts as well as the Reminders', () => {
+  const cached = { receipt: [...keys.payment(9), 'receipt'], reminders: keys.list('reminders') }
+  expect(staleAfter(STALE_AFTER.messageSettings, cached)).toEqual(['receipt', 'reminders'])
 })
 
 test('marking a Mortgage called changes the Call List, its Call Notes and the Dashboard count', () => {

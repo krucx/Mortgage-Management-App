@@ -1,4 +1,4 @@
-"""Each request replays a Mortgage once: the Dashboard, Notices, Call List and Dormant
+"""Each request replays a Mortgage once: the Dashboard, Reminders, Call List and Dormant
 list share the replays they need instead of each working them out again (today is
 20 Apr 2026, see conftest)."""
 
@@ -12,7 +12,7 @@ from seed import LAKH, add_customer, add_mortgage, add_payment, redeem
 from sqlalchemy import event, select
 from sqlalchemy.engine import Connection, Engine, RowMapping
 
-from mortgage_backend.follow_up import notices
+from mortgage_backend.follow_up import reminders
 from mortgage_backend.follow_up.call_list import call_list
 from mortgage_backend.lending.replay import MortgageReplay, replays
 from mortgage_backend.platform.db import make_engine, mortgage_table
@@ -47,7 +47,7 @@ def seeded(client, database_url: str) -> Iterator[None]:
         add_payment(conn, sita, date(2026, 4, 10), {paid: LAKH})
         old = add_mortgage(conn, sita, suffix="Old", start_date=date(2025, 6, 1))
         redeem(conn, old, date(2026, 4, 5))
-    # Today's daily run, which syncs the Notices on its own, before any request counted.
+    # Today's daily run, which syncs the Reminders on its own, before any request counted.
     client.get("/api/settings/messages")
     yield
 
@@ -73,28 +73,28 @@ def once_each(seen: list[int]) -> bool:
 def test_the_dashboard_replays_each_mortgage_once(client, seeded, replayed_ids):
     figures = client.get("/api/dashboard").json()
 
-    assert (figures["call_list_count"], figures["notices_to_send"]) == (1, 1)
+    assert (figures["call_list_count"], figures["reminders_to_send"]) == (1, 1)
     assert once_each(replayed_ids)
 
 
-def test_the_notices_page_replays_each_mortgage_once(client, seeded, replayed_ids):
-    [notice] = client.get("/api/notices").json()["items"]
+def test_the_reminders_page_replays_each_mortgage_once(client, seeded, replayed_ids):
+    [reminder] = client.get("/api/reminders").json()["items"]
 
-    assert notice["accrues_on"] == "2026-04-22"
+    assert reminder["accrues_on"] == "2026-04-22"
     assert once_each(replayed_ids)
 
 
-def test_more_notices_take_no_more_queries(
+def test_more_reminders_take_no_more_queries(
     client, database_url: str, statements: list[str]
 ) -> None:
     def queries_to_list(expected: int) -> int:
-        assert len(client.get("/api/notices").json()["items"]) == expected  # queues
+        assert len(client.get("/api/reminders").json()["items"]) == expected  # queues
         statements.clear()
-        client.get("/api/notices")
+        client.get("/api/reminders")
         return len(statements)
 
     settings_now = client.get("/api/settings/messages").json()
-    client.put("/api/settings/messages", json={**settings_now, "notice_days_before": 5})
+    client.put("/api/settings/messages", json={**settings_now, "reminder_days_before": 5})
     engine = make_engine(database_url)
     with engine.begin() as conn:
         ramesh = add_customer(conn)
@@ -141,21 +141,21 @@ def test_the_call_list_uses_the_replays_it_is_given(
     assert replayed_ids == []
 
 
-def test_notices_with_something_to_send_are_counted_from_the_replays_already_made(
+def test_reminders_with_something_to_send_are_counted_from_the_replays_already_made(
     conn: Connection, replayed_ids: list[int]
 ) -> None:
     ramesh = add_customer(conn)
     add_mortgage(conn, ramesh, start_date=date(2026, 1, 21))
     sita = add_customer(conn, phone="9829054321")
     gone = add_mortgage(conn, sita, suffix="Gone", start_date=date(2026, 1, 22))
-    notices.sync(conn, TODAY)
+    reminders.sync(conn, TODAY)
     redeem(conn, gone, TODAY)  # nothing left to say
     rows = conn.execute(select(mortgage_table)).mappings().all()
     replayed = replays(conn, rows)
     replayed_ids.clear()  # the caller's replays: counting must not make more
 
-    assert notices.unsent_counts(conn, replayed) == {
-        notices.NoticeStatus.QUEUED: 1,
-        notices.NoticeStatus.AWAITING_APPROVAL: 0,
+    assert reminders.unsent_counts(conn, replayed) == {
+        reminders.ReminderStatus.QUEUED: 1,
+        reminders.ReminderStatus.AWAITING_APPROVAL: 0,
     }
     assert replayed_ids == []
