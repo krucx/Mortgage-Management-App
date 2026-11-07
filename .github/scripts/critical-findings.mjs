@@ -10,7 +10,7 @@ function normalizeScanner(scanner) {
 function normalizeLocation(location = '') {
   let value = String(location).replace(/^file:\/\//, '').replaceAll('\\', '/').replace(/^\.\//, '');
   value = value.replace(/:(\d+):\d+$/, ':$1');
-  return value.replace(/\/{2,}/g, '/').toLowerCase();
+  return value.replace(/\/{2,}/g, '/');
 }
 
 export function fingerprintFor(finding) {

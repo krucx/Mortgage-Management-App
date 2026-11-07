@@ -126,6 +126,10 @@ test('normalizes fallback locations and ignores non-critical findings', async ()
   const first = finding({ location: './backend\\src\\app.py:42:9' });
   const second = finding({ location: 'backend/src/app.py:42:3' });
   assert.equal(fingerprintFor(first), fingerprintFor(second));
+  assert.notEqual(
+    fingerprintFor(finding({ location: 'src/Foo.py:42' })),
+    fingerprintFor(finding({ location: 'src/foo.py:42' })),
+  );
 
   const issues = fakeIssues();
   await syncCriticalFindings(issues, { scope: 'codeql', findings: [finding({ severity: 'high' })] });
