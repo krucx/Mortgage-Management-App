@@ -167,28 +167,28 @@ flowchart TD
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_reminders.py">backend/tests/test_reminders.py</a> · its own today, and its first test · lines 33–69, trimmed</figcaption>
 <pre data-file="backend/tests/test_reminders.py"><code>33  TODAY = date(2026, 5, 12)                                      # ① not conftest's
 ⋮
-53  def test_a_notice_is_queued_days_before_the_accrual_date(conn: Connection) -&gt; None:
+53  def test_a_reminder_is_queued_days_before_the_accrual_date(conn: Connection) -&gt; None:
 54      ramesh = add_customer(conn)
 55      add_mortgage(conn, ramesh)                                 # ② from 14 Jan
 56
 57      sync(conn, date(2026, 5, 12))                              # ③  ◀
 58
-59      [notice] = list_reminders(conn)                              # ④
-60      assert (notice.customer.name, notice.accrues_on, notice.status) == (
+59      [reminder] = list_reminders(conn)                            # ④
+60      assert (reminder.customer.name, reminder.accrues_on, reminder.status) == (
 61          "Ramesh Kumar",
 62          date(2026, 5, 14),
 63          "queued",
 64      )
-65      assert "*₹3,000* will be added" in notice.message
+65      assert "*₹3,000* will be added" in reminder.message
 ⋮
-69      assert "2026-Ramesh" not in notice.message                 # ⑤
+69      assert "2026-Ramesh" not in reminder.message               # ⑤
 </code></pre>
 </figure>
 <ol class="marks">
   <li>A <code>conn</code> test has no app, so <code>conftest.TODAY</code> means nothing to it. Each call is given its date. This file works in May, when the 14 May Accrual Date is two days away.</li>
   <li>Ramesh's chain, by <code>seed.py</code>'s defaults.</li>
   <li>The function under test, called directly with the day to run as. No route does this.</li>
-  <li><code>[notice] = …</code> unpacks a list that must have exactly one item: if <code>sync</code> queued none or two, the line raises. A short way to assert "exactly one".</li>
+  <li><code>[reminder] = …</code> unpacks a list that must have exactly one item: if <code>sync</code> queued none or two, the line raises. A short way to assert "exactly one".</li>
   <li>Customer-facing text names the jewellery, never the Mortgage Name (<a href="../reference/traps.html#t16">trap #16</a>).</li>
 </ol>
 <figure class="snippet">
