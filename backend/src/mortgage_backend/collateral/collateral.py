@@ -1,4 +1,4 @@
-"""Gold Rates, Collateral Value and Loan-to-Value (see GLOSSARY.md)."""
+"""Gold Rates, Collateral Value and Loan-to-Value (see Documentation/GLOSSARY.md)."""
 
 from datetime import date
 from typing import Literal, get_args

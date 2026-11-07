@@ -1,4 +1,4 @@
-"""The Call Sheet (see GLOSSARY.md): the day's Call List exported to Excel or PDF for
+"""The Call Sheet (see Documentation/GLOSSARY.md): the day's Call List exported to Excel or PDF for
 whoever makes the calls, and the Excel sheet, with the Call Notes written in,
 imported back in one go.
 

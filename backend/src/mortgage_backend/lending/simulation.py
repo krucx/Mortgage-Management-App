@@ -1,5 +1,5 @@
 """Simulations: a made-up Mortgage worked out by the ledger engine, exactly as a real
-one's Ledger would be, for the Calculator (see GLOSSARY.md).
+one's Ledger would be, for the Calculator (see Documentation/GLOSSARY.md).
 
 Nothing is read from or written to the database: the engine replays the amount, start
 date, Terms and planned Payments alone, closed on the chosen date (or the day the plan

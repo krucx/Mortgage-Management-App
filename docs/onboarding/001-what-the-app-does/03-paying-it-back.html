@@ -86,7 +86,7 @@ flowchart LR
 
 <h3>One Receipt, on WhatsApp, sent by the Lender</h3>
 <p>The Receipt lists each piece of jewellery with what it was paid and what it still owes. It names each Mortgage by its description ("Gold chain with Lakshmi pendant"), never by its Mortgage Name, which is the Lender's internal label. <a href="../007-payments-and-receipts/05-receipts.html">Chapter 007, lesson 5</a> covers what a Receipt says.</p>
-<p>The app doesn't send it. It opens WhatsApp with the message already typed, and the Lender presses Send. <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a> explains why: driving WhatsApp automatically breaks whenever WhatsApp changes its screens, and breaks WhatsApp's terms, which could get the Lender's own phone number banned.</p>
+<p>The app doesn't send it. It opens WhatsApp with the message already typed, and the Lender presses Send. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a> explains why: driving WhatsApp automatically breaks whenever WhatsApp changes its screens, and breaks WhatsApp's terms, which could get the Lender's own phone number banned.</p>
 
 <h3>The Cash Limit warns, it never refuses</h3>
 <p>Government of India rules ask for large sums to go by UPI or bank transfer rather than cash. The <a href="../reference/glossary.html#cash-limit"><dfn class="term" title="The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage's Principal lent.">Cash Limit</dfn></a> is the amount (₹20,000 unless the Lender changes it) at or above which the app warns before lending or receiving that much in cash.</p>
@@ -132,7 +132,7 @@ flowchart LR
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read the <em>Payments</em> section of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md"><code>GLOSSARY.md</code></a> (Payment to Void) and <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>. Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#pays">The Gold Chain Story, chapter 6</a>, which has a small widget for splitting a Payment.</p>
+<p>Read the <em>Payments</em> section of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a> (Payment to Void) and <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>. Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#pays">The Gold Chain Story, chapter 6</a>, which has a small widget for splitting a Payment.</p>
 
 <nav class="lessons">
   <a href="02-how-whats-owed-grows.html">← How what's owed grows</a>

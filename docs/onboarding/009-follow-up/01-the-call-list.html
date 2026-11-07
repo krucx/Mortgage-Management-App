@@ -25,7 +25,7 @@
 <p>The obvious design is a table of "people to call", updated whenever something happens. It fails the same way a stored balance would (<a href="../reference/traps.html#t4">trap #4</a>). Arjun pays this afternoon, a Payment from last month is back-dated, a Gold Rate moves. Each of these changes who belongs on the list, and every change would have to remember to update it.</p>
 
 <h2>The idea</h2>
-<p>The <a href="../reference/glossary.html#call-list"><dfn class="term" title="The day's Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today.">Call List</dfn></a> is worked out whenever it's asked for, from the replay, like the Ledger (<a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>). Only three things are stored: two limits the Lender sets, and the Call Notes. Each Active Mortgage is checked against three reasons. If it has any, it's listed, carrying every reason it has.</p>
+<p>The <a href="../reference/glossary.html#call-list"><dfn class="term" title="The day's Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today.">Call List</dfn></a> is worked out whenever it's asked for, from the replay, like the Ledger (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md\">ADR 0001</a>). Only three things are stored: two limits the Lender sets, and the Call Notes. Each Active Mortgage is checked against three reasons. If it has any, it's listed, carrying every reason it has.</p>
 <table class="steps text">
 <tr><th>Reason (<code>Reason</code>)</th><th>Listed when</th><th>Limit in the sample book</th></tr>
 <tr><td><code>months_unpaid</code></td><td><a href="../reference/glossary.html#months-unpaid"><dfn class="term" title="How many of a Mortgage's latest monthly interest charges (never its Interest to Date) its Payments have not yet covered, counting Payments against the oldest interest first; capitalised interest still counts as unpaid.">Months Unpaid</dfn></a> is <strong>at or above</strong> the limit</td><td>3</td></tr>
@@ -111,7 +111,7 @@ flowchart TD
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>A Dormant Mortgage is Active but owes nothing (chapter 005). Phoning about it makes no sense; what it needs is Redeeming, so it shows on the Closures page instead (<a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>).</li>
+  <li>A Dormant Mortgage is Active but owes nothing (chapter 005). Phoning about it makes no sense; what it needs is Redeeming, so it shows on the Closures page instead (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>).</li>
   <li><code>months_unpaid</code> lives in <code>lending/ledger.py</code> (line 462) and is chapter 004's. This module only compares its answer with the limit.</li>
   <li>"Accrues today" means the Ledger has an <code>interest</code> step dated today. <code>any(…)</code> is true if at least one step matches.</li>
 </ol>
@@ -242,7 +242,7 @@ flowchart TD
 <p>On 10 Nov the chain adds November's interest with nothing paid since September. Served on that day, the Call List has Arjun (the ring, 106.8%) and then Meera, whose chain is listed for <code>months_unpaid</code> (now 3) <em>and</em> <code>accrues_today</code>. (From <code>scripts/run_throughs.py</code>, section L1 (f).)</p>
 
 <h3>(e) The Dormant anklet</h3>
-<p>Kavita's anklet is Active but owes ₹0. Even on its Accrual Date (the 1st) it would never be listed, because line 131 skips it before any reason is checked. It can't be "worth a call" for Loan-to-Value either: with ₹0 owed its Loan-to-Value is 0%. A Dormant Mortgage needs the Lender to Redeem it, not phone about it (<a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>).</p>
+<p>Kavita's anklet is Active but owes ₹0. Even on its Accrual Date (the 1st) it would never be listed, because line 131 skips it before any reason is checked. It can't be "worth a call" for Loan-to-Value either: with ₹0 owed its Loan-to-Value is 0%. A Dormant Mortgage needs the Lender to Redeem it, not phone about it (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>).</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">

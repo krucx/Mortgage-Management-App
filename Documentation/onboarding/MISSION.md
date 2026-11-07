@@ -14,7 +14,7 @@ New developers join knowing how to program, but not this app or the business it 
 - The reader programs well but may be junior, and knows nothing of this codebase or of pledge lending.
 - About an hour per chapter, 16 chapters, in the order agreed in [Map: Plan the onboarding course (#92)](https://github.com/krucx/Mortgage-Management-App/issues/92).
 - One example cast across the course: the sample book of The Gold Chain Story (`docs/sample-book/book.py`), as it stood on 19 Oct 2026.
-- The course teaches the current code on `main`. `GLOSSARY.md` terms are used exactly.
+- The course teaches the current code on `main`. `Documentation/GLOSSARY.md` terms are used exactly.
 - Never touch the Lender's real `data/` or `backups/`: every run-through uses a scratch folder.
 
 ## Out of scope

@@ -124,7 +124,7 @@ flowchart LR
 <h3>4. The other three jobs</h3>
 <table class="wide">
 <tr><th>Job</th><th>What it checks</th><th>Run it yourself</th></tr>
-<tr><td><code>image</code></td><td>The one Docker image builds, starts on empty folders, serves the screens with the right cache headers, and answers <code>/api</code> (<a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>)</td><td><a href="../014-how-it-runs-on-the-lenders-laptop/01-the-app-in-docker.html">Chapter 014, lesson 1</a>. Locally, use <code>docker-compose.dev.yml</code> with scratch folders (<a href="../reference/traps.html#t12">trap #12</a>)</td></tr>
+<tr><td><code>image</code></td><td>The one Docker image builds, starts on empty folders, serves the screens with the right cache headers, and answers <code>/api</code> (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a>)</td><td><a href="../014-how-it-runs-on-the-lenders-laptop/01-the-app-in-docker.html">Chapter 014, lesson 1</a>. Locally, use <code>docker-compose.dev.yml</code> with scratch folders (<a href="../reference/traps.html#t12">trap #12</a>)</td></tr>
 <tr><td><code>pages</code></td><td>The <code>Setup.bat</code> offered on the GitHub Pages site is byte for byte the one in <code>windows/</code> (line 67)</td><td><code>cmp windows/Setup.bat docs/Setup.bat</code> from the repo root: no output means the same</td></tr>
 <tr><td><code>windows</code></td><td>On a real Windows machine: the Pester tests (line 85), then Setup without Docker, the app answering and taking a Backup, an update, and the uninstall</td><td>Pester only, in Docker: below. The rest only runs on Windows (chapter 014)</td></tr>
 </table>

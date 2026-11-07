@@ -1,4 +1,4 @@
-"""The default Terms copied into every new Mortgage (see GLOSSARY.md)."""
+"""The default Terms copied into every new Mortgage (see Documentation/GLOSSARY.md)."""
 
 from fastapi import APIRouter
 

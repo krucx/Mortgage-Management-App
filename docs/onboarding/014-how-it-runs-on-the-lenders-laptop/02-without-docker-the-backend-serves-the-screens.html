@@ -16,11 +16,11 @@
 
 <h2>The problem</h2>
 <p>Docker Desktop needs virtualisation switched on, a recent Windows, and often admin rights to install. On some PCs it never works. The app still has to run there, from one double-click, with nothing a Lender can't install.</p>
-<p>The screens are a React app: <code>npm run build</code> turns them into plain files in <code>frontend/dist</code> (an <code>index.html</code>, hashed scripts in <code>assets/</code>, the service worker <code>sw.js</code>, the manifest). Something has to send those files to the browser, and send <code>/api/…</code> to the backend. In development that's Vite (<a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">chapter 002, lesson 5</a>). On the Lender's PC it used to be <code>vite preview</code>, which meant Node.js and some 220 MB of <code>node_modules</code> on the laptop, installed through <code>winget</code>, the step that most often failed (<a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a>).</p>
+<p>The screens are a React app: <code>npm run build</code> turns them into plain files in <code>frontend/dist</code> (an <code>index.html</code>, hashed scripts in <code>assets/</code>, the service worker <code>sw.js</code>, the manifest). Something has to send those files to the browser, and send <code>/api/…</code> to the backend. In development that's Vite (<a href="../002-find-your-way-and-run-it/05-run-it-while-you-code.html">chapter 002, lesson 5</a>). On the Lender's PC it used to be <code>vite preview</code>, which meant Node.js and some 220 MB of <code>node_modules</code> on the laptop, installed through <code>winget</code>, the step that most often failed (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md\">ADR 0010</a>).</p>
 <p>And whatever serves the files decides how the browser caches them. Get that wrong and the installed app keeps showing last month's screens after an update (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>).</p>
 
 <h2>The idea</h2>
-<p><strong>The backend serves the built screens itself, at every path that isn't <code>/api</code>, when it's told where they are (<code>SCREENS_DIR</code>).</strong> One process, one origin, nothing to proxy, no Node.js. Pages and the service worker are sent "check every time"; the hashed files "keep a year". Docker's image sets <code>SCREENS_DIR</code> too, so both modes serve the app with the same code (<a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>).</p>
+<p><strong>The backend serves the built screens itself, at every path that isn't <code>/api</code>, when it's told where they are (<code>SCREENS_DIR</code>).</strong> One process, one origin, nothing to proxy, no Node.js. Pages and the service worker are sent "check every time"; the hashed files "keep a year". Docker's image sets <code>SCREENS_DIR</code> too, so both modes serve the app with the same code (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a>).</p>
 
 <h2>The flow</h2>
 <figure class="diagram">
@@ -192,7 +192,7 @@ curl: (7) Failed to connect to 127.0.0.1 port 8765 after 0 ms: Couldn't connect 
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a> for its rejected options, then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_screens.py"><code>tests/test_screens.py</code></a> whole (75 lines). It's the pattern for testing anything <code>create_app</code> takes as an argument: build the input in <code>tmp_path</code>, pass it in, ask with <code>TestClient</code>.</p>
+<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md\">ADR 0010</a> for its rejected options, then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_screens.py"><code>tests/test_screens.py</code></a> whole (75 lines). It's the pattern for testing anything <code>create_app</code> takes as an argument: build the input in <code>tmp_path</code>, pass it in, ask with <code>TestClient</code>.</p>
 
 <nav class="lessons">
   <a href="01-the-app-in-docker.html">← The app in Docker</a>

@@ -20,7 +20,7 @@
 <p>And the Lender's actions need guarding. Sending a Notice twice, or approving one that has already gone, would make the log lie.</p>
 
 <h2>The idea</h2>
-<p>Until a Notice is sent or skipped, its row is only <strong>a Customer and a date</strong>. Which Mortgages it covers, the amounts and the wording are all worked out whenever it is read, from the replay (<a href="../../adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>). The moment it is sent or skipped, the app <strong>freezes it</strong>: it stores the message and the list of Mortgages as they were at that instant.</p>
+<p>Until a Notice is sent or skipped, its row is only <strong>a Customer and a date</strong>. Which Mortgages it covers, the amounts and the wording are all worked out whenever it is read, from the replay (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md\">ADR 0001</a>). The moment it is sent or skipped, the app <strong>freezes it</strong>: it stores the message and the list of Mortgages as they were at that instant.</p>
 <p>Each action is allowed only from certain statuses. Anything else is refused with a 409.</p>
 
 <h2>The flow</h2>
@@ -208,7 +208,7 @@ curl -s 'http://127.0.0.1:8765/api/notices?status=sent&amp;sort=accrues&amp;desc
     <tr class="changed"><td>Owed after</td><td>₹35,723</td><td>₹30,720</td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L4), on a copy: <code>GET /api/notices?status=awaiting_approval</code>.</p>
-    <p>The unsent Notice was worded again on read, so it shows the new Outstanding. The interest stays ₹700: the month from 21 Sep is charged on the Principal at its start, ₹35,000 (<a href="../reference/traps.html#t7">trap #7</a>, <a href="../../adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a>). A Notice quotes the month's interest even when some of it was paid ahead (<code>test_interest_paid_ahead_is_still_the_months_interest_added</code>).</p>
+    <p>The unsent Notice was worded again on read, so it shows the new Outstanding. The interest stays ₹700: the month from 21 Sep is charged on the Principal at its start, ₹35,000 (<a href="../reference/traps.html#t7">trap #7</a>, <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md\">ADR 0006</a>). A Notice quotes the month's interest even when some of it was paid ahead (<code>test_interest_paid_ahead_is_still_the_months_interest_added</code>).</p>
   </div>
 </div>
 
@@ -234,7 +234,7 @@ curl -s 'http://127.0.0.1:8765/api/notices?status=sent&amp;sort=accrues&amp;desc
 </div>
 
 <h3>(d) "Sent" means "the Lender opened WhatsApp"</h3>
-<p>The app never talks to WhatsApp's servers. On the Notices page, the Send button opens WhatsApp with the message ready, and at the same moment tells the backend it was sent (<code>WhatsApp.tsx</code> calls <code>sender.send</code>, then <code>onSent</code>; <a href="../012-frontend-pages-and-the-pwa/05-follow-up-dashboard-and-settings.html">chapter 012, lesson 5</a>). The Lender still has to press Send in WhatsApp. If they close it instead, the app already says "sent". That's the price of click-to-send, which <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a> chose over automating WhatsApp Web. Lesson 5 shows the link.</p>
+<p>The app never talks to WhatsApp's servers. On the Notices page, the Send button opens WhatsApp with the message ready, and at the same moment tells the backend it was sent (<code>WhatsApp.tsx</code> calls <code>sender.send</code>, then <code>onSent</code>; <a href="../012-frontend-pages-and-the-pwa/05-follow-up-dashboard-and-settings.html">chapter 012, lesson 5</a>). The Lender still has to press Send in WhatsApp. If they close it instead, the app already says "sent". That's the price of click-to-send, which <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a> chose over automating WhatsApp Web. Lesson 5 shows the link.</p>
 
 <h3>(e) A template edit only rewords unsent Notices</h3>
 <p>On a copy, the Lender saves the Notice template <code>Hello {customer_name}: {interest} on {date}.</code>. #58 now reads "Hello Sunita Rao: ₹700 on 21 Oct 2026." Sent Notice #57, to Arjun, still begins "*Interest notice* 🔔 … Namaste Arjun Patel": its text was frozen when it was sent. (From <code>scripts/run_throughs.py</code>, section L4.)</p>

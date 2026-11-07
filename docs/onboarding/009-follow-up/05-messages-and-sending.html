@@ -19,7 +19,7 @@
 <ul>
   <li><strong>WhatsApp has no tables.</strong> A Customer with two Mortgages needs to see two sets of figures that line up. In an ordinary font, "₹700" and "₹35,723" won't line up however many spaces you add.</li>
   <li><strong>The Lender wants their own words.</strong> "Namaste" or "Dear", Hindi or English, with or without emoji. So the text around the figures is a template the Lender edits. But a template with a typo, like <code>{name}</code> for <code>{customer_name}</code>, would reach the Customer as "Namaste {name}". That's embarrassing, and it can't be unsent.</li>
-  <li><strong>The app can't send WhatsApp messages itself</strong> without breaking WhatsApp's rules (<a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>).</li>
+  <li><strong>The app can't send WhatsApp messages itself</strong> without breaking WhatsApp's rules (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>).</li>
 </ul>
 
 <h2>The idea</h2>
@@ -216,7 +216,7 @@ flowchart LR
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>Pages import <code>sender</code>, never <code>clickToSend</code>. To move to the WhatsApp Business API, write a second <code>MessageSender</code> and change this one line (<a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>).</li>
+  <li>Pages import <code>sender</code>, never <code>clickToSend</code>. To move to the WhatsApp Business API, write a second <code>MessageSender</code> and change this one line (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>).</li>
   <li>Phone numbers are stored as 10 digits (chapter 008). WhatsApp wants the full international number, so <code>91</code> is added here and nowhere else. <code>URLSearchParams</code> URL-encodes the text: newlines, ₹ and emoji included.</li>
   <li><code>wa.me</code> is WhatsApp's short link, but it redirects to this one and the redirect turns emoji into "�" (the comment at lines 24–27). So the app uses the long link directly.</li>
 </ol>
@@ -338,7 +338,7 @@ Still owed            ₹0
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/messages.py"><code>follow_up/messages.py</code></a> (184 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/messaging.ts"><code>frontend/src/messaging.ts</code></a> (32 lines) whole, then <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>: one paragraph on why the app opens a link instead of driving WhatsApp Web.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/messages.py"><code>follow_up/messages.py</code></a> (184 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/messaging.ts"><code>frontend/src/messaging.ts</code></a> (32 lines) whole, then <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>: one paragraph on why the app opens a link instead of driving WhatsApp Web.</p>
 
 <nav class="lessons">
   <a href="04-a-notices-life.html">← A Notice's life</a>

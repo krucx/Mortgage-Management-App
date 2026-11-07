@@ -59,7 +59,7 @@ Deliver the whole chapter in one go because onboarding readers move through mate
 If `Documentation/onboarding/` doesn't exist yet:
 
 1. **Mission.** Write `MISSION.md`. The default mission is "a new developer can find their way around, explain how money figures are produced, and safely make a change". Ask the owner (the person running `/teach`) whether anything should be emphasised or left out, then write it down.
-2. **Survey the codebase.** Read `README.md`, `GLOSSARY.md`, `Documentation/adr/`, `CHANGELOG.md`, and the top-level layout of `backend/` and `frontend/`. Read the code itself; it is the source of truth.
+2. **Survey the codebase.** Read `README.md`, `Documentation/GLOSSARY.md`, `Documentation/adr/`, `CHANGELOG.md`, and the top-level layout of `backend/` and `frontend/`. Read the code itself; it is the source of truth.
 3. **Syllabus.** Draft `SYLLABUS.md`: the ordered list of chapters that would take a newcomer from zero to productive. Start with the big picture (what the app does for whom, how the pieces fit, how to run it), then the domain, then the core engine, then the surrounding layers. Show the syllabus to the owner and confirm it before writing chapter 001.
 4. **Assets.** Copy this skill's `./assets/` folder into `Documentation/onboarding/assets/`. These are the starting components (stylesheet, quiz and reveal widgets, the code-snippet renderer, the bundled Mermaid and its loader). Extend them in the workspace from then on.
 5. **Course home.** Write `index.html`: one paragraph on what the app is, a diagram of the chapters, and a list linking every chapter.
@@ -91,7 +91,7 @@ Every lesson follows the same arc, because it mirrors how an experienced develop
 
 Some more guidelines:
 
-- **Define every term the first time it is used,** in plain words, and link it to the glossary. This project's root `GLOSSARY.md` is canonical: use its terms exactly, with its capitalisation, and never invent a synonym for something it already names.
+- **Define every term the first time it is used,** in plain words, and link it to the glossary. This project's root `Documentation/GLOSSARY.md` is canonical: use its terms exactly, with its capitalisation, and never invent a synonym for something it already names.
 - **Use analogies for domain ideas** a newcomer has never met. Then come back to the exact meaning. An analogy is a ramp onto the idea, not a substitute for it.
 - **Say why, not just what.** For every design decision the reader will notice, give the reason. Usually there is an ADR; link it and give its argument in one or two sentences.
 - **Short sentences, active voice.** One idea per paragraph. Prefer a table or a diagram to a long paragraph of comparisons.
@@ -144,7 +144,7 @@ For quizzes, make every answer option the same length (in words, and characters 
 
 ## Knowledge sources
 
-Ground every claim in this repo first: its code, tests, ADRs, `GLOSSARY.md`, `CHANGELOG.md` and the published docs in `docs/`. Don't trust your memory of how this kind of code usually works; read how *this* code works. For general background (a framework, a library, a financial idea), find a high-quality external source, add it to `RESOURCES.md`, and cite it in the lesson. Each lesson recommends one source for further reading. That is usually the ADR or file behind the lesson.
+Ground every claim in this repo first: its code, tests, ADRs, `Documentation/GLOSSARY.md`, `CHANGELOG.md` and the published docs in `docs/`. Don't trust your memory of how this kind of code usually works; read how *this* code works. For general background (a framework, a library, a financial idea), find a high-quality external source, add it to `RESOURCES.md`, and cite it in the lesson. Each lesson recommends one source for further reading. That is usually the ADR or file behind the lesson.
 
 Where a newcomer would go for help in real life: the ADRs, the glossary, the issue tracker (see `Documentation/agents/issue-tracker.md`), and the owner. Each chapter's overview ends with a reminder that the reader can ask an agent in this repo to explain anything that is unclear.
 

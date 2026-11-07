@@ -179,7 +179,7 @@ class MortgageReplay:
 
     def dormant(self, on: date) -> bool:
         """Active, yet owing nothing on `on`: its jewellery should already have gone
-        back (see Dormant in GLOSSARY.md, ADR 0012)."""
+        back (see Dormant in Documentation/GLOSSARY.md, ADR 0012)."""
         return (
             self.row["status"] == MortgageStatus.ACTIVE
             and self.outstanding(on).total == 0

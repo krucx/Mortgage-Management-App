@@ -21,8 +21,8 @@
 <h2>The idea</h2>
 <p>This repo keeps two short, plain records beside the code:</p>
 <ul>
-  <li><strong><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md"><code>GLOSSARY.md</code></a></strong> at the root: every business word, its exact meaning, and the words <em>not</em> to use for it.</li>
-  <li><strong><a href="../../adr/"><code>Documentation/adr/</code></a></strong>: Architecture Decision Records. Each ADR is one decision that a newcomer might otherwise question: what was decided, and why.</li>
+  <li><strong><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a></strong>: every business word, its exact meaning, and the words <em>not</em> to use for it.</li>
+  <li><strong><a href="https://github.com/krucx/Mortgage-Management-App/tree/main/Documentation/adr/"><code>Documentation/adr/</code></a></strong>: Architecture Decision Records. Each ADR is one decision that a newcomer might otherwise question: what was decided, and why.</li>
 </ul>
 <p>The glossary says what a word means; an ADR says why the rule behind it is that way. Together they are the first place to look before you change a rule.</p>
 
@@ -31,7 +31,7 @@
 <pre class="mermaid">
 flowchart TD
   Q["A word or rule puzzles you"] --> G{"Is it a business word?"}
-  G -->|yes| GL["GLOSSARY.md<br/>search **Word**:"]
+  G -->|yes| GL["Documentation/GLOSSARY.md<br/>search **Word**:"]
   GL --> M["meaning and Avoid words"]
   M --> W{"Still asking why?"}
   G -->|"no, a design choice"| A["Documentation/adr/<br/>scan the titles"]
@@ -43,13 +43,13 @@ flowchart TD
 </pre>
 <figcaption>Glossary first for words, ADRs for reasons, the owner for what neither covers.</figcaption>
 </figure>
-<p>The agent notes in <a href="../../agents/domain.md"><code>Documentation/agents/domain.md</code></a> tell every AI agent in this repo to follow the same path: read the glossary and the relevant ADRs before exploring, use the glossary's words, and flag it if a change contradicts an ADR. You're held to the same rules.</p>
+<p>The agent notes in <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/agents/domain.md\"><code>Documentation/agents/domain.md</code></a> tell every AI agent in this repo to follow the same path: read the glossary and the relevant ADRs before exploring, use the glossary's words, and flag it if a change contradicts an ADR. You're held to the same rules.</p>
 
 <h2>How the glossary is laid out</h2>
 <p>The glossary is grouped by section (People, Lending, Collateral, Payments, Follow-up, Safekeeping, Status), the same sections as the backend's packages from lesson 2. Each of its 50 terms has the same three-line shape.</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md">GLOSSARY.md</a> · <em>Lending</em> · lines 52–54</figcaption>
-<pre data-file="GLOSSARY.md"><code>52  **Default Terms**:                         ① the term, bold, capitalised
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md">Documentation/GLOSSARY.md</a> · <em>Lending</em> · lines 52–54</figcaption>
+<pre data-file="Documentation/GLOSSARY.md"><code>52  **Default Terms**:                         ① the term, bold, capitalised
 53  The Terms the Lender has set to be copied into every new Mortgage.   ②
 54  _Avoid_: Global rate, settings             ③
 </code></pre>
@@ -85,20 +85,20 @@ flowchart TD
 
 <h2>Run-through: Default Terms, then Outstanding to ADR 0011</h2>
 <h3>Step 1: Default Terms</h3>
-<p>Search <code>GLOSSARY.md</code> for <code>**Default Terms**</code> and you get the snippet above: the Terms copied into every new Mortgage. So the code calls it <code>DEFAULT_TERMS</code> (in <code>lending/default_terms.py</code>), the screen calls it "Default Terms", and nobody calls it "the global rate". You'll meet its code in the check-yourself exercise.</p>
+<p>Search <code>Documentation/GLOSSARY.md</code> for <code>**Default Terms**</code> and you get the snippet above: the Terms copied into every new Mortgage. So the code calls it <code>DEFAULT_TERMS</code> (in <code>lending/default_terms.py</code>), the screen calls it "Default Terms", and nobody calls it "the global rate". You'll meet its code in the check-yourself exercise.</p>
 <h3>Step 2: Outstanding</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md">GLOSSARY.md</a> · <em>Lending</em> · lines 113–115</figcaption>
-<pre data-file="GLOSSARY.md"><code>113  **Outstanding**:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md">Documentation/GLOSSARY.md</a> · <em>Lending</em> · lines 113–115</figcaption>
+<pre data-file="Documentation/GLOSSARY.md"><code>113  **Outstanding**:
 114  What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day; nothing once closed.  ◀
 115  _Avoid_: Redemption Amount, balance, dues, payoff
 </code></pre>
 </figure>
 <p>"Plus its Interest to Date … exactly what would redeem it that day" answers half the puzzle from the top of the page: today's interest is in on purpose. But <em>why</em>? And why is "Redemption Amount" on the Avoid list, when it sounds like a perfectly good name?</p>
 <h3>Step 3: follow it to the ADR</h3>
-<p>Scan the ADR titles for "Outstanding": <a href="../../adr/0011-outstanding-includes-interest-to-date.md">0011, Outstanding includes the Interest to Date, today included</a>.</p>
+<p>Scan the ADR titles for "Outstanding": <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">0011, Outstanding includes the Interest to Date, today included</a>.</p>
 <figure class="snippet">
-<figcaption><a href="../../adr/0011-outstanding-includes-interest-to-date.md">Documentation/adr/0011-outstanding-includes-interest-to-date.md</a> · lines 1–3, trimmed</figcaption>
+<figcaption><a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">Documentation/adr/0011-outstanding-includes-interest-to-date.md</a> · lines 1–3, trimmed</figcaption>
 <pre data-file="Documentation/adr/0011-outstanding-includes-interest-to-date.md"><code>1  # Outstanding includes the Interest to Date, today included
 ⋮
 3  Outstanding used to be the interest already charged on Accrual Dates plus Principal, and a separate Redemption Amount added the Part-Month Rule charge on top; Customers were told one figure and asked to pay another. Outstanding is now exactly what would redeem the Mortgage that day … The term Redemption Amount is retired, and so is Ready to Redeem, since paying the whole Outstanding Redeems.  ◀
@@ -132,7 +132,7 @@ flowchart TD
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">
   <p class="q">Where do you find why each Preview route is written out by hand rather than generated?</p>
-  <button class="opt">In <code>GLOSSARY.md</code>, under Preview</button>
+  <button class="opt">In <code>Documentation/GLOSSARY.md</code>, under Preview</button>
   <button class="opt">In the docstring of <code>previews.py</code></button>
   <button class="opt">In ADR 0007, by scanning ADR titles</button>
   <div class="why">It's a design decision, so it's an ADR: 0007, "Each change's Preview route is written out by hand beside its save route". The glossary says what a Preview <em>is</em>, not how its routes are built. A docstring might mention it, but the ADR is the record.</div>
@@ -154,7 +154,7 @@ flowchart TD
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md"><code>GLOSSARY.md</code></a> top to bottom once: it takes ten minutes, and you met most terms in chapter 001. Then read <a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a> in full, and <a href="../../agents/domain.md"><code>Documentation/agents/domain.md</code></a>.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a> top to bottom once: it takes ten minutes, and you met most terms in chapter 001. Then read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a> in full, and <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/agents/domain.md\"><code>Documentation/agents/domain.md</code></a>.</p>
 
 <nav class="lessons">
   <a href="02-inside-backend-and-frontend.html">← Inside the backend and the frontend</a>

@@ -1,4 +1,4 @@
-"""Notices (see GLOSSARY.md): the Notice queue.
+"""Notices (see Documentation/GLOSSARY.md): the Notice queue.
 
 Every Notice status rule lives here, behind two calls. `sync` makes the unsent Notices
 what they should be today under the current settings: one per Customer per Accrual Date

@@ -21,7 +21,7 @@
 <p>The second problem is the reverse: the Lender Redeems the wrong Mortgage, or records a Forfeiture that didn't happen. Closed Mortgages refuse Payments, Voids and edits, so the mistake can't be patched from the outside.</p>
 
 <h2>The idea</h2>
-<p><a href="../reference/glossary.html#dormant"><dfn class="term" title="An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it.">Dormant</dfn></a> is a flag, worked out on every replay: Active, and owing nothing. The app lists Dormant Mortgages and leaves the decision to the Lender (<a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>).</p>
+<p><a href="../reference/glossary.html#dormant"><dfn class="term" title="An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it.">Dormant</dfn></a> is a flag, worked out on every replay: Active, and owing nothing. The app lists Dormant Mortgages and leaves the decision to the Lender (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>).</p>
 <p><a href="../reference/glossary.html#reopen"><dfn class="term" title="Undoing a Closure made by mistake, with a reason: the Mortgage is Active again as if it had never been closed, and a Redemption's or Waiver's final Payment is Voided.">Reopen</dfn></a> undoes a Closure, with a reason. It clears the Closure columns and Voids the Final Payment, if there was one. Since every figure is replayed, the Mortgage is then exactly as if it had never been closed.</p>
 
 <h2>The flow</h2>
@@ -51,7 +51,7 @@ stateDiagram-v2
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/replay.py">lending/replay.py</a> · <code>MortgageReplay.dormant()</code> · lines 180–186</figcaption>
 <pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>180      def dormant(self, on: date) -&gt; bool:
 181          """Active, yet owing nothing on `on`: its jewellery should already have gone
-182          back (see Dormant in GLOSSARY.md, ADR 0012)."""
+182          back (see Dormant in Documentation/GLOSSARY.md, ADR 0012)."""
 183          return (
 184              self.row["status"] == MortgageStatus.ACTIVE          ①
 185              and self.outstanding(on).total == 0                  ②  ◀
@@ -245,7 +245,7 @@ curl -s -X POST -H "$J" "$B/mortgages/3/reopen" -d '{"reason": "Redeemed on the 
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a> (two paragraphs). Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_dormant.py"><code>tests/test_dormant.py</code></a> from line 57, and <code>test_reopening_the_redeemed_mortgage_voids_only_its_final_payment</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_redeeming_payments.py"><code>tests/test_redeeming_payments.py</code></a> (line 125).</p>
+<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a> (two paragraphs). Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_dormant.py"><code>tests/test_dormant.py</code></a> from line 57, and <code>test_reopening_the_redeemed_mortgage_voids_only_its_final_payment</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_redeeming_payments.py"><code>tests/test_redeeming_payments.py</code></a> (line 125).</p>
 
 <nav class="lessons">
   <a href="04-waived-and-forfeited.html">← Waived and Forfeited</a>

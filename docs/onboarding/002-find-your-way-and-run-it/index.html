@@ -33,7 +33,7 @@
 flowchart LR
   subgraph Find["Find your way"]
     L1["1 · The repo at a glance<br/>top-level folders"] --> L2["2 · Inside backend and frontend<br/>App.tsx → requests.ts → main.py"]
-    L2 --> L3["3 · The words and the decisions<br/>GLOSSARY.md, Documentation/adr/"]
+    L2 --> L3["3 · The words and the decisions<br/>Documentation/GLOSSARY.md, Documentation/adr/"]
   end
   subgraph Run["Run it"]
     L4["4 · Serve the sample book<br/>book.py, serve.py :8765"] --> L5["5 · Run it while you code<br/>Vite :5173 → :8000, tests"]
@@ -52,8 +52,8 @@ flowchart LR
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/tree/main/backend/src/mortgage_backend/"><code>backend/src/mortgage_backend/*/</code></a></td><td>The seven packages: <code>lending</code>, <code>payments</code>, <code>people</code>, <code>collateral</code>, <code>follow_up</code>, <code>safekeeping</code>, <code>platform</code></td><td>2</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/App.tsx"><code>frontend/src/App.tsx</code></a></td><td>Every screen's address and page</td><td>2</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts"><code>frontend/src/requests.ts</code></a></td><td>Every request the screens make</td><td>2</td></tr>
-<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md"><code>GLOSSARY.md</code></a></td><td>The app's words, with what to avoid</td><td>3</td></tr>
-<tr><td><a href="../../adr/"><code>Documentation/adr/</code></a></td><td>The 12 decisions and their reasons</td><td>3</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a></td><td>The app's words, with what to avoid</td><td>3</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/tree/main/Documentation/adr/"><code>Documentation/adr/</code></a></td><td>The decisions and their reasons</td><td>3</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/book.py"><code>docs/sample-book/book.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/serve.py"><code>serve.py</code></a></td><td>Build and serve the sample book, clock held on 19 Oct 2026</td><td>4</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/db.py"><code>platform/db.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/vite.config.ts"><code>frontend/vite.config.ts</code></a></td><td>Where the database is (<code>DATA_DIR</code>); the <code>/api</code> proxy to :8000</td><td>5</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_default_terms.py"><code>backend/tests/test_default_terms.py</code></a></td><td>The check-yourself exercise</td><td>99</td></tr>

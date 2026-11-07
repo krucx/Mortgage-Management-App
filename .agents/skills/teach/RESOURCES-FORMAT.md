@@ -9,7 +9,7 @@
 
 ## In this repo
 
-- [GLOSSARY.md](../../GLOSSARY.md)
+- [Documentation/GLOSSARY.md](../../Documentation/GLOSSARY.md)
   The canonical domain language. Use for: every term a lesson uses.
 - [ADR 0006: Interest on start-of-month Principal](../adr/0006-interest-on-start-of-month-principal.md)
   Why a month's interest ignores Payments made during it. Use for: the Ledger chapter.

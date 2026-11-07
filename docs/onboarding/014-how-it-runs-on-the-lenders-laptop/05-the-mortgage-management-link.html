@@ -19,7 +19,7 @@
 <p><code>StartGate</code> notices and says "The app isn't running on this laptop." Telling the Lender to find the Desktop shortcut works, but they've learnt the icon, and "close this, open that" is where people get lost. The page itself should offer <strong>Start</strong>. But a page in a browser can't run <code>Run.bat</code>; that's the browser's whole security model.</p>
 
 <h2>The idea</h2>
-<p><strong>Register a custom URL scheme for this Windows user. Opening <code>mortgage-management://start</code> runs a small script that starts the app; <code>mortgage-management://update</code> runs Setup.</strong> It's the same mechanism as <code>mailto:</code> or <code>zoommtg://</code>: the page opens a link, Windows asks the Lender once whether to allow it, and runs the program registered for the scheme (<a href="../../adr/0008-pwa-starts-the-app-through-a-link.md">ADR 0008</a>).</p>
+<p><strong>Register a custom URL scheme for this Windows user. Opening <code>mortgage-management://start</code> runs a small script that starts the app; <code>mortgage-management://update</code> runs Setup.</strong> It's the same mechanism as <code>mailto:</code> or <code>zoommtg://</code>: the page opens a link, Windows asks the Lender once whether to allow it, and runs the program registered for the scheme (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0008-pwa-starts-the-app-through-a-link.md\">ADR 0008</a>).</p>
 <p>Because <em>any</em> web page can open that link, the script treats it like input from a stranger: it accepts exactly two links and nothing else.</p>
 
 <h2>The flow</h2>
@@ -188,7 +188,7 @@ sequenceDiagram
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="../../adr/0008-pwa-starts-the-app-through-a-link.md">ADR 0008</a> (a paragraph and two rejected options), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/windows/link.ps1"><code>windows/link.ps1</code></a> whole: it's 50 lines, and its header comment is the contract in plain words.</p>
+<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0008-pwa-starts-the-app-through-a-link.md\">ADR 0008</a> (a paragraph and two rejected options), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/windows/link.ps1"><code>windows/link.ps1</code></a> whole: it's 50 lines, and its header comment is the contract in plain words.</p>
 
 <nav class="lessons">
   <a href="04-each-version-in-its-own-folder.html">← Each version in its own folder</a>

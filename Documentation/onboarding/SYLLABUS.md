@@ -137,7 +137,7 @@ Seven shared sheets in `reference/`, decided in [#121](https://github.com/krucx/
 
 | Sheet | What it lists | Created by |
 | --- | --- | --- |
-| `glossary.html` | Every `GLOSSARY.md` term, word for word, with its *Avoid* words and the chapter that teaches it | 001 |
+| `glossary.html` | Every `Documentation/GLOSSARY.md` term, word for word, with its *Avoid* words and the chapter that teaches it | 001 |
 | `cast.html` | The sample book on 19 Oct 2026: people, Mortgages, items, Terms, key figures; later the tests' cast | 001 |
 | `commands.html` | Every command a developer runs | 002 |
 | `routes.html` | Every route: what it changes, its Preview twin, when it refuses, its History `Action` | 003 |

@@ -1,4 +1,4 @@
-"""Customers and the Referrers who introduced them (see GLOSSARY.md)."""
+"""Customers and the Referrers who introduced them (see Documentation/GLOSSARY.md)."""
 
 import re
 from typing import Annotated, Literal

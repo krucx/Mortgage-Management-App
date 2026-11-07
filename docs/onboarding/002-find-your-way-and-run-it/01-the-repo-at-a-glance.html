@@ -33,7 +33,7 @@ flowchart LR
     WIN["windows/<br/>installer scripts"]
   end
   subgraph Words["Words and decisions"]
-    G["GLOSSARY.md"]
+    G["Documentation/GLOSSARY.md"]
     DOC["Documentation/<br/>ADRs, this course"]
     CL["CHANGELOG.md"]
   end
@@ -58,7 +58,7 @@ flowchart LR
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docker-compose.dev.yml"><code>docker-compose.dev.yml</code></a></td><td>An add-on file that builds the image from <em>this folder</em> instead (the root <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Dockerfile"><code>Dockerfile</code></a>)</td><td>try your own code in Docker (lesson 5)</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/tree/main/docs/"><code>docs/</code></a></td><td>The GitHub Pages site, and <code>docs/sample-book/</code>, which builds the invented book every screenshot shows</td><td>retake screenshots; serve the sample book (lesson 4)</td></tr>
 <tr><td><a href="../../"><code>Documentation/</code></a></td><td>ADRs (<code>adr/</code>), notes for agents (<code>agents/</code>), past architecture reviews, and this course</td><td>find why a rule is the way it is (lesson 3)</td></tr>
-<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md"><code>GLOSSARY.md</code></a></td><td>The app's words and their exact meanings</td><td>name a variable, a test or an issue (lesson 3)</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a></td><td>The app's words and their exact meanings</td><td>name a variable, a test or an issue (lesson 3)</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md"><code>CHANGELOG.md</code></a></td><td>What changed in each release, in the Lender's words</td><td>date a rule or a screen; write a release (chapter 015)</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/tree/main/Requirements/"><code>Requirements/</code></a></td><td>The original spec (<code>system-requirements.txt</code>) and the owner's lists of enhancements to pick up later</td><td>see where the app started, or what's queued. Not today's rules: the code and the ADRs have moved on</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/README.md"><code>README.md</code></a></td><td>How the Lender installs it, then a <em>Development</em> section for you</td><td>the commands to run it (lessons 4 and 5)</td></tr>
@@ -95,7 +95,7 @@ flowchart LR
 </pre>
 <figcaption>Two front doors, one backend, one SQLite file. The browser always talks to one origin: Vite while you code, and otherwise the backend itself, the same way with Docker and without.</figcaption>
 </figure>
-<p>Three ADRs explain the Lender's two set-ups. <a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a> ships the app with Docker Compose, so nobody installs Python or Node on the Lender's laptop. <a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a> is for laptops without Docker: the backend serves the built screens itself, so there's one process and no Node.js. <a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a> does the same in Docker: one image, one Compose service, the screens built into it. You only need their names for now.</p>
+<p>Three ADRs explain the Lender's two set-ups. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md\">ADR 0004</a> ships the app with Docker Compose, so nobody installs Python or Node on the Lender's laptop. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md\">ADR 0010</a> is for laptops without Docker: the backend serves the built screens itself, so there's one process and no Node.js. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a> does the same in Docker: one image, one Compose service, the screens built into it. You only need their names for now.</p>
 
 <h2>Nuances</h2>
 <div class="reveal">
@@ -107,7 +107,7 @@ flowchart LR
     <tr><td>(a) Dashboard count</td><td><code>backend/</code> then <code>frontend/</code></td><td>The figure is worked out by the backend; the page only shows it. Most features touch both halves, backend first.</td></tr>
     <tr><td>(b) Setup and a space</td><td><code>windows/</code></td><td>Setup is the PowerShell installer.</td></tr>
     <tr><td>(c) Old screenshot</td><td><code>docs/sample-book/</code></td><td>Screenshots are retaken from the sample book (<code>run.sh</code>), never edited by hand.</td></tr>
-    <tr><td>(d) Interest on the start-of-month Principal</td><td><code>Documentation/adr/</code></td><td><a href="../../adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a> records that decision and why.</td></tr>
+    <tr><td>(d) Interest on the start-of-month Principal</td><td><code>Documentation/adr/</code></td><td><a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md\">ADR 0006</a> records that decision and why.</td></tr>
     </table>
   </div>
 </div>
@@ -137,7 +137,7 @@ flowchart LR
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/README.md">README</a>'s <em>Development</em> section (lines 155–212), then the first paragraph of <a href="../../adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a>.</p>
+<p>Read the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/README.md">README</a>'s <em>Development</em> section (lines 155–212), then the first paragraph of <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md\">ADR 0004</a>.</p>
 
 <nav class="lessons">
   <a href="../001-what-the-app-does/99-check-yourself.html">← Chapter 001</a>

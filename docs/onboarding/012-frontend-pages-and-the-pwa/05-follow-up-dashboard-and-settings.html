@@ -19,7 +19,7 @@
 
 <h2>The idea</h2>
 <p><strong>The screens say why, and compute nothing.</strong> Each Call List row carries its <code>reasons</code>; each Notice its <code>message</code>, already worded; the Dashboard is one answer. The pages label, format and link.</p>
-<p><strong>Sending is opening WhatsApp.</strong> <code>SendOnWhatsApp</code> calls <code>sender.send</code>, which opens WhatsApp with the message filled in (<a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>, owned by <a href="../009-follow-up/05-messages-and-sending.html">chapter 009</a>). Then the page tells the backend the Notice is sent.</p>
+<p><strong>Sending is opening WhatsApp.</strong> <code>SendOnWhatsApp</code> calls <code>sender.send</code>, which opens WhatsApp with the message filled in (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>, owned by <a href="../009-follow-up/05-messages-and-sending.html">chapter 009</a>). Then the page tells the backend the Notice is sent.</p>
 <p><strong>Settings is a page of independent sections.</strong> One component per settings group, each with its own draft, Save and status.</p>
 
 <h2>The flow</h2>
@@ -278,7 +278,7 @@ $/, '')}&lt;/pre&gt;
 
 <h2>Nuances</h2>
 <h3>(a) The Lender presses Send, not the app</h3>
-<p>Click-to-send (<a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>): driving WhatsApp Web from a browser robot breaks whenever WhatsApp changes its pages, and is against WhatsApp's terms, which could get the Lender's number banned. So <code>sender.send</code> only opens WhatsApp with the text filled in; the Business Cloud API could replace it later, behind the same <code>sender</code>. The page marks the Notice sent when the button is pressed, trusting the Lender to press Send in WhatsApp. If they don't, the Notice still says sent. The test for <code>messaging.ts</code> (<a href="../009-follow-up/05-messages-and-sending.html">chapter 009, lesson 5</a>) pins why it uses <code>api.whatsapp.com/send</code> rather than the shorter <code>wa.me</code> link: the shorter one's redirect breaks emoji.</p>
+<p>Click-to-send (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>): driving WhatsApp Web from a browser robot breaks whenever WhatsApp changes its pages, and is against WhatsApp's terms, which could get the Lender's number banned. So <code>sender.send</code> only opens WhatsApp with the text filled in; the Business Cloud API could replace it later, behind the same <code>sender</code>. The page marks the Notice sent when the button is pressed, trusting the Lender to press Send in WhatsApp. If they don't, the Notice still says sent. The test for <code>messaging.ts</code> (<a href="../009-follow-up/05-messages-and-sending.html">chapter 009, lesson 5</a>) pins why it uses <code>api.whatsapp.com/send</code> rather than the shorter <code>wa.me</code> link: the shorter one's redirect breaks emoji.</p>
 
 <h3>(b) What the bubble shows is what was stored</h3>
 <div class="reveal">
@@ -320,7 +320,7 @@ $/, '')}&lt;/pre&gt;
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NoticesPage.tsx"><code>NoticesPage.tsx</code></a> whole (207 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/WhatsApp.tsx"><code>WhatsApp.tsx</code></a> (81 lines), then the tests beside them: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/NoticesPage.test.tsx"><code>NoticesPage.test.tsx</code></a> and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/CallListPage.test.tsx"><code>CallListPage.test.tsx</code></a>. For sending, <a href="../../adr/0002-whatsapp-click-to-send.md">ADR 0002</a>.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NoticesPage.tsx"><code>NoticesPage.tsx</code></a> whole (207 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/WhatsApp.tsx"><code>WhatsApp.tsx</code></a> (81 lines), then the tests beside them: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/NoticesPage.test.tsx"><code>NoticesPage.test.tsx</code></a> and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/CallListPage.test.tsx"><code>CallListPage.test.tsx</code></a>. For sending, <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>.</p>
 
 <nav class="lessons">
   <a href="04-the-mortgage-and-customer-pages.html">← The Mortgage and Customer pages</a>

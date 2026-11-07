@@ -2,11 +2,11 @@
 
 ## In this repo
 
-- [GLOSSARY.md](../../GLOSSARY.md)
+- [Documentation/GLOSSARY.md](../../Documentation/GLOSSARY.md)
   The canonical domain language, with the words to avoid. Use for: every term a lesson uses, word for word.
 - [The Gold Chain Story](../../docs/story.html) (`docs/story.html`)
   A year of the sample book told through the app's screenshots; every figure is the app's own. Use for: chapter 001's Go-deeper reading and checking hand-worked figures. A resource, not taught.
-- [The sample book](../../docs/sample-book/README.md) (`docs/sample-book/book.py`, `serve.py`)
+- [The sample book](../../Documentation/sample-book/README.md) (`docs/sample-book/book.py`, `serve.py`)
   Builds and serves the course's cast through the app's own API, clock held at 19 Oct 2026. Use for: every run-through from chapter 002 on.
 - [ADR 0001: The Ledger is derived, not stored](../adr/0001-ledger-is-derived-not-stored.md)
   Why nothing owed is stored. Use for: 001.05, the Ledger and Replay chapters.
@@ -26,7 +26,7 @@
   Why `serve.py` and the Windows app need no Node.js. Use for: 002.01, 002.04, chapter 014.
 - [README.md, Development](../../README.md)
   The hot-reload, Docker and test commands. Use for: 002.04, 002.05.
-- [Documentation/agents/domain.md](../agents/domain.md)
+- [Domain agent guidance](../agents/domain.md)
   How agents (and developers) use the glossary and ADRs. Use for: 002.03.
 - [ADR 0006: Interest on start-of-month Principal](../adr/0006-interest-on-start-of-month-principal.md)
   Why paying Principal mid-month lowers interest only from the next month. Use for: 001.02, the Ledger engine.

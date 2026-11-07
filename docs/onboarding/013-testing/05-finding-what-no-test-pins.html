@@ -172,7 +172,7 @@ def test_a_mortgage_owing_a_rupee_over_85_percent_is_listed(client, ramesh):
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/replay.py">backend/src/mortgage_backend/lending/replay.py</a> · <code>dormant</code> · lines 180–186</figcaption>
 <pre data-file="backend/src/mortgage_backend/lending/replay.py"><code>180     def dormant(self, on: date) -&gt; bool:
 181         """Active, yet owing nothing on `on`: its jewellery should already have gone
-182         back (see Dormant in GLOSSARY.md, ADR 0012)."""
+182         back (see Dormant in Documentation/GLOSSARY.md, ADR 0012)."""
 183         return (
 184             self.row["status"] == MortgageStatus.ACTIVE               ◀
 185             and self.outstanding(on).total == 0

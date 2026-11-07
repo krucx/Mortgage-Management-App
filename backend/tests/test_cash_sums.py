@@ -1,5 +1,5 @@
 """What each Preview says the change would write in cash, for the Cash Limit's warning
-(GLOSSARY.md): each Payment is one sum, its Final Payments included, and so is each
+(Documentation/GLOSSARY.md): each Payment is one sum, its Final Payments included, and so is each
 Mortgage's Principal lent; an edit counts only if it makes a sum cash or larger.
 Today is 20 Apr 2026."""
 

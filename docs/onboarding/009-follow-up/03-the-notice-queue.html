@@ -291,7 +291,7 @@ printf '%s' "$S" | jq '.notice_approve_first = true'  | curl -s -X PUT -H 'conte
 </div>
 
 <h3>(d) A Dormant Mortgage gets no Notice</h3>
-<p>Kavita's anklet accrues on 1 Nov. With days ahead set to 14 on 19 Oct (<code>until</code> 2 Nov), the queue gains Meera's 25 Oct Notice, but nothing for Kavita: the anklet is Dormant on 1 Nov, so line 127 drops it (<a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>). (From <code>scripts/run_throughs.py</code>, section L3 (e).)</p>
+<p>Kavita's anklet accrues on 1 Nov. With days ahead set to 14 on 19 Oct (<code>until</code> 2 Nov), the queue gains Meera's 25 Oct Notice, but nothing for Kavita: the anklet is Dormant on 1 Nov, so line 127 drops it (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>). (From <code>scripts/run_throughs.py</code>, section L3 (e).)</p>
 
 <h3>(e) One per Customer per date</h3>
 <p>From July to October 2026, the 10th has two sent Notices each month. They aren't duplicates: they're two Customers, Meera (her chain) and Imran (his earrings, until they were Forfeited). If Meera had a second Mortgage accruing on the 10th, she'd still get one Notice, covering both. Lesson 5 shows such a Notice.</p>

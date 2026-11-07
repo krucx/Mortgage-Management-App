@@ -20,7 +20,7 @@
 
 <h2>The idea</h2>
 <p><strong>Cache the app, never the figures.</strong> A <em>service worker</em> is a script the browser keeps installed for a site. It sits between the page and the network and can answer requests from its own cache. This one keeps the built screens, and fetches every page from the server first whenever the server answers. It never caches <code>/api</code>.</p>
-<p><strong>A gate in front of the app.</strong> <code>StartGate</code> pings the backend before drawing anything. If it doesn't answer, it says so (on Windows, with a Start button: <a href="../../adr/0008-pwa-starts-the-app-through-a-link.md">ADR 0008</a>). It keeps checking, and reloads the app the moment the backend answers.</p>
+<p><strong>A gate in front of the app.</strong> <code>StartGate</code> pings the backend before drawing anything. If it doesn't answer, it says so (on Windows, with a Start button: <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0008-pwa-starts-the-app-through-a-link.md\">ADR 0008</a>). It keeps checking, and reloads the app the moment the backend answers.</p>
 <p><strong>A banner for updates.</strong> <code>UpdateBanner</code> asks the backend whether a newer release is out, and offers it with its notes: Install now, or Later.</p>
 
 <h2>The flow</h2>
@@ -136,7 +136,7 @@ flowchart TD
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>Any answer below 500 means a backend is there. A 5xx means something answered <em>for</em> it: Vite's dev server answers <code>502</code> when the backend behind its proxy is down (checked: the script got <code>502</code> from <code>/api/payment-methods</code> with no backend on port 8000), and so did nginx in Docker before <a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>.</li>
+  <li>Any answer below 500 means a backend is there. A 5xx means something answered <em>for</em> it: Vite's dev server answers <code>502</code> when the backend behind its proxy is down (checked: the script got <code>502</code> from <code>/api/payment-methods</code> with no backend on port 8000), and so did nginx in Docker before <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a>.</li>
   <li>With no server at all, <code>fetch</code> throws: stopped.</li>
   <li>Once it answers, reload the whole page rather than just drawing the app. The server may now be a newer version than the cached screens, and a reload is a navigation: <code>NetworkFirst</code> fetches the new app.</li>
 </ol>
@@ -283,7 +283,7 @@ uv run python ../docs/sample-book/serve.py "$PWA"      # http://127.0.0.1:8765</
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/StartGate.tsx"><code>StartGate.tsx</code></a> (123 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/UpdateBanner.tsx"><code>UpdateBanner.tsx</code></a> (209 lines) whole, each with its test. Then <a href="../../adr/0008-pwa-starts-the-app-through-a-link.md">ADR 0008</a>, for why the app starts through a link, and <a href="../../adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a> and <a href="../../adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>, for how the screens are served. Workbox's own guide to <a href="https://developer.chrome.com/docs/workbox/caching-strategies-overview">caching strategies</a> explains <code>NetworkFirst</code> and the precache in general.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/StartGate.tsx"><code>StartGate.tsx</code></a> (123 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/UpdateBanner.tsx"><code>UpdateBanner.tsx</code></a> (209 lines) whole, each with its test. Then <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0008-pwa-starts-the-app-through-a-link.md\">ADR 0008</a>, for why the app starts through a link, and <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md\">ADR 0010</a> and <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a>, for how the screens are served. Workbox's own guide to <a href="https://developer.chrome.com/docs/workbox/caching-strategies-overview">caching strategies</a> explains <code>NetworkFirst</code> and the precache in general.</p>
 
 <nav class="lessons">
   <a href="05-follow-up-dashboard-and-settings.html">← Follow-up, the Dashboard and Settings</a>

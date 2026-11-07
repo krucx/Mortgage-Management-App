@@ -1,4 +1,4 @@
-"""Mortgages: one loan against one pledged packet of jewellery (see GLOSSARY.md)."""
+"""Mortgages: one loan against one pledged packet of jewellery (see Documentation/GLOSSARY.md)."""
 
 import re
 from collections.abc import Callable, Mapping, Sequence

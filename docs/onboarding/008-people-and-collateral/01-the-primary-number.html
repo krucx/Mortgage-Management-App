@@ -20,7 +20,7 @@
 <p>The next obvious way is "any phone number they have". That fails too. Meera's second number, 9810099999, is her family's phone. Sunita Rao lives in the same house and gives the same family phone as <em>her</em> second number. If every number identified a person, Meera and Sunita would be one person.</p>
 
 <h2>The idea</h2>
-<p>Each person has exactly one number that identifies them: their <a href="../reference/glossary.html#primary-number"><dfn class="term" title="The 10-digit mobile number that identifies a person: a Customer's contact number 1 or a Standalone Referrer's phone. No two people share one.">Primary Number</dfn></a>. For a Customer it's contact number 1; for a Standalone Referrer it's their only phone. No two people, of either kind, may share a Primary Number. Contact number 2 identifies nobody, so sharing it only shows a warning (<a href="../../adr/0005-primary-number-identifies-a-person.md">ADR 0005</a>).</p>
+<p>Each person has exactly one number that identifies them: their <a href="../reference/glossary.html#primary-number"><dfn class="term" title="The 10-digit mobile number that identifies a person: a Customer's contact number 1 or a Standalone Referrer's phone. No two people share one.">Primary Number</dfn></a>. For a Customer it's contact number 1; for a Standalone Referrer it's their only phone. No two people, of either kind, may share a Primary Number. Contact number 2 identifies nobody, so sharing it only shows a warning (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0005-primary-number-identifies-a-person.md\">ADR 0005</a>).</p>
 <p>Think of the Primary Number as a seat number in a theatre with two seating areas. Each area numbers its own seats so no two seats in it clash, but someone also has to check that a ticket for seat 12 in one area isn't sold while seat 12 in the other is taken. The database checks each area. The code checks across them.</p>
 
 <h2>The flow</h2>
@@ -49,7 +49,7 @@ flowchart TD
 ⋮
 47      Column("name", String, nullable=False),
 48      Column("address", String, nullable=False),
-49      # Primary Number: identifies the person (see GLOSSARY.md).
+49      # Primary Number: identifies the person (see Documentation/GLOSSARY.md).
 50      Column("phone", String, nullable=False, unique=True, index=True),   ①  ◀
 51  )
 52
@@ -58,7 +58,7 @@ flowchart TD
 ⋮
 57      Column("name", String, nullable=False),                              ②
 58      Column("address", String, nullable=False),
-59      # Primary Number: identifies the person (see GLOSSARY.md).
+59      # Primary Number: identifies the person (see Documentation/GLOSSARY.md).
 60      Column("phone_1", String, nullable=False, unique=True, index=True),  ①  ◀
 61      Column("phone_2", String, index=True),                               ③
 ⋮    … photo, email, Aadhaar Number, PAN, ID Photos (lessons 3, 4) …
@@ -200,7 +200,7 @@ flowchart TD
   <p><strong>Predict:</strong> the Lender adds a second "Meera Sharma" with contact number 1 9999911111. Refused or saved?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p><strong>204: it would save.</strong> Nothing looks at the name. The same name with a different number is a different person (<a href="../../adr/0005-primary-number-identifies-a-person.md">ADR 0005</a>; <code>test_primary_number.py::test_the_same_name_with_a_different_number_is_a_different_customer</code>). The search and the Customers list show both, each with their number, so the Lender can tell them apart.</p>
+    <p><strong>204: it would save.</strong> Nothing looks at the name. The same name with a different number is a different person (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0005-primary-number-identifies-a-person.md\">ADR 0005</a>; <code>test_primary_number.py::test_the_same_name_with_a_different_number_is_a_different_customer</code>). The search and the Customers list show both, each with their number, so the Lender can tell them apart.</p>
   </div>
 </div>
 
@@ -286,7 +286,7 @@ flowchart TD
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="../../adr/0005-primary-number-identifies-a-person.md">ADR 0005</a> (one paragraph), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_primary_number.py"><code>tests/test_primary_number.py</code></a> from line 19 to 70: five short tests, one per rule in this lesson.</p>
+<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0005-primary-number-identifies-a-person.md\">ADR 0005</a> (one paragraph), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_primary_number.py"><code>tests/test_primary_number.py</code></a> from line 19 to 70: five short tests, one per rule in this lesson.</p>
 
 <nav class="lessons">
   <a href="index.html">← Chapter overview</a>

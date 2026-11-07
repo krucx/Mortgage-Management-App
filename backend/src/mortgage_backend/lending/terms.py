@@ -1,4 +1,4 @@
-"""Terms: a Mortgage's rate, Interest Mode and Part-Month Rule (see GLOSSARY.md)."""
+"""Terms: a Mortgage's rate, Interest Mode and Part-Month Rule (see Documentation/GLOSSARY.md)."""
 
 from enum import StrEnum
 

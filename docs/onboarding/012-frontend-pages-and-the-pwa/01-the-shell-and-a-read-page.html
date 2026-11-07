@@ -109,7 +109,7 @@ flowchart TD
 <ol class="marks">
   <li><code>GET /api/closures/dormant?page=1</code>, keeping only its <code>total</code>. It's marked stale by any change to what a Mortgage owes (<a href="../011-the-frontends-data-layer/05-saving-and-what-goes-stale.html">chapter 011, lesson 5</a>), so the dot goes away the moment the last Dormant Mortgage is Redeemed.</li>
 </ol>
-<p>A <dfn class="term" title="An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it."><a href="../reference/glossary.html#dormant">Dormant</a></dfn> Mortgage is one that is still Active but owes nothing: its jewellery should already have gone back, and the Lender only has to Redeem it. <a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a> chose a quiet dot on the menu over a separate "Ready to Redeem" state, because owing nothing is usually a slip to put right, not a step in the workflow. <code>NavLink</code> is a <code>Link</code> that adds the <code>active</code> class when its path is the current one; <code>end</code> on Dashboard stops <code>/</code> from matching every URL.</p>
+<p>A <dfn class="term" title="An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it."><a href="../reference/glossary.html#dormant">Dormant</a></dfn> Mortgage is one that is still Active but owes nothing: its jewellery should already have gone back, and the Lender only has to Redeem it. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a> chose a quiet dot on the menu over a separate "Ready to Redeem" state, because owing nothing is usually a slip to put right, not a step in the workflow. <code>NavLink</code> is a <code>Link</code> that adds the <code>active</code> class when its path is the current one; <code>end</code> on Dashboard stops <code>/</code> from matching every URL.</p>
 
 <h3>3. A read page, whole</h3>
 <figure class="snippet">
@@ -300,7 +300,7 @@ flowchart TD
 <p>Pressing back to the theme the browser would show anyway clears the choice (line 27), so the app follows the browser again. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/index.html"><code>frontend/index.html</code></a> applies a stored choice in a tiny inline script before the app draws, so a dark-mode Lender never sees a white flash. <code>localStorage</code> is kept per browser and per site, so the choice belongs to this laptop, not to the book. The CSS does the rest: <code>index.css</code> picks its colours from <code>prefers-color-scheme</code> unless <code>data-theme</code> says otherwise.</p>
 
 <h3>(g) The words on screen</h3>
-<p>Every label on a screen is UI copy, and it uses the glossary's words exactly: Customer, never "borrower"; Mortgage, never "loan"; Outstanding, never "balance". Nothing checks this (<a href="../reference/traps.html#t19">trap #19</a>, owned by <a href="../008-people-and-collateral/01-the-primary-number.html">chapter 008</a>), so when you add a label, look the word up in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md"><code>GLOSSARY.md</code></a>.</p>
+<p>Every label on a screen is UI copy, and it uses the glossary's words exactly: Customer, never "borrower"; Mortgage, never "loan"; Outstanding, never "balance". Nothing checks this (<a href="../reference/traps.html#t19">trap #19</a>, owned by <a href="../008-people-and-collateral/01-the-primary-number.html">chapter 008</a>), so when you add a label, look the word up in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a>.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="1">
@@ -327,7 +327,7 @@ flowchart TD
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/App.tsx"><code>App.tsx</code></a> whole (73 lines), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/RedeemPage.tsx"><code>RedeemPage.tsx</code></a> (37 lines): another read page with the same line 14, which hands its data to a form (lesson 3). For the menu's dot, read <a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/App.tsx"><code>App.tsx</code></a> whole (73 lines), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/RedeemPage.tsx"><code>RedeemPage.tsx</code></a> (37 lines): another read page with the same line 14, which hands its data to a form (lesson 3). For the menu's dot, read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>.</p>
 
 <nav class="lessons">
   <a href="index.html">← Chapter overview</a>

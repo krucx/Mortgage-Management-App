@@ -3,7 +3,7 @@
 Every release of Mortgage Management, newest first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
-[GLOSSARY.md](GLOSSARY.md).
+[Documentation/GLOSSARY.md](Documentation/GLOSSARY.md).
 
 ## [3.4.3] - 2026-11-07
 
@@ -605,7 +605,7 @@ updating keeps all data and Backups.
 - **Waive off**, between Redeem and Forfeit: the Customer pays what they can (or
   nothing) as the final Payment, the Lender lets off the rest of the Redemption
   Amount, and the jewellery goes back. The Mortgage is then **Waived** (see
-  GLOSSARY.md). Paying the whole Redemption Amount is refused: that is a Redemption.
+  Documentation/GLOSSARY.md). Paying the whole Redemption Amount is refused: that is a Redemption.
   - **On a Mortgage:** **Close this Mortgage** offers **Redeem… · Waive off… ·
     Forfeit…**. Waive off shows what is let off as the amount received is typed, a
     Preview, and a confirmation. Afterwards, the Mortgage shows the final Payment (with

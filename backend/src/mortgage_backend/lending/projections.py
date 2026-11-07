@@ -1,4 +1,4 @@
-"""Projections: a Mortgage's Ledger continued into the future (see GLOSSARY.md).
+"""Projections: a Mortgage's Ledger continued into the future (see Documentation/GLOSSARY.md).
 
 The ledger engine replays the Mortgage past today, with its coming Term Changes and,
 for "what if", hypothetical Payments; there is no separate maths.

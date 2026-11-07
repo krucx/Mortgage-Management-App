@@ -1,4 +1,4 @@
-"""The Cash Limit (see GLOSSARY.md): at or above it the Lender is warned, on screen,
+"""The Cash Limit (see Documentation/GLOSSARY.md): at or above it the Lender is warned, on screen,
 before lending or receiving cash. Only a warning: no Payment or Mortgage is refused
 for it, so nothing here is checked when saving. What a change writes in cash is worked
 out here, for its Preview."""

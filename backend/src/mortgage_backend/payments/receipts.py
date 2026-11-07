@@ -1,4 +1,4 @@
-"""Receipts (see GLOSSARY.md): what a Payment did, to send on WhatsApp or print.
+"""Receipts (see Documentation/GLOSSARY.md): what a Payment did, to send on WhatsApp or print.
 
 Worked out from the Replay whenever asked, so a Receipt can be reopened and resent
 later and still shows each Mortgage as it stood just after the Payment.

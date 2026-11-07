@@ -77,7 +77,7 @@
 <h3>1. Follow the term</h3>
 <table class="steps">
 <tr><th>Stop</th><th>File</th><th>What you find</th></tr>
-<tr><td>The word</td><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/GLOSSARY.md"><code>GLOSSARY.md</code></a>, <code>**Default Terms**</code></td><td>The Terms copied into every new Mortgage</td></tr>
+<tr><td>The word</td><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a>, <code>**Default Terms**</code></td><td>The Terms copied into every new Mortgage</td></tr>
 <tr><td>The route</td><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/default_terms.py"><code>lending/default_terms.py</code></a></td><td><code>DEFAULT_TERMS</code>, and <code>GET</code>/<code>PUT /api/settings/default-terms</code></td></tr>
 <tr><td>The starting values</td><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/migrations/versions/0001_config_table.py"><code>migrations/versions/0001_config_table.py</code></a>, line 25</td><td>3% Compounded Yearly full month, written when a database is created</td></tr>
 <tr><td>The test</td><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_default_terms.py"><code>tests/test_default_terms.py</code></a></td><td>Checks those values on a new database</td></tr>
@@ -167,9 +167,9 @@ git status                                  # clean</code></pre>
 
 <h2>Recap</h2>
 <ul>
-  <li>The repo is a backend and a frontend, plus the things that ship them (<code>windows/</code>, the compose files), show them (<code>docs/</code>) and explain them (<code>Documentation/</code>, <code>GLOSSARY.md</code>). <a href="01-the-repo-at-a-glance.html">Lesson 1</a></li>
+  <li>The repo is a backend and a frontend, plus the things that ship them (<code>windows/</code>, the compose files), show them (<code>docs/</code>) and explain them (<code>Documentation/</code>, <code>Documentation/GLOSSARY.md</code>). <a href="01-the-repo-at-a-glance.html">Lesson 1</a></li>
   <li><code>App.tsx</code> maps addresses to pages; <code>main.py</code> includes every router; the request's URL string connects them. Payment writes live in <code>lending/changes.py</code>. <a href="02-inside-backend-and-frontend.html">Lesson 2</a></li>
-  <li><code>GLOSSARY.md</code> says what a word means and what not to call it; the ADRs say why a rule is the way it is. <a href="03-the-words-and-the-decisions.html">Lesson 3</a></li>
+  <li><code>Documentation/GLOSSARY.md</code> says what a word means and what not to call it; the ADRs say why a rule is the way it is. <a href="03-the-words-and-the-decisions.html">Lesson 3</a></li>
   <li><code>book.py</code> builds the sample book through the API into a fresh folder; <code>serve.py</code> serves it with the clock held on 19 Oct 2026. A fresh database's Default Terms are 3% full month; the book's are 2% pro-rata. <a href="04-serve-the-sample-book.html">Lesson 4</a></li>
   <li>For hot reload, Vite on :5173 proxies <code>/api</code> to :8000: the sample book or uvicorn. Always pass scratch <code>DATA_DIR</code> and <code>BACKUP_DIR</code>, and on every <code>docker compose</code> command. <a href="05-run-it-while-you-code.html">Lesson 5</a></li>
 </ul>

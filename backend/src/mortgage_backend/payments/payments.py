@@ -1,4 +1,4 @@
-"""Payments from a Customer, each split into Allocations to their Mortgages (see GLOSSARY.md)."""
+"""Payments from a Customer, each split into Allocations to their Mortgages (see Documentation/GLOSSARY.md)."""
 
 from collections.abc import Sequence
 from datetime import date, datetime

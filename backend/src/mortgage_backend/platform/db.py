@@ -46,7 +46,7 @@ standalone_referrer_table = Table(
     Column("id", Integer, primary_key=True),
     Column("name", String, nullable=False),
     Column("address", String, nullable=False),
-    # Primary Number: identifies the person (see GLOSSARY.md).
+    # Primary Number: identifies the person (see Documentation/GLOSSARY.md).
     Column("phone", String, nullable=False, unique=True, index=True),
 )
 
@@ -56,12 +56,12 @@ customer_table = Table(
     Column("id", Integer, primary_key=True),
     Column("name", String, nullable=False),
     Column("address", String, nullable=False),
-    # Primary Number: identifies the person (see GLOSSARY.md).
+    # Primary Number: identifies the person (see Documentation/GLOSSARY.md).
     Column("phone_1", String, nullable=False, unique=True, index=True),
     Column("phone_2", String, index=True),
     Column("photo", String),  # file name under the photos folder
     Column("email", String),
-    # Aadhaar Number: only the last 4 digits are ever kept (see GLOSSARY.md).
+    # Aadhaar Number: only the last 4 digits are ever kept (see Documentation/GLOSSARY.md).
     Column("aadhaar_last4", String),
     Column("pan", String, unique=True, index=True),  # PAN: no two Customers share one
     # ID Photos: file names under the photos folder.
@@ -139,7 +139,7 @@ payment_table = Table(
     Column("received_with", Integer, ForeignKey("payment.id")),
 )
 
-# A change to a Mortgage's Terms from an Accrual Date on (see GLOSSARY.md: Term Change).
+# A change to a Mortgage's Terms from an Accrual Date on (see Documentation/GLOSSARY.md: Term Change).
 term_change_table = Table(
     "term_change",
     metadata,
@@ -170,7 +170,7 @@ audit_entry_table = Table(
     Index("ix_audit_entry_entity", "entity", "entity_id"),
 )
 
-# The Lender phoning a Customer about a Mortgage (see GLOSSARY.md: Call Note).
+# The Lender phoning a Customer about a Mortgage (see Documentation/GLOSSARY.md: Call Note).
 call_note_table = Table(
     "call_note",
     metadata,
@@ -196,7 +196,7 @@ allocation_table = Table(
     Column("discount", Integer, nullable=False, default=0),  # paise, non-cash
 )
 
-# A message to a Customer ahead of an Accrual Date (see GLOSSARY.md: Notice).
+# A message to a Customer ahead of an Accrual Date (see Documentation/GLOSSARY.md: Notice).
 notice_table = Table(
     "notice",
     metadata,

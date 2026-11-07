@@ -12,4 +12,4 @@ Uses the five default triage labels: `needs-triage`, `needs-info`, `ready-for-ag
 
 ### Domain docs
 
-Single-context: one root `GLOSSARY.md` plus `Documentation/adr/`. See `Documentation/agents/domain.md`.
+Single-context: one root `Documentation/GLOSSARY.md` plus `Documentation/adr/`. See `Documentation/agents/domain.md`.

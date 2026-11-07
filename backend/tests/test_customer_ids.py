@@ -1,5 +1,5 @@
 """A Customer's optional email, Aadhaar Number (the last 4 digits only), PAN and ID
-Photos (see GLOSSARY.md)."""
+Photos (see Documentation/GLOSSARY.md)."""
 
 import io
 

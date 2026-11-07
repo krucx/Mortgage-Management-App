@@ -15,7 +15,7 @@
 <div class="callout win"><strong>By the end</strong> you can follow how a Payment is divided and how a Mortgage is closed from the screens.</div>
 
 <h2>The problem</h2>
-<p>Meera walks in with ₹6,600 in UPI and two Mortgages open: the chain (owing ₹83,333) and the bangles (₹1,51,500). One Payment can pay several of a Customer's Mortgages. Each Mortgage's share is an <dfn class="term" title="The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date, then Principal."><a href="../reference/glossary.html#allocation">Allocation</a></dfn>. The Lender wants a sensible split suggested, and to change it if Meera says otherwise. If she pays a Mortgage's whole Outstanding, the form must say so before saving: the Mortgage will be Redeemed and the jewellery handed back (<a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>).</p>
+<p>Meera walks in with ₹6,600 in UPI and two Mortgages open: the chain (owing ₹83,333) and the bangles (₹1,51,500). One Payment can pay several of a Customer's Mortgages. Each Mortgage's share is an <dfn class="term" title="The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpaid interest, then the Interest to Date, then Principal."><a href="../reference/glossary.html#allocation">Allocation</a></dfn>. The Lender wants a sensible split suggested, and to change it if Meera says otherwise. If she pays a Mortgage's whole Outstanding, the form must say so before saving: the Mortgage will be Redeemed and the jewellery handed back (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a>).</p>
 <p>Closing is the other big job. Kavita's anklet owes nothing but is still Active (Dormant): the Lender has to Redeem it. Arjun has defaulted on two Mortgages, and the Lender might Forfeit both at once, each with its own Recovered Amount. Every figure these forms show (each Outstanding, each profit or loss, each amount let off) must be the backend's, and closing two Mortgages must close both or neither.</p>
 
 <h2>The idea</h2>
@@ -256,7 +256,7 @@ flowchart TD
 <tr class="changed"><td>Record Payment</td><td><strong>"Redeem and hand back the jewellery?"</strong> "This pays the full Outstanding of 2025-Meera-GoldChainPendant (₹83,333, including 10 days of Interest to Date)." · From Meera Sharma · Received 19 Oct 2026 · Method UPI · 2025-Meera-GoldChainPendant ₹83,333 · Redeems it. Buttons: <strong>Go back</strong> · Redeem</td></tr>
 </table>
 <p class="cite">From <code>scripts/screens.mjs</code> (section L3).</p>
-<p>Press <strong>Go back</strong>: lesson 4 walks the chain while it's still Active. The ₹83,333 includes 10 days of Interest to Date because the Outstanding counts the month under way (<a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>).</p>
+<p>Press <strong>Go back</strong>: lesson 4 walks the chain while it's still Active. The ₹83,333 includes 10 days of Interest to Date because the Outstanding counts the month under way (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a>).</p>
 
 <h3>Kavita's Dormant anklet</h3>
 <p>Open <a href="http://localhost:5173/closures">Closures</a> (the menu item with the red dot).</p>
@@ -305,7 +305,7 @@ flowchart TD
 </div>
 
 <h3>(c) One count, two places</h3>
-<p>The menu's red dot (lesson 1) and the Closures page's Dormant list both come from the same route, <code>GET /api/closures/dormant</code>: the dot reads its <code>total</code>, the page lists its <code>items</code>. The backend decides what is Dormant (<a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>; <a href="../005-replay-and-closures/05-dormant-and-reopen.html">chapter 005, lesson 5</a>), so the two can never disagree. On the Payment form a Dormant Mortgage can't be ticked: it owes nothing, so the form offers "owes nothing: Redeem it →" instead (<code>owesSomething</code>, line 28).</p>
+<p>The menu's red dot (lesson 1) and the Closures page's Dormant list both come from the same route, <code>GET /api/closures/dormant</code>: the dot reads its <code>total</code>, the page lists its <code>items</code>. The backend decides what is Dormant (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>; <a href="../005-replay-and-closures/05-dormant-and-reopen.html">chapter 005, lesson 5</a>), so the two can never disagree. On the Payment form a Dormant Mortgage can't be ticked: it owes nothing, so the form offers "owes nothing: Redeem it →" instead (<code>owesSomething</code>, line 28).</p>
 
 <h3>(d) The date, again</h3>
 <p>Every form in this lesson starts on <code>todayIso()</code>: the Payment form, <code>CloseMortgage</code>, <code>ForfeitChosen</code> and <code>WaiveChosen</code>. On the served book, each one is refused until you set 19 Oct 2026 (lesson 1). On the Lender's laptop it's the right default: most Payments and Closures are recorded the day they happen.</p>
@@ -335,7 +335,7 @@ flowchart TD
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/allocate.ts"><code>allocate.ts</code></a> whole (100 lines) with <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/allocate.test.ts"><code>tests/allocate.test.ts</code></a> beside it. Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useClosing.tsx"><code>useClosing.tsx</code></a> (81 lines) and <code>CloseMortgage</code> from line 40. For the rules behind them, <a href="../../adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a> and <a href="../../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/allocate.ts"><code>allocate.ts</code></a> whole (100 lines) with <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/allocate.test.ts"><code>tests/allocate.test.ts</code></a> beside it. Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useClosing.tsx"><code>useClosing.tsx</code></a> (81 lines) and <code>CloseMortgage</code> from line 40. For the rules behind them, <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a> and <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>.</p>
 
 <nav class="lessons">
   <a href="02-a-form-page.html">← A form page</a>
