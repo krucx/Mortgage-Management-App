@@ -5,6 +5,20 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [3.4.3] - 2026-11-07
+
+Edit Mortgage can correct the starting Terms and shows how existing Payments replay.
+**No database changes:** updating keeps all data and Backups, and 3.4.2 still starts
+on the same database.
+
+### Changed
+
+- **Starting Terms:** onboarding and user-facing documentation distinguish correcting
+  a Mortgage's starting rate, Interest Mode and Part-Month Rule from adding a dated
+  Term Change. The Edit Mortgage Preview shows Outstanding before and after and explains
+  why replay refuses a correction that makes a Payment larger than what was owed on its
+  date.
+
 ## [3.4.2] - 2026-11-07
 
 Discounts can reduce what a Customer owes alongside a Payment, including when that
