@@ -160,9 +160,9 @@ _Avoid_: Delete, reverse
 
 ## Follow-up
 
-**Notice**:
-A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped.
-_Avoid_: Reminder, notification
+**Reminder**:
+A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped. A Reminder that can still be sent includes only Mortgages that remain Active and accrue on that date; sent or skipped Reminders remain as history.
+_Avoid_: Notice, notification
 
 **Months Unpaid**:
 How many of a Mortgage's latest monthly interest charges (never its Interest to Date) its Payments have not yet covered, counting Payments against the oldest interest first and interest paid ahead against its own month; capitalised interest still counts as unpaid.
