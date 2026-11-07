@@ -32,6 +32,7 @@ jobs:
           node-version: 24
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
 
   # The one image (Documentation/adr/0013) builds and, on empty data and Backup folders,
