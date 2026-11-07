@@ -160,30 +160,11 @@ export function DashboardPage() {
 
       <div className="group activity">
         <div className="activity-controls">
-          <div className="activity-mode" role="group" aria-label="Activity timeframe type">
-            <button
-              type="button"
-              className={timeframeMode === 'month' ? 'active' : 'secondary'}
-              aria-pressed={timeframeMode === 'month'}
-              onClick={() => setTimeframeMode('month')}
-            >
-              Calendar month
-            </button>
-            <button
-              type="button"
-              className={timeframeMode === 'custom' ? 'active' : 'secondary'}
-              aria-pressed={timeframeMode === 'custom'}
-              onClick={() => setTimeframeMode('custom')}
-            >
-              Custom dates
-            </button>
-          </div>
           <label className={timeframeMode === 'custom' ? 'inactive' : undefined}>
             Month
             <input
               aria-label="Activity month"
               type="month"
-              disabled={timeframeMode === 'custom'}
               value={selectedMonth}
               onChange={(event) => {
                 const [year, month] = event.target.value.split('-').map(Number)
@@ -200,7 +181,6 @@ export function DashboardPage() {
             <input
               aria-label="Activity start date"
               type="date"
-              disabled={timeframeMode === 'month'}
               value={selectedStart}
               onChange={(event) => {
                 setStartDate(event.target.value)
@@ -214,7 +194,6 @@ export function DashboardPage() {
             <input
               aria-label="Activity end date"
               type="date"
-              disabled={timeframeMode === 'month'}
               value={selectedEnd}
               onChange={(event) => {
                 setStartDate(selectedStart)
