@@ -1904,6 +1904,9 @@
             "title": "Start Date",
             "type": "string"
           },
+          "starting_terms": {
+            "$ref": "#/components/schemas/Terms"
+          },
           "status": {
             "$ref": "#/components/schemas/MortgageStatus"
           },
@@ -1937,6 +1940,7 @@
           "net_weight_mg",
           "purity_karat",
           "lent_through",
+          "starting_terms",
           "terms",
           "term_changes",
           "upcoming_accrual_dates",
@@ -2001,6 +2005,16 @@
             "format": "date",
             "title": "Start Date",
             "type": "string"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Terms"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

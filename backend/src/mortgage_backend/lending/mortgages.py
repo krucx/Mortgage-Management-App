@@ -91,6 +91,8 @@ class MortgageIn(MortgageDetails):
 
 class MortgageEdit(MortgageDetails):
     name: str
+    # Optional for older clients; omitted Terms keep the Mortgage's current starting Terms.
+    terms: Terms | None = None
 
 
 class MortgagePhoto(BaseModel):
@@ -140,6 +142,7 @@ class Mortgage(BaseModel):
     net_weight_mg: int
     purity_karat: Purity
     lent_through: PaymentMethod | None  # None on Mortgages made before it was asked
+    starting_terms: Terms
     terms: Terms  # in force today
     term_changes: list[TermChangeOut]
     upcoming_accrual_dates: list[date]  # when a Term Change could start
@@ -217,6 +220,11 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         net_weight_mg=row["net_weight_mg"],
         purity_karat=row["purity_karat"],
         lent_through=row["lent_through"],
+        starting_terms=Terms(
+            monthly_rate_bps=row["monthly_rate_bps"],
+            interest_mode=row["interest_mode"],
+            part_month_rule=row["part_month_rule"],
+        ),
         terms=mortgage.terms_on(today),
         term_changes=[
             TermChangeOut(

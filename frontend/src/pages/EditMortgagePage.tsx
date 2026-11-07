@@ -5,6 +5,7 @@ import { PURITIES, type Mortgage, type MortgageEdit, type Purity } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
+import { TermsFields } from '../components/TermsFields'
 import { lentThroughName, usePaymentMethods } from '../components/usePaymentMethods'
 import { useProposedChange } from '../components/useProposedChange'
 import { WeightFields } from '../components/WeightFields'
@@ -13,6 +14,7 @@ import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { changes, mortgageQuery, previews } from '../requests'
 import { useMortgageChange, useServerState } from '../serverState'
 import { gramsToMg, mgToGrams } from '../weight'
+import { describeTerms, fromDraft, sameTerms, toDraft } from '../terms'
 
 /** Correct a Mortgage's details; the Ledger is replayed from them. */
 export function EditMortgagePage() {
@@ -38,10 +40,12 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     net: mgToGrams(mortgage.net_weight_mg),
     purity: mortgage.purity_karat as Purity,
     lentThrough: mortgage.lent_through,
+    terms: toDraft(mortgage.starting_terms),
   })
   const methods = usePaymentMethods()
   const changeMortgage = useMortgageChange()
 
+  const terms = fromDraft(fields.terms)
   const edited: MortgageEdit = {
     name: fields.name.trim(),
     start_date: fields.start_date,
@@ -51,11 +55,13 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     net_weight_mg: gramsToMg(fields.net),
     purity_karat: fields.purity,
     lent_through: fields.lentThrough,
+    terms,
   }
-  // Only the start date and Principal change what is owed: their Preview is shown.
+  // Starting Terms, the start date and Principal change what is owed.
   const numbersChanged =
     Number(fields.amountLent) > 0 &&
-    (fields.start_date !== mortgage.start_date || edited.amount_lent !== mortgage.amount_lent)
+    (fields.start_date !== mortgage.start_date || edited.amount_lent !== mortgage.amount_lent ||
+      !sameTerms(terms, mortgage.starting_terms))
   // Lent Through is previewed too, unshown, for what the edit would write in cash.
   const worthPreviewing =
     numbersChanged || (Number(fields.amountLent) > 0 && fields.lentThrough !== mortgage.lent_through)
@@ -69,6 +75,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     ['Gross weight', formatGrams(was.gross_weight_mg), formatGrams(edited.gross_weight_mg)],
     ['Net weight', formatGrams(was.net_weight_mg), formatGrams(edited.net_weight_mg)],
     ['Purity', `${was.purity_karat}K`, `${edited.purity_karat}K`],
+    ['Starting Terms', describeTerms(was.starting_terms), describeTerms(terms)],
     [
       'Lent Through',
       lentThroughName(methods, was.lent_through),
@@ -90,7 +97,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
       body: (
         <>
           <Summary rows={edits} />
-          {edits.some(([label]) => label === 'Start date' || label === 'Principal lent') && (
+          {numbersChanged && (
             <p className="hint">The Ledger and what is owed are replayed from these details.</p>
           )}
         </>
@@ -104,7 +111,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     <section className="card wide">
       <h2>Edit {mortgage.name}</h2>
       <p className="hint">
-        Customer and Terms are not changed here.
+        Customer cannot be changed here.
         {closed &&
           ` It is ${mortgage.status}, so its start date and Principal stay as they were; ` +
             'reopen it to change them.'}
@@ -139,6 +146,12 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
             />
           </label>
         </div>
+        <h3>Starting Terms</h3>
+        <p className="hint">
+          Correcting these replays the existing Payments from the start. Later Term Changes keep
+          their dates.
+        </p>
+        <TermsFields value={fields.terms} onChange={(terms) => setFields({ ...fields, terms })} />
         <label>
           Lent Through
           <PaymentMethodSelect

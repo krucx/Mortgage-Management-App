@@ -110,7 +110,7 @@ export type NewMortgagePreview = Schemas['NewMortgagePreview']
 export type CollateralPreview = Schemas['CollateralPreview']
 /** What a Term Change says; anything left out carries over. */
 export type TermChangeIn = Schemas['TermChangeIn']
-/** The details of a Mortgage that can be corrected (not its Customer or Terms). */
+/** The details and starting Terms of a Mortgage that can be corrected (not its Customer). */
 export type MortgageEdit = Schemas['MortgageEdit']
 
 /** Collateral Value: net weight at the Gold Rate, unless set by hand. */

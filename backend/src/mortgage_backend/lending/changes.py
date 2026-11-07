@@ -173,6 +173,9 @@ _AUDITED_EDITS = [
     "net_weight_mg",
     "purity_karat",
     "lent_through",
+    "monthly_rate_bps",
+    "interest_mode",
+    "part_month_rule",
 ]
 
 
@@ -429,7 +432,11 @@ def edit_mortgage(
         raise unprocessable("Start date cannot be in the future")
     mortgage = replay(conn, mortgage_id)
     before = mortgage.row
-    after = edit.model_dump()
+    after = edit.model_dump(exclude={"terms"})
+    after.update(edit.terms.model_dump() if edit.terms else {
+        field: before[field]
+        for field in ("monthly_rate_bps", "interest_mode", "part_month_rule")
+    })
     if after["lent_through"] is None:  # left out: kept, never cleared
         after["lent_through"] = before["lent_through"]
     changed = audit.changes(before, after, _AUDITED_EDITS)

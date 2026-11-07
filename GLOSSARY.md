@@ -47,7 +47,7 @@ A human-readable label for a Mortgage, beginning with the year it started.
 _Avoid_: Pledge number, mortgage ID
 
 **Terms**:
-A Mortgage's rate, Interest Mode and Part-Month Rule: set when it is created, and changed only by a Term Change; each month is charged under the Terms in force when it starts.
+A Mortgage's rate, Interest Mode and Part-Month Rule, set when it is created. The starting Terms may be corrected later by editing the Mortgage; a Term Change applies new Terms from its dated Accrual Date onward.
 
 **Default Terms**:
 The Terms the Lender has set to be copied into every new Mortgage.
@@ -58,7 +58,7 @@ How a Mortgage's Principal was handed to the Customer: Cash, UPI or bank transfe
 _Avoid_: Disbursal mode, payout
 
 **Term Change**:
-A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.
+A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on. Correcting a Mortgage's starting Terms replays its existing Ledger, but a Term Change remains in force from its original date.
 _Avoid_: Rate edit, amendment
 
 **Principal**:

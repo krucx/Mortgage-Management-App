@@ -2122,6 +2122,7 @@ export interface components {
              * Format: date
              */
             start_date: string;
+            starting_terms: components["schemas"]["Terms"];
             status: components["schemas"]["MortgageStatus"];
             /** Term Changes */
             term_changes: components["schemas"]["TermChangeOut"][];
@@ -2152,6 +2153,7 @@ export interface components {
              * Format: date
              */
             start_date: string;
+            terms?: components["schemas"]["Terms"] | null;
         };
         /** MortgageIn */
         MortgageIn: {
