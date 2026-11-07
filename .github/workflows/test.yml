@@ -37,6 +37,33 @@ jobs:
       - run: uv sync --frozen
       - run: uv run mypy src
       - run: uv run pytest
+      - name: Collect backend line coverage
+        if: always()
+        continue-on-error: true
+        run: uv run pytest --cov=mortgage_backend --cov-report=xml:coverage.xml --cov-report=term
+      - name: Add backend coverage to the job summary
+        if: always()
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("coverage.xml")
+          if report.exists():
+              rate = float(ET.parse(report).getroot().attrib["line-rate"])
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+                  summary.write(f"## Backend line coverage\n\n{rate:.1%}\n")
+          PY
+      - name: Upload backend coverage report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: ignore
 
   frontend:
     runs-on: ubuntu-latest
@@ -52,6 +79,34 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - name: Collect frontend line coverage
+        if: always()
+        continue-on-error: true
+        run: npm test -- --coverage --coverage.reporter=lcov --coverage.reporter=text
+      - name: Add frontend coverage to the job summary
+        if: always()
+        continue-on-error: true
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFileSync, existsSync, readFileSync } from 'node:fs'
+
+          const report = 'coverage/lcov.info'
+          if (existsSync(report)) {
+            const lines = readFileSync(report, 'utf8').match(/^LF:\d+|^LH:\d+/gm) ?? []
+            const found = lines.filter(line => line.startsWith('LF:')).reduce((sum, line) => sum + Number(line.slice(3)), 0)
+            const hit = lines.filter(line => line.startsWith('LH:')).reduce((sum, line) => sum + Number(line.slice(3)), 0)
+            const percentage = found ? (100 * hit / found).toFixed(1) : '0.0'
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Frontend line coverage\n\n${percentage}%\n`)
+          }
+          JS
+      - name: Upload frontend coverage report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/lcov.info
+          if-no-files-found: ignore
 
   # The one image (Documentation/adr/0013) builds and, on empty data and Backup folders,
   # serves the screens with their caching and answers /api. The release runs this first,
