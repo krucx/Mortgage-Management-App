@@ -46,11 +46,121 @@ def test_a_payment_pays_interest_first_then_principal(client, ramesh, mortgage):
             "mortgage_id": mortgage["id"],
             "mortgage_name": mortgage["name"],
             "amount": 19_000_00,
+            "discount": 0,
             "interest_paid": 12_000_00,
             "principal_paid": 7_000_00,
+            "discount_interest_paid": 0,
+            "discount_principal_paid": 0,
         }
     ]
     assert client.get(f"/api/payments/{payment['id']}").json() == payment
+
+
+def test_payment_discount_is_applied_after_cash_and_reported_separately(
+    client, ramesh, mortgage
+):
+    response = client.post(
+        "/api/payments",
+        json={
+            **payment_fields(ramesh, mortgage, 19_000_00),
+            "allocations": [
+                {"mortgage_id": mortgage["id"], "amount": 19_000_00, "discount": 5_000_00}
+            ],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    payment = response.json()
+    allocation = payment["allocations"][0]
+    assert payment["amount"] == allocation["amount"] == 19_000_00
+    assert allocation["interest_paid"] == 12_000_00
+    assert allocation["principal_paid"] == 7_000_00
+    assert allocation["discount"] == 5_000_00
+    assert allocation["discount_interest_paid"] == 0
+    assert allocation["discount_principal_paid"] == 5_000_00
+    assert client.get(f"/api/mortgages/{mortgage['id']}").json()["outstanding"]["total"] == 88_000_00
+
+    receipt = client.get(f"/api/payments/{payment['id']}/receipt").json()
+    assert receipt["amount"] == 19_000_00
+    assert receipt["lines"][0]["paid"] == 19_000_00
+    assert receipt["lines"][0]["discount"] == 5_000_00
+    assert "Discount" in receipt["text"]
+    reports = client.get("/api/payments", params={"month": "2026-04"}).json()
+    assert reports["interest_paid"] == 12_000_00
+
+
+def test_discount_covers_only_the_interest_cash_left_unpaid(client, ramesh, mortgage):
+    payment = client.post(
+        "/api/payments",
+        json={
+            **payment_fields(ramesh, mortgage, 2_000_00),
+            "allocations": [
+                {"mortgage_id": mortgage["id"], "amount": 2_000_00, "discount": 8_000_00}
+            ],
+        },
+    ).json()
+
+    allocation = payment["allocations"][0]
+    assert allocation["interest_paid"] == 2_000_00
+    assert allocation["principal_paid"] == 0
+    assert allocation["discount_interest_paid"] == 8_000_00
+    assert allocation["discount_principal_paid"] == 0
+    assert client.get(f"/api/mortgages/{mortgage['id']}").json()["outstanding"]["total"] == 102_000_00
+
+
+def test_voiding_a_payment_reverses_its_discount(client, ramesh, mortgage):
+    payment = client.post(
+        "/api/payments",
+        json={
+            **payment_fields(ramesh, mortgage, 2_000_00),
+            "allocations": [
+                {"mortgage_id": mortgage["id"], "amount": 2_000_00, "discount": 8_000_00}
+            ],
+        },
+    ).json()
+    assert client.get(f"/api/mortgages/{mortgage['id']}").json()["outstanding"]["total"] == 102_000_00
+
+    voided = client.post(
+        f"/api/payments/{payment['id']}/void", json={"reason": "Entered in error"}
+    ).json()
+
+    assert voided["allocations"][0]["discount"] == 8_000_00
+    assert client.get(f"/api/mortgages/{mortgage['id']}").json()["outstanding"]["total"] == 112_000_00
+
+
+def test_a_discount_can_redeem_and_reopen_voids_its_cash_and_discount(
+    client, ramesh, mortgage
+):
+    response = client.post(
+        "/api/payments",
+        json={
+            **payment_fields(ramesh, mortgage, 100_000_00),
+            "allocations": [
+                {"mortgage_id": mortgage["id"], "amount": 100_000_00, "discount": 12_000_00}
+            ],
+        },
+    )
+    assert response.status_code == 201, response.text
+    payment = response.json()
+    assert payment["amount"] == 100_000_00
+    mortgage_after = client.get(f"/api/mortgages/{mortgage['id']}").json()
+    assert mortgage_after["status"] == "redeemed", (
+        mortgage_after["status"], mortgage_after["outstanding"], mortgage_after["ledger"][-2:]
+    )
+    receipt = client.get(f"/api/payments/{payment['id']}/receipt").json()
+    assert receipt["amount"] == 100_000_00
+    assert receipt["lines"][0]["discount"] == 12_000_00
+
+    reopened = client.post(
+        f"/api/mortgages/{mortgage['id']}/reopen", json={"reason": "Recorded by mistake"}
+    )
+    assert reopened.status_code == 200
+    assert reopened.json()["status"] == "active"
+    assert reopened.json()["outstanding"]["total"] == 112_000_00
+    voided = client.get(f"/api/payments/{payment['id']}").json()
+    assert voided["voided_at"] is not None
+    assert voided["allocations"][0]["discount"] == 12_000_00
+    assert voided["allocations"][0]["discount_interest_paid"] is None
 
 
 def test_the_mortgage_ledger_shows_the_payment_and_what_is_left(

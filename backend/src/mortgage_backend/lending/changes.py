@@ -61,13 +61,14 @@ from mortgage_backend.safekeeping import audit
 
 class AllocationIn(BaseModel):
     mortgage_id: int
-    amount: int = Field(gt=0)  # paise
+    amount: int = Field(ge=0)  # cash in paise
+    discount: int = Field(default=0, ge=0)  # paise; applied after cash
 
 
 class PaymentIn(BaseModel):
     customer_id: int
     paid_on: date
-    amount: int = Field(gt=0)  # paise
+    amount: int = Field(ge=0)  # cash in paise
     method: PaymentMethod
     reference: str | None = None
     allocations: list[AllocationIn] = Field(min_length=1)
@@ -76,6 +77,8 @@ class PaymentIn(BaseModel):
     def allocations_add_up(self) -> "PaymentIn":
         if sum(allocation.amount for allocation in self.allocations) != self.amount:
             raise ValueError("Allocations must add up to the Payment amount")
+        if not any(a.amount + a.discount for a in self.allocations):
+            raise ValueError("A Payment must include cash or a Discount")
         if len({a.mortgage_id for a in self.allocations}) != len(self.allocations):
             raise ValueError("Each Mortgage can appear only once in a Payment")
         self.reference = (self.reference or "").strip() or None
@@ -314,6 +317,7 @@ def record_payment(
                 today,
                 now,
                 received_with=first,
+                discount=allocation.discount,
             )
         assert final is not None  # an Allocation is more than nothing
         if first is None:
@@ -328,7 +332,8 @@ def _redeemed_by(
     """The Mortgage, if the Allocation is its whole Outstanding on `on`: paying all of
     it Redeems it, so it is refused if the Mortgage can't be Redeemed then."""
     mortgage = replay(conn, allocation.mortgage_id)
-    if allocation.amount != mortgage.outstanding_on_closure(on).total:
+    full_payment = allocation.amount + allocation.discount
+    if full_payment != mortgage.outstanding_on_closure(on).total:
         return None
     # (Not a future date: the Payment's own checks refuse that.)
     refusal = mortgage.not_closable(on)
@@ -607,6 +612,7 @@ def _close_with_payment(
     today: date,
     now: datetime,
     received_with: int | None = None,
+    discount: int = 0,
     **closure: object,
 ) -> int | None:
     """Record the final Payment of `amount` (unless it is nothing), received with the
@@ -617,14 +623,16 @@ def _close_with_payment(
     # closes, so it is replayed after closing rather than as an ordinary Payment.
     final = None
     payment_id = None
-    if amount > 0:
+    if amount + discount > 0:
         final = PaymentIn(
             customer_id=row["customer_id"],
             paid_on=closed_on,
             amount=amount,
             method=method,
             reference=reference,
-            allocations=[AllocationIn(mortgage_id=row["id"], amount=amount)],
+            allocations=[
+                AllocationIn(mortgage_id=row["id"], amount=amount, discount=discount)
+            ],
         )
         _refuse_payment(conn, final, today)
         payment_id = _write_payment(conn, final, received_with)
@@ -674,6 +682,7 @@ def _close_redeemed(
     today: date,
     now: datetime,
     received_with: int | None = None,
+    discount: int = 0,
 ) -> int | None:
     """Record the final Payment of the Outstanding `owed` (unless it is nothing)
     and mark the Mortgage Redeemed; returns the final Payment's id."""
@@ -687,6 +696,7 @@ def _close_redeemed(
         today,
         now,
         received_with,
+        discount=discount,
         status=MortgageStatus.REDEEMED,
     )
     audit.record(

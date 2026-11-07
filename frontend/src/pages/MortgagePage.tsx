@@ -271,6 +271,7 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
             <th>Date</th>
             <th>Step</th>
             <th className="num">Amount</th>
+            <th className="num">Discount</th>
             <th className="num">Principal</th>
             <th className="num">Unpaid interest</th>
           </tr>
@@ -287,6 +288,7 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
                 )}
               </td>
               <td className="num">{formatINR(step.amount)}</td>
+              <td className="num">{step.event === 'payment' ? formatINR(step.discount) : '—'}</td>
               <td className="num">{formatINR(step.principal)}</td>
               <td className="num">{formatINR(step.unpaid_interest)}</td>
             </tr>
@@ -314,8 +316,12 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
       )
     case 'payment':
       return (
-        `Payment: ${formatINR(step.interest_paid)} to interest, ` +
-        `${formatINR(step.principal_paid)} to Principal`
+        `Payment: ${formatINR(step.interest_paid)} cash to interest, ` +
+        `${formatINR(step.principal_paid)} cash to Principal` +
+        (step.discount
+          ? `; ${formatINR(step.discount_interest_paid)} Discount to interest, ` +
+            `${formatINR(step.discount_principal_paid)} Discount to Principal`
+          : '')
       )
     case 'interest_to_date': {
       const rule = mortgage.terms.part_month_rule

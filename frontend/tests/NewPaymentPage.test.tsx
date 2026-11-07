@@ -76,6 +76,28 @@ test('a Payment that leaves something Outstanding goes to its Receipt, offering 
   expect(backend.requests.filter((r) => /redeem/.test(r))).toEqual([])
 })
 
+test('a Discount can be recorded without cash', async () => {
+  let asked: PaymentIn | undefined
+  const backend = server({
+    'POST /api/payments/preview': async (request: Request) => {
+      asked = (await request.json()) as PaymentIn
+      return changePreview([])
+    },
+  })
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+
+  fireEvent.change(await screen.findByLabelText('Discount for 2026GoldChain'), {
+    target: { value: '51500' },
+  })
+  const record = screen.getByRole('button', { name: 'Record Payment with ₹51,500 Discount' })
+  await vi.waitFor(() => expect((record as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(record)
+  await screen.findByRole('dialog')
+
+  expect(asked?.amount).toBe(0)
+  expect(asked?.allocations).toEqual([{ mortgage_id: 7, amount: 0, discount: 5_150_000 }])
+})
+
 // --- Each Mortgage's one figure: its Outstanding on the Payment date.
 
 const ring = { ...row, id: 8, name: '2026GoldRing', outstanding_total: 2_000_000 }
@@ -249,8 +271,8 @@ test("each Allocation says whether it Redeems, and the page asks for no quotes",
   showPage(backend, '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
   const asked = await record({ [row.name]: '51500', [ring.name]: '5000' })
 
-  expect(within(asked).getByText('₹51,500 · Redeems it')).toBeTruthy()
-  expect(within(asked).getByText('₹5,000 · paid')).toBeTruthy()
+  expect(within(asked).getByText('₹51,500 cash · Redeems it')).toBeTruthy()
+  expect(within(asked).getByText('₹5,000 cash')).toBeTruthy()
   expect(backend.requests.filter((r) => /outstanding-on-closure/.test(r))).toEqual([])
 })
 

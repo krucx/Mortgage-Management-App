@@ -1387,6 +1387,11 @@ export interface components {
         AllocationIn: {
             /** Amount */
             amount: number;
+            /**
+             * Discount
+             * @default 0
+             */
+            discount: number;
             /** Mortgage Id */
             mortgage_id: number;
         };
@@ -1394,6 +1399,12 @@ export interface components {
         AllocationOut: {
             /** Amount */
             amount: number;
+            /** Discount */
+            discount: number;
+            /** Discount Interest Paid */
+            discount_interest_paid: number | null;
+            /** Discount Principal Paid */
+            discount_principal_paid: number | null;
             /** Interest Paid */
             interest_paid: number | null;
             /** Mortgage Id */
@@ -1929,6 +1940,21 @@ export interface components {
              * @default 0
              */
             charged_on: number;
+            /**
+             * Discount
+             * @default 0
+             */
+            discount: number;
+            /**
+             * Discount Interest Paid
+             * @default 0
+             */
+            discount_interest_paid: number;
+            /**
+             * Discount Principal Paid
+             * @default 0
+             */
+            discount_principal_paid: number;
             /**
              * Event
              * @enum {string}
@@ -2554,6 +2580,21 @@ export interface components {
         ReceiptLineOut: {
             /** Description */
             description: string;
+            /**
+             * Discount
+             * @default 0
+             */
+            discount: number;
+            /**
+             * Discount Interest Paid
+             * @default 0
+             */
+            discount_interest_paid: number;
+            /**
+             * Discount Principal Paid
+             * @default 0
+             */
+            discount_principal_paid: number;
             /** Interest Paid */
             interest_paid: number;
             /** Mortgage Id */

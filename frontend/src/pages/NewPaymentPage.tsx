@@ -86,6 +86,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const [totalText, setTotalText] = useState('')
   const [mode, setMode] = useState<AllocationMode>('equal')
   const [amountText, setAmountText] = useState<Record<number, string>>({})
+  const [discountText, setDiscountText] = useState<Record<number, string>>({})
   const [percentText, setPercentText] = useState<Record<number, string>>({})
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const methods = usePaymentMethods()
@@ -125,6 +126,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const outstanding = chosen.map((m) => m.outstanding_total)
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
   const total = rupeesToPaise(totalText)
+  const discounts = chosen.map((m) => rupeesToPaise(discountText[m.id]))
+  const discountTotal = discounts.reduce((a, b) => a + b, 0)
 
   // Why they can't all be paid in full: the first chosen one that can't be Redeemed then
   // (not yet known while the rows for a new date load).
@@ -133,7 +136,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     : chosen.find((m) => m.not_redeemable)?.not_redeemable
 
   const amounts: number[] | null =
-    mode === 'equal'
+    total === 0
+      ? chosen.map(() => 0)
+      : mode === 'equal'
       ? suggestEqually(total, outstanding)
       : mode === 'amount'
         ? chosen.map((m) => rupeesToPaise(amountText[m.id]))
@@ -146,11 +151,13 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
 
   const problems: string[] = []
   if (chosen.length === 0) problems.push('Choose at least one Mortgage.')
-  if (total <= 0) problems.push('Enter the amount received.')
+  if (total < 0 || discountTotal < 0) problems.push('Amounts cannot be negative.')
+  if (total === 0 && discountTotal === 0) problems.push('Enter cash received or a Discount.')
   if (mode === 'percent' && chosen.some((m) => Number(percentText[m.id] || '0') < 0))
     problems.push('Percentages cannot be negative.')
   if (amounts?.some((amount) => amount < 0)) problems.push('Allocations cannot be negative.')
-  if (mode === 'percent' && amounts === null) problems.push('The percentages must add up to 100.')
+  if (total > 0 && mode === 'percent' && amounts === null)
+    problems.push('The percentages must add up to 100.')
   if (amounts && total > 0 && allocated !== total)
     problems.push(`The Allocations add up to ${formatINR(allocated)}, not ${formatINR(total)}.`)
   // What saving would send; previewed (and refused, if it would be) by the backend.
@@ -164,8 +171,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           method,
           reference: reference.trim() || null,
           allocations: chosen
-            .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i] }))
-            .filter((allocation) => allocation.amount > 0),
+            .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i], discount: discounts[i] }))
+            .filter((allocation) => allocation.amount > 0 || allocation.discount > 0),
         }
 
   /** Switching to a manual mode starts from the current equal Allocations. */
@@ -184,6 +191,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   function fillOutstanding() {
     setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, paiseToRupees(outstanding[i])])))
     setTotalText(paiseToRupees(totalOutstanding))
+    setDiscountText(Object.fromEntries(chosen.map((m) => [m.id, ''])))
     setMode('amount')
   }
 
@@ -210,7 +218,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         title:
           redeemed.length > 0
             ? 'Redeem and hand back the jewellery?'
-            : `Record a Payment of ${formatINR(payment.amount)}?`,
+            : `Record a Payment of ${formatINR(payment.amount)}${payment.allocations.some((a) => a.discount > 0) ? ' cash and Discount' : ''}?`,
         body: (
           <>
             {redeemed.map((p) => (
@@ -228,10 +236,10 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                 ],
                 ...payment.allocations.map((a): [string, string] => [
                   chosen.find((m) => m.id === a.mortgage_id)?.name ?? '',
-                  formatINR(a.amount) +
+                  `${formatINR(a.amount)} cash${a.discount ? ` + ${formatINR(a.discount)} Discount` : ''}` +
                     (redeemed.some((p) => p.mortgage_id === a.mortgage_id)
                       ? ' · Redeems it'
-                      : ' · paid'),
+                      : ''),
                 ]),
               ]}
             />
@@ -261,8 +269,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             Amount received (₹)
             <input
               type="number"
-              required
-              min="0.01"
+              required={discountTotal === 0}
+              min="0"
               step="0.01"
               value={totalText}
               onChange={(event) => setTotalText(event.target.value)}
@@ -328,6 +336,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                     <th className="num">Outstanding on {formatDate(paidOn)}</th>
                     {mode === 'percent' && <th className="num">%</th>}
                     <th className="num">Allocation</th>
+                    <th className="num">Discount</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -388,6 +397,23 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                             formatINR(amount)
                           )}
                         </td>
+                        <td className="num">
+                          {index < 0 ? (
+                            '—'
+                          ) : (
+                            <input
+                              type="number"
+                              className="small-input"
+                              aria-label={`Discount for ${m.name}`}
+                              min="0"
+                              step="0.01"
+                              value={discountText[m.id] ?? ''}
+                              onChange={(event) =>
+                                setDiscountText({ ...discountText, [m.id]: event.target.value })
+                              }
+                            />
+                          )}
+                        </td>
                       </tr>
                     )
                   })}
@@ -397,7 +423,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           )}
           <p className="hint">
             Within each Mortgage the Allocation pays unpaid interest first, then the Interest
-            to Date, then Principal.
+            to Date, then Principal. Its Discount applies after the cash Allocation in the
+            same order.
           </p>
           {owingNothing.map((m) => (
             <p key={m.id} className="hint">
@@ -415,7 +442,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
           />
         </label>
 
-        {total > 0 && problems.length > 0 && (
+        {(total > 0 || discountTotal > 0) && problems.length > 0 && (
           <ul className="problems">
             {problems.map((problem) => (
               <li key={problem}>{problem}</li>
@@ -430,7 +457,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         )}
         <div className="row">
           <button type="submit" disabled={!canSave}>
-            {saving ? 'Saving…' : `Record Payment${total > 0 ? ` of ${formatINR(total)}` : ''}`}
+            {saving
+              ? 'Saving…'
+              : `Record Payment${total > 0 ? ` of ${formatINR(total)}` : ''}${discountTotal > 0 ? ` with ${formatINR(discountTotal)} Discount` : ''}`}
           </button>
         </div>
         {(error ?? listed.error) && (

@@ -52,6 +52,9 @@ export function ReceiptPage() {
             <th className="num">Paid</th>
             <th className="num">Interest</th>
             <th className="num">Principal</th>
+            <th className="num">Discount</th>
+            <th className="num">Discount to interest</th>
+            <th className="num">Discount to Principal</th>
             <th className="num">Still owed</th>
           </tr>
         </thead>
@@ -65,6 +68,9 @@ export function ReceiptPage() {
               <td className="num">{formatINR(line.paid)}</td>
               <td className="num">{formatINR(line.interest_paid)}</td>
               <td className="num">{formatINR(line.principal_paid)}</td>
+              <td className="num">{formatINR(line.discount)}</td>
+              <td className="num">{formatINR(line.discount_interest_paid)}</td>
+              <td className="num">{formatINR(line.discount_principal_paid)}</td>
               <td className="num">{formatINR(line.owed_after)}</td>
             </tr>
           ))}
@@ -76,12 +82,17 @@ export function ReceiptPage() {
               <td className="num">{formatINR(receipt.amount)}</td>
               <td />
               <td />
+              <td className="num">
+                {formatINR(receipt.lines.reduce((total, line) => total + line.discount, 0))}
+              </td>
+              <td />
+              <td />
               <td className="num">{formatINR(receipt.total_owed)}</td>
             </tr>
           </tfoot>
         )}
       </table>
-      <p className="hint">Each payment pays interest first, then Principal.</p>
+      <p className="hint">Cash is applied first; any Discount is applied afterwards, each to interest first and then Principal.</p>
     </section>
   )
 }

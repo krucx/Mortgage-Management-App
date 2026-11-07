@@ -25,8 +25,11 @@ const payment: Payment = {
       mortgage_id: 7,
       mortgage_name: mortgage.name,
       amount: 100_000,
+      discount: 0,
       interest_paid: 75_000,
       principal_paid: 25_000,
+      discount_interest_paid: 0,
+      discount_principal_paid: 0,
     },
   ],
 }

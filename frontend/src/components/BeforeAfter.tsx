@@ -144,6 +144,8 @@ function LedgerChanges({ changes }: { changes: LedgerChange[] }) {
     return <p className="hint">No change to the Ledger so far: only the months ahead differ.</p>
   }
   const amount = (step: LedgerStep | null) => (step ? formatINR(step.amount) : '—')
+  const discount = (step: LedgerStep | null) =>
+    step?.event === 'payment' && step.discount ? formatINR(step.discount) : '—'
   const owed = (step: LedgerStep | null) =>
     step ? formatINR(step.principal + step.unpaid_interest) : '—'
   return (
@@ -153,6 +155,8 @@ function LedgerChanges({ changes }: { changes: LedgerChange[] }) {
           <tr>
             <th>Ledger steps that change</th>
             <th className="num">Amount now</th>
+            <th className="num">After</th>
+            <th className="num">Discount now</th>
             <th className="num">After</th>
             <th className="num">Owed after the step: now</th>
             <th className="num">After</th>
@@ -168,6 +172,8 @@ function LedgerChanges({ changes }: { changes: LedgerChange[] }) {
               </td>
               <td className="num">{amount(change.before)}</td>
               <td className="num changed">{amount(change.after)}</td>
+              <td className="num">{discount(change.before)}</td>
+              <td className="num changed">{discount(change.after)}</td>
               <td className="num">{owed(change.before)}</td>
               <td className="num changed">{owed(change.after)}</td>
             </tr>

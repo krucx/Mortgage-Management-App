@@ -25,8 +25,11 @@ class ReceiptLine(BaseModel):
 
     description: str  # of the Mortgage's jewellery, as the Customer knows it
     paid: int  # paise: the Allocation
+    discount: int = 0
     interest_paid: int
     principal_paid: int
+    discount_interest_paid: int = 0
+    discount_principal_paid: int = 0
     owed_after: int  # Outstanding just after the Payment
     redeemed: bool = False  # the Allocation was its final Payment: jewellery returned
 
@@ -138,6 +141,15 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
                     ("Paid", line.paid),
                     ("  Interest", line.interest_paid),
                     ("  Principal", line.principal_paid),
+                    *(
+                        [
+                            ("Discount", line.discount),
+                            ("  Interest", line.discount_interest_paid),
+                            ("  Principal", line.discount_principal_paid),
+                        ]
+                        if line.discount
+                        else []
+                    ),
                     ("Still owed", line.owed_after),
                 ],
             )

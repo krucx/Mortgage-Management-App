@@ -65,6 +65,9 @@ export function PaymentPage() {
               <th className="num">Allocation</th>
               <th className="num">To interest</th>
               <th className="num">To Principal</th>
+              <th className="num">Discount</th>
+              <th className="num">Discount to interest</th>
+              <th className="num">Discount to Principal</th>
             </tr>
           </thead>
           <tbody>
@@ -81,6 +84,17 @@ export function PaymentPage() {
                 </td>
                 <td className="num">
                   {allocation.principal_paid === null ? '—' : formatINR(allocation.principal_paid)}
+                </td>
+                <td className="num">{formatINR(allocation.discount)}</td>
+                <td className="num">
+                  {allocation.discount_interest_paid === null
+                    ? '—'
+                    : formatINR(allocation.discount_interest_paid)}
+                </td>
+                <td className="num">
+                  {allocation.discount_principal_paid === null
+                    ? '—'
+                    : formatINR(allocation.discount_principal_paid)}
                 </td>
               </tr>
             ))}

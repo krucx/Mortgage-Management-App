@@ -47,9 +47,12 @@ class AllocationOut(BaseModel):
     mortgage_id: int
     mortgage_name: str
     amount: int
+    discount: int
     # How it was applied: interest first, then Principal (None once Voided)
     interest_paid: int | None
     principal_paid: int | None
+    discount_interest_paid: int | None
+    discount_principal_paid: int | None
 
 
 class Payment(BaseModel):
@@ -112,7 +115,11 @@ def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
     order the Allocations were made."""
     return (
         conn.execute(
-            select(mortgage_table, allocation_table.c.amount.label("allocated"))
+            select(
+                mortgage_table,
+                allocation_table.c.amount.label("allocated"),
+                allocation_table.c.discount,
+            )
             .join(
                 allocation_table, allocation_table.c.mortgage_id == mortgage_table.c.id
             )
@@ -146,8 +153,11 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
                 mortgage_id=mortgage["id"],
                 mortgage_name=mortgage["name"],
                 amount=mortgage["allocated"],
+                discount=mortgage["discount"],
                 interest_paid=step.interest_paid if step else None,
                 principal_paid=step.principal_paid if step else None,
+                discount_interest_paid=step.discount_interest_paid if step else None,
+                discount_principal_paid=step.discount_principal_paid if step else None,
             )
         )
     return Payment(

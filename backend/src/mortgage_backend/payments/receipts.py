@@ -96,8 +96,11 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
             description=described[mortgage["id"]],
             mortgage_id=mortgage["id"],
             paid=mortgage["allocated"],
+            discount=mortgage["discount"],
             interest_paid=step.interest_paid,
             principal_paid=step.principal_paid,
+            discount_interest_paid=step.discount_interest_paid,
+            discount_principal_paid=step.discount_principal_paid,
             owed_after=0
             if waived
             else replayed[mortgage["id"]].owed_after(paid_by, payment["paid_on"]),
@@ -108,8 +111,15 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
             line = line.model_copy(
                 update={
                     "paid": earlier.paid + line.paid,
+                    "discount": earlier.discount + line.discount,
                     "interest_paid": earlier.interest_paid + line.interest_paid,
                     "principal_paid": earlier.principal_paid + line.principal_paid,
+                    "discount_interest_paid": (
+                        earlier.discount_interest_paid + line.discount_interest_paid
+                    ),
+                    "discount_principal_paid": (
+                        earlier.discount_principal_paid + line.discount_principal_paid
+                    ),
                     "redeemed": earlier.redeemed or line.redeemed,
                 }
             )

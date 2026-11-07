@@ -162,7 +162,7 @@ class MortgageReplay:
         ledger = self.ledger(on)
         at = next(i for i, s in enumerate(ledger) if s.payment_id == payment_id)
         later = sum(
-            s.amount
+            s.amount + s.discount
             for s in ledger[at + 1 :]
             if s.event in ("payment", "waived", "forfeited")
         )
@@ -291,6 +291,7 @@ def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageR
         select(
             allocation_table.c.mortgage_id,
             allocation_table.c.amount,
+            allocation_table.c.discount,
             allocation_table.c.payment_id,
             payment_table.c.paid_on,
         )
@@ -305,6 +306,7 @@ def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageR
                 on=allocation.paid_on,
                 amount=allocation.amount,
                 payment_id=allocation.payment_id,
+                discount=allocation.discount,
             )
         )
     changes: dict[int, list[TermChange]] = {id_: [] for id_ in ids}

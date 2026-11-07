@@ -31,6 +31,7 @@ class Allocation:
     on: date
     amount: int  # paise
     payment_id: int
+    discount: int = 0  # paise, applied after cash
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,9 @@ class LedgerStep:
     paid_ahead: int = 0
     interest_paid: int = 0  # payment steps: the part that paid interest
     principal_paid: int = 0  # payment steps: the part that paid Principal
+    discount: int = 0  # payment steps: non-cash reduction of the debt
+    discount_interest_paid: int = 0
+    discount_principal_paid: int = 0
     payment_id: int | None = None  # None for a hypothetical Payment in a Projection
     terms: Terms | None = None  # term_changed steps: the Terms from then on
 
@@ -94,8 +98,11 @@ class Overpayment(Exception):
     """An Allocation larger than everything owed on its date."""
 
     def __init__(self, allocation: Allocation, outstanding: int) -> None:
+        applied = f"{allocation.amount} cash"
+        if allocation.discount:
+            applied += f" and {allocation.discount} Discount"
         super().__init__(
-            f"Payment of {allocation.amount} paise on {allocation.on} exceeds the "
+            f"{applied} paise on {allocation.on} exceeds the "
             f"{outstanding} paise owed"
         )
         self.payment_id = allocation.payment_id
@@ -224,7 +231,9 @@ class _Run:
         """What would redeem it on `on`: everything owed, the Interest to Date too."""
         return self.owed() + self.to_date_owed(on)
 
-    def pay(self, on: date, amount: int, payment_id: int | None) -> None:
+    def pay(
+        self, on: date, amount: int, payment_id: int | None, discount: int = 0
+    ) -> None:
         """Unpaid interest first, then the Interest to Date (paid ahead of the month's
         interest), then Principal."""
         to_unpaid = min(amount, self.unpaid)
@@ -233,6 +242,12 @@ class _Run:
         self.unpaid -= to_unpaid
         self.paid_ahead += ahead
         self.principal -= to_principal
+        discount_unpaid = min(discount, self.unpaid)
+        discount_ahead = min(discount - discount_unpaid, self.to_date_owed(on))
+        discount_principal = discount - discount_unpaid - discount_ahead
+        self.unpaid -= discount_unpaid
+        self.paid_ahead += discount_ahead
+        self.principal -= discount_principal
         self.steps.append(
             LedgerStep(
                 on,
@@ -242,7 +257,10 @@ class _Run:
                 self.unpaid,
                 interest_paid=to_unpaid + ahead,
                 principal_paid=to_principal,
-                paid_ahead=ahead,
+                paid_ahead=ahead + discount_ahead,
+                discount=discount,
+                discount_interest_paid=discount_unpaid + discount_ahead,
+                discount_principal_paid=discount_principal,
                 payment_id=payment_id,
             )
         )
@@ -253,9 +271,14 @@ class _Run:
         while self.pending and self.pending[0].on <= day:
             allocation = self.pending.pop(0)
             owed = self.outstanding(allocation.on)
-            if allocation.amount > owed:
+            if allocation.amount + allocation.discount > owed:
                 raise Overpayment(allocation, owed)
-            self.pay(allocation.on, allocation.amount, allocation.payment_id)
+            self.pay(
+                allocation.on,
+                allocation.amount,
+                allocation.payment_id,
+                allocation.discount,
+            )
 
     def accrue_through(self, day: date) -> None:
         """Every Accrual Date up to `day`, with the Payments before and on each."""
@@ -398,7 +421,7 @@ def compute_ledger(
     run.pay_through(as_of)
     cap = None
     if closing and closure == "redeemed":  # what the final Payment left for it
-        cap = max(0, sum(a.amount for a in final) - run.owed())
+        cap = max(0, sum(a.amount + a.discount for a in final) - run.owed())
     run.charge_interest_to_date(as_of, cap)
     run.pending = final
     run.pay_through(as_of)

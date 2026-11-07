@@ -193,6 +193,7 @@ allocation_table = Table(
         "mortgage_id", Integer, ForeignKey("mortgage.id"), nullable=False, index=True
     ),
     Column("amount", Integer, nullable=False),  # paise
+    Column("discount", Integer, nullable=False, default=0),  # paise, non-cash
 )
 
 # A message to a Customer ahead of an Accrual Date (see GLOSSARY.md: Notice).
