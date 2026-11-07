@@ -1,0 +1,32 @@
+name: Critical finding issues
+
+on:
+  workflow_run:
+    workflows: [CodeQL, Container scan]
+    types: [completed]
+  schedule:
+    - cron: '53 6 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  sync:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event != 'pull_request')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      security-events: read
+      vulnerability-alerts: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      - name: Reconcile critical findings
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/critical-findings.mjs
