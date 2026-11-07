@@ -30,6 +30,6 @@ never touches a real database. Then look over the screenshots and the pages, and
 - **`call_sheet.py`** fills in the day's exported Call Sheet, for its import scene.
 - **`shots.mjs`** opens each scene in a browser (its clock on the same day), photographs
   it, and records where each numbered marker of `story.html` sits on it. Scenes that change
-  the book (approving a Notice, Payments) come last.
+  the book (approving a Reminder, Payments) come last.
 - **`publish.py`** writes the screenshots to `docs/shots` as WebP, sets each `<img>`'s
   width and height on the pages, and updates `story.html`'s `SPOTS`.
