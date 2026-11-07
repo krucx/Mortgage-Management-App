@@ -1152,7 +1152,7 @@ figure.chart .marker text {
 .dashboard .group.collateral { --tone: var(--tone-collateral); }
 .dashboard .group.closed { --tone: var(--tone-closed); }
 .dashboard .group.ahead { --tone: var(--tone-owed); }
-.dashboard .group.activity { --tone: var(--tone-money-in); }
+.dashboard .group.activity { --tone: var(--tone-owed); }
 
 .dashboard .group {
   display: grid;
@@ -1184,6 +1184,10 @@ figure.chart .marker text {
   align-content: start;
   border-left: 4px solid var(--tone);
   background: color-mix(in srgb, var(--tone) 7%, var(--surface));
+}
+
+.dashboard .group.activity .tiles {
+  margin-top: 0.25rem;
 }
 
 .dashboard .activity-kpi strong {

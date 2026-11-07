@@ -119,6 +119,7 @@ export function DashboardPage() {
   const toCall = figures.call_list_count
   const selectedStart = startDate ?? figures.activity_start_date
   const selectedEnd = endDate ?? figures.activity_end_date
+  const selectedMonth = selectedStart.slice(0, 7)
   const invalidTimeframe = selectedEnd < selectedStart
 
   return (
@@ -157,8 +158,22 @@ export function DashboardPage() {
       </div>
 
       <div className="group activity">
-        <h3>Activity in timeframe</h3>
         <div className="activity-controls">
+          <label>
+            Month
+            <input
+              aria-label="Activity month"
+              type="month"
+              value={selectedMonth}
+              onChange={(event) => {
+                const [year, month] = event.target.value.split('-').map(Number)
+                if (!year || !month) return
+                const lastDay = new Date(year, month, 0).getDate()
+                setStartDate(`${event.target.value}-01`)
+                setEndDate(`${event.target.value}-${String(lastDay).padStart(2, '0')}`)
+              }}
+            />
+          </label>
           <label>
             From
             <input
