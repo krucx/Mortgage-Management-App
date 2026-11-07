@@ -24,6 +24,8 @@
 
 <h2>The idea</h2>
 <p>Both routes end in the same function, <code>_close_redeemed</code>. It records the money as a <a href="../reference/glossary.html#final-payment"><dfn class="term" title="What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.">Final Payment</dfn></a>, marks the Mortgage Redeemed on that date, checks the replay and writes History. The Redeem route gets the amount from the quote. The Payment route spots an Allocation that equals the quote on its date, and hands it over instead of writing an ordinary Payment.</p>
+<p>The combined cash Allocation and Discount can also equal the quote. The Mortgage is then Redeemed, and the Final Payment records that cash and Discount together. Reopen Voids this Final Payment, so Replay restores the Outstanding as if neither reduction had happened. Discounts on an ordinary Payment that does not Redeem are reversed by Voiding that Payment. See <a href="../../adr/0014-discounts-are-non-cash-payment-reductions.md">ADR 0014</a>.</p>
+<p>One tested case records ₹100,000 cash plus a ₹12,000 Discount on a Mortgage owing ₹112,000: the Payment Redeems it, but the Receipt's cash total remains ₹100,000. Reopen Voids that Final Payment and restores the ₹112,000 Outstanding. The behavior is covered by <code>test_a_discount_can_redeem_and_reopen_voids_its_cash_and_discount</code> in <code>backend/tests/test_payments.py</code>.</p>
 
 <h2>The flow</h2>
 <figure class="diagram">

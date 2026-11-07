@@ -14,7 +14,8 @@
 <h2>The problem this chapter solves</h2>
 <p>Money comes in to the Lender every day. Meera hands over ₹12,000 by UPI and says "₹2,000 for the chain, the rest for the bangles". Lakshmi brings ₹2,03,600 by bank transfer to take her necklace home. Someone types ₹16,000 when they meant ₹6,000. Kavita brings ₹25,000 in notes, and the Lender has to remember that Government of India rules want sums that large paid by UPI or bank transfer. And every Customer expects a message on WhatsApp saying what they paid and what they still owe.</p>
 <p>Each of those needs care. A <a href="../reference/glossary.html#payment"><dfn class="term" title="A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt.">Payment</dfn></a> that covers two Mortgages has to be divided between them, in Allocations that add up. A mistake can't just be deleted or edited, because the Ledger of every Mortgage it touched would quietly change, with no trace of why. The cash warning has to treat "one sum" the way the rules do, even when the app stores that sum as two rows. And the <a href="../reference/glossary.html#receipt"><dfn class="term" title="The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.">Receipt</dfn></a> has to show the same figures if the Lender resends it next month, and must never show the Customer the Lender's internal labels.</p>
-<p>This chapter is about how the app stores a Payment, how it corrects one, when it warns about cash, and how it works out a Receipt.</p>
+<p>Each Mortgage may also receive a Discount: a non-cash reduction beside its cash Allocation. Discounts affect the replay and Receipt, but not cash received, cash warnings, or cash-only reports.</p>
+<p>This chapter is about how the app stores cash Allocations and non-cash Discounts on a Payment, how it corrects one, when it warns about cash, and how it works out a Receipt.</p>
 
 <h2>What you'll be able to do</h2>
 <ul>
@@ -22,6 +23,7 @@
   <li>Say how many <code>payment</code> rows a Payment makes, which id comes back, and why the API never shows <code>received_with</code>.</li>
   <li>Correct a wrong Payment with a Void and a new Payment, and say which Voids are refused.</li>
   <li>Say what counts as one cash sum, and why the Cash Limit only warns.</li>
+  <li>Explain how a Discount is confirmed, capped to the remaining Outstanding, applied after cash, and reversed with its Payment; distinguish it from cash-based reports.</li>
   <li>Rebuild any Receipt's figures, and explain why it can be resent months later.</li>
 </ul>
 

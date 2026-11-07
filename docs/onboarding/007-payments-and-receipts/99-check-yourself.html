@@ -69,6 +69,13 @@
   <button class="opt">[₹80,000], the Principal it was lent</button>
   <div class="why"><code>cash_sums</code> looks only at new <code>payment</code> rows and Principals lent in cash that are new or larger. A Forfeit records a recovered amount on the Mortgage, not a Payment. (Lesson 4.)</div>
 </div>
+<div class="quiz" data-answer="2">
+  <p class="q">9. A Payment gives ₹2,000 cash and a ₹8,000 Discount to one Mortgage. What is reported as cash, and what happens if the Discount exceeds the remaining Outstanding?</p>
+  <button class="opt">₹10,000 cash; the excess is silently ignored</button>
+  <button class="opt">₹8,000 cash; the Payment is refused</button>
+  <button class="opt">₹2,000 cash; after confirmation the Discount is capped at the remaining Outstanding</button>
+  <div class="why">Discount is non-cash and cash reports include only the Payment's cash amount. The screen asks before capping an over-balance Discount; its large-Discount confirmation is separate. (Chapters 007 lesson 1 and 012 lesson 3, ADR 0014.)</div>
+</div>
 <p><span class="score"></span></p>
 
 <h2>Hands-on: break the link between the parts</h2>

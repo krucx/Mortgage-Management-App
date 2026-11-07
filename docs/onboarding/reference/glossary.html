@@ -186,6 +186,11 @@
   <span class="avoid">Avoid: Split, contribution</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
   <span class="taught">In the code: <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">003 · Lesson 4</a>, <a href="../004-the-ledger-engine/03-the-order-inside-a-day.html">004 · Lesson 3</a>, <a href="../007-payments-and-receipts/01-a-payment-and-its-allocations.html">007 · Lesson 1</a></span></dd>
+<dt id="discount">Discount</dt>
+<dd>A non-cash reduction to what a Customer owes on one Mortgage, recorded alongside that Mortgage&#x27;s cash Allocation in a Payment. Cash is applied first; the Discount then pays unpaid interest, the Interest to Date, and Principal, in that order. It can contribute to Redeeming the Mortgage. Voiding the Payment, including when Reopen undoes a Redemption, reverses both the cash and Discount.
+  <span class="avoid">Avoid: Waiver (a Discount does not itself close a Mortgage)</span>
+  <span class="taught">Taught in <a href="../007-payments-and-receipts/01-a-payment-and-its-allocations.html">007 · Lesson 1</a></span>
+  <span class="taught">In the code: <a href="../012-frontend-pages-and-the-pwa/03-the-money-forms.html">012 · Lesson 3</a></span></dd>
 <dt id="cash-limit">Cash Limit</dt>
 <dd>The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage&#x27;s Principal lent.
   <span class="avoid">Avoid: Cash cap, cash ceiling</span>
@@ -282,7 +287,7 @@
   <span class="taught">In the code: <a href="../005-replay-and-closures/04-waived-and-forfeited.html">005 · Lesson 4</a></span></dd>
 </dl>
 <footer>
-  Copied from <code>GLOSSARY.md</code> at commit <code>61bbea2</code>; rechecked at <code>87a96c7</code>; Simulation and Lump Sum added at <code>756ae3a</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
+  Copied from <code>GLOSSARY.md</code> at commit <code>13e27a0</code>. If the two ever differ, <code>GLOSSARY.md</code> is right.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a>
 </footer>
 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>

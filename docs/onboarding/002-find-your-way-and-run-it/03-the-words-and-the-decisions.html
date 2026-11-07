@@ -62,7 +62,7 @@ flowchart TD
 <p>To find a term, search the file for <code>**Default Terms**</code>. The course's own <a href="../reference/glossary.html">glossary sheet</a> copies the same entries word for word and says which lesson teaches each.</p>
 
 <h2>How an ADR is laid out</h2>
-<p>There are 12 ADRs, numbered <code>0001</code> to <code>0012</code>. The file name is the number plus the decision in a few words, so the folder listing reads like a table of contents:</p>
+<p>There are 14 ADRs, numbered <code>0001</code> to <code>0014</code>. The file name is the number plus the decision in a few words, so the folder listing reads like a table of contents:</p>
 <table class="wide">
 <tr><th>ADR</th><th>Decision</th></tr>
 <tr><td>0001</td><td>The Ledger is derived, not stored</td></tr>
@@ -77,6 +77,8 @@ flowchart TD
 <tr><td>0010</td><td>Without Docker, the backend serves the app's built screens itself</td></tr>
 <tr><td>0011</td><td>Outstanding includes the Interest to Date, today included</td></tr>
 <tr><td>0012</td><td>Dormant Mortgages are flagged, not Redeemed automatically</td></tr>
+<tr><td>0013</td><td>One Docker image serves the backend and the built screens</td></tr>
+<tr><td>0014</td><td>Discounts are non-cash reductions alongside a Payment</td></tr>
 </table>
 <p>Inside, an ADR is short: a heading that states the decision, then one to three paragraphs giving the situation, the decision and its reasons. Some end with <em>Considered Options</em>, the alternatives and why they lost. A new decision takes the next number. When a decision replaces an older rule, its ADR says what it replaced and why, as 0011 does about the old Redemption Amount.</p>
 <div class="callout"><strong>Rule:</strong> if your change contradicts an ADR, say so in the issue or commit and argue for reopening it. Never quietly work around one.</div>

@@ -147,7 +147,7 @@ The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpa
 _Avoid_: Split, contribution
 
 **Discount**:
-A non-cash reduction to what a Customer owes on a Mortgage, recorded with a Payment and applied after its cash Allocation: first to unpaid interest, then the Interest to Date, then Principal.
+A non-cash reduction to what a Customer owes on one Mortgage, recorded alongside that Mortgage's cash Allocation in a Payment. Cash is applied first; the Discount then pays unpaid interest, the Interest to Date, and Principal, in that order. It can contribute to Redeeming the Mortgage. Voiding the Payment, including when Reopen undoes a Redemption, reverses both the cash and Discount.
 _Avoid_: Waiver (a Discount does not itself close a Mortgage)
 
 **Cash Limit**:

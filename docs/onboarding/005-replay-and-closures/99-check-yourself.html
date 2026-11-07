@@ -10,7 +10,7 @@
 <body>
 <p class="kicker">Chapter 005 · Check yourself</p>
 <h1>Check yourself</h1>
-<p class="lede">Questions mixed from all six lessons: work out a quote by hand, choose the Closure, predict whether a Payment Redeems or is refused. Then make the quote count its own Final Payment, and see which tests notice.</p>
+<p class="lede">Questions mixed from all six lessons: work out a quote by hand, choose the Closure, predict whether cash plus Discount Redeems or is refused, and follow Reopen's reversal. Then make the quote count its own Final Payment, and see which tests notice.</p>
 
 <h2>Quiz</h2>
 <p>Questions 1 and 2 use Sunita's mangalsutra: ₹35,000 lent on 21 Sep 2026, on the sample book's Default Terms (2% a month, Compounded Yearly, pro-rata), with no Payments. That's ₹700 a month, and it accrues on the 21st.</p>
@@ -91,6 +91,13 @@
   <button class="opt">The route takes no database connection to use</button>
   <button class="opt">Its tables are wiped by the daily run each day</button>
   <div class="why"><code>simulate(simulation: SimulationIn)</code> has no <code>EngineDep</code>: it hands the inputs straight to <code>compute_ledger</code>. Rolling back is how a Preview works (chapter 006), on a real Mortgage. There are no Simulation tables. <code>test_a_simulation_stores_nothing</code> counts every table's rows before and after to pin it (lesson 6).</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">11. A Mortgage owing ₹112,000 gets ₹100,000 cash and a ₹12,000 Discount in one Payment. What does its Receipt report, and what does Reopen do?</p>
+  <button class="opt">₹112,000 cash; Reopen keeps the Discount applied</button>
+  <button class="opt">₹100,000 cash; Reopen Voids the Final Payment and restores the ₹112,000 Outstanding</button>
+  <button class="opt">₹100,000 cash; Reopen reverses only the cash</button>
+  <div class="why">The combined cash and Discount Redeem the Mortgage, but the Receipt's cash total remains ₹100,000. Reopen Voids the Redemption's Final Payment, reversing its cash and Discount. (Lesson 3, ADR 0014.)</div>
 </div>
 <p><span class="score"></span></p>
 

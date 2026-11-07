@@ -21,6 +21,7 @@
 <h2>The idea</h2>
 <p><strong>The suggestion is the screen's, the rules are the backend's.</strong> <code>allocateEqually</code> in <code>allocate.ts</code> proposes equal whole-rupee shares, each at most that Mortgage's Outstanding. It's only a starting point; the Preview says whether the Payment is acceptable, as saving would.</p>
 <p><strong>A Redemption is read from the Preview, not worked out.</strong> If the Preview says a Mortgage would be Redeemed, the confirmation changes to "Redeem and hand back the jewellery?".</p>
+<p><strong>A Discount has its own confirmations.</strong> On the Payment form it is entered per Mortgage, separately from cash. A Discount over ₹500 prompts for confirmation. If it exceeds that Mortgage's remaining Outstanding after the cash Allocation, the form shows the reduction to the cap and asks before saving the capped amount. The Preview still decides whether cash plus Discount Redeems the Mortgage.</p>
 <p><strong>A Closure is a draft too.</strong> <code>useClosing</code> wraps <code>useProposedChange</code> for the three kinds (Redeem, Waive off, Forfeit), each of which takes a list of Mortgages. Each Mortgage's <dfn class="term" title="The end of a Mortgage, by Redemption, Waiver or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened."><a href="../reference/glossary.html#closure">Closure</a></dfn> figures are read from the Preview, and one save closes them all.</p>
 
 <h2>The flow</h2>
