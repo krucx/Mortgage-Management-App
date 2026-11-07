@@ -152,7 +152,7 @@ $/, '')}&lt;/pre&gt;
 
 <h3>4. Settings: one section per group</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/SettingsPage.tsx">frontend/src/pages/SettingsPage.tsx</a> · <code>SettingsPage</code>, <code>MessageSettingsForm</code> · lines 15–26 and 398–416, trimmed</figcaption>
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/SettingsPage.tsx">frontend/src/pages/SettingsPage.tsx</a> · <code>SettingsPage</code>, <code>DiscountConfirmationSettings</code>, <code>MessageSettingsForm</code> · lines 15–27 and 398–416, trimmed</figcaption>
 <pre data-file="frontend/src/pages/SettingsPage.tsx"><code>15  export function SettingsPage() {
 16    return (
 17      &lt;&gt;
@@ -160,11 +160,12 @@ $/, '')}&lt;/pre&gt;
 19        &lt;GoldRateSettings /&gt;
 20        &lt;CallListThresholds /&gt;
 21        &lt;CashLimitSettings /&gt;
-22        &lt;MessageSettingsForm /&gt;                                           ◀
-23        &lt;BackupSettings /&gt;
-24      &lt;/&gt;
-25    )
-26  }
+22        &lt;DiscountConfirmationSettings /&gt;
+23        &lt;MessageSettingsForm /&gt;                                           ◀
+24        &lt;BackupSettings /&gt;
+25      &lt;/&gt;
+26    )
+27  }
 ⋮
 398 function MessageSettingsForm() {
 399   const { client, queryClient } = useServerState()
@@ -260,7 +261,7 @@ $/, '')}&lt;/pre&gt;
 <div class="callout warn"><strong>Don't press Send in WhatsApp.</strong> The sample book's numbers are invented but realistic: they may belong to real people. Close the WhatsApp tab.</div>
 
 <h3>The Notice template</h3>
-<p>Open <a href="http://localhost:5173/settings">Settings</a>: seven sections (Default Terms, Gold Rates, Call List, Cash Limit, Discount confirmation, WhatsApp messages, Backups), and one request per settings group as it opens. In "WhatsApp messages", the Notice template reads <code>*Interest notice* 🔔 … {customer_name} … *{date}* … {mortgages} … *{total_owed}*</code>, and its hint lists <code>{customer_name} {date} {interest} {mortgages} {total_owed}</code>. Add a last line: <code>_Thank you, ~ignore this~ *Lakshmi Jewellers*_</code>. The preview beside it shows the line in italics at once, before any save. Press Save: one <code>PUT /api/settings/messages</code>, and "Saved.". Then put the old template back and Save again.</p>
+<p>Open <a href="http://localhost:5173/settings">Settings</a>: seven sections (Default Terms, Gold Rates, Call List, Cash Limit, Discount confirmation, WhatsApp messages, Backups), and one request per settings group as it opens. Discount confirmation asks before recording a per-Mortgage Discount above ₹500 by default. Saving another amount changes only that threshold; leaving it empty disables this extra prompt, while the cap at remaining Outstanding still applies. The setting is read and saved through <code>GET</code> and <code>PUT /api/settings/discount-confirmation-limit</code>. In "WhatsApp messages", the Notice template reads <code>*Interest notice* 🔔 … {customer_name} … *{date}* … {mortgages} … *{total_owed}*</code>, and its hint lists <code>{customer_name} {date} {interest} {mortgages} {total_owed}</code>. Add a last line: <code>_Thank you, ~ignore this~ *Lakshmi Jewellers*_</code>. The preview beside it shows the line in italics at once, before any save. Press Save: one <code>PUT /api/settings/messages</code>, and "Saved.". Then put the old template back and Save again.</p>
 <p class="cite">From <code>scripts/screens.mjs</code> (section L5).</p>
 
 <h3>The Dashboard</h3>

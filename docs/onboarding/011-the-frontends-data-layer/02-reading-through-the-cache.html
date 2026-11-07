@@ -171,7 +171,7 @@ sequenceDiagram
 353  }
 </code></pre>
 </figure>
-<p>Each settings group (<code>default-terms</code>, <code>gold-rates</code>, <code>call-list</code>, <code>cash-limit</code>, <code>messages</code>, <code>placeholders</code>) gets this. <code>paymentMethodsQuery</code> (line 681) and <code>updateStatusQuery</code> (line 691) set <code>staleTime: Infinity</code> too: the payment methods are fixed while the app runs, and the backend asks GitHub about updates at most once a day anyway.</p>
+<p>Each settings group (<code>default-terms</code>, <code>gold-rates</code>, <code>call-list</code>, <code>cash-limit</code>, <code>discount-confirmation-limit</code>, <code>messages</code>, <code>placeholders</code>) gets this. <code>paymentMethodsQuery</code> (line 681) and <code>updateStatusQuery</code> (line 691) set <code>staleTime: Infinity</code> too: the payment methods are fixed while the app runs, and the backend asks GitHub about updates at most once a day anyway.</p>
 
 <h2>Run-through: Meera's page, her chain, and back</h2>
 <p>Open <a href="http://localhost:5173/customers/1">localhost:5173/customers/1</a> with the Network tab filtered to <code>/api/</code>. Click through to her chain (<code>2025-Meera-GoldChainPendant</code>), then press the browser's Back, then Forward.</p>
@@ -188,12 +188,12 @@ sequenceDiagram
 <p>Now Settings. Click <strong>Settings</strong> in the menu, then <strong>Customers</strong>, then <strong>Settings</strong> again:</p>
 <table class="steps text">
 <tr><th>Step</th><th>Requests</th></tr>
-<tr><td>Settings, first time</td><td>7: <code>/api/settings/default-terms</code>, <code>…/gold-rates</code>, <code>…/call-list</code>, <code>…/cash-limit</code>, <code>…/messages</code>, <code>…/messages/placeholders</code>, and <code>/api/backups</code></td></tr>
+<tr><td>Settings, first time</td><td>8: <code>/api/settings/default-terms</code>, <code>…/gold-rates</code>, <code>…/call-list</code>, <code>…/cash-limit</code>, <code>…/discount-confirmation-limit</code>, <code>…/messages</code>, <code>…/messages/placeholders</code>, and <code>/api/backups</code></td></tr>
 <tr><td>Customers</td><td><code>/api/customers?page=1&amp;q=</code> (and photos)</td></tr>
 <tr class="changed"><td>Settings, second time</td><td><strong>1</strong>: <code>/api/backups</code></td></tr>
 </table>
 <p class="cite">From <code>scripts/network.mjs</code> (section L2).</p>
-<p>The six settings groups have <code>staleTime: Infinity</code>, so the second visit asks none of them. <code>backupsQuery</code> (line 388) doesn't: whether a Backup is running changes on its own, so it's asked every time, and every second while one runs (<code>refetchInterval</code>).</p>
+<p>The seven settings groups have <code>staleTime: Infinity</code>, so the second visit asks none of them. <code>backupsQuery</code> (line 388) doesn't: whether a Backup is running changes on its own, so it's asked every time, and every second while one runs (<code>refetchInterval</code>).</p>
 
 <h2>Nuances</h2>
 <h3>(a) A key is a path, on purpose</h3>

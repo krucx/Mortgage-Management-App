@@ -310,7 +310,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <h2 id="s2-title">Settings: the Lender's rules</h2>
     <p class="open">Open <span class="path">/settings</span></p>
   </div>
-  <p class="say">"Before any lending, the Lender sets their house rules once: the usual Terms, today's gold prices, when someone needs a phone call, the wording of WhatsApp messages, and Backups."</p>
+  <p class="say">"Before any lending, the Lender sets their house rules once: the usual Terms, today's gold prices, when someone needs a phone call, the cash warning, Discount confirmations, WhatsApp messages, and Backups."</p>
   <div class="cols">
     <div>
       <div class="block-title">Show, top to bottom</div>
@@ -319,6 +319,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <li><span><span class="ui">Gold Rates</span>: price per gram for each purity, with the date last updated. Saving revalues every Mortgage that uses them.</span></li>
         <li><span><span class="ui">Call List</span>: how many Months Unpaid, or how high a Loan-to-Value, puts a Mortgage on the day's Call List.</span></li>
         <li><span><span class="ui">Cash Limit</span>: lending or receiving this much or more in cash asks first, since Government of India rules ask for UPI or bank transfer instead (₹20,000 unless changed; empty for no warning). It only warns.</span></li>
+        <li><span><span class="ui">Discount confirmation</span>: ask before recording a per-Mortgage Discount above ₹500. Set another amount or leave it empty to skip this extra confirmation; Discounts remain capped at the remaining Outstanding.</span></li>
         <li><span><span class="ui">WhatsApp messages</span>: the Receipt and Notice templates with their placeholders, a live preview, how many days ahead Notices are queued, and whether each needs approving first.</span></li>
         <li><span><span class="ui">Backups</span>: when the last one was taken, <span class="ui">Back up now</span>, and how many to keep.</span></li>
       </ol>
@@ -331,6 +332,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <dt>Gold Rate 20K / 18K / 14K</dt><dd data-fig="settings.gold-rest">₹12,332 / ₹11,075 / ₹8,601</dd>
         <dt>Rates last updated</dt><dd data-fig="settings.gold-updated">19 Oct 2026</dd>
         <dt>Call List</dt><dd data-fig="settings.call-list">3+ Months Unpaid, or Loan-to-Value above 85%</dd>
+        <dt>Discount confirmation</dt><dd>Ask above ₹500; empty disables the extra confirmation</dd>
         <dt>Notices</dt><dd data-fig="settings.notices">2 days before, approved first</dd>
         <dt>Last Backup</dt><dd data-fig="settings.backup">19 Oct 2026, 11:00</dd>
       </dl>

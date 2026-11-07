@@ -154,12 +154,13 @@ await shot('settings-gold', card(1), {
 })
 await shot('settings-calls', card(2))
 await shot('settings-cash', card(3), { limit: field('Warn at cash of (₹), or more') })
-await shot('settings-messages', card(4), {
-  template: card(4).locator('textarea').first(),
-  preview: card(4).locator('.whatsapp, .bubble, [class*=preview]').first(),
-  approve: card(4).getByText('Approve each Notice', { exact: false }),
+await shot('settings-discount', card(4))
+await shot('settings-messages', card(5), {
+  template: card(5).locator('textarea').first(),
+  preview: card(5).locator('.whatsapp, .bubble, [class*=preview]').first(),
+  approve: card(5).getByText('Approve each Notice', { exact: false }),
 })
-await shot('settings-backups', card(5), { last: card(5).locator('dl, table, p').filter({ hasText: 'mortgage-backup' }) })
+await shot('settings-backups', card(6), { last: card(6).locator('dl, table, p').filter({ hasText: 'mortgage-backup' }) })
 
 // Meera ------------------------------------------------------------------------------------
 
