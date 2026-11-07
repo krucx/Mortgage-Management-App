@@ -61,7 +61,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 
 ### 006 Changes and Previews (written)
 1. One door for every change ([#153](https://github.com/krucx/Mortgage-Management-App/issues/153))
-2. The check: replay, then refuse ([#154](https://github.com/krucx/Mortgage-Management-App/issues/154))
+2. The check: replay, then refuse ([#154](https://github.com/krucx/Mortgage-Management-App/issues/154)): correct starting Terms and see existing Payments replay, distinct from a dated Term Change
 3. History ([#155](https://github.com/krucx/Mortgage-Management-App/issues/155))
 4. Previews: make it, then roll it back ([#156](https://github.com/krucx/Mortgage-Management-App/issues/156))
 5. Adding a change route ([#157](https://github.com/krucx/Mortgage-Management-App/issues/157))

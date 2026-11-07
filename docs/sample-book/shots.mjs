@@ -268,11 +268,17 @@ await shot('mortgage-photos', await section('Photos'))
 // Second thoughts ------------------------------------------------------------------------
 
 await open('/mortgages/2/edit')
-await field('Principal lent (₹)').fill('90000')
+await field('Monthly interest rate (%)').fill('1.75')
+const interestMode = card().locator('label').filter({ hasText: /^Interest Mode/ }).locator('select')
+const partMonthRule = card().locator('label').filter({ hasText: /^Part-Month Rule/ }).locator('select')
+await interestMode.selectOption('simple')
+await partMonthRule.selectOption('pro_rata')
 await card().getByText('Ledger steps that change').first().waitFor()
 await settle()
 await shot('edit-preview', card(), {
-  principal: field('Principal lent (₹)'),
+  startingRate: field('Monthly interest rate (%)'),
+  interestMode,
+  partMonthRule,
   owed: card().locator('.change-tile, .tile').first(),
   ledger: card().getByText('Ledger steps that change').first(),
 })
