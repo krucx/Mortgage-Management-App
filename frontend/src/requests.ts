@@ -407,10 +407,19 @@ export function backupsQuery(client: ApiClient) {
 export const backUpNow = (client: ApiClient) => dataOrThrow(client.POST('/api/backups'))
 
 /** The whole lending book at a glance. */
-export function dashboardQuery(client: ApiClient) {
+export function dashboardQuery(client: ApiClient, startDate?: string, endDate?: string) {
   return queryOptions({
-    queryKey: keys.dashboard,
-    queryFn: () => dataOrThrow(client.GET('/api/dashboard')),
+    queryKey: [...keys.dashboard, startDate, endDate],
+    queryFn: () =>
+      dataOrThrow(
+        client.GET('/api/dashboard', {
+          params: {
+            query: startDate && endDate ? { start_date: startDate, end_date: endDate } : {},
+          },
+        }),
+      ),
+    enabled: !startDate || !endDate || endDate >= startDate,
+    placeholderData: (previous) => previous,
   })
 }
 

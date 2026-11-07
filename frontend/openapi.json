@@ -1169,6 +1169,16 @@
             "title": "Active Mortgages",
             "type": "integer"
           },
+          "activity_end_date": {
+            "format": "date",
+            "title": "Activity End Date",
+            "type": "string"
+          },
+          "activity_start_date": {
+            "format": "date",
+            "title": "Activity Start Date",
+            "type": "string"
+          },
           "as_of": {
             "format": "date",
             "title": "As Of",
@@ -1201,6 +1211,10 @@
             "title": "Forfeiture Profit Loss This Month",
             "type": "integer"
           },
+          "interest_collected_in_period": {
+            "title": "Interest Collected In Period",
+            "type": "integer"
+          },
           "interest_collected_this_month": {
             "title": "Interest Collected This Month",
             "type": "integer"
@@ -1227,8 +1241,16 @@
             "title": "Payments By Month",
             "type": "array"
           },
+          "principal_lent_in_period": {
+            "title": "Principal Lent In Period",
+            "type": "integer"
+          },
           "principal_outstanding": {
             "title": "Principal Outstanding",
+            "type": "integer"
+          },
+          "principal_redeemed_in_period": {
+            "title": "Principal Redeemed In Period",
             "type": "integer"
           },
           "projections": {
@@ -1272,6 +1294,11 @@
         },
         "required": [
           "as_of",
+          "activity_start_date",
+          "activity_end_date",
+          "principal_lent_in_period",
+          "principal_redeemed_in_period",
+          "interest_collected_in_period",
           "active_mortgages",
           "customers_with_active_mortgages",
           "principal_outstanding",
@@ -5041,6 +5068,42 @@
     "/api/dashboard": {
       "get": {
         "operationId": "read_dashboard_api_dashboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "start_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Date"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -5051,6 +5114,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Read Dashboard"

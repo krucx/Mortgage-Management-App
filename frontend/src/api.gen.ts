@@ -1777,6 +1777,16 @@ export interface components {
             /** Active Mortgages */
             active_mortgages: number;
             /**
+             * Activity End Date
+             * Format: date
+             */
+            activity_end_date: string;
+            /**
+             * Activity Start Date
+             * Format: date
+             */
+            activity_start_date: string;
+            /**
              * As Of
              * Format: date
              */
@@ -1793,6 +1803,8 @@ export interface components {
             forfeited_this_month: number;
             /** Forfeiture Profit Loss This Month */
             forfeiture_profit_loss_this_month: number;
+            /** Interest Collected In Period */
+            interest_collected_in_period: number;
             /** Interest Collected This Month */
             interest_collected_this_month: number;
             /** Interest Collected This Year */
@@ -1801,8 +1813,12 @@ export interface components {
             loan_to_value: number | null;
             /** Payments By Month */
             payments_by_month: components["schemas"]["MonthlyPayments"][];
+            /** Principal Lent In Period */
+            principal_lent_in_period: number;
             /** Principal Outstanding */
             principal_outstanding: number;
+            /** Principal Redeemed In Period */
+            principal_redeemed_in_period: number;
             /** Projections */
             projections: components["schemas"]["ProjectionHorizon"][];
             /** Redeemed This Month */
@@ -3702,7 +3718,10 @@ export interface operations {
     };
     read_dashboard_api_dashboard_get: {
         parameters: {
-            query?: never;
+            query?: {
+                start_date?: string | null;
+                end_date?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3716,6 +3735,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

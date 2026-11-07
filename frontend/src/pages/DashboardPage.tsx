@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { Dashboard, ProjectionHorizon } from '../api'
 import { PaymentsByMonthChart } from '../components/PaymentsByMonthChart'
@@ -102,8 +102,12 @@ function Projections({ figures }: { figures: Dashboard }) {
 /** The whole lending book at a glance, worked out whenever the page opens. */
 export function DashboardPage() {
   const { client } = useServerState()
+  const [startDate, setStartDate] = useState<string>()
+  const [endDate, setEndDate] = useState<string>()
   // Figures cached from an earlier visit show at once, dimmed until they are refreshed.
-  const { data: figures, error, isFetching } = useQuery(dashboardQuery(client))
+  const { data: figures, error, isFetching } = useQuery(
+    dashboardQuery(client, startDate, endDate),
+  )
 
   if (!figures) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
 
@@ -113,6 +117,9 @@ export function DashboardPage() {
   const profitLoss = figures.forfeiture_profit_loss_this_month
   const owed = figures.principal_outstanding + figures.unpaid_interest
   const toCall = figures.call_list_count
+  const selectedStart = startDate ?? figures.activity_start_date
+  const selectedEnd = endDate ?? figures.activity_end_date
+  const invalidTimeframe = selectedEnd < selectedStart
 
   return (
     <section className={`card wide dashboard${isFetching ? ' refreshing' : ''}`}>
@@ -146,6 +153,55 @@ export function DashboardPage() {
             label="Customers with Active Mortgages"
             value={figures.customers_with_active_mortgages}
           />
+        </div>
+      </div>
+
+      <div className="group activity">
+        <h3>Activity in timeframe</h3>
+        <div className="activity-controls">
+          <label>
+            From
+            <input
+              aria-label="Activity start date"
+              type="date"
+              value={selectedStart}
+              onChange={(event) => {
+                setStartDate(event.target.value)
+                setEndDate(selectedEnd)
+              }}
+            />
+          </label>
+          <label>
+            To
+            <input
+              aria-label="Activity end date"
+              type="date"
+              value={selectedEnd}
+              onChange={(event) => {
+                setStartDate(selectedStart)
+                setEndDate(event.target.value)
+              }}
+            />
+          </label>
+          {invalidTimeframe && (
+            <span className="status error" role="alert">
+              End date must be on or after start date.
+            </span>
+          )}
+        </div>
+        <div className="tiles">
+          <div className="tile activity-kpi">
+            <span className="hint">Mortgage principal lent</span>
+            <strong>{formatINR(figures.principal_lent_in_period)}</strong>
+          </div>
+          <div className="tile activity-kpi">
+            <span className="hint">Mortgage principal redeemed</span>
+            <strong>{formatINR(figures.principal_redeemed_in_period)}</strong>
+          </div>
+          <div className="tile activity-kpi">
+            <span className="hint">Interest collected</span>
+            <strong>{formatINR(figures.interest_collected_in_period)}</strong>
+          </div>
         </div>
       </div>
 

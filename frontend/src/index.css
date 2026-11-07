@@ -1152,10 +1152,42 @@ figure.chart .marker text {
 .dashboard .group.collateral { --tone: var(--tone-collateral); }
 .dashboard .group.closed { --tone: var(--tone-closed); }
 .dashboard .group.ahead { --tone: var(--tone-owed); }
+.dashboard .group.activity { --tone: var(--tone-money-in); }
 
 .dashboard .group {
   display: grid;
   gap: 0.6rem;
+}
+
+.dashboard .activity-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem 0.9rem;
+}
+
+.dashboard .activity-controls label {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.dashboard .activity-controls input {
+  min-height: 2.2rem;
+  padding: 0.3rem 0.45rem;
+}
+
+.dashboard .activity-kpi {
+  display: grid;
+  gap: 0.2rem;
+  align-content: start;
+  border-left: 4px solid var(--tone);
+  background: color-mix(in srgb, var(--tone) 7%, var(--surface));
+}
+
+.dashboard .activity-kpi strong {
+  font-variant-numeric: tabular-nums;
 }
 
 .dashboard h3 {

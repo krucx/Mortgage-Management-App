@@ -69,6 +69,51 @@ def test_interest_collected_this_month_and_this_year(client, book):
     assert figures["interest_collected_this_year"] == 10_000 * RUPEE
 
 
+def test_activity_totals_use_inclusive_dates_and_include_waived_final_payments(client):
+    owner = person(client, "Mahesh Gupta", "9829077777")
+    lent_before = lend(client, owner, "2026-03-31", 10_000 * RUPEE, "Earlier")
+    pay(client, owner, {lent_before["id"]: 1_000 * RUPEE}, on="2026-04-10")
+    waived = lend(client, owner, "2026-04-12", 10_000 * RUPEE, "Waived")
+    voided = pay(client, owner, {waived["id"]: 1_000 * RUPEE}, on="2026-04-14")
+    client.post(f"/api/payments/{voided['id']}/void", json={"reason": "typo"})
+    client.post(
+        f"/api/mortgages/{waived['id']}/waive",
+        json={"waived_on": "2026-04-15", "amount_paid": 10_000 * RUPEE, "method": "cash"},
+    )
+    lent_after = lend(client, owner, "2026-04-16", 20_000 * RUPEE, "Later")
+
+    response = client.get(
+        "/api/dashboard", params={"start_date": "2026-04-12", "end_date": "2026-04-15"}
+    )
+    assert response.status_code == 200, response.text
+    figures = response.json()
+
+    assert (figures["activity_start_date"], figures["activity_end_date"]) == (
+        "2026-04-12",
+        "2026-04-15",
+    )
+    assert figures["principal_lent_in_period"] == 10_000 * RUPEE
+    assert figures["principal_redeemed_in_period"] == 9_700 * RUPEE
+    assert figures["interest_collected_in_period"] == 300 * RUPEE
+    assert lent_after["id"] != waived["id"] != lent_before["id"]
+
+
+def test_activity_timeframe_rejects_end_before_start(client):
+    response = client.get(
+        "/api/dashboard", params={"start_date": "2026-04-16", "end_date": "2026-04-15"}
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "End date must be on or after start date"
+
+
+def test_activity_timeframe_defaults_to_current_calendar_month(client):
+    figures = dashboard(client)
+
+    assert figures["activity_start_date"] == "2026-04-01"
+    assert figures["activity_end_date"] == "2026-04-20"
+
+
 def test_collateral_and_loan_to_value(client, book):
     figures = dashboard(client)
 

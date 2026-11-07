@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from datetime import date
 from itertools import pairwise
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
@@ -53,6 +53,11 @@ class ComingMonth(BaseModel):
 
 class Dashboard(BaseModel):
     as_of: date
+    activity_start_date: date
+    activity_end_date: date
+    principal_lent_in_period: int
+    principal_redeemed_in_period: int
+    interest_collected_in_period: int
     active_mortgages: int
     customers_with_active_mortgages: int
     principal_outstanding: int  # Active Mortgages
@@ -192,12 +197,27 @@ def dashboard(
     conn: Connection,
     today: date,
     replayed: Mapping[int, MortgageReplay] | None = None,
+    activity_start_date: date | None = None,
+    activity_end_date: date | None = None,
 ) -> Dashboard:
     """The Dashboard today, from `replayed` (every Mortgage) when the caller has
     replayed them already."""
     if replayed is None:
         replayed = all_replays(conn)
     rows = [mortgage.row for mortgage in replayed.values()]
+    activity_start_date = activity_start_date or today.replace(day=1)
+    activity_end_date = activity_end_date or today
+    lent_in_period = sum(
+        row["amount_lent"]
+        for row in rows
+        if activity_start_date <= row["start_date"] <= activity_end_date
+    )
+    redeemed_in_period = collected_in_period = 0
+    for mortgage in replayed.values():
+        for step in mortgage.steps_by_payment(activity_end_date).values():
+            if activity_start_date <= step.on:
+                redeemed_in_period += step.principal_paid
+                collected_in_period += step.interest_paid
     rates = gold_rates(conn)
     this_month = (today.year, today.month)
 
@@ -241,6 +261,11 @@ def dashboard(
     to_send = reminders.unsent_counts(conn, replayed)
     return Dashboard(
         as_of=today,
+        activity_start_date=activity_start_date,
+        activity_end_date=activity_end_date,
+        principal_lent_in_period=lent_in_period,
+        principal_redeemed_in_period=redeemed_in_period,
+        interest_collected_in_period=collected_in_period,
         active_mortgages=len(active),
         customers_with_active_mortgages=len(active_customers),
         principal_outstanding=principal,
@@ -270,9 +295,18 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/dashboard")
-def read_dashboard(engine: EngineDep, today: TodayDep) -> Dashboard:
+def read_dashboard(
+    engine: EngineDep,
+    today: TodayDep,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+) -> Dashboard:
+    start = start_date or today.replace(day=1)
+    end = end_date or today
+    if end < start:
+        raise HTTPException(422, "End date must be on or after start date")
     with engine.begin() as conn:
         replayed = all_replays(conn)
         # As the Reminders page does, so the two always agree.
         reminders.sync(conn, today, replayed)
-        return dashboard(conn, today, replayed)
+        return dashboard(conn, today, replayed, start, end)
