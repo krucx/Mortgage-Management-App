@@ -2,7 +2,7 @@ name: Critical finding issues
 
 on:
   workflow_run:
-    workflows: [CodeQL, Container scan]
+    workflows: [CodeQL]
     types: [completed]
   schedule:
     - cron: '53 6 * * *'

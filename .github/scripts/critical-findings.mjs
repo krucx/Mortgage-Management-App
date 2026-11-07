@@ -187,6 +187,42 @@ export function dependabotFinding(alert) {
   };
 }
 
+export function trivyFindingsFromSarif(sarif, runUrl) {
+  if (!sarif || !Array.isArray(sarif.runs) || sarif.runs.length === 0) {
+    throw new Error('Trivy SARIF has no completed scan runs.');
+  }
+  const findings = [];
+  for (const run of sarif.runs) {
+    const rules = new Map((run.tool?.driver?.rules ?? []).map((rule) => [rule.id, rule]));
+    for (const result of run.results ?? []) {
+      const rule = rules.get(result.ruleId) ?? {};
+      const tags = rule.properties?.tags ?? [];
+      if (!tags.some((tag) => String(tag).toLowerCase() === 'critical')) continue;
+      const location = result.locations?.[0] ?? {};
+      const physical = location.physicalLocation ?? {};
+      const artifact = physical.artifactLocation?.uri ?? '';
+      const locationMessage = location.message?.text;
+      const line = physical.region?.startLine;
+      const partialFingerprints = result.partialFingerprints ?? result.fingerprints ?? {};
+      const scannerId = Object.values(partialFingerprints).find(Boolean);
+      findings.push({
+        scanner: 'Trivy',
+        stableId: scannerId ? `${result.ruleId}:${scannerId}` : undefined,
+        severity: 'critical',
+        ruleId: result.ruleId ?? 'unknown-rule',
+        location: [artifact, locationMessage, line ? `line ${line}` : ''].filter(Boolean).join(' — '),
+        summary: rule.shortDescription?.text ?? rule.fullDescription?.text ?? result.ruleId ?? 'Trivy finding',
+        evidence: result.message?.text ?? rule.fullDescription?.text,
+        remediation: rule.help?.markdown ?? rule.help?.text ?? 'Review the Trivy finding and apply the recommended package update.',
+        latestRunUrl: runUrl,
+        originatingRunUrl: runUrl,
+        sourceUrl: rule.helpUri,
+      });
+    }
+  }
+  return findings;
+}
+
 async function currentFindings(api, scope, runUrl) {
   if (scope === 'dependabot') {
     const alerts = await getAllPages(api, '/dependabot/alerts?state=open&per_page=100');
@@ -202,29 +238,38 @@ async function main() {
   const token = process.env.GITHUB_TOKEN;
   const repository = process.env.GITHUB_REPOSITORY;
   if (!token || !repository) throw new Error('GITHUB_TOKEN and GITHUB_REPOSITORY are required.');
+  const api = createApi(token, repository);
+  await api.ensureLabel();
+  const runUrl = `${process.env.GITHUB_SERVER_URL}/${repository}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+  if (process.argv[2] === '--trivy-sarif') {
+    if (!['push', 'schedule'].includes(process.env.GITHUB_EVENT_NAME)) {
+      throw new Error(`Trivy issues are not reconciled for ${process.env.GITHUB_EVENT_NAME} events.`);
+    }
+    const sarif = JSON.parse(await (await import('node:fs/promises')).readFile(process.argv[3], 'utf8'));
+    const findings = trivyFindingsFromSarif(sarif, runUrl);
+    await syncCriticalFindings(api.issues, { scope: 'trivy', findings, successful: true });
+    process.stdout.write(`Reconciled ${findings.length} critical Trivy findings from SARIF.\n`);
+    return;
+  }
+
   const event = JSON.parse(await (await import('node:fs/promises')).readFile(process.env.GITHUB_EVENT_PATH, 'utf8'));
   let scope;
   let successful = true;
   if (process.env.GITHUB_EVENT_NAME === 'workflow_run') {
     const { name, conclusion, html_url: runUrl } = event.workflow_run;
     if (name === 'CodeQL') scope = 'codeql';
-    else if (name === 'Container scan') scope = 'trivy';
     else throw new Error(`Unsupported scan workflow: ${name}`);
     successful = conclusion === 'success';
     if (!successful) {
       process.stdout.write(`${name} did not complete successfully; leaving findings unchanged.\n`);
       return;
     }
-    process.env.SCAN_RUN_URL = runUrl;
   } else if (process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
     scope = 'dependabot';
   } else {
     throw new Error(`Unsupported event: ${process.env.GITHUB_EVENT_NAME}`);
   }
 
-  const api = createApi(token, repository);
-  await api.ensureLabel();
-  const runUrl = process.env.SCAN_RUN_URL || `${process.env.GITHUB_SERVER_URL}/${repository}/actions/runs/${process.env.GITHUB_RUN_ID}`;
   const findings = await currentFindings(api, scope, runUrl);
   await syncCriticalFindings(api.issues, { scope, findings, successful });
   process.stdout.write(`Reconciled ${findings.filter((finding) => finding.severity.toLowerCase() === 'critical').length} critical ${scope} findings.\n`);

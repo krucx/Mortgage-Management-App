@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: write
       security-events: write
     steps:
       - name: Check out the repository
@@ -30,6 +31,15 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           exit-code: '0'
+
+      - name: Reconcile critical image findings
+        if: >-
+          success() &&
+          (github.event_name == 'push' || github.event_name == 'schedule')
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/critical-findings.mjs --trivy-sarif trivy-results.sarif
 
       - name: Upload results to GitHub code scanning
         if: >-

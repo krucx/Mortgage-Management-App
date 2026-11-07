@@ -6,6 +6,7 @@ import {
   dependabotFinding,
   fingerprintFor,
   syncCriticalFindings,
+  trivyFindingsFromSarif,
 } from './critical-findings.mjs';
 
 function fakeIssues(existing = []) {
@@ -80,6 +81,47 @@ test('turns a critical Dependabot alert into an issue-ready finding', () => {
   assert.equal(fingerprintFor(finding), 'dependabot:81');
 });
 
+test('reads critical image findings from Trivy SARIF and excludes high findings', () => {
+  const runUrl = 'https://github.com/acme/app/actions/runs/24';
+  const findings = trivyFindingsFromSarif({
+    runs: [{
+      tool: { driver: { rules: [
+        {
+          id: 'CVE-2026-1234',
+          shortDescription: { text: 'Example library vulnerability' },
+          help: { text: 'Upgrade example-lib to 4.1.' },
+          helpUri: 'https://example.com/CVE-2026-1234',
+          properties: { tags: ['security', 'CRITICAL'] },
+        },
+        { id: 'CVE-2026-1235', properties: { tags: ['security', 'HIGH'] } },
+      ] } },
+      results: [
+        {
+          ruleId: 'CVE-2026-1234',
+          message: { text: 'Package example-lib 4.0 is affected.' },
+          partialFingerprints: { trivy: 'stable-id-1234' },
+          locations: [{
+            physicalLocation: { artifactLocation: { uri: 'debian:bookworm' } },
+            message: { text: 'usr/share/example-lib: example-lib@4.0' },
+          }],
+        },
+        { ruleId: 'CVE-2026-1235', message: { text: 'High severity only.' } },
+      ],
+    }],
+  }, runUrl);
+
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].scanner, 'Trivy');
+  assert.equal(findings[0].severity, 'critical');
+  assert.equal(findings[0].ruleId, 'CVE-2026-1234');
+  assert.match(findings[0].location, /example-lib@4\.0/);
+  assert.equal(findings[0].evidence, 'Package example-lib 4.0 is affected.');
+  assert.equal(findings[0].remediation, 'Upgrade example-lib to 4.1.');
+  assert.equal(findings[0].latestRunUrl, runUrl);
+  assert.equal(fingerprintFor(findings[0]), 'trivy:CVE-2026-1234:stable-id-1234');
+  assert.throws(() => trivyFindingsFromSarif({}, runUrl), /no completed scan runs/);
+});
+
 test('normalizes fallback locations and ignores non-critical findings', async () => {
   const first = finding({ location: './backend\\src\\app.py:42:9' });
   const second = finding({ location: 'backend/src/app.py:42:3' });
@@ -130,7 +172,8 @@ test('successful reconciliation closes only issues in its scanner scope', async 
 
 test('GitHub Actions reconciles only completed main-branch scanner runs and scheduled Dependabot alerts', async () => {
   const workflow = await readFile(new URL('../workflows/critical-findings.yml', import.meta.url), 'utf8');
-  assert.match(workflow, /workflows:\s*\[CodeQL, Container scan\]/);
+  const trivyWorkflow = await readFile(new URL('../workflows/trivy.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /workflows:\s*\[CodeQL\]/);
   assert.match(workflow, /types:\s*\[completed\]/);
   assert.match(workflow, /schedule:/);
   assert.match(workflow, /workflow_dispatch:/);
@@ -140,4 +183,7 @@ test('GitHub Actions reconciles only completed main-branch scanner runs and sche
   assert.match(workflow, /workflow_run\.head_branch == 'main'/);
   assert.match(workflow, /workflow_run\.event != 'pull_request'/);
   assert.match(workflow, /node \.github\/scripts\/critical-findings\.mjs/);
+  assert.match(trivyWorkflow, /issues:\s*write/);
+  assert.match(trivyWorkflow, /success\(\)[\s\S]*github\.event_name == 'push'[\s\S]*github\.event_name == 'schedule'/);
+  assert.match(trivyWorkflow, /--trivy-sarif trivy-results\.sarif/);
 });
