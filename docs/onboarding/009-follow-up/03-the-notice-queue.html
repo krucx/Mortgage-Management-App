@@ -33,15 +33,17 @@ flowchart TD
   C --> D{"Dormant on that date?"}
   D -->|"yes"| X["no Reminder (ADR 0012)"]
   D -->|"no"| P["(customer_id, accrues_on) pairs"]
-  P -->|"minus those already in reminder"| I["3 · insert the missing ones, queued"]
+  P --> U["remove unsent Reminders<br/>with no eligible Mortgage"]
+  U -->|"minus those already in reminder"| I["3 · insert the missing ones, queued"]
   I --> H{"4 · approve first on?"}
   H -->|"on: not approved"| AW["awaiting_approval"]
   H -->|"on: approved"| Q["queued"]
   H -->|"off: forget approvals"| Q
 </pre>
-<figcaption>Four steps, each safe to repeat. Step 4 re-decides every unsent Reminder's status from the setting, every time.</figcaption>
+<figcaption>Sync removes unsent Reminders that no longer have an eligible Mortgage. It leaves sent and skipped history alone, and re-decides every unsent Reminder's status from the setting each time.</figcaption>
 </figure>
 <p>Reminder what a pair is: a <strong>Customer and a date</strong>, not a Mortgage. If two of a Customer's Mortgages accrue on the same day, they share one Reminder.</p>
+<p>On every sync, an unsent Reminder stays only while at least one of that Customer's Active Mortgages still accrues on its date and is not Dormant then. If a Mortgage is Redeemed, or a Payment makes it Dormant, its unsent Reminder is removed when the queue next syncs. A sent or skipped Reminder remains as history.</p>
 
 <h2>The code</h2>
 <h3>1. The statuses</h3>
@@ -286,7 +288,7 @@ printf '%s' "$S" | jq '.reminder_approve_first = true'  | curl -s -X PUT -H 'con
     <tr class="changed"><td>26 Oct</td><td>#58 Sunita, 21 Oct (still awaiting) · nothing for 25 Oct</td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L3 (c)): the same database served on each day.</p>
-    <p>The missed days are made up, but only for Accrual Dates still to come (<code>on &gt; after</code> in <code>_coming_accrual_dates</code>). A warning about the 25th is useless on the 26th, so it is never made. Sunita's Reminder was already made, so it stays, awaiting approval, after its date. <code>sync</code> doesn't tidy old unsent Reminders; the Lender skips them (lesson 4).</p>
+    <p>The missed days are made up, but only for Accrual Dates still to come (<code>on &gt; after</code> in <code>_coming_accrual_dates</code>). A warning about the 25th is useless on the 26th, so it is never made. Sunita's Reminder stays awaiting approval after its date while her Mortgage remains eligible for that date. If she Redeems it first, the next sync removes the unsent Reminder (lesson 4).</p>
   </div>
 </div>
 
@@ -326,7 +328,7 @@ printf '%s' "$S" | jq '.reminder_approve_first = true'  | curl -s -X PUT -H 'con
 <nav class="lessons">
   <a href="02-call-notes-and-call-sheets.html">← Call Notes and Call Sheets</a>
   <a href="index.html">Chapter overview</a>
-  <a href="04-a-reminders-life.html">Next: A Reminder's life →</a>
+  <a href="04-a-notices-life.html">Next: A Reminder's life →</a>
 </nav>
 <script src="../assets/quiz.js"></script>
 <script src="../assets/snippet.js"></script>

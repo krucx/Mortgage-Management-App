@@ -222,14 +222,12 @@ curl -s 'http://127.0.0.1:8765/api/reminders?status=sent&amp;sort=accrues&amp;de
   <div class="reveal-body">
     <table class="steps text">
     <tr><th>Step</th><th>Answer</th></tr>
-    <tr><td>read #58</td><td>still <code>awaiting_approval</code>, <code>message</code> "" (empty), <code>mortgages</code> []</td></tr>
+    <tr class="changed"><td>read the Reminders list</td><td><code>sync</code> removes #58 because no Active Mortgage of Sunita's accrues on 21 Oct any more</td></tr>
     <tr><td>Dashboard</td><td><code>reminders_to_approve</code> 0: <code>unsent_counts</code> leaves it out</td></tr>
-    <tr><td><code>/approve</code></td><td>200 · queued (the status allows it)</td></tr>
-    <tr class="changed"><td><code>/sent</code></td><td>409 · None of their Mortgages accruing that day still owes anything: skip it</td></tr>
-    <tr><td><code>/skip</code></td><td>200 · skipped, message ""</td></tr>
+    <tr><td>act on old #58</td><td>404 · the unsent Reminder was removed by sync</td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L4), on a copy.</p>
-    <p>The row is still there, because <code>sync</code> only removes Reminders that are too far ahead. But <code>_accruing</code> finds no Active Mortgage of Sunita's accruing on 21 Oct, so there's nothing to say, and only skipping finishes it.</p>
+    <p>Unlike sent or skipped history, an unsent Reminder is removed once no Active Mortgage remains eligible for its date. If another Active Mortgage of the same Customer still accrues that day, the Reminder remains and is built from that Mortgage.</p>
   </div>
 </div>
 
@@ -267,7 +265,7 @@ curl -s 'http://127.0.0.1:8765/api/reminders?status=sent&amp;sort=accrues&amp;de
 <p>Read <code>list_reminders</code> and <code>act</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py"><code>follow_up/reminders.py</code></a> (lines 252–401), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_reminders.py"><code>tests/test_reminders.py</code></a> line 324, <code>test_a_sent_reminder_keeps_the_message_that_was_sent</code>: the whole lesson in ten lines.</p>
 
 <nav class="lessons">
-  <a href="03-the-reminder-queue.html">← The Reminder queue</a>
+  <a href="03-the-notice-queue.html">← The Reminder queue</a>
   <a href="index.html">Chapter overview</a>
   <a href="05-messages-and-sending.html">Next: Messages and sending →</a>
 </nav>

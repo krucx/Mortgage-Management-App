@@ -259,6 +259,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div class="tile" style="--tone: var(--accent)"><span>Follow-up</span><strong data-fig="dashboard.follow">2 · 1</strong><small>on today's Call List · Reminders to approve or send</small></div>
     <div class="tile" style="--tone: var(--closed)"><span>Closed in October</span><strong data-fig="dashboard.redeemed">2 Redeemed</strong><small data-fig="dashboard.closed">1 Waived off · 1 Forfeited</small></div>
   </div>
+  <p class="note">Below Owed on Active Mortgages, the activity controls select a calendar month or an inclusive From–To date range. The three figures there are principal lent, principal redeemed and interest collected in that period. The current calendar month is selected by default.</p>
   <div class="cols">
     <div>
       <div class="block-title">Show</div>
@@ -611,7 +612,7 @@ We have received *₹…* by Cash on <span data-fig="payments.day">19 Oct 2026</
     </div>
   </div>
   <div class="nuances">
-    <div class="nuance rule"><b>Reminders always match today</b><span>Until it is sent, a Reminder is worded from today's figures each time it is read, so later Payments and edits show. If none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on "approve first" holds those already queued.</span></div>
+    <div class="nuance rule"><b>Unsent Reminders stay eligible</b><span>Until sent, a Reminder is worded from current figures. Queue sync removes it if none of the Customer's Active Mortgages still accrues on its date; sent and skipped Reminders remain as history. Turning on "approve first" holds eligible queued Reminders.</span></div>
     <div class="nuance rule"><b>A Call Sheet imports what it can</b><span>A note naming no Mortgage, an unknown or closed one, or without a usable Called on date (a date, not after today or before the Mortgage started) is left out and listed by its row; the rest are added. Rows without a note are only counted, and so is a note the Mortgage already has for that date, so importing a corrected sheet again adds only what was missing.</span></div>
     <div class="nuance"><b>Months Unpaid counts the oldest first</b><span>Payments clear the oldest interest first; capitalised interest still counts as unpaid.</span></div>
     <div class="nuance"><b>Click to send</b><span>WhatsApp opens with the message ready; the Lender presses Send (ADR-0002). No account or API is needed. Messages arrive exactly as previewed, emoji included.</span></div>

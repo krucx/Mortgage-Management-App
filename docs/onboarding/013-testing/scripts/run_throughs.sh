@@ -2,8 +2,9 @@
 # Every count, test name and failure message in chapter 013 comes from this script.
 #
 # It checks out the current commit into a throwaway git worktree, so nothing in your clone
-# changes, then runs the checks CI runs and each lesson's experiment: a change to one line,
-# the tests run, the change undone. Sections are headed L1–L5 and 99.
+# changes, then runs the local test and lint checks and each lesson's experiment: a change
+# to one line, the tests run, the change undone. Hosted scans and the container smoke
+# check are separate. Sections are headed L1–L5 and 99.
 #
 # Run from the repo root:  sh docs/onboarding/013-testing/scripts/run_throughs.sh
 # Needs uv, Node and (for Pester) Docker. Takes about ten minutes.
@@ -28,7 +29,9 @@ section "L1 every CI check"
 (cd "$B" && uv run mypy src | tail -1)
 (cd "$B" && uv run pytest -q -p no:cacheprovider | tail -1)
 (cd "$F" && npm run -s typecheck && echo "tsc -b: no errors")
+(cd "$F" && npm run -s lint && echo "oxlint: no issues")
 (cd "$F" && npx vitest run 2>&1 | grep -E ' Tests | Test Files ')
+(cd "$WT" && node --test .github/scripts/test-critical-findings.mjs .github/scripts/test-secret-scanning-alerts.mjs)
 (cd "$WT" && cmp windows/Setup.bat docs/Setup.bat && echo "Setup.bat: the same")
 
 section "L1 one test: pytest -k cash_limit"

@@ -24,7 +24,7 @@
 </ul>
 
 <h2>The idea</h2>
-<p>Each schema change is a small Python file, a <em>revision</em>, with an <code>upgrade()</code> function. The revisions form one chain: 0001, then 0002, … up to 0015, each naming the one before it. The database itself records how far along the chain it is, in a one-row table called <code>alembic_version</code>. The newest revision is called the <em>head</em>.</p>
+<p>Each schema change is a small Python file, a <em>revision</em>, with an <code>upgrade()</code> function. The revisions form one chain: 0001, then 0002, … up to the head (0017 in version 3.4.4), each naming the one before it. The database itself records how far along the chain it is, in a one-row table called <code>alembic_version</code>.</p>
 <p>On every start, <code>migrate()</code> reads that row and walks the database forward to the head, running each missing <code>upgrade()</code> in order. If the database is about to change, it takes a Backup marked <code>before-update</code> first. If the database is at a revision this code has never heard of, a newer version must have migrated it, and the app refuses to start.</p>
 <p>Think of a building with a logbook of renovations, each numbered. A new contractor reads the last entry in the log, does every renovation after it in order, and writes each one in the log. If the log mentions a renovation the contractor has no plans for, they don't touch anything: someone with newer plans has been here.</p>
 <p>The tool doing the walking is <a href="https://alembic.sqlalchemy.org/en/latest/tutorial.html">Alembic</a>, SQLAlchemy's migration library.</p>
@@ -140,10 +140,12 @@ flowchart TD
 <tr><td>0001</td><td>Config table seeded with the default Terms for new Mortgages</td></tr>
 <tr><td>0002–0004</td><td>Customers and Standalone Referrers; then the Primary Number identifies a person</td></tr>
 <tr><td>0005–0007</td><td>Mortgages and their photos; Payments and Allocations; closing a Mortgage</td></tr>
-<tr><td>0008–0011</td><td>Manual Collateral Values and Call Notes; Voids and the audit log (History); Term Changes; Reminders</td></tr>
+<tr><td>0008–0011</td><td>Manual Collateral Values and Call Notes; Voids and the audit log (History); Term Changes; Notices (renamed to Reminders in 0017)</td></tr>
 <tr><td>0012–0013</td><td>A Reminder remembers it was approved; a Payment's parts point at its first part (<code>received_with</code>)</td></tr>
 <tr><td>0014</td><td>Lent Through (release 3.1.0)</td></tr>
-<tr class="changed"><td>0015</td><td>A Customer's email, Aadhaar Number, PAN and ID Photos (release 3.2.0): <strong>the head</strong></td></tr>
+<tr><td>0015</td><td>A Customer's email, Aadhaar Number, PAN and ID Photos (release 3.2.0)</td></tr>
+<tr><td>0016</td><td>Per-Mortgage Discounts (release 3.4.2)</td></tr>
+<tr class="changed"><td>0017</td><td>Renames Notices to Reminders while preserving their records, Mortgage links and message settings (release 3.4.4): <strong>the head</strong></td></tr>
 </table>
 
 <h3>5. Every test's database is built by this chain</h3>
@@ -157,15 +159,15 @@ flowchart TD
 30          yield conn
 </code></pre>
 </figure>
-<p>Tests that use the <code>conn</code> fixture call <code>migrate</code> directly; tests that use <code>client</code> get it through the lifespan. Either way, there's no separate "create the test tables" step. Each test's database is built by running 0001 to 0015, so a broken migration breaks the whole suite at once.</p>
+<p>Tests that use the <code>conn</code> fixture call <code>migrate</code> directly; tests that use <code>client</code> get it through the lifespan. Either way, there's no separate "create the test tables" step. Each test's database is built by running 0001 to the head, currently 0017, so a broken migration breaks the whole suite at once.</p>
 
 <h2>Run-through: three databases, three starts</h2>
 <p>First, your served book. Read its revision:</p>
 <pre><code>sqlite3 "$BOOK/data/mortgage.db" "SELECT * FROM alembic_version"</code></pre>
-<p>It says <code>0015</code>: the head. Stop <code>serve.py</code> (Ctrl-C) and start it again. Nothing to migrate, so no <code>before-update</code> Backup; <code>ls "$BOOK/backups"</code> still shows only the start-up Backup from lesson 1.</p>
+<p>It says <code>0017</code>: the head. Stop <code>serve.py</code> (Ctrl-C) and start it again. Nothing to migrate, so no <code>before-update</code> Backup; <code>ls "$BOOK/backups"</code> still shows only the start-up Backup from lesson 1.</p>
 <p>Now try the other two cases on <strong>copies</strong>, never on <code>$BOOK</code> itself, and on another port so your served book can keep running. From <code>backend/</code>:</p>
 <pre><code>export NEWER=$(mktemp -d) &amp;&amp; cp -R "$BOOK/data" "$NEWER/"
-sqlite3 "$NEWER/data/mortgage.db" "UPDATE alembic_version SET version_num = '0016'"
+sqlite3 "$NEWER/data/mortgage.db" "UPDATE alembic_version SET version_num = '0018'"
 uv run python ../docs/sample-book/serve.py "$NEWER" 8766      # fails at once
 ls "$NEWER"                                                       # data only: no backups folder
 
@@ -182,12 +184,12 @@ command.downgrade(config, "0014")     # as if from the version before 3.2.0
 EOF
 uv run python ../docs/sample-book/serve.py "$OLDER" 8766      # Ctrl-C once it's up
 ls "$OLDER/backups"; sqlite3 "$OLDER/data/mortgage.db" "SELECT * FROM alembic_version"</code></pre>
-<p>The second script builds Alembic's settings the same way <code>migrate()</code> does (there's no <code>alembic.ini</code> to use), then runs 0015's <code>downgrade()</code>, which drops the five new Customer columns. It's only for making an old-looking database on a copy.</p>
+<p>The second script builds Alembic's settings the same way <code>migrate()</code> does (there's no <code>alembic.ini</code> to use), then downgrades the copied book to 0014. This removes the later schema changes only from that copy; the app then demonstrates migrating it forward again.</p>
 <table class="steps text">
 <tr><th>Database</th><th><code>alembic_version</code> before</th><th>What the start does</th><th>Backups afterwards</th><th>After</th></tr>
-<tr><td>the book</td><td>0015</td><td>nothing to migrate; the week's Backup if due</td><td><code>…-2026-10-19-1100.zip</code> (weekly)</td><td>0015</td></tr>
-<tr class="changed"><td><code>$NEWER</code></td><td>0016</td><td><code>RuntimeError: The database is at revision 0016, from a newer version of the app; this version can't open it.</code>, then uvicorn's <code>Application startup failed. Exiting.</code> Started three times, the same each time</td><td>none: no folder made</td><td>0016, untouched</td></tr>
-<tr class="changed"><td><code>$OLDER</code></td><td>0014</td><td>Backup, then 0015's <code>upgrade()</code></td><td><code>…-2026-10-19-1100-before-update.zip</code> only</td><td>0015</td></tr>
+<tr><td>the book</td><td>0017</td><td>nothing to migrate; the week's Backup if due</td><td><code>…-2026-10-19-1100.zip</code> (weekly)</td><td>0017</td></tr>
+<tr class="changed"><td><code>$NEWER</code></td><td>0018</td><td><code>RuntimeError: The database is at revision 0018, from a newer version of the app; this version can't open it.</code>, then uvicorn's <code>Application startup failed. Exiting.</code> Started three times, the same each time</td><td>none: no folder made</td><td>0018, untouched</td></tr>
+<tr class="changed"><td><code>$OLDER</code></td><td>0014</td><td>Backup, then 0015, 0016 and 0017 run in order</td><td><code>…-2026-10-19-1100-before-update.zip</code> only</td><td>0017</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L5), with the real <code>create_app</code> as <code>serve.py</code> builds it.</p>
 <p>The refusal is the point of <code>known_revisions</code>. Docker restarts a crashed backend over and over (<code>restart: unless-stopped</code>). If the older version took a Backup each time before failing, it would fill the Backup folder with copies of a database it can't even read, and push out the older Backups the Lender needs to go back. <code>test_an_older_version_takes_no_backup_of_a_newer_database_and_does_not_start</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_backups.py"><code>test_backups.py</code></a> line 247) starts it five times and checks.</p>
@@ -212,7 +214,7 @@ ls "$OLDER/backups"; sqlite3 "$OLDER/data/mortgage.db" "SELECT * FROM alembic_ve
 </div>
 
 <h3>(c) A fresh install takes no <code>before-update</code> Backup</h3>
-<p>Started on an empty folder, the app builds the database from 0001 to 0015 with no <code>before-update</code> Backup (<code>current</code> is <code>None</code>, so <code>updating</code> is false). The lifespan's weekly check then takes an ordinary one, <code>mortgage-backup-2026-10-19-1100.zip</code>, because none was ever taken. Pinned by <code>test_a_fresh_install_takes_no_backup_before_update</code>.</p>
+<p>Started on an empty folder, the app builds the database from 0001 to 0017 with no <code>before-update</code> Backup (<code>current</code> is <code>None</code>, so <code>updating</code> is false). The lifespan's weekly check then takes an ordinary one, <code>mortgage-backup-2026-10-19-1100.zip</code>, because none was ever taken. Pinned by <code>test_a_fresh_install_takes_no_backup_before_update</code>.</p>
 
 <h3>(d) Trap #9: migrations don't care whose data it is</h3>
 <div class="callout warn"><strong>Trap #9.</strong> Migrations run on every start, against whatever database <code>DATA_DIR</code> points at. Start a branch with a new migration while <code>DATA_DIR</code> points at a real lending book, and that book is migrated, for good. The released app it belongs to will then refuse to start on it, exactly like <code>$NEWER</code> above. Getting back means restoring the <code>before-update</code> Backup (chapter 015). That's why every command in the course, and every QA run in this repo, passes a scratch <code>DATA_DIR</code> <em>and</em> a scratch <code>BACKUP_DIR</code> on every command, and why the course only ever starts the app on <code>mktemp -d</code> folders.</div>

@@ -98,7 +98,7 @@
 <tr><td><code>frontend/</code></td><td><code>npm run gen:types</code></td><td>Writes the backend's schema to <code>openapi.json</code> and regenerates <code>src/api.gen.ts</code> from it. Run after changing any model a route takes or returns, and commit both files (<a href="traps.html#t10">trap #10</a>; 011 · Lesson 1)</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm run typecheck</code></td><td>Compiles everything (<code>tsc -b</code>): a path, parameter or body the backend doesn't take fails here. CI runs it</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm test</code></td><td>Every frontend test (Vitest): 230 at commit 87a96c7. CI runs it</td></tr>
-<tr><td><code>frontend/</code></td><td><code>npm run lint</code></td><td>oxlint, which bans <code>fetch</code> outside the typed client (<a href="traps.html#t11">trap #11</a>). CI doesn't run it: run it yourself</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run lint</code></td><td>oxlint, which bans <code>fetch</code> outside the typed client (<a href="traps.html#t11">trap #11</a>). The frontend CI job runs it too</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_openapi.py</code></td><td>Whether the checked-in <code>openapi.json</code> matches the backend, and that retired words stay out of the schema</td></tr>
 <tr><td>repo root</td><td><code>sh docs/onboarding/011-the-frontends-data-layer/scripts/run_throughs.sh</code></td><td>Builds the sample book in a temp folder, serves it on 8000 with the dev server on 5199, drives the screens headless and prints every <code>/api/</code> request chapter 011 quotes. Ports 8000 and 5199 must be free; needs Playwright (<code>cd docs/sample-book &amp;&amp; npm install</code>)</td></tr>
 </table>
@@ -116,14 +116,14 @@
 </table>
 
 <h2 id="testing">Testing</h2>
-<p>Taught in <a href="../013-testing/index.html">chapter 013</a>. No server or sample book needed: each backend test makes its own database, and the frontend tests answer requests with <code>fakeServer</code>. Run all four CI commands before you push to <code>main</code>.</p>
+<p>Taught in <a href="../013-testing/index.html">chapter 013</a>. No server or sample book needed: each backend test makes its own database, and the frontend tests answer requests with <code>fakeServer</code>. Run the backend and frontend checks before you push to <code>main</code>; CI also runs two Node tests for alert automation and platform checks.</p>
 <table class="wide">
 <tr><th>From</th><th>Command</th><th>What it does</th></tr>
 <tr><td><code>backend/</code></td><td><code>uv run mypy src</code></td><td>CI's first backend check: strict types in <code>src/</code> (not <code>tests/</code>). "Success: no issues found in 62 source files"</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest</code></td><td>CI's second: every backend test, 709 at the chapter's commit, about 35 s</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm run typecheck</code></td><td>CI's first frontend check: <code>tsc -b</code>, over <code>src/</code> and <code>tests/</code>. Prints nothing when clean</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm test</code></td><td>CI's second: <code>vitest run</code>, 230 tests in 34 files, about 17 s</td></tr>
-<tr><td><code>frontend/</code></td><td><code>npm run lint</code></td><td>oxlint. <strong>Not in CI</strong>: the only check that bans <code>fetch</code> outside the typed client (<a href="traps.html#t11">trap #11</a>). Prints nothing when clean</td></tr>
+<tr><td><code>frontend/</code></td><td><code>npm run lint</code></td><td>oxlint. Runs in CI; bans <code>fetch</code> outside the typed client (<a href="traps.html#t11">trap #11</a>). Prints nothing when clean</td></tr>
 <tr><td>repo root</td><td><code>cmp windows/Setup.bat docs/Setup.bat</code></td><td>CI's <code>pages</code> job: the downloadable <code>Setup.bat</code> is the one in <code>windows/</code>. No output means the same</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest -k cash_limit -v</code></td><td>Only tests whose name or file name contains the words (5 here: one is in <code>test_lent_through.py</code>)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_cash_limit.py</code><br><code>uv run pytest tests/test_cash_limit.py::test_a_cash_limit_of_nothing_is_refused</code></td><td>One file; one test</td></tr>

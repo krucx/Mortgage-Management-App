@@ -353,7 +353,7 @@ flowchart LR
   <button class="opt"><code>npm run lint</code>, and its page test via <code>showPage</code></button>
   <button class="opt"><code>npm run typecheck</code>, as <code>fetch</code> is untyped</button>
   <button class="opt">None: <code>fetch</code> is allowed for reads</button>
-  <div class="why">oxlint's <code>no-restricted-globals</code> rule flags it, and <code>showPage</code> swaps the global <code>fetch</code> for one that throws. The compiler is happy: <code>fetch</code> is a perfectly typed browser function. CI runs the typecheck and the tests, not lint, so only the page test stops it there.</div>
+  <div class="why">oxlint's <code>no-restricted-globals</code> rule flags it, and <code>showPage</code> swaps the global <code>fetch</code> for one that throws. The compiler is happy: <code>fetch</code> is a perfectly typed browser function. CI runs the typecheck, lint and tests, so lint stops the unused call before it reaches a page test.</div>
 </div>
 <p><span class="score"></span></p>
 

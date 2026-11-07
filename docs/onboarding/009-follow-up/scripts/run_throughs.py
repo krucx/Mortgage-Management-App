@@ -440,14 +440,10 @@ def report(built: Path) -> None:
     print("   Nothing left to say: Sunita's mangalsutra Redeemed before the Reminder is sent:")
     red = Copy(built, "l4-redeemed")
     red.call("post", f"/mortgages/{MANGALSUTRA}/redeem", json={"redeemed_on": THE_DAY.isoformat(), "method": "upi"})
-    [n] = [n for n in red.reminders() if n["id"] == nid]
-    print(f"     #{nid} {n['status']} message={n['message']!r} mortgages={n['mortgages']}")
+    print("     unsent Reminders after sync:", red.reminders())
     print("     dashboard:", {k: v for k, v in red.call("get", "/dashboard", quiet=True)[1].items()
                                if "reminder" in k.lower()})
     red.call("post", f"/reminders/{nid}/approve")
-    red.call("post", f"/reminders/{nid}/sent")
-    s, n = red.call("post", f"/reminders/{nid}/skip")
-    print("    ", n["status"], repr(n["message"]))
 
     print("   A template edit before sending rewords; after sending doesn't:")
     tpl = Copy(built, "l4-template")

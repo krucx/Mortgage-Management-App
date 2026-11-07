@@ -322,7 +322,7 @@ test('the Mortgage page shows whose jewellery it is and what it owes', async () 
 <p class="cite">From <code>scripts/run_throughs.sh</code>, section L4. Undo with <code>git checkout -- tests/fakeServer.ts</code>.</p>
 
 <h3>c. Calling <code>fetch</code> fails the test</h3>
-<p>A page that calls <code>fetch</code> directly while a test draws it throws "fetch called outside the typed client: …". That's the test-time half of <a href="../reference/traps.html#t11">trap #11</a>; the other half is <code>npm run lint</code> (lesson 1), which CI doesn't run.</p>
+<p>A page that calls <code>fetch</code> directly while a test draws it throws "fetch called outside the typed client: …". That's the test-time half of <a href="../reference/traps.html#t11">trap #11</a>; the other half is <code>npm run lint</code> (lesson 1), which CI runs on every frontend check.</p>
 
 <h3>d. Change a backend model, regenerate the types</h3>
 <p>The fixtures are typed with the types generated from the backend's OpenAPI schema. Rename a field in a backend model and forget <code>npm run gen:types</code>, and the backend's <code>test_openapi.py</code> fails (the checked-in schema is stale), and once you regenerate, <code>npm run typecheck</code> fails on every fixture and page that used the old name (<a href="../reference/traps.html#t10">trap #10</a>, <a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011, lesson 1</a>). Both suites, on purpose.</p>

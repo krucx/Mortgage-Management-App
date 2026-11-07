@@ -78,7 +78,7 @@ flowchart TD
 
 <h2>Lessons</h2>
 <ol class="lessons-list">
-  <li><a href="01-every-check-and-how-to-run-it.html">Every check, and how to run it</a><span class="sum">The CI jobs, run on your machine: 709 backend and 230 frontend tests, mypy and tsc; one test on its own; the lint CI skips; Pester in Docker.</span></li>
+  <li><a href="01-every-check-and-how-to-run-it.html">Every check, and how to run it</a><span class="sum">The test workflow's jobs, local tests and lint; one test on its own; and the separate CodeQL and Trivy scans.</span></li>
   <li><a href="02-backend-tests-through-the-api.html">Backend tests through the API</a><span class="sum"><code>conftest.py</code>'s fixtures, <code>api_seed.py</code>'s helpers, <code>test_cash_limit.py</code> as the pattern; then write a test of your own, and make it fail.</span></li>
   <li><a href="03-below-the-api-seeds-and-pure-tests.html">Below the API: seeds and pure tests</a><span class="sum">Three layers, and how to choose; <code>seed.py</code> makes each change on its own date; move today one day and watch 48 tests fail.</span></li>
   <li><a href="04-frontend-tests-fakeserver-and-showpage.html">Frontend tests: fakeServer and showPage</a><span class="sum">A page rendered as the app renders it, against a fake backend; <code>ChangeTermsPage.test.tsx</code> line by line; a test of your own; why the fake's 404 matters.</span></li>
@@ -87,7 +87,7 @@ flowchart TD
 </ol>
 
 <footer>
-  <p>Written against commit <code>bda77f1</code>. Every count, test name and failure message came from <a href="scripts/run_throughs.sh"><code>scripts/run_throughs.sh</code></a>. It checks out the current commit into a throwaway git worktree, runs every check CI runs, then makes each lesson's change to one line, runs the tests and undoes it, so your clone is never touched. Run it from the repo root with <code>sh docs/onboarding/013-testing/scripts/run_throughs.sh</code>. Pester runs in the image <a href="scripts/pester.Dockerfile"><code>scripts/pester.Dockerfile</code></a> builds.</p>
+  <p>Written against commit <code>bda77f1</code>. Every count, test name and failure message came from <a href="scripts/run_throughs.sh"><code>scripts/run_throughs.sh</code></a>. It checks out the current commit into a throwaway git worktree, runs the local test and lint checks and the pages comparison, then makes each lesson's change to one line, runs the tests and undoes it, so your clone is never touched. Hosted scans and the container smoke check are separate. Run it from the repo root with <code>sh docs/onboarding/013-testing/scripts/run_throughs.sh</code>. Pester runs in the image <a href="scripts/pester.Dockerfile"><code>scripts/pester.Dockerfile</code></a> builds.</p>
   <p>Anything unclear? Ask an agent in this repo to explain it: a fixture, why a test is written the way it is, or why a test you wrote fails. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
   <p><a href="../index.html">Course home</a> · Previous: <a href="../012-frontend-pages-and-the-pwa/index.html">chapter 012</a> · Next: <a href="../014-how-it-runs-on-the-lenders-laptop/index.html">chapter 014, How it runs on the Lender's laptop</a></p>
 </footer>

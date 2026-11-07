@@ -7,25 +7,26 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
-### Changed
-
-- **Reminders:** renamed the follow-up feature across the app, API, database and
-  documentation. Migration 0017 preserves existing Reminders, Mortgage links and
-  message settings while renaming their database names.
-- **Sendable Reminders:** unsent Reminders are removed when no Active Mortgage
-  accrues on their date. Remaining eligible Mortgages stay on the Reminder; sent and
-  skipped Reminders keep their recorded message and Mortgage details.
-
 ## [3.4.4] - 2026-11-07
 
 The Dashboard shows activity figures for a calendar month or a custom date range.
-**No database changes:** updating keeps all data and Backups, and 3.4.3 still starts
-on the same database.
+Follow-up messages are now called Reminders, and unsent Reminders contain only
+Mortgages that still accrue on their date. **Database change:** migration 0017 renames
+the former Notice records and settings while preserving their data and relationships;
+the app backs up before migrating.
 
 ### Changed
 
-- **Dashboard activity:** added calendar-month selection and highlighted the active
-  timeframe controls; the inactive controls remain available but dimmed.
+- **Dashboard activity:** shows principal lent, principal redeemed and interest
+  collected for the selected calendar month or inclusive custom date range. The
+  calendar month is selected by default; active timeframe controls are highlighted.
+- **Reminders:** renamed the former Notice feature across the app, API, database and
+  documentation. Existing Notice records, Mortgage links and message settings are
+  preserved by migration 0017. Unsent Reminders drop Mortgages that no longer accrue on
+  their date; sent and skipped Reminders retain their recorded message and Mortgage details.
+- **Developer checks:** CI now runs frontend lint and focused tests for its alert
+  automation. CodeQL and Trivy scan the code and container; critical findings and
+  secret-scanning alerts are tracked as GitHub issues.
 
 ## [3.4.3] - 2026-11-07
 

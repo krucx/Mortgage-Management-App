@@ -10,16 +10,16 @@
 <body>
 <p class="kicker">Chapter 013 · Lesson 1</p>
 <h1>Every check, and how to run it</h1>
-<p class="lede">Every push to <code>main</code> runs a set of checks on GitHub. This lesson is the list: what each check is, how to run it on your own machine before you push, and how to run just one test while you work. It ends with the one check CI doesn't run.</p>
+<p class="lede">Every push to <code>main</code> runs tests and lint on GitHub; separate hosted workflows scan the code and container for security issues. This lesson covers the local checks and what the hosted scans do.</p>
 
-<div class="callout win"><strong>By the end</strong> you can run locally everything CI runs, and run one test on its own.</div>
+<div class="callout win"><strong>By the end</strong> you can run the project tests and lint locally, and explain the security scans that run on GitHub.</div>
 
 <h2>The problem</h2>
 <p>This project has one developer, who commits straight to <code>main</code>. There are no pull requests and no reviewer. So when a check fails on GitHub, <code>main</code> is already broken: the next release would be cut from broken code, and the Lender's next update would install it.</p>
 <p>"Run the tests before you push" sounds like enough, but "the tests" is really several different tools in two languages, plus PowerShell. Run <code>pytest</code> alone and you miss a type error that <code>mypy</code> would have caught. Run <code>npm test</code> alone and you miss a type error in a page, because vitest doesn't type-check. Each tool catches a different kind of mistake, so you need to know the whole list.</p>
 
 <h2>The idea</h2>
-<p><strong>CI is a short list of commands, and you can run every one of them yourself.</strong> CI (continuous integration) means GitHub runs these checks on its own machines for every push. They live in one file, <code>.github/workflows/test.yml</code>. The two that matter day to day are two commands for the backend and two for the frontend. Run all four before you push, and CI should agree with you.</p>
+<p><strong>The test workflow is a short list of checks you can run locally.</strong> <code>.github/workflows/test.yml</code> covers backend types and tests, frontend types, lint and tests, plus a container smoke check, a Pages file comparison, Windows checks and tests for the security-alert automation. CodeQL and Trivy run as separate hosted workflows; they need GitHub's scanning services and don't belong in the local command list.</p>
 
 <h2>The flow</h2>
 <figure class="diagram">
@@ -27,15 +27,16 @@
 flowchart LR
   P["push to main,<br/>a pull request,<br/>or release.yml"] --> T[".github/workflows/test.yml"]
   T --> B["backend<br/>uv run mypy src<br/>uv run pytest"]
-  T --> F["frontend<br/>npm run typecheck<br/>npm test"]
+  T --> F["frontend<br/>npm run typecheck<br/>npm run lint<br/>npm test"]
+  T --> S["alert automation<br/>two node --test files"]
   T --> I["image<br/>docker build, start, curl"]
   T --> G["pages<br/>cmp Setup.bat"]
   T --> W["windows<br/>Invoke-Pester, then<br/>setup, update, uninstall"]
-  R["release.yml"] -.->|"publishes only if<br/>all five pass"| T
+  R["release.yml"] -.->|"publishes only if<br/>all seven pass"| T
 </pre>
-<figcaption>Five jobs, run side by side on GitHub's machines. The first two are this chapter's subject.</figcaption>
+<figcaption>Seven jobs in the test workflow run on GitHub's machines. Separate CodeQL and Trivy workflows scan code and the container.</figcaption>
 </figure>
-<p>Notice that the release workflow runs this same file before it publishes anything. A red check doesn't just mark a commit; it stops the release (chapter 015).</p>
+<p>The release workflow runs this file before it publishes anything. A failed job stops the release (chapter 015). CodeQL and Trivy are separate scheduled and push-triggered scans; the automation records critical findings and secret-scanning alerts as issues.</p>
 
 <h2>The code</h2>
 <h3>1. The two jobs you'll run every day</h3>
@@ -60,7 +61,8 @@ flowchart LR
 ⋮
 33        - run: npm ci
 34        - run: npm run typecheck              # ④  ◀
-35        - run: npm test                       # ⑤  ◀
+35        - run: npm run lint                   # ⑤  ◀
+36        - run: npm test                       # ⑥  ◀
 </code></pre>
 </figure>
 <ol class="marks">
@@ -68,6 +70,7 @@ flowchart LR
   <li><strong>mypy</strong> checks the backend's type annotations without running anything. Note the folder: <code>src</code>. It checks the app's code, <em>not</em> the tests.</li>
   <li><strong>pytest</strong> runs every backend test.</li>
   <li><code>npm run typecheck</code> is <code>tsc -b</code>: the TypeScript compiler checks every type and writes nothing. It covers <code>tests/</code> as well as <code>src/</code>.</li>
+  <li><code>npm run lint</code> runs oxlint, including the rule that bans direct <code>fetch</code> calls outside the typed client.</li>
   <li><code>npm test</code> is <code>vitest run</code>: every frontend test, once. (Plain <code>vitest</code> would keep watching your files and rerun them.)</li>
 </ol>
 
@@ -107,7 +110,7 @@ flowchart LR
 </ol>
 <p>vitest's own settings are a few lines at the end of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/vite.config.ts"><code>vite.config.ts</code></a>: it runs <code>tests/**/*.test.{ts,tsx}</code>, and loads <code>tests/setup.ts</code> first (lesson 4).</p>
 
-<h3>3. The rule CI never checks</h3>
+<h3>3. The rule enforced by lint</h3>
 <figure class="snippet">
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/.oxlintrc.json">frontend/.oxlintrc.json</a> · <code>no-restricted-globals</code> · lines 16–22</figcaption>
 <pre data-file="frontend/.oxlintrc.json"><code>16      "no-restricted-globals": [
@@ -119,7 +122,7 @@ flowchart LR
 22      ],
 </code></pre>
 </figure>
-<p>This is <a href="../reference/traps.html#t11">trap #11</a>, taught in <a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011</a>: every request goes through the typed client, so it is type-checked, cached and made stale by saves. The next rules in the file ban <code>window.fetch</code>, <code>globalThis.fetch</code> and <code>self.fetch</code> too. oxlint is what enforces it. And <code>npm run lint</code> appears nowhere in <code>test.yml</code>.</p>
+<p>This is <a href="../reference/traps.html#t11">trap #11</a>, taught in <a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011</a>: every request goes through the typed client, so it is type-checked, cached and made stale by saves. The next rules in the file ban <code>window.fetch</code>, <code>globalThis.fetch</code> and <code>self.fetch</code> too. oxlint enforces the rule, and the frontend CI job runs it.</p>
 
 <h3>4. The other three jobs</h3>
 <table class="wide">
@@ -129,8 +132,8 @@ flowchart LR
 <tr><td><code>windows</code></td><td>On a real Windows machine: the Pester tests (line 85), then Setup without Docker, the app answering and taking a Backup, an update, and the uninstall</td><td>Pester only, in Docker: below. The rest only runs on Windows (chapter 014)</td></tr>
 </table>
 
-<h2>Run-through: everything CI runs</h2>
-<p>From the repo root, in two terminals (the backend and the frontend don't depend on each other):</p>
+<h2>Run-through: the local checks</h2>
+<p>From the repo root, run the backend and frontend checks in separate terminals; the two small Node test files can run in either:</p>
 <pre><code># terminal 1
 cd backend
 uv run mypy src
@@ -139,13 +142,19 @@ uv run pytest
 # terminal 2
 cd frontend
 npm run typecheck
+npm run lint
 npm test</code></pre>
+<pre><code># repo root
+node --test .github/scripts/test-critical-findings.mjs
+node --test .github/scripts/test-secret-scanning-alerts.mjs</code></pre>
 <table class="steps text">
 <tr><th>Command</th><th>What it prints at the end</th><th>Time on a laptop</th></tr>
 <tr><td><code>uv run mypy src</code></td><td><code>Success: no issues found in 62 source files</code></td><td>a few seconds the first time; under a second after, from its cache</td></tr>
 <tr><td><code>uv run pytest</code></td><td><code>709 passed</code></td><td>about 35 s</td></tr>
 <tr><td><code>npm run typecheck</code></td><td>nothing at all: <code>tsc</code> prints only errors</td><td>a few seconds</td></tr>
+<tr><td><code>npm run lint</code></td><td>nothing at all when clean</td><td>a few seconds</td></tr>
 <tr><td><code>npm test</code></td><td><code>Test Files  34 passed (34)</code>, <code>Tests  230 passed (230)</code></td><td>about 17 s</td></tr>
+<tr><td>two <code>node --test</code> files</td><td>the alert reconciliation unit tests pass</td><td>a few seconds</td></tr>
 <tr><td><code>cmp windows/Setup.bat docs/Setup.bat</code></td><td>nothing: the files are the same</td><td>instant</td></tr>
 <tr><td>Pester, in Docker (below)</td><td><code>Tests Passed: 65, Failed: 0</code></td><td>2 s, plus building the image once</td></tr>
 </table>
@@ -174,7 +183,7 @@ cd frontend &amp;&amp; npx vitest run -t "Term Change"</code></pre>
 <p><code>vitest -t "Term Change"</code> works the same way on test names: it runs the 4 tests in <code>ChangeTermsPage.test.tsx</code> and skips the other 226. To run one file, give its path: <code>npx vitest run tests/ChangeTermsPage.test.tsx</code>.</p>
 <p class="cite">From <code>scripts/run_throughs.sh</code>, section L1.</p>
 
-<h3>The lint CI doesn't run</h3>
+<h3>The lint catches a request that tests miss</h3>
 <p>Now see what only the lint catches. In <code>frontend/src/money.ts</code>, add one line at the end:</p>
 <pre><code>export const sneaky = () =&gt; fetch('/api/customers')</code></pre>
 <div class="reveal">
@@ -187,7 +196,7 @@ cd frontend &amp;&amp; npx vitest run -t "Term Change"</code></pre>
     <tr><td><code>npm test</code></td><td>230 passed: no test calls <code>sneaky</code></td></tr>
     <tr class="changed"><td><code>npm run lint</code></td><td><code>src/money.ts:27:29: error eslint(no-restricted-globals): Unexpected use of 'fetch'. Ask the backend through the typed client (src/serverState.ts, src/requests.ts), never with fetch directly.</code></td></tr>
     </table>
-    <p>Only the lint fails, and CI doesn't run it. Pushed, this would go green on GitHub. (If a <em>page</em> called <code>fetch</code> while a test drew it, the test would fail: <code>showPage</code> replaces <code>fetch</code> with one that throws. Lesson 4. But a call no test reaches slips through.)</p>
+    <p>Only the lint fails. CI runs the same command, so this mistake blocks a push check. (If a <em>page</em> called <code>fetch</code> while a test drew it, the test would fail too: <code>showPage</code> replaces <code>fetch</code> with one that throws. Lesson 4.)</p>
   </div>
 </div>
 <p>Undo it with <code>git checkout -- src/money.ts</code>. With the code clean, <code>npm run lint</code> prints nothing at all.</p>
@@ -214,11 +223,11 @@ docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">
-  <p class="q">You add <code>window.fetch('/api/backups')</code> to a page that no test draws, then run the four CI commands. What happens?</p>
+  <p class="q">You add <code>window.fetch('/api/backups')</code> to a page that no test draws, then run the frontend checks. What happens?</p>
   <button class="opt">mypy fails: <code>fetch</code> is not allowed in the app</button>
   <button class="opt"><code>npm run typecheck</code> fails on the restricted global</button>
-  <button class="opt">All four pass; only <code>npm run lint</code> would object</button>
-  <div class="why">mypy reads only the backend. <code>tsc</code> checks types, and <code>window.fetch</code> is well typed. The ban is an oxlint rule (<code>no-restricted-properties</code>, for <code>window.fetch</code>), and CI never runs oxlint. No test draws the page, so <code>showPage</code>'s throwing <code>fetch</code> never runs either.</div>
+  <button class="opt"><code>npm run lint</code> fails on the restricted property</button>
+  <div class="why">mypy reads only the backend. <code>tsc</code> checks types, and <code>window.fetch</code> is well typed. The frontend CI job runs oxlint, whose <code>no-restricted-properties</code> rule rejects <code>window.fetch</code>. No test draws the page, so the test-time guard would not run.</div>
 </div>
 <div class="quiz" data-answer="0">
   <p class="q">You want to run only the four tests in <code>backend/tests/test_cash_limit.py</code>. Which command does exactly that?</p>
@@ -232,7 +241,7 @@ docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke
   <button class="opt">Green: vitest ran the file and every test passed</button>
   <button class="opt">Red: <code>npm run typecheck</code> also checks <code>tests/</code></button>
   <button class="opt">Red: oxlint rejects the wrong type in a test file</button>
-  <div class="why">vitest strips types without checking them, but <code>tsc -b</code> includes <code>tests/</code> (<code>tsconfig.app.json</code>), so the frontend job fails at its typecheck step. oxlint doesn't check types and isn't in CI.</div>
+  <div class="why">vitest strips types without checking them, but <code>tsc -b</code> includes <code>tests/</code> (<code>tsconfig.app.json</code>), so the frontend job fails at its typecheck step. oxlint runs in CI too, but checks code patterns rather than TypeScript types.</div>
 </div>
 <p><span class="score"></span></p>
 

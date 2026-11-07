@@ -246,7 +246,6 @@ def figures(book: ServedBook) -> dict[str, str]:
         "dashboard.ltv": percent(dash["loan_to_value"]),
         "dashboard.ltv-tile": f"Loan-to-Value {percent(dash['loan_to_value'])}",
         "dashboard.follow": f"{dash['call_list_count']} · {dash['reminders_to_send'] + dash['reminders_to_approve']}",
-        "dashboard.call-list": plural(dash["call_list_count"], "Mortgage"),
         "dashboard.redeemed": f"{dash['redeemed_this_month']} Redeemed",
         "dashboard.closed": f"{dash['waived_this_month']} Waived off · {dash['forfeited_this_month']} Forfeited",
         "dashboard.ahead-3": format_inr(horizon[3]["interest_accrued"]),

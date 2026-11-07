@@ -135,8 +135,8 @@ async function between(first, last) {
 await open('/')
 await view('dashboard', {
   owed: page.locator('.group.owed > :first-child'),
-  ltv: page.locator('.tile').filter({ hasText: 'Loan-to-Value' }),
-  follow: page.locator('.tile').filter({ hasText: "On today's Call List" }),
+  activityMonth: page.getByLabel('Activity month'),
+  activityFigures: page.locator('.group.activity .tiles'),
   theme: page.locator('header button').last(),
   dot: page.locator('nav .dot'),
 })

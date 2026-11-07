@@ -258,13 +258,14 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
   <div class="features">
 
     <article class="feature" style="--tone: var(--owed)">
-      <img src="shots/dashboard.webp" width="1280" height="860" alt="The Dashboard: what is owed across the book, interest collected, Collateral Value and Loan-to-Value, and today's follow-up." loading="lazy">
+      <img src="shots/dashboard.webp" width="1280" height="860" alt="The Dashboard: what is owed, the selected activity month, principal lent and redeemed, interest collected, and today's follow-up." loading="lazy">
       <div class="feature-body">
         <h3>Dashboard</h3>
-        <p>The whole book on one screen: what is owed, what came in, what the gold is worth, and what needs doing today.</p>
+        <p>The whole book on one screen: what is owed, what came in, what the gold is worth, and what needs doing today. Activity figures show principal lent, principal redeemed and interest collected for the selected month or date range.</p>
         <ul>
           <li>Every tile links to the list behind it</li>
           <li>Payments by month, and the year ahead</li>
+          <li>Activity totals for a calendar month or inclusive custom date range</li>
           <li>The book in 3, 6 and 12 months: exact Projections and estimated Trends, labelled apart</li>
         </ul>
         <div class="more"><a href="walkthrough.html#s1">Walkthrough §1</a><a href="story.html#morning">Story: the morning</a></div>
@@ -625,7 +626,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div class="nuance rule"><b>The app never sends by itself</b><span>WhatsApp opens with the message ready and the Lender presses Send. No WhatsApp account setup or API is needed.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR-0002</a></div>
         <div class="nuance"><b>Customers see their jewellery, not codes</b><span>Receipts and Reminders name each Mortgage by its description ("Gold chain"), never its Mortgage Name.</span></div>
         <div class="nuance"><b>Templates can't break</b><span>A template with a placeholder the app can't fill is refused on save, so a Customer never receives <code>{typo}</code>.</span></div>
-        <div class="nuance"><b>Reminders always match today</b><span>Until it is sent, a Reminder's amounts and wording are worked out each time it is read, so a later Payment or edit shows in it; if none of its Mortgages accrues that day any more, it says <span class="ui">Nothing to send</span>. Turning on approve-first holds those already queued.</span></div>
+        <div class="nuance"><b>Unsent Reminders stay eligible</b><span>Until sent, a Reminder's amounts and wording are worked out from current figures. Queue sync removes it if none of the Customer's Active Mortgages still accrues on its date; sent and skipped Reminders remain as history.</span></div>
       </div>
     </div>
 
