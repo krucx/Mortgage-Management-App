@@ -15,9 +15,10 @@ to each Mortgage Allocation; existing records default to zero.
 
 - **Discounts:** record a non-cash reduction separately from cash for each Mortgage in
   a Payment. Cash is applied first, then Discount; each reduces unpaid interest,
-  Interest to Date, and Principal in that order. The screen confirms Discounts over
-  ₹500 and asks before capping one at the remaining Outstanding. Discounts appear on
-  Receipts but are excluded from cash totals and reports. Cash plus Discount can Redeem
+  Interest to Date, and Principal in that order. The Settings page controls the extra
+  confirmation threshold (₹500 by default); the screen asks before capping one at the
+  remaining Outstanding. Discounts appear on Receipts but are excluded from cash totals
+  and reports. Cash plus Discount can Redeem
   a Mortgage; Reopen reverses both by Voiding the Final Payment.
 
 ### Upgrading

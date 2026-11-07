@@ -1284,6 +1284,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/discount-confirmation-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Discount Confirmation Limit */
+        get: operations["read_discount_confirmation_limit_api_settings_discount_confirmation_limit_get"];
+        /** Update Discount Confirmation Limit */
+        put: operations["update_discount_confirmation_limit_api_settings_discount_confirmation_limit_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/gold-rates": {
         parameters: {
             query?: never;
@@ -1801,6 +1819,11 @@ export interface components {
             waived_amount_this_month: number;
             /** Waived This Month */
             waived_this_month: number;
+        };
+        /** DiscountConfirmationLimit */
+        DiscountConfirmationLimit: {
+            /** Discount Confirmation Limit */
+            discount_confirmation_limit: number | null;
         };
         /** ExistingCustomerReferrer */
         ExistingCustomerReferrer: {
@@ -5329,6 +5352,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Terms"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_discount_confirmation_limit_api_settings_discount_confirmation_limit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscountConfirmationLimit"];
+                };
+            };
+        };
+    };
+    update_discount_confirmation_limit_api_settings_discount_confirmation_limit_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscountConfirmationLimit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscountConfirmationLimit"];
                 };
             };
             /** @description Validation Error */

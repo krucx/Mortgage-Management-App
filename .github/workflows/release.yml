@@ -112,6 +112,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
-          gh release create "$TAG" "mortgage-management-$TAG.zip"
-          --title "$TAG" --notes-file notes.md --verify-tag
-          --latest=${{ needs.version.outputs.latest }}
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "mortgage-management-$TAG.zip" --clobber &&
+            gh release edit "$TAG" --title "$TAG" --notes-file notes.md --verify-tag;
+          else
+            gh release create "$TAG" "mortgage-management-$TAG.zip"
+            --title "$TAG" --notes-file notes.md --verify-tag
+            --latest=${{ needs.version.outputs.latest }};
+          fi

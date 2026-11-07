@@ -19,6 +19,7 @@ export function SettingsPage() {
       <GoldRateSettings />
       <CallListThresholds />
       <CashLimitSettings />
+      <DiscountConfirmationSettings />
       <MessageSettingsForm />
       <BackupSettings />
     </>
@@ -340,6 +341,79 @@ function CashLimitSettings() {
         <form onSubmit={save} className="stack">
           <label>
             Warn at cash of (₹), or more
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+          </label>
+          <div>
+            <button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </form>
+      )}
+      {status && <p className={`status ${status.kind}`}>{status.text}</p>}
+      {confirmDialog}
+    </section>
+  )
+}
+
+/** How much Discount requires an extra confirmation; cleared, no threshold. */
+function DiscountConfirmationSettings() {
+  const { client, queryClient } = useServerState()
+  const saved = useQuery(settings.discountConfirmationLimit(client))
+  const [draft, setDraft] = useDraft(saved.data, ({ discount_confirmation_limit }) =>
+    paiseToRupees(discount_confirmation_limit),
+  )
+  const [savedStatus, setStatus] = useState<Status>(null)
+  const status = shownStatus(savedStatus, saved.error)
+  const [saving, setSaving] = useState(false)
+  const [confirm, confirmDialog] = useConfirm()
+
+  async function save(event: FormEvent) {
+    event.preventDefault()
+    if (draft === null) return
+    const limit = draft === '' ? null : rupeesToPaise(draft)
+    const confirmed = await confirm({
+      title: 'Change the Discount confirmation limit?',
+      body: (
+        <Summary
+          rows={[
+            ['Ask for confirmation over', limit === null ? 'Never' : formatINR(limit)],
+          ]}
+        />
+      ),
+    })
+    if (!confirmed) return
+    setSaving(true)
+    setStatus(null)
+    try {
+      const stored = await settings.saveDiscountConfirmationLimit(client, limit)
+      queryClient.setQueryData(settings.discountConfirmationLimit(client).queryKey, stored)
+      setStatus({ kind: 'saved', text: 'Saved.' })
+    } catch (error) {
+      setStatus({ kind: 'error', text: (error as Error).message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>Discount confirmation</h2>
+      <p className="hint">
+        Ask before recording a per-Mortgage Discount greater than this amount. The default is
+        ₹500. This is a confirmation guideline; Discounts are still capped at the remaining
+        Outstanding. Leave it empty to skip the extra confirmation.
+      </p>
+      {draft !== null && (
+        <form onSubmit={save} className="stack">
+          <label>
+            Ask when Discount exceeds (₹)
             <input
               type="number"
               min="1"

@@ -122,6 +122,7 @@ export type BackupStatus = Schemas['BackupStatus']
 export type AuditEntry = Schemas['AuditEntry']
 
 export type CallListSettings = Schemas['CallListSettings']
+export type DiscountConfirmationLimit = Schemas['DiscountConfirmationLimit']
 export type CallNote = Schemas['CallNote']
 export type CallListRow = Schemas['CallListRow']
 /** One Customer's Mortgages on the Call List. */

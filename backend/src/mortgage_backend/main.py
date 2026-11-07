@@ -27,7 +27,12 @@ from mortgage_backend.lending import (
     projections,
     simulation,
 )
-from mortgage_backend.payments import cash_limit, payments, receipts
+from mortgage_backend.payments import (
+    cash_limit,
+    discount_confirmation,
+    payments,
+    receipts,
+)
 from mortgage_backend.people import customer_changes, customers
 from mortgage_backend.platform import photos, updates
 from mortgage_backend.platform.daily_run import DailyRun
@@ -119,6 +124,7 @@ def create_app(
     app.include_router(mortgages.router)
     app.include_router(payments.router)
     app.include_router(cash_limit.router)
+    app.include_router(discount_confirmation.router)
     app.include_router(changes.router)
     app.include_router(closing.router)
     app.include_router(photos.router)

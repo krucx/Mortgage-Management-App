@@ -19,7 +19,7 @@ import { ReasonTip } from '../components/ReasonTip'
 import { formatDate, formatDays, todayIso } from '../format'
 import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
-import { changes, customerQuery, everyMortgageQuery, previews } from '../requests'
+import { changes, customerQuery, everyMortgageQuery, previews, settings } from '../requests'
 import { useLedgerChange, useServerState } from '../serverState'
 import { tickedFirst } from '../sort'
 
@@ -97,7 +97,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const changeLedger = useLedgerChange()
 
   // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
-  const { client } = useServerState()
+  const { client, queryClient } = useServerState()
   const listed = useQuery({
     ...everyMortgageQuery(client, { customerId: customer.id, status: 'active', asOf: paidOn }),
     enabled: paidOn !== '',
@@ -251,12 +251,23 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       }
     },
     beforeConfirm: async (payment) => {
+      const hasDiscount = payment.allocations.some((allocation) => allocation.discount > 0)
+      if (!hasDiscount) return true
+      let limit: number | null
+      try {
+        limit = (
+          await queryClient.fetchQuery(settings.discountConfirmationLimit(client))
+        ).discount_confirmation_limit
+      } catch {
+        return true
+      }
+      if (limit === null) return true
       const largeDiscounts = payment.allocations.filter(
-        (allocation) => allocation.discount > 50_000,
+        (allocation) => allocation.discount > limit,
       )
       if (largeDiscounts.length === 0) return true
       return confirmCap({
-        title: 'Confirm a Discount over ₹500?',
+        title: `Confirm a Discount over ${formatINR(limit)}?`,
         body: (
           <Summary
             rows={largeDiscounts.map((allocation): [string, string] => [

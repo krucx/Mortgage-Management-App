@@ -1296,6 +1296,27 @@
         "title": "Dashboard",
         "type": "object"
       },
+      "DiscountConfirmationLimit": {
+        "properties": {
+          "discount_confirmation_limit": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Confirmation Limit"
+          }
+        },
+        "required": [
+          "discount_confirmation_limit"
+        ],
+        "title": "DiscountConfirmationLimit",
+        "type": "object"
+      },
       "ExistingCustomerReferrer": {
         "properties": {
           "id": {
@@ -7465,6 +7486,60 @@
           }
         },
         "summary": "Update Default Terms"
+      }
+    },
+    "/api/settings/discount-confirmation-limit": {
+      "get": {
+        "operationId": "read_discount_confirmation_limit_api_settings_discount_confirmation_limit_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountConfirmationLimit"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Discount Confirmation Limit"
+      },
+      "put": {
+        "operationId": "update_discount_confirmation_limit_api_settings_discount_confirmation_limit_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscountConfirmationLimit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountConfirmationLimit"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Discount Confirmation Limit"
       }
     },
     "/api/settings/gold-rates": {

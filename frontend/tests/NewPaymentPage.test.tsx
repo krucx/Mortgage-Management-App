@@ -43,6 +43,9 @@ function server(extra: Record<string, unknown> = {}) {
       { method: 'cash', name: 'Cash' },
       { method: 'upi', name: 'UPI' },
     ],
+    'GET /api/settings/discount-confirmation-limit': {
+      discount_confirmation_limit: 50_000,
+    },
     'POST /api/payments/preview': changePreview([]),
     'POST /api/payments': async (request: Request) => ({
       ...((await request.json()) as Record<string, unknown>),
