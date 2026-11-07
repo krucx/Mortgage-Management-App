@@ -16,6 +16,17 @@ Every release of Mortgage Management, newest first. The format follows
   accrues on their date. Remaining eligible Mortgages stay on the Reminder; sent and
   skipped Reminders keep their recorded message and Mortgage details.
 
+## [3.4.4] - 2026-11-07
+
+The Dashboard shows activity figures for a calendar month or a custom date range.
+**No database changes:** updating keeps all data and Backups, and 3.4.3 still starts
+on the same database.
+
+### Changed
+
+- **Dashboard activity:** added calendar-month selection and highlighted the active
+  timeframe controls; the inactive controls remain available but dimmed.
+
 ## [3.4.3] - 2026-11-07
 
 Edit Mortgage can correct the starting Terms and shows how existing Payments replay.
