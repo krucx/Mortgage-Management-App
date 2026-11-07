@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   alertFinding,
+  createGitHub,
   reconcileSecretScanningAlerts,
 } from './secret-scanning-alerts.mjs';
 
@@ -111,6 +112,29 @@ test('keeps reconciling other alerts when one issue write fails', async () => {
   await assert.doesNotReject(reconcileSecretScanningAlerts(github, { log: () => {} }));
   assert.equal(github.issues.length, 1);
   assert.match(github.issues[0].title, /#18/);
+});
+
+test('fetches open and resolved alerts using supported API states', async () => {
+  const requests = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    requests.push(String(url));
+    const state = new URL(url).searchParams.get('state');
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => [{ number: state === 'open' ? 17 : 18, state }],
+    };
+  };
+
+  try {
+    const alerts = await createGitHub('token', 'acme/app').alerts();
+    assert.deepEqual(alerts.map(({ number }) => number), [17, 18]);
+    assert.deepEqual(requests.map((url) => new URL(url).searchParams.get('state')).sort(), ['open', 'resolved']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('runs daily and manually with the documented fine-grained token', async () => {

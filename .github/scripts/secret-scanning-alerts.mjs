@@ -97,7 +97,7 @@ async function getAllPages(api, path) {
   return results;
 }
 
-function createGitHub(token, repository) {
+export function createGitHub(token, repository) {
   const base = `https://api.github.com/repos/${repository}`;
   async function request(path, method = 'GET', body) {
     const response = await fetch(path.startsWith('https://') ? path : `${base}${path}`, {
@@ -119,7 +119,11 @@ function createGitHub(token, repository) {
 
   return {
     async alerts() {
-      return getAllPages({ request }, '/secret-scanning/alerts?state=all&per_page=100');
+      const [open, resolved] = await Promise.all([
+        getAllPages({ request }, '/secret-scanning/alerts?state=open&per_page=100'),
+        getAllPages({ request }, '/secret-scanning/alerts?state=resolved&per_page=100'),
+      ]);
+      return [...open, ...resolved];
     },
     async locations(url) {
       return getAllPages({ request }, url);
