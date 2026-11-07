@@ -5,6 +5,27 @@ Every release of Mortgage Management, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Domain terms are as defined in
 [GLOSSARY.md](GLOSSARY.md).
 
+## [3.4.2] - 2026-11-07
+
+Discounts can reduce what a Customer owes alongside a Payment, including when that
+Payment Redeems a Mortgage. **Database change:** migration 0016 adds a Discount amount
+to each Mortgage Allocation; existing records default to zero.
+
+### Added
+
+- **Discounts:** record a non-cash reduction separately from cash for each Mortgage in
+  a Payment. Cash is applied first, then Discount; each reduces unpaid interest,
+  Interest to Date, and Principal in that order. The screen confirms Discounts over
+  ₹500 and asks before capping one at the remaining Outstanding. Discounts appear on
+  Receipts but are excluded from cash totals and reports. Cash plus Discount can Redeem
+  a Mortgage; Reopen reverses both by Voiding the Final Payment.
+
+### Upgrading
+
+Migration 0016 adds `allocation.discount`, with existing Allocations set to zero. The
+app backs up the database before migrating. If rolling back after recording Discounts,
+restore that pre-update Backup first; version 3.4.1 does not replay Discounts.
+
 ## [3.4.1] - 2026-11-06
 
 The Calculator shows what a loan comes to first, without scrolling. **No database
