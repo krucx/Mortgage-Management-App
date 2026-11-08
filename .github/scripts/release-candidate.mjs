@@ -64,6 +64,10 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.
   const root = option('--root') ?? resolve(new URL('../..', import.meta.url).pathname)
   const date = option('--date') ?? new Date().toISOString().slice(0, 10)
   validateVersionRequest(version, latest, current)
-  prepareRelease(root, version, date)
-  console.log(`Prepared release ${version} dated ${date}`)
+  if (process.argv.includes('--check-only')) {
+    console.log(`Version ${version} is higher than published ${latest} and main ${current}`)
+  } else {
+    prepareRelease(root, version, date)
+    console.log(`Prepared release ${version} dated ${date}`)
+  }
 }

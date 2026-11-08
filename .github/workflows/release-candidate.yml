@@ -95,8 +95,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.candidate.outputs.branch }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          release_tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name')
+          latest=$(printf '%s\n' "$release_tags" \
+            | grep -E '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' \
+            | sort -V | tail -n 1 || true)
+          latest=${latest:-0.0.0}
+          current_main=$(git show origin/main:VERSION)
+          node .github/scripts/release-candidate.mjs \
+            --version "$REQUESTED_VERSION" \
+            --latest-published "$latest" \
+            --current-version "$current_main" \
+            --check-only
           gh workflow run test.yml --ref "$BRANCH"
           for attempt in $(seq 1 240); do
             run=$(gh run list --workflow test.yml --branch "$BRANCH" --event workflow_dispatch --limit 1 \
@@ -127,8 +139,21 @@ jobs:
           CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
           PREFLIGHT_URL: ${{ steps.preflight.outputs.url }}
           REQUESTED_VERSION: ${{ inputs.version }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          git fetch origin main
+          release_tags=$(gh api --paginate "repos/$GH_REPOSITORY/releases" --jq '.[].tag_name')
+          latest=$(printf '%s\n' "$release_tags" \
+            | grep -E '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' \
+            | sort -V | tail -n 1 || true)
+          latest=${latest:-0.0.0}
+          current_main=$(git show origin/main:VERSION)
+          node .github/scripts/release-candidate.mjs \
+            --version "$REQUESTED_VERSION" \
+            --latest-published "$latest" \
+            --current-version "$current_main" \
+            --check-only
           if gh pr view "$BRANCH" --json url --jq .url >/tmp/release-pr-url 2>/dev/null; then
             url=$(cat /tmp/release-pr-url)
             echo "Reused existing pull request: $url" >> "$GITHUB_STEP_SUMMARY"

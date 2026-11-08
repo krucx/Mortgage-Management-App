@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,6 +20,24 @@ test('accepts only a version above both published and current main versions', ()
   assert.throws(() => validateVersionRequest('3.4.4', '3.4.4', '3.4.3'), /higher than latest published/)
   assert.throws(() => validateVersionRequest('03.4.6', '3.4.4', '3.4.5'), /major.minor.patch/)
   assert.throws(() => validateVersionRequest('3.4', '3.4.4', '3.4.5'), /major.minor.patch/)
+})
+
+test('the CLI can recheck a version without changing candidate files', () => {
+  const root = mkdtempSync(join(tmpdir(), 'release-candidate-'))
+  try {
+    writeFileSync(join(root, 'VERSION'), '3.4.5\n')
+    const script = new URL('./release-candidate.mjs', import.meta.url).pathname
+    const args = ['--version', '3.4.6', '--latest-published', '3.4.4', '--current-version', '3.4.5', '--root', root, '--check-only']
+    const accepted = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' })
+    assert.equal(accepted.status, 0, accepted.stderr)
+    assert.equal(readFileSync(join(root, 'VERSION'), 'utf8'), '3.4.5\n')
+
+    const rejected = spawnSync(process.execPath, [script, ...args.map((arg, index) => index === 1 ? '3.4.5' : arg)], { encoding: 'utf8' })
+    assert.notEqual(rejected.status, 0)
+    assert.match(rejected.stderr, /higher than latest published/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })
 
 test('requires authored notes under Unreleased', () => {
