@@ -5,6 +5,32 @@ release content; the **release owner** decides when to publish, starts the autom
 flow, and verifies the published release. Mark steps not relevant to this release as
 not applicable and give a short reason.
 
+## Start a release candidate
+
+After the release notes and other applicable release preparation are ready, the
+release owner runs **Actions → Prepare release candidate → Run workflow** on `main`
+and supplies the requested `major.minor.patch` version. For example, the next version
+after the unpublished 3.4.5 bump is 3.4.6. The same entry point is available from GitHub
+CLI:
+
+```sh
+gh workflow run release-candidate.yml --ref main -f version=3.4.6
+```
+
+The workflow refuses an invalid or non-increasing version and stops before opening a
+pull request when `CHANGELOG.md` has no authored notes under `Unreleased`. It promotes
+those notes, synchronizes the shared version references, then runs the `Tests` workflow
+on the candidate branch. That preflight includes tests, type checks, lint, build,
+coverage reports, Windows setup checks and an isolated Docker image smoke test. A
+passing run opens a pull request with its result and the pending release checklist.
+Failures report the candidate branch and preflight run so the owner can supply missing
+information or safely rerun the same version. A maintainer may need to approve the
+workflow run for the release pull request's checks in GitHub Actions before they start.
+
+The workflow token can write repository contents and pull requests and dispatch the
+preflight workflow. It does not publish a release or Docker image; only the tag-driven
+release flow in the Publish section does that.
+
 ## Prepare — change author
 
 - [ ] Review merged changes since the last release and update `CHANGELOG.md` under
