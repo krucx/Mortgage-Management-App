@@ -149,7 +149,15 @@ compose file (see Updating).
 It is built by `.github/workflows/release.yml` when a version tag (e.g. `3.4.0`) is
 pushed, after the tests pass. The `latest` tag moves only when the pushed version is the
 highest so far, so a fix for an older version doesn't take it back. The tag must match
-the version in `backend/pyproject.toml` and `frontend/package.json`. The workflow needs two repository secrets,
+the root `VERSION` file. Backend and frontend package metadata and the current-version
+labels in the maintained docs are checked against it by `.github/scripts/check-version.mjs`.
+When cutting a release, update `VERSION` and the changelog, then run
+`node .github/scripts/sync-version.mjs` to update package metadata, the generated API
+schema version, and current-version docs labels. Run `uv lock` in `backend` to refresh
+the lockfile, then `node .github/scripts/check-version.mjs`. The frontend reads
+`VERSION` when building; Python package metadata is generated into `backend/pyproject.toml`
+because the app reports its installed package version. Coding agents should use the same
+steps and preserve historical changelog entries and examples. The workflow needs two repository secrets,
 `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub access token with Read & Write).
 
 ## Development
@@ -183,6 +191,15 @@ and `Uninstall.bat` → `uninstall.ps1`. `common.ps1` holds what they share; `wi
 checks their decisions with Pester. The `windows` job in `.github/workflows/test.yml` runs
 the setup without Docker end to end on a Windows runner, then the uninstall. `setup.ps1
 -Ref <branch or commit>` sets up code that isn't released yet.
+
+Pull requests targeting `main` run the `backend` and `frontend` test jobs in
+`.github/workflows/test.yml`. Their summaries show line coverage and their artifacts
+retain the detailed reports. `main` requires `Tests / backend` and `Tests / frontend`
+through branch protection. A failed test,
+missing coverage report, invalid coverage summary, or failed report upload blocks the
+normal merge path. There is no numeric coverage threshold. Review the coverage artifacts
+for changes; pull request summaries compare each total with the target branch. Authors
+should explain material regressions, and the reviewer decides whether they are acceptable.
 
 The GitHub Pages screenshots are taken from an invented sample book made through the app's
 own API: `docs/sample-book/run.sh` retakes them all (see its README).

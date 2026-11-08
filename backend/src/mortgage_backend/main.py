@@ -95,7 +95,7 @@ def create_app(
         yield
         backup.wait(timeout=8)  # let a running Backup finish if it can
 
-    # The version in pyproject.toml, reported in the API schema.
+    # The package version, checked against the root VERSION file in CI.
     app = FastAPI(
         title="Mortgage Management", version=version("mortgage-backend"), lifespan=lifespan
     )

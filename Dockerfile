@@ -6,6 +6,7 @@
 # machine doing the build: npm ci never runs under emulation for another platform.
 FROM --platform=$BUILDPLATFORM node:24-alpine AS screens
 WORKDIR /frontend
+COPY VERSION /VERSION
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./

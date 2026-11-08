@@ -9,7 +9,7 @@ type ServiceWorkerGlobal = {
   caches: { match(url: string, options: { ignoreSearch: boolean }): Promise<Response | undefined> }
 }
 
-const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+const version = readFileSync(new URL('../VERSION', import.meta.url), 'utf8').trim()
 
 export default defineConfig({
   plugins: [
