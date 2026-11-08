@@ -7,8 +7,18 @@ on:
     branches: [main]
   # The release workflow runs these before publishing images.
   workflow_call:
+  workflow_dispatch:
 
 jobs:
+  release-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: node --test .github/scripts/test-release-candidate.mjs
+
   critical-finding-sync:
     runs-on: ubuntu-latest
     steps:

@@ -1,0 +1,169 @@
+name: Prepare release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Requested major.minor.patch release version
+        required: true
+        type: string
+        default: 3.4.6
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Require dispatch from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo 'Run this workflow from main.' >&2
+          exit 1
+
+      - name: Check out main and prepare the requested version
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          branch="release/$REQUESTED_VERSION"
+          if ! [[ "$REQUESTED_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Invalid version: $REQUESTED_VERSION (expected major.minor.patch)" >&2
+            exit 1
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "branch_pushed=false" >> "$GITHUB_OUTPUT"
+          git fetch origin main
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            git fetch origin "$branch"
+            git switch --detach "origin/$branch"
+            test "$(cat VERSION)" = "$REQUESTED_VERSION"
+            grep -Fq "## [$REQUESTED_VERSION] - " CHANGELOG.md
+            node .github/scripts/check-version.mjs
+            echo "branch_pushed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "- Reused existing candidate branch: $branch at $(git rev-parse HEAD)."
+              echo '- Version and derived references validated.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            git switch --create "$branch" origin/main
+            echo "- Starting point: main at $(git rev-parse HEAD)." >> "$GITHUB_STEP_SUMMARY"
+            release_tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name')
+            latest=$(printf '%s\n' "$release_tags" \
+              | grep -E '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' \
+              | sort -V | tail -n 1 || true)
+            latest=${latest:-0.0.0}
+            node .github/scripts/release-candidate.mjs \
+              --version "$REQUESTED_VERSION" \
+              --latest-published "$latest" \
+              --current-version "$(cat VERSION)" \
+              --date "$(date -u +%F)"
+            node .github/scripts/sync-version.mjs
+            (cd backend && uv lock)
+            node .github/scripts/check-version.mjs
+            echo '- Candidate VERSION, changelog and derived references prepared and validated.' >> "$GITHUB_STEP_SUMMARY"
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -A
+            git commit -m "Prepare release $REQUESTED_VERSION"
+            git push origin "HEAD:refs/heads/$branch"
+            echo "branch_pushed=true" >> "$GITHUB_OUTPUT"
+            echo "- Pushed candidate branch: $branch at $(git rev-parse HEAD)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Run the full preflight on the candidate branch
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.candidate.outputs.branch }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gh workflow run test.yml --ref "$BRANCH"
+          for attempt in $(seq 1 240); do
+            run=$(gh run list --workflow test.yml --branch "$BRANCH" --event workflow_dispatch --limit 1 \
+              --json databaseId,status,conclusion,headSha,url)
+            run_sha=$(echo "$run" | jq -r '.[0].headSha // empty')
+            run_id=$(echo "$run" | jq -r '.[0].databaseId // empty')
+            if [[ "$run_sha" == "$CANDIDATE_SHA" && -n "$run_id" ]]; then
+              status=$(echo "$run" | jq -r '.[0].status')
+              if [[ "$status" == completed ]]; then
+                conclusion=$(echo "$run" | jq -r '.[0].conclusion')
+                url=$(echo "$run" | jq -r '.[0].url')
+                echo "url=$url" >> "$GITHUB_OUTPUT"
+                echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+                echo "Preflight run: $url ($conclusion)" >> "$GITHUB_STEP_SUMMARY"
+                [[ "$conclusion" == success ]] || { gh run view "$run_id" --log-failed; exit 1; }
+                exit 0
+              fi
+            fi
+            sleep 15
+          done
+          echo "Preflight did not finish within 60 minutes." >&2
+          exit 1
+
+      - name: Open the release pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.candidate.outputs.branch }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+          PREFLIGHT_URL: ${{ steps.preflight.outputs.url }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if gh pr view "$BRANCH" --json url --jq .url >/tmp/release-pr-url 2>/dev/null; then
+            url=$(cat /tmp/release-pr-url)
+            echo "Reused existing pull request: $url" >> "$GITHUB_STEP_SUMMARY"
+          else
+            cat > /tmp/release-pr-body.md <<EOF
+          ## Release candidate $REQUESTED_VERSION
+
+          Prepared from main at SHA: $CANDIDATE_SHA.
+
+          - Candidate preflight: [all required checks passed]($PREFLIGHT_URL)
+          - Release checklist: [Documentation/RELEASE_CHECKLIST.md](Documentation/RELEASE_CHECKLIST.md)
+          - Checklist status: preparation checks passed; release owner review and publish checklist remain pending.
+          - Human-authored notes were promoted from Unreleased; review the wording and applicable documentation before merging.
+          EOF
+            gh pr create --base main --head "$BRANCH" --title "Prepare release $REQUESTED_VERSION" \
+              --body-file /tmp/release-pr-body.md
+          fi
+          echo "Candidate: $BRANCH ($CANDIDATE_SHA)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Preflight: $PREFLIGHT_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report incomplete preparation on failure
+        if: failure()
+        env:
+          BRANCH: ${{ steps.candidate.outputs.branch }}
+          BRANCH_PUSHED: ${{ steps.candidate.outputs.branch_pushed }}
+          PREFLIGHT_URL: ${{ steps.preflight.outputs.url }}
+        run: |
+          {
+            echo '## Release candidate preparation stopped'
+            if [[ "${BRANCH_PUSHED:-false}" == true ]]; then
+              echo "- Candidate branch: ${BRANCH:-unknown} exists on origin."
+            else
+              echo "- Candidate branch: ${BRANCH:-not created} was not pushed to origin."
+            fi
+            echo "- Preflight run: ${PREFLIGHT_URL:-not started or not completed}"
+            echo '- No release pull request was opened unless the previous step completed.'
+            echo '- Review the failed step, add any missing human-authored release information, then rerun with the same version.'
+          } >> "$GITHUB_STEP_SUMMARY"
