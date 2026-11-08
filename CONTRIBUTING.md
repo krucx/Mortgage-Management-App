@@ -23,23 +23,33 @@ or merge a pull request.
 6. Merge with the repository's configured merge method. Do not push commits directly
    to `main`.
 
+### Maintainer override
+
+A repository maintainer may use GitHub's **bypass rules** option on a pull request to
+merge without satisfying the ruleset's checks or approval requirements. Use this only
+when intentionally overriding those gates, and record the reason in the pull request.
+The active ruleset grants this to the `maintain` repository role. The bypass is available
+only for PR merges; direct pushes to `main` remain blocked. The repository's existing
+branch protection also lets repository admins bypass its checks; this ruleset bypass
+extends the PR-only override to maintainers.
+
 ### Emergency changes
 
 An emergency still uses a pull request targeting `main`. Mark it clearly as an
 emergency, state the impact and why the normal turnaround is too slow, run the fastest
 relevant checks, and request an available human reviewer. The reviewer records an
-approval before merging. Follow up immediately with the remaining checks, documentation,
-and release notes. Do not bypass the pull request or human approval requirement.
+approval before merging. A maintainer may use the override above when urgent
+circumstances require merging without all checks or approval; record the reason in the
+pull request. Follow up immediately with the remaining checks, documentation, and
+release notes. Keep the change in a pull request.
 
 ### Automated reviewer unavailable
 
 If CodeRabbit is unavailable, record that on the pull request and ask a human reviewer
 to inspect the full diff and explicitly cover the automated review in their review.
-The reviewer may approve the documented exception. If the CodeRabbit status check is
-required and cannot complete, a repository administrator may temporarily disable only
-that check for the affected merge, then restore it; keep CI and human approval required.
-Resume automated review on later pull requests; this exception does not waive CI or
-human approval.
+If the CodeRabbit status check is required and cannot complete, a maintainer may use the
+documented bypass for that PR, recording the reason. Resume automated review on later
+pull requests.
 
 ## Repository configuration
 
@@ -56,7 +66,8 @@ template; if GitHub shows a different name, replace `CodeRabbit` in the template
 that exact name. Until the app is installed and the ruleset activated, automated review
 is not enforced. Automated findings never count as approval.
 
-The importable [main ruleset](.github/rulesets/main.json) targets `main`, requires a
+The importable [main ruleset](.github/rulesets/main.json) targets `main`, allows the
+`maintain` role to bypass its rules on pull requests, and requires a
 pull request, one human approval, the CodeRabbit review check, and the backend and
 frontend CI jobs; it blocks force pushes and deletion. A repository administrator
 should install CodeRabbit, confirm its check name, then import and activate the ruleset
