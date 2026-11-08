@@ -54,9 +54,9 @@ release flow in the Publish section does that.
   type check and lint, container build/start check, Windows setup checks, and relevant
   docs/onboarding build or checks. Review coverage reports and explain material
   regressions. Mark genuinely inapplicable checks with a reason.
-- [ ] Confirm the release commit is merged to `main`, the worktree is clean, and the
-  intended version tag does not already exist on the local or remote repository; verify
-  the tag will point at that merged release commit.
+- [ ] Confirm the release candidate branch comes from `main`, the version and changelog
+  section agree, and the intended version tag does not already exist remotely. After
+  merge, the publisher verifies or creates the tag at the actual merge commit.
 
 ## Publish — release owner
 
@@ -64,21 +64,23 @@ release flow in the Publish section does that.
   changelog entry, CI results, version consistency, and any skipped check explanations.
 - [ ] Confirm GitHub Actions has the required `DOCKERHUB_USERNAME` and
   `DOCKERHUB_TOKEN` secrets and Docker Hub access is available. If unavailable, stop
-  before tagging and resolve access.
-- [ ] Before pushing the tag, supply/verify the exact semantic version, merged commit,
-  matching `VERSION`, completed changelog section, and configured Docker Hub credentials.
+  before merging the release PR and resolve access.
+- [ ] Before merging the release PR, supply/verify the exact semantic version, candidate
+  commit, matching `VERSION`, completed changelog section, and configured Docker Hub credentials.
   These are the inputs the flow needs; it derives image tags and GitHub Release notes and
   artifacts from the tag and changelog.
-- [ ] Start the automated release flow from the clean, verified release commit by
-  creating and pushing a version tag matching root `VERSION` (for example,
-  `git tag 3.5.0` followed by `git push origin 3.5.0`). This starts
-  `.github/workflows/release.yml`; do not manually publish an image or GitHub Release.
-- [ ] Watch the release workflow through tests, version/tag validation, image publication,
-  ready-built archive creation, and GitHub Release creation. Stop and recover if any job
-  fails; do not announce a partial release.
+- [ ] Merge the approved release candidate PR to `main` only after checking the version,
+  merged changes, changelog section, preflight results, human review and Docker Hub
+  credentials. `.github/workflows/publish-release.yml` creates or safely reuses the
+  matching version tag at the merge commit and dispatches `.github/workflows/release.yml`. Do not push a tag
+  or publish an image or GitHub Release by hand.
+- [ ] Watch the merge publisher and release workflow through tests, tag/version
+  validation, image publication, ready-built archive creation and post-publish checks.
+  Stop and recover if any job fails; do not announce a partial release.
 - [ ] Verify the GitHub Release has the intended notes and downloadable
   `mortgage-management-<version>.zip`; verify Docker Hub has the version image and that
-  `latest` points to this release only when it is the highest version.
+  `latest` points to the same image only when this is the highest version. The workflow
+  checks the release notes, ZIP integrity and contents, and image manifest.
 - [ ] Verify the published install/download and a clean startup using the release's
   documented path. Confirm the app reports the expected version and the key changed
   behavior works.
@@ -87,14 +89,15 @@ release flow in the Publish section does that.
 
 ## Recovery — release owner
 
-- [ ] If the workflow fails before publication, fix the cause on `main`, rerun the
-  relevant checks, and push the corrected tag only after verifying tag/version rules.
-  If the tag already points at the failed commit, remove or move it only when no release
-  artifact was published and repository policy permits it; otherwise cut a new patch
-  version and tag.
+- [ ] If the workflow fails before publication, inspect both workflow logs. After fixing
+  the cause, rerun the merged-PR publisher: it verifies and reuses the tag only when it
+  still points at the same merge commit, then dispatches the release workflow again. If
+  the tag must point at a different commit, cut a new patch candidate; never move a tag
+  after any release artifact has been published.
 - [ ] If only some artifacts were published, pause announcements and inspect workflow
-  logs, Docker Hub tags, and the GitHub Release. Re-run the failed safe/idempotent jobs
-  or publish a corrected patch release; never move `latest` back to an older version.
+  logs, Docker Hub tags, and the GitHub Release. Rerun the merged-PR publisher after
+  fixing the cause; the release workflow replaces the same version's image, notes and
+  ZIP safely. Never move `latest` back to an older version.
 - [ ] If users may have installed a broken release, publish a corrected release, explain
   the affected version and recovery steps in its notes, and use the pre-update Backup
   guidance when a database migration is involved.

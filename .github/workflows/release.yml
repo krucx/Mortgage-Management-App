@@ -1,6 +1,7 @@
 name: Release
 
-# Pushing a version tag (e.g. 1.2.0) publishes the app's one image (Documentation/adr/0013)
+# The merge publisher dispatches this workflow from the matching release tag after its
+# PR is approved and merged. It publishes the app's one image (Documentation/adr/0013)
 # to Docker Hub, tagged with that version and, when it is the highest version tagged so
 # far, as the latest:
 #   krucx11/mortgage-management-app:1.2.0, :latest
@@ -13,8 +14,18 @@ name: Release
 # Needs the repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (a Docker Hub
 # access token with Read & Write).
 on:
-  push:
-    tags: ['[0-9]+.[0-9]+.[0-9]+']
+  # The merge publisher dispatches this workflow after creating the version tag with
+  # GITHUB_TOKEN, whose tag push does not start another workflow run.
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Number of the merged, approved release candidate pull request
+        required: true
+        type: number
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
 
 env:
   IMAGE: krucx11/mortgage-management-app
@@ -25,6 +36,10 @@ jobs:
 
   version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
     outputs:
       latest: ${{ steps.latest.outputs.latest }}
     steps:
@@ -35,6 +50,34 @@ jobs:
       # The tag must be the version the app reports, so an image never claims the wrong one.
       - name: The tag matches the authoritative version
         run: node .github/scripts/check-version.mjs --tag "$GITHUB_REF_NAME"
+      - name: Dispatch came from an approved release PR
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" | jq '{action:"closed",pull_request:.}' > /tmp/release-event.json
+          node .github/scripts/publish-release.mjs validate-merged \
+            --event /tmp/release-event.json --version "$GITHUB_REF_NAME" > /tmp/release-pr.json
+          commit=$(jq -r .commit /tmp/release-pr.json)
+          head_commit=$(jq -r .headCommit /tmp/release-pr.json)
+          test "$commit" = "$GITHUB_SHA" || {
+            echo "The release tag points to $GITHUB_SHA, not the merged PR commit $commit." >&2
+            exit 1
+          }
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" > /tmp/release-reviews.json
+          gh pr view "$PR_NUMBER" --json statusCheckRollup > /tmp/release-checks.json
+          jq -n \
+            --slurpfile reviews /tmp/release-reviews.json \
+            --slurpfile checks /tmp/release-checks.json \
+            --arg author "$(jq -r '.pull_request.user.login' /tmp/release-event.json)" \
+            --arg headCommit "$head_commit" \
+            '{reviews: $reviews[0], statusCheckRollup: $checks[0].statusCheckRollup, author: $author, headCommit: $headCommit}' \
+            > /tmp/release-review-checks.json
+          node .github/scripts/publish-release.mjs validate-review --input /tmp/release-review-checks.json
+          echo "Verified release tag $GITHUB_REF_NAME against approved PR #$PR_NUMBER at $commit."
       # A fix for an older version (e.g. 1.1.3 after 1.2.0) must not move the latest back.
       - name: Is this the highest version tagged?
         id: latest
@@ -118,3 +161,56 @@ jobs:
               --verify-tag \
               --latest=${{ needs.version.outputs.latest }}
           fi
+
+  verify:
+    needs: [version, publish, github-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ github.ref_name }}
+      LATEST: ${{ needs.version.outputs.latest }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Verify the published release, ZIP and container image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ env.IMAGE }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --json tagName,body,assets > /tmp/release-view.json
+          is_latest=$(gh release list --limit 100 --json tagName,isLatest \
+            --jq ".[] | select(.tagName == \"$TAG\") | .isLatest")
+          test -n "$is_latest" || { echo "GitHub release $TAG is not listed after publication." >&2; exit 1; }
+          jq --argjson isLatest "$is_latest" '. + {isLatest: $isLatest}' \
+            /tmp/release-view.json > /tmp/release.json
+          docker manifest inspect "$IMAGE:$TAG" > /tmp/version-image.json
+          latest_args=()
+          if [[ "$LATEST" == true ]]; then
+            docker manifest inspect "$IMAGE:latest" > /tmp/latest-image.json
+            latest_args=(--latest-image /tmp/latest-image.json)
+          fi
+          node .github/scripts/publish-release.mjs verify-published \
+            --version "$TAG" \
+            --changelog CHANGELOG.md \
+            --release /tmp/release.json \
+            --image /tmp/version-image.json \
+            --expected-latest "$LATEST" \
+            "${latest_args[@]}"
+          mkdir -p /tmp/release-download
+          gh release download "$TAG" --pattern "mortgage-management-$TAG.zip" --dir /tmp/release-download
+          unzip -t "/tmp/release-download/mortgage-management-$TAG.zip"
+          unzip -Z1 "/tmp/release-download/mortgage-management-$TAG.zip" \
+            | grep -Fx "mortgage-management-$TAG/frontend/dist/index.html"
+          echo "Verified GitHub release $TAG, changelog notes, ZIP contents, and Docker image." \
+            >> "$GITHUB_STEP_SUMMARY"
