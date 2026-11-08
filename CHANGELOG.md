@@ -7,6 +7,8 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.4.6] - 2026-11-08
+
 ### Changed
 
 - **Release process:** GitHub Actions validates release candidates; merging an approved
