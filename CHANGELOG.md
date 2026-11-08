@@ -7,6 +7,12 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Changed
+
+- **Release process:** GitHub Actions validates release candidates; merging an approved
+  candidate publishes the matching Docker image and GitHub Release, then verifies the
+  notes and ready-built download.
+
 ## [3.4.4] - 2026-11-07
 
 The Dashboard shows activity figures for a calendar month or a custom date range.
