@@ -150,18 +150,21 @@ Releases before 3.4.0 were two images, tagged `backend-<version>` and `ui-<versi
 those tags stay on Docker Hub, so going back to one of them still works, with its own
 compose file (see Updating).
 
-It is built by `.github/workflows/release.yml` when a version tag (e.g. `3.4.0`) is
-pushed, after the tests pass. The `latest` tag moves only when the pushed version is the
-highest so far, so a fix for an older version doesn't take it back. The tag must match
+It is built by `.github/workflows/release.yml` after an approved release candidate PR
+is merged. `.github/workflows/publish-release.yml` creates the matching version tag and
+dispatches the release workflow after checking the approval and PR checks. The `latest`
+tag moves only when the published version is the highest so far, so a fix for an older
+version doesn't take it back. The tag must match
 the root `VERSION` file. Backend and frontend package metadata and the current-version
 labels in the maintained docs are checked against it by `.github/scripts/check-version.mjs`.
-When cutting a release, update `VERSION` and the changelog, then run
-`node .github/scripts/sync-version.mjs` to update package metadata, the generated API
-schema version, and current-version docs labels. Run `uv lock` in `backend` to refresh
-the lockfile, then `node .github/scripts/check-version.mjs`. The frontend reads
+When preparing a release, add reviewed notes under `Unreleased` and run the
+**Prepare release candidate** workflow. It updates `VERSION`, package metadata, the
+generated API schema, current-version docs labels and lockfile on the candidate branch,
+then opens a PR after preflight passes. The frontend reads
 `VERSION` when building; Python package metadata is generated into `backend/pyproject.toml`
 because the app reports its installed package version. Coding agents should use the same
-steps and preserve historical changelog entries and examples. The workflow needs two repository secrets,
+steps and preserve historical changelog entries and examples. The publisher needs two
+repository secrets,
 `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub access token with Read & Write).
 
 ## Development

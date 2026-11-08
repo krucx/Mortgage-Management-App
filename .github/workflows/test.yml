@@ -19,6 +19,15 @@ jobs:
           node-version: 24
       - run: node --test .github/scripts/test-release-candidate.mjs
 
+  publish-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: node --test .github/scripts/test-publish-release.mjs
+
   critical-finding-sync:
     runs-on: ubuntu-latest
     steps:

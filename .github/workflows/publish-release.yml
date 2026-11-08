@@ -1,0 +1,158 @@
+name: Publish merged release candidate
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: read
+  checks: read
+  actions: write
+
+concurrency:
+  group: publish-release-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: release-publish
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      startsWith(github.event.pull_request.head.ref, 'release/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Validate the merged release PR and its review
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          version=$(cat VERSION)
+          node .github/scripts/publish-release.mjs validate-merged \
+            --event "$GITHUB_EVENT_PATH" --version "$version" > /tmp/release-candidate.json
+          version=$(jq -r .version /tmp/release-candidate.json)
+          commit=$(jq -r .commit /tmp/release-candidate.json)
+          head_commit=$(jq -r .headCommit /tmp/release-candidate.json)
+          pr=$(jq -r .pullRequest /tmp/release-candidate.json)
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$pr/reviews" > /tmp/release-reviews.json
+          gh pr view "$pr" --json statusCheckRollup > /tmp/release-checks.json
+          jq -n \
+            --slurpfile reviews /tmp/release-reviews.json \
+            --slurpfile checks /tmp/release-checks.json \
+            --arg author "$PR_AUTHOR" \
+            --arg headCommit "$head_commit" \
+            '{reviews: $reviews[0], statusCheckRollup: $checks[0].statusCheckRollup, author: $author, headCommit: $headCommit}' \
+            > /tmp/release-review-checks.json
+          node .github/scripts/publish-release.mjs validate-review --input /tmp/release-review-checks.json
+          node .github/scripts/publish-release.mjs release-notes \
+            --version "$version" --changelog CHANGELOG.md > /tmp/release-notes.md
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "head_commit=$head_commit" >> "$GITHUB_OUTPUT"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "- Approved release PR #$pr targets main and all reported checks passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "- VERSION $version and its dated changelog section are valid." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create or safely reuse the version tag
+        id: tag
+        env:
+          VERSION: ${{ steps.candidate.outputs.version }}
+          MERGE_COMMIT: ${{ steps.candidate.outputs.commit }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag_refs=$(git ls-remote --tags origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}")
+          existing=$(printf '%s\n' "$tag_refs" | awk -v peeled="refs/tags/$VERSION^{}" -v direct="refs/tags/$VERSION" '$2 == peeled {peeled_sha=$1} $2 == direct {direct_sha=$1} END {print (peeled_sha ? peeled_sha : direct_sha)}')
+          action=$(node .github/scripts/publish-release.mjs plan-tag \
+            --commit "$MERGE_COMMIT" --existing-tag-sha "$existing")
+          if [[ "$action" == create ]]; then
+            git tag -a "$VERSION" -m "Release $VERSION" "$MERGE_COMMIT"
+            git push origin "refs/tags/$VERSION"
+            echo "Created annotated tag $VERSION at $MERGE_COMMIT."
+          else
+            echo "Reusing $VERSION; it already points at the merged commit."
+          fi
+          echo "action=$action" >> "$GITHUB_OUTPUT"
+          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "- Tag $VERSION is present at the approved release merge commit ($action)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dispatch the image and GitHub release publisher
+        id: publisher
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.candidate.outputs.version }}
+          MERGE_COMMIT: ${{ steps.candidate.outputs.commit }}
+          PR_NUMBER: ${{ steps.candidate.outputs.pr }}
+        run: |
+          set -euo pipefail
+          started=$(date -u +%s)
+          gh workflow run release.yml --ref "$VERSION" -f "pull_request=$PR_NUMBER"
+          echo "Dispatched release publisher for $VERSION."
+          for attempt in $(seq 1 240); do
+            runs=$(gh run list --workflow release.yml --event workflow_dispatch --limit 20 \
+              --json databaseId,status,conclusion,headSha,headBranch,createdAt,url)
+            run=$(echo "$runs" | jq --arg sha "$MERGE_COMMIT" --argjson started "$started" \
+              '[.[] | select(.headSha == $sha and (.createdAt | fromdateiso8601) >= $started)] | first // empty')
+            if [[ -n "$run" ]]; then
+              status=$(echo "$run" | jq -r .status)
+              if [[ "$status" == completed ]]; then
+                conclusion=$(echo "$run" | jq -r .conclusion)
+                url=$(echo "$run" | jq -r .url)
+                echo "url=$url" >> "$GITHUB_OUTPUT"
+                echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+                echo "Publisher run: $url ($conclusion)" >> "$GITHUB_STEP_SUMMARY"
+                [[ "$conclusion" == success ]] || { gh run view "$(echo "$run" | jq -r .databaseId)" --log-failed; exit 1; }
+                exit 0
+              fi
+            fi
+            sleep 15
+          done
+          echo "The release publisher did not finish within 60 minutes." >&2
+          exit 1
+
+      - name: Report incomplete publication and safe recovery
+        if: failure()
+        env:
+          VERSION: ${{ steps.candidate.outputs.version }}
+          TAG_ACTION: ${{ steps.tag.outputs.action }}
+          PUBLISHER_URL: ${{ steps.publisher.outputs.url }}
+        run: |
+          {
+            echo '## Release publication stopped'
+            echo "- Candidate validation completed for: ${VERSION:-not validated}"
+            echo "- Tag action: ${TAG_ACTION:-not started}"
+            echo "- Release publisher: ${PUBLISHER_URL:-not completed}"
+            echo '- Inspect the failed step and publisher logs before retrying.'
+            echo '- Reruns reuse the version tag only when it points to the same merged commit; the release publisher safely replaces the same versioned image, notes and ZIP.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report verified publication
+        if: success()
+        env:
+          VERSION: ${{ steps.candidate.outputs.version }}
+          PR_NUMBER: ${{ steps.candidate.outputs.pr }}
+          PUBLISHER_URL: ${{ steps.publisher.outputs.url }}
+        run: |
+          {
+            echo '## Release published and verified'
+            echo "- Release PR: #$PR_NUMBER"
+            echo "- Version: $VERSION"
+            echo '- GitHub release notes and ZIP, versioned Docker image, and latest tag when applicable: verified.'
+            echo "- Publisher run: $PUBLISHER_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
