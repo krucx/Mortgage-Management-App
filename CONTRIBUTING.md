@@ -50,16 +50,17 @@ reviews on pull requests. This app integration cannot be enabled by a repository
 If the repository becomes private or the free plan changes, disable this integration
 and choose a no-cost reviewer before relying on it.
 
-After installation, enable the CodeRabbit review/status check as a required check if
-the app exposes one to GitHub. Add its exact check name to the `main` ruleset only after
-it appears on a pull request; until that check is added, the base ruleset does not enforce
-automated review. Automated findings never count as approval.
+The ruleset template requires the `CodeRabbit` status check along with CI. Install the
+app and confirm its exact check name on a reviewed pull request before importing the
+template; if GitHub shows a different name, replace `CodeRabbit` in the template with
+that exact name. Until the app is installed and the ruleset activated, automated review
+is not enforced. Automated findings never count as approval.
 
 The importable [main ruleset](.github/rulesets/main.json) targets `main`, requires a
-pull request, one human approval, and the backend and frontend CI jobs; it blocks force
-pushes and deletion. A repository administrator should import and activate it under
-Settings → Rules → Rulesets. Add CodeRabbit's observed check to that ruleset after
-integration. GitHub Free supports branch protection and rulesets for public repositories;
+pull request, one human approval, the CodeRabbit review check, and the backend and
+frontend CI jobs; it blocks force pushes and deletion. A repository administrator
+should install CodeRabbit, confirm its check name, then import and activate the ruleset
+under Settings → Rules → Rulesets. GitHub Free supports branch protection and rulesets for public repositories;
 private repository availability depends on the repository plan. If rulesets are not
 available, configure equivalent branch protection for `main` manually.
 
