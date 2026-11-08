@@ -2,6 +2,10 @@
 
 App for a jewellery Lender to manage Mortgages, Payments and follow-ups. It runs entirely on the Lender's own laptop. Domain terms are defined in [Documentation/GLOSSARY.md](Documentation/GLOSSARY.md); key decisions are in [Documentation/adr](Documentation/adr).
 
+Contributors and coding agents: follow [CONTRIBUTING.md](CONTRIBUTING.md) for branch,
+pull request, review, and merge requirements, and use the
+[release checklist](Documentation/RELEASE_CHECKLIST.md) for every release.
+
 What changed in each version is in [CHANGELOG.md](CHANGELOG.md). The documentation (features, workflows and the rules behind the figures), a walkthrough of every page, the app told as a story, and an install guide are at <https://krucx.github.io/Mortgage-Management-App/>.
 
 ## Running it (Lender)
@@ -195,7 +199,9 @@ the setup without Docker end to end on a Windows runner, then the uninstall. `se
 Pull requests targeting `main` run the `backend` and `frontend` test jobs in
 `.github/workflows/test.yml`. Their summaries show line coverage and their artifacts
 retain the detailed reports. `main` requires `Tests / backend` and `Tests / frontend`
-through branch protection. A failed test,
+through branch protection. The importable ruleset template specifies one human approval
+and blocks direct pushes; see [CONTRIBUTING.md](CONTRIBUTING.md) for
+the automated review setup and plan limitations. A failed test,
 missing coverage report, invalid coverage summary, or failed report upload blocks the
 normal merge path. There is no numeric coverage threshold. Review the coverage artifacts
 for changes; pull request summaries compare each total with the target branch. Authors
