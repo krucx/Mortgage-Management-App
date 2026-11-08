@@ -16,6 +16,9 @@ not applicable and give a short reason.
 - [ ] Update applicable onboarding lessons, exercises, references, and notes when the
   release changes what those lessons teach. Mark not applicable if none are affected.
 - [ ] Set the intended semantic version in root `VERSION`.
+- [ ] Move the finalized release notes from `Unreleased` into a `## [<version>]`
+  section in `CHANGELOG.md` before the release commit is merged and the tag is pushed.
+  The release workflow extracts its GitHub Release notes from this versioned section.
 - [ ] Run `node .github/scripts/sync-version.mjs`, then `cd backend && uv lock`, then
   `cd .. && node .github/scripts/check-version.mjs`. Confirm the root, backend and
   frontend package versions, lock metadata, generated API schema, and maintained
@@ -36,16 +39,14 @@ not applicable and give a short reason.
 - [ ] Confirm GitHub Actions has the required `DOCKERHUB_USERNAME` and
   `DOCKERHUB_TOKEN` secrets and Docker Hub access is available. If unavailable, stop
   before tagging and resolve access.
-- [ ] Start the automated release flow by pushing a version tag matching root `VERSION`
-  (for example, `3.5.0`). The tag push starts `.github/workflows/release.yml`; do not
-  manually publish an image or GitHub Release as a substitute.
 - [ ] Before pushing the tag, supply/verify the exact semantic version, merged commit,
   matching `VERSION`, completed changelog section, and configured Docker Hub credentials.
   These are the inputs the flow needs; it derives image tags and GitHub Release notes and
   artifacts from the tag and changelog.
-- [ ] Start the flow from the clean, verified release commit with
-  `git tag <version>` followed by `git push origin <version>`. The pushed tag must equal
-  `VERSION`; for example, a `3.5.0` tag starts the workflow for `VERSION=3.5.0`.
+- [ ] Start the automated release flow from the clean, verified release commit by
+  creating and pushing a version tag matching root `VERSION` (for example,
+  `git tag 3.5.0` followed by `git push origin 3.5.0`). This starts
+  `.github/workflows/release.yml`; do not manually publish an image or GitHub Release.
 - [ ] Watch the release workflow through tests, version/tag validation, image publication,
   ready-built archive creation, and GitHub Release creation. Stop and recover if any job
   fails; do not announce a partial release.

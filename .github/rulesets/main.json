@@ -24,8 +24,8 @@
       "type": "required_status_checks",
       "parameters": {
         "required_status_checks": [
-          {"context": "Tests / backend"},
-          {"context": "Tests / frontend"},
+          {"context": "backend"},
+          {"context": "frontend"},
           {"context": "CodeRabbit"}
         ],
         "strict_required_status_checks_policy": true
