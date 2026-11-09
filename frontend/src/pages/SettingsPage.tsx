@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import type { GoldRate } from '../api'
 import { Summary } from '../components/ConfirmDialog'
 import { TermsFields } from '../components/TermsFields'
@@ -9,8 +9,11 @@ import { WhatsAppPreview } from '../components/WhatsApp'
 import { formatDate, formatDateTime } from '../format'
 import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { backupsQuery, backUpNow as startBackup, settings } from '../requests'
-import { keys, STALE_AFTER, useChange, useServerState } from '../serverState'
+import { keys, STALE_AFTER, type ApiClient, useChange, useServerState } from '../serverState'
 import { fromDraft, INTEREST_MODES, PART_MONTH_RULES, toDraft } from '../terms'
+
+/** The query options object a `useQuery` call for one setting group needs. */
+type SettingQuery<T> = Parameters<typeof useQuery<T, Error, T, string[]>>[0]
 
 export function SettingsPage() {
   return (
@@ -292,26 +295,51 @@ function CallListThresholds() {
   )
 }
 
-/** At what amount the Lender is warned before lending or receiving cash; cleared, never. */
-function CashLimitSettings() {
+/** One optional rupee amount, in paise: at or above it something happens, cleared, never.
+ * Both the Cash Limit and the Discount confirmation threshold are this, with their own
+ * heading, copy, labels and wording for "cleared" — only the comparison each drives is
+ * theirs to know, not this section. */
+function ThresholdSetting<T extends Record<string, number | null>>({
+  heading,
+  hint,
+  inputLabel,
+  dialogTitle,
+  summaryLabel,
+  neverText,
+  confirmedSuffix,
+  field,
+  query,
+  save,
+}: {
+  heading: string
+  hint: ReactNode
+  inputLabel: string
+  dialogTitle: string
+  summaryLabel: string
+  neverText: string
+  confirmedSuffix: string
+  field: keyof T
+  query: SettingQuery<T>
+  save: (client: ApiClient, limit: number | null) => Promise<T>
+}) {
   const { client, queryClient } = useServerState()
-  const saved = useQuery(settings.cashLimit(client))
-  const [draft, setDraft] = useDraft(saved.data, ({ cash_limit }) => paiseToRupees(cash_limit))
+  const saved = useQuery(query)
+  const [draft, setDraft] = useDraft(saved.data, (data) => paiseToRupees(data[field]))
   const [savedStatus, setStatus] = useState<Status>(null)
   const status = shownStatus(savedStatus, saved.error)
   const [saving, setSaving] = useState(false)
   const [confirm, confirmDialog] = useConfirm()
 
-  async function save(event: FormEvent) {
+  async function handleSave(event: FormEvent) {
     event.preventDefault()
     if (draft === null) return
     const limit = draft === '' ? null : rupeesToPaise(draft)
     const confirmed = await confirm({
-      title: 'Change the Cash Limit?',
+      title: dialogTitle,
       body: (
         <Summary
           rows={[
-            ['Warn at cash of', limit === null ? 'Never: no warning for cash' : `${formatINR(limit)} or more`],
+            [summaryLabel, limit === null ? neverText : `${formatINR(limit)}${confirmedSuffix}`],
           ]}
         />
       ),
@@ -320,8 +348,8 @@ function CashLimitSettings() {
     setSaving(true)
     setStatus(null)
     try {
-      const stored = await settings.saveCashLimit(client, limit)
-      queryClient.setQueryData(settings.cashLimit(client).queryKey, stored)
+      const stored = await save(client, limit)
+      queryClient.setQueryData(query.queryKey, stored)
       setStatus({ kind: 'saved', text: 'Saved.' })
     } catch (error) {
       setStatus({ kind: 'error', text: (error as Error).message })
@@ -332,15 +360,12 @@ function CashLimitSettings() {
 
   return (
     <section className="card">
-      <h2>Cash Limit</h2>
-      <p className="hint">
-        Lending or receiving this much or more in cash asks you first: Government of India rules
-        ask for UPI or bank transfer instead. Nothing is refused. Leave it empty for no warning.
-      </p>
+      <h2>{heading}</h2>
+      <p className="hint">{hint}</p>
       {draft !== null && (
-        <form onSubmit={save} className="stack">
+        <form onSubmit={handleSave} className="stack">
           <label>
-            Warn at cash of (₹), or more
+            {inputLabel}
             <input
               type="number"
               min="1"
@@ -362,76 +387,56 @@ function CashLimitSettings() {
   )
 }
 
+/** At what amount the Lender is warned before lending or receiving cash; cleared, never. */
+function CashLimitSettings() {
+  const { client } = useServerState()
+  return (
+    <ThresholdSetting
+      heading="Cash Limit"
+      hint={
+        <>
+          Lending or receiving this much or more in cash asks you first: Government of India
+          rules ask for UPI or bank transfer instead. Nothing is refused. Leave it empty for no
+          warning.
+        </>
+      }
+      inputLabel="Warn at cash of (₹), or more"
+      dialogTitle="Change the Cash Limit?"
+      summaryLabel="Warn at cash of"
+      neverText="Never: no warning for cash"
+      confirmedSuffix=" or more"
+      field="cash_limit"
+      query={settings.cashLimit(client)}
+      save={settings.saveCashLimit}
+    />
+  )
+}
+
+const DISCOUNT_CONFIRMATION_DEFAULT_PAISE = 500_00 // mirrors the backend default
+
 /** How much Discount requires an extra confirmation; cleared, no threshold. */
 function DiscountConfirmationSettings() {
-  const { client, queryClient } = useServerState()
-  const saved = useQuery(settings.discountConfirmationLimit(client))
-  const [draft, setDraft] = useDraft(saved.data, ({ discount_confirmation_limit }) =>
-    paiseToRupees(discount_confirmation_limit),
-  )
-  const [savedStatus, setStatus] = useState<Status>(null)
-  const status = shownStatus(savedStatus, saved.error)
-  const [saving, setSaving] = useState(false)
-  const [confirm, confirmDialog] = useConfirm()
-
-  async function save(event: FormEvent) {
-    event.preventDefault()
-    if (draft === null) return
-    const limit = draft === '' ? null : rupeesToPaise(draft)
-    const confirmed = await confirm({
-      title: 'Change the Discount confirmation limit?',
-      body: (
-        <Summary
-          rows={[
-            ['Ask for confirmation over', limit === null ? 'Never' : formatINR(limit)],
-          ]}
-        />
-      ),
-    })
-    if (!confirmed) return
-    setSaving(true)
-    setStatus(null)
-    try {
-      const stored = await settings.saveDiscountConfirmationLimit(client, limit)
-      queryClient.setQueryData(settings.discountConfirmationLimit(client).queryKey, stored)
-      setStatus({ kind: 'saved', text: 'Saved.' })
-    } catch (error) {
-      setStatus({ kind: 'error', text: (error as Error).message })
-    } finally {
-      setSaving(false)
-    }
-  }
-
+  const { client } = useServerState()
   return (
-    <section className="card">
-      <h2>Discount confirmation</h2>
-      <p className="hint">
-        Ask before recording a per-Mortgage Discount greater than this amount. The default is
-        ₹500. This is a confirmation guideline; Discounts are still capped at the remaining
-        Outstanding. Leave it empty to skip the extra confirmation.
-      </p>
-      {draft !== null && (
-        <form onSubmit={save} className="stack">
-          <label>
-            Ask when Discount exceeds (₹)
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-            />
-          </label>
-          <div>
-            <button type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        </form>
-      )}
-      {status && <p className={`status ${status.kind}`}>{status.text}</p>}
-      {confirmDialog}
-    </section>
+    <ThresholdSetting
+      heading="Discount confirmation"
+      hint={
+        <>
+          Ask before recording a per-Mortgage Discount greater than this amount. The default is{' '}
+          {formatINR(DISCOUNT_CONFIRMATION_DEFAULT_PAISE)}. This is a confirmation guideline;
+          Discounts are still capped at the remaining Outstanding. Leave it empty to skip the
+          extra confirmation.
+        </>
+      }
+      inputLabel="Ask when Discount exceeds (₹)"
+      dialogTitle="Change the Discount confirmation limit?"
+      summaryLabel="Ask for confirmation over"
+      neverText="Never"
+      confirmedSuffix=""
+      field="discount_confirmation_limit"
+      query={settings.discountConfirmationLimit(client)}
+      save={settings.saveDiscountConfirmationLimit}
+    />
   )
 }
 
