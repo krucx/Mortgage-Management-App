@@ -14,4 +14,4 @@ Run typechecking regularly, single test files regularly, and the full test suite
 
 Once done, call the Skill tool with "code-review" to review the work.
 
-Commit your work to the current branch.
+Commit your work to the current branch, then open a pull request targeting `main` following [CONTRIBUTING.md](../../../CONTRIBUTING.md): describe the user-visible change, verification performed, and any risk or migration impact; link the originating ticket if one was referenced; use a draft pull request if work is unfinished. Leave the merge decision to a human reviewer — do not approve or merge your own pull request.
