@@ -1,7 +1,8 @@
 export async function reconcileFindings(issueStore, {
   findings, markerFromIssue, closeUnseen = false, matchesScope = () => true, log = console.warn,
+  existingIssues,
 }) {
-  const existingIssues = await issueStore.list();
+  existingIssues ??= await issueStore.list();
   const byMarker = new Map(existingIssues.map((issue) => [markerFromIssue(issue), issue]));
   const seen = new Set();
 

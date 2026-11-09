@@ -8,7 +8,7 @@ export { alertFinding };
 
 export async function reconcileSecretScanningAlerts(github, { log = console.warn } = {}) {
   const alerts = await github.alerts();
-  const findings = await secretScanningFindings(alerts, { locations: github.locations });
+  const findings = await secretScanningFindings(alerts, { locations: github.locations, log });
   await reconcileFindings(github.issues, { findings, markerFromIssue, log });
 }
 

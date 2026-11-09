@@ -106,6 +106,18 @@ test('closes a resolved alert even when GitHub cannot return its location', asyn
   assert.equal(github.issueList[0].state, 'closed');
 });
 
+test('keeps reconciling other alerts when fetching one open alert\'s locations fails', async () => {
+  const github = fakeGitHub({ alerts: [
+    alert({ locations: undefined, locations_url: 'https://api.github.com/repos/acme/app/secret-scanning/alerts/17/locations' }),
+    alert({ number: 18 }),
+  ] });
+  github.locations = async () => { throw new Error('location unavailable'); };
+
+  await assert.doesNotReject(reconcileSecretScanningAlerts(github, { log: () => {} }));
+  assert.equal(github.issueList.length, 1);
+  assert.match(github.issueList[0].title, /#18/);
+});
+
 test('keeps reconciling other alerts when one issue write fails', async () => {
   const github = fakeGitHub({ alerts: [alert(), alert({ number: 18 })] });
   const originalCreate = github.issues.create.bind(github.issues);
