@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -205,6 +205,31 @@ test('scenario: times out when the dispatched run never appears', async () => {
     /did not finish within 1 minutes/,
   )
   assert.deepEqual(sleeps, [15_000, 15_000, 15_000, 15_000])
+})
+
+test('CLI keeps stdout to one JSON document when a real adapter shows a failed run log', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'release-cli-'))
+  try {
+    const ghPath = join(directory, 'gh')
+    writeFileSync(ghPath, `#!/usr/bin/env node
+if (process.argv.includes('--log-failed')) { console.log('failed job output'); process.exit(0) }
+if (process.argv[2] === 'run' && process.argv[3] === 'list') {
+  console.log(JSON.stringify([{ databaseId: 74, status: 'completed', conclusion: 'failure', headSha: '${commit}', createdAt: new Date(Date.now() - 2000).toISOString(), url: 'https://example.invalid/run/74' }]))
+  process.exit(0)
+}
+process.exit(0)
+`)
+    chmodSync(ghPath, 0o755)
+    const result = spawnSync(process.execPath, [
+      join(import.meta.dirname, 'release.mjs'), 'dispatch-and-wait', '--repo', 'owner/repo',
+      '--workflow', 'release.yml', '--ref', version, '--match-sha', commit, '--timeout-minutes', '1',
+    ], { encoding: 'utf8', env: { ...process.env, PATH: `${directory}:${process.env.PATH}` } })
+    assert.equal(result.status, 1)
+    assert.deepEqual(result.stdout.trim().split('\n'), [JSON.stringify({ url: 'https://example.invalid/run/74', conclusion: 'failure' })])
+    assert.match(result.stderr, /failed job output/)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test('verifies the GitHub release body, downloadable ZIP, version image, and latest image', () => {

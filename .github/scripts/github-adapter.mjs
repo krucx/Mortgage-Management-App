@@ -16,7 +16,7 @@ export function createGithubAdapter(repo) {
       return JSON.parse(gh(['api', `repos/${repo}/pulls/${number}`]))
     },
     getReviews(number) {
-      return JSON.parse(gh(['api', `repos/${repo}/pulls/${number}/reviews`]))
+      return JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls/${number}/reviews?per_page=100`])).flat()
     },
     getChecks(number) {
       return JSON.parse(gh(['pr', 'view', String(number), '--repo', repo, '--json', 'statusCheckRollup'])).statusCheckRollup
@@ -50,7 +50,7 @@ export function createGithubAdapter(repo) {
       ]))
     },
     showFailedRunLog(databaseId) {
-      execFileSync('gh', ['run', 'view', String(databaseId), '--repo', repo, '--log-failed'], { stdio: 'inherit' })
+      execFileSync('gh', ['run', 'view', String(databaseId), '--repo', repo, '--log-failed'], { stdio: ['inherit', process.stderr, 'inherit'] })
     },
   }
 }

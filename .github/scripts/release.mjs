@@ -3,6 +3,7 @@ import { createGithubAdapter } from './github-adapter.mjs'
 
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 const commitPattern = /^[0-9a-f]{40}$/i
+const runCreationToleranceMs = 5_000
 
 export function validateMergedRelease(event, version) {
   if (!versionPattern.test(version ?? '')) throw new Error(`Invalid VERSION: ${version}`)
@@ -111,7 +112,7 @@ export async function dispatchAndWait(adapter, {
     const runs = adapter.listWorkflowRuns(workflowFile)
     const run = (Array.isArray(runs) ? runs : []).find((candidate) => (
       String(candidate.headSha ?? '').toLowerCase() === String(matchSha ?? '').toLowerCase() &&
-      Date.parse(candidate.createdAt ?? '') >= started
+      Date.parse(candidate.createdAt ?? '') >= started - runCreationToleranceMs
     ))
     if (run?.status === 'completed') {
       if (run.conclusion !== 'success') adapter.showFailedRunLog(run.databaseId)
