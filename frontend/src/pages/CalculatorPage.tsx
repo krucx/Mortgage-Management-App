@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import { PURITIES, type Purity, type SimulationIn, type Terms } from '../api'
 import {
   anyProblem,
-  collateralOf,
+  collateralInputOf,
   filledIn,
   problems,
   refusalOf,
@@ -94,6 +94,7 @@ export function CalculatorPage() {
   const { amount, start, closed, terms, span, monthly, lumps, compared } = inputs
   const valid = amount !== '' && terms !== null && !anyProblem(problem)
   const sent = filledIn(lumps)
+  const collateral = collateralInputOf(inputs)
   const ask = (under: TermsDraft): SimulationIn => ({
     amount_lent: rupeesToPaise(amount),
     start_date: start,
@@ -102,6 +103,7 @@ export function CalculatorPage() {
     span_months: span,
     ...(monthly && { monthly_payment: rupeesToPaise(monthly) }),
     lump_sums: sent.map((lump) => ({ on: lump.on, amount: rupeesToPaise(lump.amount) })),
+    ...(collateral && { collateral }),
   })
   const asked = valid ? [ask(terms), ...(compared ? [ask(compared)] : [])] : null
   // Asked for once the inputs stop changing; compared by value, as typed.
@@ -162,7 +164,6 @@ export function CalculatorPage() {
             ? !!(settled![0].monthly_payment || settled![0].lump_sums?.length)
             : !!(monthly || sent.length)
         }
-        collateral={collateralOf(inputs, goldRates)?.value ?? null}
         span={span}
         onSpan={(months) => change({ span: months })}
         graphOpen={graphOpen}

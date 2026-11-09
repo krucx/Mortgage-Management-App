@@ -1583,6 +1583,45 @@
         "title": "InterestMode",
         "type": "string"
       },
+      "JewelleryValueIn": {
+        "description": "A Simulation's jewellery value: net weight and purity, or `override`, typed by\nhand, which counts instead.",
+        "properties": {
+          "net_weight_mg": {
+            "minimum": 0.0,
+            "title": "Net Weight Mg",
+            "type": "integer"
+          },
+          "override": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override"
+          },
+          "purity_karat": {
+            "enum": [
+              24,
+              22,
+              20,
+              18,
+              14
+            ],
+            "title": "Purity Karat",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "net_weight_mg",
+          "purity_karat"
+        ],
+        "title": "JewelleryValueIn",
+        "type": "object"
+      },
       "LedgerChange": {
         "description": "A Ledger step that differs: None on the side where it does not exist.",
         "properties": {
@@ -3521,6 +3560,17 @@
       },
       "Simulation": {
         "properties": {
+          "collateral_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Value"
+          },
           "effective_annual_rate": {
             "title": "Effective Annual Rate",
             "type": "number"
@@ -3532,6 +3582,17 @@
           "interest_earned": {
             "title": "Interest Earned",
             "type": "integer"
+          },
+          "loan_to_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loan To Value"
           },
           "lump_sums": {
             "items": {
@@ -3583,6 +3644,8 @@
           "first_month_interest",
           "effective_annual_rate",
           "paid_off_on",
+          "collateral_value",
+          "loan_to_value",
           "lump_sums",
           "points",
           "payments",
@@ -3602,6 +3665,16 @@
             "format": "date",
             "title": "Closed On",
             "type": "string"
+          },
+          "collateral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JewelleryValueIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "lump_sums": {
             "default": [],

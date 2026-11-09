@@ -56,7 +56,6 @@ export function SimulationResults({
   amountLent,
   closedOn,
   planned,
-  collateral,
   span,
   onSpan,
   graphOpen,
@@ -67,7 +66,6 @@ export function SimulationResults({
   amountLent: number // paise
   closedOn: string | null // as entered, for before anything is worked out; none if it's wrong
   planned: boolean
-  collateral: number | null // paise
   span: Span
   onSpan: (months: Span) => void
   /** Whether the graph is open, kept by the page so it stays as left while worked out again. */
@@ -77,6 +75,8 @@ export function SimulationResults({
 }) {
   // Once worked out, the day it closed on is the Simulation's own.
   const closing = runs[0]?.simulation.on_closure.on ?? closedOn
+  // The Simulation's own, once worked out; none before then, so the tiles wait too.
+  const collateral = runs[0]?.simulation.collateral_value ?? null
   return (
     <div className="stack">
       <div className="tiles">
@@ -134,7 +134,7 @@ export function SimulationResults({
           <Tile
             caption="Loan-to-Value now"
             runs={runs}
-            figure={() => amountLent / collateral}
+            figure={(s) => (s.collateral_value ? amountLent / s.collateral_value : null)}
             format={share(1)}
             difference={percentagePoints(1)}
           />
@@ -143,7 +143,7 @@ export function SimulationResults({
               closing ? `Loan-to-Value on ${formatDate(closing)}` : 'Loan-to-Value when closed'
             }
             runs={runs}
-            figure={(s) => s.on_closure.total / collateral}
+            figure={(s) => s.loan_to_value}
             format={share(1)}
             difference={percentagePoints(1)}
           />

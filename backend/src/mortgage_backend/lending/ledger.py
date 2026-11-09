@@ -184,10 +184,12 @@ class _Run:
         until: date,
         term_changes: Iterable[TermChange],
         hypothetical: HypotheticalPayments | None,
+        stop_when_paid_off: bool = False,
     ) -> None:
         self.start, self.terms = start, terms
         self.changes = list(term_changes)
         self.hypothetical = hypothetical
+        self.stop_when_paid_off = stop_when_paid_off
         self.principal, self.unpaid = amount_lent, 0
         self.steps = [LedgerStep(start, "started", amount_lent, amount_lent, 0)]
         self.pending = sorted(
@@ -200,7 +202,7 @@ class _Run:
         # that day (its final Payment) is not asked for it a second time.
         self.to_date_charged_on: date | None = None
         self.n = 1  # the next Accrual Date's number
-        self.paid_off_on: date | None = None  # by hypothetical Payments
+        self.paid_off_on: date | None = None  # by a Payment, real or hypothetical
         self.term_changes: list[tuple[date, Terms]] = []  # as they take effect
 
     def terms_from(self, day: date) -> Terms:
@@ -264,11 +266,13 @@ class _Run:
                 payment_id=payment_id,
             )
         )
-        if payment_id is None and not self.owed() and self.paid_off_on is None:
+        if not self.owed() and self.paid_off_on is None:
             self.paid_off_on = on
 
     def pay_through(self, day: date) -> None:
         while self.pending and self.pending[0].on <= day:
+            if self.stop_when_paid_off and self.paid_off_on is not None:
+                return
             allocation = self.pending.pop(0)
             owed = self.outstanding(allocation.on)
             if allocation.amount + allocation.discount > owed:
@@ -370,6 +374,7 @@ def compute_ledger(
     term_changes: Iterable[TermChange] = (),
     hypothetical: HypotheticalPayments | None = None,
     final_payment: int | None = None,
+    stop_when_paid_off: bool = False,
 ) -> list[LedgerStep]:
     """Replay a Mortgage from its start up to and including `as_of`.
 
@@ -397,7 +402,9 @@ def compute_ledger(
     A Term Change on an Accrual Date applies to the months starting then: that day's
     interest and capitalisation still follow the old Terms, so no earlier interest
     changes. Hypothetical Payments, for Projections, come after that day's Payments.
-    Raises Overpayment if an Allocation exceeds what is owed on its date.
+    Raises Overpayment if an Allocation exceeds what is owed on its date, unless
+    `stop_when_paid_off` and it is already paid off, in which case it (and any
+    Allocation after it) is simply not applied; see `paid_off_on`.
     """
     if closed_on is not None:
         as_of = min(as_of, closed_on)
@@ -416,6 +423,7 @@ def compute_ledger(
         as_of,
         term_changes,
         hypothetical,
+        stop_when_paid_off,
     )
     run.accrue_through(as_of)
     run.pay_through(as_of)
@@ -428,6 +436,19 @@ def compute_ledger(
     if closing and closure in ("waived", "forfeited"):
         run.steps.append(LedgerStep(as_of, closure, run.owed(), 0, 0))
     return run.steps
+
+
+def paid_off_on(steps: Iterable[LedgerStep]) -> date | None:
+    """The day a Payment (real or hypothetical) left nothing owed: the first that paid
+    unpaid interest and the Interest to Date before the last of the Principal."""
+    return next(
+        (
+            step.on
+            for step in steps
+            if step.event == "payment" and not step.principal and not step.unpaid_interest
+        ),
+        None,
+    )
 
 
 @dataclass(frozen=True)

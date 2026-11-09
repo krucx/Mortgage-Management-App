@@ -129,3 +129,12 @@ export function collateralOf(
   // rounded half-up to the paisa, as a Mortgage's is
   return { value: Math.floor((2 * mg * rate + 1000) / 2000), rate }
 }
+
+/** What to ask the Simulation for its Collateral Value and Loan-to-Value: the net
+ *  weight and purity, and the value typed by hand, if any; none without either. */
+export function collateralInputOf({ net, purity, value }: Inputs): SimulationIn['collateral'] {
+  const mg = gramsToMg(net)
+  const override = Number(value) > 0 ? rupeesToPaise(value) : undefined
+  if (!mg && override === undefined) return undefined
+  return { net_weight_mg: mg, purity_karat: purity, override }
+}

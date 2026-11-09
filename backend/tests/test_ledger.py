@@ -13,6 +13,7 @@ from mortgage_backend.lending.ledger import (
     accrual_date,
     compute_ledger,
     months_unpaid,
+    paid_off_on,
     project,
     terms_on,
 )
@@ -971,3 +972,64 @@ def test_interest_paid_ahead_does_not_cover_an_older_capitalised_month():
     )
 
     assert months_unpaid(ledger) == 1
+
+
+def test_paid_off_on_says_none_while_still_owed():
+    ledger = compute_ledger(date(2026, 1, 14), LAKH, terms(), date(2026, 2, 14))
+
+    assert paid_off_on(ledger) is None
+
+
+def test_paid_off_on_says_when_a_real_payment_leaves_nothing_owed():
+    # The month's ₹3,000, the next month's ₹3,000 ahead, and the ₹1,00,000 itself.
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        terms(),
+        date(2026, 2, 14),
+        [Allocation(on=date(2026, 2, 14), amount=1_06_000_00, payment_id=1)],
+    )
+
+    assert paid_off_on(ledger) == date(2026, 2, 14)
+
+
+def test_paid_off_on_works_for_hypothetical_payments_too():
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        10_000_00,
+        terms(),
+        date(2026, 6, 14),
+        hypothetical=HypotheticalPayments(after=date(2026, 1, 20), amount=6_000_00),
+    )
+
+    assert paid_off_on(ledger) == date(2026, 3, 14)
+
+
+def test_stop_when_paid_off_skips_later_allocations_without_raising():
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        terms(),
+        date(2026, 3, 14),
+        [
+            Allocation(on=date(2026, 2, 14), amount=1_06_000_00, payment_id=1),
+            # Nothing is left to pay: without stopping, this would overpay.
+            Allocation(on=date(2026, 2, 20), amount=1_00, payment_id=2),
+        ],
+        stop_when_paid_off=True,
+    )
+
+    assert paid_off_on(ledger) == date(2026, 2, 14)
+    assert [s.payment_id for s in ledger if s.event == "payment"] == [1]
+
+
+def test_stop_when_paid_off_still_raises_before_it_is_paid_off():
+    with pytest.raises(Overpayment):
+        compute_ledger(
+            date(2026, 1, 14),
+            LAKH,
+            terms(),
+            date(2026, 2, 14),
+            [Allocation(on=date(2026, 2, 14), amount=1_06_001_00, payment_id=1)],
+            stop_when_paid_off=True,
+        )
