@@ -163,7 +163,13 @@ class ForfeitAllIn(BaseModel):
 
 
 # Changing these on a closed Mortgage would contradict how it was closed.
-_LOCKED_WHEN_CLOSED = ["start_date", "amount_lent"]
+_LOCKED_WHEN_CLOSED = {
+    "start_date": "start date",
+    "amount_lent": "Principal",
+    "monthly_rate_bps": "Terms",
+    "interest_mode": "Terms",
+    "part_month_rule": "Terms",
+}
 _AUDITED_EDITS = [
     "name",
     "start_date",
@@ -177,6 +183,13 @@ _AUDITED_EDITS = [
     "interest_mode",
     "part_month_rule",
 ]
+
+
+def _join(items: list[str]) -> str:
+    """"start date", "Principal" and "Terms" -> "start date, Principal or Terms"."""
+    if len(items) == 1:
+        return items[0]
+    return ", ".join(items[:-1]) + " or " + items[-1]
 
 
 def _refuse_unless_active(row: RowMapping) -> None:
@@ -440,13 +453,14 @@ def edit_mortgage(
     if after["lent_through"] is None:  # left out: kept, never cleared
         after["lent_through"] = before["lent_through"]
     changed = audit.changes(before, after, _AUDITED_EDITS)
-    if before["status"] != MortgageStatus.ACTIVE and any(
-        c.field in _LOCKED_WHEN_CLOSED for c in changed
-    ):
+    locked = dict.fromkeys(
+        _LOCKED_WHEN_CLOSED[c.field] for c in changed if c.field in _LOCKED_WHEN_CLOSED
+    )
+    if before["status"] != MortgageStatus.ACTIVE and locked:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             f"{before['name']} is {before['status']}: reopen it to change its "
-            "start date or Principal",
+            + _join(list(locked)),
         )
     taken = conn.execute(
         select(mortgage_table.c.id).where(

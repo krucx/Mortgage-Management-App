@@ -2,7 +2,7 @@
 audit log of every change (today is 20 Apr 2026, see conftest)."""
 
 import pytest
-from api_seed import lend, pay, person
+from api_seed import SIMPLE_3, lend, pay, person
 from seed import LAKH, RUPEE
 
 
@@ -142,6 +142,14 @@ def test_editing_the_principal_replays_the_ledger(client, mortgage):
     assert response.json()["outstanding"]["total"] == 56_000 * RUPEE
 
 
+def test_correcting_the_starting_terms_replays_the_ledger(client, mortgage):
+    response = edit(client, mortgage, terms={**SIMPLE_3, "monthly_rate_bps": 100})
+
+    assert response.status_code == 200, response.text
+    # 1% a month, down from 3%: ₹1,000 on each of the 4 Accrual Dates due by today.
+    assert response.json()["outstanding"]["total"] == 1_04_000 * RUPEE
+
+
 def test_an_edit_that_would_leave_a_payment_too_large_is_refused(
     client, ramesh, mortgage
 ):
@@ -151,6 +159,17 @@ def test_an_edit_that_would_leave_a_payment_too_large_is_refused(
 
     assert response.status_code == 422
     assert outstanding(client, mortgage) == 62_000 * RUPEE  # unchanged
+
+
+def test_correcting_terms_that_would_leave_a_payment_too_large_is_refused(
+    client, ramesh, mortgage
+):
+    pay(client, ramesh, {mortgage["id"]: 1_06_000 * RUPEE}, on="2026-03-15")
+
+    response = edit(client, mortgage, terms={**SIMPLE_3, "monthly_rate_bps": 50})
+
+    assert response.status_code == 422
+    assert outstanding(client, mortgage) == 3_090 * RUPEE  # unchanged
 
 
 def test_the_start_date_cannot_move_past_a_payment(client, ramesh, mortgage):
@@ -183,6 +202,9 @@ def test_a_closed_mortgage_keeps_its_numbers_but_its_details_can_change(
     )
     assert edit(client, mortgage, amount_lent=90_000 * RUPEE).status_code == 409
     assert edit(client, mortgage, start_date="2026-01-15").status_code == 409
+    response = edit(client, mortgage, terms={**SIMPLE_3, "monthly_rate_bps": 200})
+    assert response.status_code == 409
+    assert "reopen" in response.json()["detail"].lower()
 
 
 # Reopening

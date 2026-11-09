@@ -113,8 +113,8 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
       <p className="hint">
         Customer cannot be changed here.
         {closed &&
-          ` It is ${mortgage.status}, so its start date and Principal stay as they were; ` +
-            'reopen it to change them.'}
+          ` It is ${mortgage.status}, so its start date, Principal and Terms stay as ` +
+            'they were; reopen it to change them.'}
       </p>
       <form onSubmit={submit}>
         <label>
@@ -151,7 +151,11 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
           Correcting these replays the existing Payments from the start. Later Term Changes keep
           their dates.
         </p>
-        <TermsFields value={fields.terms} onChange={(terms) => setFields({ ...fields, terms })} />
+        <TermsFields
+          value={fields.terms}
+          onChange={(terms) => setFields({ ...fields, terms })}
+          disabled={closed}
+        />
         <label>
           Lent Through
           <PaymentMethodSelect

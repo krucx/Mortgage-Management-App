@@ -62,3 +62,31 @@ test('a Mortgage made before Lent Through shows none, and setting it to Cash is 
   await screen.findByText('Now at /mortgages/7')
   expect(sent).toEqual([expect.objectContaining({ lent_through: 'cash' })])
 })
+
+test('a closed Mortgage shows its Terms as locked, with the start date and Principal', async () => {
+  showEdit({ ...mortgage, status: 'redeemed' }, [])
+
+  await screen.findByRole('heading', { name: `Edit ${mortgage.name}` })
+  expect(
+    screen.getByText((text) =>
+      text.includes(
+        'It is redeemed, so its start date, Principal and Terms stay as they were',
+      ),
+    ),
+  ).toBeTruthy()
+  expect((screen.getByLabelText('Start date') as HTMLInputElement).disabled).toBe(true)
+  expect((screen.getByLabelText('Principal lent (₹)') as HTMLInputElement).disabled).toBe(
+    true,
+  )
+  expect(
+    (screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).disabled,
+  ).toBe(true)
+  expect((screen.getByLabelText('Interest Mode') as HTMLSelectElement).disabled).toBe(true)
+  expect(
+    (
+      screen.getByLabelText(
+        'Part-Month Rule (Interest to Date for the month under way)',
+      ) as HTMLSelectElement
+    ).disabled,
+  ).toBe(true)
+})
