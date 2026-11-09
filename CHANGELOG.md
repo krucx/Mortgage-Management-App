@@ -10,9 +10,10 @@ Every release of Mortgage Management, newest first. The format follows
 ### Changed
 
 - **Security:** the one image runs as a fixed, unprivileged user (uid:gid 1000:1000)
-  instead of root. Docker Desktop (Mac, Windows) needs no change; a Linux host updating
-  from an older image must give that uid:gid ownership of `DATA_DIR` and `BACKUP_DIR`
-  first (see README's Updating section) or the app fails to start.
+  instead of root. Docker Desktop (Mac, Windows) needs no change; a Linux host, fresh
+  install or update, must give that uid:gid ownership of `DATA_DIR` and `BACKUP_DIR`
+  first (see README). An unwritable `DATA_DIR` stops the app outright; an unwritable
+  `BACKUP_DIR` alone only fails Backups silently.
 
 ## [3.4.6] - 2026-11-08
 

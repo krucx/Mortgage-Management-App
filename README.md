@@ -70,13 +70,23 @@ folder. A Backup folder you chose outside it (Google Drive, OneDrive) is left as
    - `BACKUP_PASSWORD`: the password for the Backup zips. Write it down somewhere safe.
    - `TZ`: your time zone (default `Asia/Kolkata`).
    - `APP_VERSION`: leave empty to run the latest release, or set one (e.g. `1.2.0`).
-4. In this folder, run:
+4. On a Linux host, create `DATA_DIR` and `BACKUP_DIR` and give them to the image's
+   fixed, unprivileged user (uid:gid 1000:1000, Documentation/adr/0013) before the first
+   start, or the app can't write to them (Docker Desktop on Mac and Windows needs no
+   such step):
+
+   ```sh
+   mkdir -p <DATA_DIR> <BACKUP_DIR>
+   sudo chown -R 1000:1000 <DATA_DIR> <BACKUP_DIR>
+   ```
+
+5. In this folder, run:
 
    ```sh
    docker compose up -d
    ```
 
-5. Open <http://localhost:8080> (or whatever `APP_PORT` is set to).
+6. Open <http://localhost:8080> (or whatever `APP_PORT` is set to).
 
 The first start downloads the app from Docker Hub (see Published images); nothing is
 built on the laptop. The app restarts by itself with Docker. Database updates run automatically when the app starts. Your data lives only in `DATA_DIR`, never inside Docker.
@@ -119,7 +129,19 @@ hides the banner until the next release. Or double-click `Setup.bat` again (it i
 or without Docker, and keeps the `.env`, data and Backups; when you have the newest
 already, it downloads nothing and just starts it. If the new version had already
 updated the database when it failed to start, Setup says which `-before-update` Backup
-to restore should the version you had not start on it. Elsewhere:
+to restore should the version you had not start on it. Elsewhere, on a Linux host
+updating from a release before this change, first give uid:gid 1000:1000 (the image's
+fixed, unprivileged user, Documentation/adr/0013) ownership of `DATA_DIR` and
+`BACKUP_DIR` (Docker Desktop on Mac and Windows needs no such step):
+
+```sh
+sudo chown -R 1000:1000 <DATA_DIR> <BACKUP_DIR>
+```
+
+Skipping it on Linux stops the app outright if `DATA_DIR` isn't owned by that uid:gid;
+if only `BACKUP_DIR` isn't, the app still starts but every Backup then fails silently
+(see Settings, or `docker compose logs app`) — and would block starting a future
+release that backs up before migrating.
 
 ```sh
 git pull                             # this folder's compose file and notes
@@ -135,16 +157,6 @@ To go back to an earlier release, set `APP_VERSION` in `.env` and run the same t
 `git checkout <version>` (e.g. `git checkout 3.3.0`) for that release's own compose file.
 A newer release may have updated the database: restore the Backup taken before that
 update (see Backups) when going back past one.
-
-The image (Documentation/adr/0013) runs as a fixed, unprivileged user (uid:gid
-1000:1000) instead of root. On Docker Desktop (Mac, Windows) `DATA_DIR` and
-`BACKUP_DIR` stay writable with no change needed. On a Linux host, updating from a
-release before this change, give that uid:gid ownership of both folders before
-`docker compose pull` or the app fails to start:
-
-```sh
-sudo chown -R 1000:1000 <DATA_DIR> <BACKUP_DIR>
-```
 
 ### Published images
 
