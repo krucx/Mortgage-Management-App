@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -142,4 +142,12 @@ test('the CLI validates a merged release, human review, checks, and idempotent t
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+test('publisher configures an annotated-tag identity and supports safe manual recovery', () => {
+  const workflow = readFileSync(new URL('../workflows/publish-release.yml', import.meta.url), 'utf8')
+  assert.match(workflow, /git config user\.name "github-actions\[bot\]"/)
+  assert.match(workflow, /git config user\.email "41898282\+github-actions\[bot\]@users\.noreply\.github\.com"/)
+  assert.match(workflow, /workflow_dispatch:/)
+  assert.match(workflow, /repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER/)
 })

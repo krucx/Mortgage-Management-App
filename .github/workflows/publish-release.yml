@@ -3,6 +3,12 @@ name: Publish merged release candidate
 on:
   pull_request:
     types: [closed]
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Merged release candidate PR number to safely retry
+        required: true
+        type: number
 
 permissions:
   contents: write
@@ -11,22 +17,24 @@ permissions:
   actions: write
 
 concurrency:
-  group: publish-release-pr-${{ github.event.pull_request.number }}
+  group: publish-release-pr-${{ github.event.pull_request.number || inputs.pull_request }}
   cancel-in-progress: false
 
 jobs:
   publish:
     name: release-publish
     if: >-
+      (github.event_name == 'pull_request' &&
       github.event.pull_request.merged == true &&
       github.event.pull_request.base.ref == 'main' &&
-      startsWith(github.event.pull_request.head.ref, 'release/')
+      startsWith(github.event.pull_request.head.ref, 'release/')) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event.pull_request.merge_commit_sha || 'main' }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v5
@@ -39,13 +47,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pull_request }}
         run: |
           set -euo pipefail
           version=$(cat VERSION)
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > /tmp/release-pull-request.json
+            jq '{action: "closed", pull_request: .}' /tmp/release-pull-request.json > /tmp/release-event.json
+          else
+            cp "$GITHUB_EVENT_PATH" /tmp/release-event.json
+          fi
+          PR_AUTHOR=$(jq -r '.pull_request.user.login' /tmp/release-event.json)
           node .github/scripts/publish-release.mjs validate-merged \
-            --event "$GITHUB_EVENT_PATH" --version "$version" > /tmp/release-candidate.json
+            --event /tmp/release-event.json --version "$version" > /tmp/release-candidate.json
           version=$(jq -r .version /tmp/release-candidate.json)
           commit=$(jq -r .commit /tmp/release-candidate.json)
           head_commit=$(jq -r .headCommit /tmp/release-candidate.json)
@@ -82,6 +96,8 @@ jobs:
           action=$(node .github/scripts/publish-release.mjs plan-tag \
             --commit "$MERGE_COMMIT" --existing-tag-sha "$existing")
           if [[ "$action" == create ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git tag -a "$VERSION" -m "Release $VERSION" "$MERGE_COMMIT"
             git push origin "refs/tags/$VERSION"
             echo "Created annotated tag $VERSION at $MERGE_COMMIT."

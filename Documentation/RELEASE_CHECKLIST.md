@@ -90,10 +90,11 @@ release flow in the Publish section does that.
 ## Recovery — release owner
 
 - [ ] If the workflow fails before publication, inspect both workflow logs. After fixing
-  the cause, rerun the merged-PR publisher: it verifies and reuses the tag only when it
-  still points at the same merge commit, then dispatches the release workflow again. If
-  the tag must point at a different commit, cut a new patch candidate; never move a tag
-  after any release artifact has been published.
+  the cause, rerun the merged-PR publisher or dispatch it from `main` with the merged
+  release PR number: it verifies and reuses the tag only when it still points at the
+  same merge commit, then dispatches the release workflow again. If the tag must point
+  at a different commit, cut a new patch candidate; never move a tag after any release
+  artifact has been published.
 - [ ] If only some artifacts were published, pause announcements and inspect workflow
   logs, Docker Hub tags, and the GitHub Release. Rerun the merged-PR publisher after
   fixing the cause; the release workflow replaces the same version's image, notes and
