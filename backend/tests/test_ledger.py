@@ -294,6 +294,29 @@ def test_paying_the_principal_and_charged_interest_pays_the_interest_to_date_fir
     ]
 
 
+def test_a_discount_pays_unpaid_interest_the_interest_to_date_and_principal_in_order():
+    # The same order as cash (ADR 0014): ₹3,000 unpaid interest, then this month's
+    # ₹3,000 Interest to Date, leaving ₹97,000 of the ₹1,00,000 Principal.
+    ledger = compute_ledger(
+        date(2026, 1, 14),
+        LAKH,
+        terms(),
+        date(2026, 3, 1),
+        [Allocation(on=date(2026, 3, 1), amount=0, payment_id=1, discount=103_000_00)],
+    )
+
+    payment = ledger[-2]
+    assert (
+        payment.event,
+        payment.discount,
+        payment.paid_ahead,
+        payment.discount_interest_paid,
+        payment.discount_principal_paid,
+        payment.principal,
+        payment.unpaid_interest,
+    ) == ("payment", 103_000_00, 3_000_00, 6_000_00, 97_000_00, 3_000_00, 0)
+
+
 # --- Closing a Mortgage (Redemption / Forfeiture): its Interest to Date, then no more interest.
 
 

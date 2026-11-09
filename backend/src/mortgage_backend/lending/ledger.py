@@ -231,23 +231,23 @@ class _Run:
         """What would redeem it on `on`: everything owed, the Interest to Date too."""
         return self.owed() + self.to_date_owed(on)
 
-    def pay(
-        self, on: date, amount: int, payment_id: int | None, discount: int = 0
-    ) -> None:
+    def apply_amount(self, on: date, amount: int) -> tuple[int, int, int]:
         """Unpaid interest first, then the Interest to Date (paid ahead of the month's
-        interest), then Principal."""
+        interest), then Principal (ADR 0014); returns what each part paid."""
         to_unpaid = min(amount, self.unpaid)
         ahead = min(amount - to_unpaid, self.to_date_owed(on))
         to_principal = amount - to_unpaid - ahead
         self.unpaid -= to_unpaid
         self.paid_ahead += ahead
         self.principal -= to_principal
-        discount_unpaid = min(discount, self.unpaid)
-        discount_ahead = min(discount - discount_unpaid, self.to_date_owed(on))
-        discount_principal = discount - discount_unpaid - discount_ahead
-        self.unpaid -= discount_unpaid
-        self.paid_ahead += discount_ahead
-        self.principal -= discount_principal
+        return to_unpaid, ahead, to_principal
+
+    def pay(
+        self, on: date, amount: int, payment_id: int | None, discount: int = 0
+    ) -> None:
+        """Apply the cash Allocation, then the Discount (ADR 0014)."""
+        to_unpaid, ahead, to_principal = self.apply_amount(on, amount)
+        discount_unpaid, discount_ahead, discount_principal = self.apply_amount(on, discount)
         self.steps.append(
             LedgerStep(
                 on,
