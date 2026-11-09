@@ -52,6 +52,8 @@ from mortgage_backend.lending.projections import (
 from mortgage_backend.lending.replay import Closure, MortgageStatus, replay
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.payments.cash_limit import before_change, cash_sums
+from mortgage_backend.payments.discount_confirmation import get_discount_confirmation_limit
+from mortgage_backend.payments.discount_room import capped, discount_rooms
 from mortgage_backend.payments.payments import mortgages_of
 from mortgage_backend.platform.clock import NowDep, TodayDep
 from mortgage_backend.platform.db import EngineDep
@@ -80,6 +82,11 @@ class MortgagePreview(BaseModel):
     before: PreviewSide
     after: PreviewSide
     ledger_changes: list[LedgerChange]
+    # Payment Preview only: room for a Discount after cash, and whether it is over
+    # the confirmation threshold (a Discount larger than its room is capped, so the
+    # Preview never refuses only for that).
+    discount_room: int = 0
+    over_threshold: bool = False
 
 
 class PreviewOfChange(BaseModel):
@@ -341,14 +348,27 @@ def preview_reopen(
 def preview_payment(
     payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> PreviewOfChange:
-    """Every Mortgage the Payment is allocated to, before and after recording it."""
+    """Every Mortgage the Payment is allocated to, before and after recording it, with
+    each Allocation's room for a Discount after its cash and whether it is over the
+    confirmation threshold."""
     with engine.connect() as conn:
-        return _preview(
+        rooms = discount_rooms(conn, payment)
+        limit = get_discount_confirmation_limit(conn).discount_confirmation_limit
+        discounts = {a.mortgage_id: a.discount for a in payment.allocations}
+        # A Discount larger than its room is capped here, so the Preview never refuses
+        # only for that: the room and threshold below are what matter to the page.
+        preview = _preview(
             conn,
             [allocation.mortgage_id for allocation in payment.allocations],
             today,
-            lambda: record_payment(conn, payment, today, now),
+            lambda: record_payment(conn, capped(payment, rooms), today, now),
         )
+        for mortgage_preview in preview.mortgages:
+            mortgage_preview.discount_room = rooms[mortgage_preview.mortgage_id]
+            mortgage_preview.over_threshold = (
+                limit is not None and discounts[mortgage_preview.mortgage_id] > limit
+            )
+        return preview
 
 
 class NewMortgagePreview(BaseModel):

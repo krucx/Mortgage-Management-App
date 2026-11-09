@@ -101,8 +101,29 @@ test('a Discount can be recorded without cash', async () => {
   expect(asked?.allocations).toEqual([{ mortgage_id: 7, amount: 0, discount: 5_150_000 }])
 })
 
+/** A fake Preview that computes `discount_room`/`over_threshold` itself from the
+ *  request, the way the real backend does, instead of the empty `changePreview([])`
+ *  that would let a page-computed cap or threshold go unnoticed. `rooms` overrides a
+ *  Mortgage's room (by id); otherwise it is the Mortgage's Outstanding (ample room,
+ *  for tests only exercising the threshold, not the cap). */
+function discountAwarePreview(rooms: Record<number, number> = {}, limit = 50_000) {
+  return async (request: Request) => {
+    const asked = (await request.json()) as PaymentIn
+    const mortgages = asked.allocations.map((allocation) => ({
+      mortgage_id: allocation.mortgage_id,
+      mortgage_name: row.name,
+      before: { outstanding: row.outstanding_total, points: [], term_changes: [], closure: null },
+      after: { outstanding: 0, points: [], term_changes: [], closure: null },
+      ledger_changes: [],
+      discount_room: rooms[allocation.mortgage_id] ?? row.outstanding_total,
+      over_threshold: allocation.discount > limit,
+    }))
+    return changePreview(mortgages)
+  }
+}
+
 test('a ₹500 Discount needs no extra confirmation, while a larger one does', async () => {
-  const backend = server()
+  const backend = server({ 'POST /api/payments/preview': discountAwarePreview() })
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
   const discount = await screen.findByLabelText('Discount for 2026GoldChain')
   fireEvent.change(discount, { target: { value: '500' } })
@@ -120,9 +141,12 @@ test('a ₹500 Discount needs no extra confirmation, while a larger one does', a
   expect(await screen.findByRole('heading', { name: 'Confirm a Discount over ₹500?' })).toBeTruthy()
 })
 
-test('an over-balance Discount is capped after cash and confirmed before a large Discount', async () => {
+test('an over-balance Discount is reduced to the room the Preview reports, not Outstanding minus cash', async () => {
   let saved: PaymentIn | undefined
   const backend = server({
+    // Deliberately not ₹51,500 (Outstanding) − ₹50,000 (cash) = ₹1,500: a page that
+    // still worked that out itself would show the wrong reduction.
+    'POST /api/payments/preview': discountAwarePreview({ 7: 30_000 }),
     'POST /api/payments': async (request: Request) => {
       saved = (await request.json()) as PaymentIn
       return { ...saved, id: 9, customer: { kind: 'customer', id: 3, name: customer.name }, allocations: [], voided_at: null, void_reason: null }
@@ -134,23 +158,37 @@ test('an over-balance Discount is capped after cash and confirmed before a large
   const save = await screen.findByRole('button', { name: 'Record Payment of ₹50,000 with ₹3,000 Discount' })
   await vi.waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(save)
-  const cap = await screen.findByRole('heading', { name: 'Reduce Discount to the remaining balance?' })
-  expect(cap).toBeTruthy()
-  expect(saved).toBeUndefined()
-  fireEvent.click(screen.getByRole('button', { name: 'Reduce and continue' }))
 
-  const large = await screen.findByRole('dialog')
-  expect(within(large).getByRole('heading', { name: 'Confirm a Discount over ₹500?' })).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  const cap = await screen.findByRole('dialog')
+  expect(within(cap).getByRole('heading', { name: 'Reduce Discount to the remaining balance?' })).toBeTruthy()
+  expect(within(cap).getByText('₹3,000 → ₹300')).toBeTruthy()
+  expect(saved).toBeUndefined()
+
+  // Accepting only updates the draft: it does not resubmit on its own.
+  fireEvent.click(within(cap).getByRole('button', { name: 'Reduce and continue' }))
+  await vi.waitFor(() =>
+    expect((screen.getByLabelText('Discount for 2026GoldChain') as HTMLInputElement).value).toBe(
+      '300',
+    ),
+  )
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(saved).toBeUndefined()
+
+  const saveAgain = await screen.findByRole('button', {
+    name: 'Record Payment of ₹50,000 with ₹300 Discount',
+  })
+  await vi.waitFor(() => expect((saveAgain as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(saveAgain)
   const regular = await screen.findByRole('dialog')
   expect(within(regular).getByRole('heading', { name: /Record a Payment of/ })).toBeTruthy()
   fireEvent.click(within(regular).getByRole('button', { name: 'Confirm and save' }))
-  await vi.waitFor(() => expect(saved?.allocations).toEqual([{ mortgage_id: 7, amount: 5_000_000, discount: 150_000 }]))
+  await vi.waitFor(() => expect(saved?.allocations).toEqual([{ mortgage_id: 7, amount: 5_000_000, discount: 30_000 }]))
 })
 
 test('declining the cap or the large-Discount confirmation saves nothing', async () => {
   let saves = 0
   const backend = server({
+    'POST /api/payments/preview': discountAwarePreview(),
     'POST /api/payments': async (request: Request) => {
       saves += 1
       return { ...((await request.json()) as Record<string, unknown>), id: 9, customer: { kind: 'customer', id: 3, name: customer.name }, allocations: [], voided_at: null, void_reason: null }

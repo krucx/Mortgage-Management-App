@@ -980,7 +980,9 @@ export interface paths {
         put?: never;
         /**
          * Preview Payment
-         * @description Every Mortgage the Payment is allocated to, before and after recording it.
+         * @description Every Mortgage the Payment is allocated to, before and after recording it, with
+         *     each Allocation's room for a Discount after its cash and whether it is over the
+         *     confirmation threshold.
          */
         post: operations["preview_payment_api_payments_preview_post"];
         delete?: never;
@@ -2216,12 +2218,22 @@ export interface components {
         MortgagePreview: {
             after: components["schemas"]["PreviewSide"];
             before: components["schemas"]["PreviewSide"];
+            /**
+             * Discount Room
+             * @default 0
+             */
+            discount_room: number;
             /** Ledger Changes */
             ledger_changes: components["schemas"]["LedgerChange"][];
             /** Mortgage Id */
             mortgage_id: number;
             /** Mortgage Name */
             mortgage_name: string;
+            /**
+             * Over Threshold
+             * @default false
+             */
+            over_threshold: boolean;
         };
         /**
          * MortgageRow

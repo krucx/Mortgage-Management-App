@@ -19,6 +19,8 @@ const preview: MortgagePreview = {
   before: side(5_075_000),
   after: side(5_075_000),
   ledger_changes: [],
+  discount_room: 0,
+  over_threshold: false,
 }
 
 test('a new rate is previewed, then saved as a Term Change from the chosen Accrual Date', async () => {

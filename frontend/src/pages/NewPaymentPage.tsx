@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   type Closure,
@@ -93,7 +93,6 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   const methods = usePaymentMethods()
   const [reference, setReference] = useState('')
   const [confirmCap, capDialog] = useConfirm()
-  const submitAfterCap = useRef(false)
   const changeLedger = useLedgerChange()
 
   // Each Active Mortgage's Outstanding on the Payment date (it may be back-dated).
@@ -250,27 +249,28 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         ),
       }
     },
-    beforeConfirm: async (payment) => {
-      const hasDiscount = payment.allocations.some((allocation) => allocation.discount > 0)
-      if (!hasDiscount) return true
-      let limit: number | null
+    beforeConfirm: async (payment, previewed) => {
+      const mortgages = new Map(
+        (previewed.previews?.mortgages ?? []).map((m) => [m.mortgage_id, m]),
+      )
+      const large = payment.allocations.filter(
+        (allocation) => mortgages.get(allocation.mortgage_id)?.over_threshold,
+      )
+      if (large.length === 0) return true
+      let limit: number | null = null
       try {
         limit = (
           await queryClient.fetchQuery(settings.discountConfirmationLimit(client))
         ).discount_confirmation_limit
       } catch {
-        return true
+        // Still confirm (the Preview already says it is over the threshold); just
+        // without naming it.
       }
-      if (limit === null) return true
-      const largeDiscounts = payment.allocations.filter(
-        (allocation) => allocation.discount > limit,
-      )
-      if (largeDiscounts.length === 0) return true
       return confirmCap({
-        title: `Confirm a Discount over ${formatINR(limit)}?`,
+        title: limit === null ? 'Confirm a Discount?' : `Confirm a Discount over ${formatINR(limit)}?`,
         body: (
           <Summary
-            rows={largeDiscounts.map((allocation): [string, string] => [
+            rows={large.map((allocation): [string, string] => [
               chosen.find((m) => m.id === allocation.mortgage_id)?.name ?? '',
               formatINR(allocation.discount),
             ])}
@@ -283,52 +283,39 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     saved: (payment) => navigate(`/payments/${payment.id}/receipt`),
   })
 
-  // After accepting the cap, wait for the edited draft's Preview before continuing through
-  // the usual cash warning, large-Discount confirmation, and Payment confirmation.
-  useEffect(() => {
-    if (!submitAfterCap.current || !canSave) return
-    submitAfterCap.current = false
-    void submit({ preventDefault() {} } as React.FormEvent)
-  }, [canSave, submit])
-
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!proposed || !canSave) return
-    const caps = new Map(
-      chosen.map((mortgage, index) => [
-        mortgage.id,
-        Math.max(0, outstanding[index] - (amounts?.[index] ?? 0)),
+    const mortgages = new Map((preview.previews?.mortgages ?? []).map((m) => [m.mortgage_id, m]))
+    const capped = new Map(
+      proposed.allocations.map((allocation) => [
+        allocation.mortgage_id,
+        Math.min(allocation.discount, mortgages.get(allocation.mortgage_id)?.discount_room ?? 0),
       ]),
     )
-    const capped = proposed.allocations
-      .map((allocation) => ({
-        ...allocation,
-        discount: Math.min(allocation.discount, caps.get(allocation.mortgage_id) ?? 0),
-      }))
-    if (capped.some((allocation, index) => allocation.discount < proposed.allocations[index].discount)) {
-      const over = proposed.allocations.filter((allocation, index) => allocation.discount > capped[index].discount)
+    const over = proposed.allocations.filter(
+      (allocation) => (capped.get(allocation.mortgage_id) ?? 0) < allocation.discount,
+    )
+    if (over.length > 0) {
       const accepted = await confirmCap({
         title: 'Reduce Discount to the remaining balance?',
         body: (
           <Summary
             rows={over.map((allocation): [string, string] => [
               chosen.find((m) => m.id === allocation.mortgage_id)?.name ?? '',
-              `${formatINR(allocation.discount)} → ${formatINR(caps.get(allocation.mortgage_id) ?? 0)}`,
+              `${formatINR(allocation.discount)} → ${formatINR(capped.get(allocation.mortgage_id) ?? 0)}`,
             ])}
           />
         ),
         confirmLabel: 'Reduce and continue',
       })
       if (!accepted) return
+      // Just updates the draft: the Lender saves it with Save, as any other edit.
       setDiscountText(
         Object.fromEntries(
-          capped.map((allocation) => [
-            allocation.mortgage_id,
-            paiseToRupees(allocation.discount),
-          ]),
+          [...capped].map(([mortgageId, discount]) => [mortgageId, paiseToRupees(discount)]),
         ),
       )
-      submitAfterCap.current = true
       return
     }
     await submit(event)
