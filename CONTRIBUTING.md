@@ -13,7 +13,8 @@ or merge a pull request.
 3. Open a pull request targeting `main`. Explain the user-visible change, verification,
    and any risk or migration impact. Link the issue and use a draft while work is
    unfinished.
-4. Wait for CI and the automated CodeRabbit review. Read the summary and every finding.
+4. Wait for the required checks and the automated CodeRabbit review. Read the summary
+   and every finding.
    Fix actionable findings in a follow-up commit. If a finding is incorrect or does not
    apply, reply on the pull request with the reason so the human reviewer can assess
    that disposition.
@@ -67,11 +68,12 @@ that exact name. Until the app is installed and the ruleset activated, automated
 is not enforced. Automated findings never count as approval.
 
 The importable [main ruleset](.github/rulesets/main.json) targets `main`, allows the
-`maintain` role to bypass its rules on pull requests, and requires a
-pull request, one human approval, the CodeRabbit review check, and the backend and
-frontend CI jobs; it blocks force pushes and deletion. A repository administrator
-should install CodeRabbit, confirm its check name, then import and activate the ruleset
-under Settings → Rules → Rulesets. GitHub Free supports branch protection and rulesets for public repositories;
+`maintain` role to bypass its rules on pull requests, and requires a pull request, one
+human approval, and these status checks: `backend`, `frontend`, `image`, `windows`,
+`Analyze (actions)`, `Analyze (javascript-typescript)`, `Analyze (python)`, and
+`CodeRabbit`. These are the exact check names GitHub reports. The ruleset blocks force
+pushes and deletion. A repository administrator should import and activate it under
+Settings → Rules → Rulesets. GitHub Free supports branch protection and rulesets for public repositories;
 private repository availability depends on the repository plan. If rulesets are not
 available, configure equivalent branch protection for `main` manually.
 

@@ -223,10 +223,11 @@ the setup without Docker end to end on a Windows runner, then the uninstall. `se
 
 Pull requests targeting `main` run the `backend` and `frontend` test jobs in
 `.github/workflows/test.yml`. Their summaries show line coverage and their artifacts
-retain the detailed reports. `main` requires `Tests / backend` and `Tests / frontend`
-through branch protection. The importable ruleset template specifies one human approval
-and blocks direct pushes; see [CONTRIBUTING.md](CONTRIBUTING.md) for
-the automated review setup and plan limitations. A failed test,
+retain the detailed reports. The main ruleset requires the backend, frontend, image,
+Windows, and CodeQL checks, as well as CodeRabbit. The importable ruleset template
+specifies one human approval and blocks direct pushes; see
+[CONTRIBUTING.md](CONTRIBUTING.md) for required check names, automated review setup,
+and plan limitations. A failed test,
 missing coverage report, invalid coverage summary, or failed report upload blocks the
 normal merge path. There is no numeric coverage threshold. Review the coverage artifacts
 for changes; pull request summaries compare each total with the target branch. Authors
