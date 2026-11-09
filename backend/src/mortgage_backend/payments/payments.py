@@ -3,14 +3,15 @@
 from collections.abc import Sequence
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import Select, func, or_, select, true
+from sqlalchemy import func, or_, select, true
 from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
+from mortgage_backend.lending.activity import activity, all_replays
 from mortgage_backend.lending.replay import replays
 from mortgage_backend.people.customers import PersonSummary
 from mortgage_backend.platform.clock import MonthQuery, month_span
@@ -106,7 +107,8 @@ _SORTING = Sorting[PaymentSort](
 
 
 class PaymentPage(Page[PaymentRow]):
-    # With a month or year: the interest all the listed Payments paid (every page)
+    # With a month or year: the interest collected in that period (ADR 0017), whether
+    # or not the search filter narrows the list
     interest_paid: int | None = None
 
 
@@ -175,29 +177,9 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
     )
 
 
-def _interest_paid(conn: Connection, payment_ids: Select[Any]) -> int:
-    """The interest the Payments paid, Voided ones counting for nothing, from replaying
-    each Mortgage they went to."""
-    wanted = set(conn.execute(payment_ids).scalars())
-    rows = (
-        conn.execute(
-            select(mortgage_table).where(
-                mortgage_table.c.id.in_(
-                    select(allocation_table.c.mortgage_id).where(
-                        allocation_table.c.payment_id.in_(wanted)
-                    )
-                )
-            )
-        )
-        .mappings()
-        .all()
-    )
-    return sum(
-        step.interest_paid
-        for mortgage in replays(conn, rows).values()
-        for payment_id, step in mortgage.steps_by_payment().items()
-        if payment_id in wanted
-    )
+def _interest_paid(conn: Connection, start: date, end: date) -> int:
+    """The interest collected between `start` and `end`, both inclusive (ADR 0017)."""
+    return activity(all_replays(conn), start, end).interest_collected
 
 
 router = APIRouter(prefix="/api")
@@ -231,8 +213,10 @@ def list_payments(
 ) -> PaymentPage:
     """Payments, newest first (or by `sort`, reversed when `descending`), filtered by
     Customer, Mortgage Name or reference, and to a month (YYYY-MM) or year. With a
-    month or year, the interest they paid too."""
+    month or year, the interest collected in that period too."""
     query = q.strip()
+    month_bounds = month_span(month) if month is not None else None
+    year_bounds = (date(year, 1, 1), date(year, 12, 31)) if year is not None else None
     match = (
         or_(
             customer_table.c.name.icontains(query),
@@ -246,12 +230,10 @@ def list_payments(
         if query
         else true()
     )
-    if month is not None:
-        match = match & payment_table.c.paid_on.between(*month_span(month))
-    if year is not None:
-        match = match & payment_table.c.paid_on.between(
-            date(year, 1, 1), date(year, 12, 31)
-        )
+    if month_bounds is not None:
+        match = match & payment_table.c.paid_on.between(*month_bounds)
+    if year_bounds is not None:
+        match = match & payment_table.c.paid_on.between(*year_bounds)
     if not include_voided:
         match = match & payment_table.c.voided_at.is_(None)
     with_customer = payment_table.join(
@@ -259,11 +241,10 @@ def list_payments(
     )
     with engine.connect() as conn:
         interest = None
-        if month is not None or year is not None:
-            interest = _interest_paid(
-                conn,
-                select(payment_table.c.id).select_from(with_customer).where(match),
-            )
+        if month_bounds is not None:
+            interest = _interest_paid(conn, *month_bounds)
+        elif year_bounds is not None:
+            interest = _interest_paid(conn, *year_bounds)
         listed = query_page(
             conn,
             select(payment_table, customer_table.c.name.label("customer_name"))

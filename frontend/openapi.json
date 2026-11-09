@@ -6628,7 +6628,7 @@
     },
     "/api/payments": {
       "get": {
-        "description": "Payments, newest first (or by `sort`, reversed when `descending`), filtered by\nCustomer, Mortgage Name or reference, and to a month (YYYY-MM) or year. With a\nmonth or year, the interest they paid too.",
+        "description": "Payments, newest first (or by `sort`, reversed when `descending`), filtered by\nCustomer, Mortgage Name or reference, and to a month (YYYY-MM) or year. With a\nmonth or year, the interest collected in that period too.",
         "operationId": "list_payments_api_payments_get",
         "parameters": [
           {
