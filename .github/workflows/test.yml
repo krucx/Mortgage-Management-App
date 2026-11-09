@@ -207,11 +207,18 @@ jobs:
           curl -sf http://127.0.0.1:8080/api/backups
           # Non-root, and a Backup can be written to the mounted folder (acceptance criteria, #281).
           test "$(docker exec app id -u)" != "0"
+          # Fresh data has no Backup yet, so the app already started one on its own; wait
+          # for it to finish, or the requested Backup below gets 409 Conflict.
+          backup_idle() {
+            for _ in $(seq 60); do
+              backup_status=$(curl -sf http://127.0.0.1:8080/api/backups) && echo "$backup_status" | grep -q '"running":false' && return 0
+              sleep 1
+            done
+            return 1
+          }
+          backup_idle
           curl -sf -X POST http://127.0.0.1:8080/api/backups >/dev/null
-          for _ in $(seq 60); do
-            backup_status=$(curl -sf http://127.0.0.1:8080/api/backups) && echo "$backup_status" | grep -q '"running":false' && break
-            sleep 1
-          done
+          backup_idle
           echo "$backup_status" | grep -q '"last_error":null'
           ls "$RUNNER_TEMP/backups"/mortgage-backup-*.zip
 
