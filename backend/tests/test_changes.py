@@ -17,6 +17,7 @@ from mortgage_backend.lending import changes
 from mortgage_backend.lending.changes import AllocationIn, PaymentIn, TermChangeIn
 from mortgage_backend.lending.mortgages import MortgageEdit, MortgageIn
 from mortgage_backend.lending.replay import replay
+from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
 from mortgage_backend.safekeeping.audit import mortgage_history
 
 NOW = datetime(2026, 4, 20, 11, 0)
@@ -229,6 +230,58 @@ def test_an_edit_is_written_and_recorded(conn: Connection) -> None:
     ]
 
 
+def test_correcting_terms_that_would_make_a_payment_too_large_is_refused(
+    conn: Connection,
+) -> None:
+    ramesh = add_customer(conn)
+    chain = add_mortgage(conn, ramesh)
+    add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_06_000 * RUPEE})
+
+    with pytest.raises(HTTPException) as error:
+        changes.edit_mortgage(
+            conn,
+            chain,
+            edit(
+                terms=Terms(
+                    monthly_rate_bps=50,
+                    interest_mode=InterestMode.SIMPLE,
+                    part_month_rule=PartMonthRule.FULL_MONTH,
+                )
+            ),
+            TODAY,
+            NOW,
+        )
+
+    # At 0.5% a month: ₹1,000 unpaid by 14 Mar plus ₹500 Interest to Date on 15 Mar.
+    assert refusal(error) == (
+        422,
+        "2026-Ramesh-Chain: the Payment on 15 Mar 2026 would be more than the "
+        "₹1,01,500 owed then",
+    )
+
+
+def test_correcting_terms_replays_the_ledger(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+
+    changes.edit_mortgage(
+        conn,
+        chain,
+        edit(
+            terms=Terms(
+                monthly_rate_bps=100,
+                interest_mode=InterestMode.SIMPLE,
+                part_month_rule=PartMonthRule.FULL_MONTH,
+            )
+        ),
+        TODAY,
+        NOW,
+    )
+
+    # At 1% a month (down from 3%): ₹1,000 on each of the 4 Accrual Dates due by
+    # today, carried forward as unpaid interest since nothing has been paid.
+    assert replay(conn, chain).outstanding(TODAY).total == 104_000 * RUPEE
+
+
 @pytest.mark.parametrize(
     ("change", "code", "why"),
     [
@@ -313,6 +366,32 @@ def test_a_closed_mortgages_start_and_principal_are_locked(conn: Connection) -> 
 
     assert error.value.status_code == 409
     assert replay(conn, chain).row["description"] == "Two gold chains"
+
+
+def test_a_closed_mortgages_starting_terms_are_locked(conn: Connection) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    forfeit(conn, chain, date(2026, 4, 14))
+
+    with pytest.raises(HTTPException) as error:
+        changes.edit_mortgage(
+            conn,
+            chain,
+            edit(
+                terms=Terms(
+                    monthly_rate_bps=200,
+                    interest_mode=InterestMode.SIMPLE,
+                    part_month_rule=PartMonthRule.FULL_MONTH,
+                )
+            ),
+            TODAY,
+            NOW,
+        )
+
+    assert refusal(error) == (
+        409,
+        "2026-Ramesh-Chain is forfeited: reopen it to change its Terms",
+    )
+    assert replay(conn, chain).row["monthly_rate_bps"] == 300
 
 
 def test_a_refused_change_records_no_history(conn: Connection) -> None:

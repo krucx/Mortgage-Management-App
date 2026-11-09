@@ -5,11 +5,13 @@ export function TermsFields({
   value,
   onChange,
   rateProblem = null,
+  disabled = false,
 }: {
   value: TermsDraft
   onChange: (draft: TermsDraft) => void
   /** Why the rate is refused, shown beside it. */
   rateProblem?: string | null
+  disabled?: boolean
 }) {
   return (
     <>
@@ -21,6 +23,7 @@ export function TermsFields({
           max="100"
           step="0.01"
           required
+          disabled={disabled}
           value={value.ratePercent}
           onChange={(event) => onChange({ ...value, ratePercent: event.target.value })}
         />
@@ -29,6 +32,7 @@ export function TermsFields({
       <label>
         Interest Mode
         <select
+          disabled={disabled}
           value={value.interest_mode}
           onChange={(event) =>
             onChange({ ...value, interest_mode: event.target.value as InterestMode })
@@ -44,6 +48,7 @@ export function TermsFields({
       <label>
         Part-Month Rule (Interest to Date for the month under way)
         <select
+          disabled={disabled}
           value={value.part_month_rule}
           onChange={(event) =>
             onChange({ ...value, part_month_rule: event.target.value as PartMonthRule })
