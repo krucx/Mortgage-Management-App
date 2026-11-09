@@ -39,6 +39,8 @@ const simulation: Simulation = {
   first_month_interest: 200_000,
   effective_annual_rate: 0.268242,
   paid_off_on: null,
+  collateral_value: null,
+  loan_to_value: null,
   lump_sums: [],
   points: [
     { on: '2026-04-20', outstanding: 10_200_000 },
@@ -453,7 +455,16 @@ test('the jewellery value is folded away, and without one there is no Loan-to-Va
 })
 
 test('a net weight is valued at the Gold Rate for its purity, giving Loan-to-Value now and on Closed on', async () => {
-  const { server } = backend()
+  // The backend's Collateral Value: ₹6,000 a gram, or the value typed by hand.
+  const { server } = backend((asked) => {
+    if (!asked.collateral) return simulation
+    const value = asked.collateral.override ?? asked.collateral.net_weight_mg * 600
+    return {
+      ...simulation,
+      collateral_value: value,
+      loan_to_value: simulation.on_closure.total / value,
+    }
+  })
   showCalculator(server, '/calculator?amount=100000')
   await worked()
 
@@ -655,13 +666,16 @@ test('an input it cannot work out with says so at the top, not to enter an amoun
   expect(screen.queryByText('Enter an amount to see what it would come to.')).toBeNull()
 })
 
-test('with a jewellery value but no amount, the Loan-to-Value tiles are there already, at nothing', async () => {
-  const { server } = backend()
+test('with a jewellery value but no amount, there is no Simulation yet so no Loan-to-Value tiles', async () => {
+  const { server } = backend((asked) => ({
+    ...simulation,
+    collateral_value: asked.collateral!.override!,
+    loan_to_value: simulation.on_closure.total / asked.collateral!.override!,
+  }))
   showCalculator(server, '/calculator?value=200000')
   await vi.waitFor(() => expect(field('Monthly interest rate (%)').value).toBe('2'))
 
-  expect(tile('Loan-to-Value now')).toBe('0%')
-  expect(tile('Loan-to-Value on 20 Apr 2027')).toBe('0%')
+  expect(screen.queryByText(/Loan-to-Value/)).toBeNull()
 
   type('Amount lent (₹)', '100000')
   await settle(() => expect(tile('Loan-to-Value now')).toBe('50%'))

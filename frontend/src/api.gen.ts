@@ -1953,6 +1953,22 @@ export interface components {
          */
         InterestMode: "simple" | "compounded_yearly" | "compounded_monthly";
         /**
+         * JewelleryValueIn
+         * @description A Simulation's jewellery value: net weight and purity, or `override`, typed by
+         *     hand, which counts instead.
+         */
+        JewelleryValueIn: {
+            /** Net Weight Mg */
+            net_weight_mg: number;
+            /** Override */
+            override?: number | null;
+            /**
+             * Purity Karat
+             * @enum {integer}
+             */
+            purity_karat: 24 | 22 | 20 | 18 | 14;
+        };
+        /**
          * LedgerChange
          * @description A Ledger step that differs: None on the side where it does not exist.
          */
@@ -2749,12 +2765,16 @@ export interface components {
         };
         /** Simulation */
         Simulation: {
+            /** Collateral Value */
+            collateral_value: number | null;
             /** Effective Annual Rate */
             effective_annual_rate: number;
             /** First Month Interest */
             first_month_interest: number;
             /** Interest Earned */
             interest_earned: number;
+            /** Loan To Value */
+            loan_to_value: number | null;
             /** Lump Sums */
             lump_sums: components["schemas"]["PlannedLumpSum"][];
             /** Months */
@@ -2776,6 +2796,7 @@ export interface components {
              * Format: date
              */
             closed_on: string;
+            collateral?: components["schemas"]["JewelleryValueIn"] | null;
             /**
              * Lump Sums
              * @default []

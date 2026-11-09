@@ -393,3 +393,43 @@ def test_planned_payments_are_rows_of_the_table_and_dots_on_the_graph(client):
         ("2026-03-14", 1_000 * RUPEE),
     ]
     assert "2026-02-20" in outstanding_by_date(simulation)
+
+
+def test_a_collateral_value_and_loan_to_value_are_returned_when_given(client):
+    client.put(
+        "/api/settings/gold-rates",
+        json=[{"purity_karat": 22, "rate_per_gram": 6_000 * RUPEE}],
+    )
+
+    simulation = simulated(client, collateral={"net_weight_mg": 25_000, "purity_karat": 22})
+
+    assert simulation["collateral_value"] == 1_50_000 * RUPEE
+    assert simulation["loan_to_value"] == pytest.approx(139_000 / 1_50_000)
+
+
+def test_a_manual_collateral_value_overrides_the_weight(client):
+    simulation = simulated(
+        client,
+        collateral={
+            "net_weight_mg": 25_000,
+            "purity_karat": 22,
+            "override": 2_00_000 * RUPEE,
+        },
+    )
+
+    assert simulation["collateral_value"] == 2_00_000 * RUPEE
+    assert simulation["loan_to_value"] == pytest.approx(139_000 / 2_00_000)
+
+
+def test_no_collateral_given_returns_neither_value_nor_ratio(client):
+    simulation = simulated(client)
+
+    assert simulation["collateral_value"] is None
+    assert simulation["loan_to_value"] is None
+
+
+def test_a_purity_with_no_gold_rate_gives_no_collateral_value(client):
+    simulation = simulated(client, collateral={"net_weight_mg": 25_000, "purity_karat": 18})
+
+    assert simulation["collateral_value"] is None
+    assert simulation["loan_to_value"] is None

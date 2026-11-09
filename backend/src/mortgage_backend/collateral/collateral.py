@@ -33,6 +33,15 @@ class Collateral(BaseModel):
     loan_to_value: float  # Outstanding ÷ Collateral Value
 
 
+class JewelleryValueIn(BaseModel):
+    """A Simulation's jewellery value: net weight and purity, or `override`, typed by
+    hand, which counts instead."""
+
+    net_weight_mg: int = Field(ge=0)
+    purity_karat: Purity
+    override: int | None = Field(default=None, gt=0)  # paise
+
+
 class _StoredGoldRate(BaseModel):
     rate_per_gram: int | None = None  # paise
     updated_on: date | None = None
@@ -58,6 +67,22 @@ def gold_rates(conn: Connection) -> dict[int, GoldRate]:
     }
 
 
+def collateral_value(
+    net_weight_mg: int, purity_karat: Purity, override: int | None, rates: dict[int, GoldRate]
+) -> int | None:
+    """A Collateral's Value: `override` if set by hand, else the net weight at the Gold
+    Rate for its purity, rounded half-up to the paisa; None without a Gold Rate set."""
+    if override is not None:
+        return override
+    rate = rates[purity_karat]
+    if rate.rate_per_gram is None or rate.updated_on is None:
+        return None
+    milligrams_per_gram = 1000
+    return (2 * net_weight_mg * rate.rate_per_gram + milligrams_per_gram) // (
+        2 * milligrams_per_gram
+    )
+
+
 def collateral_of(
     row: RowMapping, rates: dict[int, GoldRate], outstanding: int
 ) -> Collateral | None:
@@ -69,15 +94,10 @@ def collateral_of(
             row["collateral_override_on"],
         )
     else:
-        rate = rates[row["purity_karat"]]
-        if rate.rate_per_gram is None or rate.updated_on is None:
+        value = collateral_value(row["net_weight_mg"], row["purity_karat"], None, rates)
+        if value is None:
             return None
-        milligrams_per_gram = 1000
-        # rounded half-up to the paisa
-        value = (
-            2 * row["net_weight_mg"] * rate.rate_per_gram + milligrams_per_gram
-        ) // (2 * milligrams_per_gram)
-        source, set_on = "gold_rate", rate.updated_on
+        source, set_on = "gold_rate", rates[row["purity_karat"]].updated_on
     return Collateral(
         value=value,
         source=source,
