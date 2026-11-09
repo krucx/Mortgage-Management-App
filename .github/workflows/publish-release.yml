@@ -36,6 +36,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha || 'main' }}
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_WORKFLOW_TOKEN || github.token }}
 
       - uses: actions/setup-node@v5
         with:
@@ -89,6 +90,7 @@ jobs:
           VERSION: ${{ steps.candidate.outputs.version }}
           MERGE_COMMIT: ${{ steps.candidate.outputs.commit }}
           GH_TOKEN: ${{ github.token }}
+          RELEASE_WORKFLOW_TOKEN_AVAILABLE: ${{ secrets.RELEASE_WORKFLOW_TOKEN != '' }}
         run: |
           set -euo pipefail
           tag_refs=$(git ls-remote --tags origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}")
@@ -96,6 +98,10 @@ jobs:
           action=$(node .github/scripts/publish-release.mjs plan-tag \
             --commit "$MERGE_COMMIT" --existing-tag-sha "$existing")
           if [[ "$action" == create ]]; then
+            if [[ "$RELEASE_WORKFLOW_TOKEN_AVAILABLE" != true ]]; then
+              echo 'Set the RELEASE_WORKFLOW_TOKEN secret with Contents and Workflows write permissions before publishing.' >&2
+              exit 1
+            fi
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git tag -a "$VERSION" -m "Release $VERSION" "$MERGE_COMMIT"
