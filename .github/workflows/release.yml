@@ -139,14 +139,9 @@ jobs:
           cp -r frontend/dist "staging/mortgage-management-$TAG/frontend/dist"
           (cd staging && zip -qr "../mortgage-management-$TAG.zip" "mortgage-management-$TAG")
           unzip -l "mortgage-management-$TAG.zip" | grep -q "mortgage-management-$TAG/frontend/dist/index.html"
-      # From the version's heading to the next one.
+      # Same extractor the post-publish verify step checks the release against.
       - name: Its notes, from the CHANGELOG
-        run: |
-          awk -v tag="$TAG" '
-            /^## \[/ { if (found) exit; if (index($0, "## [" tag "]") == 1) { found = 1; next } }
-            found { print }
-          ' CHANGELOG.md > notes.md
-          test -s notes.md || { echo "CHANGELOG.md has no section for $TAG"; exit 1; }
+        run: node .github/scripts/publish-release.mjs release-notes --changelog CHANGELOG.md --version "$TAG" > notes.md
       - name: Publish the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
