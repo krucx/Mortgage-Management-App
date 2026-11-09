@@ -150,4 +150,6 @@ test('publisher configures an annotated-tag identity and supports safe manual re
   assert.match(workflow, /git config user\.email "41898282\+github-actions\[bot\]@users\.noreply\.github\.com"/)
   assert.match(workflow, /workflow_dispatch:/)
   assert.match(workflow, /repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER/)
+  assert.match(workflow, /secrets\.RELEASE_WORKFLOW_TOKEN \|\| github\.token/)
+  assert.match(workflow, /RELEASE_WORKFLOW_TOKEN_AVAILABLE: \$\{\{ secrets\.RELEASE_WORKFLOW_TOKEN != '' \}\}/)
 })

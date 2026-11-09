@@ -62,9 +62,11 @@ release flow in the Publish section does that.
 
 - [ ] Review the completed preparation checklist, diff since the previous release,
   changelog entry, CI results, version consistency, and any skipped check explanations.
-- [ ] Confirm GitHub Actions has the required `DOCKERHUB_USERNAME` and
-  `DOCKERHUB_TOKEN` secrets and Docker Hub access is available. If unavailable, stop
-  before merging the release PR and resolve access.
+- [ ] Confirm GitHub Actions has the required `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
+  and `RELEASE_WORKFLOW_TOKEN` secrets and Docker Hub access is available. The release
+  token needs repository Contents and Workflows write permissions so the workflow can
+  create a tag for a commit whose workflow files differ from the current `main`. If
+  unavailable, stop before merging the release PR and resolve access.
 - [ ] Before merging the release PR, supply/verify the exact semantic version, candidate
   commit, matching `VERSION`, completed changelog section, and configured Docker Hub credentials.
   These are the inputs the flow needs; it derives image tags and GitHub Release notes and
