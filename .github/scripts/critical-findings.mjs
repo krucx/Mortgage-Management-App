@@ -29,6 +29,7 @@ export async function syncCriticalFindings(issueStore, { scope, findings, succes
     markerFromIssue,
     closeUnseen: true,
     matchesScope: (marker) => marker.startsWith(`${scopePrefix}:`),
+    existingIssues,
   });
 }
 

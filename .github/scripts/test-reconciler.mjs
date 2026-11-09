@@ -6,7 +6,8 @@ function fakeIssueStore(existing = []) {
   const issues = existing.map((issue) => ({ ...issue }));
   return {
     issues,
-    async list() { return issues; },
+    listCalls: 0,
+    async list() { this.listCalls += 1; return issues; },
     async create(issue) {
       const created = { ...issue, number: issues.length + 1 };
       issues.push(created);
@@ -139,4 +140,20 @@ test('keeps reconciling the remaining findings and closes when one update fails'
 
   assert.equal(issueStore.issues[0].state, 'open');
   assert.equal(issueStore.issues[1].state, 'closed');
+});
+
+test('reuses a caller-supplied issue list instead of listing again', async () => {
+  const issueStore = fakeIssueStore([
+    { number: 1, title: 'A', body: '<!-- marker: a -->\nbody', labels: ['finding'], state: 'open' },
+  ]);
+  const existingIssues = await issueStore.list();
+
+  await reconcileFindings(issueStore, {
+    findings: [finding('a', { title: 'Fresh title' })],
+    markerFromIssue: marker,
+    existingIssues,
+  });
+
+  assert.equal(issueStore.listCalls, 1);
+  assert.equal(issueStore.issues[0].title, 'Fresh title');
 });

@@ -58,11 +58,15 @@ export function toFinding(finding) {
   return { marker: String(finding.number), issue: issueFor(finding) };
 }
 
-export async function secretScanningFindings(alerts, { locations }) {
+export async function secretScanningFindings(alerts, { locations, log = console.warn }) {
   const findings = [];
   for (const alert of alerts) {
-    const alertLocations = alert.state === 'open' ? (alert.locations ?? await locations(alert.locations_url)) : [];
-    findings.push(toFinding(alertFinding(alert, alertLocations)));
+    try {
+      const alertLocations = alert.state === 'open' ? (alert.locations ?? await locations(alert.locations_url)) : [];
+      findings.push(toFinding(alertFinding(alert, alertLocations)));
+    } catch {
+      log(`Could not reconcile Secret scanning alert #${alert.number}; continuing with remaining alerts.`);
+    }
   }
   return findings;
 }
