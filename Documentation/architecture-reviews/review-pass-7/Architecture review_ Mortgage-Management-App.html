@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Architecture review: Mortgage-Management-App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+  </script>
+  <style>
+    .seam { border-left: 2px dashed #64748b; }
+    .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+    .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .leakbox { border: 2px solid #dc2626; color: #991b1b; }
+  </style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+
+<header class="space-y-3">
+  <h1 class="font-serif text-4xl">Architecture review, pass 7</h1>
+  <p class="text-sm text-slate-600">Mortgage-Management-App · 9 Nov 2026 · scope: <span class="font-mono">477c6f0..d68b5df</span>, 115 commits, 3.2.1 → 3.4.6. That covers Discounts, correcting starting Terms, Reminders, Dashboard timeframe, the Calculator, the one image, and the new security, review and release pipeline.</p>
+  <p class="text-sm">All five pass-6 candidates landed, with small leftovers. The new friction sits in two places. In the product, the rules that came with the newest features (Discounts, Reminders, Terms correction) are decided by callers instead of by the module that owns the concept. In CI/CD, the release flow's logic lives in shell inside YAML, and that is where every recent release fix landed.</p>
+  <div class="flex flex-wrap gap-4 text-xs text-slate-600 pt-2">
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500 bg-white"></span>module</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 seam"></span>seam</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 leakbox"></span>leak / duplicated rule</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 deep"></span>deep module</span>
+  </div>
+</header>
+
+<!-- ============ DECISIONS ============ -->
+<section id="decisions" class="space-y-6">
+  <h2 class="font-serif text-2xl">Decisions taken since pass 6</h2>
+  <p class="text-sm text-slate-600">These are settled. The candidates below build on them and don't reopen them. Items marked <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs">no ADR</span> are only in commits and docs. A future review could re-suggest them, so they're worth recording.</p>
+
+  <div class="grid md:grid-cols-3 gap-4">
+    <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+      <div class="lbl text-indigo-700">Architecture</div>
+      <ul class="text-sm space-y-2 list-disc pl-4">
+        <li><b>ADR 0013</b>: one image; the backend serves the screens in Docker too. The <span class="font-mono">backend-*</span>/<span class="font-mono">ui-*</span> tags stay on Docker Hub for rollback (ADR 0009).</li>
+        <li><b>ADR 0014</b>: a Discount is a non-cash Payment reduction. It pays unpaid → Interest to Date → Principal and is left out of the cash KPIs.</li>
+        <li><b>ADR 0015</b>: starting Terms can be corrected. The Ledger replays from them.</li>
+        <li><b>ADR 0017</b>: Notices are renamed Reminders, with no compatibility period. An unsent Reminder holds only Mortgages that are Active and accruing. The Dashboard's activity timeframe has inclusive dates.</li>
+        <li>The Calculator's Simulation runs on the real Ledger engine (<span class="font-mono">simulation.py</span> → <span class="font-mono">compute_ledger</span>, <span class="font-mono">project</span>). The frontend has no interest math. <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs">no ADR</span></li>
+        <li>The Discount confirmation threshold is a setting, like the Cash Limit. <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs">no ADR</span></li>
+        <li>A newer database is refused in <span class="font-mono">migrate</span>, before the pre-update Backup.</li>
+      </ul>
+    </div>
+    <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+      <div class="lbl text-rose-700">Security</div>
+      <ul class="text-sm space-y-2 list-disc pl-4">
+        <li><b>ADR 0016</b>: each Secret scanning alert gets one labelled issue, synced daily. It uses a separate fine-grained token (alerts: read, issues: write) and never copies the <span class="font-mono">secret</span> field.</li>
+        <li>CodeQL runs <span class="font-mono">security-and-quality</span> on actions, JS/TS and Python: on push, on PR, and weekly. <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs">no ADR</span></li>
+        <li>Trivy scans the one image on push, on PR, and daily, then uploads SARIF.</li>
+        <li>Critical CodeQL, Dependabot and Trivy findings become fingerprinted issues, reconciled on every run. <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs">no ADR</span></li>
+        <li>Workflows default to <span class="font-mono">permissions: {}</span> and grant per job.</li>
+        <li>A 20 MB upload cap is enforced in middleware, for both a stated length and a streamed body.</li>
+        <li>Compose binds <span class="font-mono">127.0.0.1</span> only.</li>
+      </ul>
+    </div>
+    <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+      <div class="lbl text-emerald-700">CI / CD &amp; process</div>
+      <ul class="text-sm space-y-2 list-disc pl-4">
+        <li>Changes are PR-only (<span class="font-mono">rulesets/main.json</span>). That means 1 human approval, approval of the last push, threads resolved, and the <span class="font-mono">backend</span>, <span class="font-mono">frontend</span> and <span class="font-mono">CodeRabbit</span> checks. The <span class="font-mono">maintain</span> role can bypass on PRs only. <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs">no ADR</span></li>
+        <li>CodeRabbit is the automated reviewer. It is advisory and never counts as approval.</li>
+        <li>A release candidate is a dispatched workflow. It promotes Unreleased, syncs <span class="font-mono">VERSION</span>, runs the full <span class="font-mono">Tests</span> preflight, then opens the PR.</li>
+        <li>Merging the release PR publishes it. The tag is created at the merge commit with <span class="font-mono">RELEASE_WORKFLOW_TOKEN</span>, then <span class="font-mono">release.yml</span> is dispatched and re-verifies the approved PR. Tags are never pushed by hand. <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs">no ADR</span></li>
+        <li>After publishing, the workflow checks the notes, the ZIP and the image manifest. <span class="font-mono">latest</span> only moves forward.</li>
+        <li>Coverage is reported against the PR base and is non-blocking. <span class="font-mono">check-version.mjs</span> enforces one canonical <span class="font-mono">VERSION</span>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CANDIDATES ============ -->
+<section id="candidates" class="space-y-10">
+<h2 class="font-serif text-2xl">Candidates</h2>
+
+<!-- 01 -->
+<article id="c1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">01 · One Release module behind a GitHub adapter</h3>
+    <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">ports &amp; adapters</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>.github/workflows/release-candidate.yml (194) · publish-release.yml (180) · release.yml (216)</li>
+    <li>.github/scripts/publish-release.mjs · release-candidate.mjs · check-version.mjs · sync-version.mjs</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · the release rules live in shell</div>
+      <pre class="mermaid">
+flowchart TB
+  RC[release-candidate.yml]:::shallow --> L1["latest published<br/>gh api | grep | sort ×3"]:::leak
+  RC --> W1["dispatch + poll loop"]:::leak
+  PR[publish-release.yml]:::shallow --> V1["PR → jq event → reviews → checks"]:::leak
+  PR --> W2["dispatch + poll loop"]:::leak
+  RL[release.yml]:::shallow --> V2["same jq glue, copied"]:::leak
+  RL --> N["notes via awk"]:::leak
+  V1 & V2 --> M["publish-release.mjs<br/>pure checks (tested)"]
+  N -.must equal.-> M
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  classDef shallow fill:#fff;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After · YAML calls one module</div>
+      <pre class="mermaid">
+flowchart TB
+  RC[release-candidate.yml] -->|"release.mjs candidate"| R
+  PR[publish-release.yml] -->|"release.mjs publish"| R
+  RL[release.yml] -->|"release.mjs verify / notes"| R
+  R["Release module<br/>latest published · approved PR · tag plan<br/>notes · dispatch-and-wait"]:::deep
+  R --- G1["GitHub adapter: gh / REST"]
+  R --- G2["fake GitHub: tests"]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> Only the pure checks are tested. The orchestration is shell, and it is copied. "Latest published version" appears 3 times, the reviews-and-checks jq glue twice, the dispatch-and-poll loop twice. Release notes are extracted by <span class="font-mono">awk</span> in <span class="font-mono">release.yml:145</span> and by <span class="font-mono">extractReleaseNotes</span>, and the two are only compared <i>after</i> the release is published. Four of the last 12 commits fix this glue: 57bc996, 93da236, f94f782, bdf3e56.</p>
+  <p class="text-sm"><b>Solution.</b> Grow <span class="font-mono">publish-release.mjs</span> into one Release module with three commands (candidate, publish, verify) that talks to GitHub through an adapter. Each workflow step becomes a single <span class="font-mono">node</span> call.</p>
+  <div class="text-sm"><b>Wins</b>
+    <ul class="list-disc pl-5 grid sm:grid-cols-2">
+      <li>locality: the release rules in one module</li>
+      <li>one notes extractor, not two</li>
+      <li>tag-reuse and recovery paths become testable</li>
+      <li>two adapters justify the seam</li>
+      <li>YAML shrinks to wiring</li>
+    </ul>
+  </div>
+  <p class="text-sm"><b>Tests.</b> <span class="font-mono">test-publish-release.mjs</span> grows from pure checks to whole scenarios: "tag already at another commit → refuse", "release PR not approved after last push → refuse", "dispatch run never appears → time out with the recovery summary". Today these are only exercised by doing a real release.</p>
+</article>
+
+<!-- 02 -->
+<article id="c2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">02 · The Payment Preview decides the Discount</h3>
+    <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+    <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-xs">probable bug</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>frontend/src/pages/NewPaymentPage.tsx :253-334 (7 commits in range, 565 lines)</li>
+    <li>frontend/src/components/useProposedChange.tsx :55</li>
+    <li>backend/…/lending/ledger.py :234-275 · payments/discount_confirmation.py · lending/previews.py</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · the page re-derives the Ledger's order</div>
+      <pre class="mermaid">
+flowchart TB
+  P[NewPaymentPage]:::shallow --> C["cap = outstanding − cash<br/>(assumes cash first)"]:::leak
+  P --> T["GET threshold<br/>discount &gt; limit"]:::leak
+  P --> E["submitAfterCap ref + useEffect"]:::leak
+  P --> V[Payment Preview]
+  V --> L["ledger.pay<br/>raises Overpayment"]
+  V -.->|"preview.error ⇒ canSave=false"| P
+  C -.->|"never reached"| X((cap dialog)):::leak
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  classDef shallow fill:#fff;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After · the Preview reports, the page renders</div>
+      <pre class="mermaid">
+flowchart TB
+  P[NewPaymentPage] --> H[useProposedChange]
+  H --> V["Payment Preview<br/>per Allocation:<br/>discount_room · over_threshold · cash"]:::deep
+  V --> L["ledger.pay<br/>one payment order"]:::deep
+  V -.->|"dialogs from the Preview"| P
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> The page works out the Discount cap itself, as <span class="font-mono">outstanding − cash</span>. That restates ADR 0014's payment order, which already lives in <span class="font-mono">ledger.pay</span>. The threshold check exists only in the page. Against the real backend, an over-balance Discount makes the Preview raise <span class="font-mono">Overpayment</span>, <span class="font-mono">canSave</span> goes false, and <span class="font-mono">handleSubmit</span> returns before the "Reduce Discount to the remaining balance?" dialog. The tests stub the Preview to accept anything, so they don't see this.</p>
+  <p class="text-sm"><b>Solution.</b> This is pass 6's cash move, applied to Discounts. The Preview returns, per Allocation, the room left for a Discount and whether it is over the threshold. The page only shows dialogs. In <span class="font-mono">ledger.pay</span>, cash and Discount go through one <span class="font-mono">_apply</span> instead of two copied blocks (:238-250).</p>
+  <div class="text-sm"><b>Wins</b>
+    <ul class="list-disc pl-5 grid sm:grid-cols-2">
+      <li>the cap dialog becomes reachable</li>
+      <li>locality: the payment order once</li>
+      <li>the re-submit effect is deleted</li>
+      <li>page tests fake only the Preview</li>
+    </ul>
+  </div>
+  <p class="text-sm"><b>Tests.</b> Add a backend Preview test for an over-balance Discount and one for over the threshold. Drop the page's cap arithmetic tests. Add one page test where the fake Preview refuses with an Overpayment; it fails today.</p>
+  <div class="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm">ADR 0007: Preview routes stay hand-written. This adds fields to what they return; it doesn't generate them. ADR 0014 is untouched; this puts its order in one place.</div>
+</article>
+
+<!-- 03 -->
+<article id="c3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">03 · Correcting starting Terms owns its refusal</h3>
+    <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+    <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-xs">probable bug · untested</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/lending/changes.py :166 _LOCKED_WHEN_CLOSED · :427-482 edit_mortgage (1107 lines, 16 routes)</li>
+    <li>backend/tests/test_corrections.py :173-185 · frontend/tests/EditMortgagePage.test.tsx (1 test)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · which edits move the numbers?</div>
+      <div class="text-sm grid grid-cols-3 gap-1">
+        <div class="lbl text-slate-500">field</div><div class="lbl text-slate-500">moves numbers</div><div class="lbl text-slate-500">locked when closed</div>
+        <div class="font-mono">start_date</div><div>yes</div><div class="text-emerald-700">yes</div>
+        <div class="font-mono">amount_lent</div><div>yes</div><div class="text-emerald-700">yes</div>
+        <div class="font-mono leakbox px-1">monthly_rate_bps</div><div>yes</div><div class="text-red-700 font-semibold">no</div>
+        <div class="font-mono leakbox px-1">interest_mode</div><div>yes</div><div class="text-red-700 font-semibold">no</div>
+        <div class="font-mono leakbox px-1">part_month_rule</div><div>yes</div><div class="text-red-700 font-semibold">no</div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">A Redeemed Mortgage with a higher corrected rate ends up still owing money. c6e8621 touched no tests.</p>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After</div>
+      <div class="space-y-2">
+        <div class="rounded border border-slate-400 p-2 text-sm">edit_mortgage: name, Lent Through, details</div>
+        <div class="deep rounded p-3 text-sm">
+          <div class="lbl text-slate-300">correct starting Terms</div>
+          start date · Principal · rate · mode · rule<br/>
+          <span class="text-slate-300">refuse if closed → write → check_replays → refuse an Overpayment it creates</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> "Changing this would contradict how the Mortgage was closed" is a list of field names next to a 1107-line module. The Terms that ADR 0015 made correctable never joined that list, and no backend test sends <span class="font-mono">terms</span> in an edit.</p>
+  <p class="text-sm"><b>Solution.</b> One function owns every field that changes the Ledger: what it refuses on a closed Mortgage, the replay, and the error when a past Payment would become an Overpayment. The quick fix is adding the three fields to <span class="font-mono">_LOCKED_WHEN_CLOSED</span>.</p>
+  <div class="text-sm"><b>Wins</b>
+    <ul class="list-disc pl-5 grid sm:grid-cols-2">
+      <li>closed Mortgages keep their numbers</li>
+      <li>locality: "moves the Ledger" in one place</li>
+      <li>a start on splitting changes.py</li>
+    </ul>
+  </div>
+  <p class="text-sm"><b>Tests.</b> Three backend tests: the replay carries forward, the correction is refused when a Payment would exceed what was owed, and it is refused when the Mortgage is closed.</p>
+</article>
+
+<!-- 04 -->
+<article id="c4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">04 · One finding-to-issue reconciler, with a source adapter per scanner</h3>
+    <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">ports &amp; adapters</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>.github/scripts/critical-findings.mjs (283) · secret-scanning-alerts.mjs (169)</li>
+    <li>.github/workflows/critical-findings.yml · trivy.yml · secret-scanning-alerts.yml</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · two copies of the same machine</div>
+      <div class="grid grid-cols-2 gap-2 text-sm">
+        <div class="rounded border border-slate-400 p-2 space-y-1">
+          <div class="lbl">critical-findings.mjs</div>
+          <div class="leakbox rounded px-1 text-xs">fetch client · getAllPages</div>
+          <div class="leakbox rounded px-1 text-xs">ensure label</div>
+          <div class="leakbox rounded px-1 text-xs">marker in body ↔ issue</div>
+          <div class="leakbox rounded px-1 text-xs">open / update / close</div>
+          <div class="text-xs">CodeQL · Dependabot · Trivy</div>
+        </div>
+        <div class="rounded border border-slate-400 p-2 space-y-1">
+          <div class="lbl">secret-scanning-alerts.mjs</div>
+          <div class="leakbox rounded px-1 text-xs">fetch client · getAllPages</div>
+          <div class="leakbox rounded px-1 text-xs">ensure label</div>
+          <div class="leakbox rounded px-1 text-xs">marker in body ↔ issue</div>
+          <div class="leakbox rounded px-1 text-xs">open / update / reopen / close</div>
+          <div class="text-xs">Secret scanning</div>
+        </div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After</div>
+      <div class="deep rounded p-3 text-sm mb-2">
+        <div class="lbl text-slate-300">Finding issue reconciler</div>
+        reconcile(issues, findings, scope) → opened · updated · closed
+      </div>
+      <div class="grid grid-cols-4 gap-1 text-xs text-center">
+        <div class="rounded border border-slate-400 p-1">CodeQL</div>
+        <div class="rounded border border-slate-400 p-1">Dependabot</div>
+        <div class="rounded border border-slate-400 p-1">Trivy SARIF</div>
+        <div class="rounded border border-slate-400 p-1">Secret scanning</div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">Each source only maps an alert to a finding. The secret source keeps its own token.</p>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> The REST client, pagination, label setup and marker-keyed reconciliation are written twice. A fix to one, such as acdc4b9's alert-state queries or 3e333ff's case-preserving locations, doesn't reach the other.</p>
+  <p class="text-sm"><b>Solution.</b> One reconciler module. Each scanner is an adapter that turns an alert into a finding (fingerprint, title, safe fields).</p>
+  <div class="text-sm"><b>Wins</b>
+    <ul class="list-disc pl-5 grid sm:grid-cols-2">
+      <li>four adapters, one real seam</li>
+      <li>reconcile rules tested once</li>
+      <li>a new scanner is ~30 lines</li>
+    </ul>
+  </div>
+  <div class="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm">ADR 0016 stands. The secret-scanning adapter keeps <span class="font-mono">SECRET_SCANNING_TOKEN</span> and its allow-list of fields, so the <span class="font-mono">secret</span> field never reaches the shared module.</div>
+</article>
+
+<!-- 05 -->
+<article id="c5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">05 · Reminder eligibility decided once</h3>
+    <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/follow_up/reminders.py :113-141 sync · :188-225 _accruing · :240, :306, :389 read paths</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before</div>
+      <pre class="mermaid">
+flowchart LR
+  S[sync: queue] --> R1["Active ∧ coming accrual ∧ ¬Dormant"]:::leak
+  S2[sync: prune] --> R2["_accruing:<br/>is_accrual_date ∧ ¬Dormant"]:::leak
+  U[unsent_counts] --> R2
+  Li[list_reminders] --> R2
+  A[act] --> R2
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After</div>
+      <pre class="mermaid">
+flowchart LR
+  S[sync] --> R["reminded_mortgages(customer, on, replayed)"]:::deep
+  U[unsent_counts] --> DB[(stored Reminders)]
+  Li[list_reminders] --> DB
+  A[act] --> DB
+  S --> DB
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> ADR 0017's "only Active, accruing Mortgages" is written two ways inside one module. Then every read path filters again, in case sync missed something.</p>
+  <p class="text-sm"><b>Solution.</b> One function decides who gets reminded. Sync is the only place it is enforced, and reads trust what is stored.</p>
+  <div class="text-sm"><b>Wins</b><ul class="list-disc pl-5 grid sm:grid-cols-2"><li>one rule, one unit test</li><li>three read-path filters deleted</li></ul></div>
+</article>
+
+<!-- 06 -->
+<article id="c6" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">06 · One activity module for the Dashboard's periods</h3>
+    <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/dashboard.py :208-234, :304-306 · payments.py :178-199 _interest_paid</li>
+    <li>frontend/src/pages/DashboardPage.tsx :124, :170-174</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · three loops over steps_by_payment</div>
+      <div class="space-y-1 text-sm">
+        <div class="leakbox rounded px-2 py-1">period KPIs · dashboard.py:215</div>
+        <div class="leakbox rounded px-2 py-1">this month / this year · dashboard.py:230</div>
+        <div class="leakbox rounded px-2 py-1">_interest_paid · payments.py:178</div>
+        <div class="leakbox rounded px-2 py-1">default month: route + dashboard() + page</div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After</div>
+      <div class="deep rounded p-3 text-sm">
+        <div class="lbl text-slate-300">activity(replayed, start, end)</div>
+        → lent · principal redeemed · interest collected<br/>
+        <span class="text-slate-300">non-Voided, cash only (ADR 0014), inclusive dates (ADR 0017)</span>
+      </div>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> ADR 0017 defines these totals precisely, but three loops compute them. Nothing pins that Voided Payments and Discounts stay out.</p>
+  <p class="text-sm"><b>Solution.</b> One activity function. "This month" and "this year" are calls to it.</p>
+  <div class="text-sm"><b>Wins</b><ul class="list-disc pl-5 grid sm:grid-cols-2"><li>ADR 0017's totals in one place</li><li>Voided and Discount exclusions tested once</li></ul></div>
+</article>
+
+<!-- 07 -->
+<article id="c7" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">07 · One optional-rupee-threshold setting</h3>
+    <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-xs font-semibold">Speculative</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/payments/discount_confirmation.py :9-25 ≈ cash_limit.py :22-37</li>
+    <li>frontend/src/pages/SettingsPage.tsx :296-363 ≈ :366-437 (677 lines, 7 near-identical sections)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · mass</div>
+      <div class="flex items-end gap-6 h-32">
+        <div class="text-center text-xs"><div class="w-10 bg-slate-300 mx-auto" style="height:80px"></div><div class="w-10 bg-slate-500 mx-auto" style="height:24px"></div>discount_confirmation</div>
+        <div class="text-xs text-slate-500">interface ≈ implementation: shallow</div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After</div>
+      <div class="deep rounded p-3 text-sm">threshold_setting(key, default) + &lt;ThresholdSetting/&gt;<br/><span class="text-slate-300">Cash Limit · Discount confirmation · the next one</span></div>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem / solution.</b> The second threshold copied the first in both tiers. The ₹500 default is hard-coded in the hint text, and the new setting has no tests. Build one shared setting module and one component, but only when a third threshold arrives. Until then, add the missing tests.</p>
+</article>
+
+<!-- 08 -->
+<article id="c8" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">08 · The Ledger engine knows when it is paid off; the Simulation and Collateral read it</h3>
+    <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-xs font-semibold">Speculative</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/lending/simulation.py :153-245 _Plan, _paid_off · ledger.py :203, :267 paid_off_on</li>
+    <li>frontend/src/calculator.ts :36-66, :120-131 · SimulationResults.tsx :136, :146</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · ≥3 engine runs per request</div>
+      <div class="space-y-1 text-sm">
+        <div class="rounded border border-slate-400 px-2 py-1">_Plan: replay 10 years, retry on Overpayment</div>
+        <div class="rounded border border-slate-400 px-2 py-1">_skip_or_refuse: replay the start again per refused Lump Sum</div>
+        <div class="rounded border border-slate-400 px-2 py-1">closed() + project(): two more runs</div>
+        <div class="leakbox rounded px-2 py-1">"paid off" in _paid_off and in _Run.paid_off_on</div>
+        <div class="leakbox rounded px-2 py-1">Collateral Value rounding + LTV in calculator.ts</div>
+      </div>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After</div>
+      <div class="deep rounded p-3 text-sm">compute_ledger(…, stop_when_paid_off=True) → paid_off_on</div>
+      <div class="rounded border border-slate-400 p-2 text-sm mt-2">_Plan builds the inputs · the Simulation returns collateral and loan_to_value</div>
+    </div>
+  </div>
+  <p class="text-sm"><b>Note.</b> The decision itself is good: the Calculator reuses the real engine, so it is not a candidate to reopen. Only "paid off" and the Collateral rounding leaked. <span class="font-mono">test_simulation.py</span> and <span class="font-mono">CalculatorPage.test.tsx</span> (33 tests) would carry over. Worth doing if the Calculator feels slow or grows.</p>
+</article>
+</section>
+
+<!-- ============ CI/CD & SECURITY NOTES ============ -->
+<section id="notes" class="grid md:grid-cols-2 gap-6">
+  <div class="rounded-xl border border-rose-200 bg-white p-5 space-y-2">
+    <h2 class="font-serif text-xl">Security and CI gaps (no redesign needed)</h2>
+    <ul class="text-sm list-disc pl-5 space-y-1">
+      <li>Third-party actions are pinned by tag, not commit SHA. This includes <span class="font-mono">trivy-action@v0.36.0</span>, <span class="font-mono">setup-uv@v7</span> and <span class="font-mono">docker/*</span>, and some of those jobs hold Docker Hub credentials, <span class="font-mono">RELEASE_WORKFLOW_TOKEN</span> or <span class="font-mono">issues: write</span>. Pin by SHA and let Dependabot bump them.</li>
+      <li><span class="font-mono">release.yml</span> has no top-level <span class="font-mono">permissions: {}</span>. Its <span class="font-mono">publish</span> job, which holds the Docker Hub token, runs with the default token scope, unlike the other workflows.</li>
+      <li>The one image runs as root, with no <span class="font-mono">USER</span> in the <span class="font-mono">Dockerfile</span>. It is only bound to 127.0.0.1, but a non-root user is cheap.</li>
+      <li>The ruleset requires only <span class="font-mono">backend</span>, <span class="font-mono">frontend</span> and <span class="font-mono">CodeRabbit</span>. <span class="font-mono">image</span>, <span class="font-mono">windows</span>, <span class="font-mono">pages</span> and CodeQL can be red at merge on ordinary PRs. They are caught only when a release revalidates the checks.</li>
+      <li>The coverage-vs-base glue is ~60 lines of inline Python and Node in <span class="font-mono">test.yml</span>, with no tests. It's non-blocking, so this is low risk.</li>
+      <li><span class="font-mono">release-candidate.yml</span> defaults its version input to <span class="font-mono">3.4.6</span>, which is already released.</li>
+    </ul>
+  </div>
+  <div class="rounded-xl border border-slate-200 bg-white p-5 space-y-2">
+    <h2 class="font-serif text-xl">Checked and fine</h2>
+    <ul class="text-sm list-disc pl-5 space-y-1">
+      <li>The pass-6 candidates landed: the Payment decides its Redemptions, <span class="font-mono">photo_change</span> + <span class="font-mono">useSaveWithPhotos</span>, the Preview returns cash, Call Note rules are shared, and rupees and grams have toDraft/fromDraft. Leftovers: the Call Sheet import still has its own insert and same-note check (<span class="font-mono">call_sheets.py:369,439</span>), <span class="font-mono">replace_photo</span> and <span class="font-mono">replace_id_photo</span> are twins, and <span class="font-mono">calculator.ts:105</span> skips <span class="font-mono">formatRate</span>.</li>
+      <li>One image: the screens are built on the build platform and served by <span class="font-mono">screens.py</span> in both modes, with an image smoke test in CI.</li>
+      <li>Refusing a newer database lives in one place (<span class="font-mono">db.migrate</span>) and is tested.</li>
+      <li>The upload cap middleware handles both a stated length and a streamed body, with tests. The 20 MB figure is repeated in <span class="font-mono">requests.ts</span> on purpose.</li>
+      <li>The shared <span class="font-mono">ChartFrame</span>/<span class="font-mono">Gridlines</span> are reused correctly.</li>
+      <li>Release gates: the PR author can't approve their own release, an approval is required after the last push, and the tag must sit at the merge commit. These pure checks are tested.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="top-recommendation" class="deep rounded-xl p-8 space-y-3">
+  <div class="lbl text-slate-300">Top recommendation</div>
+  <h2 class="font-serif text-2xl"><a href="#c2" class="underline decoration-dotted">02 · The Payment Preview decides the Discount</a>, together with the three-field fix from <a href="#c3" class="underline decoration-dotted">03</a></h2>
+  <p class="text-slate-300 text-sm">Both are probable user-facing bugs in money paths, and both slipped through because a rule sits outside the module that owns it. 02 repeats pass 6's cash move, which worked, so it is low-risk. Next is <a href="#c1" class="underline decoration-dotted">01</a>: the release glue changed four times in two days, and every change was proven only by shipping a real release.</p>
+</section>
+
+</main>
+</body>
+</html>
