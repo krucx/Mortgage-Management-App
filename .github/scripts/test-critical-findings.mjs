@@ -136,7 +136,7 @@ test('normalizes fallback locations and ignores non-critical findings', async ()
   assert.equal(issues.issues.length, 0);
 });
 
-test('updates one open issue for a repeated fingerprint', async () => {
+test('builds an issue body with the fields the reconciler needs to match and render it', async () => {
   const issues = fakeIssues();
   await syncCriticalFindings(issues, { scope: 'codeql', findings: [finding()] });
   await syncCriticalFindings(issues, { scope: 'codeql', findings: [finding({
@@ -151,27 +151,20 @@ test('updates one open issue for a repeated fingerprint', async () => {
   }
 });
 
-test('closes absent findings only after a successful complete scan and reopens on recurrence', async () => {
-  const issues = fakeIssues();
-  await syncCriticalFindings(issues, { scope: 'codeql', findings: [finding()] });
-  await syncCriticalFindings(issues, { scope: 'codeql', findings: [], successful: false });
-  assert.equal(issues.issues[0].state, 'open');
-
-  await syncCriticalFindings(issues, { scope: 'codeql', findings: [], successful: true });
-  assert.equal(issues.issues[0].state, 'closed');
-
-  await syncCriticalFindings(issues, { scope: 'codeql', findings: [finding()], successful: true });
-  assert.equal(issues.issues.length, 1);
-  assert.equal(issues.issues[0].state, 'open');
-});
-
-test('successful reconciliation closes only issues in its scanner scope', async () => {
+test('an unsuccessful scan leaves findings untouched, and scope-prefixed closing resumes once a scan succeeds', async () => {
   const issues = fakeIssues();
   await syncCriticalFindings(issues, { scope: 'codeql', findings: [finding()] });
   await syncCriticalFindings(issues, { scope: 'trivy', findings: [finding({ scanner: 'Trivy', ruleId: 'CVE-1' })] });
 
+  await syncCriticalFindings(issues, { scope: 'codeql', findings: [], successful: false });
+  assert.deepEqual(issues.issues.map(({ state }) => state), ['open', 'open']);
+
   await syncCriticalFindings(issues, { scope: 'codeql', findings: [], successful: true });
   assert.deepEqual(issues.issues.map(({ state }) => state), ['closed', 'open']);
+
+  await syncCriticalFindings(issues, { scope: 'codeql', findings: [finding()], successful: true });
+  assert.equal(issues.issues.length, 2);
+  assert.equal(issues.issues[0].state, 'open');
 });
 
 test('GitHub Actions reconciles only completed main-branch scanner runs and scheduled Dependabot alerts', async () => {
