@@ -46,6 +46,15 @@ jobs:
           node-version: 24
       - run: node --test .github/scripts/test-secret-scanning-alerts.mjs
 
+  coverage-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: node --test .github/scripts/test-coverage-summary.mjs
+
   backend:
     runs-on: ubuntu-latest
     permissions:
@@ -80,27 +89,10 @@ jobs:
           BASE_REPORT: ${{ steps.backend-base.outcome == 'success' && format('{0}/backend-base/coverage.xml', runner.temp) || '' }}
           BASE_OUTCOME: ${{ steps.backend-base.outcome }}
         run: |
-          python - <<'PY'
-          import os
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
-
-          report = Path("coverage.xml")
-          if not report.is_file() or report.stat().st_size == 0:
-              raise SystemExit("Backend coverage report is missing or empty")
-          rate = float(ET.parse(report).getroot().attrib["line-rate"])
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write(f"## Backend line coverage\n\nPR: {rate:.1%}")
-              baseline = os.environ.get("BASE_REPORT")
-              if baseline:
-                  if not Path(baseline).is_file():
-                      raise SystemExit("Backend base coverage report is missing")
-                  base_rate = float(ET.parse(baseline).getroot().attrib["line-rate"])
-                  summary.write(f" · base: {base_rate:.1%} · change: {(rate - base_rate) * 100:+.1f} percentage points")
-              elif os.environ.get("BASE_OUTCOME") == "failure":
-                  summary.write(" · base comparison unavailable (base tests did not pass)")
-              summary.write("\n")
-          PY
+          node ../.github/scripts/coverage-summary.mjs \
+            --format cobertura --label Backend \
+            --report coverage.xml --base-report "$BASE_REPORT" --base-outcome "$BASE_OUTCOME" \
+            --summary-file "$GITHUB_STEP_SUMMARY"
       - name: Upload backend coverage report
         uses: actions/upload-artifact@v4
         with:
@@ -145,31 +137,10 @@ jobs:
           BASE_REPORT: ${{ steps.frontend-base.outcome == 'success' && format('{0}/frontend-base/frontend/coverage/lcov.info', runner.temp) || '' }}
           BASE_OUTCOME: ${{ steps.frontend-base.outcome }}
         run: |
-          node --input-type=module <<'JS'
-          import { appendFileSync, existsSync, readFileSync } from 'node:fs'
-
-          const report = 'coverage/lcov.info'
-          if (!existsSync(report)) throw new Error('Frontend coverage report is missing')
-          function lineTotals(path) {
-            const lines = readFileSync(path, 'utf8').match(/^LF:\d+|^LH:\d+/gm) ?? []
-            const found = lines.filter(line => line.startsWith('LF:')).reduce((sum, line) => sum + Number(line.slice(3)), 0)
-            const hit = lines.filter(line => line.startsWith('LH:')).reduce((sum, line) => sum + Number(line.slice(3)), 0)
-            if (!found) throw new Error(`Coverage report ${path} contains no lines`)
-            return { hit, found }
-          }
-          const { hit, found } = lineTotals(report)
-          const percentage = (100 * hit / found).toFixed(1)
-          let comparison = ''
-          if (process.env.BASE_REPORT) {
-            if (!existsSync(process.env.BASE_REPORT)) throw new Error('Frontend base coverage report is missing')
-            const { hit: baseHit, found: baseFound } = lineTotals(process.env.BASE_REPORT)
-            const delta = 100 * hit / found - 100 * baseHit / baseFound
-            comparison = ` · base: ${(100 * baseHit / baseFound).toFixed(1)}% · change: ${delta >= 0 ? '+' : ''}${delta.toFixed(1)} percentage points`
-          } else if (process.env.BASE_OUTCOME === 'failure') {
-            comparison = ' · base comparison unavailable (base tests did not pass)'
-          }
-          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Frontend line coverage\n\nPR: ${percentage}% (${hit}/${found} lines)${comparison}\n`)
-          JS
+          node ../.github/scripts/coverage-summary.mjs \
+            --format lcov --label Frontend \
+            --report coverage/lcov.info --base-report "$BASE_REPORT" --base-outcome "$BASE_OUTCOME" \
+            --summary-file "$GITHUB_STEP_SUMMARY"
       - name: Upload frontend coverage report
         uses: actions/upload-artifact@v4
         with:
