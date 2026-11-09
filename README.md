@@ -136,6 +136,16 @@ To go back to an earlier release, set `APP_VERSION` in `.env` and run the same t
 A newer release may have updated the database: restore the Backup taken before that
 update (see Backups) when going back past one.
 
+The image (Documentation/adr/0013) runs as a fixed, unprivileged user (uid:gid
+1000:1000) instead of root. On Docker Desktop (Mac, Windows) `DATA_DIR` and
+`BACKUP_DIR` stay writable with no change needed. On a Linux host, updating from a
+release before this change, give that uid:gid ownership of both folders before
+`docker compose pull` or the app fails to start:
+
+```sh
+sudo chown -R 1000:1000 <DATA_DIR> <BACKUP_DIR>
+```
+
 ### Published images
 
 Each release is published to Docker Hub as one image,

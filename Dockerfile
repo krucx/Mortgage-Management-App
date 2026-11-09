@@ -20,6 +20,11 @@ COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /usr/local/bin/uv
 RUN apt-get update && apt-get install -y --no-install-recommends zip \
     && rm -rf /var/lib/apt/lists/*
 
+# Runs as this fixed, unprivileged id rather than root (architecture review pass 7). The
+# id is fixed so an existing Linux host's DATA_DIR and BACKUP_DIR can be matched to it
+# exactly (see README's Updating section); Docker Desktop (Mac, Windows) needs no change.
+RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home --shell /usr/sbin/nologin app
+
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH"
 
@@ -30,6 +35,9 @@ COPY backend/src ./src
 RUN uv sync --frozen --no-dev
 
 COPY --from=screens /frontend/dist ./screens
+
+RUN chown -R app:app /app
+USER app
 
 ENV DATA_DIR=/data BACKUP_DIR=/backups SCREENS_DIR=/app/screens
 EXPOSE 8000
