@@ -187,9 +187,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: docker build -t mortgage-management-app:ci .
-      - name: The app starts, serves its screens and answers /api
+      - name: The app starts, serves its screens, answers /api, runs non-root and backs up
         run: |
           mkdir -p "$RUNNER_TEMP/data" "$RUNNER_TEMP/backups"
+          # A Linux host must give the image's fixed uid:gid (1000:1000) ownership of the
+          # mounted folders (see README's Updating section); this mirrors that step.
+          sudo chown -R 1000:1000 "$RUNNER_TEMP/data" "$RUNNER_TEMP/backups"
           docker run -d --name app -p 127.0.0.1:8080:8000 -e CHECK_FOR_UPDATES=false \
             -v "$RUNNER_TEMP/data:/data" -v "$RUNNER_TEMP/backups:/backups" mortgage-management-app:ci
           trap 'docker logs app' EXIT
@@ -202,6 +205,15 @@ jobs:
           test -n "$asset"
           test "$(cache "$asset")" = "public, max-age=31536000, immutable"
           curl -sf http://127.0.0.1:8080/api/backups
+          # Non-root, and a Backup can be written to the mounted folder (acceptance criteria, #281).
+          test "$(docker exec app id -u)" != "0"
+          curl -sf -X POST http://127.0.0.1:8080/api/backups >/dev/null
+          for _ in $(seq 60); do
+            backup_status=$(curl -sf http://127.0.0.1:8080/api/backups) && echo "$backup_status" | grep -q '"running":false' && break
+            sleep 1
+          done
+          echo "$backup_status" | grep -q '"last_error":null'
+          ls "$RUNNER_TEMP/backups"/mortgage-backup-*.zip
 
   pages:
     runs-on: ubuntu-latest
