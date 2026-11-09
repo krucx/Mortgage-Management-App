@@ -90,3 +90,32 @@ test('a closed Mortgage shows its Terms as locked, with the start date and Princ
     ).disabled,
   ).toBe(true)
 })
+
+test('a Mortgage closing mid-edit drops the stale Terms draft, keeping other edits', async () => {
+  let status: 'active' | 'redeemed' = 'active'
+  const state = showPage(
+    fakeServer({
+      'GET /api/mortgages/7': () => ({ ...mortgage, status }),
+      'GET /api/payment-methods': [{ method: 'upi', name: 'UPI' }],
+      'GET /api/settings/cash-limit': { cash_limit: 2_000_000 },
+    }),
+    '/mortgages/7/edit',
+    { '/mortgages/:id/edit': <EditMortgagePage /> },
+  )
+
+  const rate = (await screen.findByLabelText('Monthly interest rate (%)')) as HTMLInputElement
+  await vi.waitFor(() => expect(rate.disabled).toBe(false))
+  fireEvent.change(rate, { target: { value: '2.5' } })
+  const description = screen.getByLabelText(
+    'Description of the jewellery',
+  ) as HTMLTextAreaElement
+  fireEvent.change(description, { target: { value: 'Gold chain, re-weighed' } })
+  expect(rate.value).toBe('2.5')
+
+  status = 'redeemed'
+  await state.queryClient.refetchQueries({ queryKey: ['mortgage', 7] })
+
+  await vi.waitFor(() => expect(rate.disabled).toBe(true))
+  expect(rate.value).toBe('1.5') // the saved rate, not the stale 2.5 draft
+  expect(description.value).toBe('Gold chain, re-weighed') // unrelated edits survive
+})
