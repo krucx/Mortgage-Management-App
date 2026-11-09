@@ -35,7 +35,7 @@ def test_canonical_domain_docs_and_architecture_records_are_present():
 
     for name in ("domain.md", "issue-tracker.md", "triage-labels.md"):
         assert (DOCUMENTATION / "agents" / name).is_file()
-    assert len(list((DOCUMENTATION / "architecture-reviews").glob("review-pass-*/**/*.html"))) == 6
+    assert len(list((DOCUMENTATION / "architecture-reviews").glob("review-pass-*/**/*.html"))) == 7
     assert not (REPO / "GLOSSARY.md").exists()
 
 
