@@ -72,6 +72,11 @@ test('extracts only the requested dated release section', () => {
   assert.throws(() => extractReleaseNotes(changelog, '3.4.5'), /no dated changelog section/)
 })
 
+test('extracts the last section in the file, with nothing after it', () => {
+  const changelog = `# Changelog\n\n## [3.4.7] - 2026-11-10\n\nNewer notes.\n\n## [${version}] - 2026-11-09\n\n${notes}`
+  assert.equal(extractReleaseNotes(changelog, version), notes.trim())
+})
+
 test('verifies the GitHub release body, downloadable ZIP, version image, and latest image', () => {
   const image = { schemaVersion: 2, manifests: [{ digest: `sha256:${'a'.repeat(64)}` }] }
   const release = {
