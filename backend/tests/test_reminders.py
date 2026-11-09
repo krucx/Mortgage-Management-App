@@ -12,7 +12,7 @@ from datetime import date, datetime
 import pytest
 from api_seed import lend, person
 from fastapi.testclient import TestClient
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, redeem
+from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, forfeit, redeem, waive
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.follow_up.message_settings import (
@@ -24,9 +24,11 @@ from mortgage_backend.follow_up.reminders import (
     ReminderNotFound,
     ReminderRefused,
     act,
+    is_eligible,
     list_reminders,
     sync,
 )
+from mortgage_backend.lending.replay import replay
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.main import create_app
 
@@ -67,6 +69,29 @@ def test_a_reminder_is_queued_days_before_the_accrual_date(conn: Connection) -> 
         reminder.message
     )
     assert "2026-Ramesh" not in reminder.message
+
+
+def test_is_eligible_decides_which_mortgages_a_reminder_covers(conn: Connection) -> None:
+    nothing = Terms(monthly_rate_bps=300, interest_mode="simple", part_month_rule="nothing")
+    ramesh = add_customer(conn)
+    accruing = add_mortgage(conn, ramesh, suffix="Accruing")
+    off_day = add_mortgage(conn, ramesh, suffix="OffDay", start_date=date(2026, 1, 20))
+    dormant = add_mortgage(conn, ramesh, suffix="Dormant", terms=nothing)
+    add_payment(conn, ramesh, date(2026, 2, 14), {dormant: 103_000 * RUPEE})
+    redeemed = add_mortgage(conn, ramesh, suffix="Redeemed")
+    redeem(conn, redeemed, date(2026, 2, 1))
+    waived = add_mortgage(conn, ramesh, suffix="Waived")
+    waive(conn, waived, date(2026, 2, 1))
+    forfeited = add_mortgage(conn, ramesh, suffix="Forfeited")
+    forfeit(conn, forfeited, date(2026, 2, 1))
+
+    on = date(2026, 2, 14)  # accruing's, dormant's and the closed ones' Accrual Date
+    assert is_eligible(replay(conn, accruing), on) is True
+    assert is_eligible(replay(conn, off_day), on) is False  # not its Accrual Date
+    assert is_eligible(replay(conn, dormant), on) is False
+    assert is_eligible(replay(conn, redeemed), on) is False
+    assert is_eligible(replay(conn, waived), on) is False
+    assert is_eligible(replay(conn, forfeited), on) is False
 
 
 def test_one_reminder_covers_every_mortgage_accruing_that_day(conn: Connection) -> None:

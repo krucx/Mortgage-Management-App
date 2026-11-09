@@ -1,10 +1,12 @@
 """Reminders (see Documentation/GLOSSARY.md): the Reminder queue.
 
-Every Reminder status rule lives here, behind two calls. `sync` makes the unsent Reminders
-what they should be today under the current settings: one per Customer per Accrual Date
-coming up within `reminder_days_before` days, none further ahead, each awaiting approval or
-queued: held for approval while "approve first" is on and the Lender has not approved
-it, queued otherwise. The daily run, reading the
+Every Reminder status rule lives here, behind two calls, and one rule, `is_eligible`,
+decides which of a Customer's Mortgages a Reminder covers (ADR 0017): `sync` queues and
+prunes by it, and the Reminders it has not yet sent or skipped are read by it too. `sync`
+makes the unsent Reminders what they should be today under the current settings: one per
+Customer per Accrual Date coming up within `reminder_days_before` days, none further
+ahead, each awaiting approval or queued: held for approval while "approve first" is on
+and the Lender has not approved it, queued otherwise. The daily run, reading the
 Reminders or the Dashboard, and saving message settings all sync. `act` approves, skips
 or sends one Reminder. Until it is sent or skipped, a Reminder is only that Customer
 and date: which of their Active Mortgages accrue then, the amounts and the wording are
@@ -86,6 +88,17 @@ def _coming_accrual_dates(start: date, after: date, until: date) -> list[date]:
     return found
 
 
+def is_eligible(mortgage: MortgageReplay, on: date) -> bool:
+    """Whether `mortgage` is one a Reminder for `on` covers (ADR 0017): Active, an
+    Accrual Date for it, and not Dormant then (ADR 0012). The one rule behind both what
+    sync queues and prunes, and what an unsent Reminder currently has to say."""
+    return (
+        mortgage.row["status"] == MortgageStatus.ACTIVE
+        and is_accrual_date(mortgage.row["start_date"], on)
+        and not mortgage.dormant(on)
+    )
+
+
 def sync(
     conn: Connection,
     today: date,
@@ -124,7 +137,7 @@ def sync(
         (row["customer_id"], on)
         for row, dates in coming
         for on in dates
-        if not replayed[row["id"]].dormant(on)
+        if is_eligible(replayed[row["id"]], on)
     }
     # Unsent Reminders are only actionable while at least one Mortgage remains
     # Active and accrues on their date. A future reopen can queue a fresh one.
@@ -190,9 +203,9 @@ def _accruing(
     unsent: Sequence[RowMapping],
     replayed: Mapping[int, MortgageReplay] | None = None,
 ) -> dict[int, list[MortgageReplay]]:
-    """Each unsent Reminder's Mortgages, by Reminder id: its Customer's Active ones accruing
-    that day and not Dormant then, by name; loaded in one query, and replayed unless
-    `replayed` has them already."""
+    """Each unsent Reminder's Mortgages, by Reminder id, `is_eligible` decides which: its
+    Customer's Active ones accruing that day and not Dormant then, by name; loaded in
+    one query, and replayed unless `replayed` has them already."""
     mortgages = (
         conn.execute(
             select(mortgage_table)
@@ -216,10 +229,7 @@ def _accruing(
         by_customer[mortgage["customer_id"]].append(replayed[mortgage["id"]])
     return {
         row["id"]: [
-            m
-            for m in by_customer[row["customer_id"]]
-            if is_accrual_date(m.row["start_date"], row["accrues_on"])
-            and not m.dormant(row["accrues_on"])
+            m for m in by_customer[row["customer_id"]] if is_eligible(m, row["accrues_on"])
         ]
         for row in unsent
     }
