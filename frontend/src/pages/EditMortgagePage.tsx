@@ -44,12 +44,18 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
   })
   const methods = usePaymentMethods()
   const changeMortgage = useMortgageChange()
+  const closed = mortgage.status !== 'active'
+  // Locked once closed: a background refresh closing the Mortgage mid-edit must not
+  // leave a stale draft of these behind to be shown or sent.
+  const startDate = closed ? mortgage.start_date : fields.start_date
+  const amountLent = closed ? paiseToRupees(mortgage.amount_lent) : fields.amountLent
+  const termsDraft = closed ? toDraft(mortgage.starting_terms) : fields.terms
 
-  const terms = fromDraft(fields.terms)
+  const terms = fromDraft(termsDraft)
   const edited: MortgageEdit = {
     name: fields.name.trim(),
-    start_date: fields.start_date,
-    amount_lent: rupeesToPaise(fields.amountLent),
+    start_date: startDate,
+    amount_lent: rupeesToPaise(amountLent),
     description: fields.description,
     gross_weight_mg: gramsToMg(fields.gross),
     net_weight_mg: gramsToMg(fields.net),
@@ -59,12 +65,12 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
   }
   // Starting Terms, the start date and Principal change what is owed.
   const numbersChanged =
-    Number(fields.amountLent) > 0 &&
-    (fields.start_date !== mortgage.start_date || edited.amount_lent !== mortgage.amount_lent ||
+    Number(amountLent) > 0 &&
+    (startDate !== mortgage.start_date || edited.amount_lent !== mortgage.amount_lent ||
       !sameTerms(terms, mortgage.starting_terms))
   // Lent Through is previewed too, unshown, for what the edit would write in cash.
   const worthPreviewing =
-    numbersChanged || (Number(fields.amountLent) > 0 && fields.lentThrough !== mortgage.lent_through)
+    numbersChanged || (Number(amountLent) > 0 && fields.lentThrough !== mortgage.lent_through)
 
   const was = mortgage
   const edits: [string, string][] = [
@@ -84,7 +90,6 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
   ]
     .filter(([, before, after]) => before !== after)
     .map(([label, before, after]): [string, string] => [label, `${before} → ${after}`])
-  const closed = mortgage.status !== 'active'
 
   const set = (field: keyof typeof fields) => (value: string) =>
     setFields({ ...fields, [field]: value })
@@ -129,7 +134,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
               required
               max={todayIso()}
               disabled={closed}
-              value={fields.start_date}
+              value={startDate}
               onChange={(e) => set('start_date')(e.target.value)}
             />
           </label>
@@ -141,7 +146,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
               min="1"
               step="0.01"
               disabled={closed}
-              value={fields.amountLent}
+              value={amountLent}
               onChange={(e) => set('amountLent')(e.target.value)}
             />
           </label>
@@ -152,7 +157,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
           their dates.
         </p>
         <TermsFields
-          value={fields.terms}
+          value={termsDraft}
           onChange={(terms) => setFields({ ...fields, terms })}
           disabled={closed}
         />
