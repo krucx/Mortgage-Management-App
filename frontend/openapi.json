@@ -2218,6 +2218,11 @@
           "before": {
             "$ref": "#/components/schemas/PreviewSide"
           },
+          "discount_room": {
+            "default": 0,
+            "title": "Discount Room",
+            "type": "integer"
+          },
           "ledger_changes": {
             "items": {
               "$ref": "#/components/schemas/LedgerChange"
@@ -2232,6 +2237,11 @@
           "mortgage_name": {
             "title": "Mortgage Name",
             "type": "string"
+          },
+          "over_threshold": {
+            "default": false,
+            "title": "Over Threshold",
+            "type": "boolean"
           }
         },
         "required": [
@@ -6867,7 +6877,7 @@
     },
     "/api/payments/preview": {
       "post": {
-        "description": "Every Mortgage the Payment is allocated to, before and after recording it.",
+        "description": "Every Mortgage the Payment is allocated to, before and after recording it, with\neach Allocation's room for a Discount after its cash and whether it is over the\nconfirmation threshold.",
         "operationId": "preview_payment_api_payments_preview_post",
         "requestBody": {
           "content": {
