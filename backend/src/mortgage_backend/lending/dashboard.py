@@ -18,8 +18,13 @@ from sqlalchemy.engine import Connection
 from mortgage_backend.collateral.collateral import collateral_of, gold_rates
 from mortgage_backend.follow_up import reminders
 from mortgage_backend.follow_up.call_list import call_list
+from mortgage_backend.lending.activity import (
+    activity,
+    all_replays,
+    default_activity_range,
+)
 from mortgage_backend.lending.ledger import accrual_date
-from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus, replays
+from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus
 from mortgage_backend.platform.clock import TodayDep, month_span
 from mortgage_backend.platform.db import EngineDep, mortgage_table, payment_table
 from mortgage_backend.platform.money import RUPEE
@@ -188,11 +193,6 @@ def _payments_by_month(conn: Connection, today: date) -> list[MonthlyPayments]:
     ]
 
 
-def all_replays(conn: Connection) -> dict[int, MortgageReplay]:
-    """Every Mortgage, replayed: what the Dashboard is worked out from."""
-    return replays(conn, conn.execute(select(mortgage_table)).mappings().all())
-
-
 def dashboard(
     conn: Connection,
     today: date,
@@ -205,34 +205,22 @@ def dashboard(
     if replayed is None:
         replayed = all_replays(conn)
     rows = [mortgage.row for mortgage in replayed.values()]
-    activity_start_date = activity_start_date or today.replace(day=1)
-    activity_end_date = activity_end_date or today
-    lent_in_period = sum(
-        row["amount_lent"]
-        for row in rows
-        if activity_start_date <= row["start_date"] <= activity_end_date
-    )
-    redeemed_in_period = collected_in_period = 0
-    for mortgage in replayed.values():
-        for step in mortgage.steps_by_payment(activity_end_date).values():
-            if activity_start_date <= step.on:
-                redeemed_in_period += step.principal_paid
-                collected_in_period += step.interest_paid
+    default_start, default_end = default_activity_range(today)
+    activity_start_date = activity_start_date or default_start
+    activity_end_date = activity_end_date or default_end
+    period = activity(replayed, activity_start_date, activity_end_date)
+    month_totals = activity(replayed, default_start, default_end)
+    year_totals = activity(replayed, date(today.year, 1, 1), today)
     rates = gold_rates(conn)
     this_month = (today.year, today.month)
 
-    principal = unpaid = collected_month = collected_year = 0
+    principal = unpaid = 0
     valued_owed = valued = 0
     active_customers = set()
     redeemed = waived = waived_amount = forfeited = profit_loss = 0
     active: list[MortgageReplay] = []
     for row in rows:
         mortgage = replayed[row["id"]]
-        for step in mortgage.steps_by_payment(today).values():
-            if step.on.year == today.year:
-                collected_year += step.interest_paid
-                if (step.on.year, step.on.month) == this_month:
-                    collected_month += step.interest_paid
         ledger = mortgage.ledger(today)
         if row["status"] == MortgageStatus.ACTIVE:
             owed = ledger[-1]
@@ -263,15 +251,15 @@ def dashboard(
         as_of=today,
         activity_start_date=activity_start_date,
         activity_end_date=activity_end_date,
-        principal_lent_in_period=lent_in_period,
-        principal_redeemed_in_period=redeemed_in_period,
-        interest_collected_in_period=collected_in_period,
+        principal_lent_in_period=period.principal_lent,
+        principal_redeemed_in_period=period.principal_redeemed,
+        interest_collected_in_period=period.interest_collected,
         active_mortgages=len(active),
         customers_with_active_mortgages=len(active_customers),
         principal_outstanding=principal,
         unpaid_interest=unpaid,
-        interest_collected_this_month=collected_month,
-        interest_collected_this_year=collected_year,
+        interest_collected_this_month=month_totals.interest_collected,
+        interest_collected_this_year=year_totals.interest_collected,
         collateral_value=valued,
         loan_to_value=valued_owed / valued if valued else None,
         call_list_count=sum(
@@ -301,8 +289,9 @@ def read_dashboard(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
 ) -> Dashboard:
-    start = start_date or today.replace(day=1)
-    end = end_date or today
+    default_start, default_end = default_activity_range(today)
+    start = start_date or default_start
+    end = end_date or default_end
     if end < start:
         raise HTTPException(422, "End date must be on or after start date")
     with engine.begin() as conn:

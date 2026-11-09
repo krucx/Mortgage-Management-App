@@ -98,6 +98,47 @@ def test_activity_totals_use_inclusive_dates_and_include_waived_final_payments(c
     assert lent_after["id"] != waived["id"] != lent_before["id"]
 
 
+def test_voided_payments_are_excluded_from_principal_redeemed_and_interest_collected(
+    client, book
+):
+    figures = dashboard(client)
+
+    # April (the default period): Ramesh's ₹5,000 interest and Suresh's Redemption
+    # (₹50,000 Principal, ₹3,000 interest); the Voided ₹1,000 counts for nothing.
+    assert figures["principal_redeemed_in_period"] == 50_000 * RUPEE
+    assert figures["interest_collected_in_period"] == 8_000 * RUPEE
+
+
+def test_discounts_are_excluded_from_principal_redeemed_and_interest_collected(client):
+    owner = person(client, "Mahesh Gupta", "9829077777")
+    # ₹1,00,000 at 3% Simple from 14 Jan; owes ₹12,000 interest (3 months and the
+    # Interest to Date) and ₹1,00,000 Principal on 20 Apr (today).
+    mortgage = lend(client, owner, "2026-01-14", 1_00_000 * RUPEE, "Chain")
+    client.post(
+        "/api/payments",
+        json={
+            "customer_id": owner["id"],
+            "paid_on": "2026-04-20",
+            "amount": 2_000 * RUPEE,
+            "method": "cash",
+            "allocations": [
+                {
+                    "mortgage_id": mortgage["id"],
+                    "amount": 2_000 * RUPEE,
+                    "discount": 20_000 * RUPEE,
+                }
+            ],
+        },
+    )
+
+    figures = dashboard(client)
+
+    # ₹2,000 cash pays interest; a ₹20,000 Discount pays the rest of the interest and
+    # ₹10,000 Principal, but Discounts are non-cash (ADR 0014) and count for nothing.
+    assert figures["interest_collected_in_period"] == 2_000 * RUPEE
+    assert figures["principal_redeemed_in_period"] == 0
+
+
 def test_activity_timeframe_rejects_end_before_start(client):
     response = client.get(
         "/api/dashboard", params={"start_date": "2026-04-16", "end_date": "2026-04-15"}

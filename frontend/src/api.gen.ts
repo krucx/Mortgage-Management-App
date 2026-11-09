@@ -957,7 +957,7 @@ export interface paths {
          * List Payments
          * @description Payments, newest first (or by `sort`, reversed when `descending`), filtered by
          *     Customer, Mortgage Name or reference, and to a month (YYYY-MM) or year. With a
-         *     month or year, the interest they paid too.
+         *     month or year, the interest collected in that period too.
          */
         get: operations["list_payments_api_payments_get"];
         put?: never;
