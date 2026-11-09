@@ -33,6 +33,11 @@
         "required_status_checks": [
           {"context": "backend"},
           {"context": "frontend"},
+          {"context": "image"},
+          {"context": "windows"},
+          {"context": "Analyze (actions)"},
+          {"context": "Analyze (javascript-typescript)"},
+          {"context": "Analyze (python)"},
           {"context": "CodeRabbit"}
         ],
         "strict_required_status_checks_policy": true
