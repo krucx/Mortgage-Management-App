@@ -65,6 +65,47 @@ test('the Cash Limit is shown in rupees, and clearing it saves no limit', async 
   expect(saved).toEqual([{ cash_limit: null }])
 })
 
+test('the Discount confirmation limit is shown in rupees, changed, and cleared', async () => {
+  const saved: unknown[] = []
+  const server = fakeServer({
+    'GET /api/settings/discount-confirmation-limit': { discount_confirmation_limit: 50_000 },
+    'PUT /api/settings/discount-confirmation-limit': async (request: Request) => {
+      const body = await request.json()
+      saved.push(body)
+      return body
+    },
+  })
+  showPage(server, '/settings', { '/settings': <SettingsPage /> })
+  const section = (await screen.findByRole('heading', { name: 'Discount confirmation' })).closest(
+    'section',
+  )!
+
+  const limit = await within(section).findByLabelText('Ask when Discount exceeds (₹)')
+  expect((limit as HTMLInputElement).value).toBe('500')
+
+  fireEvent.change(limit, { target: { value: '750' } })
+  fireEvent.click(within(section).getByRole('button', { name: 'Save' }))
+  const changeDialog = await screen.findByRole('dialog')
+  expect(within(changeDialog).getByText('₹750')).toBeTruthy()
+  fireEvent.click(within(changeDialog).getByRole('button', { name: 'Confirm and save' }))
+  expect(await within(section).findByText('Saved.')).toBeTruthy()
+  expect((within(section).getByLabelText('Ask when Discount exceeds (₹)') as HTMLInputElement).value).toBe(
+    '750',
+  )
+
+  fireEvent.change(limit, { target: { value: '' } })
+  fireEvent.click(within(section).getByRole('button', { name: 'Save' }))
+  const clearDialog = await screen.findByRole('dialog')
+  expect(within(clearDialog).getByText('Never')).toBeTruthy()
+  fireEvent.click(within(clearDialog).getByRole('button', { name: 'Confirm and save' }))
+
+  expect(await within(section).findByText('Saved.')).toBeTruthy()
+  expect(saved).toEqual([
+    { discount_confirmation_limit: 75_000 },
+    { discount_confirmation_limit: null },
+  ])
+})
+
 test("unprotected Backups warn that they hold Customers' ID Photos", async () => {
   showPage(
     fakeServer({

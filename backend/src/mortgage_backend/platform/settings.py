@@ -59,3 +59,32 @@ class ConfigGroup[M: BaseModel]:
 
 def _as_text(value: Any) -> str:
     return ("true" if value else "false") if isinstance(value, bool) else str(value)
+
+
+class ThresholdSetting[M: BaseModel]:
+    """One field, an optional rupee amount in paise (`Field(gt=0)`; None: off, e.g. the
+    Cash Limit or the Discount confirmation threshold).
+
+    Not a ConfigGroup field: `ConfigGroup.set` forgets a field set to None, which would
+    bring the default back, so a Lender's "cleared" has to survive as an empty string,
+    distinct from "never set" (no row at all) — which is what each `get` below tells apart.
+    """
+
+    def __init__(self, model: type[M], field: str, key: str, default_paise: int) -> None:
+        self.model = model
+        self.field = field
+        self.key = key
+        self.default_paise = default_paise
+
+    def get(self, conn: Connection) -> M:
+        stored = get_config(conn, [self.key]).get(self.key)
+        value: int | None
+        if stored is None:
+            value = self.default_paise
+        else:
+            value = int(stored) if stored else None
+        return self.model(**{self.field: value})
+
+    def set(self, conn: Connection, setting: M) -> None:
+        value = getattr(setting, self.field)
+        set_config(conn, self.key, "" if value is None else str(value))

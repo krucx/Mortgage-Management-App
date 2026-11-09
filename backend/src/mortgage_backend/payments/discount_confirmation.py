@@ -4,7 +4,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.platform.db import EngineDep, get_config, set_config
+from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.settings import ThresholdSetting
 
 _KEY = "discount_confirmation_limit"
 DEFAULT_DISCOUNT_CONFIRMATION_LIMIT = 500 * 100  # paise
@@ -14,15 +15,16 @@ class DiscountConfirmationLimit(BaseModel):
     discount_confirmation_limit: int | None = Field(gt=0)  # paise; None: never ask
 
 
+_DISCOUNT_CONFIRMATION_LIMIT = ThresholdSetting(
+    DiscountConfirmationLimit,
+    "discount_confirmation_limit",
+    _KEY,
+    DEFAULT_DISCOUNT_CONFIRMATION_LIMIT,
+)
+
+
 def get_discount_confirmation_limit(conn: Connection) -> DiscountConfirmationLimit:
-    stored = get_config(conn, [_KEY]).get(_KEY)
-    if stored is None:
-        return DiscountConfirmationLimit(
-            discount_confirmation_limit=DEFAULT_DISCOUNT_CONFIRMATION_LIMIT
-        )
-    return DiscountConfirmationLimit(
-        discount_confirmation_limit=int(stored) if stored else None
-    )
+    return _DISCOUNT_CONFIRMATION_LIMIT.get(conn)
 
 
 router = APIRouter(prefix="/api")
@@ -39,6 +41,5 @@ def update_discount_confirmation_limit(
     setting: DiscountConfirmationLimit, engine: EngineDep
 ) -> DiscountConfirmationLimit:
     with engine.begin() as conn:
-        value = setting.discount_confirmation_limit
-        set_config(conn, _KEY, "" if value is None else str(value))
+        _DISCOUNT_CONFIRMATION_LIMIT.set(conn, setting)
         return get_discount_confirmation_limit(conn)
