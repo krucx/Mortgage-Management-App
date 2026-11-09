@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { createGithubAdapter } from './github-adapter.mjs'
 
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 const commitPattern = /^[0-9a-f]{40}$/i
@@ -60,6 +61,18 @@ export function validateReviewAndChecks(reviews, checks, pullRequestAuthor, curr
   }
 }
 
+export function validateApprovedCandidate(adapter, { prNumber, version, expectCommit }) {
+  const pullRequest = adapter.getPullRequest(prNumber)
+  const result = validateMergedRelease({ action: 'closed', pull_request: pullRequest }, version)
+  if (expectCommit && result.commit.toLowerCase() !== String(expectCommit).toLowerCase()) {
+    throw new Error(`The release tag points to ${expectCommit}, not the merged PR commit ${result.commit}`)
+  }
+  const reviews = adapter.getReviews(prNumber)
+  const checks = adapter.getChecks(prNumber)
+  validateReviewAndChecks(reviews, checks, pullRequest.user?.login, result.headCommit)
+  return result
+}
+
 export function planReleaseTag(targetCommit, existingTagCommit) {
   if (!commitPattern.test(targetCommit ?? '')) throw new Error('The target merge commit SHA is invalid')
   if (!existingTagCommit) return 'create'
@@ -68,6 +81,47 @@ export function planReleaseTag(targetCommit, existingTagCommit) {
     throw new Error(`The existing version tag points at ${existingTagCommit}, not the merged commit ${targetCommit}`)
   }
   return 'reuse'
+}
+
+export function planAndCreateTag(adapter, { version, commit, allowCreate = true }) {
+  const existing = adapter.getTagCommit(version)
+  const action = planReleaseTag(commit, existing)
+  if (action === 'create') {
+    if (!allowCreate) {
+      throw new Error('Set the RELEASE_WORKFLOW_TOKEN secret with Contents and Workflows write permissions before publishing.')
+    }
+    adapter.createTag(version, commit, `Release ${version}`)
+  }
+  return { action, tag: version }
+}
+
+export async function dispatchAndWait(adapter, {
+  workflowFile,
+  ref,
+  inputs = {},
+  matchSha,
+  timeoutMs = 60 * 60 * 1000,
+  pollIntervalMs = 15_000,
+  now = () => Date.now(),
+  sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+}) {
+  const started = now()
+  adapter.dispatchWorkflow(workflowFile, ref, inputs)
+  for (;;) {
+    const runs = adapter.listWorkflowRuns(workflowFile)
+    const run = (Array.isArray(runs) ? runs : []).find((candidate) => (
+      String(candidate.headSha ?? '').toLowerCase() === String(matchSha ?? '').toLowerCase() &&
+      Date.parse(candidate.createdAt ?? '') >= started
+    ))
+    if (run?.status === 'completed') {
+      if (run.conclusion !== 'success') adapter.showFailedRunLog(run.databaseId)
+      return { url: run.url, conclusion: run.conclusion }
+    }
+    if (now() - started >= timeoutMs) {
+      throw new Error(`The dispatched ${workflowFile} run did not finish within ${Math.round(timeoutMs / 60_000)} minutes.`)
+    }
+    await sleep(pollIntervalMs)
+  }
 }
 
 export function extractReleaseNotes(changelog, version) {
@@ -125,27 +179,58 @@ function option(args, name) {
   return args[index + 1]
 }
 
+function options(args, name) {
+  return args.flatMap((value, index) => (value === name ? [args[index + 1]] : []))
+}
+
 function readJson(path, label) {
   if (!path) throw new Error(`Missing path for ${label}`)
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
-function runCli(args) {
+async function runCli(args) {
   const command = args[0]
-  if (command === 'validate-merged') {
-    const result = validateMergedRelease(readJson(option(args, '--event'), 'event'), option(args, '--version'))
+  if (command === 'validate-candidate') {
+    const result = validateApprovedCandidate(createGithubAdapter(option(args, '--repo')), {
+      prNumber: Number(option(args, '--pr-number')),
+      version: option(args, '--version'),
+      expectCommit: option(args, '--expect-commit'),
+    })
     console.log(JSON.stringify(result))
     return
   }
-  if (command === 'validate-review') {
-    const result = readJson(option(args, '--input'), 'review and check data')
-    validateReviewAndChecks(result.reviews, result.statusCheckRollup, result.author, result.headCommit)
-    console.log('Release pull request has an approved human review and passing checks')
+  if (command === 'tag') {
+    const result = planAndCreateTag(createGithubAdapter(option(args, '--repo')), {
+      version: option(args, '--version'),
+      commit: option(args, '--commit'),
+      allowCreate: option(args, '--allow-create') !== 'false',
+    })
+    console.log(JSON.stringify(result))
     return
   }
-  if (command === 'plan-tag') {
-    const action = planReleaseTag(option(args, '--commit'), option(args, '--existing-tag-sha'))
-    console.log(action)
+  if (command === 'dispatch-and-wait') {
+    const inputs = Object.fromEntries(options(args, '--input').map((pair) => {
+      const separator = pair.indexOf('=')
+      return [pair.slice(0, separator), pair.slice(separator + 1)]
+    }))
+    const timeoutMinutes = Number(option(args, '--timeout-minutes') ?? 60)
+    // Unlike the other subcommands, this one always prints JSON, even when it fails: the
+    // workflow's recovery summary step reads the run url from this step's own output, and
+    // that output must exist (as null) whether the run never appeared or finished unsuccessfully.
+    try {
+      const result = await dispatchAndWait(createGithubAdapter(option(args, '--repo')), {
+        workflowFile: option(args, '--workflow'),
+        ref: option(args, '--ref'),
+        inputs,
+        matchSha: option(args, '--match-sha'),
+        timeoutMs: timeoutMinutes * 60_000,
+      })
+      console.log(JSON.stringify(result))
+      if (result.conclusion !== 'success') process.exitCode = 1
+    } catch (error) {
+      console.log(JSON.stringify({ url: null, conclusion: null, error: error.message }))
+      process.exitCode = 1
+    }
     return
   }
   if (command === 'release-notes') {
@@ -167,7 +252,7 @@ function runCli(args) {
     console.log(`Verified published release ${version}, notes, download, and container image`)
     return
   }
-  throw new Error('Usage: publish-release.mjs <validate-merged|validate-review|plan-tag|release-notes|verify-published> [options]')
+  throw new Error('Usage: release.mjs <validate-candidate|tag|dispatch-and-wait|release-notes|verify-published> [options]')
 }
 
-if (process.argv[1] && process.argv[1].endsWith('/publish-release.mjs')) runCli(process.argv.slice(2))
+if (process.argv[1] && process.argv[1].endsWith('/release.mjs')) await runCli(process.argv.slice(2))

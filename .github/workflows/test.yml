@@ -19,14 +19,14 @@ jobs:
           node-version: 24
       - run: node --test .github/scripts/test-release-candidate.mjs
 
-  publish-release:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - run: node --test .github/scripts/test-publish-release.mjs
+      - run: node --test .github/scripts/test-release.mjs
 
   finding-reconciler:
     runs-on: ubuntu-latest

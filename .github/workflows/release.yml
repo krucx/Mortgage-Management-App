@@ -58,26 +58,10 @@ jobs:
           PR_NUMBER: ${{ inputs.pull_request }}
         run: |
           set -euo pipefail
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" | jq '{action:"closed",pull_request:.}' > /tmp/release-event.json
-          node .github/scripts/publish-release.mjs validate-merged \
-            --event /tmp/release-event.json --version "$GITHUB_REF_NAME" > /tmp/release-pr.json
-          commit=$(jq -r .commit /tmp/release-pr.json)
-          head_commit=$(jq -r .headCommit /tmp/release-pr.json)
-          test "$commit" = "$GITHUB_SHA" || {
-            echo "The release tag points to $GITHUB_SHA, not the merged PR commit $commit." >&2
-            exit 1
-          }
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" > /tmp/release-reviews.json
-          gh pr view "$PR_NUMBER" --json statusCheckRollup > /tmp/release-checks.json
-          jq -n \
-            --slurpfile reviews /tmp/release-reviews.json \
-            --slurpfile checks /tmp/release-checks.json \
-            --arg author "$(jq -r '.pull_request.user.login' /tmp/release-event.json)" \
-            --arg headCommit "$head_commit" \
-            '{reviews: $reviews[0], statusCheckRollup: $checks[0].statusCheckRollup, author: $author, headCommit: $headCommit}' \
-            > /tmp/release-review-checks.json
-          node .github/scripts/publish-release.mjs validate-review --input /tmp/release-review-checks.json
-          echo "Verified release tag $GITHUB_REF_NAME against approved PR #$PR_NUMBER at $commit."
+          node .github/scripts/release.mjs validate-candidate \
+            --repo "$GITHUB_REPOSITORY" --pr-number "$PR_NUMBER" --version "$GITHUB_REF_NAME" \
+            --expect-commit "$GITHUB_SHA" > /tmp/release-pr.json
+          echo "Verified release tag $GITHUB_REF_NAME against approved PR #$PR_NUMBER at $(jq -r .commit /tmp/release-pr.json)."
       # A fix for an older version (e.g. 1.1.3 after 1.2.0) must not move the latest back.
       - name: Is this the highest version tagged?
         id: latest
@@ -141,7 +125,7 @@ jobs:
           unzip -l "mortgage-management-$TAG.zip" | grep -q "mortgage-management-$TAG/frontend/dist/index.html"
       # Same extractor the post-publish verify step checks the release against.
       - name: Its notes, from the CHANGELOG
-        run: node .github/scripts/publish-release.mjs release-notes --changelog CHANGELOG.md --version "$TAG" > notes.md
+        run: node .github/scripts/release.mjs release-notes --changelog CHANGELOG.md --version "$TAG" > notes.md
       - name: Publish the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -195,7 +179,7 @@ jobs:
             docker manifest inspect "$IMAGE:latest" > /tmp/latest-image.json
             latest_args=(--latest-image /tmp/latest-image.json)
           fi
-          node .github/scripts/publish-release.mjs verify-published \
+          node .github/scripts/release.mjs verify-published \
             --version "$TAG" \
             --changelog CHANGELOG.md \
             --release /tmp/release.json \
