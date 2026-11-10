@@ -1566,3 +1566,15 @@ label .hint {
     animation: none;
   }
 }
+
+/* Favours Given: four short columns that fit a phone without scrolling sideways. */
+@media (max-width: 640px) {
+  table.favours th,
+  table.favours td {
+    padding: 0.5rem 0.35rem;
+  }
+
+  table.favours th.num {
+    white-space: normal; /* "Amount let off" may take two lines */
+  }
+}

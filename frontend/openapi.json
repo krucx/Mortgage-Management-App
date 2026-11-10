@@ -1394,6 +1394,78 @@
         "title": "ExistingStandaloneReferrer",
         "type": "object"
       },
+      "Favour": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "discount",
+              "waived"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "mortgage": {
+            "$ref": "#/components/schemas/FavourMortgage"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "mortgage",
+          "kind",
+          "amount"
+        ],
+        "title": "Favour",
+        "type": "object"
+      },
+      "FavourMortgage": {
+        "description": "The Mortgage a favour was given on, by its description (as the Customer knows it).",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "description"
+        ],
+        "title": "FavourMortgage",
+        "type": "object"
+      },
+      "FavoursGiven": {
+        "properties": {
+          "favours": {
+            "items": {
+              "$ref": "#/components/schemas/Favour"
+            },
+            "title": "Favours",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "favours",
+          "total"
+        ],
+        "title": "FavoursGiven",
+        "type": "object"
+      },
       "ForfeitAllIn": {
         "description": "Several Mortgages Forfeited on one date, each with its own Recovered Amount.",
         "properties": {
@@ -5008,6 +5080,46 @@
           }
         },
         "summary": "Preview Delete Customer"
+      }
+    },
+    "/api/customers/{customer_id}/favours": {
+      "get": {
+        "description": "Every Discount and Waived Amount still standing, newest first, with their total\n(Grace joins them later).",
+        "operationId": "read_favours_given_api_customers__customer_id__favours_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoursGiven"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Favours Given"
       }
     },
     "/api/customers/{customer_id}/history": {

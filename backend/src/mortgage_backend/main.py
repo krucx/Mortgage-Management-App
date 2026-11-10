@@ -22,6 +22,7 @@ from mortgage_backend.lending import (
     closing,
     dashboard,
     default_terms,
+    favours,
     mortgages,
     previews,
     projections,
@@ -129,6 +130,7 @@ def create_app(
     app.include_router(grace_period.router)
     app.include_router(changes.router)
     app.include_router(closing.router)
+    app.include_router(favours.router)
     app.include_router(photos.router)
     app.include_router(collateral.router)
     app.include_router(call_list.router)
