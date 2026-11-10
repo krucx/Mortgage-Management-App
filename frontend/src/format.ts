@@ -1,3 +1,5 @@
+import { formatINR } from './money'
+
 const dateFormat = new Intl.DateTimeFormat('en-IN', {
   day: 'numeric',
   month: 'short',
@@ -13,6 +15,11 @@ const dayMonthFormat = new Intl.DateTimeFormat('en-IN', {
   month: 'short',
   timeZone: 'UTC',
 })
+
+/** A Grace Payment's date, the date it was received and what it let off (ADR 0020),
+ *  e.g. "6 Nov 2026 · received 8 Nov 2026 · Grace, ₹420 let off". */
+export const formatGraceDate = (paidOn: string, receivedOn: string, letOff: number) =>
+  `${formatDate(paidOn)} · received ${formatDate(receivedOn)} · Grace, ${formatINR(letOff)} let off`
 
 /** "2026-03-15" → "15 Mar". */
 export const formatDayMonth = (isoDate: string) =>

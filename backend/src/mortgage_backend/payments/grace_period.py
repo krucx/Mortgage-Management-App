@@ -15,12 +15,13 @@ from pydantic import (
     ValidatorFunctionWrapHandler,
     field_validator,
 )
+from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.lending.ledger import Allocation, accrual_date
 from mortgage_backend.lending.replay import MortgageReplay
 from mortgage_backend.platform.clock import TodayDep
-from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.db import EngineDep, allocation_table, payment_table
 from mortgage_backend.platform.settings import ConfigGroup
 
 
@@ -57,6 +58,35 @@ def get_grace_period(conn: Connection) -> GracePeriod:
 class MortgageLetOff(BaseModel):
     mortgage_id: int
     let_off: int  # paise
+
+
+class LedgerGrace(BaseModel):
+    """A Grace Payment as it stands in one Mortgage's Ledger."""
+
+    payment_id: int
+    received_on: date  # after the Payment's date
+    let_off: int  # paise, on this Mortgage, as saved (ADR 0020)
+
+
+def graces_of(conn: Connection, mortgage_id: int) -> list[LedgerGrace]:
+    """The Grace Payments in a Mortgage's Ledger: its non-Voided ones."""
+    return [
+        LedgerGrace(payment_id=row.id, received_on=row.received_on, let_off=row.let_off)
+        for row in conn.execute(
+            select(
+                payment_table.c.id,
+                payment_table.c.received_on,
+                allocation_table.c.let_off,
+            )
+            .join(allocation_table, allocation_table.c.payment_id == payment_table.c.id)
+            .where(
+                allocation_table.c.mortgage_id == mortgage_id,
+                payment_table.c.received_on.is_not(None),
+                payment_table.c.voided_at.is_(None),  # a Voided Payment is in no Ledger
+            )
+            .order_by(payment_table.c.paid_on, payment_table.c.id)
+        )
+    ]
 
 
 class GraceOffer(BaseModel):

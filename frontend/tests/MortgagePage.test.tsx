@@ -408,3 +408,32 @@ test('a future date is quoted, but the backend refuses to record it', async () =
   ).toBeTruthy()
   expect((screen.getByRole('button', { name: /^Redeem for/ }) as HTMLButtonElement).disabled).toBe(true)
 })
+
+test("a Grace Payment's Ledger row shows both dates and what this Mortgage was let off", async () => {
+  const payment = (id: number, on: string) => ({
+    on,
+    event: 'payment' as const,
+    amount: 100_000,
+    principal: 5_000_000,
+    unpaid_interest: 0,
+    interest_paid: 75_000,
+    principal_paid: 25_000,
+    payment_id: id,
+    terms: null,
+  })
+  showMortgagePage(
+    fakeServer({
+      'GET /api/mortgages/7': {
+        ...mortgage,
+        ledger: [payment(8, '2026-10-01'), payment(9, '2026-11-06')],
+        graces: [{ payment_id: 9, received_on: '2026-11-08', let_off: 42_000 }],
+      },
+    }),
+  )
+
+  const grace = await screen.findByText('6 Nov 2026 · received 8 Nov 2026 · Grace, ₹420 let off')
+  expect(within(grace.closest('tr')!).getByRole('link').getAttribute('href')).toBe('/payments/9')
+  const ordinary = screen.getByText('1 Oct 2026').closest('tr')!
+  expect(within(ordinary).getByRole('link').getAttribute('href')).toBe('/payments/8')
+  expect(within(ordinary).queryByText(/Grace|received|let off/)).toBeNull()
+})

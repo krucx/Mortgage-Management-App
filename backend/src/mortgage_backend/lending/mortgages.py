@@ -36,6 +36,7 @@ from mortgage_backend.lending.replay import (
     replays,
 )
 from mortgage_backend.lending.terms import Terms
+from mortgage_backend.payments.grace_period import LedgerGrace, graces_of
 from mortgage_backend.payments.payments import PaymentMethod
 from mortgage_backend.people.customers import PersonSummary, phone_fragment
 from mortgage_backend.platform.clock import MonthQuery, TodayDep, month_span
@@ -150,6 +151,7 @@ class Mortgage(BaseModel):
     photos: list[MortgagePhoto]
     as_of: date
     ledger: list[LedgerStep]
+    graces: list[LedgerGrace]  # its Grace Payments, by `payment_id` of the Ledger's steps
     outstanding: Outstanding
     collateral: Collateral | None  # None until a Gold Rate or manual value is set
     closure: Closure | None
@@ -242,6 +244,7 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         photos=[MortgagePhoto(id=p.id, url=photo_url(p.file) or "") for p in photos],
         as_of=today,
         ledger=mortgage.ledger(today),
+        graces=graces_of(conn, mortgage_id),
         outstanding=outstanding,
         collateral=collateral_of(row, gold_rates(conn), outstanding.total),
         closure=mortgage.closure(),

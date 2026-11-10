@@ -765,6 +765,12 @@ button.danger-solid {
   border-color: var(--error);
 }
 
+/* A Grace Payment: dated before it was received, letting off what lateness cost. */
+.badge.grace {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
 .close-panel {
   padding: 1rem;
   border: 1px solid var(--border);
