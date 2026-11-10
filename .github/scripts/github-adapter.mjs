@@ -12,6 +12,12 @@ function git(args) {
 // fake-github-adapter.mjs instead, which implements the same interface in memory.
 export function createGithubAdapter(repo) {
   return {
+    getPublishedReleaseTags() {
+      return JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/releases?per_page=100`]))
+        .flat()
+        .filter((release) => !release.draft && !release.prerelease)
+        .map((release) => release.tag_name)
+    },
     getPullRequest(number) {
       return JSON.parse(gh(['api', `repos/${repo}/pulls/${number}`]))
     },

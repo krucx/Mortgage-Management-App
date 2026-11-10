@@ -7,7 +7,6 @@ on:
         description: Requested major.minor.patch release version
         required: true
         type: string
-        default: 3.4.6
 
 permissions:
   contents: write
@@ -19,16 +18,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: main
           fetch-depth: 0
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+
+      - name: Find the latest published version
+        id: release_state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          latest=$(node .github/scripts/release.mjs latest-published --repo "$GH_REPOSITORY")
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
 
       - name: Require dispatch from main
         if: github.ref != 'refs/heads/main'
@@ -51,6 +59,12 @@ jobs:
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "branch_pushed=false" >> "$GITHUB_OUTPUT"
           git fetch origin main
+          current_main=$(git show origin/main:VERSION)
+          node .github/scripts/release-candidate.mjs \
+            --version "$REQUESTED_VERSION" \
+            --latest-published "${{ steps.release_state.outputs.latest }}" \
+            --current-version "$current_main" \
+            --check-only
           if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
             git fetch origin "$branch"
             git switch --detach "origin/$branch"
@@ -65,15 +79,10 @@ jobs:
           else
             git switch --create "$branch" origin/main
             echo "- Starting point: main at $(git rev-parse HEAD)." >> "$GITHUB_STEP_SUMMARY"
-            release_tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name')
-            latest=$(printf '%s\n' "$release_tags" \
-              | grep -E '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' \
-              | sort -V | tail -n 1 || true)
-            latest=${latest:-0.0.0}
             node .github/scripts/release-candidate.mjs \
               --version "$REQUESTED_VERSION" \
-              --latest-published "$latest" \
-              --current-version "$(cat VERSION)" \
+              --latest-published "${{ steps.release_state.outputs.latest }}" \
+              --current-version "$current_main" \
               --date "$(date -u +%F)"
             node .github/scripts/sync-version.mjs
             (cd backend && uv lock)
@@ -96,41 +105,27 @@ jobs:
           BRANCH: ${{ steps.candidate.outputs.branch }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
           REQUESTED_VERSION: ${{ inputs.version }}
+          LATEST_PUBLISHED: ${{ steps.release_state.outputs.latest }}
         run: |
           set -euo pipefail
-          release_tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name')
-          latest=$(printf '%s\n' "$release_tags" \
-            | grep -E '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' \
-            | sort -V | tail -n 1 || true)
-          latest=${latest:-0.0.0}
           current_main=$(git show origin/main:VERSION)
           node .github/scripts/release-candidate.mjs \
             --version "$REQUESTED_VERSION" \
-            --latest-published "$latest" \
+            --latest-published "$LATEST_PUBLISHED" \
             --current-version "$current_main" \
             --check-only
-          gh workflow run test.yml --ref "$BRANCH"
-          for attempt in $(seq 1 240); do
-            run=$(gh run list --workflow test.yml --branch "$BRANCH" --event workflow_dispatch --limit 1 \
-              --json databaseId,status,conclusion,headSha,url)
-            run_sha=$(echo "$run" | jq -r '.[0].headSha // empty')
-            run_id=$(echo "$run" | jq -r '.[0].databaseId // empty')
-            if [[ "$run_sha" == "$CANDIDATE_SHA" && -n "$run_id" ]]; then
-              status=$(echo "$run" | jq -r '.[0].status')
-              if [[ "$status" == completed ]]; then
-                conclusion=$(echo "$run" | jq -r '.[0].conclusion')
-                url=$(echo "$run" | jq -r '.[0].url')
-                echo "url=$url" >> "$GITHUB_OUTPUT"
-                echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
-                echo "Preflight run: $url ($conclusion)" >> "$GITHUB_STEP_SUMMARY"
-                [[ "$conclusion" == success ]] || { gh run view "$run_id" --log-failed; exit 1; }
-                exit 0
-              fi
-            fi
-            sleep 15
-          done
-          echo "Preflight did not finish within 60 minutes." >&2
-          exit 1
+          set +e
+          result=$(node .github/scripts/release.mjs dispatch-and-wait \
+            --repo "$GITHUB_REPOSITORY" --workflow test.yml --ref "$BRANCH" \
+            --match-sha "$CANDIDATE_SHA" --timeout-minutes 60)
+          status=$?
+          set -e
+          url=$(jq -r '.url // empty' <<< "$result")
+          conclusion=$(jq -r '.conclusion // empty' <<< "$result")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+          echo "Preflight run: ${url:-not found} (${conclusion:-failed})" >> "$GITHUB_STEP_SUMMARY"
+          [[ $status -eq 0 ]]
 
       - name: Open the release pull request
         env:
@@ -140,18 +135,14 @@ jobs:
           PREFLIGHT_URL: ${{ steps.preflight.outputs.url }}
           REQUESTED_VERSION: ${{ inputs.version }}
           GH_REPOSITORY: ${{ github.repository }}
+          LATEST_PUBLISHED: ${{ steps.release_state.outputs.latest }}
         run: |
           set -euo pipefail
           git fetch origin main
-          release_tags=$(gh api --paginate "repos/$GH_REPOSITORY/releases" --jq '.[].tag_name')
-          latest=$(printf '%s\n' "$release_tags" \
-            | grep -E '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' \
-            | sort -V | tail -n 1 || true)
-          latest=${latest:-0.0.0}
           current_main=$(git show origin/main:VERSION)
           node .github/scripts/release-candidate.mjs \
             --version "$REQUESTED_VERSION" \
-            --latest-published "$latest" \
+            --latest-published "$LATEST_PUBLISHED" \
             --current-version "$current_main" \
             --check-only
           if gh pr view "$BRANCH" --json url --jq .url >/tmp/release-pr-url 2>/dev/null; then
