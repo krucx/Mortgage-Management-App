@@ -1402,6 +1402,7 @@
           },
           "kind": {
             "enum": [
+              "grace",
               "discount",
               "waived"
             ],
@@ -1415,10 +1416,23 @@
             "format": "date",
             "title": "On",
             "type": "string"
+          },
+          "received_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received On"
           }
         },
         "required": [
           "on",
+          "received_on",
           "mortgage",
           "kind",
           "amount"
@@ -5084,7 +5098,7 @@
     },
     "/api/customers/{customer_id}/favours": {
       "get": {
-        "description": "Every Discount and Waived Amount still standing, newest first, with their total\n(Grace joins them later).",
+        "description": "Every Grace, Discount and Waived Amount still standing, newest first, with their\ntotal.",
         "operationId": "read_favours_given_api_customers__customer_id__favours_get",
         "parameters": [
           {

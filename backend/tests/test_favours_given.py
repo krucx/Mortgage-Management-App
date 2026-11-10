@@ -1,5 +1,5 @@
-"""Favours Given: every Discount and Waived Amount the Lender has given a Customer,
-across their Mortgages, still standing (Grace is added to it later)."""
+"""Favours Given: every Grace, Discount and Waived Amount the Lender has given a
+Customer, across their Mortgages, still standing."""
 
 import pytest
 from api_seed import lend, person
@@ -46,6 +46,7 @@ def test_a_discount_is_a_favour(client, ramesh, chain):
         "favours": [
             {
                 "on": "2026-04-15",
+                "received_on": None,
                 "mortgage": {"id": chain["id"], "description": "Gold chain"},
                 "kind": "discount",
                 "amount": 8_000_00,
@@ -77,6 +78,7 @@ def test_a_waived_amount_is_a_favour(client, ramesh, chain):
     assert favours(client, ramesh)["favours"] == [
         {
             "on": "2026-04-20",
+            "received_on": None,
             "mortgage": {"id": chain["id"], "description": "Gold chain"},
             "kind": "waived",
             "amount": 500_00,
@@ -165,3 +167,117 @@ def test_favours_on_one_day_are_in_the_order_they_were_given(client, ramesh, cha
         ("Gold ring", "discount", 1_000_00),
     ]
     assert listed["total"] == 4_000_00
+
+
+def graced(client, customer, cash_by_mortgage, on="2026-04-13", received="2026-04-15"):
+    """A Grace Payment received on `received` and dated `on`, under a 2-day Grace
+    Period: `cash_by_mortgage` is (Mortgage, cash) pairs."""
+    response = client.put("/api/settings/grace-period", json={"grace_period_days": 2})
+    assert response.status_code == 200, response.text
+    response = client.post(
+        "/api/payments",
+        json={
+            "customer_id": customer["id"],
+            "paid_on": on,
+            "received_on": received,
+            "amount": sum(cash for _, cash in cash_by_mortgage),
+            "method": "cash",
+            "allocations": [
+                {"mortgage_id": mortgage["id"], "amount": cash}
+                for mortgage, cash in cash_by_mortgage
+            ],
+        },
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_a_grace_payments_let_off_is_a_favour_with_both_dates(client, ramesh, chain):
+    # ₹20,000 received 15 Apr, dated 13 Apr: ₹330 let off (as in test_grace_payments).
+    graced(client, ramesh, [(chain, 20_000_00)])
+
+    assert favours(client, ramesh) == {
+        "favours": [
+            {
+                "on": "2026-04-13",
+                "received_on": "2026-04-15",
+                "mortgage": {"id": chain["id"], "description": "Gold chain"},
+                "kind": "grace",
+                "amount": 330_00,
+            }
+        ],
+        "total": 330_00,
+    }
+
+
+def test_a_grace_payment_is_a_favour_on_each_of_its_mortgages(client, ramesh, chain):
+    # The bangle's Accrual Date is 15 Apr, the chain's 14 Apr: dated 13 Apr, each
+    # pays ₹11,000 of Principal a month earlier, ₹330 let off on each.
+    bangle = lend(client, ramesh, start="2026-01-15", description="Gold bangle")
+    graced(
+        client, ramesh, [(chain, 20_000_00), (bangle, 20_000_00)], received="2026-04-16"
+    )
+
+    listed = favours(client, ramesh)
+
+    assert sorted(
+        (f["mortgage"]["description"], f["kind"], f["amount"])
+        for f in listed["favours"]
+    ) == [("Gold bangle", "grace", 330_00), ("Gold chain", "grace", 330_00)]
+    assert listed["total"] == 660_00
+
+
+def test_a_voided_grace_payment_is_left_out(client, ramesh, chain):
+    payment = graced(client, ramesh, [(chain, 20_000_00)])
+    response = client.post(
+        f"/api/payments/{payment['id']}/void", json={"reason": "Bounced"}
+    )
+    assert response.status_code == 200, response.text
+
+    assert favours(client, ramesh) == {"favours": [], "total": 0}
+
+
+def test_the_total_includes_grace_with_the_other_favours(client, ramesh, chain):
+    ring = lend(client, ramesh, description="Gold ring")
+    discounted(client, ramesh, ring, 1_000_00, on="2026-03-15")
+    graced(client, ramesh, [(chain, 20_000_00)])
+
+    listed = favours(client, ramesh)
+
+    assert [
+        (f["on"], f["received_on"], f["kind"], f["amount"]) for f in listed["favours"]
+    ] == [
+        ("2026-04-13", "2026-04-15", "grace", 330_00),
+        ("2026-03-15", None, "discount", 1_000_00),
+    ]
+    assert listed["total"] == 1_330_00
+
+
+def test_a_redeeming_grace_payment_is_a_favour_until_reopened(client, ramesh, chain):
+    # ₹1,09,000 dated 13 Apr Redeems the chain, letting off the new month's ₹3,000 (as
+    # in test_grace_payments); Reopening Voids that final Payment.
+    graced(client, ramesh, [(chain, 1_09_000_00)])
+
+    assert [(f["kind"], f["amount"]) for f in favours(client, ramesh)["favours"]] == [
+        ("grace", 3_000_00)
+    ]
+
+    reopen(client, chain)
+
+    assert favours(client, ramesh) == {"favours": [], "total": 0}
+
+
+def test_a_mortgage_a_grace_payment_lets_off_nothing_on_is_left_out(
+    client, ramesh, chain
+):
+    # The bangle's Accrual Date is 15 Apr: ₹3,000 of interest is all it pays either way.
+    bangle = lend(client, ramesh, start="2026-01-15", description="Gold bangle")
+    payment = graced(
+        client, ramesh, [(chain, 20_000_00), (bangle, 3_000_00)], received="2026-04-16"
+    )
+    assert sorted(a["let_off"] for a in payment["allocations"]) == [0, 330_00]
+
+    assert [
+        (f["mortgage"]["description"], f["amount"])
+        for f in favours(client, ramesh)["favours"]
+    ] == [("Gold chain", 330_00)]
