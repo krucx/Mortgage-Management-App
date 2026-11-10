@@ -214,12 +214,15 @@ def test_a_grace_payment_is_a_favour_on_each_of_its_mortgages(client, ramesh, ch
     # The bangle's Accrual Date is 15 Apr, the chain's 14 Apr: dated 13 Apr, each
     # pays ₹11,000 of Principal a month earlier, ₹330 let off on each.
     bangle = lend(client, ramesh, start="2026-01-15", description="Gold bangle")
-    graced(client, ramesh, [(chain, 20_000_00), (bangle, 20_000_00)], received="2026-04-16")
+    graced(
+        client, ramesh, [(chain, 20_000_00), (bangle, 20_000_00)], received="2026-04-16"
+    )
 
     listed = favours(client, ramesh)
 
     assert sorted(
-        (f["mortgage"]["description"], f["kind"], f["amount"]) for f in listed["favours"]
+        (f["mortgage"]["description"], f["kind"], f["amount"])
+        for f in listed["favours"]
     ) == [("Gold bangle", "grace", 330_00), ("Gold chain", "grace", 330_00)]
     assert listed["total"] == 660_00
 
@@ -248,3 +251,33 @@ def test_the_total_includes_grace_with_the_other_favours(client, ramesh, chain):
         ("2026-03-15", None, "discount", 1_000_00),
     ]
     assert listed["total"] == 1_330_00
+
+
+def test_a_redeeming_grace_payment_is_a_favour_until_reopened(client, ramesh, chain):
+    # ₹1,09,000 dated 13 Apr Redeems the chain, letting off the new month's ₹3,000 (as
+    # in test_grace_payments); Reopening Voids that final Payment.
+    graced(client, ramesh, [(chain, 1_09_000_00)])
+
+    assert [(f["kind"], f["amount"]) for f in favours(client, ramesh)["favours"]] == [
+        ("grace", 3_000_00)
+    ]
+
+    reopen(client, chain)
+
+    assert favours(client, ramesh) == {"favours": [], "total": 0}
+
+
+def test_a_mortgage_a_grace_payment_lets_off_nothing_on_is_left_out(
+    client, ramesh, chain
+):
+    # The bangle's Accrual Date is 15 Apr: ₹3,000 of interest is all it pays either way.
+    bangle = lend(client, ramesh, start="2026-01-15", description="Gold bangle")
+    payment = graced(
+        client, ramesh, [(chain, 20_000_00), (bangle, 3_000_00)], received="2026-04-16"
+    )
+    assert sorted(a["let_off"] for a in payment["allocations"]) == [0, 330_00]
+
+    assert [
+        (f["mortgage"]["description"], f["amount"])
+        for f in favours(client, ramesh)["favours"]
+    ] == [("Gold chain", 330_00)]

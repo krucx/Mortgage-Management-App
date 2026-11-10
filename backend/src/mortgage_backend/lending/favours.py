@@ -8,6 +8,7 @@ leaving out Voided Payments (a Reopened Redemption's final Payment among them).
 """
 
 import sys
+from collections.abc import Mapping
 from datetime import date
 from typing import Literal
 
@@ -47,27 +48,18 @@ class FavoursGiven(BaseModel):
     total: int
 
 
-def favours_given(conn: Connection, customer_id: int) -> FavoursGiven:
-    rows = (
-        conn.execute(
-            select(mortgage_table).where(mortgage_table.c.customer_id == customer_id)
-        )
-        .mappings()
-        .all()
-    )
-    given_on = {
-        row["id"]: FavourMortgage(id=row["id"], description=row["description"])
-        for row in rows
-    }
-    # Each favour with the Payment that gave it, to order those given on one day: a
-    # Waived Amount comes with its final Payment, or, with nothing paid, after them all.
-    given = [
+def _graces(
+    conn: Connection, mortgages: Mapping[int, FavourMortgage]
+) -> list[tuple[int, Favour]]:
+    """What each Grace Payment not Voided let off on each of `mortgages` (by id), as
+    saved (ADR 0020), with the Payment that gave it."""
+    return [
         (
             graced.payment_id,
             Favour(
                 on=graced.paid_on,
                 received_on=graced.received_on,
-                mortgage=given_on[graced.mortgage_id],
+                mortgage=mortgages[graced.mortgage_id],
                 kind="grace",
                 amount=graced.let_off,
             ),
@@ -82,12 +74,29 @@ def favours_given(conn: Connection, customer_id: int) -> FavoursGiven:
             )
             .join(payment_table, payment_table.c.id == allocation_table.c.payment_id)
             .where(
-                allocation_table.c.mortgage_id.in_(given_on),
+                allocation_table.c.mortgage_id.in_(mortgages),
                 allocation_table.c.let_off > 0,
                 payment_table.c.voided_at.is_(None),
             )
         )
     ]
+
+
+def favours_given(conn: Connection, customer_id: int) -> FavoursGiven:
+    rows = (
+        conn.execute(
+            select(mortgage_table).where(mortgage_table.c.customer_id == customer_id)
+        )
+        .mappings()
+        .all()
+    )
+    mortgages = {
+        row["id"]: FavourMortgage(id=row["id"], description=row["description"])
+        for row in rows
+    }
+    # Each favour with the Payment that gave it, to order those given on one day: a
+    # Waived Amount comes with its final Payment, or, with nothing paid, after them all.
+    given = _graces(conn, mortgages)
     for mortgage in replays(conn, rows).values():
         given += [
             (
@@ -95,7 +104,7 @@ def favours_given(conn: Connection, customer_id: int) -> FavoursGiven:
                 Favour(
                     on=allocation.on,
                     received_on=None,
-                    mortgage=given_on[mortgage.row["id"]],
+                    mortgage=mortgages[mortgage.row["id"]],
                     kind="discount",
                     amount=allocation.discount,
                 ),
@@ -111,7 +120,7 @@ def favours_given(conn: Connection, customer_id: int) -> FavoursGiven:
                     Favour(
                         on=closure.on,
                         received_on=None,
-                        mortgage=given_on[mortgage.row["id"]],
+                        mortgage=mortgages[mortgage.row["id"]],
                         kind="waived",
                         amount=closure.waived_amount,
                     ),
