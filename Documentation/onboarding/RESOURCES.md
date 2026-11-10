@@ -34,6 +34,22 @@
   Why Outstanding is exactly what would Redeem a Mortgage today. Use for: 001.02, 001.04, Replay and Closures.
 - [ADR 0012: Dormant Mortgages are flagged, not Redeemed](../adr/0012-dormant-mortgages-are-flagged-not-redeemed.md)
   Why an Active Mortgage owing nothing waits for the Lender. Use for: 001.04, Replay and Closures.
+- [ADR 0014: Discounts are non-cash reductions alongside a Payment](../adr/0014-discounts-are-non-cash-payment-reductions.md)
+  Why a Discount sits on the Allocation, after its cash. Use for: 007.01, 012.03.
+- [ADR 0015: Starting Terms can be corrected](../adr/0015-starting-terms-can-be-corrected.md)
+  Correcting the starting Terms versus a dated Term Change. Use for: 006.02.
+- [ADR 0016: Secret scanning alerts are tracked as issues](../adr/0016-secret-scanning-alerts-become-issues.md)
+  How security findings become issues, without copying a secret. Use for: 013.01.
+- [ADR 0017: Reminders replace Notices, and dashboard totals use selected dates](../adr/0017-reminders-and-dashboard-timeframes.md)
+  The rename, who a Reminder covers, and the Dashboard's activity totals. Use for: chapter 009, 012.05.
+- [ADR 0018: Releases are published by merging an approved candidate](../adr/0018-releases-are-published-by-merging-a-candidate.md)
+  Why no tag is pushed by hand. Use for: 015.02.
+- [ADR 0019: Changes reach main only through reviewed pull requests](../adr/0019-changes-reach-main-through-reviewed-pull-requests.md)
+  The pull request, review and approval rules. Use for: 013.01, chapter 016.
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) and the [release checklist](../RELEASE_CHECKLIST.md)
+  How a change and a release are made, step by step. Use for: 015.02, 016.05.
+- [Architecture reviews](../architecture-reviews/)
+  Seven passes over the codebase, each with the decisions taken and the candidates found; pass 7 explains most of the 3.4.7 refactors. Use for: why a module is shaped the way it is.
 - [CHANGELOG.md](../../CHANGELOG.md)
   What changed in each release, in the Lender's words. Use for: dating a rule or a screen.
 

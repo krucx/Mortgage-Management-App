@@ -188,7 +188,7 @@ sequenceDiagram
 </table>
 <p class="cite">From <code>scripts/network.mjs</code> (section L5).</p>
 <p>Each page asks for its data when it's shown, as lesson 2 found every page does. Marking those keys stale changed nothing you can see here: with <code>staleTime</code> 0 they'd have been asked again anyway. What the declaration buys is the screen you're <em>on</em> when you save, and correctness the day someone gives one of those reads a longer <code>staleTime</code>.</p>
-<p>Now open <a href="http://localhost:5173/reminders">Reminders</a>, choose <strong>To approve</strong>, open Sunita's Notice (#58, for 21 Oct) and clear the Network tab. Press <strong>Approve</strong>.</p>
+<p>Now open <a href="http://localhost:5173/reminders">Reminders</a>, choose <strong>To approve</strong>, open Sunita's Reminder (#58, for 21 Oct) and clear the Network tab. Press <strong>Approve</strong>.</p>
 <table class="steps text">
 <tr><th>Step</th><th>Requests</th></tr>
 <tr><td>Approve</td><td><code>POST /api/reminders/58/approve</code>, then <code>GET /api/reminders?page=1&amp;status=awaiting_approval</code></td></tr>
@@ -224,7 +224,7 @@ sequenceDiagram
 <h3>(c) Why each <code>STALE_AFTER</code> entry is what it is</h3>
 <table class="steps text">
 <tr><th>Change</th><th>Makes stale</th><th>Why not less, or more</th></tr>
-<tr><td>A Notice approved, skipped or sent</td><td>the Reminders list, the Dashboard</td><td>the Dashboard counts Reminders; no figure owed changes</td></tr>
+<tr><td>A Reminder approved, skipped or sent</td><td>the Reminders list, the Dashboard</td><td>the Dashboard counts Reminders; no figure owed changes</td></tr>
 <tr><td>A Call Note</td><td>the Call List, Call Notes, the Dashboard</td><td>the Call List puts Mortgages called today last, with today's Call Note</td></tr>
 <tr><td>A Customer saved or deleted</td><td>Customers, Mortgages, Payments, lists, the Dashboard</td><td>their name and numbers appear on all of them, Receipts included</td></tr>
 <tr class="changed"><td>A Collateral Value, new Gold Rates</td><td>Mortgages, lists, the Dashboard</td><td>Loan-to-Value changes, and with it the Call List (a list) and its count</td></tr>

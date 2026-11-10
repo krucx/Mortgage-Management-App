@@ -107,88 +107,79 @@ flowchart LR
 
 <h3>2. Replaying the plan: <code>_Plan</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/simulation.py">lending/simulation.py</a> · <code>_Plan.__init__()</code>, <code>_replay()</code> · lines 165–201, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/simulation.py"><code>165  class _Plan:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/simulation.py">lending/simulation.py</a> · <code>_Plan.__init__()</code>, <code>_replay()</code> · lines 158–198, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/simulation.py"><code>158  class _Plan:
+⋮        """… Raises Overpayment if a Lump Sum is more than is owed on its date, before
+⋮        the plan has paid everything off."""
+166      def __init__(self, simulation: SimulationIn) -&gt; None:
+167          self.simulation = simulation
+168          asked = simulation.allocations()
+169          self.ledger = self._replay(                                 ①
+170              accrual_date(simulation.start_date, 12 * MAX_YEARS),
+171              asked,
+172              stop_when_paid_off=True,                                 ②  ◀
+173          )
+174          self.paid_off_on = paid_off_on(self.ledger)                 ③
 ⋮
-169      def __init__(self, simulation: SimulationIn) -&gt; None:
-170          self.simulation = simulation
-171          self.paid = simulation.allocations()
-172          self.after_paid_off: set[int] = set()
-173          while True:                                               ①
-174              try:
-175                  self.ledger = self._replay(
-176                      accrual_date(simulation.start_date, 12 * MAX_YEARS), self.paid
-177                  )
-178                  break
-179              except Overpayment as over:
-180                  self._skip_or_refuse(over)                       ②
-181          paying_off = _paid_off(self.ledger)
-182          self.paid_off_on = paying_off.on if paying_off else None   ③
-⋮    … a Lump Sum dated after that day is dropped too …
-189      def _replay(
+177          applied = {step.payment_id for step in self.ledger if step.event == "payment"}
+178          self.after_paid_off = {a.payment_id for a in asked if a.payment_id not in applied}
+179          self.paid = [a for a in asked if a.payment_id in applied]
 ⋮
-192          simulation = self.simulation
-193          return compute_ledger(                                    ④  ◀
-194              simulation.start_date,
-195              simulation.amount_lent,
-196              simulation.terms,
-197              on,
-198              allocations=paid,
-199              closed_on=on if closed else None,
-200              hypothetical=simulation.hypothetical(),
-201          )
+189          return compute_ledger(                                       ④
+190              simulation.start_date,
+191              simulation.amount_lent,
+192              simulation.terms,
+193              on,
+194              allocations=paid,
+195              closed_on=on if closed else None,
+196              hypothetical=simulation.hypothetical(),
+197              stop_when_paid_off=stop_when_paid_off,
+198          )
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>Replay ten years ahead with every Lump Sum. If one is too large, deal with it and try again. The loop ends once a replay gets through.</li>
-  <li><code>Overpayment</code> is the exception chapter 004, lesson 3's <code>pay_through</code> raises when an Allocation is more than everything owed on its date. For a real Payment it ends in a 422 (chapter 007). Here, <code>_skip_or_refuse</code> decides (snippet 3).</li>
-  <li><code>_paid_off</code> finds the first Payment step that leaves no Principal and no unpaid interest. Its date is "Paid off" on the Calculator, or <code>None</code> if it's not within ten years.</li>
+  <li>Replay ten years ahead with every Lump Sum and the monthly payment, once.</li>
+  <li><code>stop_when_paid_off</code> asks the Ledger engine itself to stop applying Payments once nothing is owed (<code>ledger.py</code>, <code>pay_through</code>). A Lump Sum after that day is simply never applied; one before it that is too large raises <code>Overpayment</code>, the exception chapter 004, lesson 3's <code>pay_through</code> raises for a real Payment of more than is owed.</li>
+  <li><code>paid_off_on</code> lives in <code>ledger.py</code> beside <code>compute_ledger</code>: the date of the first Payment step that leaves no Principal and no unpaid interest, or <code>None</code> if it isn't within ten years. It is "Paid off" on the Calculator.</li>
   <li>The real engine, called with the inputs. The same function replays Meera's real chain. <code>closed_on</code> is set only when <code>plan.closed()</code> asks for the Ledger on the day the Simulation ends.</li>
 </ol>
+<div class="callout"><strong>Changed after architecture review pass 7 (#279).</strong> The Simulation used to work out "paid off" itself, in a <code>_paid_off</code> helper, and replayed the start again for every Lump Sum that was too large, retrying in a loop. Now the engine reports when a Mortgage is paid off, and a Lump Sum the Simulation leaves out is just one the engine never reached. Lines 177–179 read which ones those were from the steps: <code>"after_paid_off"</code> on the screen.</div>
 
-<h3>3. A Lump Sum that's too large: <code>_skip_or_refuse</code></h3>
+<h3>3. A Lump Sum that's too large</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/simulation.py">lending/simulation.py</a> · <code>_Plan._skip_or_refuse()</code> · lines 203–225, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/simulation.py"><code>203      def _skip_or_refuse(self, over: Overpayment) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/simulation.py">lending/simulation.py</a> · <code>simulate()</code> · lines 292–312</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/simulation.py"><code>292  @router.post("/simulation")
+293  def simulate(simulation: SimulationIn, engine: EngineDep) -&gt; Simulation:
 ⋮
-206          too_large = (over.on, over.payment_id)
-207          earlier = [a for a in self.paid if (a.on, a.payment_id) &lt; too_large]
-208          paying_off = _paid_off(self._replay(over.on, earlier))
-⋮
-210          if paying_off and (paying_off.on &lt; over.on or paying_off.payment_id is not None):
-211              self.after_paid_off.add(over.payment_id)              ①
-212              self.paid = [a for a in self.paid if a.payment_id != over.payment_id]
-213              return
-214          raise HTTPException(                                       ②  ◀
-215              status.HTTP_422_UNPROCESSABLE_CONTENT,
-216              {
-217                  "lump_sum": over.payment_id,
-⋮                    "owed": …, "on": …,
-220                  "message": (
-221                      f"The Lump Sum on {over.on:%d %b %Y} is more than the "
-222                      f"{format_inr(over.outstanding)} owed then"
-⋮
+297      start = simulation.start_date
+298      try:
+299          plan = _Plan(simulation)
+300      except Overpayment as over:
+301          raise HTTPException(                                       ①  ◀
+302              status.HTTP_422_UNPROCESSABLE_CONTENT,
+303              {
+304                  "lump_sum": over.payment_id,
+305                  "owed": over.outstanding,
+306                  "on": over.on.isoformat(),
+⋮                    "message": f"The Lump Sum on … is more than the ₹… owed then",
+311              },
+312          ) from over
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>If earlier Lump Sums had already paid everything off, this one comes after the debt is gone. It's left out and marked <code>"after_paid_off"</code>. The tuple comparison <code>(on, payment_id) &lt; too_large</code> orders by date, then by place in the list.</li>
-  <li>Otherwise it's refused, as a real Payment of more than the Outstanding would be. The 422's <code>detail</code> names the row (<code>lump_sum</code>), what was owed, and the date, so the screen can show the problem on that row.</li>
+  <li>A Lump Sum larger than what is owed on its date, before the plan has paid everything off, is refused, as a real Payment of more than the Outstanding would be. The 422's <code>detail</code> names the row (<code>lump_sum</code>), what was owed, and the date, so the screen can show the problem on that row.</li>
 </ol>
 
-<h3>4. The route: <code>simulate</code></h3>
+<h3>4. The rest of the route</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/simulation.py">lending/simulation.py</a> · <code>simulate()</code> · lines 307–336, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/simulation.py"><code>307  @router.post("/simulation")
-308  def simulate(simulation: SimulationIn) -&gt; Simulation:              ①
-⋮
-312      start = simulation.start_date
-313      plan = _Plan(simulation)
-314      ledger = plan.closed()                                         ②
-315      closure = outstanding_on_closure_of(ledger, start, plan.ends_on())   ③  ◀
-316      dates = _graph_dates(simulation, plan.paid, plan.paid_off_on)
-317      projected = project(                                           ④
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/simulation.py">lending/simulation.py</a> · <code>simulate()</code> · lines 313–339, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/simulation.py"><code>313      ledger = plan.closed()                                         ①
+314      closure = outstanding_on_closure_of(ledger, start, plan.ends_on())   ②  ◀
+315      dates = _graph_dates(simulation, plan.paid, plan.paid_off_on)
+316      projected = project(                                           ③
 ⋮        … start, amount_lent, terms, dates, the Lump Sums, the monthly payment …
-324      )
+323      )
+324      value = _collateral_value(simulation, engine)                  ④
 325      return Simulation(
 326          on_closure=closure,
 327          interest_earned=sum(
@@ -196,21 +187,21 @@ flowchart LR
 329              for step in ledger
 330              if step.event in ("interest", "interest_to_date")      ⑤
 331          ),
-332          first_month_interest=monthly_interest(
 ⋮
-335          effective_annual_rate=effective_annual_rate(start, simulation.terms),
-336          paid_off_on=plan.paid_off_on,
+337          paid_off_on=plan.paid_off_on,
+338          collateral_value=value,
+339          loan_to_value=closure.total / value if value else None,
 ⋮        … lump_sums (each with why it was ignored), points, payments, months …
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>Compare with lesson 2's quote route: no <code>engine: EngineDep</code>, no <code>today: TodayDep</code>. The route has no way to reach the database.</li>
   <li><code>plan.closed()</code> replays again with <code>closed_on</code> set to <code>plan.ends_on()</code>: Closed on, or the day the plan pays it off if that's sooner.</li>
-  <li>The line this lesson is about. It's the same function, called the same way, as <code>MortgageReplay.outstanding_on_closure</code> at <code>replay.py</code> line 212 (lesson 2).</li>
+  <li>The line this lesson is about. It's the same function, called the same way, as <code>MortgageReplay.outstanding_on_closure</code> in <code>replay.py</code> (lesson 2).</li>
   <li><code>project()</code> (chapter 004, lesson 5) gives the graph a point on each Accrual Date over the span: what would Redeem it that day.</li>
+  <li>New in 3.4.7: a Simulation may carry a <code>collateral</code> (net weight and purity, or a value typed by hand). <code>_collateral_value</code> reads today's Gold Rates and calls the same <code>collateral_value</code> a real Mortgage uses (chapter 008, lesson 5), so the rounding is the one rule. That is why the route now takes <code>engine</code>: it <em>reads</em> the Gold Rates, and still writes nothing.</li>
   <li>"Total interest earned" adds each month's interest and the Interest to Date. It leaves out <code>capitalised</code> steps, which only move interest already charged into the Principal. Counting them would count that interest twice.</li>
 </ol>
-<p class="aside"><code>effective_annual_rate</code> (line 40) runs <code>project()</code> for one year on 10<sup>15</sup> paise with no Payments, and reports how much it grew. The huge base makes the rupee rounding of each month's interest vanish. At 2% a month that's 24% Simple or Compounded Yearly, and 26.82% Compounded Monthly.</p>
+<p class="aside"><code>effective_annual_rate</code> (line 43) runs <code>project()</code> for one year on 10<sup>15</sup> paise with no Payments, and reports how much it grew. The huge base makes the rupee rounding of each month's interest vanish. At 2% a month that's 24% Simple or Compounded Yearly, and 26.82% Compounded Monthly.</p>
 
 <h3>5. A short tour of the screen</h3>
 <p>Chapter 012 owns the pages, and the Calculator is built from the same parts as the others. Four things are specific to it.</p>
@@ -235,7 +226,7 @@ flowchart LR
 </figure>
 <ul>
   <li><strong>The inputs live in the URL.</strong> Every input is a query parameter, so a refresh, a bookmark or a link shared with someone keeps them. <code>draftFromParams</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/terms.ts"><code>terms.ts</code></a> line 58) reads Terms from <code>rate</code>, <code>mode</code> and <code>rule</code>. It passes each through <code>oneOf</code>, so a hand-edited <code>mode=weekly</code> falls back to Simple instead of breaking the page. <code>draftParams</code> (line 70) writes them back.</li>
-  <li><strong>The screen works out nothing that is owed.</strong> <code>problems()</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/calculator.ts"><code>calculator.ts</code></a> (line 47) repeats <code>SimulationIn</code>'s limits so each problem shows beside its field before anything is sent. The backend checks them again anyway. Every figure about interest or what is owed comes from <code>POST /api/simulation</code> through <code>simulationQuery</code>, asked 300 ms after the typing stops (<code>useDebounced</code>, as <a href="../011-the-frontends-data-layer/04-previews-from-a-draft.html">chapter 011, lesson 4</a> taught for Previews). The one sum the page does itself is the jewellery's value for Loan-to-Value: net weight × today's Gold Rate in <code>collateralOf</code>, rounded as a Mortgage's Collateral Value is.</li>
+  <li><strong>The screen works out nothing that is owed.</strong> <code>problems()</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/calculator.ts"><code>calculator.ts</code></a> (line 47) repeats <code>SimulationIn</code>'s limits so each problem shows beside its field before anything is sent. The backend checks them again anyway. Every figure about interest or what is owed comes from <code>POST /api/simulation</code> through <code>simulationQuery</code>, asked 300 ms after the typing stops (<code>useDebounced</code>, as <a href="../011-the-frontends-data-layer/04-previews-from-a-draft.html">chapter 011, lesson 4</a> taught for Previews). The jewellery's value beside its inputs is shown at once by <code>collateralOf</code>, rounded as a Mortgage's Collateral Value is; since 3.4.7 the Loan-to-Value tiles come from the Simulation itself (<code>collateral_value</code> and <code>loan_to_value</code>, worked out by the backend's <code>collateral_value</code>), and wait for it rather than showing a guess.</li>
   <li><strong>A refusal lands on its row.</strong> <code>refusalOf</code> turns the 422's <code>lump_sum</code> into the row number, and the row shows "Only ₹… owed on …".</li>
   <li><strong>Lend this</strong> opens New Mortgage with the amount, start date and Terms in the URL (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/lendThis.ts"><code>lendThis.ts</code></a>, <code>lendThisLink</code>). <code>carriedIn</code> (line 19) reads them back on <code>NewMortgagePage</code>.</li>
 </ul>
@@ -404,7 +395,7 @@ flowchart LR
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/simulation.py"><code>lending/simulation.py</code></a> from the top: the module docstring (lines 1–7) says the whole idea in two sentences, and <code>simulate</code> (line 307) is short. Then read the two parity tests in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_simulation.py"><code>tests/test_simulation.py</code></a>, lines 32–58 and 230–267. They're the promise this lesson is about, written as code. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a> says why "what would Redeem it" includes the Interest to Date, in the Calculator as everywhere else.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/simulation.py"><code>lending/simulation.py</code></a> from the top: the module docstring (lines 1–7) says the whole idea in two sentences, and <code>simulate</code> (line 307) is short. Then read the two parity tests in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_simulation.py"><code>tests/test_simulation.py</code></a>, lines 32–58 and 230–267. They're the promise this lesson is about, written as code. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a> says why "what would Redeem it" includes the Interest to Date, in the Calculator as everywhere else.</p>
 
 <nav class="lessons">
   <a href="05-dormant-and-reopen.html">← Dormant, and undoing a Closure</a>

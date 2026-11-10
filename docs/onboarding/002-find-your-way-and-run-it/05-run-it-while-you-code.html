@@ -137,7 +137,7 @@ npm run dev</code></pre>
 <p>That's option 1 above: because Vite's proxy only knows "port 8000", any backend you put there becomes the screens' backend, including the frozen sample book. Two warnings: only one process can hold port 8000, so stop uvicorn first; and remember the clock is held, so anything dated "today" is 19 Oct 2026.</p>
 <h3>(c) The first request of the day does work</h3>
 <div class="reveal">
-  <p><strong>Predict:</strong> the app has no scheduler. So when does the weekly Backup happen, and when are the day's Notices queued?</p>
+  <p><strong>Predict:</strong> the app has no scheduler. So when does the weekly Backup happen, and when are the day's Reminders queued?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <figure class="snippet">
@@ -151,7 +151,7 @@ npm run dev</code></pre>
 114          return await call_next(request)
 </code></pre>
     </figure>
-    <p>On the first <code>/api/</code> request of each day. A <em>middleware</em> is a function FastAPI runs around every request; this one runs the daily jobs first if they haven't run today. The jobs are: take a Backup into <code>BACKUP_DIR</code> if the last is a week old, and queue Notices. The app also tries a Backup when it starts. So simply opening your dev app writes a Backup zip into <code>BACKUP_DIR</code>, which is one more reason that must be a scratch folder, not the Lender's synced folder. <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">Chapter 010, lesson 2</a> explains the daily run.</p>
+    <p>On the first <code>/api/</code> request of each day. A <em>middleware</em> is a function FastAPI runs around every request; this one runs the daily jobs first if they haven't run today. The jobs are: take a Backup into <code>BACKUP_DIR</code> if the last is a week old, and queue Reminders. The app also tries a Backup when it starts. So simply opening your dev app writes a Backup zip into <code>BACKUP_DIR</code>, which is one more reason that must be a scratch folder, not the Lender's synced folder. <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">Chapter 010, lesson 2</a> explains the daily run.</p>
   </div>
 </div>
 <h3>(d) Docker, in one box</h3>

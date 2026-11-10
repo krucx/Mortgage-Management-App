@@ -16,7 +16,7 @@
 
 <h2>The problem</h2>
 <p>A Tuesday morning. Arjun Patel is at the counter to pay towards his ruby ring. The Lender sees the update banner, presses <strong>Install now</strong>, and while Setup works, Arjun waits. Suppose the update fails halfway: the download breaks, <code>uv sync</code> can't reach the internet, or the new version won't start.</p>
-<p>The way Setup used to work, that was a disaster. It replaced the code in <code>MortgageManagement\app</code>, then installed into it. A failure partway left half a new version and none of the old one. The Lender couldn't record Arjun's Payment, and couldn't go back (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md\">ADR 0009</a>).</p>
+<p>The way Setup used to work, that was a disaster. It replaced the code in <code>MortgageManagement\app</code>, then installed into it. A failure partway left half a new version and none of the old one. The Lender couldn't record Arjun's Payment, and couldn't go back (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md">ADR 0009</a>).</p>
 
 <h2>The idea</h2>
 <p><strong>Never touch the running version. Put the new one in <code>versions\&lt;version&gt;</code>, start it, and only once it answers, point <code>app</code> at it.</strong> <code>app</code> is a Windows <em>directory junction</em>: a folder entry that points at another folder, like a symlink. Everything that names <code>app</code> (the Desktop shortcut, the <code>mortgage-management://</code> link, <code>app\.env</code>, <code>app\windows\Uninstall.bat</code>) keeps working through every update, and follows the junction to whichever version runs.</p>
@@ -156,7 +156,7 @@ sequenceDiagram
 <ol class="marks">
   <li>Compose names a project after its folder unless told otherwise. Before versions had folders, every install's folder was <code>app</code>, so the project was <code>app</code>. Forcing that name means X's containers (run from <code>versions\X</code>) and Y's (from <code>versions\Y</code>) are the same project, so Y's <code>up</code> replaces X's.</li>
   <li>Each version runs <em>its own</em> release's image (<code>krucx11/mortgage-management-app:3.4.1</code>), not <code>:latest</code>. Going back to X runs X's image again, not whatever <code>latest</code> is now. "which Docker images a version runs" pins all three lines.</li>
-  <li><code>--remove-orphans</code> removes the project's containers for services this Compose file doesn't have. Versions before 3.4.0 had two services, <code>backend</code> and <code>frontend</code>; without this flag, switching to a one-image version would leave the old <code>frontend</code> container holding port 8080 (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a>). "switching versions with Docker" pins it, both ways.</li>
+  <li><code>--remove-orphans</code> removes the project's containers for services this Compose file doesn't have. Versions before 3.4.0 had two services, <code>backend</code> and <code>frontend</code>; without this flag, switching to a one-image version would leave the old <code>frontend</code> container holding port 8080 (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>). "switching versions with Docker" pins it, both ways.</li>
 </ol>
 
 <h2>Run-through: Arjun's Tuesday</h2>
@@ -183,7 +183,7 @@ sequenceDiagram
     <p>After 7 minutes <code>Wait-Version</code> gives up. The catch finds the Backup Y took (<code>Find-UpdateBackup</code>), stops Y, leaves the junction on X (it never moved), and starts X again. Then it throws, and the Lender reads, in Setup's window (the file name is an example):</p>
     <pre><code>Setup stopped: Update failed; still on 3.4.0. Version 3.4.1 did not start within 7 minutes. It had already updated the database, so the version before it may not start on it; if it doesn't, restore C:\Users\…\backups\mortgage-backup-2026-11-10-0930-before-update.zip (see Backups in the README).</code></pre>
     <p>X probably won't start: it finds a database "from a newer version of the app" and refuses (<a href="../reference/traps.html#t9">trap #9</a>). A migrated database can't be un-migrated. So Setup names the exact Backup to restore, and leaves restoring it to the Lender. Pester's "says which Backup to restore when the new version had already updated the database" pins the message.</p>
-    <p>Why not restore it automatically? <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md\">ADR 0009</a> rejected that "for now": Setup would change the Lender's data on its own, and with Docker the Backups are password zips Setup can't open. Restoring a Backup is chapter 015's.</p>
+    <p>Why not restore it automatically? <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md">ADR 0009</a> rejected that "for now": Setup would change the Lender's data on its own, and with Docker the Backups are password zips Setup can't open. Restoring a Backup is chapter 015's.</p>
   </div>
 </div>
 
@@ -221,7 +221,7 @@ sequenceDiagram
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md\">ADR 0009</a>, then <code>install.ps1</code>'s <code>Install-App</code> from line 250: the three cases (an older Setup installing in place, an update, a first install) are the branches at lines 264–270. "installing a new version beside the one running" has one <code>It</code> for each.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md">ADR 0009</a>, then <code>install.ps1</code>'s <code>Install-App</code> from line 250: the three cases (an older Setup installing in place, an update, a first install) are the branches at lines 264–270. "installing a new version beside the one running" has one <code>It</code> for each.</p>
 
 <nav class="lessons">
   <a href="03-setup-on-windows.html">← Setup on Windows</a>

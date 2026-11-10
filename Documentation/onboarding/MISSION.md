@@ -8,7 +8,7 @@ New developers join knowing how to program, but not this app or the business it 
 - Serve the sample book on scratch data, and find any glossary term or ADR behind a screen.
 - Hand-trace a Mortgage's interest, Capitalisation, Payments and Outstanding, then check it against the app.
 - Add a change route that refuses, writes, checks and records History, with its Preview.
-- Make one small change test-first through every layer, and ship it the way this repo does.
+- Make one small change test-first through every layer, and ship it the way this repo does: a branch, a reviewed pull request, and notes for the next release.
 
 ## Constraints
 - The reader programs well but may be junior, and knows nothing of this codebase or of pledge lending.

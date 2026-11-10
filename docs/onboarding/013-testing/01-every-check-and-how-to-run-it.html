@@ -10,12 +10,12 @@
 <body>
 <p class="kicker">Chapter 013 · Lesson 1</p>
 <h1>Every check, and how to run it</h1>
-<p class="lede">Every push to <code>main</code> runs tests and lint on GitHub; separate hosted workflows scan the code and container for security issues. This lesson covers the local checks and what the hosted scans do.</p>
+<p class="lede">Every pull request and every merge to <code>main</code> runs tests and lint on GitHub; separate hosted workflows scan the code and container for security issues. This lesson covers the local checks and what the hosted scans do.</p>
 
 <div class="callout win"><strong>By the end</strong> you can run the project tests and lint locally, and explain the security scans that run on GitHub.</div>
 
 <h2>The problem</h2>
-<p>This project has one developer, who commits straight to <code>main</code>. There are no pull requests and no reviewer. So when a check fails on GitHub, <code>main</code> is already broken: the next release would be cut from broken code, and the Lender's next update would install it.</p>
+<p>Every change reaches <code>main</code> through a pull request (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>). The ruleset on <code>main</code> blocks the merge until the required checks pass, CodeRabbit has reviewed it, and a human has approved the last push. That only helps if the checks are the right ones and you can run them before you push: a red check costs a round trip, and a check nobody requires can be red at merge and only caught when a release revalidates everything.</p>
 <p>"Run the tests before you push" sounds like enough, but "the tests" is really several different tools in two languages, plus PowerShell. Run <code>pytest</code> alone and you miss a type error that <code>mypy</code> would have caught. Run <code>npm test</code> alone and you miss a type error in a page, because vitest doesn't type-check. Each tool catches a different kind of mistake, so you need to know the whole list.</p>
 
 <h2>The idea</h2>
@@ -28,15 +28,16 @@ flowchart LR
   P["push to main,<br/>a pull request,<br/>or release.yml"] --> T[".github/workflows/test.yml"]
   T --> B["backend<br/>uv run mypy src<br/>uv run pytest"]
   T --> F["frontend<br/>npm run typecheck<br/>npm run lint<br/>npm test"]
-  T --> S["alert automation<br/>two node --test files"]
+  T --> S["script tests<br/>node --test: release, release candidate,<br/>finding reconciler, critical findings,<br/>secret scanning, coverage summary"]
   T --> I["image<br/>docker build, start, curl"]
   T --> G["pages<br/>cmp Setup.bat"]
   T --> W["windows<br/>Invoke-Pester, then<br/>setup, update, uninstall"]
-  R["release.yml"] -.->|"publishes only if<br/>all seven pass"| T
+  R["release.yml"] -.->|"publishes only if<br/>every job passes"| T
 </pre>
-<figcaption>Seven jobs in the test workflow run on GitHub's machines. Separate CodeQL and Trivy workflows scan code and the container.</figcaption>
+<figcaption>The test workflow's jobs run on GitHub's machines. Separate CodeQL and Trivy workflows scan the code and the container.</figcaption>
 </figure>
-<p>The release workflow runs this file before it publishes anything. A failed job stops the release (chapter 015). CodeQL and Trivy are separate scheduled and push-triggered scans; the automation records critical findings and secret-scanning alerts as issues.</p>
+<p>The release workflow runs this file before it publishes anything, and a release candidate runs it on its branch before its pull request is opened. A failed job stops the release (chapter 015). CodeQL and Trivy are separate scheduled, push and pull-request scans; one finding-to-issue reconciler, with an adapter per scanner, records critical CodeQL, Dependabot and Trivy findings and Secret scanning alerts as issues (ADR 0016).</p>
+<div class="callout"><strong>Which checks block a merge.</strong> <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/.github/rulesets/main.json"><code>.github/rulesets/main.json</code></a> requires <code>backend</code>, <code>frontend</code>, <code>image</code>, <code>windows</code>, the three <code>Analyze (…)</code> CodeQL jobs and <code>CodeRabbit</code>, plus one human approval after the last push. Architecture review pass 7 found that <code>image</code>, <code>windows</code> and CodeQL could be red at merge; they have been required since. The script-test jobs and <code>pages</code> run on every pull request but aren't required.</div>
 
 <h2>The code</h2>
 <h3>1. The two jobs you'll run every day</h3>
@@ -127,13 +128,13 @@ flowchart LR
 <h3>4. The other three jobs</h3>
 <table class="wide">
 <tr><th>Job</th><th>What it checks</th><th>Run it yourself</th></tr>
-<tr><td><code>image</code></td><td>The one Docker image builds, starts on empty folders, serves the screens with the right cache headers, and answers <code>/api</code> (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a>)</td><td><a href="../014-how-it-runs-on-the-lenders-laptop/01-the-app-in-docker.html">Chapter 014, lesson 1</a>. Locally, use <code>docker-compose.dev.yml</code> with scratch folders (<a href="../reference/traps.html#t12">trap #12</a>)</td></tr>
+<tr><td><code>image</code></td><td>The one Docker image builds, starts on empty folders, serves the screens with the right cache headers, and answers <code>/api</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>)</td><td><a href="../014-how-it-runs-on-the-lenders-laptop/01-the-app-in-docker.html">Chapter 014, lesson 1</a>. Locally, use <code>docker-compose.dev.yml</code> with scratch folders (<a href="../reference/traps.html#t12">trap #12</a>)</td></tr>
 <tr><td><code>pages</code></td><td>The <code>Setup.bat</code> offered on the GitHub Pages site is byte for byte the one in <code>windows/</code> (line 67)</td><td><code>cmp windows/Setup.bat docs/Setup.bat</code> from the repo root: no output means the same</td></tr>
 <tr><td><code>windows</code></td><td>On a real Windows machine: the Pester tests (line 85), then Setup without Docker, the app answering and taking a Backup, an update, and the uninstall</td><td>Pester only, in Docker: below. The rest only runs on Windows (chapter 014)</td></tr>
 </table>
 
 <h2>Run-through: the local checks</h2>
-<p>From the repo root, run the backend and frontend checks in separate terminals; the two small Node test files can run in either:</p>
+<p>From the repo root, run the backend and frontend checks in separate terminals; the Node tests of the workflow scripts can run in either:</p>
 <pre><code># terminal 1
 cd backend
 uv run mypy src
@@ -145,20 +146,19 @@ npm run typecheck
 npm run lint
 npm test</code></pre>
 <pre><code># repo root
-node --test .github/scripts/test-critical-findings.mjs
-node --test .github/scripts/test-secret-scanning-alerts.mjs</code></pre>
+node --test .github/scripts/test-*.mjs</code></pre>
 <table class="steps text">
 <tr><th>Command</th><th>What it prints at the end</th><th>Time on a laptop</th></tr>
-<tr><td><code>uv run mypy src</code></td><td><code>Success: no issues found in 62 source files</code></td><td>a few seconds the first time; under a second after, from its cache</td></tr>
-<tr><td><code>uv run pytest</code></td><td><code>709 passed</code></td><td>about 35 s</td></tr>
+<tr><td><code>uv run mypy src</code></td><td><code>Success: no issues found in 67 source files</code></td><td>a few seconds the first time; under a second after, from its cache</td></tr>
+<tr><td><code>uv run pytest</code></td><td><code>748 passed</code></td><td>about 40 s</td></tr>
 <tr><td><code>npm run typecheck</code></td><td>nothing at all: <code>tsc</code> prints only errors</td><td>a few seconds</td></tr>
 <tr><td><code>npm run lint</code></td><td>nothing at all when clean</td><td>a few seconds</td></tr>
-<tr><td><code>npm test</code></td><td><code>Test Files  34 passed (34)</code>, <code>Tests  230 passed (230)</code></td><td>about 17 s</td></tr>
-<tr><td>two <code>node --test</code> files</td><td>the alert reconciliation unit tests pass</td><td>a few seconds</td></tr>
+<tr><td><code>npm test</code></td><td><code>Test Files  36 passed (36)</code>, <code>Tests  241 passed (241)</code></td><td>about 17 s</td></tr>
+<tr><td><code>node --test .github/scripts/test-*.mjs</code></td><td>the release, release candidate, finding reconciler, critical findings, Secret scanning and coverage-summary tests pass, against a fake GitHub adapter (no network)</td><td>a few seconds</td></tr>
 <tr><td><code>cmp windows/Setup.bat docs/Setup.bat</code></td><td>nothing: the files are the same</td><td>instant</td></tr>
 <tr><td>Pester, in Docker (below)</td><td><code>Tests Passed: 65, Failed: 0</code></td><td>2 s, plus building the image once</td></tr>
 </table>
-<p class="cite">Counts from <code>scripts/run_throughs.sh</code>, section L1, at the commit on the <a href="index.html">overview</a>. Earlier chapters quote 600 or 607 backend tests: the suite grows with the app, so trust your own run over any number in a lesson.</p>
+<p class="cite">The four counts above were rechecked at <code>8323e01</code>, after architecture review pass 7; the rest come from <code>scripts/run_throughs.sh</code>, section L1, at the commit on the <a href="index.html">overview</a>. Earlier chapters quote 600 or 607 backend tests: the suite grows with the app, so trust your own run over any number in a lesson.</p>
 
 <h3>One test at a time</h3>
 <p>While you work on one thing, run only its tests. Both runners filter by name:</p>

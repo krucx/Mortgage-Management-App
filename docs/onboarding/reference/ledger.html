@@ -62,6 +62,8 @@
 <tr><td>The ordinary Allocations are the first part; if all Redeem, the first Final Payment is. Every other part has <code>received_with</code> = the first part's id, and the id returned is the first part's</td><td><code>record_payment</code></td></tr>
 <tr><td>To treat "the Payment" as one: group the rows by <code>received_with or id</code></td><td><code>cash_sums</code>, <code>load_receipt</code></td></tr>
 <tr><td>A Void removes one part from every Ledger; a Reopen Voids only its own Final Payment</td><td><code>void_payment</code></td></tr>
+<tr><td>An Allocation may carry a Discount beside its cash: <code>pay</code> applies the cash, then the Discount, through one <code>apply_amount</code> (unpaid interest, Interest to Date, Principal). Cash plus Discount is checked against the Outstanding and can Redeem; a Void reverses both. The step keeps the Discount's parts apart (<code>discount_interest_paid</code>, <code>discount_principal_paid</code>), so cash totals leave it out (ADR 0014)</td><td><code>ledger.py</code> · <code>_Run.pay</code>, <code>apply_amount</code></td></tr>
+<tr><td>Paid off: the first Payment step leaving no Principal and no unpaid interest. With <code>stop_when_paid_off</code> the engine applies no Payment after it, which is how a Simulation drops a Lump Sum after the plan has paid everything</td><td><code>ledger.py</code> · <code>paid_off_on</code>, <code>compute_ledger</code></td></tr>
 <tr><td>A Receipt's "Still owed" is <code>owed_after</code>: the Outstanding at the end of the Payment's date, with that day's later Payments and write-offs added back; a Waiver's Final Payment line owes 0</td><td><code>replay.py</code> · <code>owed_after</code>, <code>load_receipt</code></td></tr>
 </table>
 

@@ -20,7 +20,7 @@
 <p><strong>The Customer.</strong> Meera needs a <a href="../reference/glossary.html#receipt"><dfn class="term" title="The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.">Receipt</dfn></a> in words she recognises, on the app she uses: WhatsApp. But automating WhatsApp is fragile and against its terms.</p>
 
 <h2>The idea</h2>
-<p>After any change that can move a Ledger, mark <em>every</em> money-related cache stale at once: cheap, because the backend replays in milliseconds, and impossible to get wrong. Build the Receipt on the backend, from a replay, like every other figure. Then open WhatsApp with the message already typed and let the Lender press Send (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>).</p>
+<p>After any change that can move a Ledger, mark <em>every</em> money-related cache stale at once: cheap, because the backend replays in milliseconds, and impossible to get wrong. Build the Receipt on the backend, from a replay, like every other figure. Then open WhatsApp with the message already typed and let the Lender press Send (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR 0002</a>).</p>
 
 <h2>The flow</h2>
 <figure class="diagram">
@@ -217,7 +217,7 @@ Total owed     ₹2,28,233
 
 <h2>Nuances</h2>
 <h3>(a) Click-to-send is a decision, not a shortcut</h3>
-<p>The app only <em>opens</em> WhatsApp; the Lender presses Send. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a> explains why: driving WhatsApp automatically breaks whenever WhatsApp changes its screens, and breaks its terms, which could get the Lender's own number banned. Notices (chapter 009) use the same <code>sender</code>.</p>
+<p>The app only <em>opens</em> WhatsApp; the Lender presses Send. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR 0002</a> explains why: driving WhatsApp automatically breaks whenever WhatsApp changes its screens, and breaks its terms, which could get the Lender's own number banned. Reminders (chapter 009) use the same <code>sender</code>.</p>
 <h3>(b) Receipts name the jewellery, never the Mortgage Name</h3>
 <div class="reveal">
   <p><strong>Predict:</strong> the Payment's page lists "2026-Meera-PairBangles". What does Meera's Receipt call it, and why?</p>
@@ -254,7 +254,7 @@ Total owed     ₹2,28,233
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>, then <code>load_receipt</code> in full in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/receipts.py"><code>payments/receipts.py</code></a> (from line 44).</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR 0002</a>, then <code>load_receipt</code> in full in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/receipts.py"><code>payments/receipts.py</code></a> (from line 44).</p>
 
 <nav class="lessons">
   <a href="04-what-the-ledger-says.html">← What the Ledger says back</a>

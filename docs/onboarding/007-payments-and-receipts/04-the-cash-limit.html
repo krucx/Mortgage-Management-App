@@ -51,29 +51,36 @@ sequenceDiagram
 <h2>The code</h2>
 <h3>1. The setting: default, cleared, or set</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/cash_limit.py">payments/cash_limit.py</a> · the setting · lines 21–36</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/cash_limit.py"><code>21  # Kept as text; an empty value means the Lender cleared it (no warning), while no
-22  # value at all means it was never set. (Not a ConfigGroup: that forgets a field set to
-23  # None, which would bring the default back.)
-24  _KEY = "cash_limit"
-25  DEFAULT_CASH_LIMIT = 20_000_00  # paise                                  ①
-26
-27
-28  class CashLimit(BaseModel):
-29      cash_limit: int | None = Field(gt=0)  # paise; None: never warn
-30
-31
-32  def get_cash_limit(conn: Connection) -&gt; CashLimit:
-33      stored = get_config(conn, [_KEY]).get(_KEY)
-34      if stored is None:
-35          return CashLimit(cash_limit=DEFAULT_CASH_LIMIT)                 ②
-36      return CashLimit(cash_limit=int(stored) if stored else None)         ③  ◀
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/cash_limit.py">payments/cash_limit.py</a> · the setting · lines 16–28, and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/settings.py">platform/settings.py</a> · <code>ThresholdSetting.get()</code>, <code>.set()</code> · lines 79–90</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/cash_limit.py"><code>16  _KEY = "cash_limit"
+17  DEFAULT_CASH_LIMIT = 20_000_00  # paise                                  ①
+⋮
+20  class CashLimit(BaseModel):
+21      cash_limit: int | None = Field(gt=0)  # paise; None: never warn
+⋮
+24  _CASH_LIMIT = ThresholdSetting(CashLimit, "cash_limit", _KEY, DEFAULT_CASH_LIMIT)
+⋮
+27  def get_cash_limit(conn: Connection) -&gt; CashLimit:
+28      return _CASH_LIMIT.get(conn)
+</code></pre>
+<pre data-file="backend/src/mortgage_backend/platform/settings.py"><code>79      def get(self, conn: Connection) -&gt; M:
+80          stored = get_config(conn, [self.key]).get(self.key)
+⋮
+82          if stored is None:
+83              value = self.default_paise                                ②
+84          else:
+85              value = int(stored) if stored else None                   ③  ◀
+86          return self.model(**{self.field: value})
+87
+88      def set(self, conn: Connection, setting: M) -&gt; None:
+89          value = getattr(setting, self.field)
+90          set_config(conn, self.key, "" if value is None else str(value))
 </code></pre>
 </figure>
 <ol class="marks">
   <li>₹20,000 in paise. Python allows <code>_</code> in number literals for readability; <code>20_000_00</code> is <code>2000000</code>, written so the rupees and the paise stand apart.</li>
   <li>No row in the <code>config</code> table at all: the Lender never set one, so the default applies.</li>
-  <li>A row with an empty string: the Lender cleared the limit on purpose, so <code>None</code>, never warn. Any other value is the limit in paise. "Missing" and "empty" mean different things, which is why the comment explains it isn't stored like the other settings (<a href="../010-platform-database-and-migrations/03-settings-in-the-config-table.html">chapter 010, lesson 3</a> covers the <code>config</code> table).</li>
+  <li>A row with an empty string: the Lender cleared the limit on purpose, so <code>None</code>, never warn. Any other value is the limit in paise. "Missing" and "empty" mean different things, which is why it isn't stored like the other settings. Since architecture review pass 7 this three-state rule lives in one place, <code>ThresholdSetting</code>, shared with the Discount confirmation threshold (₹500 by default), and the Settings page draws both with one <code>ThresholdSetting</code> component (<a href="../010-platform-database-and-migrations/03-settings-in-the-config-table.html">chapter 010, lesson 3</a> covers the <code>config</code> table).</li>
 </ol>
 
 <h3>2. What was there before the change</h3>

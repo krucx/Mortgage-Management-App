@@ -20,7 +20,7 @@
 <ul>
   <li>The Lender sorts the Payments by amount, opens one, and presses Back. Is the list still sorted?</li>
   <li>The Lender is on page 2 and types a filter that matches 11 Payments. Page 2 of 11 rows is empty.</li>
-  <li>The Lender approves the last Notice on page 2. Page 2 is now empty, and the pager would say "Showing 21–20 of 20".</li>
+  <li>The Lender approves the last Reminder on page 2. Page 2 is now empty, and the pager would say "Showing 21–20 of 20".</li>
   <li>The Lender clicks a heading, then clicks it again before the first answer arrives. If the first answer lands last, the screen shows the wrong order under the right arrow.</li>
 </ul>
 <p>Six lists, each solving these on its own, would solve them six slightly different ways.</p>
@@ -226,7 +226,7 @@ flowchart TD
 
 <h3>(b) A page that comes back empty steps back</h3>
 <div class="reveal">
-  <p><strong>Predict:</strong> you're on page 2 of the Payments. Its rows stop being listed (on the Reminders list, approving the last Notice on page 2 does exactly this). The page is asked for again and comes back with no items, and <code>total</code> is now 20. What does the Lender see?</p>
+  <p><strong>Predict:</strong> you're on page 2 of the Payments. Its rows stop being listed (on the Reminders list, approving the last Reminder on page 2 does exactly this). The page is asked for again and comes back with no items, and <code>total</code> is now 20. What does the Lender see?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <p>Page 1. The script made page 2 answer <code>{"items": [], "total": 20, "page": 2, "page_size": 20}</code> and let the window regain focus, which asks for whatever is on screen again:</p>

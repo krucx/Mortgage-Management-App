@@ -19,7 +19,7 @@
 
 <h2>The idea</h2>
 <p><strong>The screens say why, and compute nothing.</strong> Each Call List row carries its <code>reasons</code>; each Reminder its <code>message</code>, already worded; the Dashboard is one answer. The pages label, format and link.</p>
-<p><strong>Sending is opening WhatsApp.</strong> <code>SendOnWhatsApp</code> calls <code>sender.send</code>, which opens WhatsApp with the message filled in (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>, owned by <a href="../009-follow-up/05-messages-and-sending.html">chapter 009</a>). Then the page tells the backend the Reminder is sent.</p>
+<p><strong>Sending is opening WhatsApp.</strong> <code>SendOnWhatsApp</code> calls <code>sender.send</code>, which opens WhatsApp with the message filled in (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR 0002</a>, owned by <a href="../009-follow-up/05-messages-and-sending.html">chapter 009</a>). Then the page tells the backend the Reminder is sent.</p>
 <p><strong>Settings is a page of independent sections.</strong> One component per settings group, each with its own draft, Save and status.</p>
 
 <h2>The flow</h2>
@@ -152,20 +152,20 @@ $/, '')}&lt;/pre&gt;
 
 <h3>4. Settings: one section per group</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/SettingsPage.tsx">frontend/src/pages/SettingsPage.tsx</a> · <code>SettingsPage</code>, <code>DiscountConfirmationSettings</code>, <code>MessageSettingsForm</code> · lines 15–27 and 398–416, trimmed</figcaption>
-<pre data-file="frontend/src/pages/SettingsPage.tsx"><code>15  export function SettingsPage() {
-16    return (
-17      &lt;&gt;
-18        &lt;DefaultTermsSettings /&gt;
-19        &lt;GoldRateSettings /&gt;
-20        &lt;CallListThresholds /&gt;
-21        &lt;CashLimitSettings /&gt;
-22        &lt;DiscountConfirmationSettings /&gt;
-23        &lt;MessageSettingsForm /&gt;                                           ◀
-24        &lt;BackupSettings /&gt;
-25      &lt;/&gt;
-26    )
-27  }
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/SettingsPage.tsx">frontend/src/pages/SettingsPage.tsx</a> · <code>SettingsPage</code>, <code>DiscountConfirmationSettings</code>, <code>MessageSettingsForm</code> · lines 18–30 and 477–495, trimmed</figcaption>
+<pre data-file="frontend/src/pages/SettingsPage.tsx"><code>18  export function SettingsPage() {
+19    return (
+20      &lt;&gt;
+21        &lt;DefaultTermsSettings /&gt;
+22        &lt;GoldRateSettings /&gt;
+23        &lt;CallListThresholds /&gt;
+24        &lt;CashLimitSettings /&gt;
+25        &lt;DiscountConfirmationSettings /&gt;
+26        &lt;MessageSettingsForm /&gt;                                           ◀
+27        &lt;BackupSettings /&gt;
+28      &lt;/&gt;
+29    )
+30  }
 ⋮
 398 function MessageSettingsForm() {
 399   const { client, queryClient } = useServerState()
@@ -185,7 +185,7 @@ $/, '')}&lt;/pre&gt;
   <li><code>useDraft</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useDraft.ts"><code>useDraft.ts</code></a>) is a <code>useState</code> that starts from the saved value once it arrives, and starts again when the saved value changes.</li>
   <li>New templates reword the unsent Reminders and the Receipts, so the save marks <code>STALE_AFTER.messageSettings</code> stale: Payments (their Receipts), the Reminders list and the Dashboard.</li>
 </ol>
-<p><code>TemplateField</code> (line 365) is a textarea with a <code>WhatsAppPreview</code> beside it, fed the draft as it's typed, and the list of placeholders the backend can fill in. To add a setting, add a section component here and a <code>settings.…</code> read and save in <code>requests.ts</code>; the backend half is <a href="../010-platform-database-and-migrations/03-settings-in-the-config-table.html">chapter 010, lesson 3</a>.</p>
+<p>The Cash Limit and Discount confirmation sections are one component, <code>ThresholdSetting</code> (line 302), given their own heading, labels and wording for "cleared"; the backend stores both with the one <code>ThresholdSetting</code> class (chapter 010, lesson 3). That pair was a copy until architecture review pass 7. <code>TemplateField</code> (line 444) is a textarea with a <code>WhatsAppPreview</code> beside it, fed the draft as it's typed, and the list of placeholders the backend can fill in. To add a setting, add a section component here and a <code>settings.…</code> read and save in <code>requests.ts</code>; the backend half is <a href="../010-platform-database-and-migrations/03-settings-in-the-config-table.html">chapter 010, lesson 3</a>.</p>
 
 <h3>5. The Dashboard: one request, many links</h3>
 <figure class="snippet">
@@ -223,27 +223,33 @@ $/, '')}&lt;/pre&gt;
 </ol>
 <p>The three activity figures below <em>Owed on Active Mortgages</em> use the selected period. The Dashboard defaults to the current calendar month; choose another month or set inclusive <em>From</em> and <em>To</em> dates to inspect a custom range. Principal lent counts Mortgages started in that period. Principal redeemed and Interest collected count non-Voided Payments in that period, using their applied allocations. These are activity totals, separate from the Outstanding tiles above.</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/dashboard.py">backend/src/mortgage_backend/lending/dashboard.py</a> · <code>dashboard()</code> · lines 210–220 and 263–268, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/dashboard.py"><code>210     lent_in_period = sum(
-211         row["amount_lent"]
-212         for row in rows
-213         if activity_start_date &lt;= row["start_date"] &lt;= activity_end_date
-214     )
-215     redeemed_in_period = collected_in_period = 0
-216     for mortgage in replayed.values():
-217         for step in mortgage.steps_by_payment(activity_end_date).values():
-218             if activity_start_date &lt;= step.on:
-219                 redeemed_in_period += step.principal_paid
-220                 collected_in_period += step.interest_paid                  ◀
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/activity.py">backend/src/mortgage_backend/lending/activity.py</a> · <code>activity()</code> · lines 31–47, and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/dashboard.py">lending/dashboard.py</a> · <code>dashboard()</code> · lines 208–213</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/activity.py"><code>31  def activity(
+32      replayed: Mapping[int, MortgageReplay], start: date, end: date
+33  ) -&gt; ActivityTotals:
+⋮       """… Voided Payments are in no replay, and Discounts are non-cash (ADR 0014),
+⋮       so neither counts."""
+37      lent = redeemed = collected = 0
+38      for mortgage in replayed.values():
+39          if start &lt;= mortgage.row["start_date"] &lt;= end:
+40              lent += mortgage.row["amount_lent"]
+41          for step in mortgage.steps_by_payment(end).values():
+42              if start &lt;= step.on:
+43                  redeemed += step.principal_paid
+44                  collected += step.interest_paid                        ◀
 ⋮
-264         activity_start_date=activity_start_date,
-265         activity_end_date=activity_end_date,
-266         principal_lent_in_period=lent_in_period,
-267         principal_redeemed_in_period=redeemed_in_period,
-268         interest_collected_in_period=collected_in_period,
+47      return ActivityTotals(principal_lent=lent, principal_redeemed=redeemed, interest_collected=collected)
 </code></pre>
+<pre data-file="backend/src/mortgage_backend/lending/dashboard.py"><code>208     default_start, default_end = default_activity_range(today)   # the calendar month
+209     activity_start_date = activity_start_date or default_start
+210     activity_end_date = activity_end_date or default_end
+211     period = activity(replayed, activity_start_date, activity_end_date)
+212     month_totals = activity(replayed, default_start, default_end)   # "this month"
+213     year_totals = activity(replayed, date(today.year, 1, 1), today) # "this year"
+</code></pre>
+<p>Since architecture review pass 7 (#278) one function, <code>activity()</code>, computes ADR 0017's totals: the selected period, "this month" and "this year" on the Dashboard, and the Payments list's interest total (chapter 007, lesson 1). Before, three loops did the same sum, and nothing pinned that Voided Payments and Discounts stay out; <code>test_dashboard.py</code> now does, once. <code>step.interest_paid</code> and <code>step.principal_paid</code> are the cash parts only: a Discount's parts are kept apart, as <code>discount_interest_paid</code> and <code>discount_principal_paid</code>.</p>
 </figure>
-<p>The total <dfn class="term" title="A Mortgage's Outstanding as a share of its Collateral Value."><a href="../reference/glossary.html#loan-to-value">Loan-to-Value</a></dfn> counts only the Active Mortgages that have a Collateral Value. One whose purity has no Gold Rate, and no value set by hand, is left out of <em>both</em> sums (line 225), so it can't make the book look safer or riskier than it is. With none valued at all, <code>loan_to_value</code> is <code>None</code>, and the tile says "No Gold Rate or value set yet".</p>
+<p>The total <dfn class="term" title="A Mortgage's Outstanding as a share of its Collateral Value."><a href="../reference/glossary.html#loan-to-value">Loan-to-Value</a></dfn> counts only the Active Mortgages that have a Collateral Value. One whose purity has no Gold Rate, and no value set by hand, is left out of <em>both</em> sums (lines 228–235), so it can't make the book look safer or riskier than it is. With none valued at all, <code>loan_to_value</code> is <code>None</code>, and the tile says "No Gold Rate or value set yet".</p>
 
 <h2>Run-through: the morning, on 19 Oct</h2>
 <h3>The Call List, and a Call Note</h3>
@@ -287,7 +293,7 @@ $/, '')}&lt;/pre&gt;
 
 <h2>Nuances</h2>
 <h3>(a) The Lender presses Send, not the app</h3>
-<p>Click-to-send (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>): driving WhatsApp Web from a browser robot breaks whenever WhatsApp changes its pages, and is against WhatsApp's terms, which could get the Lender's number banned. So <code>sender.send</code> only opens WhatsApp with the text filled in; the Business Cloud API could replace it later, behind the same <code>sender</code>. The page marks the Reminder sent when the button is pressed, trusting the Lender to press Send in WhatsApp. If they don't, the Reminder still says sent. The test for <code>messaging.ts</code> (<a href="../009-follow-up/05-messages-and-sending.html">chapter 009, lesson 5</a>) pins why it uses <code>api.whatsapp.com/send</code> rather than the shorter <code>wa.me</code> link: the shorter one's redirect breaks emoji.</p>
+<p>Click-to-send (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR 0002</a>): driving WhatsApp Web from a browser robot breaks whenever WhatsApp changes its pages, and is against WhatsApp's terms, which could get the Lender's number banned. So <code>sender.send</code> only opens WhatsApp with the text filled in; the Business Cloud API could replace it later, behind the same <code>sender</code>. The page marks the Reminder sent when the button is pressed, trusting the Lender to press Send in WhatsApp. If they don't, the Reminder still says sent. The test for <code>messaging.ts</code> (<a href="../009-follow-up/05-messages-and-sending.html">chapter 009, lesson 5</a>) pins why it uses <code>api.whatsapp.com/send</code> rather than the shorter <code>wa.me</code> link: the shorter one's redirect breaks emoji.</p>
 
 <h3>(b) What the bubble shows is what was stored</h3>
 <div class="reveal">
@@ -329,7 +335,7 @@ $/, '')}&lt;/pre&gt;
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/RemindersPage.tsx"><code>RemindersPage.tsx</code></a> whole (207 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/WhatsApp.tsx"><code>WhatsApp.tsx</code></a> (81 lines), then the tests beside them: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/RemindersPage.test.tsx"><code>RemindersPage.test.tsx</code></a> and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/CallListPage.test.tsx"><code>CallListPage.test.tsx</code></a>. For sending, <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md\">ADR 0002</a>.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/RemindersPage.tsx"><code>RemindersPage.tsx</code></a> whole (207 lines) and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/WhatsApp.tsx"><code>WhatsApp.tsx</code></a> (81 lines), then the tests beside them: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/RemindersPage.test.tsx"><code>RemindersPage.test.tsx</code></a> and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/tests/CallListPage.test.tsx"><code>CallListPage.test.tsx</code></a>. For sending, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR 0002</a>.</p>
 
 <nav class="lessons">
   <a href="04-the-mortgage-and-customer-pages.html">← The Mortgage and Customer pages</a>

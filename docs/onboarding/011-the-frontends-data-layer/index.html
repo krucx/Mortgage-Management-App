@@ -42,7 +42,7 @@ uv run python ../docs/sample-book/serve.py "$BOOK" 8000
 
 # terminal 2, from frontend/
 npm run dev</code></pre>
-<p>Open <a href="http://localhost:5173">localhost:5173</a>, open your browser's developer tools, and on the <strong>Network</strong> tab type <code>/api/</code> in the filter box. Every lesson has you watch that tab. Lessons 1–4 only read and Preview. Lesson 5 saves one Payment and approves one Notice on that scratch book. It's a scratch book, so that's fine, but rebuild it before the next chapter.</p>
+<p>Open <a href="http://localhost:5173">localhost:5173</a>, open your browser's developer tools, and on the <strong>Network</strong> tab type <code>/api/</code> in the filter box. Every lesson has you watch that tab. Lessons 1–4 only read and Preview. Lesson 5 saves one Payment and approves one Reminder on that scratch book. It's a scratch book, so that's fine, but rebuild it before the next chapter.</p>
 <div class="callout warn"><strong>Two things you'll see in development only.</strong> First, <code>/api/payment-methods</code> appears three times on a fresh load. Two are <code>StartGate</code>'s check that the backend answers (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>), made twice because React's <code>StrictMode</code> (in <code>main.tsx</code>) runs every effect twice in development to flush out bugs. The third is the query for the payment methods themselves. The built app makes the check once. Second, a form's date is your <em>browser's</em> today, not the served book's 19 Oct 2026. On the Payment form, set the date to 19 Oct 2026 first, or the backend refuses the list of Mortgages with "The date cannot be in the future".</div>
 
 <h2>The map</h2>
@@ -89,7 +89,7 @@ flowchart LR
   <li><a href="02-reading-through-the-cache.html">Reading through one cache</a><span class="sum">Query keys as paths; Back to Meera's page shows at once and asks again behind the scenes; Settings asked for once.</span></li>
   <li><a href="03-lists-a-page-at-a-time.html">Lists a page at a time</a><span class="sum">The Customers list sorted by name, then reversed, in the URL and the request; page 2 of the Payments, and a filter that goes back to page 1; a quick second click.</span></li>
   <li><a href="04-previews-from-a-draft.html">Previews from a draft</a><span class="sum">"8000" typed into Meera's bangles' Payment: four keys, one Preview, 400 ms later; Save's three locks; ₹20,000 in cash warns, ₹19,999 doesn't.</span></li>
-  <li><a href="05-saving-and-what-goes-stale.html">Saving, and what goes stale</a><span class="sum">Save the Payment and watch what is asked again (and what isn't); approve Sunita's Notice; the recipe for a new route.</span></li>
+  <li><a href="05-saving-and-what-goes-stale.html">Saving, and what goes stale</a><span class="sum">Save the Payment and watch what is asked again (and what isn't); approve Sunita's Reminder; the recipe for a new route.</span></li>
   <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">Where does this type come from? Is this asked again? Then make Previews refetch after a save, and see which two tests catch it.</span></li>
 </ol>
 

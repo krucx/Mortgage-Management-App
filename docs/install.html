@@ -357,6 +357,9 @@ cd Mortgage-Management-App</pre><button type="button" class="copy">Copy</button>
       <li><input type="checkbox" id="m-env"><label for="m-env"><b>Make its settings file</b><span class="detail">Copy the example, then open <span class="path">.env</span> in a text editor (<code>open -e .env</code> on a Mac):</span>
         <div class="cmd"><pre>cp .env.example .env</pre><button type="button" class="copy">Copy</button></div>
         <span class="detail"><code>DATA_DIR</code>: the folder for the database and photos. <code>BACKUP_DIR</code>: a Google Drive or iCloud synced folder. <code>BACKUP_PASSWORD</code>: the password for the Backup zips; write it down. <code>TZ</code>: your time zone (default <code>Asia/Kolkata</code>).</span></label></li>
+      <li><input type="checkbox" id="m-own"><label for="m-own"><b>On Linux only: hand the folders to the app</b><span class="detail">The app runs inside its container as an ordinary user, uid 1000, not as root. On a Linux host, create the data and Backup folders and give them to that user first, or it can't write to them. Docker Desktop on a Mac needs no such step.</span>
+        <div class="cmd"><pre>mkdir -p &lt;DATA_DIR&gt; &lt;BACKUP_DIR&gt;
+sudo chown -R 1000:1000 &lt;DATA_DIR&gt; &lt;BACKUP_DIR&gt;</pre><button type="button" class="copy">Copy</button></div></label></li>
       <li><input type="checkbox" id="m-up"><label for="m-up"><b>Start it</b><span class="detail">In the same folder. The first start downloads the app from Docker Hub.</span>
         <div class="cmd"><pre>docker compose up -d</pre><button type="button" class="copy">Copy</button></div></label></li>
       <li><input type="checkbox" id="m-open"><label for="m-open"><b>Open it</b><span class="detail">At <a href="http://localhost:8080">http://localhost:8080</a>, and set the Lender's rules in <span class="ui">Settings</span> first.</span></label></li>
@@ -407,6 +410,7 @@ cd Mortgage-Management-App</pre><button type="button" class="copy">Copy</button>
       <div class="cmd"><pre>git pull
 docker compose pull
 docker compose up -d --remove-orphans</pre><button type="button" class="copy">Copy</button></div>
+      <p class="sub">On a Linux host updating from a release before 3.4.7, first give uid 1000 ownership of the data and Backup folders: <code>sudo chown -R 1000:1000 &lt;DATA_DIR&gt; &lt;BACKUP_DIR&gt;</code>. Skipping it stops the app outright if the data folder isn't owned by that user; if only the Backup folder isn't, the app starts but every Backup fails (Settings says so). Docker Desktop on a Mac needs no such step.</p>
       <p class="sub">To go back to an earlier release, set <code>APP_VERSION</code> in <span class="path">.env</span> (for example <code>1.2.0</code>) and run the last two commands; to go back before 3.4.0, first run <code>git checkout 3.3.0</code> (or the release you want) for its own compose file. If a newer release updated the database, restore the Backup taken before that update.</p>
     </div>
     <div class="nuances">
@@ -415,6 +419,7 @@ docker compose up -d --remove-orphans</pre><button type="button" class="copy">Co
       <div class="nuance"><b>Nothing to download when it's current</b><span>Setup compares the version you have with the newest first: if you have it, it downloads nothing and just starts the app.</span></div>
       <div class="nuance"><b>The version before is kept</b><span>Each version has its own folder in <span class="path">MortgageManagement\versions</span>, and <span class="path">app</span> points at the one that runs. The one before stays there; older ones are removed after an update.</span></div>
       <div class="nuance" data-for="win-docker mac"><b>One container since 3.4.0</b><span>The app is one Docker image and runs as one container, <span class="ui">app</span>. Updating from an older release, which ran two (<span class="ui">backend</span> and <span class="ui">frontend</span>), removes those two, so only <span class="ui">app</span> is left in Docker Desktop.</span></div>
+      <div class="nuance" data-for="win-docker mac"><b>Not root since 3.4.7</b><span>Inside its container the app runs as an ordinary user (uid 1000), never as root. Docker Desktop on Windows and Mac needs nothing for it; a Linux host hands the data and Backup folders to that user once (above).</span></div>
       <div class="nuance"><b>Nothing to download each time</b><span>Setup.bat always fetches the newest release, so the same file works for every update.</span></div>
     </div>
   </div>

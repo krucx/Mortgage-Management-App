@@ -86,7 +86,7 @@
     <pre><code>cd backend &amp;&amp; uv run pytest -q</code></pre>
   </li>
   <li>
-    <p>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>backend/src/mortgage_backend/lending/changes.py</code></a> at line 468, in <code>edit_mortgage</code>, and delete this line:</p>
+    <p>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>backend/src/mortgage_backend/lending/changes.py</code></a> at line 494, in <code>edit_mortgage</code>, and delete this line:</p>
     <pre><code>    check_replays(conn, [mortgage_row(conn, mortgage_id)], today)</code></pre>
   </li>
   <li>
@@ -98,16 +98,18 @@
   <p><strong>Check your prediction.</strong></p>
   <button class="show">I've run it. Show me what fails.</button>
   <div class="reveal-body">
-    <p>Exactly <strong>4 fail, 603 pass</strong> (checked at commit <code>d6a92ab</code>):</p>
+    <p>Exactly <strong>6 fail, 742 pass</strong> (checked at commit <code>8323e01</code>; at <code>d6a92ab</code>, before starting Terms could be corrected, it was 4 of 607):</p>
     <ul>
       <li><code>test_changes.py::test_an_edit_that_would_make_a_payment_too_large_is_refused</code></li>
       <li><code>test_changes.py::test_a_refused_change_records_no_history</code></li>
+      <li><code>test_changes.py::test_correcting_terms_that_would_make_a_payment_too_large_is_refused</code></li>
       <li><code>test_corrections.py::test_an_edit_that_would_leave_a_payment_too_large_is_refused</code></li>
+      <li><code>test_corrections.py::test_correcting_terms_that_would_leave_a_payment_too_large_is_refused</code></li>
       <li><code>test_previews.py::test_an_edit_that_would_be_refused_cannot_be_previewed</code></li>
     </ul>
     <p>One missing line, and all three of the chapter's ideas fail together:</p>
     <ul>
-      <li><strong>The refusal.</strong> The first and third tests make an edit that leaves a Payment too large, once by calling <code>edit_mortgage</code> directly and once through <code>PUT /api/mortgages/{id}</code>. Without the check, the edit simply saves.</li>
+      <li><strong>The refusal.</strong> Four tests make an edit that leaves a Payment too large, by calling <code>edit_mortgage</code> directly and through <code>PUT /api/mortgages/{id}</code>: two lower the Principal, two correct the starting Terms (ADR 0015). Without the check, the edit simply saves.</li>
       <li><strong>The History.</strong> <code>test_a_refused_change_records_no_history</code> makes the same edit and expects no <code>edited</code> entry. Now the edit isn't refused, so it reaches <code>audit.record</code>, and the History says the Mortgage was edited.</li>
       <li><strong>The Preview.</strong> <code>test_an_edit_that_would_be_refused_cannot_be_previewed</code> expects a 422 from <code>/edit-preview</code>. The Preview runs the same <code>edit_mortgage</code>, so it lost its refusal too. Nobody touched <code>previews.py</code> (trap #5).</li>
     </ul>

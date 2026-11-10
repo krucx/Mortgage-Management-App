@@ -15,7 +15,7 @@
 <div class="callout win"><strong>By the end</strong> you can hand-trace a run of Payments in the engine's order, including one made on an Accrual Date and one made mid-month.</div>
 
 <h2>The problem</h2>
-<p>Take the obvious design: on each Accrual Date, charge the rate on whatever the Principal is that day. Then Meera could pay ₹50,000 of Principal on 9 Oct, and on 10 Oct be charged on ₹30,000 for a month in which she'd had ₹80,000 for 29 days. Pay it on the 9th, borrow it again on the 11th, and she has dodged almost a whole month's interest. The app's first design did exactly this (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md\">ADR 0006</a>).</p>
+<p>Take the obvious design: on each Accrual Date, charge the rate on whatever the Principal is that day. Then Meera could pay ₹50,000 of Principal on 9 Oct, and on 10 Oct be charged on ₹30,000 for a month in which she'd had ₹80,000 for 29 days. Pay it on the 9th, borrow it again on the 11th, and she has dodged almost a whole month's interest. The app's first design did exactly this (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a>).</p>
 <p>The order on one day matters just as much. If her Payment on the 10th came <em>before</em> the 10th's interest, it couldn't pay that interest. Under Compounded Monthly, the interest would then be capitalised that same day, even though she'd brought the money in.</p>
 
 <h2>The idea</h2>
@@ -140,7 +140,7 @@ flowchart TD
 </figure>
 <ol class="marks">
   <li>Also on the month's <em>starting</em> Principal: the same rule as the month's interest.</li>
-  <li>The Ledger's last step adds the Interest to Date into unpaid interest, less what was paid ahead. It's a live figure: tomorrow's replay gives a bigger one, and on the next Accrual Date it gives way to the month's interest (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a>).</li>
+  <li>The Ledger's last step adds the Interest to Date into unpaid interest, less what was paid ahead. It's a live figure: tomorrow's replay gives a bigger one, and on the next Accrual Date it gives way to the month's interest (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>).</li>
 </ol>
 
 <h2>Run-through: Meera's chain, March to October 2026</h2>
@@ -267,7 +267,7 @@ flowchart TD
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md\">ADR 0006</a> (one paragraph). It rejected two other designs and says why. Then read the charging half of <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a>: the sentences about paying ahead. Chapter 005 reads the rest.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a> (one paragraph). It rejected two other designs and says why. Then read the charging half of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>: the sentences about paying ahead. Chapter 005 reads the rest.</p>
 
 <nav class="lessons">
   <a href="02-one-months-interest.html">← One month's interest</a>

@@ -102,7 +102,7 @@ stateDiagram-v2
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <p>No. It is still Active, and the app calls it <a href="../reference/glossary.html#dormant"><dfn class="term" title="An Active Mortgage that owes nothing, so its jewellery should already have gone back: usually a recording slip, put right by Redeeming it.">Dormant</dfn></a>: an Active Mortgage that owes nothing, so its jewellery should already have gone back. It is almost always a recording slip, here the mistyped date.</p>
-    <p>The app doesn't Redeem it automatically, because only the Lender knows whether the anklet really went back (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>). Instead it gets no Notices, stays off the Call List, and waits on the Closures page under a red dot. The Lender either Redeems it with no Payment, once they've checked, or corrects the Payment, and then it owes again and stops being Dormant by itself.</p>
+    <p>The app doesn't Redeem it automatically, because only the Lender knows whether the anklet really went back (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>). Instead it gets no Reminders, stays off the Call List, and waits on the Closures page under a red dot. The Lender either Redeems it with no Payment, once they've checked, or corrects the Payment, and then it owes again and stops being Dormant by itself.</p>
     <p>Dormant is also never stored: the app works it out from the Payments every time, so it appears and disappears as they change. Lesson 5 shows why everything works this way.</p>
   </div>
 </div>
@@ -117,7 +117,7 @@ stateDiagram-v2
 </div>
 
 <h3>Outstanding is exactly what Redeems</h3>
-<p>Every Closure above used the same figure, the Outstanding on the Closure date, Interest to Date included. There is no separate "settlement amount". That is <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a>'s point: the figure a Customer is told is the figure that sends the jewellery home.</p>
+<p>Every Closure above used the same figure, the Outstanding on the Closure date, Interest to Date included. There is no separate "settlement amount". That is <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>'s point: the figure a Customer is told is the figure that sends the jewellery home.</p>
 
 <h3>Reopen undoes a mistake</h3>
 <p>If a Closure was recorded by mistake, the Lender can <a href="../reference/glossary.html#reopen"><dfn class="term" title="Undoing a Closure made by mistake, with a reason: the Mortgage is Active again as if it had never been closed, and a Redemption's or Waiver's final Payment is Voided.">Reopen</dfn></a> it, with a reason. The Mortgage is Active again as if it had never been closed, and a Redemption's or Waiver's Final Payment is Voided. You'll Reopen a Mortgage yourself in chapter 005.</p>
@@ -137,8 +137,8 @@ stateDiagram-v2
   <p class="q">An Active Mortgage owes nothing and the jewellery is still in the safe. What does the app do?</p>
   <button class="opt">Flags it as Dormant for the Lender to check</button>
   <button class="opt">Redeems it automatically on the next day</button>
-  <button class="opt">Keeps adding interest and sends a Notice</button>
-  <div class="why">It flags it as Dormant. Only the Lender knows whether the jewellery went back, so the app never Redeems it on its own (ADR 0012). It gets no Notices, and it owes nothing, so nothing is added to what it owes.</div>
+  <button class="opt">Keeps adding interest and sends a Reminder</button>
+  <div class="why">It flags it as Dormant. Only the Lender knows whether the jewellery went back, so the app never Redeems it on its own (ADR 0012). It gets no Reminders, and it owes nothing, so nothing is added to what it owes.</div>
 </div>
 <div class="quiz" data-answer="1">
   <p class="q">Sunita's Mortgage owes ₹35,677 today and she pays exactly ₹35,677. What happens?</p>
@@ -150,7 +150,7 @@ stateDiagram-v2
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>, then the <em>Status</em> section of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a> (Active to Recovered Amount). <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">The Gold Chain Story, chapter 8</a> shows every ending on the real screens.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>, then the <em>Status</em> section of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a> (Active to Recovered Amount). <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#endings">The Gold Chain Story, chapter 8</a> shows every ending on the real screens.</p>
 
 <nav class="lessons">
   <a href="03-paying-it-back.html">← Paying it back</a>
