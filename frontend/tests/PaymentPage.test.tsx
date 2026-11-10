@@ -74,3 +74,15 @@ test('after a Void, the Payment shows as voided and its Receipt, which no longer
   const afterVoid = server.requests.slice(server.requests.indexOf('POST /api/payments/9/void'))
   expect(afterVoid).not.toContain('GET /api/payments/9/receipt')
 })
+
+test('from a recorded Payment, another Payment can be started for the same Customer', async () => {
+  const server = fakeServer({
+    'GET /api/payments/9': payment,
+    'GET /api/payments/9/receipt': receipt,
+    'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
+  })
+  showPage(server, '/payments/9', { '/payments/:id': <PaymentPage /> })
+
+  const link = await screen.findByRole('link', { name: 'Record another Payment for same customer' })
+  expect(link.getAttribute('href')).toBe(`/payments/new?customer=${mortgage.customer.id}`)
+})

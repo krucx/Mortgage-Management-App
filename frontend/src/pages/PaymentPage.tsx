@@ -101,7 +101,16 @@ export function PaymentPage() {
           </tbody>
         </table>
       </div>
-      {!payment.voided_at && <ReceiptPanel paymentId={payment.id} />}
+      {!payment.voided_at && (
+        <>
+          <ReceiptPanel paymentId={payment.id} />
+          <p>
+            <Link className="button secondary" to={`/payments/new?customer=${payment.customer.id}`}>
+              Record another Payment for same customer
+            </Link>
+          </p>
+        </>
+      )}
       {voiding && (
         <ReasonDialog
           title={`Void this Payment of ${formatINR(payment.amount)}?`}

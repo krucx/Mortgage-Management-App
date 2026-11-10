@@ -17,9 +17,14 @@ export function ReceiptPage() {
     <section className="card wide receipt">
       <div className="row spread no-print">
         <Link to={`/payments/${receipt.payment_id}`}>← Back to the Payment</Link>
-        <button type="button" onClick={() => window.print()}>
-          Print or save as PDF
-        </button>
+        <div className="row">
+          <Link className="button secondary" to={`/payments/new?customer=${receipt.customer.id}`}>
+            Record another Payment for same customer
+          </Link>
+          <button type="button" onClick={() => window.print()}>
+            Print or save as PDF
+          </button>
+        </div>
       </div>
       <h2>Payment receipt</h2>
       <dl className="summary">
