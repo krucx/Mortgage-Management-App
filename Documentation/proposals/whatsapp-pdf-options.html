@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Receipt PDFs on WhatsApp</title>
+<meta name="description" content="Options for sending the app's Receipt PDFs on WhatsApp without the Business API, ranked for the Lender's decision.">
+<style>
+  :root {
+    --bg: #f6f7f4; --card: #ffffff; --ink: #1c2420; --muted: #5d6a63; --line: #dfe4df;
+    --accent: #1d7a4f; --accent-soft: #e3f3ea; --gold: #b98300; --gold-soft: #fff4d6;
+    --warn: #b3261e; --warn-soft: #fbe9e7; --pill: #eef1ec; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141916; --card: #1d2421; --ink: #e8ece9; --muted: #9aa8a0; --line: #2d3733;
+      --accent: #4fc287; --accent-soft: #1b3328; --gold: #e2b23a; --gold-soft: #3a2f12;
+      --warn: #ff8a80; --warn-soft: #3b1f1d; --pill: #26302b; --shadow: 0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141916; --card: #1d2421; --ink: #e8ece9; --muted: #9aa8a0; --line: #2d3733;
+    --accent: #4fc287; --accent-soft: #1b3328; --gold: #e2b23a; --gold-soft: #3a2f12;
+    --warn: #ff8a80; --warn-soft: #3b1f1d; --pill: #26302b; --shadow: 0 1px 2px rgba(0,0,0,.3);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.15; margin: 0 0 8px; letter-spacing: -.01em; }
+  h2 { font-size: 22px; margin: 0 0 4px; letter-spacing: -.01em; }
+  h3 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  p { margin: 0 0 10px; }
+  .sub { color: var(--muted); font-size: 15px; }
+  section { margin-top: 40px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px;
+    box-shadow: var(--shadow); margin-top: 16px;
+  }
+  .card.rec { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
+  .head { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+  .rank {
+    flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 700; background: var(--pill); color: var(--ink);
+  }
+  .rec .rank { background: var(--accent); color: #fff; }
+  .badge {
+    display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); vertical-align: middle; margin-left: 6px;
+  }
+  .badge.gold { background: var(--gold-soft); color: var(--gold); }
+  .badge.grey { background: var(--pill); color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { background: var(--pill); border-radius: 999px; padding: 5px 12px; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
+  .chip svg { width: 15px; height: 15px; }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; margin: 16px 0 14px; }
+  .step {
+    display: inline-flex; align-items: center; gap: 7px; background: var(--pill); border-radius: 10px;
+    padding: 7px 11px; font-size: 14px; line-height: 1.3;
+  }
+  .step svg { width: 16px; height: 16px; flex: 0 0 auto; }
+  .step.lender { background: var(--accent-soft); }
+  .step.lender b { color: var(--accent); }
+  .arrow { color: var(--muted); font-size: 14px; padding: 0 2px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; margin-top: 6px; }
+  .fact dt { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0; }
+  .fact dd { margin: 2px 0 0; font-size: 15px; }
+  dl { margin: 0; }
+  .note { margin-top: 14px; padding: 10px 14px; border-radius: 10px; background: var(--gold-soft); color: var(--ink); font-size: 14px; }
+  .note b { color: var(--gold); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px; }
+  th, td { text-align: left; padding: 10px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; border-top: 0; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  tr.rec td { background: var(--accent-soft); }
+  .tbl { overflow-x: auto; }
+  .out { border-left: 4px solid var(--warn); }
+  .out .why { color: var(--muted); }
+  ol.checks { padding-left: 20px; margin: 0; }
+  ol.checks li { margin-bottom: 10px; }
+  .kbd { font: 13px ui-monospace, Menlo, Consolas, monospace; background: var(--pill); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+  @media print {
+    body { background: #fff; } .card { box-shadow: none; break-inside: avoid; } section { margin-top: 24px; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>Sending Receipt PDFs on WhatsApp</h1>
+  <p class="sub">Mortgage Management · proposal for the Lender · 10 November 2026</p>
+  <p>Today a Receipt opens in WhatsApp as a ready-typed message and the Lender presses Send. The ask: the same one click, but with the Receipt as a PDF reaching the Customer, without the paid WhatsApp Business API and without putting the Lender's number at risk.</p>
+  <div class="chips">
+    <span class="chip">✔ Lender still presses Send</span>
+    <span class="chip">✔ Free to run</span>
+    <span class="chip">✔ Official WhatsApp app only</span>
+    <span class="chip">✔ Windows laptop</span>
+    <span class="chip">✔ A handful a day</span>
+    <span class="chip">✔ A real PDF, not a picture</span>
+  </div>
+</header>
+
+<section>
+  <h3>Options, best first</h3>
+
+  <!-- 1 -->
+  <article class="card rec">
+    <div class="head">
+      <div class="rank">1</div>
+      <div>
+        <h2>A link to the PDF, kept on the Lender's own Google Drive <span class="badge">Recommended</span></h2>
+        <p class="sub">Exactly today's flow. The message carries the Receipt text as now, plus a link that opens the PDF.</p>
+      </div>
+    </div>
+    <div class="flow">
+      <span class="step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>App makes the PDF</span>
+      <span class="arrow">→</span>
+      <span class="step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3h8l5 9-4 7H7l-4-7z"/><path d="M8 3l4 7h9"/><path d="M3 12h9l-4 7"/></svg>Saved to the Lender's Drive, private link</span>
+      <span class="arrow">→</span>
+      <span class="step lender"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20l1.4-4A8 8 0 1 1 8.4 19L4 20Z"/></svg>WhatsApp opens, text + link ready · <b>Lender presses Send</b></span>
+      <span class="arrow">→</span>
+      <span class="step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Customer taps the link, the PDF opens</span>
+    </div>
+    <dl class="facts">
+      <div class="fact"><dt>Lender does</dt><dd>One click, then Send. Same as today.</dd></div>
+      <div class="fact"><dt>Customer gets</dt><dd>The Receipt text and a link that opens the PDF, which they can save.</dd></div>
+      <div class="fact"><dt>Where the PDF lives</dt><dd>The Lender's own Google Drive, under an unguessable link, deleted after 30 days.</dd></div>
+      <div class="fact"><dt>Risk to the number</dt><dd>None. Normal WhatsApp use.</dd></div>
+      <div class="fact"><dt>Cost</dt><dd>Free. Drive's free space is far more than needed.</dd></div>
+      <div class="fact"><dt>One-time setup</dt><dd>Sign in to Google once in the app's Settings.</dd></div>
+    </dl>
+    <div class="note"><b>Trade-off.</b> The Customer receives a link, not a PDF bubble. WhatsApp cannot turn a link into a document; only the paid API can. A Receipt can be re-sent later, which simply makes a fresh file and link.</div>
+  </article>
+
+  <!-- 2 -->
+  <article class="card">
+    <div class="head">
+      <div class="rank">2</div>
+      <div>
+        <h2>A small Windows helper puts the PDF straight into the chat <span class="badge gold">Runner-up</span></h2>
+        <p class="sub">The only route that delivers a real PDF document in the chat while nothing leaves the laptop.</p>
+      </div>
+    </div>
+    <div class="flow">
+      <span class="step lender"><b>Lender clicks</b> Send PDF</span>
+      <span class="arrow">→</span>
+      <span class="step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M2 20h20"/></svg>Windows helper copies the PDF to the clipboard, opens the chat</span>
+      <span class="arrow">→</span>
+      <span class="step lender"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20l1.4-4A8 8 0 1 1 8.4 19L4 20Z"/></svg><b>Lender presses</b> <span class="kbd">Ctrl+V</span> then <span class="kbd">Enter</span></span>
+      <span class="arrow">→</span>
+      <span class="step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Customer receives a PDF document</span>
+    </div>
+    <dl class="facts">
+      <div class="fact"><dt>Lender does</dt><dd>Click, paste, Enter. Windows asks "open this link?" the first time; tick "always".</dd></div>
+      <div class="fact"><dt>Customer gets</dt><dd>A PDF document in the chat, with the Receipt text as its caption.</dd></div>
+      <div class="fact"><dt>Where the PDF lives</dt><dd>Only on the laptop. Nothing is uploaded anywhere.</dd></div>
+      <div class="fact"><dt>Risk to the number</dt><dd>None. It is the official WhatsApp app, used by hand.</dd></div>
+      <div class="fact"><dt>Cost</dt><dd>Free.</dd></div>
+      <div class="fact"><dt>Works on</dt><dd>Windows only, through the link Setup already registers.</dd></div>
+    </dl>
+    <div class="note"><b>To confirm first.</b> That WhatsApp for Windows accepts a pasted PDF as a document. See the checks below. If the Lender values a true PDF in the chat over one fewer keypress, this option moves to first place.</div>
+  </article>
+
+  <!-- 3 -->
+  <article class="card">
+    <div class="head">
+      <div class="rank">3</div>
+      <div>
+        <h2>The Windows Share panel <span class="badge grey">Nothing to install</span></h2>
+        <p class="sub">The browser hands the PDF to Windows, which lists WhatsApp among the apps to share with.</p>
+      </div>
+    </div>
+    <div class="flow">
+      <span class="step lender"><b>Lender clicks</b> Share PDF</span>
+      <span class="arrow">→</span>
+      <span class="step">Windows Share panel opens</span>
+      <span class="arrow">→</span>
+      <span class="step lender"><b>Lender picks</b> WhatsApp, then the Customer</span>
+      <span class="arrow">→</span>
+      <span class="step lender"><b>Lender presses Send</b></span>
+    </div>
+    <dl class="facts">
+      <div class="fact"><dt>Lender does</dt><dd>Click, pick WhatsApp, pick the Customer, Send. Two picks the others avoid.</dd></div>
+      <div class="fact"><dt>Customer gets</dt><dd>A PDF document. The Receipt text may not travel with it.</dd></div>
+      <div class="fact"><dt>Where the PDF lives</dt><dd>Only on the laptop.</dd></div>
+      <div class="fact"><dt>Risk to the number</dt><dd>None.</dd></div>
+      <div class="fact"><dt>Cost</dt><dd>Free.</dd></div>
+      <div class="fact"><dt>Works on</dt><dd>Windows, in Edge or Chrome.</dd></div>
+    </dl>
+    <div class="note"><b>To confirm first.</b> That WhatsApp appears in the Windows Share panel on the Lender's laptop.</div>
+  </article>
+
+  <!-- 4 -->
+  <article class="card">
+    <div class="head">
+      <div class="rank">4</div>
+      <div>
+        <h2>Download, then drag into WhatsApp <span class="badge grey">Baseline</span></h2>
+        <p class="sub">What is possible with the smallest change: a Download PDF button next to the message.</p>
+      </div>
+    </div>
+    <div class="flow">
+      <span class="step lender"><b>Lender clicks</b> Download PDF</span>
+      <span class="arrow">→</span>
+      <span class="step lender">WhatsApp opens with the text · <b>Lender drags the file in</b></span>
+      <span class="arrow">→</span>
+      <span class="step lender"><b>Lender presses Send</b></span>
+    </div>
+    <dl class="facts">
+      <div class="fact"><dt>Lender does</dt><dd>Click, find the file, drag it, Send. The most steps of any option.</dd></div>
+      <div class="fact"><dt>Customer gets</dt><dd>A PDF document with the text as caption.</dd></div>
+      <div class="fact"><dt>Where the PDF lives</dt><dd>The laptop's Downloads folder.</dd></div>
+      <div class="fact"><dt>Works on</dt><dd>Any laptop.</dd></div>
+    </dl>
+  </article>
+</section>
+
+<section>
+  <h3>Side by side</h3>
+  <div class="card tbl">
+    <table>
+      <thead><tr><th>Option</th><th>Lender's steps per Receipt</th><th>Customer receives</th><th>PDF lives</th><th>Works on</th><th>Build</th></tr></thead>
+      <tbody>
+        <tr class="rec"><td>1 · Drive link</td><td>Click, Send</td><td>Text + link to the PDF</td><td>Lender's Google Drive, 30 days</td><td>Any laptop</td><td>Medium</td></tr>
+        <tr><td>2 · Windows helper</td><td>Click, Ctrl+V, Enter</td><td>PDF document + caption</td><td>Laptop only</td><td>Windows</td><td>Medium</td></tr>
+        <tr><td>3 · Share panel</td><td>Click, pick app, pick person, Send</td><td>PDF document</td><td>Laptop only</td><td>Windows, Edge/Chrome</td><td>Small</td></tr>
+        <tr><td>4 · Download, drag</td><td>Click, find file, drag, Send</td><td>PDF document + caption</td><td>Downloads folder</td><td>Any laptop</td><td>Small</td></tr>
+      </tbody>
+    </table>
+    <p class="sub" style="margin-top:10px">All four are free, use the official WhatsApp app, and keep the Lender pressing Send. The number is never at risk.</p>
+  </div>
+</section>
+
+<section>
+  <h3>Ruled out, and why</h3>
+  <div class="card out">
+    <p><b>WhatsApp Business (Cloud) API.</b> <span class="why">The only way to make a PDF arrive automatically. It needs Meta business verification, a number taken off the normal WhatsApp app, approved message templates, and in India now charges per message even for replies. Many approvals, not free.</span></p>
+    <p><b>Unofficial WhatsApp libraries.</b> <span class="why">Fully automatic and free, but they break WhatsApp's terms and numbers do get banned. The Lender's number is the business; a ban cannot be undone.</span></p>
+    <p style="margin:0"><b>Opening the laptop to the internet.</b> <span class="why">Hosting the PDF from the laptop itself means it must be on when the Customer taps, and exposes the app beyond this laptop, which it was built never to do.</span></p>
+  </div>
+</section>
+
+<section>
+  <h3>Two checks on the Lender's laptop, two minutes each</h3>
+  <div class="card">
+    <ol class="checks">
+      <li><b>Can WhatsApp take a pasted PDF?</b> In File Explorer, right-click any PDF and Copy. Open a chat in WhatsApp, press <span class="kbd">Ctrl+V</span>. If a document preview appears with a caption box, option 2 works.</li>
+      <li><b>Is WhatsApp in the Share panel?</b> In File Explorer, right-click any PDF and choose Share. If WhatsApp is listed among the apps, option 3 works.</li>
+    </ol>
+    <p class="sub" style="margin:12px 0 0">Option 1 needs no check: it uses only what the app does today, plus Google Drive.</p>
+  </div>
+</section>
+
+<section>
+  <h3>The decision</h3>
+  <div class="card">
+    <p><b>Go with option 1</b> if one click and today's familiar flow matter most, and a link that opens the PDF is acceptable for Customers.</p>
+    <p><b>Go with option 2</b> if the Receipt must land as a PDF document in the chat and every file must stay on the laptop, at the cost of Ctrl+V and Enter.</p>
+    <p style="margin:0" class="sub">Either way the Receipt is the first document; whatever is built will carry any other PDF the app makes the same way. Nothing is built until this is approved.</p>
+  </div>
+</section>
+
+<footer>Prepared from the app's current code and WhatsApp's documented behaviour. Decisions recorded: Lender presses Send; official app only; a real PDF; Windows desktop; files may sit on the Lender's own Drive with housekeeping.</footer>
+
+</main>
+</body>
+</html>
