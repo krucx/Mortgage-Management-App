@@ -7,6 +7,13 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Added
+
+- **Favours Given on the Customer page:** every Discount and Waived Amount the Lender has
+  given the Customer across their Mortgages, newest first with their total, each Mortgage
+  shown by its description and linked to its page. Discounts from Voided Payments and
+  Waivers that were Reopened are left out, and the section is hidden when there are none.
+
 ## [3.4.8] - 2026-11-10
 
 ### Changed

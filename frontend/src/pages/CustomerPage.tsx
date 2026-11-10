@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { MORTGAGE_SORTS, type MortgagePage, type MortgageSort } from '../api'
+import { FavoursGiven } from '../components/FavoursGiven'
 import { History } from '../components/History'
 import { MortgageTable } from '../components/MortgageTable'
 import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
@@ -114,6 +115,8 @@ export function CustomerPage() {
           )}
         </>
       )}
+
+      <FavoursGiven customerId={customer.id} />
 
       <h3>Customers they referred</h3>
       <PersonList people={customer.referred} empty="Nobody yet." />
