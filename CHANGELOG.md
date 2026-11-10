@@ -18,14 +18,19 @@ Every release of Mortgage Management, newest first. The format follows
   when there are none.
 - **Grace Period setting:** Settings has a Grace Period, in days, next to the Discount
   confirmation threshold: one setting for every Mortgage, not part of any Terms. It is
-  empty (off) unless set; clearing it or setting 0 turns Grace off, and a negative or
-  part-day value is refused.
+  3 days unless changed; clearing it or setting 0 turns Grace off (and it stays off), and
+  a negative or part-day value is refused.
 - **Grace Payments:** on Record a Payment, a Payment received within the Grace Period
   after an Accrual Date is offered, under Date received, the day before that Accrual
-  Date when that saves the Customer money (for example "Within the 2-day Grace Period
-  after 7 Nov: date it 6 Nov (lets off ₹420)"). One click changes only the date; changing it
+  Date when that saves the Customer money, as a button (for example "Date it 6 Nov · ₹420
+  let off"). With several Mortgages, each of their Accrual Dates within the Grace Period
+  is a choice, the one gracing the most first (for example "Date it 5 Nov · graces both ·
+  ₹720 let off" and "Date it 6 Nov · graces 2026GoldChain only · ₹420 let off"); the Grace
+  tooltip lists each Mortgage's Accrual Date and works out the choices. Each Mortgage in
+  the list shows its last Accrual Date, green when the date received is within the Grace
+  Period after it and amber when past it. One click changes only the date; changing it
   by hand again makes it an ordinary Payment, and so does changing the draft until the
-  earlier date lets off nothing (it goes back to the date received). A Grace Payment keeps the date it was
+  date chosen lets off nothing (it goes back to the date received). A Grace Payment keeps the date it was
   received and, for each Mortgage, the amount let off as worked out when saved (ADR 0020);
   the Ledger uses only the earlier date. Its Final Payments, when it Redeems, have the
   earlier date too. The Payment page shows both dates and the amount let off. A Grace
@@ -36,7 +41,8 @@ Every release of Mortgage Management, newest first. The format follows
 - **Grace in the Ledger and the Payments list:** a Grace Payment's row in a Mortgage's
   Ledger shows its date, the date it was received and the amount let off on that Mortgage
   (for example "6 Nov 2026 · received 8 Nov 2026 · Grace, ₹420 let off"). The Payments
-  list marks Grace Payments with a Grace badge; a Voided one shows only as Voided.
+  list marks Grace Payments with a Grace badge on the amount, where a Voided one shows
+  only as Voided.
 - **Grace on the Receipt:** a Grace Payment's Receipt, on WhatsApp and printed, tells the
   Customer about the favour, "received on 16 Apr 2026, counted as paid on 13 Apr 2026
   (Grace)", and the amount let off on each Mortgage (with the total when there are

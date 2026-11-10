@@ -125,7 +125,7 @@ test("unprotected Backups warn that they hold Customers' ID Photos", async () =>
   ).toBeTruthy()
 })
 
-test('the Grace Period is empty (off) unless set, and can be set and cleared', async () => {
+test('the Grace Period can be empty (off), set and cleared', async () => {
   const saved: unknown[] = []
   const server = fakeServer({
     'GET /api/settings/grace-period': { grace_period_days: null },

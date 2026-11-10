@@ -151,7 +151,7 @@ A non-cash reduction to what a Customer owes on one Mortgage, recorded alongside
 _Avoid_: Waiver (a Discount does not itself close a Mortgage)
 
 **Grace Period**:
-The few days the Lender allows after an Accrual Date within which a Payment may be dated the day before that Accrual Date, as if paid on time, letting off what paying late would have cost; set by the Lender, or none. A Payment dated this way keeps the date it was actually received and, for each Mortgage, the amount let off, so the Grace can be shown later.
+The few days the Lender allows after an Accrual Date within which a Payment may be dated the day before that Accrual Date, as if paid on time, letting off what paying late would have cost; 3 days unless the Lender changes it, or none. A Payment dated this way keeps the date it was actually received and, for each Mortgage, the amount let off, so the Grace can be shown later.
 _Avoid_: Waiver (that is a Closure), allowance, grace days
 
 **Favours Given**:

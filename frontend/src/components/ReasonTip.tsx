@@ -7,13 +7,27 @@ const GAP = 8 // between the marker and the bubble, room for its arrow
 /** Where the bubble sits: its right edge under the marker's, above it near the bottom. */
 type Place = { right: number; maxWidth: number; top?: number; bottom?: number; above: boolean }
 
-/**
- * A compact red marker (its label and an ⓘ) whose `reason` shows in a bubble on hover,
- * focus or tap, so a long refusal doesn't stretch a table or a form. The bubble is
- * fixed to the window (a scrolling table can't clip it), kept on screen, points at the
- * marker, and closes on Escape or scrolling.
- */
+/** A compact red marker (its label and an ⓘ) whose `reason` shows in a bubble, so a long
+ *  refusal doesn't stretch a table or a form. */
 export function ReasonTip({ reason, children }: { reason: string; children: ReactNode }) {
+  return <Tip tip={reason}>{children}</Tip>
+}
+
+/**
+ * A compact marker (its label and an ⓘ) whose `tip` shows in a bubble on hover, focus or
+ * tap: red for a refusal, or green for Grace. The bubble is fixed to the window (a
+ * scrolling table can't clip it), kept on screen, points at the marker, and closes on
+ * Escape or scrolling.
+ */
+export function Tip({
+  tip,
+  tone,
+  children,
+}: {
+  tip: ReactNode
+  tone?: 'grace'
+  children: ReactNode
+}) {
   const id = useId()
   const [place, setPlace] = useState<Place | null>(null)
   const show = (event: { currentTarget: HTMLElement }) => {
@@ -42,7 +56,7 @@ export function ReasonTip({ reason, children }: { reason: string; children: Reac
 
   return (
     <span
-      className="reason-tip"
+      className={tone ? `reason-tip ${tone}` : 'reason-tip'}
       tabIndex={0}
       aria-describedby={id}
       onMouseEnter={show}
@@ -62,7 +76,7 @@ export function ReasonTip({ reason, children }: { reason: string; children: Reac
         hidden={!place}
         style={place ? { right: place.right, maxWidth: place.maxWidth, top: place.top, bottom: place.bottom } : undefined}
       >
-        {reason}
+        {tip}
       </span>
     </span>
   )

@@ -478,8 +478,8 @@ function GracePeriodSettings() {
       hint={
         <>
           A Payment received this many days or fewer after an Accrual Date may be dated the
-          day before it, as if paid on time. The same for every Mortgage. Leave it empty or 0
-          for no Grace.
+          day before it, as if paid on time. The same for every Mortgage; 3 days unless
+          changed. Leave it empty or 0 for no Grace.
         </>
       }
       inputLabel="Grace Period (days)"

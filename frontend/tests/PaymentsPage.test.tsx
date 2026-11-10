@@ -42,7 +42,9 @@ test('Grace Payments are marked; a Voided one shows as Voided instead', async ()
 
   const rowOf = async (id: number) =>
     (await screen.findByRole('link', { name: `2026GoldChain${id}` })).closest('tr')!
+  // On the amount, as Voided is.
   const grace = within(await rowOf(1)).getByText('Grace')
+  expect(grace.closest('td')!.className).toBe('num')
   expect(grace.getAttribute('title')).toBe('Received 8 Nov 2026')
   expect(within(await rowOf(2)).queryByText('Grace')).toBeNull()
   expect(within(await rowOf(3)).queryByText('Grace')).toBeNull()

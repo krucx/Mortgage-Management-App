@@ -32,7 +32,7 @@ from mortgage_backend.lending.changes import (
     edit_mortgage,
     forfeit,
     forfeit_all,
-    grace_offer_for,
+    grace_offers_for,
     record_payment,
     redeem,
     redeem_all,
@@ -374,12 +374,13 @@ def preview_payment(
 
 
 @router.post("/payments/grace-offer")
-def offer_grace(payment: PaymentIn, engine: EngineDep) -> GraceOffer | None:
-    """For a Payment drafted on the date it was received: the earlier date the Grace
-    Period allows and what that would let off, if it lets off anything."""
+def offer_grace(payment: PaymentIn, engine: EngineDep) -> list[GraceOffer]:
+    """For a Payment drafted on the date it was received: each earlier date the Grace
+    Period allows that lets off anything, and what it would let off; the first graces
+    the most Mortgages."""
     with engine.connect() as conn:
-        offer = grace_offer_for(conn, payment, payment.paid_on)
-    return offer if offer is not None and offer.let_off > 0 else None
+        offers = grace_offers_for(conn, payment, payment.paid_on)
+    return [offer for offer in offers if offer.let_off > 0]
 
 
 class NewMortgagePreview(BaseModel):

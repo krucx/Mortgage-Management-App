@@ -53,6 +53,18 @@ export function addMonths(isoDate: string, months: number): string {
   return first.toISOString().slice(0, 10)
 }
 
+/** The last Accrual Date of a Mortgage started on `start` (YYYY-MM-DD) on or before
+ *  `on`; null before its first. */
+export function lastAccrualDate(start: string, on: string): string | null {
+  let last: string | null = null
+  for (let n = 1; addMonths(start, n) <= on; n++) last = addMonths(start, n)
+  return last
+}
+
+/** The days from one date (YYYY-MM-DD) to a later one. */
+export const daysBetween = (from: string, to: string) =>
+  Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000)
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** "2026-04" → "Apr 2026" (or just "Apr" when `short`). */

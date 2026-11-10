@@ -1001,8 +1001,9 @@ export interface paths {
         put?: never;
         /**
          * Offer Grace
-         * @description For a Payment drafted on the date it was received: the earlier date the Grace
-         *     Period allows and what that would let off, if it lets off anything.
+         * @description For a Payment drafted on the date it was received: each earlier date the Grace
+         *     Period allows that lets off anything, and what it would let off; the first graces
+         *     the most Mortgages.
          */
         post: operations["offer_grace_api_payments_grace_offer_post"];
         delete?: never;
@@ -2024,8 +2025,8 @@ export interface components {
         };
         /**
          * GraceOffer
-         * @description A Payment received on a date, dated instead the day before the Accrual Date it
-         *     is within the Grace Period of, and what that lets off.
+         * @description A Payment received on a date, dated instead the day before an Accrual Date it is
+         *     within the Grace Period of, and what that lets off.
          */
         GraceOffer: {
             /**
@@ -2038,7 +2039,7 @@ export interface components {
             /** Let Off */
             let_off: number;
             /** Mortgages */
-            mortgages: components["schemas"]["MortgageLetOff"][];
+            mortgages: components["schemas"]["MortgageGrace"][];
             /**
              * Paid On
              * Format: date
@@ -2331,6 +2332,20 @@ export interface components {
             start_date: string;
             terms?: components["schemas"]["Terms"] | null;
         };
+        /**
+         * MortgageGrace
+         * @description One Mortgage of a Payment dated earlier under the Grace Period.
+         */
+        MortgageGrace: {
+            /** Accrual On */
+            accrual_on: string | null;
+            /** Graced */
+            graced: boolean;
+            /** Let Off */
+            let_off: number;
+            /** Mortgage Id */
+            mortgage_id: number;
+        };
         /** MortgageIn */
         MortgageIn: {
             /** Amount Lent */
@@ -2357,13 +2372,6 @@ export interface components {
              */
             start_date: string;
             terms?: components["schemas"]["Terms"] | null;
-        };
-        /** MortgageLetOff */
-        MortgageLetOff: {
-            /** Let Off */
-            let_off: number;
-            /** Mortgage Id */
-            mortgage_id: number;
         };
         /** MortgageLink */
         MortgageLink: {
@@ -5036,7 +5044,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GraceOffer"] | null;
+                    "application/json": components["schemas"]["GraceOffer"][];
                 };
             };
             /** @description Validation Error */

@@ -39,7 +39,7 @@ from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
 from mortgage_backend.payments.grace_period import (
     GraceOffer,
     get_grace_period,
-    grace_offer,
+    grace_offers,
 )
 from mortgage_backend.payments.payments import (
     Payment,
@@ -324,16 +324,16 @@ def _refuse_payment(
     return rows
 
 
-def grace_offer_for(
+def grace_offers_for(
     conn: Connection, payment: PaymentIn, received_on: date
-) -> GraceOffer | None:
-    """The Grace for `payment` had it been received on `received_on`, under the Grace
-    Period as it is set now; None if that is not within it, or if any of its Mortgages
-    is not Active."""
+) -> list[GraceOffer]:
+    """The Grace `payment` may have had it been received on `received_on`, under the
+    Grace Period as it is set now: none if that is not within it, or if any of its
+    Mortgages is not Active."""
     mortgages = [replay(conn, a.mortgage_id) for a in payment.allocations]
     if any(m.row["status"] != MortgageStatus.ACTIVE for m in mortgages):
-        return None
-    return grace_offer(
+        return []
+    return grace_offers(
         mortgages,
         {a.mortgage_id: a.amount + a.discount for a in payment.allocations},
         received_on,
@@ -350,8 +350,15 @@ def _grace(conn: Connection, payment: PaymentIn, today: date) -> _Grace | None:
         return None
     if received_on > today:
         raise unprocessable("The date received cannot be in the future")
-    offer = grace_offer_for(conn, payment, received_on)
-    if offer is None or offer.paid_on != payment.paid_on:
+    offer = next(
+        (
+            offer
+            for offer in grace_offers_for(conn, payment, received_on)
+            if offer.paid_on == payment.paid_on
+        ),
+        None,
+    )
+    if offer is None:
         raise unprocessable(
             f"A Payment received on {received_on:%d %b %Y} can't be dated "
             f"{payment.paid_on:%d %b %Y}: that is not within the Grace Period"
