@@ -14,3 +14,17 @@ updates:
         applies-to: security-updates
         patterns:
           - '*'
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    # Same grouping as above, for the frontend's npm packages.
+    groups:
+      npm:
+        patterns:
+          - '*'
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
