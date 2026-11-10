@@ -13,14 +13,14 @@ def grace_period(client):
     return response.json()
 
 
-def test_there_is_no_grace_period_unless_set(client):
-    assert grace_period(client) == {"grace_period_days": None}
-
-
 def set_grace_period(client, value):
     response = client.put("/api/settings/grace-period", json={"grace_period_days": value})
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def test_there_is_no_grace_period_unless_set(client):
+    assert grace_period(client) == {"grace_period_days": None}
 
 
 def test_the_lender_can_set_a_grace_period_and_it_is_kept_after_a_restart(database_url):
@@ -45,7 +45,7 @@ def test_a_grace_period_of_zero_days_is_the_same_as_none(client):
     assert grace_period(client) == {"grace_period_days": None}
 
 
-@pytest.mark.parametrize("days", [-1, 1.5])
+@pytest.mark.parametrize("days", [-1, 1.5, True])
 def test_a_grace_period_that_is_not_a_whole_number_of_days_is_refused(client, days):
     set_grace_period(client, 5)
 

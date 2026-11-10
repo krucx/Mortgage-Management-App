@@ -319,11 +319,11 @@ const DAYS: Unit = {
   min: '0',
 }
 
-/** One optional number: past it something happens; cleared (or 0), never. The Cash
- * Limit and the Discount confirmation threshold are this in rupees, the Grace Period in
- * days, each with their own heading, copy, labels and wording for "cleared" — only the
- * comparison each drives is theirs to know, not this section. */
-function ThresholdSetting<T extends Record<string, number | null | undefined>>({
+/** One optional number; cleared (or 0), off. The Cash Limit and the Discount confirmation
+ * threshold are this in rupees, the Grace Period in days, each with their own heading,
+ * copy, labels and wording for "off" — only what each drives is theirs to know, not this
+ * section. */
+function OptionalNumberSetting<T extends Record<string, number | null | undefined>>({
   unit,
   heading,
   hint,
@@ -346,7 +346,7 @@ function ThresholdSetting<T extends Record<string, number | null | undefined>>({
   confirmedSuffix: string
   field: keyof T
   query: SettingQuery<T>
-  save: (client: ApiClient, limit: number | null) => Promise<T>
+  save: (client: ApiClient, value: number | null) => Promise<T>
 }) {
   const { client, queryClient } = useServerState()
   const saved = useQuery(query)
@@ -359,13 +359,13 @@ function ThresholdSetting<T extends Record<string, number | null | undefined>>({
   async function handleSave(event: FormEvent) {
     event.preventDefault()
     if (draft === null) return
-    const limit = unit.fromDraft(draft)
+    const value = unit.fromDraft(draft)
     const confirmed = await confirm({
       title: dialogTitle,
       body: (
         <Summary
           rows={[
-            [summaryLabel, limit ? `${unit.show(limit)}${confirmedSuffix}` : neverText],
+            [summaryLabel, value ? `${unit.show(value)}${confirmedSuffix}` : neverText],
           ]}
         />
       ),
@@ -374,7 +374,7 @@ function ThresholdSetting<T extends Record<string, number | null | undefined>>({
     setSaving(true)
     setStatus(null)
     try {
-      const stored = await save(client, limit)
+      const stored = await save(client, value)
       queryClient.setQueryData(query.queryKey, stored)
       setStatus({ kind: 'saved', text: 'Saved.' })
     } catch (error) {
@@ -417,7 +417,7 @@ function ThresholdSetting<T extends Record<string, number | null | undefined>>({
 function CashLimitSettings() {
   const { client } = useServerState()
   return (
-    <ThresholdSetting
+    <OptionalNumberSetting
       unit={RUPEES}
       heading="Cash Limit"
       hint={
@@ -445,7 +445,7 @@ const DISCOUNT_CONFIRMATION_DEFAULT_PAISE = 500_00 // mirrors the backend defaul
 function DiscountConfirmationSettings() {
   const { client } = useServerState()
   return (
-    <ThresholdSetting
+    <OptionalNumberSetting
       unit={RUPEES}
       heading="Discount confirmation"
       hint={
@@ -472,7 +472,7 @@ function DiscountConfirmationSettings() {
 function GracePeriodSettings() {
   const { client } = useServerState()
   return (
-    <ThresholdSetting
+    <OptionalNumberSetting
       unit={DAYS}
       heading="Grace Period"
       hint={

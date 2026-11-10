@@ -24,8 +24,11 @@ class GracePeriod(BaseModel):
     def whole_days(
         cls, days: object, as_days: ValidatorFunctionWrapHandler
     ) -> int | None:
-        """0 days is no Grace, as is none; anything but a whole number of days is refused."""
+        """0 days is no Grace, as is none; anything but a whole number of days is refused
+        (true and false included, which would otherwise pass as 1 and 0)."""
         refused = ValueError("The Grace Period must be a whole number of days, 0 or more")
+        if isinstance(days, bool):
+            raise refused
         try:
             whole: int | None = as_days(days)
         except ValidationError:
@@ -36,7 +39,7 @@ class GracePeriod(BaseModel):
 
 
 # Nothing stored means off, so clearing it can simply forget it.
-_GRACE_PERIOD = ConfigGroup(GracePeriod, {"grace_period_days": "grace_period_days"})
+_GRACE_PERIOD = ConfigGroup.prefixed("", GracePeriod)
 
 
 def get_grace_period(conn: Connection) -> GracePeriod:
