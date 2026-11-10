@@ -242,9 +242,13 @@ own API: `docs/sample-book/run.sh` retakes them all (see its README).
 ### Tests and type checks
 
 ```sh
-cd backend && uv run pytest && uv run mypy src
+cd backend && COVERAGE_CORE=sysmon uv run pytest -n auto && uv run mypy src
 cd frontend && npm test && npm run typecheck
 ```
+
+The backend tests use `pytest-xdist` to run in parallel. `COVERAGE_CORE=sysmon`
+keeps coverage collection compatible with that parallel run. CI additionally
+uses pytest-cov to retain XML and HTML coverage reports.
 
 ### API types
 
