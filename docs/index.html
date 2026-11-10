@@ -331,7 +331,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li>The Outstanding on a chosen day, interest earned, first month's interest and the effective annual rate</li>
           <li>Two sets of Terms side by side, and how they differ</li>
           <li>Planned Payments: a monthly amount and Lump Sums, and when they pay it off</li>
-          <li>Loan-to-Value from the jewellery's weight or a typed value</li>
+          <li>Collateral Value and Loan-to-Value, now and when it closes, from the jewellery's weight or a typed value, worked out as for a real Mortgage</li>
           <li>Month by month, and <span class="ui">Lend this</span> into New Mortgage</li>
         </ul>
         <div class="more"><a href="walkthrough.html#s4">Walkthrough §4</a><a href="story.html#pledge">Story: the pledge</a></div>
@@ -346,6 +346,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <ul>
           <li>Owed today and over the next year, before and after</li>
           <li>Exactly which Ledger lines change</li>
+          <li>Correcting a Mortgage's starting Terms replays its Payments; a closed Mortgage's start date, Principal and Terms stay locked</li>
           <li>Term Changes from a chosen Accrual Date onwards</li>
         </ul>
         <div class="more"><a href="walkthrough.html#s6">Walkthrough §6</a><a href="story.html#second">Story: second thoughts</a></div>
@@ -353,7 +354,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </article>
 
     <article class="feature" style="--tone: var(--money-in)">
-      <img src="shots/payment-new.webp" width="1068" height="892" alt="Recording a Payment split equally across two Mortgages, beside each one's Outstanding, with a Preview for each." loading="lazy">
+      <img src="shots/payment-new.webp" width="1068" height="1848" alt="Recording a Payment split equally across two Mortgages, beside each one's Outstanding, with a Preview for each." loading="lazy">
       <div class="feature-body">
         <h3>Payments and Receipts</h3>
         <p>One sum entered once and split across a Customer's Mortgages, with a Receipt for WhatsApp or print.</p>
@@ -361,8 +362,10 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li>Split equally, by amount or by percentage</li>
           <li>One figure per Mortgage: its Outstanding on the Payment date, what would Redeem it</li>
           <li>A whole Outstanding Redeems the Mortgage, with one Receipt</li>
+          <li>A Discount beside each Mortgage's cash: a non-cash reduction, shown on the Receipt and kept out of every cash total</li>
           <li>Void with a reason; never deleted</li>
           <li>A warning (never a refusal) before ₹20,000 or more in cash, the Cash Limit</li>
+          <li><span class="ui">Record another Payment for same customer</span>, for several back-dated Payments in a row</li>
         </ul>
         <div class="more"><a href="walkthrough.html#s7">Walkthrough §7</a><a href="story.html#pays">Story: Meera pays</a></div>
       </div>
@@ -474,10 +477,12 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li><span><span class="ui">Payments → New Payment</span>, and choose the Customer. Set the date the money came in; the figures shown are as of that date.</span></li>
           <li><span>Enter the amount and the method (Cash, UPI or bank transfer), or press <span class="ui">Pay the full Outstanding</span>.</span></li>
           <li><span>Tick the Mortgages it is for and split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>. Each row shows the Mortgage's Outstanding on that date, which is what would Redeem it; the Preview shows what each will owe afterwards.</span></li>
-          <li><span>If an Allocation is its Mortgage's whole Outstanding, the app asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment Redeems it, alongside any other parts, all or none.</span></li>
-          <li><span>Record it: the Receipt opens, covering everything handed over and marking what was Redeemed. <span class="ui">Send on WhatsApp</span> or <span class="ui">Print or save as PDF</span>.</span></li>
+          <li><span>Letting part of what is owed go without closing the Mortgage? Enter a <span class="ui">Discount</span> beside that Mortgage's cash. It is applied after the cash, in the same order; larger than the Mortgage still owes, the app offers to reduce it, and above the Discount confirmation threshold it asks once more.</span></li>
+          <li><span>If an Allocation is its Mortgage's whole Outstanding (cash plus Discount), the app asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment Redeems it, alongside any other parts, all or none.</span></li>
+          <li><span>Record it: the Receipt opens, covering everything handed over, any Discount, and marking what was Redeemed. <span class="ui">Send on WhatsApp</span> or <span class="ui">Print or save as PDF</span>.</span></li>
+          <li><span>More to enter for the same Customer, such as back-dated Payments from the paper book? Press <span class="ui">Record another Payment for same customer</span> on the Receipt or the Payment.</span></li>
         </ol>
-        <p class="tip">Entered the wrong amount? Open the Payment, press <span class="ui">Void…</span> with a reason, and record it again.</p>
+        <p class="tip">Entered the wrong amount? Open the Payment, press <span class="ui">Void…</span> with a reason, and record it again. A Void reverses the cash and any Discount together.</p>
       </div>
     </details>
 
@@ -535,7 +540,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <summary><b>Fix a mistake</b><span>Without losing the record of what happened</span></summary>
       <div class="flow-body">
         <ol class="steps">
-          <li><span>Wrong start date or Principal: <span class="ui">Edit</span> the Mortgage. The Preview shows every Ledger line that changes. (Reopen a closed Mortgage first.)</span></li>
+          <li><span>Wrong start date, Principal or starting Terms (rate, Interest Mode, Part-Month Rule): <span class="ui">Edit</span> the Mortgage. The Preview shows the Outstanding before and after and every Ledger line that changes, and refuses a correction that would make a past Payment larger than what was owed. (Reopen a closed Mortgage first: those fields are locked while it is closed.)</span></li>
           <li><span>Wrong Payment: <span class="ui">Void…</span> it with a reason, then record the right one.</span></li>
           <li><span>Wrong Closure: <span class="ui">Reopen…</span> with a reason, then close it again correctly.</span></li>
           <li><span>Wrong Customer details: edit the Customer. A Customer with no Mortgages can be deleted.</span></li>
@@ -586,13 +591,15 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <div class="nuances">
         <div class="nuance rule"><b>Interest first, then Principal</b><span>Within each Mortgage, an Allocation pays unpaid interest, then the Interest to Date, then Principal. What it pays of the Interest to Date counts against the month's interest when it is charged.</span></div>
         <div class="nuance"><b>No paying more than is owed</b><span>A Payment larger than a Mortgage owes on its date is refused, with the reason.</span></div>
+        <div class="nuance rule"><b>A Discount is not cash</b><span>Recorded beside a Mortgage's cash in a Payment, it is applied after the cash and in the same order, can Redeem the Mortgage with it, and is reversed with the Payment's Void. It appears on the Receipt but in no cash total, warning or report. The Preview decides how much Discount each Mortgage can still take; a larger one is reduced to that, never refused.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0014-discounts-are-non-cash-payment-reductions.md">ADR-0014</a></div>
         <div class="nuance rule"><b>A whole Outstanding Redeems</b><span>Paying a Mortgage's whole Outstanding Redeems it with that Payment. If it can't be Redeemed that day (a later Payment), the Payment is refused with the reason. Equal shares fill each Mortgage up to its Outstanding, then share the rest.</span></div>
         <div class="nuance"><b>The final Payment includes the Interest to Date</b><span>Redeeming records the Outstanding on the Closure date as a Payment, so the Receipt and the Ledger agree. A Waived Amount and a Forfeiture's profit or loss are worked out from that Outstanding too.</span></div>
         <div class="nuance"><b>A Waiver is the Lender's choice</b><span>What the Customer pays is the final Payment; the rest is let off and counted on the Dashboard. Paying the full amount is a Redemption, not a Waiver.</span></div>
         <div class="nuance"><b>No closing before a later Payment</b><span>A Closure can't be dated before a Payment already recorded on that Mortgage.</span></div>
         <div class="nuance rule"><b>Dormant is flagged, not Redeemed</b><span>An Active Mortgage owing nothing is Dormant: worked out, never stored, it gets no Reminders, stays off the Call List and waits on Closures until the Lender Redeems it or it owes again.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR-0012</a></div>
         <div class="nuance"><b>Cash is warned about, not refused</b><span>Lending or receiving the Cash Limit or more in cash (₹20,000 unless changed) asks first, as Government of India rules ask for UPI or bank transfer. Nothing is refused.</span></div>
-        <div class="nuance"><b>Closed means locked</b><span>A closed Mortgage takes no Payments, accrues nothing, and its start date and Principal can't be edited until it is Reopened.</span></div>
+        <div class="nuance"><b>Closed means locked</b><span>A closed Mortgage takes no Payments, accrues nothing, and its start date, Principal and starting Terms can't be edited until it is Reopened, so a correction can never change what it owed when it closed.</span></div>
+        <div class="nuance"><b>Starting Terms can be corrected</b><span>A rate, Interest Mode or Part-Month Rule recorded wrongly is corrected on the Mortgage and every Payment is replayed under it; the correction is refused if a past Payment would then exceed what was owed on its date. A Term Change, by contrast, applies new Terms from a chosen Accrual Date and leaves the past alone.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0015-starting-terms-can-be-corrected.md">ADR-0015</a></div>
       </div>
     </div>
 
@@ -626,7 +633,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div class="nuance rule"><b>The app never sends by itself</b><span>WhatsApp opens with the message ready and the Lender presses Send. No WhatsApp account setup or API is needed.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR-0002</a></div>
         <div class="nuance"><b>Customers see their jewellery, not codes</b><span>Receipts and Reminders name each Mortgage by its description ("Gold chain"), never its Mortgage Name.</span></div>
         <div class="nuance"><b>Templates can't break</b><span>A template with a placeholder the app can't fill is refused on save, so a Customer never receives <code>{typo}</code>.</span></div>
-        <div class="nuance"><b>Unsent Reminders stay eligible</b><span>Until sent, a Reminder's amounts and wording are worked out from current figures. Queue sync removes it if none of the Customer's Active Mortgages still accrues on its date; sent and skipped Reminders remain as history.</span></div>
+        <div class="nuance"><b>Unsent Reminders stay eligible</b><span>Until sent, a Reminder's amounts and wording are worked out from current figures. One rule decides which Mortgages a Reminder covers: Active, accruing on its date, and not Dormant then. Queue sync removes an unsent Reminder with none left; sent and skipped Reminders remain as history.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0017-reminders-and-dashboard-timeframes.md">ADR-0017</a></div>
       </div>
     </div>
 
@@ -639,6 +646,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div class="nuance"><b>Started from its icon</b><span>The installed app starts the app when it isn't running, through a link Setup registers (Windows asks once).</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0008-pwa-starts-the-app-through-a-link.md">ADR-0008</a></div>
         <div class="nuance rule"><b>An update never breaks the app</b><span>Each version is installed beside the one in use and switched to only once it starts; if anything fails, the old one keeps running. Starting a new version takes a Backup, then brings the database up to date.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md">ADR-0009</a></div>
         <div class="nuance"><b>Told when a release is out</b><span>The app asks GitHub at most once a day, never sends anything, and stays silent offline.</span></div>
+        <div class="nuance"><b>Unprivileged in Docker</b><span>The one image runs as a fixed, ordinary user (uid 1000) rather than root. Docker Desktop on Mac and Windows needs no change; a Linux host gives that user ownership of the data and Backup folders first (see the install guide).</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">ADR-0013</a></div>
+        <div class="nuance"><b>Checked before it reaches you</b><span>Every change arrives through a reviewed pull request; the code and the image are scanned on GitHub (CodeQL, Trivy, Dependabot, Secret scanning), and a release is published by a workflow only after its candidate has passed every test and a human has approved it.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0019-changes-reach-main-through-reviewed-pull-requests.md">ADR-0019</a></div>
       </div>
     </div>
 
@@ -664,7 +673,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <div><dt>Outstanding</dt><dd>What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would Redeem it that day.</dd></div>
     <div><dt>Collateral Value</dt><dd>What the jewellery is worth now: its net weight at the Gold Rate, unless set by hand.</dd></div>
     <div><dt>Loan-to-Value</dt><dd>The Outstanding as a share of the Collateral Value.</dd></div>
-    <div><dt>Allocation</dt><dd>The part of a Payment applied to one Mortgage.</dd></div>
+    <div><dt>Allocation</dt><dd>The part of a Payment applied to one Mortgage: its cash, and any Discount beside it.</dd></div>
+    <div><dt>Discount</dt><dd>A non-cash reduction of what one Mortgage owes, recorded beside its cash in a Payment and applied after it; on the Receipt, in no cash total.</dd></div>
     <div><dt>Final Payment</dt><dd>What a Mortgage is paid as it is Redeemed or Waived off: a part of its own of the Payment it came in, so a Reopen Voids it alone.</dd></div>
     <div><dt>Receipt</dt><dd>The Customer's acknowledgement of a Payment, covering every part of it and marking any jewellery it Redeemed.</dd></div>
     <div><dt>Reminder</dt><dd>A message to a Customer ahead of an Accrual Date, covering every Active Mortgage accruing that day.</dd></div>
@@ -698,6 +708,10 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <li><span class="no">0013</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">One image: the backend serves the screens in Docker too</a></li>
     <li><span class="no">0014</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0014-discounts-are-non-cash-payment-reductions.md">Discounts are non-cash payment reductions</a></li>
     <li><span class="no">0015</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0015-starting-terms-can-be-corrected.md">Starting Terms can be corrected</a></li>
+    <li><span class="no">0016</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0016-secret-scanning-alerts-become-issues.md">Secret scanning alerts are tracked as issues</a></li>
+    <li><span class="no">0017</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0017-reminders-and-dashboard-timeframes.md">Reminders replace Notices; Dashboard totals use selected dates</a></li>
+    <li><span class="no">0018</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0018-releases-are-published-by-merging-a-candidate.md">Releases are published by merging an approved candidate</a></li>
+    <li><span class="no">0019</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0019-changes-reach-main-through-reviewed-pull-requests.md">Changes reach main only through reviewed pull requests</a></li>
   </ul>
 </section>
 
@@ -719,7 +733,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <span class="go">Read the story →</span>
     </a>
   </div>
-  <footer>Written for version 3.4.7. What changed in each version is in the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md">changelog</a>; the details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>. Screenshots use invented sample data.</footer>
+  <footer>Written for version 3.4.7. What changed in each version is in the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md">changelog</a>; the details for developers are in the <a href="https://github.com/krucx/Mortgage-Management-App#readme">README</a>, and how changes and releases are made in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>. Screenshots use invented sample data.</footer>
 </section>
 
 </main>

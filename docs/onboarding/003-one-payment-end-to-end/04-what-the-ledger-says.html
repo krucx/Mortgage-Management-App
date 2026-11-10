@@ -18,7 +18,7 @@
 <p>How a Payment divides between interest and <a href="../reference/glossary.html#principal"><dfn class="term" title="The amount on a Mortgage on which interest is charged; grows when unpaid interest is capitalised and shrinks when payments exceed interest.">Principal</dfn></a> depends on what was owed when it arrived. That depends on every earlier Payment, the Mortgage's Terms, and the dates. If the app stored "₹1,500 interest, ₹3,500 Principal" on the Payment, any later correction would quietly make it wrong: a back-dated Payment, a Void, a Term Change. Chapter 001 called this the one big idea; here it is in code.</p>
 
 <h2>The idea</h2>
-<p>Store only the facts: a Payment, its date, and how much went to each Mortgage. Whenever anyone asks how a Payment was applied, or what a Mortgage owes, <a href="../reference/glossary.html#replay"><dfn class="term" title="Working out a Mortgage's Ledger or Outstanding from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).">Replay</dfn></a> the Mortgage from its start: rebuild its <a href="../reference/glossary.html#ledger"><dfn class="term" title="The step-by-step history of a Mortgage — interest added, capitalisations, payments — derived from its terms and payments.">Ledger</dfn></a> step by step and read the answer off it. A few hundred Mortgages replay in milliseconds (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md\">ADR 0001</a>).</p>
+<p>Store only the facts: a Payment, its date, and how much went to each Mortgage. Whenever anyone asks how a Payment was applied, or what a Mortgage owes, <a href="../reference/glossary.html#replay"><dfn class="term" title="Working out a Mortgage's Ledger or Outstanding from its stored facts — its Terms, Term Changes, Closure and the Allocations of its non-Voided Payments — rather than storing them (ADR 0001).">Replay</dfn></a> the Mortgage from its start: rebuild its <a href="../reference/glossary.html#ledger"><dfn class="term" title="The step-by-step history of a Mortgage — interest added, capitalisations, payments — derived from its terms and payments.">Ledger</dfn></a> step by step and read the answer off it. A few hundred Mortgages replay in milliseconds (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>).</p>
 
 <h2>The flow</h2>
 <figure class="diagram">
@@ -144,7 +144,7 @@ flowchart LR
 <div class="callout warn"><strong>Newcomer trap #4: nothing owed is stored.</strong> There's no ledger table, no stored Outstanding, no stored interest-paid. Don't add one "for speed"; you'd reintroduce exactly the bug ADR 0001 removed. See the <a href="../reference/traps.html#t4">traps sheet</a>.</div>
 
 <h3>(b) Paying exactly what's owed closes the Mortgage</h3>
-<p>Lesson 2's nuance (c) showed it in the Preview: an Allocation equal to the Mortgage's whole Outstanding on its date Redeems it, in the same request (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a>). That's the branch of <code>record_payment</code> Meera's Payment skipped. A whole Outstanding that <em>can't</em> Redeem is refused instead. Chapter 005 explains Redemption and when it's refused.</p>
+<p>Lesson 2's nuance (c) showed it in the Preview: an Allocation equal to the Mortgage's whole Outstanding on its date Redeems it, in the same request (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>). That's the branch of <code>record_payment</code> Meera's Payment skipped. A whole Outstanding that <em>can't</em> Redeem is refused instead. Chapter 005 explains Redemption and when it's refused.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="0">
@@ -171,7 +171,7 @@ flowchart LR
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Re-read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md\">ADR 0001</a>, now that you've seen <code>load_payment</code>. Then skim <code>compute_ledger</code>'s docstring in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/ledger.py"><code>lending/ledger.py</code></a> (lines 351–366), the door into chapter 004.</p>
+<p>Re-read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>, now that you've seen <code>load_payment</code>. Then skim <code>compute_ledger</code>'s docstring in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/ledger.py"><code>lending/ledger.py</code></a> (lines 351–366), the door into chapter 004.</p>
 
 <nav class="lessons">
   <a href="03-saving-it.html">← Saving it</a>

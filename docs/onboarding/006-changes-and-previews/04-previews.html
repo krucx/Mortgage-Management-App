@@ -246,7 +246,7 @@ POST /payments          422  2025-Meera-GoldChainPendant: the Payment on 19 Oct 
 </div>
 
 <h3>(d) Why the routes are written out by hand</h3>
-<p>Every change has a save route in <code>changes.py</code> and a Preview route in <code>previews.py</code> that look very alike. Couldn't one declaration generate both? <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0007-preview-routes-written-out-by-hand.md\">ADR 0007</a> decided not to. Generating them would mean rewriting FastAPI route signatures at import time, to save about a hundred lines. And not every pair fits one mould:</p>
+<p>Every change has a save route in <code>changes.py</code> and a Preview route in <code>previews.py</code> that look very alike. Couldn't one declaration generate both? <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a> decided not to. Generating them would mean rewriting FastAPI route signatures at import time, to save about a hundred lines. And not every pair fits one mould:</p>
 <ul>
   <li>The <strong>Void and Reopen</strong> Previews take no body, but their saves need a reason (<code>VoidIn</code>). So <code>preview_void</code> (line 217) and <code>preview_reopen</code> (line 326) pass the reason <code>"preview"</code>. It's written into History and rolled back with it.</li>
   <li>Two Previews return <strong>their own shapes</strong>: <code>preview_new_mortgage</code> (line 364) returns a <code>NewMortgagePreview</code>, since there's no "before" for a Mortgage that doesn't exist yet, and <code>preview_collateral</code> (line 399) returns a <code>CollateralPreview</code> (lesson 5). Both do their own <code>try</code> … <code>finally: conn.rollback()</code> instead of calling <code>_preview</code>.</li>
@@ -283,7 +283,7 @@ POST /payments          422  2025-Meera-GoldChainPendant: the Payment on 19 Oct 
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0007-preview-routes-written-out-by-hand.md\">ADR 0007</a> (one paragraph), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py"><code>lending/previews.py</code></a> from line 180 to the end: every Preview route. In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_previews.py"><code>tests/test_previews.py</code></a>, read <code>nothing_saved</code> (line 51), the helper the Preview tests use to prove a Preview saved nothing.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a> (one paragraph), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py"><code>lending/previews.py</code></a> from line 180 to the end: every Preview route. In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_previews.py"><code>tests/test_previews.py</code></a>, read <code>nothing_saved</code> (line 51), the helper the Preview tests use to prove a Preview saved nothing.</p>
 
 <nav class="lessons">
   <a href="03-history.html">← History</a>

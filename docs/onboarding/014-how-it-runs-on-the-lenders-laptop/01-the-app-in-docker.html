@@ -20,10 +20,10 @@
 <p>You, the developer, have the opposite problem. You need to run <em>your</em> code exactly the way the Lender runs the released code, and you must never point it at real records by accident.</p>
 
 <h2>The idea</h2>
-<p><strong>Ship the app as one Docker image, and run it with Docker Compose.</strong> The image holds the backend, Python, every package and the built screens. Compose starts it with the database folder and the <dfn class="term" title="A copy of all the Lender's data (the database and photos) kept in a folder outside the app, from which everything can be restored."><a href="../reference/glossary.html#backup">Backup</a></dfn> folder mounted from the laptop's own disk, so the records live outside the container and survive any update. The Lender's Compose file <em>pulls</em> the published image. A second, development file <em>builds</em> it from your folder instead (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md\">ADR 0004</a>, <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a>).</p>
+<p><strong>Ship the app as one Docker image, and run it with Docker Compose.</strong> The image holds the backend, Python, every package and the built screens. Compose starts it with the database folder and the <dfn class="term" title="A copy of all the Lender's data (the database and photos) kept in a folder outside the app, from which everything can be restored."><a href="../reference/glossary.html#backup">Backup</a></dfn> folder mounted from the laptop's own disk, so the records live outside the container and survive any update. The Lender's Compose file <em>pulls</em> the published image. A second, development file <em>builds</em> it from your folder instead (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>).</p>
 <p>Think of the image as a sealed appliance and the two folders as the Lender's filing cabinet beside it. Swap the appliance for a newer model and the cabinet stays exactly where it was.</p>
 
-<div class="callout warn"><strong>A correction to the plan.</strong> This chapter was planned (issue <a href="https://github.com/krucx/Mortgage-Management-App/issues/202">#202</a>) when Docker ran <em>two</em> services: nginx serving the screens and passing <code>/api</code> to the backend, from <code>frontend/Dockerfile</code> and <code>frontend/nginx.conf</code>. Commit <code>3137302</code> (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a>) replaced them with one image built by the root <code>Dockerfile</code>, and one service, <code>app</code>. Those files are gone. If you meet <code>backend</code>, <code>frontend</code> or nginx in an old issue or an old version's folder, that's what it means.</div>
+<div class="callout warn"><strong>A correction to the plan.</strong> This chapter was planned (issue <a href="https://github.com/krucx/Mortgage-Management-App/issues/202">#202</a>) when Docker ran <em>two</em> services: nginx serving the screens and passing <code>/api</code> to the backend, from <code>frontend/Dockerfile</code> and <code>frontend/nginx.conf</code>. Commit <code>3137302</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>) replaced them with one image built by the root <code>Dockerfile</code>, and one service, <code>app</code>. Those files are gone. If you meet <code>backend</code>, <code>frontend</code> or nginx in an old issue or an old version's folder, that's what it means.</div>
 
 <h2>The flow</h2>
 <figure class="diagram">
@@ -45,40 +45,45 @@ flowchart LR
 <h2>The code</h2>
 <h3>The image</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Dockerfile"><code>Dockerfile</code></a> · the screens stage · lines 7–12</figcaption>
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Dockerfile"><code>Dockerfile</code></a> · the screens stage · lines 7–13</figcaption>
 <pre data-file="Dockerfile"><code>7  FROM --platform=$BUILDPLATFORM node:24-alpine AS screens   ①
 8  WORKDIR /frontend
-9  COPY frontend/package.json frontend/package-lock.json ./
-10  RUN npm ci                                                   ②
-11  COPY frontend/ ./
-12  RUN npm run build
+9  COPY VERSION /VERSION
+10  COPY frontend/package.json frontend/package-lock.json ./
+11  RUN npm ci                                                   ②
+12  COPY frontend/ ./
+13  RUN npm run build
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>A <em>multi-stage build</em>: this stage exists only to produce files; nothing of Node ends up in the final image. <code>$BUILDPLATFORM</code> runs it on the building machine's own CPU. The built screens are the same bytes on every platform, so they're built once, never under slow arm64 emulation (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a>).</li>
+  <li>A <em>multi-stage build</em>: this stage exists only to produce files; nothing of Node ends up in the final image. <code>$BUILDPLATFORM</code> runs it on the building machine's own CPU. The built screens are the same bytes on every platform, so they're built once, never under slow arm64 emulation (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a>).</li>
   <li>The two package files are copied first, alone, so Docker can reuse this layer's <code>node_modules</code> until they change. Copying the rest after keeps a screen edit from reinstalling every package.</li>
 </ol>
 
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Dockerfile"><code>Dockerfile</code></a> · the app stage · lines 14–36, trimmed</figcaption>
-<pre data-file="Dockerfile"><code>14  FROM python:3.13-slim
-16  COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /usr/local/bin/uv
-19  RUN apt-get update &amp;&amp; apt-get install -y --no-install-recommends zip \   ①
-25  COPY backend/pyproject.toml backend/uv.lock ./
-26  RUN uv sync --frozen --no-dev --no-install-project
-28  COPY backend/src ./src
-29  RUN uv sync --frozen --no-dev
-31  COPY --from=screens /frontend/dist ./screens                            ②
-33  ENV DATA_DIR=/data BACKUP_DIR=/backups SCREENS_DIR=/app/screens  ◀
-35  # Migrations run on app start.
-36  CMD ["uvicorn", "mortgage_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Dockerfile"><code>Dockerfile</code></a> · the app stage · lines 15–45, trimmed</figcaption>
+<pre data-file="Dockerfile"><code>15  FROM python:3.13-slim
+17  COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /usr/local/bin/uv
+20  RUN apt-get update &amp;&amp; apt-get install -y --no-install-recommends zip \   ①
+26  RUN groupadd --gid 1000 app &amp;&amp; useradd --uid 1000 --gid app …          ③
+31  COPY backend/pyproject.toml backend/uv.lock ./
+32  RUN uv sync --frozen --no-dev --no-install-project
+34  COPY backend/src ./src
+35  RUN uv sync --frozen --no-dev
+37  COPY --from=screens /frontend/dist ./screens                            ②
+39  RUN chown -R app:app /app
+40  USER app                                                                ③
+42  ENV DATA_DIR=/data BACKUP_DIR=/backups SCREENS_DIR=/app/screens  ◀
+44  # Migrations run on app start.
+45  CMD ["uvicorn", "mortgage_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 </code></pre>
 </figure>
 <ol class="marks">
   <li>The <code>zip</code> program writes password-protected Backups. Without Docker there's no such program, which is why Backups are plain zips there (chapter 015).</li>
   <li>The first stage's built screens land in <code>/app/screens</code>.</li>
+  <li>The app runs as a fixed, unprivileged user, uid:gid 1000:1000, never root (since 3.4.7, from architecture review pass 7). The id is fixed so a Linux host can hand <code>DATA_DIR</code> and <code>BACKUP_DIR</code> to it exactly: <code>sudo chown -R 1000:1000 &lt;DATA_DIR&gt; &lt;BACKUP_DIR&gt;</code>. Docker Desktop on Mac and Windows maps ownership itself and needs nothing. On Linux, an unwritable <code>DATA_DIR</code> stops the app; an unwritable <code>BACKUP_DIR</code> alone only makes every Backup fail.</li>
 </ol>
-<p>Line 33 is the whole contract between the image and the backend: three environment variables. <code>DATA_DIR</code> and <code>BACKUP_DIR</code> are the two mount points; <code>SCREENS_DIR</code> tells the backend to serve the screens too (lesson 2). The backend reads them through <code>create_app</code>'s module-level call (<a href="../010-platform-database-and-migrations/01-the-composition-root.html">chapter 010, lesson 1</a>). Line 36 binds <code>0.0.0.0</code>: inside a container that's needed for the port to be reachable at all, and it's safe because of what Compose does next.</p>
+<p>Line 42 is the whole contract between the image and the backend: three environment variables. <code>DATA_DIR</code> and <code>BACKUP_DIR</code> are the two mount points; <code>SCREENS_DIR</code> tells the backend to serve the screens too (lesson 2). The backend reads them through <code>create_app</code>'s module-level call (<a href="../010-platform-database-and-migrations/01-the-composition-root.html">chapter 010, lesson 1</a>). Line 45 binds <code>0.0.0.0</code>: inside a container that's needed for the port to be reachable at all, and it's safe because of what Compose does next.</p>
 
 <h3>The Lender's Compose file</h3>
 <figure class="snippet">
@@ -187,7 +192,7 @@ mortgage-dev-app-1 krucx11/mortgage-management-app:latest Up Less than a second<
   <li><strong><code>restart: unless-stopped</code></strong> brings the app back whenever Docker Desktop starts, unless someone stopped it. The Lender never starts it by hand. A container you <code>stop</code> stays stopped across a restart.</li>
   <li><strong>The upload cap is in the backend now.</strong> nginx used to refuse bodies over 20 MB. Since one image, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/upload_limit.py"><code>platform/upload_limit.py</code></a> does it, in both modes: a 21 MB photo got <code>{"detail":"The file is too large (over 20 MB)."}</code> with HTTP 413, and nothing was stored.</li>
   <li><strong>Two projects can share the <code>:dev</code> name.</strong> The image name doesn't include the project. If this folder also runs the app for real from a dev build (project <code>mortgage-management-app</code>), your <code>--build</code> retags <code>mortgage-management-app:dev</code>. The running container keeps the image it started with; its next <code>up --build</code> rebuilds anyway.</li>
-  <li><strong>CI checks the image too.</strong> The <code>image</code> job in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/.github/workflows/test.yml"><code>test.yml</code></a> builds it, runs it on empty folders, checks that <code>/</code> is <code>no-cache</code> and a hashed <code>/assets/</code> script is immutable, and that <code>/api/backups</code> answers. The release runs it first, so a broken image is never published (chapter 015).</li>
+  <li><strong>CI checks the image too.</strong> The <code>image</code> job in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/.github/workflows/test.yml"><code>test.yml</code></a> builds it, runs it on empty folders, checks that <code>/</code> is <code>no-cache</code> and a hashed <code>/assets/</code> script is immutable, that <code>/api/backups</code> answers, that the process is not root (<code>id -u</code> is not 0), and that a Backup can be written to the mounted folder. The release runs it first, so a broken image is never published (chapter 015).</li>
 </ul>
 
 <h2>Quiz</h2>
@@ -210,12 +215,12 @@ mortgage-dev-app-1 krucx11/mortgage-management-app:latest Up Less than a second<
   <button class="opt">In the laptop's <code>DATA_DIR</code>, mounted into <code>/data</code></button>
   <button class="opt">In the image, copied there by the Dockerfile's last stage</button>
   <button class="opt">In a Docker volume that only the container can open</button>
-  <div class="why">Line 14 bind-mounts the host folder <code>DATA_DIR</code> at <code>/data</code>. The image holds code and screens only, so replacing it never touches the records (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md\">ADR 0004</a>). A named Docker volume would hide them from the Lender and their Backups.</div>
+  <div class="why">Line 14 bind-mounts the host folder <code>DATA_DIR</code> at <code>/data</code>. The image holds code and screens only, so replacing it never touches the records (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a>). A named Docker volume would hide them from the Lender and their Backups.</div>
 </div>
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a> whole (it's short), then the README's "Anywhere with Docker" and "Updating" sections, which are what the Lender follows. Then read the <code>image</code> job in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/.github/workflows/test.yml"><code>.github/workflows/test.yml</code></a> from line 40: it's this lesson's run-through, written as CI.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a> whole (it's short), then the README's "Anywhere with Docker" and "Updating" sections, which are what the Lender follows. Then read the <code>image</code> job in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/.github/workflows/test.yml"><code>.github/workflows/test.yml</code></a> from line 40: it's this lesson's run-through, written as CI.</p>
 
 <nav class="lessons">
   <a href="index.html">← Chapter overview</a>

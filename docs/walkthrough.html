@@ -505,7 +505,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
     <div class="live">
       <div class="block-title">Every change that has a Preview</div>
       <dl>
-        <dt>Edit details</dt><dd>start date, Principal</dd>
+        <dt>Edit details</dt><dd>start date, Principal, starting Terms</dd>
         <dt>Term Change</dt><dd>add · remove</dd>
         <dt>Payment</dt><dd>record · Void</dd>
         <dt>Closure</dt><dd>Redeem · Waive off · Forfeit · Reopen</dd>
@@ -516,7 +516,8 @@ nav.bar > ol { flex: 1; min-width: 0; }
   </div>
   <div class="nuances">
     <div class="nuance rule"><b>The Preview is the real change, undone</b><span>The backend makes the change with every check a save would run, reads the result, then rolls it back. A Preview can't disagree with a save.</span></div>
-    <div class="nuance"><b>Closed Mortgages stay consistent</b><span>The start date and Principal of a closed Mortgage are locked until it is reopened.</span></div>
+    <div class="nuance"><b>Closed Mortgages stay consistent</b><span>The start date, Principal and starting Terms (rate, Interest Mode, Part-Month Rule) of a closed Mortgage are locked until it is reopened, so a correction can't change what it owed when it closed. If it closes while being edited, those fields fall back to their saved values.</span></div>
+    <div class="nuance"><b>Correcting Terms is not a Term Change</b><span>Edit corrects the starting Terms and replays every existing Payment under them; a Term Change adds new Terms from a chosen Accrual Date and leaves the past alone (ADR-0015).</span></div>
   </div>
 </section>
 
@@ -536,6 +537,7 @@ nav.bar > ol { flex: 1; min-width: 0; }
         <li><span>Enter the amount, or click <span class="ui">Pay the full Outstanding</span>. Split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>; ticked Mortgages stay together at the top, and equal shares fill each up to its Outstanding first.</span></li>
         <li><span>With a whole Outstanding in an Allocation, <span class="ui">Record Payment</span> asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment would Redeem it. Press <span class="ui">Go back</span>.</span></li>
         <li><span>In <span class="ui">Cash</span>, ₹20,000 or more asks first (the Cash Limit): <span class="ui">Go back</span>, or <span class="ui">Record in cash anyway</span>.</span></li>
+        <li><span>Enter a <span class="ui">Discount</span> beside a Mortgage's cash: a non-cash reduction of what it owes. Larger than that Mortgage still owes after its cash, Record Payment asks <span class="ui">Reduce Discount to the remaining balance?</span>; above the Discount confirmation threshold (₹500 unless changed) the confirmation asks once more. Press <span class="ui">Keep editing</span>.</span></li>
         <li><span>Type more than is owed: the Preview gives the reason ("would be more than the ₹… owed then") and Save stays off.</span></li>
         <li><span>Open an existing Payment: each Allocation split into interest and Principal, the <span class="ui">Receipt</span> as it appears in WhatsApp, and <span class="ui">Print or save as PDF</span>.</span></li>
         <li><span>Beside it, <span class="ui">Record another Payment for same customer</span> opens a new Payment with the Customer already chosen (also on the Receipt page), handy for backdated entries.</span></li>
@@ -567,6 +569,7 @@ We have received *₹…* by Cash on <span data-fig="payments.day">19 Oct 2026</
   <div class="nuances">
     <div class="nuance rule"><b>Within a Mortgage: interest, then Principal</b><span>Each Allocation pays unpaid interest, then the Interest to Date, then Principal.</span></div>
     <div class="nuance"><b>Voided, never deleted</b><span>A Voided Payment stays on record with its reason but counts in no Ledger. A correction is entered as a new Payment.</span></div>
+    <div class="nuance"><b>A Discount is not cash</b><span>It is applied after the Mortgage's cash, in the same order, and can Redeem the Mortgage with it. The Receipt shows it; the Payment amount, the Cash Limit and the Dashboard's cash figures leave it out. The Preview decides how much Discount each Mortgage can still take (ADR-0014).</span></div>
     <div class="nuance"><b>Receipts speak the Customer's language</b><span>They name each Mortgage by its jewellery ("Gold chain"), never its Mortgage Name, and show what is still owed.</span></div>
     <div class="nuance rule"><b>A whole Outstanding Redeems</b><span>Paying a Mortgage's whole Outstanding Redeems it with that Payment, all or none with its other parts, and one Receipt marks what went home. If it can't be Redeemed that day, the Payment is refused with the reason.</span></div>
   </div>
@@ -691,7 +694,7 @@ We have received *₹…* by Cash on <span data-fig="payments.day">19 Oct 2026</
   </div>
   <div class="nuances">
     <div class="nuance rule"><b>History is never edited</b><span>Entries can't be changed or removed, by anyone.</span></div>
-    <div class="nuance"><b>Runs on the Lender's laptop</b><span>Docker Compose running the published image as one service, reachable only from this machine; the data is a folder on disk (ADR-0004).</span></div>
+    <div class="nuance"><b>Runs on the Lender's laptop</b><span>Docker Compose running the published image as one service and as an unprivileged user inside its container, reachable only from this machine; the data is a folder on disk (ADR-0004, ADR-0013).</span></div>
     <div class="nuance"><b>Set up by double-click on Windows</b><span><span class="ui">Setup.bat</span> installs the latest release and puts a <span class="ui">Mortgage Management</span> shortcut on the Desktop. With Docker Desktop it runs in Docker; without, it installs uv and the release ready-built and runs on the PC itself, with plain (no-password) Backup zips. The installed app's icon starts it when it isn't running. Every step is in the <a href="install.html">install guide</a>.</span></div>
     <div class="nuance"><b>Updates that can't break it</b><span>When a release is out the app says so; <span class="ui">Install now</span> (or Setup again) installs it beside the version in use and switches only once it starts, keeping the data. Starting a new version backs up first, then brings the database up to date.</span></div>
   </div>

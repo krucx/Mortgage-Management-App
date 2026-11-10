@@ -175,7 +175,7 @@ timeline
 <h3>(d) A Term Change has to start on an Accrual Date</h3>
 <p>The engine assumes it (<code>TermChange</code>'s docstring). The route that saves one, in <code>lending/changes.py</code>, refuses any other date: "A Term Change starts on an Accrual Date, today or later". Chapter 006 owns that route and its Preview.</p>
 
-<div class="callout warn"><strong>Trap #8, a warning:</strong> there's no scheduler. Nothing "applies" the Term Change on 25 Oct; the replay simply reaches that date. The daily jobs that do exist (Backups, Notices) run on the first <code>/api/</code> request of the day, from middleware. <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">Chapter 010, lesson 2</a> owns that; see the <a href="../reference/traps.html#t8">traps sheet</a>.</div>
+<div class="callout warn"><strong>Trap #8, a warning:</strong> there's no scheduler. Nothing "applies" the Term Change on 25 Oct; the replay simply reaches that date. The daily jobs that do exist (Backups, Reminders) run on the first <code>/api/</code> request of the day, from middleware. <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">Chapter 010, lesson 2</a> owns that; see the <a href="../reference/traps.html#t8">traps sheet</a>.</div>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="1">

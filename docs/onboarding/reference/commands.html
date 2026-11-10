@@ -140,17 +140,23 @@
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_backups.py -q</code></td><td>Exercises Backup creation, encrypted and plain zips, weekly cadence, retention and pre-migration safety on temporary data</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_updates.py -q</code></td><td>Checks version ordering, daily lookup interval, offline response and no update lookup in a development build</td></tr>
 <tr><td>repo root</td><td><code>git tag --list '[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1</code></td><td>Shows the highest numeric release tag; release workflow uses this to avoid moving <code>latest</code> backwards</td></tr>
-<tr><td>repo root</td><td><code>TAG=3.4.1; test "$TAG" = "$(sed -n 's/^version = "\(.*\)"/\1/p' backend/pyproject.toml)" &amp;&amp; test "$TAG" = "$(node -p "require('./frontend/package.json').version")"</code></td><td>Release workflow's version agreement check, performed locally; never push a tag for an onboarding exercise</td></tr>
+<tr><td>repo root</td><td><code>node .github/scripts/check-version.mjs</code> (add <code>--tag 3.4.8</code> to check a tag)</td><td>Every copy of the version matches the one <code>VERSION</code> file: package metadata, lockfiles, <code>openapi.json</code>, the Pages labels. CI and the release run it (015 · Lesson 2)</td></tr>
+<tr><td>repo root</td><td><code>node .github/scripts/release-candidate.mjs --version 3.4.8 --latest-published 3.4.7 --current-version 3.4.7 --check-only</code></td><td>Would the candidate workflow accept this version? Publishes nothing</td></tr>
+<tr><td>repo root</td><td><code>node .github/scripts/release.mjs release-notes --version 3.4.7 --changelog CHANGELOG.md</code></td><td>The GitHub Release notes, exactly as the release extracts and verifies them</td></tr>
+<tr><td>repo root</td><td><code>node --test .github/scripts/test-*.mjs</code></td><td>The release, candidate, finding-reconciler, Secret scanning and coverage-summary tests, against a fake GitHub</td></tr>
+<tr><td>GitHub (release owner only)</td><td><code>gh workflow run release-candidate.yml --ref main -f version=3.4.8</code></td><td>Starts a real release candidate. Never part of an exercise; never push a tag by hand</td></tr>
 <tr><td>scratch data folder</td><td><code>mkdir -p "$COPY/restore"</code><br><code>unzip "$COPY/backups/&lt;chosen-file&gt;.zip" -d "$COPY/restore"</code><br><code>cp "$COPY/restore/mortgage.db" "$COPY/data/mortgage.db"</code><br><code>rm -rf "$COPY/data/photos" &amp;&amp; cp -R "$COPY/restore/photos" "$COPY/data/photos"</code></td><td>Restore on a stopped scratch app. Choose the Backup, and replace both database and photos together (015 · Lesson 5)</td></tr>
 </table>
 
-<h2 id="workflow">Issues and commits</h2>
-<p>Taught in <a href="../016-your-first-change/01-from-an-idea-to-an-issue.html">016 · Lesson 1</a>. Work from an issue, use its glossary terms, and commit directly to <code>main</code> in the normal workflow. The local practice branch is a course exception.</p>
+<h2 id="workflow">Issues, branches and pull requests</h2>
+<p>Taught in <a href="../016-your-first-change/01-from-an-idea-to-an-issue.html">016 · Lesson 1</a>. Work from an issue, use its glossary terms, commit on a branch, and open a pull request targeting <code>main</code>; a human merges it after review (<a href="traps.html#t20">trap #20</a>). The local practice branch is never opened as a pull request.</p>
 <table class="wide"><tr><th>From</th><th>Command</th><th>What it does</th></tr>
 <tr><td>repo root</td><td><code>gh issue view 213 --json number,title,body,labels,comments</code></td><td>Reads an issue and its full specification</td></tr>
 <tr><td>repo root</td><td><code>git log -5 --oneline</code></td><td>Recent commit messages show the behavior and issue number style</td></tr>
 <tr><td>repo root</td><td><code>git switch -c practice/edit-a-term-change</code></td><td>Creates the chapter's local practice branch; delete it after finishing</td></tr>
-<tr><td>repo root</td><td><code>git branch -D practice/edit-a-term-change</code></td><td>Removes the finished practice branch after switching to main</td></tr></table>
+<tr><td>repo root</td><td><code>git branch -D practice/edit-a-term-change</code></td><td>Removes the finished practice branch after switching to main</td></tr>
+<tr><td>repo root</td><td><code>git switch -c fix/&lt;what-it-fixes&gt; origin/main</code>, then <code>gh pr create --base main</code></td><td>Real work: a focused branch from an up-to-date main, and its pull request. Answer every CodeRabbit finding on it; never merge your own</td></tr>
+<tr><td>repo root</td><td><code>gh pr checks</code> · <code>gh pr view --comments</code></td><td>The required checks and the review findings on your pull request</td></tr></table>
 
 <h2 id="laptop">How it runs on the Lender's laptop</h2>
 <p>Taught in <a href="../014-how-it-runs-on-the-lenders-laptop/index.html">chapter 014</a>. <code>$DC</code> below stands for the whole prefix, typed every time: <code>DATA_DIR="$COPY/data" BACKUP_DIR="$COPY/backups" APP_PORT=8081 docker compose -p mortgage-dev -f docker-compose.yml -f docker-compose.dev.yml</code>. Leaving the variables out of any one command lets Compose read <code>.env</code> (<a href="traps.html#t12">trap #12</a>).</p>
@@ -170,7 +176,7 @@
 </table>
 
 <footer>
-  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>; release and Backup rows at <code>5cfbec5</code>; workflow rows at <code>93de7a7</code>; Docker's single-image commands at <code>0abacac</code>.
+  Commands checked at commit <code>55ee8cb</code>; the Ledger rows at <code>6f1775b</code>; the Closure rows at <code>16b855c</code>; the follow-up rows at <code>6e6b030</code>; the platform rows at <code>b34526a</code>; the frontend rows at <code>87a96c7</code>; the pages and installed-app rows at <code>2c5e561</code>; the testing rows at <code>bda77f1</code>; the laptop rows at <code>36d403e</code>; release and Backup rows at <code>5cfbec5</code>; workflow rows at <code>93de7a7</code>; Docker's single-image commands at <code>0abacac</code>; release and workflow rows rewritten after architecture review pass 7 at <code>8323e01</code>.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a> · <a href="glossary.html">Glossary</a>
 </footer>
 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>

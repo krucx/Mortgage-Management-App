@@ -307,7 +307,7 @@ await page.locator('a[href="/mortgages/5"]').first().click()
 await settle()
 show('the bangles')
 
-console.log("== L5: approving Sunita's Notice")
+console.log("== L5: approving Sunita's Reminder")
 await page.goto(`${base}/reminders`)
 await settle()
 await page.getByLabel('To approve', { exact: true }).click()

@@ -129,21 +129,33 @@ flowchart LR
 
 <h3>4. The exception: the Cash Limit</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/cash_limit.py">payments/cash_limit.py</a> · <code>get_cash_limit()</code> · lines 21–36, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/cash_limit.py"><code>21  # Kept as text; an empty value means the Lender cleared it (no warning), while no
-22  # value at all means it was never set. (Not a ConfigGroup: that forgets a field set to
-23  # None, which would bring the default back.)                        ◀
-24  _KEY = "cash_limit"
-25  DEFAULT_CASH_LIMIT = 20_000_00  # paise
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/cash_limit.py">payments/cash_limit.py</a> · the setting · lines 16–28, and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/settings.py">platform/settings.py</a> · <code>ThresholdSetting.get()</code>, <code>.set()</code> · lines 79–90</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/cash_limit.py"><code>16  _KEY = "cash_limit"
+17  DEFAULT_CASH_LIMIT = 20_000_00  # paise                                  ①
 ⋮
-32  def get_cash_limit(conn: Connection) -&gt; CashLimit:
-33      stored = get_config(conn, [_KEY]).get(_KEY)
-34      if stored is None:
-35          return CashLimit(cash_limit=DEFAULT_CASH_LIMIT)              # never set: ₹20,000
-36      return CashLimit(cash_limit=int(stored) if stored else None)     # '' : never warn
+20  class CashLimit(BaseModel):
+21      cash_limit: int | None = Field(gt=0)  # paise; None: never warn
+⋮
+24  _CASH_LIMIT = ThresholdSetting(CashLimit, "cash_limit", _KEY, DEFAULT_CASH_LIMIT)
+⋮
+27  def get_cash_limit(conn: Connection) -&gt; CashLimit:
+28      return _CASH_LIMIT.get(conn)
+</code></pre>
+<pre data-file="backend/src/mortgage_backend/platform/settings.py"><code>79      def get(self, conn: Connection) -&gt; M:
+80          stored = get_config(conn, [self.key]).get(self.key)
+⋮
+82          if stored is None:
+83              value = self.default_paise                                ②
+84          else:
+85              value = int(stored) if stored else None                   ③  ◀
+86          return self.model(**{self.field: value})
+87
+88      def set(self, conn: Connection, setting: M) -&gt; None:
+89          value = getattr(setting, self.field)
+90          set_config(conn, self.key, "" if value is None else str(value))
 </code></pre>
 </figure>
-<p>The <a href="../reference/glossary.html#cash-limit"><dfn class="term" title="The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage's Principal lent.">Cash Limit</dfn></a> needs three states: never set (warn at ₹20,000), set to an amount, and cleared on purpose (never warn). A <code>ConfigGroup</code> has only two, because <code>None</code> means "forget it". So the Cash Limit stores an empty string for "cleared", by hand. <a href="../007-payments-and-receipts/04-the-cash-limit.html">Chapter 007, lesson 4</a> showed the rest of it.</p>
+<p>The <a href="../reference/glossary.html#cash-limit"><dfn class="term" title="The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage's Principal lent.">Cash Limit</dfn></a> needs three states: never set (warn at ₹20,000), set to an amount, and cleared on purpose (never warn). A <code>ConfigGroup</code> has only two, because <code>None</code> means "forget it". So the Cash Limit stores an empty string for "cleared". Since architecture review pass 7 that rule is written once, in <code>ThresholdSetting</code> (<code>platform/settings.py</code>), and the Discount confirmation threshold uses the same class with its own key, <code>discount_confirmation_limit</code>, and default, ₹500. <a href="../007-payments-and-receipts/04-the-cash-limit.html">Chapter 007, lesson 4</a> showed the rest of it.</p>
 
 <h2>Run-through: the book's <code>config</code> rows</h2>
 <p>Read your served book's settings:</p>
@@ -170,7 +182,7 @@ sqlite3 "$BOOK/data/mortgage.db" "SELECT value FROM config WHERE key = 'message_
 printf '%s' "$S" | jq '.reminder_approve_first = true' | curl -s -o /dev/null -w '%{http_code}
 ' -X PUT -H 'content-type: application/json' --data-binary @- http://127.0.0.1:8765/api/settings/messages</code></pre>
 <table class="steps">
-<tr><th>Step</th><th><code>message_reminder_approve_first</code></th><th>Notice #58</th></tr>
+<tr><th>Step</th><th><code>message_reminder_approve_first</code></th><th>Reminder #58</th></tr>
 <tr><td>before</td><td><code>true</code></td><td>awaiting_approval</td></tr>
 <tr class="changed"><td>PUT with <code>false</code> → 200</td><td><code>false</code></td><td><strong>queued</strong>, in the same request</td></tr>
 <tr><td>PUT with <code>true</code> → 200</td><td><code>true</code></td><td>awaiting_approval</td></tr>

@@ -34,7 +34,7 @@ flowchart TD
   E["PUT /api/mortgages/2<br/>amount_lent: ₹1,000"] --> R1{"early refusals<br/>lines 423–464"}
   R1 -->|"fails"| X1["409 / 422"]
   R1 -->|"pass"| W["UPDATE mortgage<br/>line 465 (not committed)"]
-  W --> C["check_replays(conn, [mortgage_row(…)])<br/>line 468"]
+  W --> C["check_replays(conn, [mortgage_row(…)])<br/>line 494"]
   C --> RP["replays(): this row +<br/>stored Payments, Term Changes"]
   RP --> L["ledger(today)<br/>compute_ledger()"]
   L -->|"a Payment &gt; owed"| OP["raise Overpayment"]
@@ -94,46 +94,58 @@ flowchart TD
 
 <h3>3. <code>edit_mortgage</code>: refuse what's obvious, then write and check</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>edit_mortgage()</code> · lines 419–464, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>419  def edit_mortgage(
-420      conn: Connection, mortgage_id: int, edit: MortgageEdit, today: date, now: datetime
-421  ) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_LOCKED_WHEN_CLOSED</code> and <code>edit_mortgage()</code> · lines 166–172 and 440–489, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>166  _LOCKED_WHEN_CLOSED = {
+167      "start_date": "start date",
+168      "amount_lent": "Principal",
+169      "monthly_rate_bps": "Terms",                             ⑤
+170      "interest_mode": "Terms",
+171      "part_month_rule": "Terms",
+172  }
 ⋮
-423      if edit.start_date &gt; today:
-424          raise unprocessable("Start date cannot be in the future")
-425      mortgage = replay(conn, mortgage_id)
-426      before = mortgage.row                                       ①
-427      after = edit.model_dump()
+440  def edit_mortgage(
+441      conn: Connection, mortgage_id: int, edit: MortgageEdit, today: date, now: datetime
+442  ) -&gt; None:
+⋮
+444      if edit.start_date &gt; today:
+445          raise unprocessable("Start date cannot be in the future")
+446      mortgage = replay(conn, mortgage_id)
+447      before = mortgage.row                                       ①
+448      after = edit.model_dump(exclude={"terms"})
+449      after.update(edit.terms.model_dump() if edit.terms else { … the stored Terms … })
 ⋮    … keep lent_through if it was left out …
-430      changed = audit.changes(before, after, _AUDITED_EDITS)
-431      if before["status"] != MortgageStatus.ACTIVE and any(
-⋮    … 409: a closed Mortgage's start date or Principal …
-439      taken = conn.execute(
+455      changed = audit.changes(before, after, _AUDITED_EDITS)
+456      locked = dict.fromkeys(
+457          _LOCKED_WHEN_CLOSED[c.field] for c in changed if c.field in _LOCKED_WHEN_CLOSED
+458      )
+459      if before["status"] != MortgageStatus.ACTIVE and locked:
+⋮    … 409: "… is redeemed: reopen it to change its start date, Principal and Terms" …
+465      taken = conn.execute(
 ⋮    … 409: the Mortgage Name is already used …
-450      stranded = [
+476      stranded = [
 ⋮    … 422: a Term Change would no longer be on an Accrual Date …
-460      first_payment = min((a.on for a in mortgage.allocations), default=None)
-461      if first_payment is not None and edit.start_date &gt; first_payment:
-462          raise unprocessable(
-463              f"There is a Payment on {first_payment:%d %b %Y}, before that start date"
-464          )
+486      first_payment = min((a.on for a in mortgage.allocations), default=None)
+487      if first_payment is not None and edit.start_date &gt; first_payment:
+488          raise unprocessable(
+489              f"There is a Payment on {first_payment:%d %b %Y}, before that start date"
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>edit_mortgage()</code> · lines 465–470</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>465      conn.execute(                                               ② write
-466          update(mortgage_table).where(mortgage_table.c.id == mortgage_id).values(**after)
-467      )
-468      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)   ③ check  ◀
-469      if changed:
-470          audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)   ④ History
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>edit_mortgage()</code> · lines 491–496</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>491      conn.execute(                                               ② write
+492          update(mortgage_table).where(mortgage_table.c.id == mortgage_id).values(**after)
+493      )
+494      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)   ③ check  ◀
+495      if changed:
+496          audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)   ④ History
 </code></pre>
 </figure>
 <ol class="marks">
   <li><code>before</code> is the row as it was <em>before</em> the edit.</li>
   <li>The <code>UPDATE</code> runs inside the route's transaction. Nothing is committed yet, but every later query on the same <code>conn</code> sees the new values.</li>
-  <li>The row is read again with <code>mortgage_row</code>, so the check replays the <em>new</em> Principal and start date. Line 468 is the line the check-yourself exercise deletes.</li>
+  <li>The row is read again with <code>mortgage_row</code>, so the check replays the <em>new</em> Principal, start date and starting Terms. Line 494 is the line the check-yourself exercise deletes.</li>
   <li>History only if a field actually changed (lesson 3).</li>
+  <li>Every field that moves the Ledger is locked on a closed Mortgage. The starting Terms joined the list after architecture review pass 7 (#273): before, a Redeemed Mortgage with a corrected, higher rate ended up still owing money. The Edit page shows the same fields as locked, and falls back to the saved values if the Mortgage closes while it is being edited.</li>
 </ol>
 
 <h2>Run-through: the chain at ₹1,000</h2>
@@ -154,7 +166,7 @@ curl -s -w ' %{http_code}
 <tr><th>Step</th><th>Line</th><th>What happened</th></tr>
 <tr><td>Refuse?</td><td>423–464</td><td>Start date not in the future; the chain is Active; the name is its own; no Term Changes; first Payment (10 Dec 2025) not before 10 Nov. All pass</td></tr>
 <tr><td>Write</td><td>465</td><td><code>amount_lent</code> = 1,00,000 paise, uncommitted</td></tr>
-<tr><td>Check</td><td>468</td><td>Replay from the new row: started ₹1,000 on 10 Nov</td></tr>
+<tr><td>Check</td><td>494</td><td>Replay from the new row: started ₹1,000 on 10 Nov</td></tr>
 <tr><td></td><td></td><td>10 Dec, <code>interest</code>: 2% of ₹1,000 = ₹20 (unpaid ₹20)</td></tr>
 <tr><td></td><td></td><td>10 Dec, <code>interest_to_date</code>: 1 day of the new month, ₹1 (unpaid ₹21)</td></tr>
 <tr class="changed"><td></td><td>ledger.py 256</td><td>10 Dec Payment ₹1,600 &gt; ₹1,021 owed: <code>Overpayment</code></td></tr>
@@ -178,7 +190,7 @@ curl -s -w ' %{http_code}
 
 <h3>(b) Why read the row again?</h3>
 <div class="reveal">
-  <p><strong>Predict:</strong> suppose line 468 passed <code>[before]</code> instead of <code>[mortgage_row(conn, mortgage_id)]</code>. What would the ₹1,000 edit do?</p>
+  <p><strong>Predict:</strong> suppose line 494 passed <code>[before]</code> instead of <code>[mortgage_row(conn, mortgage_id)]</code>. What would the ₹1,000 edit do?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <p><strong>It would save.</strong> <code>replays()</code> takes the Principal and start date from the row it's handed, and only queries the Payments and Term Changes. <code>before</code> still says ₹80,000, so the replay would check the old Mortgage and pass. That's why <code>edit_mortgage</code> reads the row back after writing it. <code>add_term_change</code> can pass its old <code>row</code> (line 405), because a Term Change doesn't change the <code>mortgage</code> row: the new <code>term_change</code> row is queried fresh.</p>

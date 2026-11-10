@@ -68,7 +68,7 @@ flowchart TD
 <tr><td><code>payments/</code></td><td>Payments, their Allocations and Receipts</td><td><code>payments.py</code>, <code>receipts.py</code>, <code>cash_limit.py</code></td></tr>
 <tr><td><code>people/</code></td><td>Customers, Referrers and the Primary Number that identifies them</td><td><code>customers.py</code></td></tr>
 <tr><td><code>collateral/</code></td><td>Gold Rates and each Mortgage's Collateral Value</td><td><code>collateral.py</code></td></tr>
-<tr><td><code>follow_up/</code></td><td>Notices and their messages, the Call List and Call Notes</td><td><code>notices.py</code>, <code>call_list.py</code></td></tr>
+<tr><td><code>follow_up/</code></td><td>Reminders and their messages, the Call List and Call Notes</td><td><code>reminders.py</code>, <code>call_list.py</code></td></tr>
 <tr><td><code>safekeeping/</code></td><td>History and Backups</td><td><code>audit.py</code>, <code>backups.py</code></td></tr>
 <tr><td><code>platform/</code></td><td>What every section stands on: the database, settings, paging, the clock, photos, money and the daily run</td><td><code>db.py</code>, <code>clock.py</code>, <code>daily_run.py</code></td></tr>
 </table>
@@ -84,7 +84,7 @@ flowchart TD
 55                &lt;Route path="/mortgages" element={&lt;MortgagesPage /&gt;} /&gt;
 56                &lt;Route path="/mortgages/new" element={&lt;NewMortgagePage /&gt;} /&gt;
 57                &lt;Route path="/mortgages/:id" element={&lt;MortgagePage /&gt;} /&gt;  ◀
-⋮    … Call List, Notices, Closures, Settings …
+⋮    … Call List, Reminders, Closures, Settings …
 67              &lt;/Routes&gt;
 </code></pre>
 </figure>
@@ -178,7 +178,7 @@ flowchart TD
   <p class="q">Which backend package would hold the code that decides whether to phone a Customer today?</p>
   <button class="opt"><code>people/</code>, since it's about a Customer</button>
   <button class="opt"><code>lending/</code>, since it's about a Mortgage</button>
-  <button class="opt"><code>follow_up/</code>, beside Notices and Call Notes</button>
+  <button class="opt"><code>follow_up/</code>, beside Reminders and Call Notes</button>
   <div class="why">The Call List lives in <code>follow_up/call_list.py</code>. <code>people/</code> is about identifying Customers and Referrers, and <code>lending/</code> computes the figures the Call List reads, but not the list itself.</div>
 </div>
 <div class="quiz" data-answer="0">

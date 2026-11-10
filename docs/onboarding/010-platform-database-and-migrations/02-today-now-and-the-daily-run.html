@@ -142,7 +142,7 @@ flowchart TD
 <tr><td>26 Oct</td><td>first <code>/api/</code> request</td><td>2026-10-26</td><td>1</td><td>no third one: the last is from this morning</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L2). Each "served on" is a new <code>create_app</code> on the same copy with <code>today</code> set to that day, as if the laptop were opened that morning. <code>count</code> is in memory, so a restart sets it back to 0.</p>
-<p>On 20 Oct the Reminder sync ran but made nothing new: Sunita's 21 Oct Notice (#58) already existed from 19 Oct. The restart row is the point of storing the date in the database. If <code>count</code> were the only record, every restart would run the jobs again.</p>
+<p>On 20 Oct the Reminder sync ran but made nothing new: Sunita's 21 Oct Reminder (#58) already existed from 19 Oct. The restart row is the point of storing the date in the database. If <code>count</code> were the only record, every restart would run the jobs again.</p>
 
 <h2>Nuances</h2>
 <h3>(a) Two places start a Backup</h3>

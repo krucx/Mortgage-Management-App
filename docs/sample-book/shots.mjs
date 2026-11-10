@@ -6,7 +6,7 @@
 // (The filled Call Sheet, made by call_sheet.py, is imported as far as its Preview.)
 // Writes <out>/<name>.png for each screenshot and <out>/spots.json; publish.py turns them
 // into docs/shots/*.webp and story.html's SPOTS. Scenes that change the book (approving a
-// Notice, Payments) come last, so every other screenshot shows the book as built.
+// Reminder, Payments) come last, so every other screenshot shows the book as built.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright'
 
@@ -208,6 +208,7 @@ await shot('calculator', card(), {
   value: card().locator('details').filter({ hasText: 'Jewellery value' }),
   tiles: results,
   lend: button('Lend this'),
+  ltv: card().locator('.tiles').nth(1),
   chart: card().locator('figure.chart'),
 })
 await card().locator('summary', { hasText: /^Month by month, / }).first().click()
@@ -282,6 +283,13 @@ await shot('edit-preview', card(), {
   owed: card().locator('.change-tile, .tile').first(),
   ledger: card().getByText('Ledger steps that change').first(),
 })
+// A closed Mortgage (Kavita's coin, Redeemed): its start date, Principal and starting Terms
+// are locked until it is Reopened (architecture review pass 7, #273).
+await open('/mortgages/3/edit')
+await shot('edit-locked', card(), {
+  hint: card().locator('p.hint').first(),
+  rate: field('Monthly interest rate (%)'),
+})
 await open('/mortgages/2/terms')
 await field('Monthly interest rate (%)').fill('1.5')
 await card().getByText('Interest over the next 12 months').first().waitFor()
@@ -303,6 +311,7 @@ await shot('payment-new', card(), {
   split: card().locator('table').first(),
   owed: card().locator('th').filter({ hasText: 'Outstanding on' }),
   full: page.getByRole('button', { name: /^Pay the full Outstanding/ }),
+  discount: card().locator('th').filter({ hasText: /^Discount$/ }),
   preview: heading('What changes'),
 })
 await page.getByLabel('Amount received (₹)').fill('900000')
@@ -312,10 +321,20 @@ await shot('payment-refused', await between(card().locator('fieldset').first(), 
   refusal: card().locator('.status.error').last(),
   save: card().locator('button[type=submit]').last(),
 })
+await page.getByLabel('Amount received (₹)').fill('')
+await page.getByLabel('Discount for 2025-Meera-GoldChainPendant').fill('100000')
+await heading('What changes').waitFor()
+await settle()
+await card().locator('button[type=submit]').last().click()
+await dialog().getByText('Reduce Discount to the remaining balance?').waitFor()
+await settle()
+await shot('discount-cap', dialog(), { reduce: dialog().getByRole('button', { name: 'Reduce and continue' }) })
+await dialog().getByRole('button', { name: 'Keep editing' }).click()
 await open('/payments/23')
 await shot('payment', card(), {
   alloc: await section('Allocations'),
   receipt: await section('Receipt'),
+  another: page.getByRole('link', { name: 'Record another Payment for same customer' }),
   void: button('Void…'),
 })
 await open('/payments/23/receipt')
@@ -425,7 +444,7 @@ await page.unroute('**/api/update')
 
 // Scenes that change the book -------------------------------------------------------------
 
-// Sunita's Notice: read, approved, then To send.
+// Sunita's Reminder: read, approved, then To send.
 await open('/reminders')
 await page.getByLabel('To approve', { exact: true }).click()
 await settle()

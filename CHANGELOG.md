@@ -7,6 +7,17 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Changed
+
+- **Documentation:** the GitHub Pages site, the walkthrough, The Gold Chain Story and the
+  developer onboarding course now cover everything up to 3.4.7: Discounts and how the
+  Payment Preview caps them, locked starting Terms on closed Mortgages, Record another
+  Payment, the Calculator's Collateral Value and Loan-to-Value, the unprivileged Docker
+  image (with the Linux folder-ownership step in the install guide), and the pull request
+  and release candidate workflow. Screenshots are retaken from the sample book, with two
+  new ones. New ADRs 0018 (releases are published by merging an approved candidate) and
+  0019 (changes reach main only through reviewed pull requests).
+
 ## [3.4.7] - 2026-11-10
 
 Record several Payments for one Customer in a row, the Calculator shows Collateral Value

@@ -95,38 +95,48 @@ flowchart TD
 </figure>
 <p>Step 1 withdraws unsent Reminders that are now too far ahead. That only happens after the Lender <em>lowers</em> the days ahead. Deleting them loses nothing: an unsent Reminder is only a Customer and a date, so it will be made again when its date comes within range.</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>sync()</code> · lines 113–145, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>113      coming = [
-114          (row, _coming_accrual_dates(row["start_date"], today, until))  # step 2
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>is_eligible()</code> and <code>sync()</code> · lines 91–100 and 126–171, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>91   def is_eligible(mortgage: MortgageReplay, on: date) -&gt; bool:
+⋮        """… The one rule behind both what sync queues and prunes, and what an unsent
+⋮        Reminder currently has to say."""
+96       return (
+97           mortgage.row["status"] == MortgageStatus.ACTIVE
+98           and is_accrual_date(mortgage.row["start_date"], on)
+99           and not mortgage.dormant(on)                              # ② ADR 0012
+100      )
+⋮
+126      coming = [
+127          (row, _coming_accrual_dates(row["start_date"], today, until))  # step 2
 ⋮    … for each Active Mortgage …
-120      ]
+133      ]
 ⋮
-123      accruing = {
-124          (row["customer_id"], on)                                    # ① a Customer and a date
-125          for row, dates in coming
-126          for on in dates
-127          if not replayed[row["id"]].dormant(on)                       # ② ADR 0012
-128      }
-129      already = {
-130          (row.customer_id, row.accrues_on)
+136      accruing = {
+137          (row["customer_id"], on)                                    # ① a Customer and a date
+138          for row, dates in coming
+139          for on in dates
+140          if is_eligible(replayed[row["id"]], on)                     # ② the one rule
+141      }
+⋮    … remove unsent Reminders whose Mortgages are no longer eligible (lines 142–154) …
+155      already = {
+156          (row.customer_id, row.accrues_on)
 ⋮    … every Reminder, of any status, dated after today …
-136      }
-137      for customer_id, on in sorted(accruing - already, key=lambda due: due[1]):   ◀
-138          conn.execute(
-139              insert(reminder_table).values(                            # step 3
-140                  customer_id=customer_id,
-141                  accrues_on=on,
-142                  created_on=today,
-143                  status=ReminderStatus.QUEUED,
+162      }
+163      for customer_id, on in sorted(accruing - already, key=lambda due: due[1]):   ◀
+164          conn.execute(
+165              insert(reminder_table).values(                            # step 3
+166                  customer_id=customer_id,
+167                  accrues_on=on,
+168                  created_on=today,
+169                  status=ReminderStatus.QUEUED,
 ⋮
-145          )
+171          )
 </code></pre>
 </figure>
 <ol class="marks">
   <li>A set of <code>(customer_id, date)</code> tuples, so two Mortgages of one Customer on the same day collapse into one entry. The table backs this up with <code>UniqueConstraint("customer_id", "accrues_on")</code> in <code>platform/db.py</code>.</li>
-  <li>Dormant is checked <em>on the Accrual Date</em>, from the replay. A Mortgage that owes nothing then has nothing to warn about.</li>
+  <li>Who is reminded is decided by one function, <code>is_eligible</code>: Active, an Accrual Date for it, and not Dormant <em>on that date</em>, from the replay (ADR 0012, ADR 0017). Sync uses it to queue and to prune; reading an unsent Reminder (lesson 4) uses the same function, so the two can never disagree. Before architecture review pass 7 the rule was written twice in this module, and each read path filtered again (#277).</li>
 </ol>
-<p>Line 137 is the heart of it: <code>accruing - already</code> is set difference, "what should exist, minus what does". On a second run that difference is empty, which is why syncing twice changes nothing. <code>already</code> includes sent and skipped Reminders too, so a Reminder the Lender skipped is never made again.</p>
+<p>Line 163 is the heart of it: <code>accruing - already</code> is set difference, "what should exist, minus what does". On a second run that difference is empty, which is why syncing twice changes nothing. <code>already</code> includes sent and skipped Reminders too, so a Reminder the Lender skipped is never made again.</p>
 <figure class="snippet">
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>sync()</code> · lines 146–161</figcaption>
 <pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>146      unsent = reminder_table.c.status.in_(_UNSENT)
@@ -293,7 +303,7 @@ printf '%s' "$S" | jq '.reminder_approve_first = true'  | curl -s -X PUT -H 'con
 </div>
 
 <h3>(d) A Dormant Mortgage gets no Reminder</h3>
-<p>Kavita's anklet accrues on 1 Nov. With days ahead set to 14 on 19 Oct (<code>until</code> 2 Nov), the queue gains Meera's 25 Oct Reminder, but nothing for Kavita: the anklet is Dormant on 1 Nov, so line 127 drops it (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md\">ADR 0012</a>). (From <code>scripts/run_throughs.py</code>, section L3 (e).)</p>
+<p>Kavita's anklet accrues on 1 Nov. With days ahead set to 14 on 19 Oct (<code>until</code> 2 Nov), the queue gains Meera's 25 Oct Reminder, but nothing for Kavita: the anklet is Dormant on 1 Nov, so line 127 drops it (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>). (From <code>scripts/run_throughs.py</code>, section L3 (e).)</p>
 
 <h3>(e) One per Customer per date</h3>
 <p>From July to October 2026, the 10th has two sent Reminders each month. They aren't duplicates: they're two Customers, Meera (her chain) and Imran (his earrings, until they were Forfeited). If Meera had a second Mortgage accruing on the 10th, she'd still get one Reminder, covering both. Lesson 5 shows such a Reminder.</p>

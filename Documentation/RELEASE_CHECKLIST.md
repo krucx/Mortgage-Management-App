@@ -9,12 +9,12 @@ not applicable and give a short reason.
 
 After the release notes and other applicable release preparation are ready, the
 release owner runs **Actions → Prepare release candidate → Run workflow** on `main`
-and supplies the requested `major.minor.patch` version. For example, the next version
-after the unpublished 3.4.5 bump is 3.4.6. The same entry point is available from GitHub
-CLI:
+and supplies the requested `major.minor.patch` version: the next version after the latest
+published release, for example 3.4.8 after 3.4.7. The same entry point is available from
+GitHub CLI:
 
 ```sh
-gh workflow run release-candidate.yml --ref main -f version=3.4.6
+gh workflow run release-candidate.yml --ref main -f version=3.4.8
 ```
 
 The workflow refuses an invalid or non-increasing version and stops before opening a
@@ -41,22 +41,25 @@ release flow in the Publish section does that.
   commands, interfaces, and operational requirements.
 - [ ] Update applicable onboarding lessons, exercises, references, and notes when the
   release changes what those lessons teach. Mark not applicable if none are affected.
-- [ ] Set the intended semantic version in root `VERSION`.
-- [ ] Move the finalized release notes from `Unreleased` into a `## [<version>]`
-  section in `CHANGELOG.md` before the release commit is merged and the tag is pushed.
-  The release workflow extracts its GitHub Release notes from this versioned section.
-- [ ] Run `node .github/scripts/sync-version.mjs`, then `cd backend && uv lock`, then
-  `cd .. && node .github/scripts/check-version.mjs`. Confirm the root, backend and
-  frontend package versions, lock metadata, generated API schema, and maintained
-  current-version labels agree. Update Docker/container version references if any are
-  versioned outside the shared `VERSION` source.
+- [ ] Leave root `VERSION` alone on `main`. The candidate workflow sets it on the
+  `release/<version>` branch; a hand bump on `main` makes the workflow refuse that version
+  as not higher than `main` (Documentation/adr/0018).
+- [ ] On the candidate pull request, confirm the workflow moved the notes from
+  `Unreleased` into a dated `## [<version>] - <date>` section of `CHANGELOG.md`; the
+  release extracts its GitHub Release notes from that section with
+  `node .github/scripts/release.mjs release-notes`.
+- [ ] On the candidate pull request, confirm the workflow ran `sync-version.mjs`,
+  `uv lock` and `check-version.mjs`: the root, backend and frontend package versions, lock
+  metadata, generated API schema, and maintained current-version labels agree. To check
+  locally, run `node .github/scripts/check-version.mjs` on the candidate branch.
 - [ ] Run the full applicable verification: backend tests and type check, frontend tests,
   type check and lint, container build/start check, Windows setup checks, and relevant
   docs/onboarding build or checks. Review coverage reports and explain material
   regressions. Mark genuinely inapplicable checks with a reason.
 - [ ] Confirm the release candidate branch comes from `main`, the version and changelog
   section agree, and the intended version tag does not already exist remotely. After
-  merge, the publisher verifies or creates the tag at the actual merge commit.
+  merge, the publisher verifies or creates the tag at the actual merge commit. Never push
+  a version tag by hand.
 
 ## Publish — release owner
 

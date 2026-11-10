@@ -24,8 +24,8 @@ flowchart LR
   Open["Lender opens the app"] --> Dash["Dashboard<br/>what's owed, what came in,<br/>what needs doing"]
   Dash --> Calls["Call List<br/>phone Arjun"]
   Calls -->|what was said| Note["Call Note<br/>'Will pay after Diwali'"]
-  Dash --> Notices["Notices<br/>approve Sunita's"]
-  Notices -->|click-to-send| WA["WhatsApp"]
+  Dash --> Reminders["Reminders<br/>approve Sunita's"]
+  Reminders -->|click-to-send| WA["WhatsApp"]
   Dash --> Closures["Closures<br/>red dot: a Dormant anklet"]
 </pre>
 <figcaption>The Lender's morning. The app prepares everything; the Lender decides and sends.</figcaption>
@@ -47,8 +47,8 @@ flowchart LR
 <p class="check">Check it: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#arjun">The Gold Chain Story, chapter 7 ("Meanwhile, Arjun")</a>.</p>
 <p>The Lender phones Arjun and records a <a href="../reference/glossary.html#call-note"><dfn class="term" title="The Lender's record of phoning a Customer about a Mortgage, with what was said.">Call Note</dfn></a>: "Will pay after Diwali". When someone else makes the calls, the Lender prints or exports a <a href="../reference/glossary.html#call-sheet"><dfn class="term" title="The day's Call List as a printable or Excel sheet, a row per Mortgage, for whoever makes the calls to write each Call Note on; the Excel sheet is imported back to record them all at once.">Call Sheet</dfn></a>, the day's Call List with a row per Mortgage to write notes on. The Excel sheet can be imported back to record all the Call Notes at once.</p>
 
-<h3>Notices</h3>
-<p>A <a href="../reference/glossary.html#notice"><dfn class="term" title="A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped.">Notice</dfn></a> is a message to a Customer ahead of an Accrual Date: "on this day, this much interest will be added". Sunita's mangalsutra accrues on 21 Oct, and the sample book sends Notices two days ahead, so hers is waiting this morning. This Lender chose to approve every Notice first, so it waits for a look, then goes out on WhatsApp the same click-to-send way as a Receipt.</p>
+<h3>Reminders</h3>
+<p>A <a href="../reference/glossary.html#notice"><dfn class="term" title="A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped.">Reminder</dfn></a> is a message to a Customer ahead of an Accrual Date: "on this day, this much interest will be added". Sunita's mangalsutra accrues on 21 Oct, and the sample book sends Notices two days ahead, so hers is waiting this morning. This Lender chose to approve every Notice first, so it waits for a look, then goes out on WhatsApp the same click-to-send way as a Receipt.</p>
 
 <h2>The one big idea: nothing owed is stored</h2>
 <p>Here is the design decision that shapes the whole codebase. Learn it now and much of the code will make sense when you read it.</p>
@@ -76,7 +76,7 @@ flowchart LR
 </pre>
 <figcaption>Only the facts on the left are stored. Everything on the right is replayed from them whenever a page asks.</figcaption>
 </figure>
-<p>Correct a fact, and every figure built from it is right the next time anyone looks, because nothing was ever saved that could go stale. Replaying a few hundred Mortgages takes milliseconds on a laptop, so it costs nothing. (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md\">ADR 0001</a>)</p>
+<p>Correct a fact, and every figure built from it is right the next time anyone looks, because nothing was ever saved that could go stale. Replaying a few hundred Mortgages takes milliseconds on a laptop, so it costs nothing. (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>)</p>
 
 <div class="callout warn"><strong>You won't find a balance column.</strong> Newcomers often search the database for "the amount owed". There isn't one, and that's deliberate: you'll never find Outstanding, Interest to Date, Months Unpaid or Dormant in a table. Chapter 004 shows the code that replays them.</div>
 
@@ -108,7 +108,7 @@ flowchart LR
 <p class="check">Check it: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#safe">The Gold Chain Story, Epilogue ("Nothing is lost")</a>.</p>
 
 <h3>Backups: the book leaves the laptop</h3>
-<p>The whole book lives on one laptop. A <a href="../reference/glossary.html#backup"><dfn class="term" title="A copy of all the Lender's data — the database and photos — kept in a folder outside the app, from which everything can be restored.">Backup</dfn></a> is a copy of all of it, the database and photos, in a folder outside the app. The app writes a zip to a cloud-synced folder (Google Drive or iCloud) whenever the last Backup is a week old, and before every update that changes the database. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0003-backup-to-synced-folder.md\">ADR 0003</a> explains why not email: attachments get too big once photos pile up, and Customers' personal data shouldn't sit in a mailbox.</p>
+<p>The whole book lives on one laptop. A <a href="../reference/glossary.html#backup"><dfn class="term" title="A copy of all the Lender's data — the database and photos — kept in a folder outside the app, from which everything can be restored.">Backup</dfn></a> is a copy of all of it, the database and photos, in a folder outside the app. The app writes a zip to a cloud-synced folder (Google Drive or iCloud) whenever the last Backup is a week old, and before every update that changes the database. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0003-backup-to-synced-folder.md">ADR 0003</a> explains why not email: attachments get too big once photos pile up, and Customers' personal data shouldn't sit in a mailbox.</p>
 
 <h2>Nuances: the glossary is the shared language</h2>
 <p>You've now met most of the app's words. They aren't decoration. The code, the screens, the tests, the issues and this course all use the words in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md"><code>Documentation/GLOSSARY.md</code></a>, with exactly the glossary's meanings. Each term also lists words to <em>avoid</em>, usually because they mean something subtly different.</p>
@@ -153,7 +153,7 @@ flowchart LR
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md\">ADR 0001</a>, one paragraph that explains more of this codebase than any other. Then <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0003-backup-to-synced-folder.md\">ADR 0003</a>, and the <em>Follow-up</em> and <em>Safekeeping</em> sections of the glossary. For the whole year told on the real screens, read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html">The Gold Chain Story</a> start to finish.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>, one paragraph that explains more of this codebase than any other. Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0003-backup-to-synced-folder.md">ADR 0003</a>, and the <em>Follow-up</em> and <em>Safekeeping</em> sections of the glossary. For the whole year told on the real screens, read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html">The Gold Chain Story</a> start to finish.</p>
 
 <nav class="lessons">
   <a href="04-how-a-mortgage-ends.html">← How a Mortgage ends</a>

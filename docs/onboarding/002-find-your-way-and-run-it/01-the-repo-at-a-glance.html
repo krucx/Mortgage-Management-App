@@ -95,7 +95,7 @@ flowchart LR
 </pre>
 <figcaption>Two front doors, one backend, one SQLite file. The browser always talks to one origin: Vite while you code, and otherwise the backend itself, the same way with Docker and without.</figcaption>
 </figure>
-<p>Three ADRs explain the Lender's two set-ups. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md\">ADR 0004</a> ships the app with Docker Compose, so nobody installs Python or Node on the Lender's laptop. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md\">ADR 0010</a> is for laptops without Docker: the backend serves the built screens itself, so there's one process and no Node.js. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md\">ADR 0013</a> does the same in Docker: one image, one Compose service, the screens built into it. You only need their names for now.</p>
+<p>Three ADRs explain the Lender's two set-ups. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a> ships the app with Docker Compose, so nobody installs Python or Node on the Lender's laptop. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md">ADR 0010</a> is for laptops without Docker: the backend serves the built screens itself, so there's one process and no Node.js. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">ADR 0013</a> does the same in Docker: one image, one Compose service, the screens built into it. You only need their names for now.</p>
 
 <h2>Nuances</h2>
 <div class="reveal">
@@ -107,7 +107,7 @@ flowchart LR
     <tr><td>(a) Dashboard count</td><td><code>backend/</code> then <code>frontend/</code></td><td>The figure is worked out by the backend; the page only shows it. Most features touch both halves, backend first.</td></tr>
     <tr><td>(b) Setup and a space</td><td><code>windows/</code></td><td>Setup is the PowerShell installer.</td></tr>
     <tr><td>(c) Old screenshot</td><td><code>docs/sample-book/</code></td><td>Screenshots are retaken from the sample book (<code>run.sh</code>), never edited by hand.</td></tr>
-    <tr><td>(d) Interest on the start-of-month Principal</td><td><code>Documentation/adr/</code></td><td><a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md\">ADR 0006</a> records that decision and why.</td></tr>
+    <tr><td>(d) Interest on the start-of-month Principal</td><td><code>Documentation/adr/</code></td><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a> records that decision and why.</td></tr>
     </table>
   </div>
 </div>
@@ -137,7 +137,7 @@ flowchart LR
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/README.md">README</a>'s <em>Development</em> section (lines 155–212), then the first paragraph of <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md\">ADR 0004</a>.</p>
+<p>Read the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/README.md">README</a>'s <em>Development</em> section (lines 155–212), then the first paragraph of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md">ADR 0004</a>.</p>
 
 <nav class="lessons">
   <a href="../001-what-the-app-does/99-check-yourself.html">← Chapter 001</a>

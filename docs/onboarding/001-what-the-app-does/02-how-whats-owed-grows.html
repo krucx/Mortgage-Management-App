@@ -73,7 +73,7 @@ flowchart TD
 <p>The Interest to Date is never capitalised. On the next Accrual Date it is replaced by the real month's interest.</p>
 
 <h3>Outstanding</h3>
-<p><a href="../reference/glossary.html#outstanding"><dfn class="term" title="What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day; nothing once closed.">Outstanding</dfn></a> is what a Mortgage owes on a date: <strong>Principal + unpaid interest + Interest to Date</strong>. It is exactly the sum that would settle the Mortgage and send the jewellery home that day. There is no second "amount to settle" figure. <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a> made it so, because Customers used to be told one figure and then asked to pay a different one.</p>
+<p><a href="../reference/glossary.html#outstanding"><dfn class="term" title="What a Mortgage owes on a date: Principal plus unpaid interest plus its Interest to Date, so exactly what would redeem it that day; nothing once closed.">Outstanding</dfn></a> is what a Mortgage owes on a date: <strong>Principal + unpaid interest + Interest to Date</strong>. It is exactly the sum that would settle the Mortgage and send the jewellery home that day. There is no second "amount to settle" figure. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a> made it so, because Customers used to be told one figure and then asked to pay a different one.</p>
 
 <h2>Run-through: Meera's chain, 10 Nov 2025 to 19 Oct 2026</h2>
 <p>Work this out by hand from the Terms (2% a month, Compounded Yearly, pro-rata) and Meera's Payments. You need only one fact from lesson 3: a Payment pays the oldest unpaid interest first.</p>
@@ -129,12 +129,12 @@ flowchart TD
 </div>
 
 <h3>A Mortgage owes interest from its first day</h3>
-<p>The Interest to Date counts today, so a new Mortgage already owes something on the day it is created. Lent ₹20,000 today on Meera's Terms (pro-rata), it owes one day of 30 of the ₹400 month: ₹13, so ₹20,013. Under full month it would owe the whole first month at once, ₹20,400. (<a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a>)</p>
+<p>The Interest to Date counts today, so a new Mortgage already owes something on the day it is created. Lent ₹20,000 today on Meera's Terms (pro-rata), it owes one day of 30 of the ₹400 month: ₹13, so ₹20,013. Under full month it would owe the whole first month at once, ₹20,400. (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>)</p>
 <p class="check">Check it: <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/story.html#pledge">The Gold Chain Story, chapter 3</a>, where the Lender enters a ₹20,000 Mortgage.</p>
 
 <h3>Paying Principal mid-month helps only from next month</h3>
 <p>A month's interest is charged on the Principal <em>as it stood when that month began</em>, not on the Accrual Date itself. Suppose that on 9 Oct, the day before an Accrual Date, Meera had paid off all her interest and ₹40,000 of Principal as well. The interest added on 10 Oct is still ₹1,600, because that month began on 10 Sep with ₹80,000. Only the month starting 10 Oct is charged on ₹40,000 (₹800, added on 10 Nov).</p>
-<p><a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md\">ADR 0006</a> explains why: charging on the Principal at the Accrual Date would let a Customer avoid almost a whole month's interest by paying a day early. "A month started is a month charged."</p>
+<p><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a> explains why: charging on the Principal at the Accrual Date would let a Customer avoid almost a whole month's interest by paying a day early. "A month started is a month charged."</p>
 
 <h3>Accrual Dates on the 31st</h3>
 <p>A Mortgage started on 31 Jan accrues on the 31st, but February has no 31st. The Accrual Date is then clamped to the month's last day: 28 Feb (or 29th), then back to 31 Mar.</p>
@@ -164,7 +164,7 @@ flowchart TD
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md\">ADR 0006</a> and <a href=\"https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md\">ADR 0011</a>: a paragraph each, and they explain most of the "why" in this lesson. Then the glossary from <strong>Accrual Date</strong> to <strong>Interest to Date</strong>, and <strong>Outstanding</strong>. Chapter 004 shows the same rules in the code.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a> and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>: a paragraph each, and they explain most of the "why" in this lesson. Then the glossary from <strong>Accrual Date</strong> to <strong>Interest to Date</strong>, and <strong>Outstanding</strong>. Chapter 004 shows the same rules in the code.</p>
 
 <nav class="lessons">
   <a href="01-a-pledge.html">← A pledge, in plain words</a>
