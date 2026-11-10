@@ -5,7 +5,12 @@ updates:
     schedule:
       interval: weekly
     # One PR for all action bumps found in a run, instead of one PR per action.
+    # Security fixes get their own single PR, kept apart from routine bumps.
     groups:
       github-actions:
+        patterns:
+          - '*'
+      github-actions-security:
+        applies-to: security-updates
         patterns:
           - '*'
