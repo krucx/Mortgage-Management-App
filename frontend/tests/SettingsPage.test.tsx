@@ -124,3 +124,107 @@ test("unprotected Backups warn that they hold Customers' ID Photos", async () =>
     }),
   ).toBeTruthy()
 })
+
+test('the Grace Period is empty (off) unless set, and can be set and cleared', async () => {
+  const saved: unknown[] = []
+  const server = fakeServer({
+    'GET /api/settings/grace-period': { grace_period_days: null },
+    'PUT /api/settings/grace-period': async (request: Request) => {
+      const body = await request.json()
+      saved.push(body)
+      return body
+    },
+  })
+  showPage(server, '/settings', { '/settings': <SettingsPage /> })
+  const section = (await screen.findByRole('heading', { name: 'Grace Period' })).closest('section')!
+
+  const days = (await within(section).findByLabelText('Grace Period (days)')) as HTMLInputElement
+  expect(days.value).toBe('')
+
+  fireEvent.change(days, { target: { value: '3' } })
+  fireEvent.click(within(section).getByRole('button', { name: 'Save' }))
+  const setDialog = await screen.findByRole('dialog')
+  expect(within(setDialog).getByText('3 days')).toBeTruthy()
+  fireEvent.click(within(setDialog).getByRole('button', { name: 'Confirm and save' }))
+  expect(await within(section).findByText('Saved.')).toBeTruthy()
+  expect(days.value).toBe('3')
+
+  fireEvent.change(days, { target: { value: '' } })
+  fireEvent.click(within(section).getByRole('button', { name: 'Save' }))
+  const clearDialog = await screen.findByRole('dialog')
+  expect(within(clearDialog).getByText('None: no Grace')).toBeTruthy()
+  fireEvent.click(within(clearDialog).getByRole('button', { name: 'Confirm and save' }))
+
+  expect(await within(section).findByText('Saved.')).toBeTruthy()
+  expect(saved).toEqual([{ grace_period_days: 3 }, { grace_period_days: null }])
+})
+
+test('a Grace Period of 0 days saves as off', async () => {
+  const saved: unknown[] = []
+  const server = fakeServer({
+    'GET /api/settings/grace-period': { grace_period_days: 5 },
+    'PUT /api/settings/grace-period': async (request: Request) => {
+      saved.push(await request.json())
+      return { grace_period_days: null }
+    },
+  })
+  showPage(server, '/settings', { '/settings': <SettingsPage /> })
+  const section = (await screen.findByRole('heading', { name: 'Grace Period' })).closest('section')!
+
+  const days = (await within(section).findByLabelText('Grace Period (days)')) as HTMLInputElement
+  expect(days.value).toBe('5')
+  fireEvent.change(days, { target: { value: '0' } })
+  fireEvent.click(within(section).getByRole('button', { name: 'Save' }))
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByText('None: no Grace')).toBeTruthy()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and save' }))
+
+  expect(await within(section).findByText('Saved.')).toBeTruthy()
+  expect(saved).toEqual([{ grace_period_days: 0 }])
+  expect(days.value).toBe('')
+})
+
+test.each(['-1', '1.5'])('a Grace Period of %s days is refused before saving', async (typed) => {
+  const server = fakeServer({ 'GET /api/settings/grace-period': { grace_period_days: null } })
+  showPage(server, '/settings', { '/settings': <SettingsPage /> })
+  const section = (await screen.findByRole('heading', { name: 'Grace Period' })).closest('section')!
+
+  const days = (await within(section).findByLabelText('Grace Period (days)')) as HTMLInputElement
+  fireEvent.change(days, { target: { value: typed } })
+  fireEvent.click(within(section).getByRole('button', { name: 'Save' }))
+
+  expect(days.validity.valid).toBe(false)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(server.requests).not.toContain('PUT /api/settings/grace-period')
+})
+
+test('a Grace Period the backend refuses shows why', async () => {
+  const server = fakeServer({
+    'GET /api/settings/grace-period': { grace_period_days: null },
+    'PUT /api/settings/grace-period': Response.json(
+      {
+        detail: [
+          {
+            loc: ['body', 'grace_period_days'],
+            msg: 'Value error, The Grace Period must be a whole number of days, 0 or more',
+          },
+        ],
+      },
+      { status: 422 },
+    ),
+  })
+  showPage(server, '/settings', { '/settings': <SettingsPage /> })
+  const section = (await screen.findByRole('heading', { name: 'Grace Period' })).closest('section')!
+
+  fireEvent.change(await within(section).findByLabelText('Grace Period (days)'), {
+    target: { value: '4' },
+  })
+  fireEvent.click(within(section).getByRole('button', { name: 'Save' }))
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirm and save' }),
+  )
+
+  expect(
+    await within(section).findByText(/The Grace Period must be a whole number of days, 0 or more/),
+  ).toBeTruthy()
+})

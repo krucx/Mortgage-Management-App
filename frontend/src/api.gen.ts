@@ -1325,6 +1325,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/grace-period": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Grace Period */
+        get: operations["read_grace_period_api_settings_grace_period_get"];
+        /** Update Grace Period */
+        put: operations["update_grace_period_api_settings_grace_period_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/messages": {
         parameters: {
             query?: never;
@@ -1924,6 +1942,11 @@ export interface components {
             purity_karat: 24 | 22 | 20 | 18 | 14;
             /** Rate Per Gram */
             rate_per_gram: number;
+        };
+        /** GracePeriod */
+        GracePeriod: {
+            /** Grace Period Days */
+            grace_period_days?: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -5521,6 +5544,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GoldRate"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_grace_period_api_settings_grace_period_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GracePeriod"];
+                };
+            };
+        };
+    };
+    update_grace_period_api_settings_grace_period_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GracePeriod"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GracePeriod"];
                 };
             };
             /** @description Validation Error */
