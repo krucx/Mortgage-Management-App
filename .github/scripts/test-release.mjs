@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict'
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { validateVersionRequest } from './release-candidate.mjs'
 import { createFakeGithubAdapter } from './fake-github-adapter.mjs'
 import {
   dispatchAndWait,
   extractReleaseNotes,
+  latestPublishedVersion,
   planAndCreateTag,
   planReleaseTag,
   validateApprovedCandidate,
@@ -30,6 +32,19 @@ const event = {
     head: { ref: `release/${version}`, sha: headCommit },
   },
 }
+
+test('scenario: gets the highest published version through the fake GitHub adapter', () => {
+  const adapter = createFakeGithubAdapter({ releaseTags: ['draft', '3.9.0-rc.1', '3.4.9', '3.10.0', '3.5.12'] })
+  assert.equal(latestPublishedVersion(adapter), '3.10.0')
+  assert.equal(latestPublishedVersion(createFakeGithubAdapter()), '0.0.0')
+})
+
+test('scenario: refuses a candidate that does not increase the fake GitHub published version', () => {
+  const adapter = createFakeGithubAdapter({ releaseTags: ['3.4.6', '3.4.5'] })
+  const latest = latestPublishedVersion(adapter)
+  assert.equal(latest, '3.4.6')
+  assert.throws(() => validateVersionRequest('3.4.6', latest, '3.4.5'), /higher than latest published/)
+})
 
 test('validates the merged release PR and derives its version and merge commit', () => {
   assert.deepEqual(validateMergedRelease(event, version), { version, commit, headCommit, pullRequest: 266 })
@@ -183,6 +198,30 @@ test('scenario: reports a completed but failed run and shows its log', async () 
   })
   assert.deepEqual(result, { url: 'https://example.invalid/run/43', conclusion: 'failure' })
   assert.deepEqual(adapter.failedRunLogs, [43])
+  assert.deepEqual(adapter.dispatched, [{ workflowFile: 'release.yml', ref: version, inputs: {} }])
+})
+
+test('scenario: failed candidate preflight keeps its branch and run URL for the failure summary', async () => {
+  const branch = `release/${version}`
+  const runUrl = 'https://example.invalid/run/45'
+  const adapter = createFakeGithubAdapter({ runs: [{
+    databaseId: 45,
+    status: 'completed',
+    conclusion: 'failure',
+    headSha: commit,
+    createdAt: '2026-11-10T00:00:10.000Z',
+    url: runUrl,
+  }] })
+  const result = await dispatchAndWait(adapter, {
+    workflowFile: 'test.yml',
+    ref: branch,
+    matchSha: commit,
+    now: () => Date.parse('2026-11-10T00:00:00.000Z'),
+    sleep: async () => {},
+  })
+  assert.deepEqual(result, { url: runUrl, conclusion: 'failure' })
+  assert.deepEqual(adapter.dispatched, [{ workflowFile: 'test.yml', ref: branch, inputs: {} }])
+  assert.deepEqual(adapter.failedRunLogs, [45])
 })
 
 test('scenario: times out when the dispatched run never appears', async () => {
@@ -302,4 +341,35 @@ test('the merge-publish and release workflows hold no copied jq or polling shell
   assert.match(publishWorkflow, /workflow_dispatch:/)
   assert.match(publishWorkflow, /secrets\.RELEASE_WORKFLOW_TOKEN \|\| github\.token/)
   assert.match(publishWorkflow, /RELEASE_WORKFLOW_TOKEN_AVAILABLE: \$\{\{ secrets\.RELEASE_WORKFLOW_TOKEN != '' \}\}/)
+})
+
+test('release candidate uses the Release module once for published version and shared preflight', () => {
+  const candidate = readFileSync(new URL('../workflows/release-candidate.yml', import.meta.url), 'utf8')
+  assert.match(candidate, /release\.mjs latest-published/)
+  assert.doesNotMatch(candidate, /gh api .*releases/)
+  assert.match(candidate, /release\.mjs dispatch-and-wait/)
+  assert.doesNotMatch(candidate, /for attempt in|sleep 15/)
+  assert.doesNotMatch(candidate, /default: 3\.4\.6/)
+  assert.match(candidate, /git switch --detach "origin\/\$branch"[\s\S]*?node \.github\/scripts\/check-version\.mjs/)
+  assert.match(candidate, /gh pr create --base main --head "\$BRANCH"/)
+  assert.match(candidate, /Candidate branch: \$\{BRANCH:-unknown\}/)
+  assert.match(candidate, /Preflight run: \$\{PREFLIGHT_URL:-not started or not completed\}/)
+})
+
+test('third-party workflow actions are pinned to full SHAs and release permissions are scoped per job', () => {
+  const workflowDirectory = new URL('../workflows/', import.meta.url)
+  for (const filename of readdirSync(workflowDirectory).filter((name) => name.endsWith('.yml'))) {
+    const workflow = readFileSync(new URL(filename, workflowDirectory), 'utf8')
+    for (const [, action, version] of workflow.matchAll(/^\s*uses:\s*([^\s]+)(?:\s+#\s*(v\S+))?\s*$/gm)) {
+      if (action.startsWith('./')) continue
+      assert.match(action, /^[^@]+@[0-9a-f]{40}$/, `${filename}: ${action}`)
+      assert.match(version ?? '', /^v\S+$/, `${filename}: missing version comment for ${action}`)
+    }
+  }
+  const releaseWorkflow = readFileSync(new URL('../workflows/release.yml', import.meta.url), 'utf8')
+  assert.match(releaseWorkflow, /^permissions: \{\}$/m)
+  assert.match(releaseWorkflow, /tests:[\s\S]*?permissions:\s*\n\s+contents: read/)
+  assert.match(releaseWorkflow, /publish:[\s\S]*?permissions:\s*\n\s+contents: read\n\s+actions: write/)
+  assert.match(releaseWorkflow, /github-release:[\s\S]*?permissions:\s*\n\s+contents: write/)
+  assert.match(releaseWorkflow, /verify:[\s\S]*?permissions:\s*\n\s+contents: read/)
 })

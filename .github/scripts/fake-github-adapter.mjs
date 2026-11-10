@@ -1,7 +1,7 @@
 // A fake GitHub adapter for tests. It implements the same interface as
 // github-adapter.mjs (the real adapter) in memory, with no network or git calls,
 // and records what the Release module asked it to do.
-export function createFakeGithubAdapter({ pullRequests = {}, reviews = {}, checks = {}, tags = {}, runs = [] } = {}) {
+export function createFakeGithubAdapter({ pullRequests = {}, reviews = {}, checks = {}, tags = {}, runs = [], releaseTags = [] } = {}) {
   const tagCommits = new Map(Object.entries(tags))
   const createdTags = []
   const dispatched = []
@@ -10,6 +10,9 @@ export function createFakeGithubAdapter({ pullRequests = {}, reviews = {}, check
     createdTags,
     dispatched,
     failedRunLogs,
+    getPublishedReleaseTags() {
+      return releaseTags
+    },
     getPullRequest(number) {
       const pullRequest = pullRequests[number]
       if (!pullRequest) throw new Error(`No fake pull request #${number}`)

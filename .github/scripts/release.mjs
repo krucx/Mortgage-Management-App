@@ -5,6 +5,20 @@ const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 const commitPattern = /^[0-9a-f]{40}$/i
 const runCreationToleranceMs = 5_000
 
+function compareVersions(left, right) {
+  const a = left.split('.').map(Number)
+  const b = right.split('.').map(Number)
+  for (let index = 0; index < 3; index += 1) {
+    if (a[index] !== b[index]) return a[index] - b[index]
+  }
+  return 0
+}
+
+export function latestPublishedVersion(adapter) {
+  const versions = adapter.getPublishedReleaseTags().filter((tag) => versionPattern.test(tag))
+  return versions.sort(compareVersions).at(-1) ?? '0.0.0'
+}
+
 export function validateMergedRelease(event, version) {
   if (!versionPattern.test(version ?? '')) throw new Error(`Invalid VERSION: ${version}`)
   const pullRequest = event?.pull_request
@@ -191,6 +205,10 @@ function readJson(path, label) {
 
 async function runCli(args) {
   const command = args[0]
+  if (command === 'latest-published') {
+    console.log(latestPublishedVersion(createGithubAdapter(option(args, '--repo'))))
+    return
+  }
   if (command === 'validate-candidate') {
     const result = validateApprovedCandidate(createGithubAdapter(option(args, '--repo')), {
       prNumber: Number(option(args, '--pr-number')),
@@ -253,7 +271,7 @@ async function runCli(args) {
     console.log(`Verified published release ${version}, notes, download, and container image`)
     return
   }
-  throw new Error('Usage: release.mjs <validate-candidate|tag|dispatch-and-wait|release-notes|verify-published> [options]')
+  throw new Error('Usage: release.mjs <latest-published|validate-candidate|tag|dispatch-and-wait|release-notes|verify-published> [options]')
 }
 
 if (process.argv[1] && process.argv[1].endsWith('/release.mjs')) await runCli(process.argv.slice(2))
