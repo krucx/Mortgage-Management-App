@@ -4,3 +4,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # One PR for all action bumps found in a run, instead of one PR per action.
+    groups:
+      github-actions:
+        patterns:
+          - '*'
