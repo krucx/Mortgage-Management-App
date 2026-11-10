@@ -7,6 +7,8 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.4.8] - 2026-11-10
+
 ### Changed
 
 - **Documentation:** the GitHub Pages site, the walkthrough, The Gold Chain Story and the
