@@ -1,10 +1,12 @@
 """Favours Given (see Documentation/GLOSSARY.md): every Discount and Waived Amount the
-Lender has given a Customer across their Mortgages, still standing.
+Lender has given a Customer across their Mortgages, still standing. Grace joins them
+later.
 
 Nothing here is stored: a Voided Payment is in no replay, so its Discount is left out,
 and a Reopened Waiver is Active again, so it has no Closure.
 """
 
+import sys
 from datetime import date
 from typing import Literal
 
@@ -30,9 +32,9 @@ class FavourMortgage(BaseModel):
 
 
 class Favour(BaseModel):
-    on: date  # the Payment's date, or the Closure date of a Waiver
+    on: date  # the Payment's date, or the Closure date of a Waived Mortgage
     mortgage: FavourMortgage
-    kind: Literal["discount", "waiver"]
+    kind: Literal["discount", "waived"]
     amount: int  # paise let off
 
 
@@ -49,32 +51,41 @@ def favours_given(conn: Connection, customer_id: int) -> FavoursGiven:
         .mappings()
         .all()
     )
-    favours: list[Favour] = []
+    # Each favour with the Payment that gave it, to order those given on one day: a
+    # Waived Amount comes with its final Payment, or, with nothing paid, after them all.
+    given: list[tuple[int, Favour]] = []
     for mortgage in replays(conn, rows).values():
-        on_mortgage = FavourMortgage(
+        given_on = FavourMortgage(
             id=mortgage.row["id"], description=mortgage.row["description"]
         )
-        favours += [
-            Favour(
-                on=allocation.on,
-                mortgage=on_mortgage,
-                kind="discount",
-                amount=allocation.discount,
+        given += [
+            (
+                allocation.payment_id,
+                Favour(
+                    on=allocation.on,
+                    mortgage=given_on,
+                    kind="discount",
+                    amount=allocation.discount,
+                ),
             )
             for allocation in mortgage.allocations
             if allocation.discount
         ]
         closure = mortgage.closure()
         if closure is not None and closure.waived_amount:
-            favours.append(
-                Favour(
-                    on=closure.on,
-                    mortgage=on_mortgage,
-                    kind="waiver",
-                    amount=closure.waived_amount,
+            given.append(
+                (
+                    closure.payment_id or sys.maxsize,
+                    Favour(
+                        on=closure.on,
+                        mortgage=given_on,
+                        kind="waived",
+                        amount=closure.waived_amount,
+                    ),
                 )
             )
-    favours.sort(key=lambda favour: favour.on, reverse=True)
+    given.sort(key=lambda pair: (pair[1].on, pair[0]), reverse=True)  # newest first
+    favours = [favour for _, favour in given]
     return FavoursGiven(
         favours=favours, total=sum(favour.amount for favour in favours)
     )
@@ -85,7 +96,8 @@ router = APIRouter(prefix="/api")
 
 @router.get("/customers/{customer_id}/favours")
 def read_favours_given(customer_id: int, engine: EngineDep) -> FavoursGiven:
-    """Every Discount and Waived Amount still standing, newest first, with their total."""
+    """Every Discount and Waived Amount still standing, newest first, with their total
+    (Grace joins them later)."""
     with engine.connect() as conn:
         if not exists(conn, customer_table, customer_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")

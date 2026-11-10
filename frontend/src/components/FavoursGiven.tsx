@@ -5,15 +5,23 @@ import { formatINR } from '../money'
 import { favoursGivenQuery } from '../requests'
 import { useServerState } from '../serverState'
 
-const KIND = { discount: 'Discount', waiver: 'Waiver' } as const
+const KIND = { discount: 'Discount', waived: 'Waived off' } as const
 
 /** Every Discount and Waived Amount the Lender has given the Customer, still standing,
- *  newest first with their total; nothing at all when there are none. */
+ *  newest first with their total (Grace joins them later); nothing at all when there are
+ *  none. */
 export function FavoursGiven({ customerId }: { customerId: number }) {
   const { client } = useServerState()
   const { data, error } = useQuery(favoursGivenQuery(client, customerId))
 
-  if (error) return <p className="status error">{error.message}</p>
+  if (error) {
+    return (
+      <>
+        <h3>Favours Given</h3>
+        <p className="status error">{error.message}</p>
+      </>
+    )
+  }
   if (!data || data.favours.length === 0) return null
   return (
     <>

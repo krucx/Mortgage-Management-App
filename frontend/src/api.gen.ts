@@ -362,7 +362,8 @@ export interface paths {
         };
         /**
          * Read Favours Given
-         * @description Every Discount and Waived Amount still standing, newest first, with their total.
+         * @description Every Discount and Waived Amount still standing, newest first, with their total
+         *     (Grace joins them later).
          */
         get: operations["read_favours_given_api_customers__customer_id__favours_get"];
         put?: never;
@@ -1891,7 +1892,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "discount" | "waiver";
+            kind: "discount" | "waived";
             mortgage: components["schemas"]["FavourMortgage"];
             /**
              * On

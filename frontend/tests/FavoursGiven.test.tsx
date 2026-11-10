@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// Favours Given on the Customer page: every Discount and Waived Amount still standing.
+// Favours Given on the Customer page: every Discount and Waived Amount still standing
+// (Grace joins them later).
 import { cleanup, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { CustomerPage } from '../src/pages/CustomerPage'
@@ -45,7 +46,7 @@ test('the Customer page lists each favour newest first, by Mortgage description,
       {
         on: '2026-04-20',
         mortgage: { id: 7, description: 'Gold chain' },
-        kind: 'waiver',
+        kind: 'waived',
         amount: 50_000,
       },
       {
@@ -64,7 +65,7 @@ test('the Customer page lists each favour newest first, by Mortgage description,
     .map((row) => row.textContent)
   expect(rows).toEqual([
     'DateMortgageKindAmount let off',
-    '20 Apr 2026Gold chainWaiver₹500',
+    '20 Apr 2026Gold chainWaived off₹500',
     '15 Mar 2026Gold ringDiscount₹1,000',
     'Total₹1,500',
   ])
@@ -83,4 +84,11 @@ test('the section is hidden when the Customer has no favours', async () => {
   await vi.waitFor(() => expect(server.requests).toContain('GET /api/customers/3/favours'))
   expect(screen.queryByRole('heading', { name: 'Favours Given' })).toBeNull()
   expect(screen.queryByRole('table', { name: 'Favours Given' })).toBeNull()
+})
+
+test('a failure to load them says so under the heading', async () => {
+  customerPage(Response.json({ detail: 'Something went wrong' }, { status: 500 }))
+
+  const heading = await screen.findByRole('heading', { name: 'Favours Given' })
+  expect(heading.nextElementSibling?.textContent).toBe('Something went wrong')
 })

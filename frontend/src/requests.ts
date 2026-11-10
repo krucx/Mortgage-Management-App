@@ -445,8 +445,9 @@ export function customerHistoryQuery(client: ApiClient, id: number) {
   })
 }
 
-/** Every Discount and Waived Amount still standing for a Customer, newest first; under
- *  the Customer, so a change to what Mortgages owe makes it stale. */
+/** Every Discount and Waived Amount still standing for a Customer, newest first (Grace
+ *  joins them later); under the Customer, so a change to what Mortgages owe makes it
+ *  stale. */
 export function favoursGivenQuery(client: ApiClient, id: number) {
   return queryOptions({
     queryKey: [...keys.customer(id), 'favours'],

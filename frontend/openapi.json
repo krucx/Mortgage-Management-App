@@ -1391,7 +1391,7 @@
           "kind": {
             "enum": [
               "discount",
-              "waiver"
+              "waived"
             ],
             "title": "Kind",
             "type": "string"
@@ -4973,7 +4973,7 @@
     },
     "/api/customers/{customer_id}/favours": {
       "get": {
-        "description": "Every Discount and Waived Amount still standing, newest first, with their total.",
+        "description": "Every Discount and Waived Amount still standing, newest first, with their total\n(Grace joins them later).",
         "operationId": "read_favours_given_api_customers__customer_id__favours_get",
         "parameters": [
           {
