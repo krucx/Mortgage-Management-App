@@ -417,15 +417,15 @@ test('equal shares fill the smaller Mortgages up to their Outstanding, and the r
   expect(within(ringRow).getAllByText('₹20,000')).toHaveLength(2)
 })
 
-/** The backend with a 2-day Grace Period: a Payment received on 8 Nov 2026, just after
- *  the 7 Nov Accrual Date, is offered 6 Nov, saving ₹420; any other date nothing. Every
- *  Payment saved is in `saved`. */
+/** The backend with a 2-day Grace Period: ₹20,000 received on 8 Nov 2026, just after
+ *  the 7 Nov Accrual Date, is offered 6 Nov, letting off ₹420; any other date or amount
+ *  nothing. Every Payment saved is in `saved`. */
 function graceServer() {
   const saved: PaymentIn[] = []
   const backend = server({
     'POST /api/payments/grace-offer': async (request: Request) => {
       const draft = (await request.json()) as PaymentIn
-      return draft.paid_on === '2026-11-08' && !draft.received_on
+      return draft.paid_on === '2026-11-08' && draft.amount === 2_000_000 && !draft.received_on
         ? {
             days: 2,
             accrual_on: '2026-11-07',
@@ -465,7 +465,7 @@ test('within the Grace Period, one click dates the Payment the day before the Ac
 
   const helper = await screen.findByRole(
     'button',
-    { name: 'date it 6 Nov (saves ₹420)' },
+    { name: 'date it 6 Nov (lets off ₹420)' },
     { timeout: 2000 },
   )
   expect(screen.getByText(/Within the 2-day Grace Period after 7 Nov/)).toBeTruthy()
@@ -502,5 +502,19 @@ test('no Grace is offered when the earlier date would save nothing', async () =>
 
   await save()
   expect(backend.requests).toContain('POST /api/payments/grace-offer')
+  expect(screen.queryByText(/Grace/)).toBeNull()
+})
+
+test('once the draft is changed so the earlier date lets off nothing, it goes back to the date received', async () => {
+  const { backend } = graceServer()
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  await draftReceivedOn('2026-11-08')
+  fireEvent.click(await screen.findByRole('button', { name: /date it 6 Nov/ }, { timeout: 2000 }))
+  expect(await screen.findByText(/Received 8 Nov, dated 6 Nov/)).toBeTruthy()
+
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '9000' } })
+
+  const date = screen.getByLabelText('Date received') as HTMLInputElement
+  await vi.waitFor(() => expect(date.value).toBe('2026-11-08'), { timeout: 2000 })
   expect(screen.queryByText(/Grace/)).toBeNull()
 })

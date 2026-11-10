@@ -268,3 +268,16 @@ def test_a_grace_payment_can_be_voided_like_any_other(client, ramesh, chain):
     assert response.json()["voided_at"] is not None
     owed = client.get(f"/api/mortgages/{chain['id']}").json()["outstanding"]["total"]
     assert owed == LAKH + 12_000_00
+
+
+def test_a_grace_payment_that_lets_off_nothing_is_refused(client, ramesh, chain):
+    # Interest only, Simple, either way: dating it 13 Apr saves nothing.
+    set_grace_period(client, 2)
+
+    response = client.post(
+        "/api/payments",
+        json=draft(ramesh, {chain["id"]: 9_000_00}, "2026-04-13", received_on="2026-04-15"),
+    )
+
+    assert response.status_code == 422, response.text
+    assert "lets off nothing" in response.text

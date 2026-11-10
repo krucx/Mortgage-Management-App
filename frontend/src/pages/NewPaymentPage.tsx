@@ -188,6 +188,13 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       previews.graceOffer({ ...proposed, paid_on: receivedOn ?? paidOn, received_on: null }),
   )
   const offer = grace.loading ? null : grace.previews
+  // A Grace mark the draft has outgrown (the earlier date now lets off nothing, or
+  // another date is offered) is dropped, going back to the date received.
+  // (Set while rendering, as React allows for a component's own state.)
+  if (receivedOn && proposed && !grace.loading && !grace.error && offer?.paid_on !== paidOn) {
+    setPaidOn(receivedOn)
+    setReceivedOn(null)
+  }
   const letOff = receivedOn && offer?.paid_on === paidOn ? offer.let_off : null
   // As the confirmation shows the date: a Grace Payment's both dates and what it lets off.
   const dateRows: [string, string][] = receivedOn
@@ -378,7 +385,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                       setPaidOn(offer.paid_on)
                     }}
                   >
-                    date it {formatDayMonth(offer.paid_on)} (saves {formatINR(offer.let_off)})
+                    date it {formatDayMonth(offer.paid_on)} (lets off {formatINR(offer.let_off)})
                   </button>
                 </span>
               )
