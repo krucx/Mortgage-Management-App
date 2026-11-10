@@ -54,6 +54,11 @@ from mortgage_backend.lending.terms import Terms
 from mortgage_backend.payments.cash_limit import before_change, cash_sums
 from mortgage_backend.payments.discount_confirmation import get_discount_confirmation_limit
 from mortgage_backend.payments.discount_room import capped, discount_rooms
+from mortgage_backend.payments.grace_period import (
+    GraceOffer,
+    get_grace_period,
+    grace_offer,
+)
 from mortgage_backend.payments.payments import mortgages_of
 from mortgage_backend.platform.clock import NowDep, TodayDep
 from mortgage_backend.platform.db import EngineDep
@@ -369,6 +374,23 @@ def preview_payment(
                 limit is not None and discounts[mortgage_preview.mortgage_id] > limit
             )
         return preview
+
+
+@router.post("/payments/grace-offer")
+def offer_grace(payment: PaymentIn, engine: EngineDep) -> GraceOffer | None:
+    """For a Payment drafted on the date it was received: the earlier date the Grace
+    Period allows and what that would let off, if it lets off anything."""
+    with engine.connect() as conn:
+        mortgages = [replay(conn, a.mortgage_id) for a in payment.allocations]
+        if any(m.row["status"] != MortgageStatus.ACTIVE for m in mortgages):
+            return None
+        offer = grace_offer(
+            mortgages,
+            {a.mortgage_id: a.amount + a.discount for a in payment.allocations},
+            payment.paid_on,
+            get_grace_period(conn).grace_period_days,
+        )
+    return offer if offer is not None and offer.let_off > 0 else None
 
 
 class NewMortgagePreview(BaseModel):

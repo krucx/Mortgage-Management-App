@@ -8,7 +8,7 @@ date), and then recorded in History. The request handlers only parse, call and a
 same change and roll it back.
 """
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import date, datetime
 
@@ -35,6 +35,7 @@ from mortgage_backend.lending.replay import (
     replays,
 )
 from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
+from mortgage_backend.payments.grace_period import get_grace_period, grace_offer
 from mortgage_backend.payments.payments import (
     Payment,
     PaymentMethod,
@@ -68,6 +69,9 @@ class AllocationIn(BaseModel):
 class PaymentIn(BaseModel):
     customer_id: int
     paid_on: date
+    # A Grace Payment's: when it was received, `paid_on` being the day before the
+    # Accrual Date it is within the Grace Period of
+    received_on: date | None = None
     amount: int = Field(ge=0)  # cash in paise
     method: PaymentMethod
     reference: str | None = None
@@ -214,10 +218,14 @@ def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -> 
 
 
 def _write_payment(
-    conn: Connection, payment: PaymentIn, received_with: int | None = None
+    conn: Connection,
+    payment: PaymentIn,
+    received_with: int | None = None,
+    let_off: Mapping[int, int] | None = None,
 ) -> int:
     """Write the Payment, or a part of one: `received_with` is the Payment's first part,
-    whose Receipt the part shares."""
+    whose Receipt the part shares. A Grace Payment keeps what it `let_off` on each
+    Mortgage, by id."""
     payment_id: int = conn.execute(
         insert(payment_table)
         .values(
@@ -228,7 +236,14 @@ def _write_payment(
     ).scalar_one()
     conn.execute(
         insert(allocation_table),
-        [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
+        [
+            {
+                "payment_id": payment_id,
+                **a.model_dump(),
+                "let_off": None if let_off is None else let_off[a.mortgage_id],
+            }
+            for a in payment.allocations
+        ],
     )
     return payment_id
 
@@ -244,7 +259,7 @@ def _record_payment_history(
         "created",
         audit.created(
             {**payment.model_dump(), "method": payment.method.value},
-            ["paid_on", "amount", "method", "reference"],
+            ["paid_on", "received_on", "amount", "method", "reference"],
         ),
     )
 
@@ -298,13 +313,42 @@ def _refuse_payment(
     return rows
 
 
+def _grace_let_off(
+    conn: Connection, payment: PaymentIn, rows: Sequence[RowMapping], today: date
+) -> dict[int, int] | None:
+    """A Grace Payment's amount let off on each of its Mortgages `rows`, by id, as
+    worked out now (ADR 0020); refused unless its dates fit the Grace Period as it is
+    set now. None for any other Payment."""
+    received_on = payment.received_on
+    if received_on is None:
+        return None
+    if received_on > today:
+        raise unprocessable("The date received cannot be in the future")
+    replayed = replays(conn, rows)
+    offer = grace_offer(
+        [replayed[row["id"]] for row in rows],
+        {a.mortgage_id: a.amount + a.discount for a in payment.allocations},
+        received_on,
+        get_grace_period(conn).grace_period_days,
+    )
+    if offer is None or offer.paid_on != payment.paid_on:
+        raise unprocessable(
+            f"A Payment received on {received_on:%d %b %Y} can't be dated "
+            f"{payment.paid_on:%d %b %Y}: that is not within the Grace Period"
+        )
+    return {m.mortgage_id: m.let_off for m in offer.mortgages}
+
+
 def record_payment(
     conn: Connection, payment: PaymentIn, today: date, now: datetime
 ) -> int:
     """Record a Payment (or refuse); returns its id. Each Mortgage it pays its whole
     Outstanding on the Payment date is Redeemed (ADR 0011), with its Final Payment kept
-    as a part of its own: the id is then the Payment's first part."""
+    as a part of its own: the id is then the Payment's first part. A Grace Payment
+    keeps its received date and what it let off on each Mortgage, its Final Payments
+    too."""
     rows = _refuse_payment(conn, payment, today)
+    let_off = _grace_let_off(conn, payment, rows, today)
     redeemed = []
     for allocation in payment.allocations:
         with _refusal_names_mortgage(conn, allocation.mortgage_id):
@@ -318,7 +362,7 @@ def record_payment(
         paid = payment.model_copy(
             update={"amount": sum(a.amount for a in ordinary), "allocations": ordinary}
         )
-        first = _write_payment(conn, paid)
+        first = _write_payment(conn, paid, let_off=let_off)
         check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
         _record_payment_history(conn, first, paid, now)
     for allocation, mortgage in redeemed:
@@ -334,6 +378,8 @@ def record_payment(
                 now,
                 received_with=first,
                 discount=allocation.discount,
+                received_on=payment.received_on,
+                let_off=None if let_off is None else let_off[allocation.mortgage_id],
             )
         assert final is not None  # an Allocation is more than nothing
         if first is None:
@@ -634,11 +680,14 @@ def _close_with_payment(
     now: datetime,
     received_with: int | None = None,
     discount: int = 0,
+    received_on: date | None = None,
+    let_off: int | None = None,
     **closure: object,
 ) -> int | None:
     """Record the final Payment of `amount` (unless it is nothing), received with the
     Payment `received_with` if any, and close the Mortgage as `closure` says; returns
-    the final Payment's id."""
+    the final Payment's id. A Grace Payment's final Payment keeps when it was
+    `received_on` and what it `let_off`."""
     row = mortgage.row
     # The final Payment may include the Interest to Date, owed only once the Mortgage
     # closes, so it is replayed after closing rather than as an ordinary Payment.
@@ -648,6 +697,7 @@ def _close_with_payment(
         final = PaymentIn(
             customer_id=row["customer_id"],
             paid_on=closed_on,
+            received_on=received_on,
             amount=amount,
             method=method,
             reference=reference,
@@ -656,7 +706,12 @@ def _close_with_payment(
             ],
         )
         _refuse_payment(conn, final, today)
-        payment_id = _write_payment(conn, final, received_with)
+        payment_id = _write_payment(
+            conn,
+            final,
+            received_with,
+            None if let_off is None else {row["id"]: let_off},
+        )
     _set_closure(
         conn,
         row["id"],
@@ -704,6 +759,8 @@ def _close_redeemed(
     now: datetime,
     received_with: int | None = None,
     discount: int = 0,
+    received_on: date | None = None,
+    let_off: int | None = None,
 ) -> int | None:
     """Record the final Payment of the Outstanding `owed` (unless it is nothing)
     and mark the Mortgage Redeemed; returns the final Payment's id."""
@@ -718,6 +775,8 @@ def _close_redeemed(
         now,
         received_with,
         discount=discount,
+        received_on=received_on,
+        let_off=let_off,
         status=MortgageStatus.REDEEMED,
     )
     audit.record(

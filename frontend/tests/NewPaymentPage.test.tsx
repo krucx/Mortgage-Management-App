@@ -416,3 +416,91 @@ test('equal shares fill the smaller Mortgages up to their Outstanding, and the r
   expect(within(chain).getAllByText('₹51,500')).toHaveLength(2) // Outstanding, and allocated
   expect(within(ringRow).getAllByText('₹20,000')).toHaveLength(2)
 })
+
+/** The backend with a 2-day Grace Period: a Payment received on 8 Nov 2026, just after
+ *  the 7 Nov Accrual Date, is offered 6 Nov, saving ₹420; any other date nothing. Every
+ *  Payment saved is in `saved`. */
+function graceServer() {
+  const saved: PaymentIn[] = []
+  const backend = server({
+    'POST /api/payments/grace-offer': async (request: Request) => {
+      const draft = (await request.json()) as PaymentIn
+      return draft.paid_on === '2026-11-08' && !draft.received_on
+        ? {
+            days: 2,
+            accrual_on: '2026-11-07',
+            paid_on: '2026-11-06',
+            let_off: 42_000,
+            mortgages: [{ mortgage_id: 7, let_off: 42_000 }],
+          }
+        : null
+    },
+    'POST /api/payments': async (request: Request) => {
+      const payment = (await request.json()) as PaymentIn
+      saved.push(payment)
+      return { ...payment, id: 9, customer: { kind: 'customer', id: 3, name: customer.name } }
+    },
+  })
+  return { backend, saved }
+}
+
+async function draftReceivedOn(date: string) {
+  fireEvent.change(await screen.findByLabelText('Date received'), { target: { value: date } })
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '20000' } })
+}
+
+async function save() {
+  const record = screen.getByRole('button', { name: 'Record Payment of ₹20,000' })
+  await vi.waitFor(() => expect((record as HTMLButtonElement).disabled).toBe(false), {
+    timeout: 2000,
+  })
+  fireEvent.click(record)
+  return screen.findByRole('dialog')
+}
+
+test('within the Grace Period, one click dates the Payment the day before the Accrual Date, and it saves as a Grace Payment', async () => {
+  const { backend, saved } = graceServer()
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  await draftReceivedOn('2026-11-08')
+
+  const helper = await screen.findByRole(
+    'button',
+    { name: 'date it 6 Nov (saves ₹420)' },
+    { timeout: 2000 },
+  )
+  expect(screen.getByText(/Within the 2-day Grace Period after 7 Nov/)).toBeTruthy()
+  fireEvent.click(helper)
+
+  expect((screen.getByLabelText('Date received') as HTMLInputElement).value).toBe('2026-11-06')
+  expect(await screen.findByText(/Received 8 Nov, dated 6 Nov in the Grace Period/)).toBeTruthy()
+  const confirmation = await save()
+  expect(within(confirmation).getByText('6 Nov 2026')).toBeTruthy()
+  expect(within(confirmation).getByText('8 Nov 2026')).toBeTruthy()
+  fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm and save' }))
+  await screen.findByText('Now at /payments/9/receipt')
+  expect(saved.map((p) => [p.paid_on, p.received_on])).toEqual([['2026-11-06', '2026-11-08']])
+})
+
+test('changing the date by hand afterwards removes the Grace mark', async () => {
+  const { backend, saved } = graceServer()
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  await draftReceivedOn('2026-11-08')
+  fireEvent.click(await screen.findByRole('button', { name: /date it 6 Nov/ }, { timeout: 2000 }))
+
+  fireEvent.change(screen.getByLabelText('Date received'), { target: { value: '2026-11-05' } })
+
+  expect(screen.queryByText(/Grace/)).toBeNull()
+  fireEvent.click(within(await save()).getByRole('button', { name: 'Confirm and save' }))
+  await screen.findByText('Now at /payments/9/receipt')
+  expect(saved.map((p) => [p.paid_on, p.received_on ?? null])).toEqual([['2026-11-05', null]])
+})
+
+test('no Grace is offered when the earlier date would save nothing', async () => {
+  const { backend } = graceServer()
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  await draftReceivedOn('2026-11-09')
+
+  await save()
+  expect(backend.requests).toContain('POST /api/payments/grace-offer')
+  expect(screen.queryByText(/Grace/)).toBeNull()
+})

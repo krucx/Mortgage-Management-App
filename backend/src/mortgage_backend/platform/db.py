@@ -128,6 +128,8 @@ payment_table = Table(
         "customer_id", Integer, ForeignKey("customer.id"), nullable=False, index=True
     ),
     Column("paid_on", Date, nullable=False),
+    # A Grace Payment's: when it was received, after `paid_on` (ADR 0020)
+    Column("received_on", Date),
     Column("amount", Integer, nullable=False),  # paise
     Column("method", String, nullable=False),
     Column("reference", String),
@@ -194,6 +196,7 @@ allocation_table = Table(
     ),
     Column("amount", Integer, nullable=False),  # paise
     Column("discount", Integer, nullable=False, default=0),  # paise, non-cash
+    Column("let_off", Integer),  # paise: a Grace Payment's, as saved (ADR 0020)
 )
 
 # A message to a Customer ahead of an Accrual Date (see Documentation/GLOSSARY.md: Reminder).

@@ -969,6 +969,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/payments/grace-offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Offer Grace
+         * @description For a Payment drafted on the date it was received: the earlier date the Grace
+         *     Period allows and what that would let off, if it lets off anything.
+         */
+        post: operations["offer_grace_api_payments_grace_offer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/payments/preview": {
         parameters: {
             query?: never;
@@ -1445,6 +1466,8 @@ export interface components {
             discount_principal_paid: number | null;
             /** Interest Paid */
             interest_paid: number | null;
+            /** Let Off */
+            let_off: number | null;
             /** Mortgage Id */
             mortgage_id: number;
             /** Mortgage Name */
@@ -1943,6 +1966,29 @@ export interface components {
             /** Rate Per Gram */
             rate_per_gram: number;
         };
+        /**
+         * GraceOffer
+         * @description A Payment received on a date, dated instead the day before the Accrual Date it
+         *     is within the Grace Period of, and what that lets off.
+         */
+        GraceOffer: {
+            /**
+             * Accrual On
+             * Format: date
+             */
+            accrual_on: string;
+            /** Days */
+            days: number;
+            /** Let Off */
+            let_off: number;
+            /** Mortgages */
+            mortgages: components["schemas"]["MortgageLetOff"][];
+            /**
+             * Paid On
+             * Format: date
+             */
+            paid_on: string;
+        };
         /** GracePeriod */
         GracePeriod: {
             /** Grace Period Days */
@@ -2239,6 +2285,13 @@ export interface components {
             start_date: string;
             terms?: components["schemas"]["Terms"] | null;
         };
+        /** MortgageLetOff */
+        MortgageLetOff: {
+            /** Let Off */
+            let_off: number;
+            /** Mortgage Id */
+            mortgage_id: number;
+        };
         /** MortgageLink */
         MortgageLink: {
             /** Id */
@@ -2435,6 +2488,8 @@ export interface components {
              * Format: date
              */
             paid_on: string;
+            /** Received On */
+            received_on: string | null;
             /** Reference */
             reference: string | null;
             /** Void Reason */
@@ -2456,6 +2511,8 @@ export interface components {
              * Format: date
              */
             paid_on: string;
+            /** Received On */
+            received_on?: string | null;
             /** Reference */
             reference?: string | null;
         };
@@ -4834,6 +4891,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Payment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    offer_grace_api_payments_grace_offer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraceOffer"] | null;
                 };
             };
             /** @description Validation Error */
