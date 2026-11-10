@@ -81,7 +81,7 @@ jobs:
       - run: uv sync --frozen
       - run: uv run mypy src
       - name: Run backend tests and collect line coverage
-        run: uv run pytest --cov=mortgage_backend --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
+        run: COVERAGE_CORE=sysmon uv run pytest -n auto --cov=mortgage_backend --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
       - name: Compare backend coverage with the pull request base
         id: backend-base
         if: github.event_name == 'pull_request'
@@ -92,7 +92,7 @@ jobs:
           git worktree add "$RUNNER_TEMP/backend-base" "$BASE_SHA"
           cd "$RUNNER_TEMP/backend-base/backend"
           uv sync --frozen
-          uv run pytest --cov=mortgage_backend --cov-report=xml:"$RUNNER_TEMP/backend-base/coverage.xml" --cov-report=term
+          COVERAGE_CORE=sysmon uv run pytest -n auto --cov=mortgage_backend --cov-report=xml:"$RUNNER_TEMP/backend-base/coverage.xml" --cov-report=term
       - name: Add backend coverage to the job summary
         env:
           BASE_REPORT: ${{ steps.backend-base.outcome == 'success' && format('{0}/backend-base/coverage.xml', runner.temp) || '' }}
