@@ -126,11 +126,14 @@ def test_a_grace_payments_receipt_shows_both_dates_and_what_each_mortgage_was_le
     shown = receipt(client, paid)
 
     assert (shown["paid_on"], shown["received_on"]) == ("2026-04-13", "2026-04-16")
-    assert [(r["description"], r["let_off"], r["redeemed"]) for r in shown["lines"]] == [
-        ("Gold chain", 330 * RUPEE, False),
-        ("Bangle", 3_000 * RUPEE, True),
+    assert [
+        (r["description"], r["paid"], r["let_off"], r["redeemed"]) for r in shown["lines"]
+    ] == [
+        ("Gold chain", 20_000 * RUPEE, 330 * RUPEE, False),
+        ("Bangle", 1_09_000 * RUPEE, 3_000 * RUPEE, True),
     ]
     text = shown["text"]
+    assert "Bangle (Redeemed)\nPaid           ₹1,09,000\n" in text
     assert "on 16 Apr 2026, counted as paid on 13 Apr 2026 (Grace)" in text
     assert "Let off (Grace)     ₹330\n" in text
     assert "Total let off     ₹3,330\n" in text
