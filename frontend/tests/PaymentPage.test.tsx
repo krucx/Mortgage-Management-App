@@ -85,4 +85,5 @@ test('from a recorded Payment, another Payment can be started for the same Custo
 
   const link = await screen.findByRole('link', { name: 'Record another Payment for same customer' })
   expect(link.getAttribute('href')).toBe(`/payments/new?customer=${mortgage.customer.id}`)
+  expect(link.nextElementSibling).toBe(screen.getByRole('button', { name: 'Void…' }))
 })

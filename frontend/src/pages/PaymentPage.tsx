@@ -32,9 +32,17 @@ export function PaymentPage() {
           {payment.voided_at && <span className="badge status-forfeited">voided</span>}
         </h2>
         {!payment.voided_at && (
-          <button type="button" className="danger small" onClick={() => setVoiding(true)}>
-            Void…
-          </button>
+          <div className="row">
+            <Link
+              className="button secondary small"
+              to={`/payments/new?customer=${payment.customer.id}`}
+            >
+              Record another Payment for same customer
+            </Link>
+            <button type="button" className="danger small" onClick={() => setVoiding(true)}>
+              Void…
+            </button>
+          </div>
         )}
       </div>
       {payment.voided_at && (
@@ -101,16 +109,7 @@ export function PaymentPage() {
           </tbody>
         </table>
       </div>
-      {!payment.voided_at && (
-        <>
-          <ReceiptPanel paymentId={payment.id} />
-          <p>
-            <Link className="button secondary" to={`/payments/new?customer=${payment.customer.id}`}>
-              Record another Payment for same customer
-            </Link>
-          </p>
-        </>
-      )}
+      {!payment.voided_at && <ReceiptPanel paymentId={payment.id} />}
       {voiding && (
         <ReasonDialog
           title={`Void this Payment of ${formatINR(payment.amount)}?`}
