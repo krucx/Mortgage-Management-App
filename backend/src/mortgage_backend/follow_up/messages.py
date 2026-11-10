@@ -107,6 +107,7 @@ RECEIPT_PLACEHOLDERS = (
     "method",
     "reference",
     "date",
+    "grace",
     "mortgages",
     "total_owed",
 )
@@ -165,12 +166,17 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
             ("Total owed", receipt.total_owed),
         ],
     )
-    # A Grace Payment is dated before it was received: the Customer sees both.
-    date_line = (
-        f"{_date(receipt.received_on)}, counted as paid on {_date(receipt.paid_on)} (Grace)"
+    # A Grace Payment is dated before it was received: the Customer sees both, the
+    # received date and then the {grace}. A template saved before {grace} existed gets
+    # both in {date}.
+    grace = (
+        f", counted as paid on {_date(receipt.paid_on)} (Grace)"
         if receipt.received_on
-        else _date(receipt.paid_on)
+        else ""
     )
+    date_line = _date(receipt.received_on or receipt.paid_on)
+    if "{grace}" not in template:
+        date_line += grace
     return fill(
         template,
         {
@@ -178,6 +184,7 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
             "amount": format_inr(receipt.amount),
             "method": receipt.method,
             "date": date_line,
+            "grace": grace,
             "reference": receipt.reference or "",
             "mortgages": block,
             "total_owed": format_inr(receipt.total_owed),

@@ -32,9 +32,11 @@ Every release of Mortgage Management, newest first. The format follows
   **Database change:** a migration adds the received date to Payments and the amount let
   off to Allocations; existing Payments are unchanged.
 - **Grace on the Receipt:** a Grace Payment's Receipt, on WhatsApp and printed, tells the
-  Customer about the favour: "received on 16 Apr 2026, counted as paid on 13 Apr 2026
-  (Grace)" wherever the template uses `{date}`, and the amount let off on each Mortgage
-  (with the total when there are several). Receipts for ordinary Payments are unchanged.
+  Customer about the favour, "received on 16 Apr 2026, counted as paid on 13 Apr 2026
+  (Grace)", and the amount let off on each Mortgage (with the total when there are
+  several). The Receipt template has a new `{grace}` placeholder for the earlier date,
+  placed after `{date}` (now the date received) in the default template; a template saved
+  without it gets both dates in `{date}`. Receipts for ordinary Payments are unchanged.
 
 ## [3.4.8] - 2026-11-10
 

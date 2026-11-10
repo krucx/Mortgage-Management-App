@@ -8,6 +8,7 @@ from datetime import date
 
 from seed import RUPEE
 
+from mortgage_backend.follow_up.message_settings import RECEIPT_TEMPLATE
 from mortgage_backend.follow_up.messages import (
     REMINDER_PLACEHOLDERS,
     RECEIPT_PLACEHOLDERS,
@@ -116,6 +117,8 @@ def test_a_card_widens_for_a_large_amount_and_wraps_a_long_item() -> None:
 
 
 def test_a_grace_payment_says_when_it_was_received_and_what_each_mortgage_was_let_off() -> None:
+    # A template without {grace} (one saved before it existed) still tells the Customer,
+    # in {date}
     graced = receipt(chain(let_off=330 * RUPEE)).model_copy(
         update={"paid_on": date(2026, 4, 13), "received_on": date(2026, 4, 15)}
     )
@@ -134,6 +137,33 @@ def test_a_grace_payment_says_when_it_was_received_and_what_each_mortgage_was_le
         "```\n"
         "Total still owed: *₹1,02,000*"
     )
+
+
+def test_the_grace_placeholder_follows_the_received_date() -> None:
+    graced = receipt(chain(let_off=330 * RUPEE)).model_copy(
+        update={"paid_on": date(2026, 4, 13), "received_on": date(2026, 4, 15)}
+    )
+
+    assert receipt_text("Received on {date}{grace}. Thank you!", graced) == (
+        "Received on 15 Apr 2026, counted as paid on 13 Apr 2026 (Grace). Thank you!"
+    )
+
+
+def test_the_grace_placeholder_is_empty_for_an_ordinary_payment() -> None:
+    assert receipt_text("Received on {date}{grace}. Thank you!", receipt(chain())) == (
+        "Received on 15 Apr 2026. Thank you!"
+    )
+
+
+def test_the_default_receipt_template_places_the_grace() -> None:
+    graced = receipt(chain(let_off=330 * RUPEE)).model_copy(
+        update={"paid_on": date(2026, 4, 13), "received_on": date(2026, 4, 15)}
+    )
+
+    assert (
+        "We have received *₹5,000* by Cash on 15 Apr 2026, counted as paid on 13 Apr 2026 "
+        "(Grace). Thank you!"
+    ) in receipt_text(RECEIPT_TEMPLATE, graced)
 
 
 def test_several_mortgages_of_a_grace_payment_total_what_was_let_off() -> None:

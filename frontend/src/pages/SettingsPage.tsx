@@ -498,12 +498,15 @@ function GracePeriodSettings() {
 function TemplateField({
   label,
   placeholders,
+  note,
   value,
   onChange,
 }: {
   label: string
   /** The placeholders the backend can fill in this template, once they arrive. */
   placeholders?: string[]
+  /** What this template's own placeholders mean. */
+  note?: string
   value: string
   onChange: (value: string) => void
 }) {
@@ -520,6 +523,7 @@ function TemplateField({
           )}
           {'{mortgages}'} is a small table per
           Mortgage, showing its description, never the Mortgage Name. *bold*, _italic_ as in WhatsApp.
+          {note && ` ${note}`}
         </span>
       </label>
       <WhatsAppPreview text={value} />
@@ -565,6 +569,10 @@ function MessageSettingsForm() {
           <TemplateField
             label="Receipt"
             placeholders={placeholders?.receipt}
+            note={
+              'On a Grace Payment, {date} is when it was received and {grace} adds ' +
+              '“, counted as paid on 13 Apr 2026 (Grace)”; otherwise {grace} is empty.'
+            }
             value={draft.receipt_template}
             onChange={(receipt_template) => setDraft({ ...draft, receipt_template })}
           />

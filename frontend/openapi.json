@@ -1967,7 +1967,7 @@
       "MessageSettings": {
         "properties": {
           "receipt_template": {
-            "default": "*Payment received* \u2705\n\nNamaste {customer_name},\nWe have received *{amount}* by {method} on {date}. Thank you!\n\n{mortgages}\n\nTotal still owed: *{total_owed}*",
+            "default": "*Payment received* \u2705\n\nNamaste {customer_name},\nWe have received *{amount}* by {method} on {date}{grace}. Thank you!\n\n{mortgages}\n\nTotal still owed: *{total_owed}*",
             "minLength": 1,
             "title": "Receipt Template",
             "type": "string"

@@ -2200,7 +2200,7 @@ export interface components {
              * @default *Payment received* ✅
              *
              *     Namaste {customer_name},
-             *     We have received *{amount}* by {method} on {date}. Thank you!
+             *     We have received *{amount}* by {method} on {date}{grace}. Thank you!
              *
              *     {mortgages}
              *
