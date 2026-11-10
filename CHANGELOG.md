@@ -17,7 +17,20 @@ Every release of Mortgage Management, newest first. The format follows
 - **Grace Period setting:** Settings has a Grace Period, in days, next to the Discount
   confirmation threshold: one setting for every Mortgage, not part of any Terms. It is
   empty (off) unless set; clearing it or setting 0 turns Grace off, and a negative or
-  part-day value is refused. Payments do not use it yet.
+  part-day value is refused.
+- **Grace Payments:** on Record a Payment, a Payment received within the Grace Period
+  after an Accrual Date is offered, under Date received, the day before that Accrual
+  Date when that saves the Customer money (for example "Within the 2-day Grace Period
+  after 7 Nov: date it 6 Nov (lets off ₹420)"). One click changes only the date; changing it
+  by hand again makes it an ordinary Payment, and so does changing the draft until the
+  earlier date lets off nothing (it goes back to the date received). A Grace Payment keeps the date it was
+  received and, for each Mortgage, the amount let off as worked out when saved (ADR 0020);
+  the Ledger uses only the earlier date. Its Final Payments, when it Redeems, have the
+  earlier date too. The Payment page shows both dates and the amount let off. A Grace
+  Payment whose dates do not fit the Grace Period as it is set then, or that lets off
+  nothing, is refused.
+  **Database change:** a migration adds the received date to Payments and the amount let
+  off to Allocations; existing Payments are unchanged.
 
 ## [3.4.8] - 2026-11-10
 

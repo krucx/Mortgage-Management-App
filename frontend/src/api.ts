@@ -85,6 +85,8 @@ export type PaymentIn = Schemas['PaymentIn']
 export type PaymentRow = Schemas['PaymentRow']
 export type PaymentPage = Schemas['PaymentPage']
 export type Payment = Schemas['Payment']
+/** The earlier date the Grace Period allows a Payment, and what that would let off. */
+export type GraceOffer = Schemas['GraceOffer']
 
 export type MortgageStatus = Schemas['MortgageStatus']
 /** What a Mortgage owes on a date: Principal, unpaid interest and the Interest to Date. */

@@ -8,9 +8,10 @@ date), and then recorded in History. The request handlers only parse, call and a
 same change and roll it back.
 """
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import date, datetime
+from typing import NamedTuple
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field, model_validator
@@ -35,6 +36,11 @@ from mortgage_backend.lending.replay import (
     replays,
 )
 from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
+from mortgage_backend.payments.grace_period import (
+    GraceOffer,
+    get_grace_period,
+    grace_offer,
+)
 from mortgage_backend.payments.payments import (
     Payment,
     PaymentMethod,
@@ -68,6 +74,9 @@ class AllocationIn(BaseModel):
 class PaymentIn(BaseModel):
     customer_id: int
     paid_on: date
+    # A Grace Payment's: when it was received, `paid_on` being the day before the
+    # Accrual Date it is within the Grace Period of
+    received_on: date | None = None
     amount: int = Field(ge=0)  # cash in paise
     method: PaymentMethod
     reference: str | None = None
@@ -213,11 +222,21 @@ def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -> 
             ) from None
 
 
+class _Grace(NamedTuple):
+    """A Grace Payment's received date, and what it lets off on each Mortgage, by id."""
+
+    received_on: date
+    let_off: Mapping[int, int]
+
+
 def _write_payment(
-    conn: Connection, payment: PaymentIn, received_with: int | None = None
+    conn: Connection,
+    payment: PaymentIn,
+    received_with: int | None = None,
+    grace: _Grace | None = None,
 ) -> int:
     """Write the Payment, or a part of one: `received_with` is the Payment's first part,
-    whose Receipt the part shares."""
+    whose Receipt the part shares. A Grace Payment keeps its `grace`."""
     payment_id: int = conn.execute(
         insert(payment_table)
         .values(
@@ -228,7 +247,14 @@ def _write_payment(
     ).scalar_one()
     conn.execute(
         insert(allocation_table),
-        [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
+        [
+            {
+                "payment_id": payment_id,
+                **a.model_dump(),
+                "let_off": grace.let_off[a.mortgage_id] if grace else None,
+            }
+            for a in payment.allocations
+        ],
     )
     return payment_id
 
@@ -244,7 +270,7 @@ def _record_payment_history(
         "created",
         audit.created(
             {**payment.model_dump(), "method": payment.method.value},
-            ["paid_on", "amount", "method", "reference"],
+            ["paid_on", "received_on", "amount", "method", "reference"],
         ),
     )
 
@@ -298,13 +324,56 @@ def _refuse_payment(
     return rows
 
 
+def grace_offer_for(
+    conn: Connection, payment: PaymentIn, received_on: date
+) -> GraceOffer | None:
+    """The Grace for `payment` had it been received on `received_on`, under the Grace
+    Period as it is set now; None if that is not within it, or if any of its Mortgages
+    is not Active."""
+    mortgages = [replay(conn, a.mortgage_id) for a in payment.allocations]
+    if any(m.row["status"] != MortgageStatus.ACTIVE for m in mortgages):
+        return None
+    return grace_offer(
+        mortgages,
+        {a.mortgage_id: a.amount + a.discount for a in payment.allocations},
+        received_on,
+        get_grace_period(conn).grace_period_days,
+    )
+
+
+def _grace(conn: Connection, payment: PaymentIn, today: date) -> _Grace | None:
+    """A Grace Payment's received date and what it lets off on each Mortgage, as
+    worked out now (ADR 0020); refused unless its dates fit the Grace Period as it is
+    set now and it lets off something. None for any other Payment."""
+    received_on = payment.received_on
+    if received_on is None:
+        return None
+    if received_on > today:
+        raise unprocessable("The date received cannot be in the future")
+    offer = grace_offer_for(conn, payment, received_on)
+    if offer is None or offer.paid_on != payment.paid_on:
+        raise unprocessable(
+            f"A Payment received on {received_on:%d %b %Y} can't be dated "
+            f"{payment.paid_on:%d %b %Y}: that is not within the Grace Period"
+        )
+    if offer.let_off == 0:
+        raise unprocessable(
+            f"Dating it {payment.paid_on:%d %b %Y} lets off nothing: record it as "
+            "an ordinary Payment"
+        )
+    return _Grace(received_on, {m.mortgage_id: m.let_off for m in offer.mortgages})
+
+
 def record_payment(
     conn: Connection, payment: PaymentIn, today: date, now: datetime
 ) -> int:
     """Record a Payment (or refuse); returns its id. Each Mortgage it pays its whole
     Outstanding on the Payment date is Redeemed (ADR 0011), with its Final Payment kept
-    as a part of its own: the id is then the Payment's first part."""
+    as a part of its own: the id is then the Payment's first part. A Grace Payment
+    keeps its received date and what it let off on each Mortgage, its Final Payments
+    too."""
     rows = _refuse_payment(conn, payment, today)
+    grace = _grace(conn, payment, today)
     redeemed = []
     for allocation in payment.allocations:
         with _refusal_names_mortgage(conn, allocation.mortgage_id):
@@ -318,7 +387,7 @@ def record_payment(
         paid = payment.model_copy(
             update={"amount": sum(a.amount for a in ordinary), "allocations": ordinary}
         )
-        first = _write_payment(conn, paid)
+        first = _write_payment(conn, paid, grace=grace)
         check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
         _record_payment_history(conn, first, paid, now)
     for allocation, mortgage in redeemed:
@@ -334,6 +403,7 @@ def record_payment(
                 now,
                 received_with=first,
                 discount=allocation.discount,
+                grace=grace,
             )
         assert final is not None  # an Allocation is more than nothing
         if first is None:
@@ -634,11 +704,12 @@ def _close_with_payment(
     now: datetime,
     received_with: int | None = None,
     discount: int = 0,
+    grace: _Grace | None = None,
     **closure: object,
 ) -> int | None:
     """Record the final Payment of `amount` (unless it is nothing), received with the
     Payment `received_with` if any, and close the Mortgage as `closure` says; returns
-    the final Payment's id."""
+    the final Payment's id. A Grace Payment's final Payment keeps its `grace`."""
     row = mortgage.row
     # The final Payment may include the Interest to Date, owed only once the Mortgage
     # closes, so it is replayed after closing rather than as an ordinary Payment.
@@ -648,6 +719,7 @@ def _close_with_payment(
         final = PaymentIn(
             customer_id=row["customer_id"],
             paid_on=closed_on,
+            received_on=grace.received_on if grace else None,
             amount=amount,
             method=method,
             reference=reference,
@@ -656,7 +728,7 @@ def _close_with_payment(
             ],
         )
         _refuse_payment(conn, final, today)
-        payment_id = _write_payment(conn, final, received_with)
+        payment_id = _write_payment(conn, final, received_with, grace)
     _set_closure(
         conn,
         row["id"],
@@ -704,6 +776,7 @@ def _close_redeemed(
     now: datetime,
     received_with: int | None = None,
     discount: int = 0,
+    grace: _Grace | None = None,
 ) -> int | None:
     """Record the final Payment of the Outstanding `owed` (unless it is nothing)
     and mark the Mortgage Redeemed; returns the final Payment's id."""
@@ -718,6 +791,7 @@ def _close_redeemed(
         now,
         received_with,
         discount=discount,
+        grace=grace,
         status=MortgageStatus.REDEEMED,
     )
     audit.record(

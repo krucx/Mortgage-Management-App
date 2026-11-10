@@ -12,6 +12,7 @@ import type {
   IdCard,
   DormantSort,
   ForfeitAllIn,
+  GraceOffer,
   MessageSettings,
   Mortgage,
   MortgageEdit,
@@ -131,6 +132,12 @@ export const previews = {
   payment: (payment: PaymentIn): PreviewRequest => ({
     key: ['payment', payment],
     load: (client) => dataOrThrow(client.POST('/api/payments/preview', { body: payment })),
+  }),
+  /** For a Payment drafted on the date it was received: the earlier date the Grace
+   *  Period allows, if that lets off anything. */
+  graceOffer: (payment: PaymentIn): PreviewRequest<GraceOffer | null> => ({
+    key: ['grace-offer', payment],
+    load: (client) => dataOrThrow(client.POST('/api/payments/grace-offer', { body: payment })),
   }),
   void: (paymentId: number): PreviewRequest => ({
     key: ['void', paymentId],

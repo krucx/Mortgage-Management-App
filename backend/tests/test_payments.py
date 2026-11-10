@@ -47,6 +47,7 @@ def test_a_payment_pays_interest_first_then_principal(client, ramesh, mortgage):
             "mortgage_name": mortgage["name"],
             "amount": 19_000_00,
             "discount": 0,
+            "let_off": None,
             "interest_paid": 12_000_00,
             "principal_paid": 7_000_00,
             "discount_interest_paid": 0,

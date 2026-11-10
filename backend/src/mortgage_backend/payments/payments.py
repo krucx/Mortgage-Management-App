@@ -49,6 +49,7 @@ class AllocationOut(BaseModel):
     mortgage_name: str
     amount: int
     discount: int
+    let_off: int | None  # a Grace Payment's, as saved (ADR 0020)
     # How it was applied: interest first, then Principal (None once Voided)
     interest_paid: int | None
     principal_paid: int | None
@@ -60,6 +61,7 @@ class Payment(BaseModel):
     id: int
     customer: PersonSummary
     paid_on: date
+    received_on: date | None  # a Grace Payment's, after `paid_on`
     amount: int
     method: PaymentMethod
     reference: str | None
@@ -121,6 +123,7 @@ def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
                 mortgage_table,
                 allocation_table.c.amount.label("allocated"),
                 allocation_table.c.discount,
+                allocation_table.c.let_off,
             )
             .join(
                 allocation_table, allocation_table.c.mortgage_id == mortgage_table.c.id
@@ -156,6 +159,7 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
                 mortgage_name=mortgage["name"],
                 amount=mortgage["allocated"],
                 discount=mortgage["discount"],
+                let_off=mortgage["let_off"],
                 interest_paid=step.interest_paid if step else None,
                 principal_paid=step.principal_paid if step else None,
                 discount_interest_paid=step.discount_interest_paid if step else None,
@@ -168,6 +172,7 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
             kind="customer", id=payment.customer_id, name=payment.customer_name
         ),
         paid_on=payment.paid_on,
+        received_on=payment.received_on,
         amount=payment.amount,
         method=payment.method,
         reference=payment.reference,

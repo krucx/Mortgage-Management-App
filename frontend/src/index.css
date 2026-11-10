@@ -356,6 +356,12 @@ button.link {
   text-align: left;
 }
 
+/* A field with a hint under it, spaced as a label's own parts. */
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
 label.inline {
   display: inline-flex;
   align-items: center;

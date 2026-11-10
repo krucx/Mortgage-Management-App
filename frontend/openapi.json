@@ -69,6 +69,17 @@
             ],
             "title": "Interest Paid"
           },
+          "let_off": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Let Off"
+          },
           "mortgage_id": {
             "title": "Mortgage Id",
             "type": "integer"
@@ -94,6 +105,7 @@
           "mortgage_name",
           "amount",
           "discount",
+          "let_off",
           "interest_paid",
           "principal_paid",
           "discount_interest_paid",
@@ -1598,6 +1610,45 @@
         "title": "GoldRateIn",
         "type": "object"
       },
+      "GraceOffer": {
+        "description": "A Payment received on a date, dated instead the day before the Accrual Date it\nis within the Grace Period of, and what that lets off.",
+        "properties": {
+          "accrual_on": {
+            "format": "date",
+            "title": "Accrual On",
+            "type": "string"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "let_off": {
+            "title": "Let Off",
+            "type": "integer"
+          },
+          "mortgages": {
+            "items": {
+              "$ref": "#/components/schemas/MortgageLetOff"
+            },
+            "title": "Mortgages",
+            "type": "array"
+          },
+          "paid_on": {
+            "format": "date",
+            "title": "Paid On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "accrual_on",
+          "paid_on",
+          "let_off",
+          "mortgages"
+        ],
+        "title": "GraceOffer",
+        "type": "object"
+      },
       "GracePeriod": {
         "properties": {
           "grace_period_days": {
@@ -2263,6 +2314,24 @@
         "title": "MortgageIn",
         "type": "object"
       },
+      "MortgageLetOff": {
+        "properties": {
+          "let_off": {
+            "title": "Let Off",
+            "type": "integer"
+          },
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mortgage_id",
+          "let_off"
+        ],
+        "title": "MortgageLetOff",
+        "type": "object"
+      },
       "MortgageLink": {
         "properties": {
           "id": {
@@ -2703,6 +2772,18 @@
             "title": "Paid On",
             "type": "string"
           },
+          "received_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received On"
+          },
           "reference": {
             "anyOf": [
               {
@@ -2742,6 +2823,7 @@
           "id",
           "customer",
           "paid_on",
+          "received_on",
           "amount",
           "method",
           "reference",
@@ -2778,6 +2860,18 @@
             "format": "date",
             "title": "Paid On",
             "type": "string"
+          },
+          "received_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received On"
           },
           "reference": {
             "anyOf": [
@@ -7002,6 +7096,53 @@
           }
         },
         "summary": "Post Payment"
+      }
+    },
+    "/api/payments/grace-offer": {
+      "post": {
+        "description": "For a Payment drafted on the date it was received: the earlier date the Grace\nPeriod allows and what that would let off, if it lets off anything.",
+        "operationId": "offer_grace_api_payments_grace_offer_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/GraceOffer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Offer Grace Api Payments Grace Offer Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Offer Grace"
       }
     },
     "/api/payments/preview": {

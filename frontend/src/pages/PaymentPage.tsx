@@ -23,6 +23,9 @@ export function PaymentPage() {
   const changeLedger = useLedgerChange()
 
   if (!payment) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
+  // A Grace Payment's: dated before it was received (ADR 0020).
+  const grace = payment.received_on !== null
+  const letOff = payment.allocations.reduce((sum, a) => sum + (a.let_off ?? 0), 0)
 
   return (
     <section className="card wide">
@@ -56,8 +59,12 @@ export function PaymentPage() {
         <dd>
           <PersonLink person={payment.customer} />
         </dd>
-        <dt>Received</dt>
-        <dd>{formatDate(payment.paid_on)}</dd>
+        <dt>{grace ? 'Date' : 'Received'}</dt>
+        <dd>
+          {formatDate(payment.paid_on)}
+          {payment.received_on &&
+            ` · received ${formatDate(payment.received_on)} · Grace, ${formatINR(letOff)} let off`}
+        </dd>
         <dt>Method</dt>
         <dd>{methods?.[payment.method]}</dd>
         <dt>Reference</dt>
@@ -76,6 +83,7 @@ export function PaymentPage() {
               <th className="num">Discount</th>
               <th className="num">Discount to interest</th>
               <th className="num">Discount to Principal</th>
+              {grace && <th className="num">Let off</th>}
             </tr>
           </thead>
           <tbody>
@@ -104,6 +112,7 @@ export function PaymentPage() {
                     ? '—'
                     : formatINR(allocation.discount_principal_paid)}
                 </td>
+                {grace && <td className="num">{formatINR(allocation.let_off ?? 0)}</td>}
               </tr>
             ))}
           </tbody>

@@ -14,9 +14,10 @@ import { CustomerChooser } from '../components/CustomerChooser'
 import { useConfirm } from '../components/useConfirm'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
+import { usePreview } from '../components/usePreview'
 import { useProposedChange } from '../components/useProposedChange'
 import { ReasonTip } from '../components/ReasonTip'
-import { formatDate, formatDays, todayIso } from '../format'
+import { formatDate, formatDayMonth, formatDays, todayIso } from '../format'
 import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
 import { changes, customerQuery, everyMortgageQuery, previews, settings } from '../requests'
@@ -84,6 +85,8 @@ export function NewPaymentPage() {
 function PaymentForm({ customer, preselected }: { customer: Customer; preselected?: number }) {
   const navigate = useNavigate()
   const [paidOn, setPaidOn] = useState(todayIso())
+  // The Grace mark: when it was received, once dated earlier under the Grace Period.
+  const [receivedOn, setReceivedOn] = useState<string | null>(null)
   const [totalText, setTotalText] = useState('')
   const [mode, setMode] = useState<AllocationMode>('equal')
   const [amountText, setAmountText] = useState<Record<number, string>>({})
@@ -169,6 +172,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       : {
           customer_id: customer.id,
           paid_on: paidOn,
+          received_on: receivedOn,
           amount: total,
           method,
           reference: reference.trim() || null,
@@ -176,6 +180,30 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i], discount: discounts[i] }))
             .filter((allocation) => allocation.amount > 0 || allocation.discount > 0),
         }
+
+  // What the Grace Period would let off, drafted on the date it was received; not
+  // shown while it loads, so a date offered for another draft is never taken.
+  const grace = usePreview(
+    proposed &&
+      previews.graceOffer({ ...proposed, paid_on: receivedOn ?? paidOn, received_on: null }),
+  )
+  const offer = grace.loading ? null : grace.previews
+  // A Grace mark the draft has outgrown (the earlier date now lets off nothing, or
+  // another date is offered) is dropped, going back to the date received.
+  // (Set while rendering, as React allows for a component's own state.)
+  if (receivedOn && proposed && !grace.loading && !grace.error && offer?.paid_on !== paidOn) {
+    setPaidOn(receivedOn)
+    setReceivedOn(null)
+  }
+  const letOff = receivedOn && offer?.paid_on === paidOn ? offer.let_off : null
+  // As the confirmation shows the date: a Grace Payment's both dates and what it lets off.
+  const dateRows: [string, string][] = receivedOn
+    ? [
+        ['Dated', formatDate(paidOn)],
+        ['Received', formatDate(receivedOn)],
+        ...(letOff !== null ? [['Grace', `${formatINR(letOff)} let off`] as [string, string]] : []),
+      ]
+    : [['Received', formatDate(paidOn)]]
 
   /** Switching to a manual mode starts from the current equal Allocations. */
   function switchMode(next: AllocationMode) {
@@ -231,7 +259,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             <Summary
               rows={[
                 ['From', customer.name],
-                ['Received', formatDate(paidOn)],
+                ...dateRows,
                 [
                   'Method',
                   (methods?.[method] ?? '') + (reference.trim() ? ` · ${reference.trim()}` : ''),
@@ -325,16 +353,44 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     <>
       <form onSubmit={handleSubmit}>
         <div className="grid-3">
-          <label>
-            Date received
-            <input
-              type="date"
-              required
-              max={todayIso()}
-              value={paidOn}
-              onChange={(event) => setPaidOn(event.target.value)}
-            />
-          </label>
+          {/* The Grace Period's hint goes under the date, outside its label. */}
+          <div className="field">
+            <label>
+              Date received
+              <input
+                type="date"
+                required
+                max={todayIso()}
+                value={paidOn}
+                onChange={(event) => {
+                  setPaidOn(event.target.value)
+                  setReceivedOn(null) // a date chosen by hand is an ordinary Payment's
+                }}
+              />
+            </label>
+            {receivedOn ? (
+              <span className="hint">
+                Received {formatDayMonth(receivedOn)}, dated {formatDayMonth(paidOn)} in the Grace
+                Period{letOff !== null && ` · ${formatINR(letOff)} let off`}
+              </span>
+            ) : (
+              offer && (
+                <span className="hint">
+                  Within the {offer.days}-day Grace Period after {formatDayMonth(offer.accrual_on)}:{' '}
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => {
+                      setReceivedOn(paidOn)
+                      setPaidOn(offer.paid_on)
+                    }}
+                  >
+                    date it {formatDayMonth(offer.paid_on)} (lets off {formatINR(offer.let_off)})
+                  </button>
+                </span>
+              )
+            )}
+          </div>
           <label>
             Amount received (₹)
             <input
