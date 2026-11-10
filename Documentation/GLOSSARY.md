@@ -131,7 +131,7 @@ _Avoid_: LTV ratio, coverage
 ## Payments
 
 **Payment**:
-A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt.
+A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt. Under a Grace Period its date is earlier than the date it was received, and both are kept.
 _Avoid_: Receipt (that is the acknowledgement of a Payment), collection
 
 **Final Payment**:
@@ -149,6 +149,14 @@ _Avoid_: Split, contribution
 **Discount**:
 A non-cash reduction to what a Customer owes on one Mortgage, recorded alongside that Mortgage's cash Allocation in a Payment. Cash is applied first; the Discount then pays unpaid interest, the Interest to Date, and Principal, in that order. It can contribute to Redeeming the Mortgage. Voiding the Payment, including when Reopen undoes a Redemption, reverses both the cash and Discount.
 _Avoid_: Waiver (a Discount does not itself close a Mortgage)
+
+**Grace Period**:
+The few days the Lender allows after an Accrual Date within which a Payment may be dated the day before that Accrual Date, as if paid on time, letting off what paying late would have cost; set by the Lender, or none. A Payment dated this way keeps the date it was actually received and, for each Mortgage, the amount let off, so the Grace can be shown later.
+_Avoid_: Waiver (that is a Closure), allowance, grace days
+
+**Favours Given**:
+Every Grace, Discount and Waived Amount the Lender has given a Customer across their Mortgages and still standing, each with its date and amount let off.
+_Avoid_: Concessions, waivers
 
 **Cash Limit**:
 The amount at or above which the Lender is warned before lending or receiving it in cash, since Government of India rules ask for UPI or bank transfer instead; each Payment is one sum (its Final Payments included), and so is each Mortgage's Principal lent.
