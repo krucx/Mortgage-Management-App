@@ -1561,6 +1561,63 @@ label .hint {
   border-bottom-color: transparent;
   border-top-color: var(--bubble);
 }
+/* A Grace marker: green, its bubble working out the Grace choices. */
+.reason-tip.grace {
+  color: var(--ok);
+}
+.reason-tip.grace:focus-visible {
+  outline-color: var(--ok);
+}
+.reason-tip.grace .reason-bubble {
+  --bubble: color-mix(in srgb, var(--ok) 65%, #000);
+}
+.grace-calc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  margin: 6px 0;
+}
+.grace-calc > span {
+  overflow-wrap: anywhere;
+}
+.grace-choice-line {
+  display: block;
+}
+
+/* The Grace choices under Date received: solid green buttons, the one taken ticked. */
+.grace-choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+button.grace-choice {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ok) 80%, #000);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+button.grace-choice[aria-pressed='true'] {
+  outline: 2px solid var(--ok);
+  outline-offset: 2px;
+}
+button.grace-choice[aria-pressed='true']::before {
+  content: '✓ ';
+}
+
+/* An Accrual Date on New Payment: the date received within the Grace Period after it,
+   or past it. */
+.accrual.in-grace {
+  color: var(--ok);
+  font-weight: 600;
+}
+.accrual.past-grace {
+  color: var(--warning);
+}
+
 @keyframes reason-bubble-in {
   from {
     opacity: 0;

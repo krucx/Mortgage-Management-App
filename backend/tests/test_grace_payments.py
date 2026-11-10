@@ -40,10 +40,15 @@ def draft(ramesh, allocations, on, **fields):
     }
 
 
-def offer(client, payment):
+def offers(client, payment):
     response = client.post("/api/payments/grace-offer", json=payment)
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def offer(client, payment):
+    """The first choice, gracing the most Mortgages; None if there is none."""
+    return next(iter(offers(client, payment)), None)
 
 
 def test_principal_paid_just_after_an_accrual_date_is_offered_the_day_before(
@@ -54,13 +59,22 @@ def test_principal_paid_just_after_an_accrual_date_is_offered_the_day_before(
     # earlier: the month from 14 Apr is charged on ₹89,000, not ₹1,00,000 (ADR 0006).
     set_grace_period(client, 2)
 
-    assert offer(client, draft(ramesh, {chain["id"]: 20_000_00}, "2026-04-15")) == {
-        "days": 2,
-        "accrual_on": "2026-04-14",
-        "paid_on": "2026-04-13",
-        "let_off": 330_00,
-        "mortgages": [{"mortgage_id": chain["id"], "let_off": 330_00}],
-    }
+    assert offers(client, draft(ramesh, {chain["id"]: 20_000_00}, "2026-04-15")) == [
+        {
+            "days": 2,
+            "accrual_on": "2026-04-14",
+            "paid_on": "2026-04-13",
+            "let_off": 330_00,
+            "mortgages": [
+                {
+                    "mortgage_id": chain["id"],
+                    "accrual_on": "2026-04-14",
+                    "graced": True,
+                    "let_off": 330_00,
+                }
+            ],
+        }
+    ]
 
 
 def test_nothing_is_offered_when_the_earlier_date_saves_nothing(client, ramesh, chain):
@@ -72,6 +86,8 @@ def test_nothing_is_offered_when_the_earlier_date_saves_nothing(client, ramesh, 
 
 
 def test_nothing_is_offered_with_the_grace_period_off(client, ramesh, chain):
+    set_grace_period(client, None)
+
     assert offer(client, draft(ramesh, {chain["id"]: 20_000_00}, "2026-04-15")) is None
 
 
@@ -120,11 +136,51 @@ def test_with_several_mortgages_it_is_the_day_before_the_earliest_accrual_date_a
     )
 
     assert found["paid_on"] == "2026-04-13"
-    assert found["mortgages"] == [
-        {"mortgage_id": chain["id"], "let_off": 330_00},
-        {"mortgage_id": bangle["id"], "let_off": 330_00},
+    assert [(m["mortgage_id"], m["let_off"]) for m in found["mortgages"]] == [
+        (chain["id"], 330_00),
+        (bangle["id"], 330_00),
     ]
     assert found["let_off"] == 660_00
+
+
+def test_with_several_mortgages_each_accrual_date_within_the_grace_period_is_a_choice(
+    client, ramesh, chain
+):
+    # Received 16 Apr: dated 13 Apr graces both (Accrual Dates 14 and 15 Apr); dated
+    # 14 Apr only the bangle, the chain's month from 14 Apr being charged on ₹1,00,000.
+    set_grace_period(client, 2)
+    bangle = lend(client, ramesh, start="2026-01-15", name="2026-Ramesh-Bangle")
+
+    found = offers(
+        client,
+        draft(ramesh, {chain["id"]: 20_000_00, bangle["id"]: 20_000_00}, "2026-04-16"),
+    )
+
+    assert [
+        (
+            choice["paid_on"],
+            [(m["accrual_on"], m["graced"], m["let_off"]) for m in choice["mortgages"]],
+        )
+        for choice in found
+    ] == [
+        ("2026-04-13", [("2026-04-14", True, 330_00), ("2026-04-15", True, 330_00)]),
+        ("2026-04-14", [("2026-04-14", False, 0), ("2026-04-15", True, 330_00)]),
+    ]
+
+
+def test_a_grace_payment_may_be_dated_for_any_of_the_choices(client, ramesh, chain):
+    set_grace_period(client, 2)
+    bangle = lend(client, ramesh, start="2026-01-15", name="2026-Ramesh-Bangle")
+
+    payment = pay(
+        client,
+        ramesh,
+        {chain["id"]: 20_000_00, bangle["id"]: 20_000_00},
+        on="2026-04-14",
+        received_on="2026-04-16",
+    )
+
+    assert [a["let_off"] for a in payment["allocations"]] == [0, 330_00]
 
 
 def test_nothing_is_offered_when_a_mortgage_started_after_the_earlier_date(

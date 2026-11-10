@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   type Closure,
   type Customer,
+  type GraceOffer,
   type MortgageRow,
   type PaymentIn,
   type PaymentMethod,
@@ -16,8 +17,15 @@ import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { usePreview } from '../components/usePreview'
 import { useProposedChange } from '../components/useProposedChange'
-import { ReasonTip } from '../components/ReasonTip'
-import { formatDate, formatDayMonth, formatDays, todayIso } from '../format'
+import { ReasonTip, Tip } from '../components/ReasonTip'
+import {
+  daysBetween,
+  formatDate,
+  formatDayMonth,
+  formatDays,
+  lastAccrualDate,
+  todayIso,
+} from '../format'
 import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { allocateEqually, amountsFromPercentages, percentagesOf } from '../allocate'
 import { changes, customerQuery, everyMortgageQuery, previews, settings } from '../requests'
@@ -124,6 +132,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
   }
   const selected = selection.ids
   const setSelected = (ids: Set<number>) => setSelection({ of: mortgages, ids })
+  // Whether the date received is within the Grace Period of each Mortgage's Accrual Date.
+  const graceDays = useQuery(settings.gracePeriod(client)).data?.grace_period_days ?? null
 
   const payable = (mortgages ?? []).filter(owesSomething)
   const owingNothing = (mortgages ?? []).filter((m) => !owesSomething(m))
@@ -181,21 +191,24 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             .filter((allocation) => allocation.amount > 0 || allocation.discount > 0),
         }
 
-  // What the Grace Period would let off, drafted on the date it was received; not
-  // shown while it loads, so a date offered for another draft is never taken.
+  // When it was received: the date entered, unless dated earlier under the Grace Period.
+  const received = receivedOn ?? paidOn
+  // The earlier dates the Grace Period allows, drafted on the date it was received; not
+  // shown while they load, so a date offered for another draft is never taken.
   const grace = usePreview(
-    proposed &&
-      previews.graceOffer({ ...proposed, paid_on: receivedOn ?? paidOn, received_on: null }),
+    proposed && previews.graceOffers({ ...proposed, paid_on: received, received_on: null }),
   )
-  const offer = grace.loading ? null : grace.previews
-  // A Grace mark the draft has outgrown (the earlier date now lets off nothing, or
-  // another date is offered) is dropped, going back to the date received.
+  const offers = (!grace.loading && grace.previews) || []
+  const taken = receivedOn ? offers.find((offer) => offer.paid_on === paidOn) : undefined
+  // A Grace mark the draft has outgrown (its date now lets off nothing, or is no longer
+  // offered) is dropped, going back to the date received.
   // (Set while rendering, as React allows for a component's own state.)
-  if (receivedOn && proposed && !grace.loading && !grace.error && offer?.paid_on !== paidOn) {
+  if (receivedOn && proposed && !grace.loading && !grace.error && !taken) {
     setPaidOn(receivedOn)
     setReceivedOn(null)
   }
-  const letOff = receivedOn && offer?.paid_on === paidOn ? offer.let_off : null
+  const letOff = taken?.let_off ?? null
+  const names = new Map(chosen.map((m) => [m.id, m.name]))
   // As the confirmation shows the date: a Grace Payment's both dates and what it lets off.
   const dateRows: [string, string][] = receivedOn
     ? [
@@ -368,27 +381,29 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                 }}
               />
             </label>
-            {receivedOn ? (
-              <span className="hint">
-                Received {formatDayMonth(receivedOn)}, dated {formatDayMonth(paidOn)} in the Grace
-                Period{letOff !== null && ` · ${formatINR(letOff)} let off`}
-              </span>
-            ) : (
-              offer && (
-                <span className="hint">
-                  Within the {offer.days}-day Grace Period after {formatDayMonth(offer.accrual_on)}:{' '}
+            {offers.length > 0 && (
+              <div className="grace-choices">
+                <GraceTip offers={offers} receivedOn={received} names={names} />
+                {offers.map((offer) => (
                   <button
+                    key={offer.paid_on}
                     type="button"
-                    className="link"
+                    className="grace-choice"
+                    aria-pressed={offer === taken}
                     onClick={() => {
-                      setReceivedOn(paidOn)
+                      setReceivedOn(received)
                       setPaidOn(offer.paid_on)
                     }}
                   >
-                    date it {formatDayMonth(offer.paid_on)} (lets off {formatINR(offer.let_off)})
+                    {describeChoice(offer, names)}
                   </button>
-                </span>
-              )
+                ))}
+                {receivedOn && (
+                  <span className="hint">
+                    Dated {formatDayMonth(paidOn)}, received {formatDayMonth(receivedOn)}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <label>
@@ -459,6 +474,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                   <tr>
                     <th aria-label="Include" />
                     <th>Mortgage</th>
+                    <th>Last Accrual Date</th>
                     <th className="num">Outstanding on {formatDate(paidOn)}</th>
                     {mode === 'percent' && <th className="num">%</th>}
                     <th className="num">Allocation</th>
@@ -482,6 +498,13 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                         </td>
                         <td>
                           <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
+                        </td>
+                        <td>
+                          <AccrualDate
+                            start={m.start_date}
+                            receivedOn={received}
+                            graceDays={graceDays}
+                          />
                         </td>
                         <td className="num">{formatINR(m.outstanding_total)}</td>
                         {mode === 'percent' && (
@@ -551,6 +574,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             Within each Mortgage the Allocation pays unpaid interest first, then the Interest
             to Date, then Principal. Its Discount applies after the cash Allocation in the
             same order.
+            {graceDays !== null &&
+              ` An Accrual Date in green has the date received within the ${graceDays}-day Grace Period after it; in amber, past it.`}
           </p>
           {owingNothing.map((m) => (
             <p key={m.id} className="hint">
@@ -595,6 +620,97 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
         {capDialog}
       </form>
     </>
+  )
+}
+
+/** Which of the Payment's Mortgages a Grace choice graces: all of them, or some only. */
+function gracedOf(offer: GraceOffer, names: Map<number, string>): string {
+  const graced = offer.mortgages.filter((m) => m.graced)
+  if (graced.length === offer.mortgages.length)
+    return graced.length === 1
+      ? (names.get(graced[0].mortgage_id) ?? '')
+      : graced.length === 2
+        ? 'both'
+        : `all ${graced.length}`
+  return `${graced.map((m) => names.get(m.mortgage_id)).join(', ')} only`
+}
+
+/** A Grace choice, e.g. "Date it 4 Nov · graces both · ₹660 let off" (with one Mortgage,
+ *  just the date and what it lets off). */
+const describeChoice = (offer: GraceOffer, names: Map<number, string>) =>
+  [
+    `Date it ${formatDayMonth(offer.paid_on)}`,
+    ...(offer.mortgages.length > 1 ? [`graces ${gracedOf(offer, names)}`] : []),
+    `${formatINR(offer.let_off)} let off`,
+  ].join(' · ')
+
+/** "Grace" with a tooltip working out the choices: each Mortgage's Accrual Date, then
+ *  what each earlier date graces, the one gracing the most first. */
+function GraceTip({
+  offers,
+  receivedOn,
+  names,
+}: {
+  offers: GraceOffer[]
+  receivedOn: string
+  names: Map<number, string>
+}) {
+  const { days, mortgages } = offers[0]
+  return (
+    <Tip
+      tone="grace"
+      tip={
+        <>
+          Received {formatDayMonth(receivedOn)}, with a {days}-day Grace Period after each
+          Accrual Date.
+          <span className="grace-calc">
+            {mortgages.map((m) => (
+              <Fragment key={m.mortgage_id}>
+                <span>{names.get(m.mortgage_id)}</span>
+                <span>
+                  {m.accrual_on
+                    ? `Accrual Date ${formatDayMonth(m.accrual_on)}`
+                    : 'No Accrual Date yet'}
+                </span>
+              </Fragment>
+            ))}
+          </span>
+          {offers.map((offer, index) => (
+            <span key={offer.paid_on} className="grace-choice-line">
+              {index === 0 && offers.length > 1 ? 'To grace the most: ' : ''}
+              {describeChoice(offer, names)}
+            </span>
+          ))}
+        </>
+      }
+    >
+      Grace
+    </Tip>
+  )
+}
+
+/** A Mortgage's last Accrual Date by the date received: green when that is within the
+ *  Grace Period after it, amber when past it (plain with no Grace Period). */
+function AccrualDate({
+  start,
+  receivedOn,
+  graceDays,
+}: {
+  start: string
+  receivedOn: string
+  graceDays: number | null
+}) {
+  const accrual = lastAccrualDate(start, receivedOn)
+  if (!accrual) return '—'
+  if (graceDays === null) return <span className="accrual">{formatDayMonth(accrual)}</span>
+  const within = daysBetween(accrual, receivedOn) <= graceDays
+  return (
+    <span
+      className={`accrual ${within ? 'in-grace' : 'past-grace'}`}
+      title={`${formatDayMonth(receivedOn)} is ${within ? 'within' : 'past'} the ${graceDays}-day Grace Period after ${formatDayMonth(accrual)}`}
+    >
+      {formatDayMonth(accrual)}
+    </span>
   )
 }
 

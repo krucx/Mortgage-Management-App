@@ -1625,7 +1625,7 @@
         "type": "object"
       },
       "GraceOffer": {
-        "description": "A Payment received on a date, dated instead the day before the Accrual Date it\nis within the Grace Period of, and what that lets off.",
+        "description": "A Payment received on a date, dated instead the day before an Accrual Date it is\nwithin the Grace Period of, and what that lets off.",
         "properties": {
           "accrual_on": {
             "format": "date",
@@ -1642,7 +1642,7 @@
           },
           "mortgages": {
             "items": {
-              "$ref": "#/components/schemas/MortgageLetOff"
+              "$ref": "#/components/schemas/MortgageGrace"
             },
             "title": "Mortgages",
             "type": "array"
@@ -2282,6 +2282,43 @@
         "title": "MortgageEdit",
         "type": "object"
       },
+      "MortgageGrace": {
+        "description": "One Mortgage of a Payment dated earlier under the Grace Period.",
+        "properties": {
+          "accrual_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accrual On"
+          },
+          "graced": {
+            "title": "Graced",
+            "type": "boolean"
+          },
+          "let_off": {
+            "title": "Let Off",
+            "type": "integer"
+          },
+          "mortgage_id": {
+            "title": "Mortgage Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mortgage_id",
+          "accrual_on",
+          "graced",
+          "let_off"
+        ],
+        "title": "MortgageGrace",
+        "type": "object"
+      },
       "MortgageIn": {
         "properties": {
           "amount_lent": {
@@ -2359,24 +2396,6 @@
           "customer_id"
         ],
         "title": "MortgageIn",
-        "type": "object"
-      },
-      "MortgageLetOff": {
-        "properties": {
-          "let_off": {
-            "title": "Let Off",
-            "type": "integer"
-          },
-          "mortgage_id": {
-            "title": "Mortgage Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "mortgage_id",
-          "let_off"
-        ],
-        "title": "MortgageLetOff",
         "type": "object"
       },
       "MortgageLink": {
@@ -7178,7 +7197,7 @@
     },
     "/api/payments/grace-offer": {
       "post": {
-        "description": "For a Payment drafted on the date it was received: the earlier date the Grace\nPeriod allows and what that would let off, if it lets off anything.",
+        "description": "For a Payment drafted on the date it was received: each earlier date the Grace\nPeriod allows that lets off anything, and what it would let off; the first graces\nthe most Mortgages.",
         "operationId": "offer_grace_api_payments_grace_offer_post",
         "requestBody": {
           "content": {
@@ -7195,15 +7214,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/GraceOffer"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "title": "Response Offer Grace Api Payments Grace Offer Post"
+                  "items": {
+                    "$ref": "#/components/schemas/GraceOffer"
+                  },
+                  "title": "Response Offer Grace Api Payments Grace Offer Post",
+                  "type": "array"
                 }
               }
             },

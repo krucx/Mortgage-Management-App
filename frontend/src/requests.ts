@@ -133,9 +133,9 @@ export const previews = {
     key: ['payment', payment],
     load: (client) => dataOrThrow(client.POST('/api/payments/preview', { body: payment })),
   }),
-  /** For a Payment drafted on the date it was received: the earlier date the Grace
-   *  Period allows, if that lets off anything. */
-  graceOffer: (payment: PaymentIn): PreviewRequest<GraceOffer | null> => ({
+  /** For a Payment drafted on the date it was received: each earlier date the Grace
+   *  Period allows that lets off anything, the one gracing the most Mortgages first. */
+  graceOffers: (payment: PaymentIn): PreviewRequest<GraceOffer[]> => ({
     key: ['grace-offer', payment],
     load: (client) => dataOrThrow(client.POST('/api/payments/grace-offer', { body: payment })),
   }),

@@ -85,7 +85,7 @@ export type PaymentIn = Schemas['PaymentIn']
 export type PaymentRow = Schemas['PaymentRow']
 export type PaymentPage = Schemas['PaymentPage']
 export type Payment = Schemas['Payment']
-/** The earlier date the Grace Period allows a Payment, and what that would let off. */
+/** An earlier date the Grace Period allows a Payment, and what that would let off. */
 export type GraceOffer = Schemas['GraceOffer']
 /** A Grace Payment in one Mortgage's Ledger: when it was received, what it let off there. */
 export type LedgerGrace = Schemas['LedgerGrace']
