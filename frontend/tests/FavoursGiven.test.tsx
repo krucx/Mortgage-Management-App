@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Favours Given on the Customer page: every Discount and Waived Amount still standing
-// (Grace joins them later).
+// Favours Given on the Customer page: every Grace, Discount and Waived Amount still
+// standing.
 import { cleanup, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { CustomerPage } from '../src/pages/CustomerPage'
@@ -45,12 +45,14 @@ test('the Customer page lists each favour newest first, by Mortgage description,
     favours: [
       {
         on: '2026-04-20',
+        received_on: null,
         mortgage: { id: 7, description: 'Gold chain' },
         kind: 'waived',
         amount: 50_000,
       },
       {
         on: '2026-03-15',
+        received_on: null,
         mortgage: { id: 8, description: 'Gold ring' },
         kind: 'discount',
         amount: 100_000,
@@ -74,6 +76,26 @@ test('the Customer page lists each favour newest first, by Mortgage description,
   )
   expect(within(table).getByRole('link', { name: 'Gold ring' }).getAttribute('href')).toBe(
     '/mortgages/8',
+  )
+})
+
+test('a Grace shows the date it was received after its date', async () => {
+  customerPage({
+    favours: [
+      {
+        on: '2026-11-06',
+        received_on: '2026-11-08',
+        mortgage: { id: 7, description: 'Gold chain' },
+        kind: 'grace',
+        amount: 42_000,
+      },
+    ],
+    total: 42_000,
+  })
+
+  const table = await screen.findByRole('table', { name: 'Favours Given' })
+  expect(within(table).getAllByRole('row')[1].textContent).toBe(
+    '6 Nov 2026 (received 8 Nov)Gold chainGrace₹420',
   )
 })
 
