@@ -31,16 +31,9 @@ function percentage(rate) {
   return `${(rate * 100).toFixed(1)}%`
 }
 
-export function summaryLine({ heading, current, base, baseOutcome }) {
+export function summaryLine({ heading, current }) {
   const counts = current.found !== undefined ? ` (${current.hit}/${current.found} lines)` : ''
-  let line = `## ${heading}\n\nPR: ${percentage(current.rate)}${counts}`
-  if (base) {
-    const delta = (current.rate - base.rate) * 100
-    line += ` · base: ${percentage(base.rate)} · change: ${delta >= 0 ? '+' : ''}${delta.toFixed(1)} percentage points`
-  } else if (baseOutcome === 'failure') {
-    line += ' · base comparison unavailable (base tests did not pass)'
-  }
-  return `${line}\n`
+  return `## ${heading}\n\nPR: ${percentage(current.rate)}${counts}\n`
 }
 
 function option(name) {
@@ -52,18 +45,19 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.
   const format = option('--format')
   const label = option('--label')
   const report = option('--report')
-  const baseReport = option('--base-report')
-  const baseOutcome = option('--base-outcome')
+  const minimumRate = Number(option('--minimum-rate'))
   const summaryFile = option('--summary-file')
-  if (!format || !label || !report || !summaryFile) {
+  if (!format || !label || !report || !Number.isFinite(minimumRate) || minimumRate < 0 || minimumRate > 1 || !summaryFile) {
     throw new Error(
       'Usage: coverage-summary.mjs --format <cobertura|lcov> --label <text> --report <path> ' +
-        '--summary-file <path> [--base-report <path>] [--base-outcome <success|failure>]',
+        '--minimum-rate <0..1> --summary-file <path>',
     )
   }
   const heading = `${label} line coverage`
   const current = readReport(format, report, label)
-  const base = baseReport ? readReport(format, baseReport, `${label} base`) : undefined
-  appendFileSync(summaryFile, summaryLine({ heading, current, base, baseOutcome }))
+  appendFileSync(summaryFile, summaryLine({ heading, current }))
   console.log(`Wrote ${label.toLowerCase()} coverage summary: ${percentage(current.rate)}`)
+  if (current.rate < minimumRate) {
+    throw new Error(`${label} line coverage ${percentage(current.rate)} is below the ${percentage(minimumRate)} minimum`)
+  }
 }

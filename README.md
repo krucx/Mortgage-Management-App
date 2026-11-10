@@ -229,9 +229,9 @@ specifies one human approval and blocks direct pushes; see
 [CONTRIBUTING.md](CONTRIBUTING.md) for required check names, automated review setup,
 and plan limitations. A failed test,
 missing coverage report, invalid coverage summary, or failed report upload blocks the
-normal merge path. There is no numeric coverage threshold. Review the coverage artifacts
-for changes; pull request summaries compare each total with the target branch. Authors
-should explain material regressions, and the reviewer decides whether they are acceptable.
+normal merge path. Backend line coverage must be at least 90%, and frontend line coverage
+must be at least 80%. Review the coverage artifacts for details; pull request summaries
+show each job's coverage total.
 
 The GitHub Pages screenshots are taken from an invented sample book made through the app's
 own API: `docs/sample-book/run.sh` retakes them all (see its README).

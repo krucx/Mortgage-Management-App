@@ -73,8 +73,6 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
       - name: Current versions agree with VERSION
         run: node ../.github/scripts/check-version.mjs
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
@@ -82,25 +80,11 @@ jobs:
       - run: uv run mypy src
       - name: Run backend tests and collect line coverage
         run: uv run pytest --cov=mortgage_backend --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
-      - name: Compare backend coverage with the pull request base
-        id: backend-base
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          git worktree add "$RUNNER_TEMP/backend-base" "$BASE_SHA"
-          cd "$RUNNER_TEMP/backend-base/backend"
-          uv sync --frozen
-          uv run pytest --cov=mortgage_backend --cov-report=xml:"$RUNNER_TEMP/backend-base/coverage.xml" --cov-report=term
       - name: Add backend coverage to the job summary
-        env:
-          BASE_REPORT: ${{ steps.backend-base.outcome == 'success' && format('{0}/backend-base/coverage.xml', runner.temp) || '' }}
-          BASE_OUTCOME: ${{ steps.backend-base.outcome }}
         run: |
           node ../.github/scripts/coverage-summary.mjs \
             --format cobertura --label Backend \
-            --report coverage.xml --base-report "$BASE_REPORT" --base-outcome "$BASE_OUTCOME" \
+            --report coverage.xml --minimum-rate 0.90 \
             --summary-file "$GITHUB_STEP_SUMMARY"
       - name: Upload backend coverage report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -120,8 +104,6 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -130,25 +112,11 @@ jobs:
       - run: npm run lint
       - name: Run frontend tests and collect line coverage
         run: npm test -- --coverage --coverage.reporter=lcov --coverage.reporter=html --coverage.reporter=text
-      - name: Compare frontend coverage with the pull request base
-        id: frontend-base
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          git worktree add "$RUNNER_TEMP/frontend-base" "$BASE_SHA"
-          cd "$RUNNER_TEMP/frontend-base/frontend"
-          npm ci
-          npm test -- --coverage --coverage.reporter=lcov --coverage.reporter=text
       - name: Add frontend coverage to the job summary
-        env:
-          BASE_REPORT: ${{ steps.frontend-base.outcome == 'success' && format('{0}/frontend-base/frontend/coverage/lcov.info', runner.temp) || '' }}
-          BASE_OUTCOME: ${{ steps.frontend-base.outcome }}
         run: |
           node ../.github/scripts/coverage-summary.mjs \
             --format lcov --label Frontend \
-            --report coverage/lcov.info --base-report "$BASE_REPORT" --base-outcome "$BASE_OUTCOME" \
+            --report coverage/lcov.info --minimum-rate 0.80 \
             --summary-file "$GITHUB_STEP_SUMMARY"
       - name: Upload frontend coverage report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
