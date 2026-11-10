@@ -1,5 +1,9 @@
 name: Tests
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 on:
   push:
     branches: [main]
@@ -79,7 +83,7 @@ jobs:
       - run: uv sync --frozen
       - run: uv run mypy src
       - name: Run backend tests and collect line coverage
-        run: uv run pytest --cov=mortgage_backend --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
+        run: COVERAGE_CORE=sysmon uv run pytest -n auto --cov=mortgage_backend --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
       - name: Add backend coverage to the job summary
         run: |
           node ../.github/scripts/coverage-summary.mjs \
