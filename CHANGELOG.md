@@ -7,6 +7,8 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.4.9] - 2026-11-10
+
 ### Added
 
 - **Favours Given on the Customer page:** every Grace, Discount and Waived Amount the
