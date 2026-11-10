@@ -14,6 +14,10 @@ Every release of Mortgage Management, newest first. The format follows
   shown by its description and linked to its page; Grace joins them later. Discounts from
   Voided Payments and Waived Mortgages that were Reopened are left out, and the section is
   hidden when there are none.
+- **Grace Period setting:** Settings has a Grace Period, in days, next to the Discount
+  confirmation threshold: one setting for every Mortgage, not part of any Terms. It is
+  empty (off) unless set; clearing it or setting 0 turns Grace off, and a negative or
+  part-day value is refused. Payments do not use it yet.
 
 ## [3.4.8] - 2026-11-10
 

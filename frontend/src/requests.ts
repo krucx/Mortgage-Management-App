@@ -382,6 +382,12 @@ export const settings = {
         body: { discount_confirmation_limit: limit },
       }),
     ),
+  gracePeriod: (client: ApiClient) =>
+    settingsQuery('grace-period', () => dataOrThrow(client.GET('/api/settings/grace-period'))),
+  saveGracePeriod: (client: ApiClient, days: number | null) =>
+    dataOrThrow(
+      client.PUT('/api/settings/grace-period', { body: { grace_period_days: days } }),
+    ),
   messages: (client: ApiClient) =>
     settingsQuery('messages', () => dataOrThrow(client.GET('/api/settings/messages'))),
   saveMessages: (client: ApiClient, messages: MessageSettings) =>

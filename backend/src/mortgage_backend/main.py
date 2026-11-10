@@ -31,6 +31,7 @@ from mortgage_backend.lending import (
 from mortgage_backend.payments import (
     cash_limit,
     discount_confirmation,
+    grace_period,
     payments,
     receipts,
 )
@@ -126,6 +127,7 @@ def create_app(
     app.include_router(payments.router)
     app.include_router(cash_limit.router)
     app.include_router(discount_confirmation.router)
+    app.include_router(grace_period.router)
     app.include_router(changes.router)
     app.include_router(closing.router)
     app.include_router(favours.router)

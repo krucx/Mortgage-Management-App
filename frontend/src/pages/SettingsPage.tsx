@@ -23,6 +23,7 @@ export function SettingsPage() {
       <CallListThresholds />
       <CashLimitSettings />
       <DiscountConfirmationSettings />
+      <GracePeriodSettings />
       <MessageSettingsForm />
       <BackupSettings />
     </>
@@ -295,11 +296,35 @@ function CallListThresholds() {
   )
 }
 
-/** One optional rupee amount, in paise: at or above it something happens, cleared, never.
- * Both the Cash Limit and the Discount confirmation threshold are this, with their own
- * heading, copy, labels and wording for "cleared" — only the comparison each drives is
- * theirs to know, not this section. */
-function ThresholdSetting<T extends Record<string, number | null>>({
+/** How a setting's number is typed and shown: a rupee amount kept in paise, or days. */
+type Unit = {
+  toDraft: (value: number | null) => string
+  fromDraft: (draft: string) => number | null
+  show: (value: number) => string
+  /** The least that can be typed. */
+  min: string
+}
+
+const RUPEES: Unit = {
+  toDraft: paiseToRupees,
+  fromDraft: (draft) => (draft === '' ? null : rupeesToPaise(draft)),
+  show: formatINR,
+  min: '1',
+}
+
+const DAYS: Unit = {
+  toDraft: (days) => (days === null ? '' : String(days)),
+  fromDraft: (draft) => (draft === '' ? null : Number(draft)),
+  show: (days) => (days === 1 ? '1 day' : `${days} days`),
+  min: '0',
+}
+
+/** One optional number; cleared (or 0), off. The Cash Limit and the Discount confirmation
+ * threshold are this in rupees, the Grace Period in days, each with their own heading,
+ * copy, labels and wording for "off" — only what each drives is theirs to know, not this
+ * section. */
+function OptionalNumberSetting<T extends Record<string, number | null | undefined>>({
+  unit,
   heading,
   hint,
   inputLabel,
@@ -311,6 +336,7 @@ function ThresholdSetting<T extends Record<string, number | null>>({
   query,
   save,
 }: {
+  unit: Unit
   heading: string
   hint: ReactNode
   inputLabel: string
@@ -320,11 +346,11 @@ function ThresholdSetting<T extends Record<string, number | null>>({
   confirmedSuffix: string
   field: keyof T
   query: SettingQuery<T>
-  save: (client: ApiClient, limit: number | null) => Promise<T>
+  save: (client: ApiClient, value: number | null) => Promise<T>
 }) {
   const { client, queryClient } = useServerState()
   const saved = useQuery(query)
-  const [draft, setDraft] = useDraft(saved.data, (data) => paiseToRupees(data[field]))
+  const [draft, setDraft] = useDraft(saved.data, (data) => unit.toDraft(data[field] ?? null))
   const [savedStatus, setStatus] = useState<Status>(null)
   const status = shownStatus(savedStatus, saved.error)
   const [saving, setSaving] = useState(false)
@@ -333,13 +359,13 @@ function ThresholdSetting<T extends Record<string, number | null>>({
   async function handleSave(event: FormEvent) {
     event.preventDefault()
     if (draft === null) return
-    const limit = draft === '' ? null : rupeesToPaise(draft)
+    const value = unit.fromDraft(draft)
     const confirmed = await confirm({
       title: dialogTitle,
       body: (
         <Summary
           rows={[
-            [summaryLabel, limit === null ? neverText : `${formatINR(limit)}${confirmedSuffix}`],
+            [summaryLabel, value ? `${unit.show(value)}${confirmedSuffix}` : neverText],
           ]}
         />
       ),
@@ -348,7 +374,7 @@ function ThresholdSetting<T extends Record<string, number | null>>({
     setSaving(true)
     setStatus(null)
     try {
-      const stored = await save(client, limit)
+      const stored = await save(client, value)
       queryClient.setQueryData(query.queryKey, stored)
       setStatus({ kind: 'saved', text: 'Saved.' })
     } catch (error) {
@@ -368,7 +394,7 @@ function ThresholdSetting<T extends Record<string, number | null>>({
             {inputLabel}
             <input
               type="number"
-              min="1"
+              min={unit.min}
               step="1"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
@@ -391,7 +417,8 @@ function ThresholdSetting<T extends Record<string, number | null>>({
 function CashLimitSettings() {
   const { client } = useServerState()
   return (
-    <ThresholdSetting
+    <OptionalNumberSetting
+      unit={RUPEES}
       heading="Cash Limit"
       hint={
         <>
@@ -418,7 +445,8 @@ const DISCOUNT_CONFIRMATION_DEFAULT_PAISE = 500_00 // mirrors the backend defaul
 function DiscountConfirmationSettings() {
   const { client } = useServerState()
   return (
-    <ThresholdSetting
+    <OptionalNumberSetting
+      unit={RUPEES}
       heading="Discount confirmation"
       hint={
         <>
@@ -436,6 +464,32 @@ function DiscountConfirmationSettings() {
       field="discount_confirmation_limit"
       query={settings.discountConfirmationLimit(client)}
       save={settings.saveDiscountConfirmationLimit}
+    />
+  )
+}
+
+/** How many days late a Payment may still be dated as if paid on time; empty or 0, none. */
+function GracePeriodSettings() {
+  const { client } = useServerState()
+  return (
+    <OptionalNumberSetting
+      unit={DAYS}
+      heading="Grace Period"
+      hint={
+        <>
+          A Payment received this many days or fewer after an Accrual Date may be dated the
+          day before it, as if paid on time. The same for every Mortgage. Leave it empty or 0
+          for no Grace.
+        </>
+      }
+      inputLabel="Grace Period (days)"
+      dialogTitle="Change the Grace Period?"
+      summaryLabel="Grace Period"
+      neverText="None: no Grace"
+      confirmedSuffix=""
+      field="grace_period_days"
+      query={settings.gracePeriod(client)}
+      save={settings.saveGracePeriod}
     />
   )
 }
