@@ -1,5 +1,11 @@
 # Mortgage-Management-App
 
+## Engineering principles
+
+Follow the YAGNI principle, but do not compromise on good UI/UX, performance, and
+maintainability. Don't obsess over fewer lines of code, but do obsess over simplicity,
+simplifying, reusing, and eventually creating a cleaner, maintainable system.
+
 ## Agent skills
 
 ### Contribution and release workflow
