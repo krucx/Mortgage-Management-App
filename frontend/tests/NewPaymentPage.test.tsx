@@ -436,16 +436,16 @@ const choice = (
   })),
 })
 
-/** The backend with a 2-day Grace Period: ₹20,000 received on 8 Nov 2026, just after
- *  the 7 Nov Accrual Date, is offered 6 Nov, letting off ₹420; any other date or amount
- *  nothing. Every Payment saved is in `saved`. */
+/** The backend with a 2-day Grace Period: ₹20,000 received on 11 Oct 2026, just after
+ *  the Mortgage's 10 Oct Accrual Date (it started on 10 Jan), is offered 9 Oct, letting
+ *  off ₹420; any other date or amount nothing. Every Payment saved is in `saved`. */
 function graceServer() {
   const saved: PaymentIn[] = []
   const backend = server({
     'POST /api/payments/grace-offer': async (request: Request) => {
       const draft = (await request.json()) as PaymentIn
-      return draft.paid_on === '2026-11-08' && draft.amount === 2_000_000 && !draft.received_on
-        ? [choice('2026-11-06', '2026-11-07', [[7, '2026-11-07', true, 42_000]])]
+      return draft.paid_on === '2026-10-11' && draft.amount === 2_000_000 && !draft.received_on
+        ? [choice('2026-10-09', '2026-10-10', [[7, '2026-10-10', true, 42_000]])]
         : []
     },
     'GET /api/settings/grace-period': { grace_period_days: 2 },
@@ -472,46 +472,46 @@ async function save() {
   return screen.findByRole('dialog')
 }
 
-const GRACE_CHOICE = 'Date it 6 Nov · ₹420 let off'
+const GRACE_CHOICE = 'Date it 9 Oct · ₹420 let off'
 
 test('within the Grace Period, one click dates the Payment the day before the Accrual Date, and it saves as a Grace Payment', async () => {
   const { backend, saved } = graceServer()
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
-  await draftReceivedOn('2026-11-08')
+  await draftReceivedOn('2026-10-11')
 
   fireEvent.click(await screen.findByRole('button', { name: GRACE_CHOICE }, { timeout: 2000 }))
 
-  expect((screen.getByLabelText('Date received') as HTMLInputElement).value).toBe('2026-11-06')
-  expect(await screen.findByText('Dated 6 Nov, received 8 Nov')).toBeTruthy()
+  expect((screen.getByLabelText('Date received') as HTMLInputElement).value).toBe('2026-10-09')
+  expect(await screen.findByText('Dated 9 Oct, received 11 Oct')).toBeTruthy()
   expect(
     (await screen.findByRole('button', { name: GRACE_CHOICE })).getAttribute('aria-pressed'),
   ).toBe('true')
   const confirmation = await save()
-  expect(within(confirmation).getByText('6 Nov 2026')).toBeTruthy()
-  expect(within(confirmation).getByText('8 Nov 2026')).toBeTruthy()
+  expect(within(confirmation).getByText('9 Oct 2026')).toBeTruthy()
+  expect(within(confirmation).getByText('11 Oct 2026')).toBeTruthy()
   fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm and save' }))
   await screen.findByText('Now at /payments/9/receipt')
-  expect(saved.map((p) => [p.paid_on, p.received_on])).toEqual([['2026-11-06', '2026-11-08']])
+  expect(saved.map((p) => [p.paid_on, p.received_on])).toEqual([['2026-10-09', '2026-10-11']])
 })
 
 test('changing the date by hand afterwards removes the Grace mark', async () => {
   const { backend, saved } = graceServer()
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
-  await draftReceivedOn('2026-11-08')
+  await draftReceivedOn('2026-10-11')
   fireEvent.click(await screen.findByRole('button', { name: GRACE_CHOICE }, { timeout: 2000 }))
 
-  fireEvent.change(screen.getByLabelText('Date received'), { target: { value: '2026-11-05' } })
+  fireEvent.change(screen.getByLabelText('Date received'), { target: { value: '2026-10-05' } })
 
   expect(screen.queryByText(/let off/)).toBeNull()
   fireEvent.click(within(await save()).getByRole('button', { name: 'Confirm and save' }))
   await screen.findByText('Now at /payments/9/receipt')
-  expect(saved.map((p) => [p.paid_on, p.received_on ?? null])).toEqual([['2026-11-05', null]])
+  expect(saved.map((p) => [p.paid_on, p.received_on ?? null])).toEqual([['2026-10-05', null]])
 })
 
 test('no Grace is offered when the earlier date would save nothing', async () => {
   const { backend } = graceServer()
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
-  await draftReceivedOn('2026-11-09')
+  await draftReceivedOn('2026-10-12')
 
   await save()
   expect(backend.requests).toContain('POST /api/payments/grace-offer')
@@ -521,83 +521,89 @@ test('no Grace is offered when the earlier date would save nothing', async () =>
 test('once the draft is changed so the earlier date lets off nothing, it goes back to the date received', async () => {
   const { backend } = graceServer()
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
-  await draftReceivedOn('2026-11-08')
+  await draftReceivedOn('2026-10-11')
   fireEvent.click(await screen.findByRole('button', { name: GRACE_CHOICE }, { timeout: 2000 }))
-  expect(await screen.findByText('Dated 6 Nov, received 8 Nov')).toBeTruthy()
+  expect(await screen.findByText('Dated 9 Oct, received 11 Oct')).toBeTruthy()
 
   fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '9000' } })
 
   const date = screen.getByLabelText('Date received') as HTMLInputElement
-  await vi.waitFor(() => expect(date.value).toBe('2026-11-08'), { timeout: 2000 })
+  await vi.waitFor(() => expect(date.value).toBe('2026-10-11'), { timeout: 2000 })
   expect(screen.queryByText(/let off/)).toBeNull()
 })
 
-test('with two Mortgages, each Accrual Date in the Grace Period is a choice, and the tooltip works them out', async () => {
-  // The chain's Accrual Date is 7 Nov, the ring's 6 Nov: dated 5 Nov graces both,
-  // dated 6 Nov the chain only.
-  const saved: PaymentIn[] = []
+test('with two Mortgages, each one ticked within the Grace Period has its date to choose, and the tooltip works them out', async () => {
+  // The chain's Accrual Date is 10 Oct, the ring's 9 Oct: received 11 Oct, dated 8 Oct
+  // graces both, dated 9 Oct the chain only.
+  const earlyRing = { ...ring, start_date: '2026-01-09' }
   const backend = server({
-    'GET /api/mortgages': { items: [row, ring], total: 2, page: 1, page_size: 2 },
+    'GET /api/mortgages': { items: [row, earlyRing], total: 2, page: 1, page_size: 2 },
+    'GET /api/settings/grace-period': { grace_period_days: 2 },
     'POST /api/payments/grace-offer': async (request: Request) =>
-      ((await request.json()) as PaymentIn).paid_on === '2026-11-08'
+      ((await request.json()) as PaymentIn).paid_on === '2026-10-11'
         ? [
-            choice('2026-11-05', '2026-11-06', [
-              [7, '2026-11-07', true, 42_000],
-              [8, '2026-11-06', true, 30_000],
+            choice('2026-10-08', '2026-10-09', [
+              [7, '2026-10-10', true, 42_000],
+              [8, '2026-10-09', true, 30_000],
             ]),
-            choice('2026-11-06', '2026-11-07', [
-              [7, '2026-11-07', true, 42_000],
-              [8, '2026-11-06', false, 0],
+            choice('2026-10-09', '2026-10-10', [
+              [7, '2026-10-10', true, 42_000],
+              [8, '2026-10-09', false, 0],
             ]),
           ]
         : [],
-    'POST /api/payments': async (request: Request) => {
-      const payment = (await request.json()) as PaymentIn
-      saved.push(payment)
-      return { ...payment, id: 9, customer: { kind: 'customer', id: 3, name: customer.name } }
-    },
   })
   showPage(backend, '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
-  await draftReceivedOn('2026-11-08')
+  fireEvent.change(await screen.findByLabelText('Date received'), {
+    target: { value: '2026-10-11' },
+  })
+  const rowOf = (name: string) => screen.getByRole('link', { name }).closest('tr')!
 
-  const both = await screen.findByRole(
+  // Before any amount, the dates are there to choose, without what they let off.
+  expect(await within(rowOf(row.name)).findByRole('button', { name: 'Date it 9 Oct' })).toBeTruthy()
+  expect(within(rowOf(ring.name)).getByRole('button', { name: 'Date it 8 Oct' })).toBeTruthy()
+
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '20000' } })
+  const both = await within(rowOf(ring.name)).findByRole(
     'button',
-    { name: 'Date it 5 Nov · graces both · ₹720 let off' },
+    { name: 'Date it 8 Oct · ₹720 let off' },
     { timeout: 2000 },
   )
   expect(
-    screen.getByRole('button', { name: `Date it 6 Nov · graces ${row.name} only · ₹420 let off` }),
+    within(rowOf(row.name)).getByRole('button', { name: 'Date it 9 Oct · ₹420 let off' }),
   ).toBeTruthy()
 
   fireEvent.mouseEnter(screen.getByText('Grace'))
   const tip = screen.getByRole('tooltip')
   expect([...tip.querySelectorAll('.grace-calc > span')].map((cell) => cell.textContent)).toEqual([
     row.name,
-    'Accrual Date 7 Nov',
+    'Accrual Date 10 Oct',
     ring.name,
-    'Accrual Date 6 Nov',
+    'Accrual Date 9 Oct',
   ])
   expect([...tip.querySelectorAll('.grace-choice-line')].map((line) => line.textContent)).toEqual([
-    'To grace the most: Date it 5 Nov · graces both · ₹720 let off',
-    `Date it 6 Nov · graces ${row.name} only · ₹420 let off`,
+    'To grace the most: Date it 8 Oct · graces both · ₹720 let off',
+    `Date it 9 Oct · graces ${row.name} only · ₹420 let off`,
   ])
 
   fireEvent.click(both)
-  expect((screen.getByLabelText('Date received') as HTMLInputElement).value).toBe('2026-11-05')
+  expect((screen.getByLabelText('Date received') as HTMLInputElement).value).toBe('2026-10-08')
 })
 
 test('each Mortgage shows its last Accrual Date, marked by whether the date received is within the Grace Period after it', async () => {
   const { backend } = graceServer()
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
   const accrual = async () =>
-    within(screen.getByRole('link', { name: row.name }).closest('tr')!).getByText('10 Nov')
+    within(screen.getByRole('link', { name: row.name }).closest('tr')!).getByText('10 Oct')
 
-  // It started on 10 Jan: 12 Nov is within 2 days of 10 Nov, 13 Nov is not.
-  await draftReceivedOn('2026-11-12')
+  // It started on 10 Jan: 12 Oct is within 2 days of 10 Oct, 13 Oct is not.
+  await draftReceivedOn('2026-10-12')
   await vi.waitFor(async () => expect((await accrual()).className).toBe('accrual in-grace'))
-  expect((await accrual()).title).toBe('12 Nov is within the 2-day Grace Period after 10 Nov')
+  expect(screen.getByRole('button', { name: 'Date it 9 Oct' })).toBeTruthy()
+  expect((await accrual()).title).toBe('12 Oct is within the 2-day Grace Period after 10 Oct')
 
-  await draftReceivedOn('2026-11-13')
+  await draftReceivedOn('2026-10-13')
   await vi.waitFor(async () => expect((await accrual()).className).toBe('accrual past-grace'))
-  expect((await accrual()).title).toBe('13 Nov is past the 2-day Grace Period after 10 Nov')
+  expect(screen.queryByRole('button', { name: /^Date it/ })).toBeNull()
+  expect((await accrual()).title).toBe('13 Oct is past the 2-day Grace Period after 10 Oct')
 })

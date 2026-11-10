@@ -1561,15 +1561,15 @@ label .hint {
   border-bottom-color: transparent;
   border-top-color: var(--bubble);
 }
-/* A Grace marker: green, its bubble working out the Grace choices. */
+/* A Grace marker: yellow, its bubble working out the Grace choices. */
 .reason-tip.grace {
-  color: var(--ok);
+  color: var(--accent);
 }
 .reason-tip.grace:focus-visible {
-  outline-color: var(--ok);
+  outline-color: var(--accent);
 }
 .reason-tip.grace .reason-bubble {
-  --bubble: color-mix(in srgb, var(--ok) 65%, #000);
+  --bubble: color-mix(in srgb, var(--accent) 60%, #000);
 }
 .grace-calc {
   display: grid;
@@ -1584,38 +1584,41 @@ label .hint {
   display: block;
 }
 
-/* The Grace choices under Date received: solid green buttons, the one taken ticked. */
-.grace-choices {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-}
+/* A Grace choice under a Mortgage's Accrual Date: yellow, solid once taken (ticked);
+   gray when it would let off nothing. */
 button.grace-choice {
-  padding: 0.3rem 0.6rem;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--ok) 80%, #000);
-  color: #fff;
-  font-size: 0.875rem;
-  font-weight: 600;
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--accent-edge);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.8125rem;
+  white-space: nowrap;
 }
 button.grace-choice[aria-pressed='true'] {
-  outline: 2px solid var(--ok);
-  outline-offset: 2px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
 }
 button.grace-choice[aria-pressed='true']::before {
   content: '✓ ';
+}
+button.grace-choice:disabled {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 /* An Accrual Date on New Payment: the date received within the Grace Period after it,
    or past it. */
 .accrual.in-grace {
-  color: var(--ok);
+  color: var(--accent);
   font-weight: 600;
 }
 .accrual.past-grace {
-  color: var(--warning);
+  color: var(--muted);
 }
 
 @keyframes reason-bubble-in {

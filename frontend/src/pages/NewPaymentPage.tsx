@@ -19,6 +19,7 @@ import { usePreview } from '../components/usePreview'
 import { useProposedChange } from '../components/useProposedChange'
 import { ReasonTip, Tip } from '../components/ReasonTip'
 import {
+  dayBefore,
   daysBetween,
   formatDate,
   formatDayMonth,
@@ -199,6 +200,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     proposed && previews.graceOffers({ ...proposed, paid_on: received, received_on: null }),
   )
   const offers = (!grace.loading && grace.previews) || []
+  // Whether the dates offered are known for this draft: then a date not among them lets
+  // off nothing.
+  const offersKnown = !!proposed && !grace.loading && !grace.error
   const taken = receivedOn ? offers.find((offer) => offer.paid_on === paidOn) : undefined
   // A Grace mark the draft has outgrown (its date now lets off nothing, or is no longer
   // offered) is dropped, going back to the date received.
@@ -381,29 +385,25 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                 }}
               />
             </label>
-            {offers.length > 0 && (
-              <div className="grace-choices">
-                <GraceTip offers={offers} receivedOn={received} names={names} />
-                {offers.map((offer) => (
-                  <button
-                    key={offer.paid_on}
-                    type="button"
-                    className="grace-choice"
-                    aria-pressed={offer === taken}
-                    onClick={() => {
-                      setReceivedOn(received)
-                      setPaidOn(offer.paid_on)
-                    }}
-                  >
-                    {describeChoice(offer, names)}
-                  </button>
-                ))}
-                {receivedOn && (
-                  <span className="hint">
-                    Dated {formatDayMonth(paidOn)}, received {formatDayMonth(receivedOn)}
-                  </span>
+            {receivedOn ? (
+              <span className="hint">
+                <span>
+                  Dated {formatDayMonth(paidOn)}, received {formatDayMonth(receivedOn)}
+                </span>
+                {offers.length > 0 && (
+                  <>
+                    {' · '}
+                    <GraceTip offers={offers} receivedOn={received} names={names} />
+                  </>
                 )}
-              </div>
+              </span>
+            ) : (
+              offers.length > 0 && (
+                <span className="hint">
+                  <GraceTip offers={offers} receivedOn={received} names={names} /> lets off
+                  something: choose a date under Last Accrual Date.
+                </span>
+              )
             )}
           </div>
           <label>
@@ -486,6 +486,10 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                   {tickedFirst(payable, selected).map((m) => {
                     const index = chosen.findIndex((c) => c.id === m.id)
                     const amount = index >= 0 && amounts ? amounts[index] : null
+                    const accrual = accrualOf(m.start_date, received, graceDays)
+                    // A ticked Mortgage within the Grace Period may be dated the day before.
+                    const graceOn = index >= 0 && accrual?.within ? dayBefore(accrual.on) : null
+                    const offer = offers.find((o) => o.paid_on === graceOn)
                     return (
                       <tr key={m.id}>
                         <td>
@@ -500,11 +504,35 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                           <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
                         </td>
                         <td>
-                          <AccrualDate
-                            start={m.start_date}
-                            receivedOn={received}
-                            graceDays={graceDays}
-                          />
+                          {accrual ? (
+                            <AccrualDate
+                              accrual={accrual}
+                              receivedOn={received}
+                              graceDays={graceDays}
+                            />
+                          ) : (
+                            '—'
+                          )}
+                          {graceOn && (
+                            <button
+                              type="button"
+                              className="grace-choice"
+                              aria-pressed={receivedOn !== null && paidOn === graceOn}
+                              disabled={offersKnown && !offer}
+                              title={
+                                offersKnown && !offer
+                                  ? 'Dated then, this Payment lets off nothing'
+                                  : undefined
+                              }
+                              onClick={() => {
+                                setReceivedOn(received)
+                                setPaidOn(graceOn)
+                              }}
+                            >
+                              Date it {formatDayMonth(graceOn)}
+                              {offer && ` · ${formatINR(offer.let_off)} let off`}
+                            </button>
+                          )}
                         </td>
                         <td className="num">{formatINR(m.outstanding_total)}</td>
                         {mode === 'percent' && (
@@ -575,7 +603,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             to Date, then Principal. Its Discount applies after the cash Allocation in the
             same order.
             {graceDays !== null &&
-              ` An Accrual Date in green has the date received within the ${graceDays}-day Grace Period after it; in amber, past it.`}
+              ` An Accrual Date in yellow has the date received within the ${graceDays}-day Grace Period after it, and its Mortgage, if ticked, a button to date the Payment the day before; in gray, past it.`}
           </p>
           {owingNothing.map((m) => (
             <p key={m.id} className="hint">
@@ -689,27 +717,35 @@ function GraceTip({
   )
 }
 
-/** A Mortgage's last Accrual Date by the date received: green when that is within the
- *  Grace Period after it, amber when past it (plain with no Grace Period). */
+type Accrual = { on: string; within: boolean | null } // within: null with no Grace Period
+
+/** A Mortgage's last Accrual Date by `receivedOn`, and whether that is within the Grace
+ *  Period after it; null before its first. */
+function accrualOf(start: string, receivedOn: string, graceDays: number | null): Accrual | null {
+  const on = lastAccrualDate(start, receivedOn)
+  if (!on) return null
+  return { on, within: graceDays === null ? null : daysBetween(on, receivedOn) <= graceDays }
+}
+
+/** A last Accrual Date: yellow when the date received is within the Grace Period after
+ *  it, gray when past it (plain with no Grace Period). */
 function AccrualDate({
-  start,
+  accrual,
   receivedOn,
   graceDays,
 }: {
-  start: string
+  accrual: Accrual
   receivedOn: string
   graceDays: number | null
 }) {
-  const accrual = lastAccrualDate(start, receivedOn)
-  if (!accrual) return '—'
-  if (graceDays === null) return <span className="accrual">{formatDayMonth(accrual)}</span>
-  const within = daysBetween(accrual, receivedOn) <= graceDays
+  const { on, within } = accrual
+  if (within === null) return <span className="accrual">{formatDayMonth(on)}</span>
   return (
     <span
       className={`accrual ${within ? 'in-grace' : 'past-grace'}`}
-      title={`${formatDayMonth(receivedOn)} is ${within ? 'within' : 'past'} the ${graceDays}-day Grace Period after ${formatDayMonth(accrual)}`}
+      title={`${formatDayMonth(receivedOn)} is ${within ? 'within' : 'past'} the ${graceDays}-day Grace Period after ${formatDayMonth(on)}`}
     >
-      {formatDayMonth(accrual)}
+      {formatDayMonth(on)}
     </span>
   )
 }

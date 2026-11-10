@@ -61,6 +61,10 @@ export function lastAccrualDate(start: string, on: string): string | null {
   return last
 }
 
+/** The day before a date (YYYY-MM-DD). */
+export const dayBefore = (isoDate: string) =>
+  new Date(Date.parse(isoDate) - 86_400_000).toISOString().slice(0, 10)
+
 /** The days from one date (YYYY-MM-DD) to a later one. */
 export const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000)
