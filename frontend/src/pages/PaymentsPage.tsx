@@ -186,7 +186,18 @@ export function PaymentsPage() {
                     title="Open this Payment"
                     onClick={(event) => openRow(event, payment.id)}
                   >
-                    <td>{formatDate(payment.paid_on)}</td>
+                    <td>
+                      {formatDate(payment.paid_on)}
+                      {/* A Voided one shows only as Voided: it lets off nothing now. */}
+                      {payment.received_on && !payment.voided && (
+                        <span
+                          className="badge grace"
+                          title={`Received ${formatDate(payment.received_on)}`}
+                        >
+                          Grace
+                        </span>
+                      )}
+                    </td>
                     <td>
                       <PersonLink person={payment.customer} />
                     </td>

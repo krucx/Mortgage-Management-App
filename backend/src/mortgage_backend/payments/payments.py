@@ -80,6 +80,7 @@ class PaymentRow(BaseModel):
 
     id: int
     paid_on: date
+    received_on: date | None  # a Grace Payment's, after `paid_on`
     customer: PersonSummary
     amount: int
     method: PaymentMethod
@@ -284,6 +285,7 @@ def _payment_rows(
         PaymentRow(
             id=payment["id"],
             paid_on=payment["paid_on"],
+            received_on=payment["received_on"],
             customer=PersonSummary(
                 kind="customer",
                 id=payment["customer_id"],

@@ -9,11 +9,13 @@ Every release of Mortgage Management, newest first. The format follows
 
 ### Added
 
-- **Favours Given on the Customer page:** every Discount and Waived Amount the Lender has
-  given the Customer across their Mortgages, newest first with their total, each Mortgage
-  shown by its description and linked to its page; Grace joins them later. Discounts from
-  Voided Payments and Waived Mortgages that were Reopened are left out, and the section is
-  hidden when there are none.
+- **Favours Given on the Customer page:** every Grace, Discount and Waived Amount the
+  Lender has given the Customer across their Mortgages, newest first with their total,
+  each Mortgage shown by its description and linked to its page. A Grace row shows the
+  Payment's date with the date it was received, for example "6 Nov 2026 (received 8 Nov)",
+  and the amount it let off on that Mortgage as saved. Grace and Discounts from Voided
+  Payments and Waived Mortgages that were Reopened are left out, and the section is hidden
+  when there are none.
 - **Grace Period setting:** Settings has a Grace Period, in days, next to the Discount
   confirmation threshold: one setting for every Mortgage, not part of any Terms. It is
   empty (off) unless set; clearing it or setting 0 turns Grace off, and a negative or
@@ -31,6 +33,10 @@ Every release of Mortgage Management, newest first. The format follows
   nothing, is refused.
   **Database change:** a migration adds the received date to Payments and the amount let
   off to Allocations; existing Payments are unchanged.
+- **Grace in the Ledger and the Payments list:** a Grace Payment's row in a Mortgage's
+  Ledger shows its date, the date it was received and the amount let off on that Mortgage
+  (for example "6 Nov 2026 · received 8 Nov 2026 · Grace, ₹420 let off"). The Payments
+  list marks Grace Payments with a Grace badge; a Voided one shows only as Voided.
 - **Grace on the Receipt:** a Grace Payment's Receipt, on WhatsApp and printed, tells the
   Customer about the favour, "received on 16 Apr 2026, counted as paid on 13 Apr 2026
   (Grace)", and the amount let off on each Mortgage (with the total when there are

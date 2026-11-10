@@ -1402,6 +1402,7 @@
           },
           "kind": {
             "enum": [
+              "grace",
               "discount",
               "waived"
             ],
@@ -1415,10 +1416,23 @@
             "format": "date",
             "title": "On",
             "type": "string"
+          },
+          "received_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received On"
           }
         },
         "required": [
           "on",
+          "received_on",
           "mortgage",
           "kind",
           "amount"
@@ -1814,6 +1828,31 @@
         "title": "LedgerChange",
         "type": "object"
       },
+      "LedgerGrace": {
+        "description": "A Grace Payment as it stands in one Mortgage's Ledger.",
+        "properties": {
+          "let_off": {
+            "title": "Let Off",
+            "type": "integer"
+          },
+          "payment_id": {
+            "title": "Payment Id",
+            "type": "integer"
+          },
+          "received_on": {
+            "format": "date",
+            "title": "Received On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_id",
+          "received_on",
+          "let_off"
+        ],
+        "title": "LedgerGrace",
+        "type": "object"
+      },
       "LedgerStep": {
         "properties": {
           "amount": {
@@ -2051,6 +2090,13 @@
             "title": "Description",
             "type": "string"
           },
+          "graces": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerGrace"
+            },
+            "title": "Graces",
+            "type": "array"
+          },
           "gross_weight_mg": {
             "title": "Gross Weight Mg",
             "type": "integer"
@@ -2154,6 +2200,7 @@
           "photos",
           "as_of",
           "ledger",
+          "graces",
           "outstanding",
           "collateral",
           "closure"
@@ -2992,6 +3039,18 @@
             "title": "Paid On",
             "type": "string"
           },
+          "received_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received On"
+          },
           "reference": {
             "anyOf": [
               {
@@ -3011,6 +3070,7 @@
         "required": [
           "id",
           "paid_on",
+          "received_on",
           "customer",
           "amount",
           "method",
@@ -5102,7 +5162,7 @@
     },
     "/api/customers/{customer_id}/favours": {
       "get": {
-        "description": "Every Discount and Waived Amount still standing, newest first, with their total\n(Grace joins them later).",
+        "description": "Every Grace, Discount and Waived Amount still standing, newest first, with their\ntotal.",
         "operationId": "read_favours_given_api_customers__customer_id__favours_get",
         "parameters": [
           {

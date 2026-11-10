@@ -1,15 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { formatDate } from '../format'
+import { formatDate, formatDayMonth } from '../format'
 import { formatINR } from '../money'
 import { favoursGivenQuery } from '../requests'
 import { useServerState } from '../serverState'
 
-const KIND = { discount: 'Discount', waived: 'Waived off' } as const
+const KIND = { grace: 'Grace', discount: 'Discount', waived: 'Waived off' } as const
 
-/** Every Discount and Waived Amount the Lender has given the Customer, still standing,
- *  newest first with their total (Grace joins them later); nothing at all when there are
- *  none. */
+/** Every Grace, Discount and Waived Amount the Lender has given the Customer, still
+ *  standing, newest first with their total; nothing at all when there are none. */
 export function FavoursGiven({ customerId }: { customerId: number }) {
   const { client } = useServerState()
   const { data, error } = useQuery(favoursGivenQuery(client, customerId))
@@ -39,7 +38,10 @@ export function FavoursGiven({ customerId }: { customerId: number }) {
           <tbody>
             {data.favours.map((favour, i) => (
               <tr key={i}>
-                <td>{formatDate(favour.on)}</td>
+                <td>
+                  {formatDate(favour.on)}
+                  {favour.received_on && ` (received ${formatDayMonth(favour.received_on)})`}
+                </td>
                 <td>
                   <Link to={`/mortgages/${favour.mortgage.id}`}>{favour.mortgage.description}</Link>
                 </td>

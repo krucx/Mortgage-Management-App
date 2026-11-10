@@ -56,6 +56,7 @@ export const mortgage: Mortgage = {
   photos: [],
   as_of: '2026-10-18',
   ledger: [],
+  graces: [],
   outstanding: { principal: 5_000_000, unpaid_interest: 75_000, total: 5_075_000 },
   collateral: null,
   closure: null,
