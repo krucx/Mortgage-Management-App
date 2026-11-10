@@ -31,7 +31,7 @@ test('from the printable Receipt, another Payment can be started for the same Cu
   expect(link.closest('.no-print')).not.toBeNull()
 })
 
-test("a Grace Payment's Receipt shows when it was received and what each piece was let off", async () => {
+test("a Grace Payment's Receipt shows when it was received and what each Mortgage was let off", async () => {
   const line = {
     discount: 0,
     discount_interest_paid: 0,

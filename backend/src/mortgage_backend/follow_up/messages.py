@@ -166,7 +166,7 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
         ],
     )
     # A Grace Payment is dated before it was received: the Customer sees both.
-    on = (
+    date_line = (
         f"{_date(receipt.received_on)}, counted as paid on {_date(receipt.paid_on)} (Grace)"
         if receipt.received_on
         else _date(receipt.paid_on)
@@ -177,7 +177,7 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
             "customer_name": receipt.customer_name,
             "amount": format_inr(receipt.amount),
             "method": receipt.method,
-            "date": on,
+            "date": date_line,
             "reference": receipt.reference or "",
             "mortgages": block,
             "total_owed": format_inr(receipt.total_owed),

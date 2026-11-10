@@ -135,6 +135,9 @@ def test_a_grace_payments_receipt_shows_both_dates_and_what_each_mortgage_was_le
     assert "Let off (Grace)     ₹330\n" in text
     assert "Total let off     ₹3,330\n" in text
     assert "2026-Ramesh" not in text
+    # The bangle's Final Payment shares the one Receipt, Grace and all
+    final_id = client.get(f"/api/mortgages/{bangle['id']}").json()["closure"]["payment_id"]
+    assert receipt(client, {"id": final_id})["text"] == text
 
 
 def test_a_voided_payment_has_no_receipt(client, payment):
