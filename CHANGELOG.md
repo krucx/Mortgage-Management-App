@@ -21,14 +21,16 @@ Every release of Mortgage Management, newest first. The format follows
   3 days unless changed; clearing it or setting 0 turns Grace off (and it stays off), and
   a negative or part-day value is refused.
 - **Grace Payments:** on Record a Payment, a Payment received within the Grace Period
-  after an Accrual Date is offered, under Date received, the day before that Accrual
-  Date when that saves the Customer money, as a button (for example "Date it 6 Nov · ₹420
-  let off"). With several Mortgages, each of their Accrual Dates within the Grace Period
-  is a choice, the one gracing the most first (for example "Date it 5 Nov · graces both ·
-  ₹720 let off" and "Date it 6 Nov · graces 2026GoldChain only · ₹420 let off"); the Grace
-  tooltip lists each Mortgage's Accrual Date and works out the choices. Each Mortgage in
-  the list shows its last Accrual Date, green when the date received is within the Grace
-  Period after it and amber when past it. One click changes only the date; changing it
+  after an Accrual Date may be dated the day before that Accrual Date when that saves the
+  Customer money. Each Mortgage in the list shows its last
+  Accrual Date, yellow when the date received is within the Grace Period after it and gray
+  when past it; a ticked one within it has a button to date the Payment the day before
+  (for example "Date it 6 Nov · ₹420 let off"), there as soon as the date is entered and
+  showing what it lets off once an amount is, worked out again as the amounts change.
+  With several Mortgages, each date is a choice: the day before the earliest Accrual Date
+  graces them all. The Grace tooltip under Date received lists each Mortgage's Accrual
+  Date and works out the choices (for example "Date it 5 Nov · graces both · ₹720 let
+  off" and "Date it 6 Nov · graces 2026GoldChain only · ₹420 let off"). One click changes only the date; changing it
   by hand again makes it an ordinary Payment, and so does changing the draft until the
   date chosen lets off nothing (it goes back to the date received). A Grace Payment keeps the date it was
   received and, for each Mortgage, the amount let off as worked out when saved (ADR 0020);
