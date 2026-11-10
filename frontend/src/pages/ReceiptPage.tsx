@@ -12,6 +12,8 @@ export function ReceiptPage() {
   const { data: receipt, error } = useQuery(receiptQuery(client, id))
 
   if (!receipt) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
+  // A Grace Payment's: dated before it was received (ADR 0020).
+  const grace = receipt.received_on !== null
 
   return (
     <section className="card wide receipt">
@@ -34,7 +36,11 @@ export function ReceiptPage() {
         </div>
         <div className="summary-row">
           <dt>Date</dt>
-          <dd>{formatDate(receipt.paid_on)}</dd>
+          <dd>
+            {receipt.received_on
+              ? `Received ${formatDate(receipt.received_on)}, counted as paid on ${formatDate(receipt.paid_on)} (Grace)`
+              : formatDate(receipt.paid_on)}
+          </dd>
         </div>
         <div className="summary-row">
           <dt>Amount</dt>
@@ -60,6 +66,7 @@ export function ReceiptPage() {
             <th className="num">Discount</th>
             <th className="num">Discount to interest</th>
             <th className="num">Discount to Principal</th>
+            {grace && <th className="num">Let off (Grace)</th>}
             <th className="num">Still owed</th>
           </tr>
         </thead>
@@ -76,6 +83,7 @@ export function ReceiptPage() {
               <td className="num">{formatINR(line.discount)}</td>
               <td className="num">{formatINR(line.discount_interest_paid)}</td>
               <td className="num">{formatINR(line.discount_principal_paid)}</td>
+              {grace && <td className="num">{formatINR(line.let_off)}</td>}
               <td className="num">{formatINR(line.owed_after)}</td>
             </tr>
           ))}
@@ -92,6 +100,11 @@ export function ReceiptPage() {
               </td>
               <td />
               <td />
+              {grace && (
+                <td className="num">
+                  {formatINR(receipt.lines.reduce((total, line) => total + line.let_off, 0))}
+                </td>
+              )}
               <td className="num">{formatINR(receipt.total_owed)}</td>
             </tr>
           </tfoot>

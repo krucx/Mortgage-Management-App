@@ -33,6 +33,7 @@ class Receipt(BaseModel):
     customer: PersonSummary
     phones: list[str]  # the Customer's numbers, primary first
     paid_on: date
+    received_on: date | None  # a Grace Payment's, after `paid_on`
     amount: int
     method: str
     reference: str | None
@@ -105,6 +106,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
             if waived
             else replayed[mortgage["id"]].owed_after(paid_by, payment["paid_on"]),
             redeemed=closed_by == "redeemed",
+            let_off=mortgage["let_off"] or 0,
         )
         earlier = lines.get(mortgage["id"])
         if earlier is not None:
@@ -121,6 +123,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
                         earlier.discount_principal_paid + line.discount_principal_paid
                     ),
                     "redeemed": earlier.redeemed or line.redeemed,
+                    "let_off": earlier.let_off + line.let_off,
                 }
             )
         lines[mortgage["id"]] = line
@@ -128,6 +131,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
     message = ReceiptMessage(
         customer_name=payment["name"],
         paid_on=payment["paid_on"],
+        received_on=payment["received_on"],
         amount=amount,
         method=method,
         reference=payment["reference"],
@@ -140,6 +144,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         ),
         phones=phones_of(payment),
         paid_on=payment["paid_on"],
+        received_on=payment["received_on"],
         amount=amount,
         method=method,
         reference=payment["reference"],

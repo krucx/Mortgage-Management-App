@@ -62,6 +62,8 @@ def test_the_receipt_message_shows_items_not_mortgage_names(client, payment):
     assert "Gold chain\nPaid              ₹5,000\n" in text
     assert "Total owed     ₹1,61,000\n```" in text
     assert "2026-Ramesh" not in text
+    # An ordinary Payment: no Grace
+    assert "Grace" not in text
 
 
 def test_the_receipt_follows_the_lenders_template(client, payment):
@@ -99,6 +101,40 @@ def test_a_waivers_final_payment_leaves_nothing_owed(client, ramesh):
 
     assert shown["lines"][0]["paid"] == 111_000 * RUPEE
     assert (shown["lines"][0]["owed_after"], shown["total_owed"]) == (0, 0)
+
+
+def test_a_grace_payments_receipt_shows_both_dates_and_what_each_mortgage_was_let_off(
+    client, ramesh
+):
+    # Received 16 Apr within a 2-day Grace Period, dated 13 Apr: ₹20,000 to the chain
+    # lets off ₹330, and redeeming the bangle a day before its new month lets off
+    # ₹3,000 (see test_grace_payments).
+    response = client.put("/api/settings/grace-period", json={"grace_period_days": 2})
+    assert response.status_code == 200, response.text
+    chain = lend(client, ramesh)
+    bangle = lend(
+        client, ramesh, start="2026-01-15", description="Bangle", name="2026-Ramesh-Bangle"
+    )
+    paid = pay(
+        client,
+        ramesh,
+        {chain["id"]: 20_000 * RUPEE, bangle["id"]: 1_09_000 * RUPEE},
+        on="2026-04-13",
+        received_on="2026-04-16",
+    )
+
+    shown = receipt(client, paid)
+
+    assert (shown["paid_on"], shown["received_on"]) == ("2026-04-13", "2026-04-16")
+    assert [(r["description"], r["let_off"], r["redeemed"]) for r in shown["lines"]] == [
+        ("Gold chain", 330 * RUPEE, False),
+        ("Bangle", 3_000 * RUPEE, True),
+    ]
+    text = shown["text"]
+    assert "on 16 Apr 2026, counted as paid on 13 Apr 2026 (Grace)" in text
+    assert "Let off (Grace)     ₹330\n" in text
+    assert "Total let off     ₹3,330\n" in text
+    assert "2026-Ramesh" not in text
 
 
 def test_a_voided_payment_has_no_receipt(client, payment):

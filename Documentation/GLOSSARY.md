@@ -139,7 +139,7 @@ What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the
 _Avoid_: Settlement, closing payment
 
 **Receipt**:
-The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
+The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), and for a Grace Payment the date it was received and what each Mortgage was let off, sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
 _Avoid_: Invoice, bill
 
 **Allocation**:

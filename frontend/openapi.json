@@ -3361,6 +3361,18 @@
             "title": "Phones",
             "type": "array"
           },
+          "received_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received On"
+          },
           "reference": {
             "anyOf": [
               {
@@ -3386,6 +3398,7 @@
           "customer",
           "phones",
           "paid_on",
+          "received_on",
           "amount",
           "method",
           "reference",
@@ -3419,6 +3432,11 @@
           },
           "interest_paid": {
             "title": "Interest Paid",
+            "type": "integer"
+          },
+          "let_off": {
+            "default": 0,
+            "title": "Let Off",
             "type": "integer"
           },
           "mortgage_id": {

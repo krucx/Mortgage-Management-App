@@ -2742,6 +2742,8 @@ export interface components {
             payment_id: number;
             /** Phones */
             phones: string[];
+            /** Received On */
+            received_on: string | null;
             /** Reference */
             reference: string | null;
             /** Text */
@@ -2770,6 +2772,11 @@ export interface components {
             discount_principal_paid: number;
             /** Interest Paid */
             interest_paid: number;
+            /**
+             * Let Off
+             * @default 0
+             */
+            let_off: number;
             /** Mortgage Id */
             mortgage_id: number;
             /** Owed After */

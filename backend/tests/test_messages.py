@@ -115,6 +115,58 @@ def test_a_card_widens_for_a_large_amount_and_wraps_a_long_item() -> None:
     ]
 
 
+def test_a_grace_payment_says_when_it_was_received_and_what_each_mortgage_was_let_off() -> None:
+    graced = receipt(chain(let_off=330 * RUPEE)).model_copy(
+        update={"paid_on": date(2026, 4, 13), "received_on": date(2026, 4, 15)}
+    )
+
+    assert receipt_text(RECEIPT, graced) == (
+        "*Payment received*\n"
+        "Namaste Ramesh Kumar, we received *₹5,000* by Cash on 15 Apr 2026, "
+        "counted as paid on 13 Apr 2026 (Grace).\n"
+        "```\n"
+        "Gold chain\n"
+        "Paid              ₹5,000\n"
+        "  Interest        ₹3,000\n"
+        "  Principal       ₹2,000\n"
+        "Let off (Grace)     ₹330\n"
+        "Still owed     ₹1,02,000\n"
+        "```\n"
+        "Total still owed: *₹1,02,000*"
+    )
+
+
+def test_several_mortgages_of_a_grace_payment_total_what_was_let_off() -> None:
+    bangles = ReceiptLine(
+        description="Two bangles",
+        paid=2_000 * RUPEE,
+        interest_paid=2_000 * RUPEE,
+        principal_paid=0,
+        owed_after=50_000 * RUPEE,
+        let_off=0,
+    )
+    graced = receipt(chain(let_off=330 * RUPEE), bangles).model_copy(
+        update={"received_on": date(2026, 4, 16)}
+    )
+
+    card = receipt_text("{mortgages}", graced).splitlines()
+
+    # Nothing let off on the bangles: no line for it
+    assert card[7:13] == [
+        "",
+        "Two bangles",
+        "Paid              ₹2,000",
+        "  Interest        ₹2,000",
+        "  Principal           ₹0",
+        "Still owed       ₹50,000",
+    ]
+    assert card[-4:-1] == [
+        "Total paid        ₹7,000",
+        "Total let off       ₹330",
+        "Total owed     ₹1,52,000",
+    ]
+
+
 def test_the_reference_can_be_placed_in_the_message() -> None:
     paid = receipt(chain()).model_copy(update={"reference": "UTR 4711"})
 
