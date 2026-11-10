@@ -32,11 +32,13 @@ class ReceiptLine(BaseModel):
     discount_principal_paid: int = 0
     owed_after: int  # Outstanding just after the Payment
     redeemed: bool = False  # the Allocation was its final Payment: jewellery returned
+    let_off: int = 0  # paise: a Grace Payment's, as saved (ADR 0020)
 
 
 class ReceiptMessage(BaseModel):
     customer_name: str
     paid_on: date
+    received_on: date | None = None  # a Grace Payment's, after `paid_on`
     amount: int
     method: str  # as the Customer reads it, e.g. "Cash"
     reference: str | None = None
@@ -105,6 +107,7 @@ RECEIPT_PLACEHOLDERS = (
     "method",
     "reference",
     "date",
+    "grace",
     "mortgages",
     "total_owed",
 )
@@ -133,6 +136,7 @@ def _date(on: date) -> str:
 
 
 def receipt_text(template: str, receipt: ReceiptMessage) -> str:
+    let_off = sum(line.let_off for line in receipt.lines)
     block = _card_block(
         [
             (
@@ -150,20 +154,37 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
                         if line.discount
                         else []
                     ),
+                    *([("Let off (Grace)", line.let_off)] if line.let_off else []),
                     ("Still owed", line.owed_after),
                 ],
             )
             for line in receipt.lines
         ],
-        [("Total paid", receipt.amount), ("Total owed", receipt.total_owed)],
+        [
+            ("Total paid", receipt.amount),
+            *([("Total let off", let_off)] if let_off else []),
+            ("Total owed", receipt.total_owed),
+        ],
     )
+    # A Grace Payment is dated before it was received: the Customer sees both, the
+    # received date and then the {grace}. A template saved before {grace} existed gets
+    # both in {date}.
+    grace = (
+        f", counted as paid on {_date(receipt.paid_on)} (Grace)"
+        if receipt.received_on
+        else ""
+    )
+    date_line = _date(receipt.received_on or receipt.paid_on)
+    if "{grace}" not in template:
+        date_line += grace
     return fill(
         template,
         {
             "customer_name": receipt.customer_name,
             "amount": format_inr(receipt.amount),
             "method": receipt.method,
-            "date": _date(receipt.paid_on),
+            "date": date_line,
+            "grace": grace,
             "reference": receipt.reference or "",
             "mortgages": block,
             "total_owed": format_inr(receipt.total_owed),

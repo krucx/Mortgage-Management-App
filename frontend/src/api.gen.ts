@@ -2217,7 +2217,7 @@ export interface components {
              * @default *Payment received* ✅
              *
              *     Namaste {customer_name},
-             *     We have received *{amount}* by {method} on {date}. Thank you!
+             *     We have received *{amount}* by {method} on {date}{grace}. Thank you!
              *
              *     {mortgages}
              *
@@ -2763,6 +2763,8 @@ export interface components {
             payment_id: number;
             /** Phones */
             phones: string[];
+            /** Received On */
+            received_on: string | null;
             /** Reference */
             reference: string | null;
             /** Text */
@@ -2791,6 +2793,11 @@ export interface components {
             discount_principal_paid: number;
             /** Interest Paid */
             interest_paid: number;
+            /**
+             * Let Off
+             * @default 0
+             */
+            let_off: number;
             /** Mortgage Id */
             mortgage_id: number;
             /** Owed After */

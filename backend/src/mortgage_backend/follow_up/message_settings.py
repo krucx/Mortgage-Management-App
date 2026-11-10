@@ -21,7 +21,7 @@ RECEIPT_TEMPLATE = (
     "*Payment received* ✅\n"
     "\n"
     "Namaste {customer_name},\n"
-    "We have received *{amount}* by {method} on {date}. Thank you!\n"
+    "We have received *{amount}* by {method} on {date}{grace}. Thank you!\n"
     "\n"
     "{mortgages}\n"
     "\n"

@@ -41,6 +41,7 @@ const receipt: Receipt = {
   payment_id: 9,
   customer: mortgage.customer,
   paid_on: payment.paid_on,
+  received_on: null,
   amount: payment.amount,
   method: 'cash',
   reference: null,

@@ -2006,7 +2006,7 @@
       "MessageSettings": {
         "properties": {
           "receipt_template": {
-            "default": "*Payment received* \u2705\n\nNamaste {customer_name},\nWe have received *{amount}* by {method} on {date}. Thank you!\n\n{mortgages}\n\nTotal still owed: *{total_owed}*",
+            "default": "*Payment received* \u2705\n\nNamaste {customer_name},\nWe have received *{amount}* by {method} on {date}{grace}. Thank you!\n\n{mortgages}\n\nTotal still owed: *{total_owed}*",
             "minLength": 1,
             "title": "Receipt Template",
             "type": "string"
@@ -3421,6 +3421,18 @@
             "title": "Phones",
             "type": "array"
           },
+          "received_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received On"
+          },
           "reference": {
             "anyOf": [
               {
@@ -3446,6 +3458,7 @@
           "customer",
           "phones",
           "paid_on",
+          "received_on",
           "amount",
           "method",
           "reference",
@@ -3479,6 +3492,11 @@
           },
           "interest_paid": {
             "title": "Interest Paid",
+            "type": "integer"
+          },
+          "let_off": {
+            "default": 0,
+            "title": "Let Off",
             "type": "integer"
           },
           "mortgage_id": {

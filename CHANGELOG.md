@@ -37,6 +37,12 @@ Every release of Mortgage Management, newest first. The format follows
   Ledger shows its date, the date it was received and the amount let off on that Mortgage
   (for example "6 Nov 2026 · received 8 Nov 2026 · Grace, ₹420 let off"). The Payments
   list marks Grace Payments with a Grace badge; a Voided one shows only as Voided.
+- **Grace on the Receipt:** a Grace Payment's Receipt, on WhatsApp and printed, tells the
+  Customer about the favour, "received on 16 Apr 2026, counted as paid on 13 Apr 2026
+  (Grace)", and the amount let off on each Mortgage (with the total when there are
+  several). The Receipt template has a new `{grace}` placeholder for the earlier date,
+  placed after `{date}` (now the date received) in the default template; a template saved
+  without it gets both dates in `{date}`. Receipts for ordinary Payments are unchanged.
 
 ## [3.4.8] - 2026-11-10
 
