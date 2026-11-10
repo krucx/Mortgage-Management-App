@@ -7,6 +7,8 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.4.7] - 2026-11-10
+
 Record several Payments for one Customer in a row, the Calculator shows Collateral Value
 and Loan-to-Value, and an oversized Discount is capped instead of blocking Save.
 **No database changes:** updating keeps all data and Backups. **Linux hosts** must
