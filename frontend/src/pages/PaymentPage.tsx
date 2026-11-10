@@ -7,7 +7,7 @@ import { PersonLink } from '../components/PersonLink'
 import { ChangePreview } from '../components/BeforeAfter'
 import { ReasonDialog } from '../components/ReasonDialog'
 import { SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
-import { formatDate, formatDateTime } from '../format'
+import { formatDate, formatDateTime, formatGraceDate } from '../format'
 import { formatINR } from '../money'
 import { changes, paymentQuery, previews, receiptQuery } from '../requests'
 import { keys, useLedgerChange, useServerState } from '../serverState'
@@ -61,9 +61,9 @@ export function PaymentPage() {
         </dd>
         <dt>{grace ? 'Date' : 'Received'}</dt>
         <dd>
-          {formatDate(payment.paid_on)}
-          {payment.received_on &&
-            ` · received ${formatDate(payment.received_on)} · Grace, ${formatINR(letOff)} let off`}
+          {payment.received_on
+            ? formatGraceDate(payment.paid_on, payment.received_on, letOff)
+            : formatDate(payment.paid_on)}
         </dd>
         <dt>Method</dt>
         <dd>{methods?.[payment.method]}</dd>

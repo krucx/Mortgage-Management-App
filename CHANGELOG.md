@@ -33,6 +33,10 @@ Every release of Mortgage Management, newest first. The format follows
   nothing, is refused.
   **Database change:** a migration adds the received date to Payments and the amount let
   off to Allocations; existing Payments are unchanged.
+- **Grace in the Ledger and the Payments list:** a Grace Payment's row in a Mortgage's
+  Ledger shows its date, the date it was received and the amount let off on that Mortgage
+  (for example "6 Nov 2026 · received 8 Nov 2026 · Grace, ₹420 let off"). The Payments
+  list marks Grace Payments with a Grace badge; a Voided one shows only as Voided.
 
 ## [3.4.8] - 2026-11-10
 

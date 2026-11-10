@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
-import type { LedgerStep, Mortgage } from '../api'
+import type { LedgerGrace, LedgerStep, Mortgage } from '../api'
 import { CallNotes } from '../components/CallNotes'
 import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
 import { CollateralPanel } from '../components/CollateralPanel'
@@ -17,7 +17,7 @@ import { TermsPanel } from '../components/TermsPanel'
 import { useConfirm } from '../components/useConfirm'
 import { lentThroughName, usePaymentMethods } from '../components/usePaymentMethods'
 import { useSaveWithPhotos } from '../components/useSaveWithPhotos'
-import { formatDate, formatDays, formatGrams } from '../format'
+import { formatDate, formatDays, formatGraceDate, formatGrams } from '../format'
 import { formatINR } from '../money'
 import {
   addMortgagePhoto,
@@ -263,6 +263,7 @@ export function MortgagePage() {
 
 /** Ledger steps as a table, oldest first. */
 function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortgage }) {
+  const graces = new Map(mortgage.graces.map((grace) => [grace.payment_id, grace]))
   return (
     <div className="table-scroll">
       <table>
@@ -279,7 +280,7 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
         <tbody>
           {steps.map((step, index) => (
             <tr key={index} className={`ledger-${step.event}`}>
-              <td>{formatDate(step.on)}</td>
+              <td>{dateOf(step, graces)}</td>
               <td>
                 {step.payment_id ? (
                   <Link to={`/payments/${step.payment_id}`}>{describe(step, mortgage)}</Link>
@@ -297,6 +298,13 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
       </table>
     </div>
   )
+}
+
+/** A Ledger step's date; a Grace Payment's with the date it was received and what it
+ *  let off on this Mortgage. */
+function dateOf(step: LedgerStep, graces: Map<number, LedgerGrace>): string {
+  const grace = step.payment_id == null ? undefined : graces.get(step.payment_id)
+  return grace ? formatGraceDate(step.on, grace.received_on, grace.let_off) : formatDate(step.on)
 }
 
 /** What Payments in the month had already paid of its interest, if anything. */

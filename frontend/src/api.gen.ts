@@ -2113,6 +2113,21 @@ export interface components {
              */
             on: string;
         };
+        /**
+         * LedgerGrace
+         * @description A Grace Payment as it stands in one Mortgage's Ledger.
+         */
+        LedgerGrace: {
+            /** Let Off */
+            let_off: number;
+            /** Payment Id */
+            payment_id: number;
+            /**
+             * Received On
+             * Format: date
+             */
+            received_on: string;
+        };
         /** LedgerStep */
         LedgerStep: {
             /** Amount */
@@ -2257,6 +2272,8 @@ export interface components {
             customer: components["schemas"]["PersonSummary"];
             /** Description */
             description: string;
+            /** Graces */
+            graces: components["schemas"]["LedgerGrace"][];
             /** Gross Weight Mg */
             gross_weight_mg: number;
             /** Id */
@@ -2614,6 +2631,8 @@ export interface components {
              * Format: date
              */
             paid_on: string;
+            /** Received On */
+            received_on: string | null;
             /** Reference */
             reference: string | null;
             /** Voided */
