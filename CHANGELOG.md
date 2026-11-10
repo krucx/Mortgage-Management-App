@@ -7,6 +7,13 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Added
+
+- **Grace Period setting:** Settings has a Grace Period, in days, next to the Discount
+  confirmation threshold: one setting for every Mortgage, not part of any Terms. It is
+  empty (off) unless set; clearing it or setting 0 turns Grace off, and a negative or
+  part-day value is refused. Payments do not use it yet.
+
 ## [3.4.8] - 2026-11-10
 
 ### Changed

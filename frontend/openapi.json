@@ -1526,6 +1526,23 @@
         "title": "GoldRateIn",
         "type": "object"
       },
+      "GracePeriod": {
+        "properties": {
+          "grace_period_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grace Period Days"
+          }
+        },
+        "title": "GracePeriod",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -7777,6 +7794,60 @@
           }
         },
         "summary": "Update Gold Rates"
+      }
+    },
+    "/api/settings/grace-period": {
+      "get": {
+        "operationId": "read_grace_period_api_settings_grace_period_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GracePeriod"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Grace Period"
+      },
+      "put": {
+        "operationId": "update_grace_period_api_settings_grace_period_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GracePeriod"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GracePeriod"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Grace Period"
       }
     },
     "/api/settings/messages": {
