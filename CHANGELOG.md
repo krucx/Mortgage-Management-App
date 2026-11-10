@@ -7,8 +7,33 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+Record several Payments for one Customer in a row, the Calculator shows Collateral Value
+and Loan-to-Value, and an oversized Discount is capped instead of blocking Save.
+**No database changes:** updating keeps all data and Backups. **Linux hosts** must
+change folder ownership before updating (see Security below).
+
+### Added
+
+- **Record another Payment:** after recording a Payment, the Receipt page and the
+  Payment page offer "Record another Payment for same customer", which opens Record a
+  Payment with that Customer already chosen. Handy for entering backdated Payments. On
+  the Payment page it sits beside Void.
+- **Calculator Collateral:** a Simulation can take a Collateral (net weight and purity,
+  or a value typed by hand) and shows its Collateral Value and Loan-to-Value, worked
+  out the same way as for a real Mortgage. The Loan-to-Value tiles wait for the
+  Simulation instead of showing placeholder figures.
+
 ### Changed
 
+- **Discounts:** the Payment Preview decides how much Discount each Allocation can take
+  after its cash. A Discount larger than that is capped to it rather than refused as an
+  Overpayment that locked Save; accept the cap, then save again.
+- **Closed Mortgages:** the starting Terms (rate, Interest Mode, Part-Month Rule) are
+  locked once a Mortgage is closed, like its start date and Principal, so a correction
+  can't change what it owed after Closure. If the Mortgage closes while you are editing
+  it, locked fields fall back to their saved values instead of making Save fail.
+- **Payments interest total:** the month or year interest total on the Payments list
+  covers the whole period, even while a search filter is applied.
 - **Security:** the one image runs as a fixed, unprivileged user (uid:gid 1000:1000)
   instead of root. Docker Desktop (Mac, Windows) needs no change; a Linux host, fresh
   install or update, must give that uid:gid ownership of `DATA_DIR` and `BACKUP_DIR`
