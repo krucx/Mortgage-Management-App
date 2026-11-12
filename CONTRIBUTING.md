@@ -54,6 +54,16 @@ pull requests.
 
 ## Repository configuration
 
+### Keeping CodeRabbit reviews timely
+
+Each push can trigger another review, and large generated files can add substantial
+diff context without useful findings. `.coderabbit.yaml` excludes generated artifacts and
+lockfiles and keeps incremental reviews enabled. It also uses CodeRabbit's balanced
+`chill` profile, which is expected to reduce low-signal, style-level feedback and the time
+people spend assessing it. The tradeoff is fewer nitpicky comments. No before-and-after
+review timing is available; changed source and configuration files remain in scope, and
+the required `CodeRabbit` check is unchanged.
+
 CodeRabbit is selected because its Open Source plan is free for public repositories.
 The checked-in [`.coderabbit.yaml`](.coderabbit.yaml) configures review guidance; a
 repository owner must install the CodeRabbit GitHub App for this repository and enable

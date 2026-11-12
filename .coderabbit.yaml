@@ -2,7 +2,8 @@
 language: en-US
 early_access: false
 reviews:
-  profile: assertive
+  # Balanced feedback reduces low-signal review work while keeping findings enabled.
+  profile: chill
   path_filters:
     - '!frontend/openapi.json'
     - '!frontend/src/api.gen.ts'
