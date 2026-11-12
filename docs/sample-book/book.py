@@ -170,7 +170,7 @@ class Book:
         self.mortgages[key] = self.post("/api/mortgages", body)
 
     def pay(self, who: str, split: dict[str, float], method: str = "cash", reference: str | None = None,
-            on: str | None = None) -> Any:
+            on: str | None = None, received_on: str | None = None) -> Any:
         """A Payment received today (or on `on`, when entered late); an Allocation of a
         Mortgage's whole Outstanding Redeems it."""
         allocations = [
@@ -182,6 +182,7 @@ class Book:
             {
                 "customer_id": self.people[who]["id"],
                 "paid_on": on or self.clock.day.isoformat(),
+                "received_on": received_on,
                 "amount": sum(a["amount"] for a in allocations),
                 "method": method,
                 "reference": reference,
@@ -310,6 +311,11 @@ def events(book: Book) -> list[tuple[str, Any]]:
         happened.append((f"{year}-{month:02d}-10", lambda m=method: book.pay(meera, {"chain": 1_600}, method=m)))
     happened.append(("2026-09-10", lambda: book.pay(meera, {"chain": 2_000, "bangles": 10_000}, method="upi",
                                                     reference="UPI 4419 0921 7731")))
+    # Meera received this on 12 October, within three days after the chain's 10 October
+    # Accrual Date. She dates it 9 October, so the app records Grace and what it let off.
+    happened.append(("2026-10-12", lambda: book.pay(meera, {"chain": 20_000}, method="upi",
+                                                    reference="UPI 4419 1012 7731", on="2026-10-09",
+                                                    received_on="2026-10-12")))
     for month in (3, 4, 5):
         happened.append((f"2026-{month:02d}-18", lambda: book.pay("kavita", {"coin": 1_000}, method="upi")))
     for month in range(3, 10):
@@ -328,6 +334,7 @@ def write(folder: Path) -> None:
         book.put("/api/settings/default-terms", {
             "monthly_rate_bps": 200, "interest_mode": "compounded_yearly", "part_month_rule": "pro_rata"})
         book.put("/api/settings/call-list", {"months_unpaid": 3, "loan_to_value_pct": 85})
+        book.put("/api/settings/grace-period", {"grace_period_days": 3})
         messages = book.get("/api/settings/messages")
         book.put("/api/settings/messages", {**messages, "reminder_days_before": 2, "reminder_approve_first": True})
         book.put("/api/settings/gold-rates", [
