@@ -155,12 +155,13 @@ await shot('settings-gold', card(1), {
 await shot('settings-calls', card(2))
 await shot('settings-cash', card(3), { limit: field('Warn at cash of (₹), or more') })
 await shot('settings-discount', card(4))
-await shot('settings-messages', card(5), {
-  template: card(5).locator('textarea').first(),
-  preview: card(5).locator('.whatsapp, .bubble, [class*=preview]').first(),
-  approve: card(5).getByText('Approve each Reminder', { exact: false }),
+await shot('settings-grace', card(5))
+await shot('settings-messages', card(6), {
+  template: card(6).locator('textarea').first(),
+  preview: card(6).locator('.whatsapp, .bubble, [class*=preview]').first(),
+  approve: card(6).getByText('Approve each Reminder', { exact: false }),
 })
-await shot('settings-backups', card(6), { last: card(6).locator('dl, table, p').filter({ hasText: 'mortgage-backup' }) })
+await shot('settings-backups', card(7), { last: card(7).locator('dl, table, p').filter({ hasText: 'mortgage-backup' }) })
 
 // Meera ------------------------------------------------------------------------------------
 
@@ -339,6 +340,18 @@ await shot('payment', card(), {
 })
 await open('/payments/23/receipt')
 await shot('receipt', card())
+const paymentPages = []
+for (let number = 1; ; number++) {
+  const listed = await (await page.request.get(`${base}/api/payments?page=${number}`)).json()
+  paymentPages.push(...listed.items)
+  if (paymentPages.length >= listed.total) break
+}
+const gracePayment = paymentPages.find((payment) => payment.received_on)
+if (!gracePayment) throw new Error('The sample book has no Grace Payment')
+await open(`/payments/${gracePayment.id}`)
+await shot('grace-payment', card())
+await open(`/payments/${gracePayment.id}/receipt`)
+await shot('grace-receipt', card())
 await open('/payments/28')
 await button('Void…').click()
 await settle()
