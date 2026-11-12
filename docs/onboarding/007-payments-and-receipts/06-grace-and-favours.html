@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.6 · Grace Periods and Favours Given</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 007 · Lesson 6</p>
+<h1>Grace Periods and Favours Given</h1>
+<p class="lede">A Payment received just after an Accrual Date may still be treated as paid on time. Follow the choice from Settings to New Payment, then see what the Customer can look back on.</p>
+
+<div class="callout win"><strong>By the end</strong> you can set the Grace Period, choose which Mortgages a late Payment graces, explain the amount let off, and find the favour in the Customer's history.</div>
+
+<h2>The setting</h2>
+<p>The Grace Period is the number of days after an Accrual Date during which the Lender may date a Payment as if it arrived on the day before that Accrual Date. It is 3 days by default; set it to 0 to turn it off. Change it in <strong>Settings → Grace Period</strong>. A later setting change does not rewrite earlier Payments: each saved Grace Payment keeps its received date and the amount it let off (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0020-grace-amount-let-off-is-stored.md">ADR 0020</a>).</p>
+<p>Settings is introduced in <a href="../012-frontend-pages-and-the-pwa/05-follow-up-dashboard-and-settings.html">chapter 012, lesson 5</a>; this lesson follows the setting into a real Payment.</p>
+
+<h2>Choosing a Grace Payment</h2>
+<p>On <strong>New Payment</strong>, enter the day the money arrived and select the Customer and Mortgages as usual. The page marks each Mortgage's most recent Accrual Date: yellow if the received date falls within the configured Grace Period, gray if it falls after it. For each eligible Mortgage, <strong>Date it …</strong> offers a Payment date on the day before that Accrual Date. Choose independently: one Payment may grace some of its Mortgages and leave the others dated on the received date.</p>
+<p>The Preview shows which Mortgages the choice graces and the amount each one is let off. Review it, then save the Payment. The Payment keeps both dates: the earlier date drives its Ledger as an on-time Payment; the received date and saved let-off explain the favour shown to the Customer. The Receipt names both dates and the amount let off. The Payment still has one Receipt, even when it covers several Mortgages; see <a href="02-one-payment-several-parts.html">lesson 2</a> and <a href="05-receipts.html">lesson 5</a> for those existing flows.</p>
+
+<h2>Favours Given</h2>
+<p>Open the Customer page and look for <strong>Favours Given</strong>. It is a history of Grace, Discount and Waived Amount entries still standing across that Customer's Mortgages. A Grace entry shows when the Payment was received and what it let off. Voiding the Payment removes its Grace from the standing history; the Payment remains on record as Voided. Discounts and Waived Amounts already have their own payment and closure workflows in <a href="03-voids.html">lesson 3</a> and <a href="../005-replay-and-closures/04-waived-and-forfeited.html">chapter 005, lesson 4</a>.</p>
+
+<h2>Keep the two dates straight</h2>
+<ul>
+  <li><strong>Payment date:</strong> the day before the eligible Accrual Date, used to work out the Ledger.</li>
+  <li><strong>Received date:</strong> when the money actually arrived, kept for the Receipt and Favours Given.</li>
+  <li><strong>Let-off:</strong> the saved difference for each graced Mortgage, not a new payment or a change to its Terms.</li>
+</ul>
+<p>The amount let off is a record of the choice made when saving. It does not feed the Ledger separately: the Ledger replays the Payment using its earlier date. Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md">Grace Period, Grace Payment and Favours Given in the glossary</a> alongside the storage decision in ADR 0020.</p>
+
+<nav class="lessons">
+  <a href="05-receipts.html">← Receipts</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Next: Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

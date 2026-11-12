@@ -10,7 +10,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 004 | [The Ledger engine](https://github.com/krucx/Mortgage-Management-App/issues/140) | `004-the-ledger-engine/` | hand-trace any Mortgage's interest, Capitalisation and Payment order | written (6f1775b) |
 | 005 | [Replay and Closures](https://github.com/krucx/Mortgage-Management-App/issues/146) | `005-replay-and-closures/` | explain Outstanding, Redeem/Waive/Forfeit/Reopen, Dormant, Discount reversals and the Calculator's Simulations | written (16b855c; lesson 6 at 756ae3a) |
 | 006 | [Changes and Previews](https://github.com/krucx/Mortgage-Management-App/issues/152) | `006-changes-and-previews/` | add a change route that refuses, writes, checks and records History | written (d6a92ab) |
-| 007 | [Payments and Receipts](https://github.com/krucx/Mortgage-Management-App/issues/158) | `007-payments-and-receipts/` | explain cash Allocations, non-cash Discounts, Final Payments, `received_with`, Voids, the Cash Limit and Receipts | written (15df77d) |
+| 007 | [Payments and Receipts](https://github.com/krucx/Mortgage-Management-App/issues/158) | `007-payments-and-receipts/` | explain cash Allocations, non-cash Discounts, Final Payments, `received_with`, Voids, the Cash Limit, Receipts, Grace Payments and Favours Given | written (15df77d; Grace lesson added for #345) |
 | 008 | [People and Collateral](https://github.com/krucx/Mortgage-Management-App/issues/164) | `008-people-and-collateral/` | explain the Primary Number, Referrers, ID Photos, Gold Rates and Loan-to-Value | written (575437c) |
 | 009 | [Follow-up](https://github.com/krucx/Mortgage-Management-App/issues/170) | `009-follow-up/` | explain Reminders, the Call List, Call Notes and Call Sheets, and WhatsApp messages | written (6e6b030) |
 | 010 | [Platform, database and migrations](https://github.com/krucx/Mortgage-Management-App/issues/176) | `010-platform-database-and-migrations/` | add a migration safely; know the clock, the daily run and the composition root | written (b34526a) |
@@ -74,6 +74,7 @@ Every chapter was refreshed after [architecture review pass 7](../architecture-r
 3. Voids: how a Payment is corrected ([#161](https://github.com/krucx/Mortgage-Management-App/issues/161))
 4. The Cash Limit ([#162](https://github.com/krucx/Mortgage-Management-App/issues/162))
 5. Receipts ([#163](https://github.com/krucx/Mortgage-Management-App/issues/163))
+6. Grace Periods and Favours Given (added for [#345](https://github.com/krucx/Mortgage-Management-App/issues/345))
 
 ### 008 People and Collateral (written)
 1. Who a person is: the Primary Number ([#165](https://github.com/krucx/Mortgage-Management-App/issues/165))

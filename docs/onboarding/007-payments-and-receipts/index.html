@@ -15,7 +15,7 @@
 <p>Money comes in to the Lender every day. Meera hands over ₹12,000 by UPI and says "₹2,000 for the chain, the rest for the bangles". Lakshmi brings ₹2,03,600 by bank transfer to take her necklace home. Someone types ₹16,000 when they meant ₹6,000. Kavita brings ₹25,000 in notes, and the Lender has to remember that Government of India rules want sums that large paid by UPI or bank transfer. And every Customer expects a message on WhatsApp saying what they paid and what they still owe.</p>
 <p>Each of those needs care. A <a href="../reference/glossary.html#payment"><dfn class="term" title="A single sum received from a Customer on one date, possibly covering several Mortgages; any Final Payments in it are kept as parts of it, sharing its one Receipt.">Payment</dfn></a> that covers two Mortgages has to be divided between them, in Allocations that add up. A mistake can't just be deleted or edited, because the Ledger of every Mortgage it touched would quietly change, with no trace of why. The cash warning has to treat "one sum" the way the rules do, even when the app stores that sum as two rows. And the <a href="../reference/glossary.html#receipt"><dfn class="term" title="The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.">Receipt</dfn></a> has to show the same figures if the Lender resends it next month, and must never show the Customer the Lender's internal labels.</p>
 <p>Each Mortgage may also receive a Discount: a non-cash reduction beside its cash Allocation. Discounts affect the replay and Receipt, but not cash received, cash warnings, or cash-only reports.</p>
-<p>This chapter is about how the app stores cash Allocations and non-cash Discounts on a Payment, how it corrects one, when it warns about cash, and how it works out a Receipt.</p>
+<p>This chapter is about how the app stores cash Allocations and non-cash Discounts on a Payment, how it corrects one, when it warns about cash, how it works out a Receipt, and how a Grace Payment records the days and amount let off.</p>
 
 <h2>What you'll be able to do</h2>
 <ul>
@@ -25,6 +25,7 @@
   <li>Say what counts as one cash sum, and why the Cash Limit only warns.</li>
   <li>Explain how the Payment Preview decides a Discount's room and threshold, how it is applied after cash, and how it is reversed with its Payment; distinguish it from cash-based reports.</li>
   <li>Rebuild any Receipt's figures, and explain why it can be resent months later.</li>
+  <li>Set the Grace Period, choose eligible Mortgages for a Grace Payment, and find the saved favour on the Customer page.</li>
 </ul>
 
 <h2>Before you start</h2>
@@ -46,8 +47,11 @@ flowchart LR
   T -->|"replayed  L1"| LP["load_payment<br/>payments/payments.py"]
   T -->|"replayed  L5"| LR["load_receipt<br/>payments/receipts.py"]
   LR -->|"lines, text"| W["Receipt page:<br/>Send on WhatsApp"]
+  S["Settings: Grace Period<br/>L6"] -->|"days"| NP["New Payment page<br/>L6"]
+  NP -->|"Grace Preview and saved dates"| G["Grace Payment<br/>payments/grace_period.py"]
+  G -->|"received date, let-off"| FG["Favours Given<br/>Customer page · L6"]
 </pre>
-<figcaption>Writes go through <code>lending/changes.py</code>; reads, Receipts and the Cash Limit live in <code>payments/</code>. Each arrow is labelled with the lesson (L1–L5) that opens it.</figcaption>
+<figcaption>Writes go through <code>lending/changes.py</code>; reads, Receipts and the Cash Limit live in <code>payments/</code>. The Grace Period setting and Customer history join the Payment path in lesson 6.</figcaption>
 </figure>
 <p>Notice that nothing flows from the tables to the screens without a replay in between. The tables hold only what was paid; how it was applied, and what is still owed, is worked out each time it is asked for.</p>
 
@@ -59,6 +63,8 @@ flowchart LR
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/payments.py"><code>payments/payments.py</code></a></td><td>Reading Payments: <code>load_payment</code>, <code>list_payments</code>, <code>mortgages_of</code>, the Payment Methods</td><td>1, 3</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/cash_limit.py"><code>payments/cash_limit.py</code></a></td><td>The Cash Limit setting, and <code>cash_sums</code>: what a change writes in cash</td><td>4</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/receipts.py"><code>payments/receipts.py</code></a></td><td><code>load_receipt</code>: one Receipt for every part of a Payment</td><td>5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/grace_period.py"><code>payments/grace_period.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/favours.py"><code>lending/favours.py</code></a></td><td>Eligible Grace choices and the Customer's Favours Given history</td><td>6</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/SettingsPage.tsx"><code>SettingsPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/NewPaymentPage.tsx"><code>NewPaymentPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/FavoursGiven.tsx"><code>FavoursGiven.tsx</code></a></td><td>Grace Period setting, date choice and let-off Preview, Customer history</td><td>6</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/messages.py"><code>follow_up/messages.py</code></a></td><td><code>ReceiptLine</code>, <code>descriptions</code>, and the WhatsApp text (<code>receipt_text</code>, <a href="../009-follow-up/05-messages-and-sending.html">chapter 009</a>)</td><td>5</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_redeeming_payments.py"><code>tests/test_redeeming_payments.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_cash_sums.py"><code>test_cash_sums.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_receipts.py"><code>test_receipts.py</code></a></td><td>Payments that Redeem and their one Receipt; the cash sums; Receipt wording</td><td>2, 4, 5, 99</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR 0002</a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a></td><td>Why the split and the Receipt are replayed; why WhatsApp is click-to-send; why paying the whole Outstanding Redeems</td><td>1, 2, 5</td></tr>
@@ -71,11 +77,12 @@ flowchart LR
   <li><a href="03-voids.html">Voids: how a Payment is corrected</a><span class="sum">The ₹16,000 that should have been ₹6,000, and the three Voids the app refuses.</span></li>
   <li><a href="04-the-cash-limit.html">The Cash Limit</a><span class="sum">₹25,000 in cash against UPI, what counts as one sum, and why it only warns.</span></li>
   <li><a href="05-receipts.html">Receipts</a><span class="sum">Rebuild Meera's 10 Sep Receipt, Kavita's "(Redeemed)" and Farida's ₹0, and see why a resent Receipt still matches.</span></li>
+  <li><a href="06-grace-and-favours.html">Grace Periods and Favours Given</a><span class="sum">Set the days allowed after an Accrual Date, choose which Mortgages to date as paid on time, and see the received date and let-off kept as the Customer's history.</span></li>
   <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">How many rows? Which id? One sum or two? Then break <code>received_with</code> and watch the Receipt and the cash sum fail together.</span></li>
 </ol>
 
 <footer>
-  <p>Written against commit <code>15df77d</code>. Every figure and message came from <a href="scripts/run_throughs.py"><code>scripts/run_throughs.py</code></a>, which builds the sample book in a temporary folder and makes every Payment, Void, Preview and Receipt through the real API, on fresh copies of the book. Run it from <code>backend/</code> with <code>uv run python ../docs/onboarding/007-payments-and-receipts/scripts/run_throughs.py</code>.</p>
+  <p>Lessons 1–5 and their worked figures were written against commit <code>15df77d</code>; their examples come from <a href="scripts/run_throughs.py"><code>scripts/run_throughs.py</code></a>, which builds the sample book in a temporary folder and makes every Payment, Void, Preview and Receipt through the real API. Lesson 6 was added for #345 against the Grace Period and Favours Given flows in the current code. Run the walkthrough from <code>backend/</code> with <code>uv run python ../docs/onboarding/007-payments-and-receipts/scripts/run_throughs.py</code>.</p>
   <p>Anything unclear? Ask an agent in this repo to explain it: a function, a refusal, or why a rule exists. If something here looks wrong, open an issue (see <code>Documentation/agents/issue-tracker.md</code>).</p>
   <p><a href="../index.html">Course home</a> · Previous: <a href="../006-changes-and-previews/index.html">chapter 006</a> · Next: <a href="../008-people-and-collateral/index.html">chapter 008, People and Collateral</a></p>
 </footer>
