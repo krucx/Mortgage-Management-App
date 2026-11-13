@@ -7,6 +7,12 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- **A failed Reminders sync is retried the same day:** the daily run now marks each job
+  done only once it has succeeded, so Reminders no longer stay stale until tomorrow after
+  one failure. Once every job has succeeded, later requests skip the database check.
+
 ## [3.4.9] - 2026-11-10
 
 ### Added
