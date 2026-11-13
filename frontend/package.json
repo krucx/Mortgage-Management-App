@@ -10,7 +10,9 @@
     "test": "vitest run",
     "lint": "oxlint",
     "preview": "vite preview",
-    "gen:types": "cd ../backend && uv run python -m mortgage_backend.openapi ../frontend/openapi.json && cd ../frontend && openapi-typescript openapi.json -o src/api.gen.ts"
+    "gen:types": "cd ../backend && uv run python -m mortgage_backend.openapi ../frontend/openapi.json && cd ../frontend && openapi-typescript openapi.json -o src/api.gen.ts",
+    "format": "prettier --write src tests",
+    "format:check": "prettier --check src tests"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.107.1",
@@ -32,6 +34,7 @@
     "jsdom": "^31.0.0",
     "openapi-typescript": "^7.13.0",
     "oxlint": "^1.92.0",
+    "prettier": "^3.10.1",
     "typescript": "~6.0.2",
     "vite": "^8.3.6",
     "vite-plugin-pwa": "^2.0.0",
