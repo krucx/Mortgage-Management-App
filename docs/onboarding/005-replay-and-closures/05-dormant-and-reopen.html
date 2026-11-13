@@ -90,8 +90,8 @@ stateDiagram-v2
 
 <h3>3. <code>reopen()</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>reopen()</code> · lines 840–868, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>840  def reopen(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>reopen()</code> · lines 840–868, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>840  def reopen(
 841      conn: Connection, mortgage_id: int, reason: str, today: date, now: datetime
 842  ) -&gt; None:
 ⋮
@@ -126,8 +126,8 @@ stateDiagram-v2
 
 <h3>4. Why you can't just Void a Final Payment</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>340  def void_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>340  def void_payment(
 ⋮
 343      """Void a Payment (or refuse): a Redemption's final Payment, or one to a closed
 344      Mortgage, is Voided by reopening instead."""

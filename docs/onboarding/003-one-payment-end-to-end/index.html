@@ -38,7 +38,7 @@ flowchart LR
   end
   subgraph BE["backend/src/mortgage_backend"]
     PV["lending/previews.py<br/>preview_payment"]
-    CH["lending/changes.py<br/>post_payment, record_payment"]
+    CH["payments/recording.py<br/>post_payment, record_payment"]
     LG["lending/replay.py, ledger.py<br/>replays, compute_ledger"]
     RC["payments/payments.py, receipts.py<br/>load_payment, load_receipt"]
   end
@@ -76,7 +76,7 @@ flowchart LR
 <ol class="lessons-list">
   <li><a href="01-the-journey-on-one-page.html">The journey on one page</a><span class="sum">The layers, the four requests, Meera's 10 Sep Payment, and the Network tab.</span></li>
   <li><a href="02-the-form-and-the-preview.html">The form and the Preview</a><span class="sum">The draft as a request body; the backend makes the Payment and rolls it back.</span></li>
-  <li><a href="03-saving-it.html">Saving it</a><span class="sum">Refuse, write, check, record, in one transaction, in <code>lending/changes.py</code>.</span></li>
+  <li><a href="03-saving-it.html">Saving it</a><span class="sum">Refuse, write, check, record, in one transaction, in <code>payments/recording.py</code>.</span></li>
   <li><a href="04-what-the-ledger-says.html">What the Ledger says back</a><span class="sum">Why ₹3,500 to Principal is replayed, never stored, and how it can change.</span></li>
   <li><a href="05-back-to-the-customer.html">Back to the Customer</a><span class="sum">Every cache marked stale; the Receipt; WhatsApp, click to send.</span></li>
   <li><a href="99-check-yourself.html">Check yourself</a><span class="sum">A mixed quiz, then remove the overpayment check and see which tests notice.</span></li>

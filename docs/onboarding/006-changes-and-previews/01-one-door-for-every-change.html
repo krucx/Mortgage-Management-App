@@ -10,9 +10,9 @@
 <body>
 <p class="kicker">Chapter 006 · Lesson 1</p>
 <h1>One door for every change</h1>
-<p class="lede">Every change to a Mortgage or Payment goes through one function in <code>lending/changes.py</code>, and every one of those functions takes the same four steps. This lesson walks one change through them: the 1.5% rate the Lender gave Meera's bangles on 12 Oct.</p>
+<p class="lede">Every change to a Mortgage or Payment goes through one function, in the package that owns its concept, and every one of those functions takes the same four steps. This lesson walks one change through them: the 1.5% rate the Lender gave Meera's bangles on 12 Oct.</p>
 
-<div class="callout win"><strong>By the end</strong> you can name every change in <code>changes.py</code>, find its route, and walk one through refuse → write → check → History.</div>
+<div class="callout win"><strong>By the end</strong> you can name every change (in <code>payments/</code>, <code>lending/</code> and <code>collateral/</code>), find its route, and walk one through refuse → write → check → History.</div>
 
 <h2>The problem</h2>
 <p>On 12 Oct Meera asked for a lower rate on her bangles. The Lender agreed to 1.5% a month instead of 2%, from the bangles' next <a href="../reference/glossary.html#accrual-date"><dfn class="term" title="The monthly day on which a month's interest is added, charged on the Principal as it stood when that month began, at the previous Accrual Date before that day's Payments; taken from the start date and clamped to month-end when the month is shorter.">Accrual Date</dfn></a>, 25 Oct. In the app, that's a <a href="../reference/glossary.html#term-change"><dfn class="term" title="A dated change to some of a Mortgage's Terms, starting on an Accrual Date and applying to the months from then on; it never rewrites earlier interest.">Term Change</dfn></a>: a dated change to some of a Mortgage's <a href="../reference/glossary.html#terms">Terms</a> (its rate, Interest Mode and Part-Month Rule), applying to the months from then on. Chapter 004, lesson 5 showed how the engine uses one. This lesson is about how one gets saved.</p>
@@ -26,7 +26,7 @@
 <p>And once it's saved, every Ledger it touches has to still make sense, and the change has to appear in the Mortgage's History. The same is true of a Payment, a Void, an edit, a Closure. If each route handled those concerns its own way, one of them would eventually forget one.</p>
 
 <h2>The idea</h2>
-<p>Each change is one plain Python function in <code>changes.py</code> that takes a database connection and does four things in order:</p>
+<p>Each change is one plain Python function that takes a database connection and does four things in order:</p>
 <ol>
   <li><strong>Refuse</strong> if the change isn't allowed, by raising an <code>HTTPException</code>.</li>
   <li><strong>Write</strong> the new facts.</li>
@@ -178,8 +178,8 @@ sequenceDiagram
 
 <h3>5. Two kinds of refusal</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_refuse_unless_active()</code> · lines 176–181</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>176  def _refuse_unless_active(row: RowMapping) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">lending/refusals.py</a> · <code>_refuse_unless_active()</code> · lines 176–181</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>176  def _refuse_unless_active(row: RowMapping) -&gt; None:
 177      if row["status"] != MortgageStatus.ACTIVE:
 178          raise HTTPException(
 179              status.HTTP_409_CONFLICT,                          ◀
@@ -204,7 +204,7 @@ sequenceDiagram
 <p>The frontend shows the message whatever the status (<a href="../011-the-frontends-data-layer/01-the-typed-client.html">chapter 011, lesson 1</a>). The status mostly tells <em>you</em>, reading a test or a log, which kind of refusal it was.</p>
 
 <h3>6. Every change, and its two doors</h3>
-<p>Here is every change function in <code>changes.py</code>. All paths start with <code>/api</code>. "Checks?" says whether it calls <code>check_replays</code>; lesson 2 explains why some don't.</p>
+<p>Here is every change function. All paths start with <code>/api</code>. "Checks?" says whether it calls <code>check_replays</code>; lesson 2 explains why some don't.</p>
 <table class="wide">
 <tr><th>Change function</th><th>Save route</th><th>Preview route (<code>previews.py</code>)</th><th>Checks?</th></tr>
 <tr><td><code>record_payment</code></td><td><code>POST /payments</code></td><td><code>POST /payments/preview</code></td><td>yes</td></tr>
@@ -222,7 +222,7 @@ sequenceDiagram
 <tr><td><code>reopen</code></td><td><code>POST /mortgages/{mortgage_id}/reopen</code></td><td><code>POST /mortgages/{mortgage_id}/reopen-preview</code></td><td>yes</td></tr>
 </table>
 <p>The bulk Closures (<code>redeem_all</code> and the others) just call the single change once per Mortgage, all inside the route's one transaction. So they're all or none: one refusal rolls back every Mortgage. The <a href="../reference/routes.html">routes sheet</a> lists each route's refusals and History.</p>
-<div class="callout warn"><strong>Trap #1, again.</strong> The Payment routes are here, in <code>lending/changes.py</code>, not in <code>payments/</code>. Every change that can move a Ledger lives in this one module, whatever it's about (chapter 003 owns <a href="../reference/traps.html#t1">this trap</a>).</div>
+<div class="callout warn"><strong>Trap #1, again.</strong> The Payment routes are in <code>payments/recording.py</code>, Closures in <code>lending/closing.py</code>, Collateral and photos in <code>collateral/</code>. Every change that can move a Ledger lives in this one module, whatever it's about (chapter 003 owns <a href="../reference/traps.html#t1">this trap</a>).</div>
 
 <h2>Run-through: the bangles' Term Change, 12 Oct</h2>
 <p>The sample book's script (<code>docs/sample-book/book.py</code>) made this change on 12 Oct, with the clock set to that day, by posting <code>{"effective_on": "2026-10-25", "monthly_rate_bps": 150}</code>. Here it is, step by step through <code>add_term_change</code>:</p>

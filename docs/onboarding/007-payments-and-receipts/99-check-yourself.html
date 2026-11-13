@@ -84,7 +84,7 @@
   <li>Run every backend test, from the repo root:
 <pre><code>cd backend &amp;&amp; uv run pytest</code></pre>
     All 607 pass (checked at commit 15df77d).</li>
-  <li>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a> at line 316, inside <code>record_payment</code>, and change
+  <li>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py"><code>payments/recording.py</code></a> at line 316, inside <code>record_payment</code>, and change
 <pre><code>                received_with=first,</code></pre>
     to
 <pre><code>                received_with=None,</code></pre>
@@ -108,7 +108,7 @@
 </div>
 <ol start="5">
   <li>Undo the change:
-<pre><code>git checkout -- backend/src/mortgage_backend/lending/changes.py</code></pre>
+<pre><code>git checkout -- backend/src/mortgage_backend/payments/recording.py</code></pre>
     (from the repo root), and run <code>uv run pytest</code> once more: 607 pass.</li>
 </ol>
 

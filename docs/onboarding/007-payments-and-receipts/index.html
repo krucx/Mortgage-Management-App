@@ -37,12 +37,12 @@
 <figure class="diagram">
 <pre class="mermaid">
 flowchart LR
-  F["New Payment page<br/>PaymentForm"] -->|"POST /payments  L1, L2"| RP["record_payment<br/>lending/changes.py"]
+  F["New Payment page<br/>PaymentForm"] -->|"POST /payments  L1, L2"| RP["record_payment<br/>payments/recording.py"]
   F -->|"POST /payments/preview  L4"| PV["_preview<br/>lending/previews.py"]
   PV -->|"runs, then rolls back"| RP
   PV -->|"what it wrote in cash  L4"| CS["cash_sums<br/>payments/cash_limit.py"]
   RP -->|"a part each  L2"| T[("payment rows<br/>allocation rows")]
-  V["Payment page: Void…"] -->|"POST /payments/{id}/void  L3"| VP["void_payment<br/>lending/changes.py"]
+  V["Payment page: Void…"] -->|"POST /payments/{id}/void  L3"| VP["void_payment<br/>payments/writes.py"]
   VP -->|"voided_at, void_reason"| T
   T -->|"replayed  L1"| LP["load_payment<br/>payments/payments.py"]
   T -->|"replayed  L5"| LR["load_receipt<br/>payments/receipts.py"]
@@ -51,7 +51,7 @@ flowchart LR
   NP -->|"Grace Preview and saved dates"| G["Grace Payment<br/>payments/grace_period.py"]
   G -->|"received date, let-off"| FG["Favours Given<br/>Customer page · L6"]
 </pre>
-<figcaption>Writes go through <code>lending/changes.py</code>; reads, Receipts and the Cash Limit live in <code>payments/</code>. The Grace Period setting and Customer history join the Payment path in lesson 6.</figcaption>
+<figcaption>Writes go through <code>payments/recording.py</code> and <code>payments/writes.py</code>; reads, Receipts and the Cash Limit live in <code>payments/</code> too. The Grace Period setting and Customer history join the Payment path in lesson 6.</figcaption>
 </figure>
 <p>Notice that nothing flows from the tables to the screens without a replay in between. The tables hold only what was paid; how it was applied, and what is still owed, is worked out each time it is asked for.</p>
 

@@ -40,8 +40,8 @@ flowchart TD
 <h2>The code: Collateral Value, piece by piece</h2>
 <h3>1 and 4. The request model and the save route</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>CollateralIn</code>, <code>put_collateral()</code> · lines 1046–1061</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>1046  class CollateralIn(BaseModel):
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/collateral/manual_value.py">collateral/manual_value.py</a> · <code>CollateralIn</code>, <code>put_collateral()</code> · lines 1046–1061</figcaption>
+<pre data-file="backend/src/mortgage_backend/collateral/manual_value.py"><code>1046  class CollateralIn(BaseModel):
 1047      value: int | None = Field(default=None, gt=0)  # paise; None: the Gold Rate again   ①
 1048
 1049
@@ -66,8 +66,8 @@ flowchart TD
 
 <h3>2. The change function</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>set_collateral()</code> · lines 518–539</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>518  def set_collateral(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/collateral/manual_value.py">collateral/manual_value.py</a> · <code>set_collateral()</code> · lines 518–539</figcaption>
+<pre data-file="backend/src/mortgage_backend/collateral/manual_value.py"><code>518  def set_collateral(
 519      conn: Connection, mortgage_id: int, value: int | None, today: date, now: datetime
 520  ) -&gt; None:
 521      """Set the Collateral Value by hand, or clear it (None) to value the jewellery at

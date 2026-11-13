@@ -4,8 +4,8 @@ is hypothetically recorded, so the Preview reports the room instead of refusing 
 
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.lending.changes import PaymentIn
 from mortgage_backend.lending.replay import replay
+from mortgage_backend.payments.writes import PaymentIn
 
 
 def discount_rooms(conn: Connection, payment: PaymentIn) -> dict[int, int]:

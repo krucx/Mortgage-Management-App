@@ -13,11 +13,14 @@ from fastapi import HTTPException
 from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, forfeit, redeem
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.lending import changes
-from mortgage_backend.lending.changes import AllocationIn, PaymentIn, TermChangeIn
+from mortgage_backend.collateral import manual_value, mortgage_photos
+from mortgage_backend.lending import changes, closing
+from mortgage_backend.lending.changes import TermChangeIn
 from mortgage_backend.lending.mortgages import MortgageEdit, MortgageIn
 from mortgage_backend.lending.replay import replay
 from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
+from mortgage_backend.payments import recording, writes
+from mortgage_backend.payments.writes import AllocationIn, PaymentIn
 from mortgage_backend.safekeeping.audit import mortgage_history
 
 NOW = datetime(2026, 4, 20, 11, 0)
@@ -43,7 +46,7 @@ def test_a_payment_is_written_replayed_and_recorded(conn: Connection) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
 
-    payment_id = changes.record_payment(
+    payment_id = recording.record_payment(
         conn, payment(ramesh, "2026-04-15", **{str(chain): 5_000 * RUPEE}), TODAY, NOW
     )
 
@@ -60,7 +63,7 @@ def test_a_payment_to_a_closed_mortgage_is_refused(conn: Connection) -> None:
     forfeit(conn, chain, date(2026, 4, 14))
 
     with pytest.raises(HTTPException) as error:
-        changes.record_payment(
+        recording.record_payment(
             conn, payment(ramesh, "2026-04-10", **{str(chain): RUPEE}), TODAY, NOW
         )
 
@@ -72,7 +75,7 @@ def test_a_payment_larger_than_what_is_owed_is_refused(conn: Connection) -> None
     chain = add_mortgage(conn, ramesh)
 
     with pytest.raises(HTTPException) as error:
-        changes.record_payment(
+        recording.record_payment(
             conn,
             payment(ramesh, "2026-02-20", **{str(chain): 1_10_000 * RUPEE}),
             TODAY,
@@ -95,7 +98,7 @@ def test_a_back_dated_payment_that_breaks_a_later_one_is_refused(
     add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_08_500 * RUPEE})
 
     with pytest.raises(HTTPException) as error:
-        changes.record_payment(
+        recording.record_payment(
             conn,
             payment(ramesh, "2026-02-20", **{str(chain): 1_000 * RUPEE}),
             TODAY,
@@ -117,7 +120,7 @@ def test_voiding_a_payment_takes_it_out_of_the_ledger_and_records_why(
     chain = add_mortgage(conn, ramesh)
     paid = add_payment(conn, ramesh, date(2026, 4, 15), {chain: 5_000 * RUPEE})
 
-    changes.void_payment(conn, paid, "Typed the wrong amount", TODAY, NOW)
+    writes.void_payment(conn, paid, "Typed the wrong amount", TODAY, NOW)
 
     assert replay(conn, chain).outstanding(TODAY).total == 1_12_000 * RUPEE
     voided = [e for e in mortgage_history(conn, chain) if e.action == "voided"]
@@ -138,7 +141,7 @@ def test_a_redemptions_final_payment_is_voided_only_by_reopening(
     assert replay(conn, chain).steps_by_payment()[final].amount == 1_09_000 * RUPEE
 
     with pytest.raises(HTTPException) as error:
-        changes.void_payment(conn, final, "mistake", TODAY, NOW)
+        writes.void_payment(conn, final, "mistake", TODAY, NOW)
 
     assert error.value.status_code == 409
     assert "reopen" in str(error.value.detail)
@@ -153,7 +156,7 @@ def test_a_payment_to_a_closed_mortgage_is_voided_only_after_reopening(
     forfeit(conn, chain, date(2026, 4, 14))
 
     with pytest.raises(HTTPException) as error:
-        changes.void_payment(conn, paid, "mistake", TODAY, NOW)
+        writes.void_payment(conn, paid, "mistake", TODAY, NOW)
 
     assert refusal(error) == (409, "2026-Ramesh-Chain is forfeited: reopen it first")
 
@@ -406,8 +409,8 @@ def test_a_refused_change_records_no_history(conn: Connection) -> None:
     assert [e for e in mortgage_history(conn, chain) if e.action == "edited"] == []
 
 
-def redeem_in(on: str = "2026-04-20") -> changes.RedeemIn:
-    return changes.RedeemIn(
+def redeem_in(on: str = "2026-04-20") -> closing.RedeemIn:
+    return closing.RedeemIn(
         redeemed_on=date.fromisoformat(on), method="cash", reference="UTR1"
     )
 
@@ -417,7 +420,7 @@ def test_redeeming_records_the_final_payment_closes_and_is_recorded(
 ) -> None:
     chain = add_mortgage(conn, add_customer(conn))
 
-    changes.redeem(conn, chain, redeem_in(), TODAY, NOW)
+    closing.redeem(conn, chain, redeem_in(), TODAY, NOW)
 
     mortgage = replay(conn, chain)
     final = mortgage.row["redemption_payment_id"]
@@ -447,7 +450,7 @@ def test_a_redemption_is_refused_on_a_date_it_cannot_close(
     add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_000 * RUPEE})
 
     with pytest.raises(HTTPException) as error:
-        changes.redeem(conn, chain, redeem_in(on), TODAY, NOW)
+        closing.redeem(conn, chain, redeem_in(on), TODAY, NOW)
 
     assert detail in str(error.value.detail)
     assert replay(conn, chain).row["status"] == "active"
@@ -458,7 +461,7 @@ def test_a_closed_mortgage_cannot_be_closed_again(conn: Connection) -> None:
     forfeit(conn, chain, date(2026, 4, 14))
 
     with pytest.raises(HTTPException) as error:
-        changes.redeem(conn, chain, redeem_in(), TODAY, NOW)
+        closing.redeem(conn, chain, redeem_in(), TODAY, NOW)
 
     assert refusal(error) == (422, "2026-Ramesh-Chain is already forfeited")
 
@@ -466,10 +469,10 @@ def test_a_closed_mortgage_cannot_be_closed_again(conn: Connection) -> None:
 def test_forfeiting_records_what_was_recovered(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
 
-    changes.forfeit(
+    closing.forfeit(
         conn,
         chain,
-        changes.ForfeitIn(
+        closing.ForfeitIn(
             forfeited_on=TODAY, recovered_amount=1_20_000 * RUPEE, note=" Sold "
         ),
         TODAY,
@@ -489,10 +492,10 @@ def test_forfeiting_records_what_was_recovered(conn: Connection) -> None:
 
 def test_reopening_a_redemption_voids_its_final_payment(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
-    changes.redeem(conn, chain, redeem_in(), TODAY, NOW)
+    closing.redeem(conn, chain, redeem_in(), TODAY, NOW)
     final = replay(conn, chain).row["redemption_payment_id"]
 
-    changes.reopen(conn, chain, "Paid by mistake", TODAY, NOW)
+    closing.reopen(conn, chain, "Paid by mistake", TODAY, NOW)
 
     mortgage = replay(conn, chain)
     assert (mortgage.row["status"], mortgage.row["redemption_payment_id"]) == (
@@ -508,7 +511,7 @@ def test_only_a_closed_mortgage_can_be_reopened(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
 
     with pytest.raises(HTTPException) as error:
-        changes.reopen(conn, chain, "why", TODAY, NOW)
+        closing.reopen(conn, chain, "why", TODAY, NOW)
 
     assert refusal(error) == (409, "2026-Ramesh-Chain is Active")
 
@@ -593,9 +596,9 @@ def test_a_collateral_value_is_set_by_hand_cleared_and_recorded(
 ) -> None:
     chain = add_mortgage(conn, add_customer(conn))
 
-    changes.set_collateral(conn, chain, 90_000 * RUPEE, TODAY, NOW)
+    manual_value.set_collateral(conn, chain, 90_000 * RUPEE, TODAY, NOW)
     set_row = replay(conn, chain).row
-    changes.set_collateral(conn, chain, None, TODAY, NOW)
+    manual_value.set_collateral(conn, chain, None, TODAY, NOW)
     cleared_row = replay(conn, chain).row
 
     assert (set_row["collateral_override"], set_row["collateral_override_on"]) == (
@@ -619,7 +622,7 @@ def test_a_collateral_value_is_refused_when_it_cannot_stand(conn: Connection) ->
 
     def refused(mortgage_id: int, value: int) -> tuple[int, str]:
         with pytest.raises(HTTPException) as refused:
-            changes.set_collateral(conn, mortgage_id, value, TODAY, NOW)
+            manual_value.set_collateral(conn, mortgage_id, value, TODAY, NOW)
         return refusal(refused)
 
     assert refused(404, 90_000 * RUPEE)[0] == 404
@@ -633,8 +636,8 @@ def test_a_collateral_value_is_refused_when_it_cannot_stand(conn: Connection) ->
 def test_a_photo_is_added_and_removed_and_recorded(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
 
-    photo = changes.add_photo(conn, chain, "mortgage-1-a.jpg", NOW)
-    removed = changes.remove_photo(conn, chain, photo, NOW)
+    photo = mortgage_photos.add_photo(conn, chain, "mortgage-1-a.jpg", NOW)
+    removed = mortgage_photos.remove_photo(conn, chain, photo, NOW)
 
     assert removed == "mortgage-1-a.jpg"
     made = [e.action for e in mortgage_history(conn, chain) if e.action != "created"]
@@ -647,12 +650,12 @@ def test_a_photo_is_refused_for_no_mortgage_or_removed_from_the_wrong_one(
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
     ring = add_mortgage(conn, ramesh, suffix="Ring")
-    photo = changes.add_photo(conn, chain, "mortgage-1-a.jpg", NOW)
+    photo = mortgage_photos.add_photo(conn, chain, "mortgage-1-a.jpg", NOW)
 
     with pytest.raises(HTTPException) as no_mortgage:
-        changes.add_photo(conn, 404, "mortgage-404-a.jpg", NOW)
+        mortgage_photos.add_photo(conn, 404, "mortgage-404-a.jpg", NOW)
     with pytest.raises(HTTPException) as wrong_one:
-        changes.remove_photo(conn, ring, photo, NOW)
+        mortgage_photos.remove_photo(conn, ring, photo, NOW)
 
     assert refusal(no_mortgage) == (404, "Mortgage not found")
     assert refusal(wrong_one) == (404, "Photo not found")

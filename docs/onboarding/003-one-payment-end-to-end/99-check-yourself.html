@@ -22,10 +22,10 @@
 </div>
 <div class="quiz" data-answer="0">
   <p class="q">2. Which file holds the route <code>POST /api/payments</code>?</p>
-  <button class="opt"><code>backend/…/lending/changes.py</code></button>
+  <button class="opt"><code>backend/…/payments/recording.py</code></button>
   <button class="opt"><code>backend/…/payments/payments.py</code></button>
   <button class="opt"><code>backend/…/payments/receipts.py</code></button>
-  <div class="why">Trap #1: every Ledger-changing write is in <code>lending/changes.py</code>. <code>payments.py</code> reads Payments; <code>receipts.py</code> builds Receipts.</div>
+  <div class="why">Trap #1: a Payment's write is in <code>payments/recording.py</code>. <code>payments.py</code> reads Payments; <code>receipts.py</code> builds Receipts.</div>
 </div>
 <div class="quiz" data-answer="1">
   <p class="q">3. A trace: the chain owes ₹80,000 Principal, ₹2,800 unpaid interest and ₹533 Interest to Date. A Payment of ₹3,000 to it pays how much Principal?</p>
@@ -44,7 +44,7 @@
 <div class="quiz" data-answer="0">
   <p class="q">5. After a save, which function makes the Mortgages list and Dashboard stale?</p>
   <button class="opt"><code>ledgerChanged</code> in <code>serverState.ts</code></button>
-  <button class="opt"><code>check_replays</code> in <code>changes.py</code></button>
+  <button class="opt"><code>check_replays</code> in <code>refusals.py</code></button>
   <button class="opt"><code>usePreview</code> in <code>usePreview.ts</code></button>
   <div class="why"><code>useLedgerChange</code> calls <code>ledgerChanged</code> after every Ledger-changing save. <code>check_replays</code> is a backend check, and <code>usePreview</code> only asks for Previews.</div>
 </div>
@@ -80,10 +80,10 @@ uv run pytest tests/test_payments.py tests/test_previews.py</code></pre>
 <p>Expect <code>45 passed</code>.</p>
 
 <h3>2. Remove the check</h3>
-<p>In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a>, in <code>record_payment</code>, comment out line 303 by putting <code>#</code> in front of it:</p>
+<p>In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py"><code>payments/recording.py</code></a>, in <code>record_payment</code>, comment out line 303 by putting <code>#</code> in front of it:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">backend/src/mortgage_backend/lending/changes.py</a> · <code>record_payment()</code> · lines 302–304</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>302          first = _write_payment(conn, paid)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">backend/src/mortgage_backend/payments/recording.py</a> · <code>record_payment()</code> · lines 302–304</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>302          first = _write_payment(conn, paid)
 303          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)  ◀ comment this out
 304          _record_payment_history(conn, first, paid, now)
 </code></pre>
@@ -112,16 +112,16 @@ FAILED tests/test_previews.py::test_a_payment_preview_refuses_more_than_is_owed
 </div>
 
 <h3>4. Undo it</h3>
-<pre><code>git checkout -- src/mortgage_backend/lending/changes.py
+<pre><code>git checkout -- src/mortgage_backend/payments/recording.py
 uv run pytest tests/test_payments.py tests/test_previews.py   # 45 passed again
 git status                                                    # clean</code></pre>
-<p>(From <code>backend/</code>. From the repo root the path is <code>backend/src/mortgage_backend/lending/changes.py</code>.)</p>
+<p>(From <code>backend/</code>. From the repo root the path is <code>backend/src/mortgage_backend/payments/recording.py</code>.)</p>
 
 <h2>Recap</h2>
 <ul>
   <li>A Payment makes four requests: the list as of its date, the Preview, the save, and the Receipt. <a href="01-the-journey-on-one-page.html">Lesson 1</a></li>
   <li>The form builds <code>proposed</code>, the exact body saving would send; the backend previews it by running the real save and rolling back. <a href="02-the-form-and-the-preview.html">Lesson 2</a></li>
-  <li><code>post_payment</code> in <code>lending/changes.py</code> runs <code>record_payment</code> in one transaction: refuse, write, check, record. Payment writes are not in <code>payments/</code>. <a href="03-saving-it.html">Lesson 3</a></li>
+  <li><code>post_payment</code> in <code>payments/recording.py</code> runs <code>record_payment</code> in one transaction: refuse, write, check, record. Payment writes are not in <code>payments/</code>. <a href="03-saving-it.html">Lesson 3</a></li>
   <li>Only amounts are stored; how a Payment divides between interest and Principal, and what's still owed, are replayed every time. <a href="04-what-the-ledger-says.html">Lesson 4</a></li>
   <li><code>ledgerChanged</code> marks every money cache stale; the Receipt is replayed by the backend; the Lender sends it on WhatsApp themselves. <a href="05-back-to-the-customer.html">Lesson 5</a></li>
 </ul>

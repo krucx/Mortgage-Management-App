@@ -13,7 +13,7 @@
 
 <h2>The problem this chapter solves</h2>
 <p>Chapter 004 taught the engine on an <strong>open</strong> Mortgage. Every pledge ends, though. Kavita takes her coin home, Farida is let off ₹180, and Imran's earrings are sold. Each ending has to answer three questions exactly. How much does it take to close the Mortgage on a given date? What does the record say about the money: what was paid, what was let off, what the jewellery fetched? And once it's closed, how do we make sure it never owes anything again, and that no interest keeps growing on it?</p>
-<p>Without one place that answers these, the screens disagree. The Mortgage page says one figure and the Redeem form asks for another. That really happened before <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>: Customers "were told one figure and asked to pay another". Today one class, <code>MortgageReplay</code>, answers every question about what a Mortgage owes. A handful of functions in <code>changes.py</code> record each <a href="../reference/glossary.html#closure"><dfn class="term" title="The end of a Mortgage, by Redemption, Waiver or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened.">Closure</dfn></a>, and the same <code>compute_ledger</code> you met in chapter 004 replays closed Mortgages too.</p>
+<p>Without one place that answers these, the screens disagree. The Mortgage page says one figure and the Redeem form asks for another. That really happened before <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a>: Customers "were told one figure and asked to pay another". Today one class, <code>MortgageReplay</code>, answers every question about what a Mortgage owes. A handful of functions in <code>closing.py</code> record each <a href="../reference/glossary.html#closure"><dfn class="term" title="The end of a Mortgage, by Redemption, Waiver or Forfeiture; after it no interest accrues and no Payments are taken, unless it is Reopened.">Closure</dfn></a>, and the same <code>compute_ledger</code> you met in chapter 004 replays closed Mortgages too.</p>
 
 <h2>What you'll be able to do</h2>
 <ul>
@@ -39,14 +39,14 @@ flowchart LR
   MR -->|"outstanding_on_closure()<br/>not_closable()  L2"| Q["GET …/outstanding-on-closure<br/>closing.py"]
   MR -->|"closure()  L4"| SCR
   MR -->|"dormant()  L5"| DL["GET /closures/dormant<br/>closing.py"]
-  CH["changes.py<br/>redeem L3, record_payment L3<br/>waive, forfeit L4, reopen L5"] -->|"closable()  L2"| MR
+  CH["closing.py<br/>redeem L3, record_payment L3<br/>waive, forfeit L4, reopen L5"] -->|"closable()  L2"| MR
   CH -->|"_close_with_payment()<br/>writes"| DB
   MR -->|"closed_on, closure,<br/>final_payment"| CL["compute_ledger()<br/>ledger.py  L2–L4"]
   SIM["POST /simulation<br/>simulation.py  L6"] -->|"inputs only,<br/>no database"| CL
   MR -->|"outstanding_on_closure_of()"| OOC["reads the quote<br/>off a Ledger  L2, L6"]
   SIM --> OOC
 </pre>
-<figcaption>Reads go through <code>MortgageReplay</code>; Closures are written by <code>changes.py</code>, which asks <code>MortgageReplay</code> first whether, and for how much, a Mortgage can be closed. A Simulation (bottom) reaches the same engine and the same quote reader with no database at all. Each box is labelled with the lesson (L1–L6) that opens it.</figcaption>
+<figcaption>Reads go through <code>MortgageReplay</code>; Closures are written by <code>closing.py</code>, which asks <code>MortgageReplay</code> first whether, and for how much, a Mortgage can be closed. A Simulation (bottom) reaches the same engine and the same quote reader with no database at all. Each box is labelled with the lesson (L1–L6) that opens it.</figcaption>
 </figure>
 <p>Notice that nothing on the right of the database stores a figure. A Closure stores only facts: its kind, its date, its Final Payment's id, and for a Forfeiture the Recovered Amount. What it came to is replayed, like everything else (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0001-ledger-is-derived-not-stored.md">ADR 0001</a>).</p>
 

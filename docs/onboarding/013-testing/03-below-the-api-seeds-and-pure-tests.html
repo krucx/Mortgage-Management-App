@@ -29,7 +29,7 @@ flowchart TD
   Q{"What are you testing?"} -->|"a figure or rule of<br/>the Ledger engine"| PURE["pure: compute_ledger, project…<br/>test_ledger.py · no database"]
   Q -->|"a function with no route,<br/>or a long history on many dates"| CONN["conn + seed.py<br/>test_reminders.py"]
   Q -->|"a route, a refusal's status,<br/>what the frontend receives"| API["client + api_seed.py<br/>test_cash_limit.py, test_call_list.py"]
-  CONN -->|"add_payment → changes.record_payment"| CH["lending/changes.py<br/>(the same functions the routes call)"]
+  CONN -->|"add_payment → recording.record_payment"| CH["payments/recording.py<br/>(the same functions the routes call)"]
   API -->|"POST /api/payments → route → record_payment"| CH
   CH -->|"refuses, writes, History"| DB[("a fresh SQLite file")]
 </pre>
@@ -266,7 +266,7 @@ E   AssertionError: assert [('2026-04-21... 'No answer')] == [('2026-04-20... 'N
 <div class="callout warn"><strong>Trap #17: the tests' today is 20 Apr 2026, not the sample book's 19 Oct 2026.</strong> And below the API there is no single today: <code>seed.py</code> makes each change on its own date. When a test's figures look off by a month, check which today it runs on. In a <code>client</code> test, a Payment dated after 20 Apr is refused as "in the future".</div>
 
 <h3>b. Why each change gets its own date</h3>
-<p>Every change function takes a <code>today</code> and refuses what would be in the future: <code>_refuse_payment</code> starts with <code>if payment.paid_on &gt; today: raise unprocessable("The Payment date cannot be in the future")</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a>, line 258). <code>seed.py</code> could pass one date for every change. It passes each change's own date instead, because that's what really happened: the Lender recorded the 10 Mar Payment on 10 Mar. So the seed meets the checks the app would have made <em>that day</em>, no more and no less. The check-yourself exercise has you pass one fixed date instead, and see what breaks.</p>
+<p>Every change function takes a <code>today</code> and refuses what would be in the future: <code>refuse_payment</code> starts with <code>if payment.paid_on &gt; today: raise unprocessable("The Payment date cannot be in the future")</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a>, line 258). <code>seed.py</code> could pass one date for every change. It passes each change's own date instead, because that's what really happened: the Lender recorded the 10 Mar Payment on 10 Mar. So the seed meets the checks the app would have made <em>that day</em>, no more and no less. The check-yourself exercise has you pass one fixed date instead, and see what breaks.</p>
 
 <h3>c. Seeds write History</h3>
 <p>Because seeds go through the change functions, every seeded change is in History, timed 10:00 on its day by <code>_at</code>. A test that reads History after seeding sees the rows the app would have written, at predictable times. A seed made by <code>INSERT</code> would leave History empty, and a History test would be testing a book the app never writes.</p>
