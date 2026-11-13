@@ -202,7 +202,7 @@ flowchart TD
 <p>Changes to a Customer live in <code>people/customer_changes.py</code>, not <code>changes.py</code>, and follow the same pattern: a change function that refuses, writes and records History (<code>entity</code> <code>"customer"</code>), and routes that only parse, call and answer. Customers have no Ledger, so there's no <code>check_replays</code>. <a href="../008-people-and-collateral/03-changing-a-customer.html">Chapter 008, lesson 3</a> owns it.</p>
 
 <h3>(b) Changes with a file</h3>
-<p>A photo is a file on disk as well as a row. A database transaction can roll back a row, but not a file. The photo routes wrap their change in <code>photos.photo_change</code> (in <code>platform/photos.py</code>), which writes the new file first, deletes it if the change is refused, and deletes a replaced file only once the change is saved. That's why <code>post_photo</code> (changes.py line 1064) doesn't use <code>engine.begin()</code> itself. <a href="../008-people-and-collateral/04-photos-and-id-photos.html">Chapter 008, lesson 4</a> owns it.</p>
+<p>A photo is a file on disk as well as a row. A database transaction can roll back a row, but not a file. The photo routes wrap their change in <code>photos.photo_change</code> (in <code>platform/photos.py</code>), which writes the new file first, deletes it if the change is refused, and deletes a replaced file only once the change is saved. That's why <code>post_photo</code> (<code>collateral/mortgage_photos.py</code>) doesn't use <code>engine.begin()</code> itself. <a href="../008-people-and-collateral/04-photos-and-id-photos.html">Chapter 008, lesson 4</a> owns it.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">

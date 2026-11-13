@@ -48,7 +48,7 @@ sequenceDiagram
 
 <h2>The code</h2>
 <h3>Where is it? Not where you'd look</h3>
-<div class="callout warn"><strong>Newcomer trap #1: Payment writes live in <code>payments/recording.py</code> and <code>payments/writes.py</code>, not in <code>payments/payments.py</code>.</strong> <code>payments/payments.py</code> only <em>reads</em> Payments, and <code>payments/</code> also holds Receipts and the Cash Limit. Every change that moves a Ledger, for Mortgages and Payments alike, is in the one module <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a>, so they all refuse, write, check and record the same way. Find a route by searching for its path string, as chapter 002 showed. See the <a href="../reference/traps.html#t1">traps sheet</a>.</div>
+<div class="callout warn"><strong>Newcomer trap #1: Payment writes live in <code>payments/recording.py</code> and <code>payments/writes.py</code>, not in <code>payments/payments.py</code>.</strong> <code>payments/payments.py</code> only <em>reads</em> Payments, and <code>payments/</code> also holds Receipts and the Cash Limit. Every change that moves a Ledger, whichever package it lives in, shares the refusals in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py"><code>lending/refusals.py</code></a>, so they all refuse, write, check and record the same way. Find a route by searching for its path string, as chapter 002 showed. See the <a href="../reference/traps.html#t1">traps sheet</a>.</div>
 
 <h3>1. The route</h3>
 <figure class="snippet">
@@ -252,7 +252,7 @@ sequenceDiagram
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read the docstring at the top of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a> (lines 1–9), then <code>record_payment</code> in full (lines 282–322). The <a href="../reference/routes.html">routes sheet</a> sums up the Payment routes.</p>
+<p>Read the docstring at the top of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py"><code>payments/recording.py</code></a>, then <code>record_payment</code> in full. The <a href="../reference/routes.html">routes sheet</a> sums up the Payment routes.</p>
 
 <nav class="lessons">
   <a href="02-the-form-and-the-preview.html">← The form and the Preview</a>

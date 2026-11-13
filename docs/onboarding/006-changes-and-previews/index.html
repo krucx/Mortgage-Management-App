@@ -18,7 +18,7 @@
 
 <h2>What you'll be able to do</h2>
 <ul>
-  <li>Name every change in <code>changes.py</code>, find its save route and its Preview route, and walk one through refuse → write → check → History.</li>
+  <li>Name every change, find its save route and its Preview route, and walk one through refuse → write → check → History.</li>
   <li>Say why the check comes <em>after</em> the write, and which changes it can refuse.</li>
   <li>Read a Mortgage's History and say what each kind of change records.</li>
   <li>Say exactly what a Preview runs, and why it is refused exactly when saving would be.</li>
@@ -33,7 +33,7 @@
 <figure class="diagram">
 <pre class="mermaid">
 flowchart LR
-  UI["a page in the frontend"] -->|"save: PUT/POST/DELETE  L1"| SR["save route<br/>changes.py router"]
+  UI["a page in the frontend"] -->|"save: PUT/POST/DELETE  L1"| SR["save route<br/>the owning package's router"]
   UI -->|"Preview: POST …-preview  L4"| PR["Preview route<br/>previews.py router"]
   SR -->|"inside engine.begin()"| CF["change function<br/>e.g. add_term_change"]
   PR -->|"inside engine.connect(),<br/>through _preview()"| CF
@@ -50,7 +50,7 @@ flowchart LR
 <h2>Where it lives</h2>
 <table class="wide">
 <tr><th>Path</th><th>What it's responsible for</th><th>Lesson</th></tr>
-<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a></td><td>Every change to a Mortgage or Payment, as one function each; <code>check_replays</code>; the save routes</td><td>1, 2, 5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a></td><td>Mortgage create and edit, Term Changes; the Payment, Closure, Collateral and photo changes are in <code>payments/recording.py</code>, <code>lending/closing.py</code> and <code>collateral/</code>; <code>check_replays</code> is in <code>lending/refusals.py</code></td><td>1, 2, 5</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py"><code>lending/previews.py</code></a></td><td>Every Preview route, and <code>_preview</code>, which runs a change and rolls it back</td><td>4, 5</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/safekeeping/audit.py"><code>safekeeping/audit.py</code></a></td><td>History: writing entries (<code>record</code>), working out what changed (<code>changes</code>), and reading a Mortgage's or Customer's History</td><td>3</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/errors.py"><code>platform/errors.py</code></a></td><td><code>unprocessable</code>: the 422 refusal with a message for the Lender</td><td>1</td></tr>
