@@ -2,6 +2,7 @@
 
 import pytest
 from conftest import TODAY
+from test_customers import RAMESH
 from fastapi.testclient import TestClient
 
 from mortgage_backend.main import create_app
@@ -42,15 +43,19 @@ def test_a_cross_site_multipart_post_is_refused(served):
 
 def test_a_post_from_the_app_itself_goes_through(served):
     response = served.post(
-        "/api/customers",
-        json={"name": "A"},
-        headers={"Origin": "http://localhost:8080"},
+        "/api/customers", json=RAMESH, headers={"Origin": "http://localhost:8080"}
     )
-    assert response.status_code != 403
+    assert response.status_code == 201
 
 
 def test_a_post_with_no_origin_goes_through(served):
-    assert served.post("/api/customers", json={"name": "A"}).status_code != 403
+    assert served.post("/api/customers", json=RAMESH).status_code == 201
+
+
+@pytest.mark.parametrize("origin", ["null", "http://localhost:9999"])
+def test_a_post_from_an_opaque_origin_or_another_port_is_refused(served, origin):
+    response = served.post("/api/customers", json=RAMESH, headers={"Origin": origin})
+    assert response.status_code == 403
 
 
 def test_reading_from_another_site_is_left_to_the_browsers_same_origin_rule(served):
