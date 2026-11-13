@@ -40,8 +40,8 @@ class LocalOnly:
             and scope["method"] not in SAFE_METHODS
             and urlsplit(origin.decode("latin-1")).netloc.lower() != host
         ):
-            await JSONResponse({"detail": "Requests from other sites are refused."}, 403)(
-                scope, receive, send
-            )
+            await JSONResponse(
+                {"detail": "Requests from other sites are refused."}, 403
+            )(scope, receive, send)
             return
         await self.app(scope, receive, send)

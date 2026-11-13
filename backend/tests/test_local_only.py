@@ -2,8 +2,8 @@
 
 import pytest
 from conftest import TODAY
-from test_customers import RAMESH
 from fastapi.testclient import TestClient
+from test_customers import RAMESH
 
 from mortgage_backend.main import create_app
 
@@ -29,7 +29,9 @@ def test_a_rebound_host_gets_no_data_from_the_api_or_the_screens(served, path):
     assert "the app" not in response.text
 
 
-@pytest.mark.parametrize("host", ["localhost", "127.0.0.1:8000", "[::1]:8000", "LOCALHOST:8080"])
+@pytest.mark.parametrize(
+    "host", ["localhost", "127.0.0.1:8000", "[::1]:8000", "LOCALHOST:8080"]
+)
 def test_the_app_answers_as_localhost_on_any_port(served, host):
     assert served.get("/api/customers", headers={"Host": host}).status_code == 200
 
