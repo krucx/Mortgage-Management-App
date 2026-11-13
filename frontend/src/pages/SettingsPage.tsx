@@ -105,9 +105,7 @@ function DefaultTermsSettings() {
 /** The Lender's Gold Rate per gram for each purity, which values every Mortgage. */
 /** Each purity's rate in rupees, as typed; blank where none is set. */
 const rateDraft = (rates: GoldRate[]): Record<number, string> =>
-  Object.fromEntries(
-    rates.map((r) => [r.purity_karat, paiseToRupees(r.rate_per_gram)]),
-  )
+  Object.fromEntries(rates.map((r) => [r.purity_karat, paiseToRupees(r.rate_per_gram)]))
 
 function GoldRateSettings() {
   const { client, queryClient } = useServerState()
@@ -254,7 +252,9 @@ function CallListThresholds() {
   return (
     <section className="card">
       <h2>Call List</h2>
-      <p className="hint">An Active Mortgage is listed when either is reached, or it accrues today.</p>
+      <p className="hint">
+        An Active Mortgage is listed when either is reached, or it accrues today.
+      </p>
       {draft && (
         <form onSubmit={save} className="stack">
           <div className="grid-2">
@@ -266,7 +266,9 @@ function CallListThresholds() {
                 min="1"
                 step="1"
                 value={draft.months_unpaid}
-                onChange={(event) => setDraft({ ...draft, months_unpaid: Number(event.target.value) })}
+                onChange={(event) =>
+                  setDraft({ ...draft, months_unpaid: Number(event.target.value) })
+                }
               />
             </label>
             <label>
@@ -364,9 +366,7 @@ function OptionalNumberSetting<T extends Record<string, number | null | undefine
       title: dialogTitle,
       body: (
         <Summary
-          rows={[
-            [summaryLabel, value ? `${unit.show(value)}${confirmedSuffix}` : neverText],
-          ]}
+          rows={[[summaryLabel, value ? `${unit.show(value)}${confirmedSuffix}` : neverText]]}
         />
       ),
     })
@@ -422,9 +422,8 @@ function CashLimitSettings() {
       heading="Cash Limit"
       hint={
         <>
-          Lending or receiving this much or more in cash asks you first: Government of India
-          rules ask for UPI or bank transfer instead. Nothing is refused. Leave it empty for no
-          warning.
+          Lending or receiving this much or more in cash asks you first: Government of India rules
+          ask for UPI or bank transfer instead. Nothing is refused. Leave it empty for no warning.
         </>
       }
       inputLabel="Warn at cash of (₹), or more"
@@ -452,8 +451,8 @@ function DiscountConfirmationSettings() {
         <>
           Ask before recording a per-Mortgage Discount greater than this amount. The default is{' '}
           {formatINR(DISCOUNT_CONFIRMATION_DEFAULT_PAISE)}. This is a confirmation guideline;
-          Discounts are still capped at the remaining Outstanding. Leave it empty to skip the
-          extra confirmation.
+          Discounts are still capped at the remaining Outstanding. Leave it empty to skip the extra
+          confirmation.
         </>
       }
       inputLabel="Ask when Discount exceeds (₹)"
@@ -477,9 +476,9 @@ function GracePeriodSettings() {
       heading="Grace Period"
       hint={
         <>
-          A Payment received this many days or fewer after an Accrual Date may be dated the
-          day before it, as if paid on time. The same for every Mortgage; 3 days unless
-          changed. Leave it empty or 0 for no Grace.
+          A Payment received this many days or fewer after an Accrual Date may be dated the day
+          before it, as if paid on time. The same for every Mortgage; 3 days unless changed. Leave
+          it empty or 0 for no Grace.
         </>
       }
       inputLabel="Grace Period (days)"
@@ -514,15 +513,20 @@ function TemplateField({
     <div className="receipt-panel">
       <label>
         {label}
-        <textarea rows={10} required value={value} onChange={(event) => onChange(event.target.value)} />
+        <textarea
+          rows={10}
+          required
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
         <span className="hint">
           {placeholders && (
             <>
               Placeholders: <code>{placeholders.map((name) => `{${name}}`).join(' ')}</code>.{' '}
             </>
           )}
-          {'{mortgages}'} is a small table per
-          Mortgage, showing its description, never the Mortgage Name. *bold*, _italic_ as in WhatsApp.
+          {'{mortgages}'} is a small table per Mortgage, showing its description, never the Mortgage
+          Name. *bold*, _italic_ as in WhatsApp.
           {note && ` ${note}`}
         </span>
       </label>
@@ -561,9 +565,7 @@ function MessageSettingsForm() {
   return (
     <section className="card wide">
       <h2>WhatsApp messages</h2>
-      <p className="hint">
-        Receipts and Reminders open in WhatsApp ready to send; you press Send.
-      </p>
+      <p className="hint">Receipts and Reminders open in WhatsApp ready to send; you press Send.</p>
       {draft && (
         <form onSubmit={save} className="stack">
           <TemplateField
@@ -641,8 +643,8 @@ function BackupSettings() {
       title: 'Back up now?',
       body: (
         <p>
-          The database and photos are zipped into the backup folder; only the last{' '}
-          {backup.keep} Backups are kept.
+          The database and photos are zipped into the backup folder; only the last {backup.keep}{' '}
+          Backups are kept.
         </p>
       ),
       confirmLabel: 'Back up',
@@ -682,8 +684,8 @@ function BackupSettings() {
     <section className="card">
       <h2>Backups</h2>
       <p className="hint">
-        The database and photos are zipped into the backup folder once a week, and before
-        every update.
+        The database and photos are zipped into the backup folder once a week, and before every
+        update.
       </p>
       {backup && (
         <div className="stack">
@@ -708,8 +710,8 @@ function BackupSettings() {
               )}
               {!backup.encrypted && (
                 <p className="status error">
-                  Backups are not password-protected: set BACKUP_PASSWORD in the .env file.
-                  Backups hold Customers' ID Photos: keep the Backup folder private.
+                  Backups are not password-protected: set BACKUP_PASSWORD in the .env file. Backups
+                  hold Customers' ID Photos: keep the Backup folder private.
                 </p>
               )}
               <div>

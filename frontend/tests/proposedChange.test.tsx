@@ -44,7 +44,9 @@ test("while the Preview says the change would be refused, it can't be saved", as
   })
   await editPrincipal(server, '60000')
 
-  expect(await screen.findByText('There is a Payment before that start date', {}, { timeout: 2000 }))
+  expect(
+    await screen.findByText('There is a Payment before that start date', {}, { timeout: 2000 }),
+  )
   expect(saveButton().disabled).toBe(true)
 })
 
@@ -57,7 +59,9 @@ test('going back from the confirmation saves nothing', async () => {
   await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 })
 
   fireEvent.click(saveButton())
-  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Keep editing' }))
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', { name: 'Keep editing' }),
+  )
 
   expect(screen.queryByRole('dialog')).toBeNull()
   expect(server.requests).not.toContain('PUT /api/mortgages/7')
@@ -74,7 +78,9 @@ test('confirming saves the change, then goes where the page says', async () => {
   await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 })
 
   fireEvent.click(saveButton())
-  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirm and save' }))
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirm and save' }),
+  )
 
   expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()
   expect(server.requests).toContain('PUT /api/mortgages/7')
@@ -91,7 +97,9 @@ test("a refused save shows the backend's reason and can be tried again", async (
   await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 })
 
   fireEvent.click(saveButton())
-  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirm and save' }))
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirm and save' }),
+  )
 
   expect(await screen.findByText('The Mortgage Name 2026GoldChain is already used')).toBeTruthy()
   expect(saveButton().disabled).toBe(false)

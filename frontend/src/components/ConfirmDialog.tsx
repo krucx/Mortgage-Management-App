@@ -43,7 +43,11 @@ export function ConfirmDialog({
         <button type="button" className="secondary" autoFocus onClick={() => onClose(false)}>
           {cancelLabel}
         </button>
-        <button type="button" className={danger ? 'danger-solid' : ''} onClick={() => onClose(true)}>
+        <button
+          type="button"
+          className={danger ? 'danger-solid' : ''}
+          onClick={() => onClose(true)}
+        >
           {confirmLabel}
         </button>
       </div>

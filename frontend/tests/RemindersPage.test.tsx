@@ -23,7 +23,7 @@ const reminder: Reminder = {
   sent_at: null,
 }
 
-test("a Reminder to send has a compact WhatsApp button in its row that opens the message", async () => {
+test('a Reminder to send has a compact WhatsApp button in its row that opens the message', async () => {
   const server = fakeServer({
     'GET /api/reminders': { items: [reminder], total: 1, page: 1, page_size: 20 },
   })

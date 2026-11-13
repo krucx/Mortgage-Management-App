@@ -87,7 +87,10 @@ test('a Ledger change does not ask again for a Preview or quote on screen: the c
 })
 
 /** Which of `cached` (name → key) `change` leaves stale. */
-function staleAfter(change: readonly (readonly unknown[])[], cached: Record<string, readonly unknown[]>) {
+function staleAfter(
+  change: readonly (readonly unknown[])[],
+  cached: Record<string, readonly unknown[]>,
+) {
   const { queryClient } = createServerState()
   for (const key of Object.values(cached)) queryClient.setQueryData(key, {})
   markStale(queryClient, change)

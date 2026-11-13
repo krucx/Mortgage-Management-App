@@ -110,7 +110,10 @@ export function ReceiptPage() {
           </tfoot>
         )}
       </table>
-      <p className="hint">Cash is applied first; any Discount is applied afterwards, each to interest first and then Principal.</p>
+      <p className="hint">
+        Cash is applied first; any Discount is applied afterwards, each to interest first and then
+        Principal.
+      </p>
     </section>
   )
 }

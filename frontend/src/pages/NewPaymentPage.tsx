@@ -62,8 +62,10 @@ export function NewPaymentPage() {
   const customerId = Number(params.get('customer')) || undefined
   const preselected = Number(params.get('mortgage')) || undefined
   const { client } = useServerState()
-  const customer = useQuery({ ...customerQuery(client, customerId ?? 0), enabled: !!customerId })
-    .data
+  const customer = useQuery({
+    ...customerQuery(client, customerId ?? 0),
+    enabled: !!customerId,
+  }).data
 
   return (
     <section className="card wide">
@@ -155,14 +157,14 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
     total === 0
       ? chosen.map(() => 0)
       : mode === 'equal'
-      ? suggestEqually(total, outstanding)
-      : mode === 'amount'
-        ? chosen.map((m) => rupeesToPaise(amountText[m.id]))
-        : amountsFromPercentages(
-            total,
-            chosen.map((m) => Number(percentText[m.id] || '0')),
-            outstanding,
-          )
+        ? suggestEqually(total, outstanding)
+        : mode === 'amount'
+          ? chosen.map((m) => rupeesToPaise(amountText[m.id]))
+          : amountsFromPercentages(
+              total,
+              chosen.map((m) => Number(percentText[m.id] || '0')),
+              outstanding,
+            )
   const allocated = amounts?.reduce((a, b) => a + b, 0) ?? 0
 
   const problems: string[] = []
@@ -229,7 +231,9 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, paiseToRupees(equal[i])])))
     if (next === 'percent' && total > 0 && equal)
       setPercentText(
-        Object.fromEntries(percentagesOf(equal, total).map((pct, i) => [chosen[i].id, String(pct)])),
+        Object.fromEntries(
+          percentagesOf(equal, total).map((pct, i) => [chosen[i].id, String(pct)]),
+        ),
       )
     setMode(next)
   }
@@ -284,9 +288,7 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
                 ...payment.allocations.map((a): [string, string] => [
                   chosen.find((m) => m.id === a.mortgage_id)?.name ?? '',
                   `${formatINR(a.amount)} cash${a.discount ? ` + ${formatINR(a.discount)} Discount` : ''}` +
-                    (redeemed.some((p) => p.mortgage_id === a.mortgage_id)
-                      ? ' · Redeems it'
-                      : ''),
+                    (redeemed.some((p) => p.mortgage_id === a.mortgage_id) ? ' · Redeems it' : ''),
                 ]),
               ]}
             />
@@ -304,15 +306,15 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
       if (large.length === 0) return true
       let limit: number | null = null
       try {
-        limit = (
-          await queryClient.fetchQuery(settings.discountConfirmationLimit(client))
-        ).discount_confirmation_limit
+        limit = (await queryClient.fetchQuery(settings.discountConfirmationLimit(client)))
+          .discount_confirmation_limit
       } catch {
         // Still confirm (the Preview already says it is over the threshold); just
         // without naming it.
       }
       return confirmCap({
-        title: limit === null ? 'Confirm a Discount?' : `Confirm a Discount over ${formatINR(limit)}?`,
+        title:
+          limit === null ? 'Confirm a Discount?' : `Confirm a Discount over ${formatINR(limit)}?`,
         body: (
           <Summary
             rows={large.map((allocation): [string, string] => [
@@ -599,9 +601,8 @@ function PaymentForm({ customer, preselected }: { customer: Customer; preselecte
             </div>
           )}
           <p className="hint">
-            Within each Mortgage the Allocation pays unpaid interest first, then the Interest
-            to Date, then Principal. Its Discount applies after the cash Allocation in the
-            same order.
+            Within each Mortgage the Allocation pays unpaid interest first, then the Interest to
+            Date, then Principal. Its Discount applies after the cash Allocation in the same order.
             {graceDays !== null &&
               ` An Accrual Date in yellow has the date received within the ${graceDays}-day Grace Period after it, and its Mortgage, if ticked, a button to date the Payment the day before; in gray, past it.`}
           </p>
@@ -689,8 +690,8 @@ function GraceTip({
       tone="grace"
       tip={
         <>
-          Received {formatDayMonth(receivedOn)}, with a {days}-day Grace Period after each
-          Accrual Date.
+          Received {formatDayMonth(receivedOn)}, with a {days}-day Grace Period after each Accrual
+          Date.
           <span className="grace-calc">
             {mortgages.map((m) => (
               <Fragment key={m.mortgage_id}>

@@ -28,7 +28,11 @@ function reasonsOf(row: CallListRow): { reason: Reason; short: string; full: str
   return row.reasons.map((reason) => {
     switch (reason) {
       case 'months_unpaid':
-        return { reason, short: `${row.months_unpaid} mo`, full: `${row.months_unpaid} months unpaid` }
+        return {
+          reason,
+          short: `${row.months_unpaid} mo`,
+          full: `${row.months_unpaid} months unpaid`,
+        }
       case 'loan_to_value': {
         const ltv = formatPercent(row.loan_to_value ?? 0)
         return { reason, short: ltv, full: `Loan-to-Value ${ltv}` }
@@ -47,7 +51,17 @@ const REASON_NAMES: [Reason, string][] = [
 
 function PhoneIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
     </svg>
   )
@@ -86,8 +100,8 @@ export function CallListPage() {
     <section className="card wide">
       <h2>Call List</h2>
       <p className="hint">
-        Active Mortgages with too many Months Unpaid, a high Loan-to-Value, or accruing today.
-        The thresholds are in <Link to="/settings">Settings</Link>.
+        Active Mortgages with too many Months Unpaid, a high Loan-to-Value, or accruing today. The
+        thresholds are in <Link to="/settings">Settings</Link>.
       </p>
       {error && <p className="status error">{error}</p>}
       <CallSheet />
@@ -154,7 +168,10 @@ export function CallListPage() {
 function CallSheet() {
   const { client } = useServerState()
   const noteCalls = useChange(STALE_AFTER.callNote)
-  const [status, setStatus] = useState<{ kind: 'saved' | 'warning' | 'error'; text: string } | null>(null)
+  const [status, setStatus] = useState<{
+    kind: 'saved' | 'warning' | 'error'
+    text: string
+  } | null>(null)
   const [importing, setImporting] = useState(false)
   // The sheet chosen and what importing it would do, while its pop-up is open.
   const [preview, setPreview] = useState<{ sheet: File; result: CallNoteImport } | null>(null)
@@ -219,9 +236,9 @@ function CallSheet() {
         </label>
       </div>
       <p className="hint">
-        Give the Call Sheet to whoever makes the calls: they write what each call came to under
-        Call Note (and change Called on if they called another day), and you import the Excel
-        sheet back. Rows it can't take are left out and listed; fix them and import it again.
+        Give the Call Sheet to whoever makes the calls: they write what each call came to under Call
+        Note (and change Called on if they called another day), and you import the Excel sheet back.
+        Rows it can't take are left out and listed; fix them and import it again.
       </p>
       {status && (
         <p className={`status ${status.kind}`}>
@@ -229,7 +246,11 @@ function CallSheet() {
           {leftOut.length > 0 && (
             <>
               {' '}
-              <button type="button" className="secondary small" onClick={() => setShowingLeftOut(true)}>
+              <button
+                type="button"
+                className="secondary small"
+                onClick={() => setShowingLeftOut(true)}
+              >
                 Show them
               </button>
             </>

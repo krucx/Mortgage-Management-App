@@ -64,8 +64,8 @@ export function ClosuresPage() {
         {dormant && dormant.total > 0 && <span className="badge count">{dormant.total}</span>}
       </h3>
       <p className="hint">
-        Active Mortgages that owe nothing, so their jewellery should already have gone back:
-        usually a recording slip. Once you have checked, Redeem them; no Payment is needed.
+        Active Mortgages that owe nothing, so their jewellery should already have gone back: usually
+        a recording slip. Once you have checked, Redeem them; no Payment is needed.
       </p>
       {dormant === null ? (
         <p>Loading…</p>
@@ -166,9 +166,7 @@ export function ClosuresPage() {
       {chosen.length > 0 && (
         <>
           <div className="row" role="radiogroup" aria-label="Close the chosen by">
-            <span>
-              With the {chosen.length} chosen:
-            </span>
+            <span>With the {chosen.length} chosen:</span>
             <label className="inline">
               <input
                 type="radio"
@@ -202,7 +200,6 @@ export function ClosuresPage() {
           )}
         </>
       )}
-
     </section>
   )
 }

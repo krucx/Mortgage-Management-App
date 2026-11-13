@@ -36,7 +36,16 @@ export function WhatsAppPreview({ text }: { text: string }) {
  *  button an aria-label saying what it does. */
 export function ChatIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="15"
+      height="15"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    >
       <path d="M4 20l1.4-4A8 8 0 1 1 8.4 19L4 20Z" />
     </svg>
   )
@@ -59,7 +68,11 @@ export function SendOnWhatsApp({
   return (
     <div className="row">
       {phones.length > 1 && (
-        <select aria-label="Send to" value={phone} onChange={(event) => setPhone(event.target.value)}>
+        <select
+          aria-label="Send to"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+        >
           {phones.map((number) => (
             <option key={number}>{number}</option>
           ))}
