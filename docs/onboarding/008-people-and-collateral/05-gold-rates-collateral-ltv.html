@@ -131,8 +131,8 @@ flowchart LR
 
 <h3>4. A value set by hand: <code>set_collateral</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>set_collateral()</code> · lines 518–539</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>518  def set_collateral(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/collateral/manual_value.py">collateral/manual_value.py</a> · <code>set_collateral()</code> · lines 518–539</figcaption>
+<pre data-file="backend/src/mortgage_backend/collateral/manual_value.py"><code>518  def set_collateral(
 519      conn: Connection, mortgage_id: int, value: int | None, today: date, now: datetime
 520  ) -&gt; None:
 521      """Set the Collateral Value by hand, or clear it (None) to value the jewellery at
@@ -156,7 +156,7 @@ flowchart LR
 539          audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
 </code></pre>
 </figure>
-<p>It lives in <code>lending/changes.py</code> because it changes a <code>mortgage</code> row, with the same refuse → write → History shape (chapter 006). It has no <code>check_replays</code>: a Collateral Value doesn't touch the Ledger. The route <code>PUT /mortgages/{id}/collateral</code> (line 1050) takes <code>{"value": paise}</code> or <code>{"value": null}</code>; its body model <code>CollateralIn</code> (line 1046) already refuses 0, so line 525 is a second guard for other callers. Its Preview, <code>POST /mortgages/{id}/collateral-preview</code>, shows the value before and after and whether the Mortgage would be on the Call List.</p>
+<p>It lives in <code>collateral/manual_value.py</code>; it changes a <code>mortgage</code> row, with the same refuse → write → History shape (chapter 006). It has no <code>check_replays</code>: a Collateral Value doesn't touch the Ledger. The route <code>PUT /mortgages/{id}/collateral</code> (line 1050) takes <code>{"value": paise}</code> or <code>{"value": null}</code>; its body model <code>CollateralIn</code> (line 1046) already refuses 0, so line 525 is a second guard for other callers. Its Preview, <code>POST /mortgages/{id}/collateral-preview</code>, shows the value before and after and whether the Mortgage would be on the Call List.</p>
 
 <h3>5. Who asks</h3>
 <figure class="snippet">

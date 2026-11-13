@@ -7,11 +7,18 @@ import { ProjectionChart } from '../src/components/ProjectionChart'
 afterEach(cleanup)
 
 const gridlineLabels = () =>
-  [...screen.getByRole('img').querySelectorAll('line.grid + text')].map((label) => label.textContent)
+  [...screen.getByRole('img').querySelectorAll('line.grid + text')].map(
+    (label) => label.textContent,
+  )
 
 test("the Projection chart's gridlines show whole rupees, never paise", () => {
   const point = (months: number, on: string, outstanding: number) => ({
-    months, on, principal: outstanding, unpaid_interest: 0, outstanding, loan_to_value: null,
+    months,
+    on,
+    principal: outstanding,
+    unpaid_interest: 0,
+    outstanding,
+    loan_to_value: null,
   })
   render(
     <ProjectionChart

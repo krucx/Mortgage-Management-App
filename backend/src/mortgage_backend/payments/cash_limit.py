@@ -44,9 +44,15 @@ def before_change(conn: Connection) -> CashBefore:
     """The Payments and Mortgages as they stand, before a change is made."""
     last = conn.execute(select(func.max(payment_table.c.id))).scalar_one()
     rows = conn.execute(
-        select(mortgage_table.c.id, mortgage_table.c.lent_through, mortgage_table.c.amount_lent)
+        select(
+            mortgage_table.c.id,
+            mortgage_table.c.lent_through,
+            mortgage_table.c.amount_lent,
+        )
     )
-    return CashBefore(last or 0, {r.id: Lent(r.lent_through, r.amount_lent) for r in rows})
+    return CashBefore(
+        last or 0, {r.id: Lent(r.lent_through, r.amount_lent) for r in rows}
+    )
 
 
 def _lends_more_cash(was: Lent | None, amount_lent: int) -> bool:
@@ -60,7 +66,9 @@ def cash_sums(conn: Connection, before: CashBefore) -> list[int]:
     that is new, newly in cash, or larger."""
     paid: dict[int, int] = {}
     for part in conn.execute(
-        select(payment_table.c.id, payment_table.c.received_with, payment_table.c.amount)
+        select(
+            payment_table.c.id, payment_table.c.received_with, payment_table.c.amount
+        )
         .where(
             payment_table.c.id > before.last_payment_id,
             payment_table.c.method == "cash",

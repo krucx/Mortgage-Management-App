@@ -60,8 +60,10 @@ export function NewMortgagePage() {
   // Kept while the URL is, so the form's Terms start from it only once
   const carried = useMemo(() => carriedIn(new URLSearchParams(query)), [query])
   const { client } = useServerState()
-  const customer = useQuery({ ...customerQuery(client, customerId ?? 0), enabled: !!customerId })
-    .data
+  const customer = useQuery({
+    ...customerQuery(client, customerId ?? 0),
+    enabled: !!customerId,
+  }).data
 
   return (
     <section className="card wide">
@@ -76,8 +78,8 @@ export function NewMortgagePage() {
           onChoose={setCustomer}
           footer={
             <p className="hint">
-              Not a Customer yet?{' '}
-              <Link to="/customers/new?next=mortgage">Add a new Customer</Link> first.
+              Not a Customer yet? <Link to="/customers/new?next=mortgage">Add a new Customer</Link>{' '}
+              first.
             </p>
           }
         />
@@ -226,7 +228,10 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
                 ['Amount lent', formatINR(rupeesToPaise(fields.amountLent))],
                 ['Lent Through', methods?.[fields.lentThrough] ?? ''],
                 ['Jewellery', fields.description],
-                ['Weight', `${fields.gross} grams gross, ${fields.net} grams net, ${fields.purity}K`],
+                [
+                  'Weight',
+                  `${fields.gross} grams gross, ${fields.net} grams net, ${fields.purity}K`,
+                ],
                 [
                   'Terms',
                   `${formatRate(chosenTerms.monthly_rate_bps)} a month · ` +

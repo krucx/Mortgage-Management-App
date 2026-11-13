@@ -4,8 +4,8 @@ is hypothetically recorded, so the Preview reports the room instead of refusing 
 
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.lending.changes import PaymentIn
 from mortgage_backend.lending.replay import replay
+from mortgage_backend.payments.writes import PaymentIn
 
 
 def discount_rooms(conn: Connection, payment: PaymentIn) -> dict[int, int]:
@@ -27,7 +27,11 @@ def capped(payment: PaymentIn, rooms: dict[int, int]) -> PaymentIn:
         update={
             "allocations": [
                 allocation.model_copy(
-                    update={"discount": min(allocation.discount, rooms[allocation.mortgage_id])}
+                    update={
+                        "discount": min(
+                            allocation.discount, rooms[allocation.mortgage_id]
+                        )
+                    }
                 )
                 for allocation in payment.allocations
             ]

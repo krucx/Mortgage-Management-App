@@ -86,9 +86,13 @@ test('deleting a Customer the backend would delete asks first, then deletes', as
 })
 
 test('the Customers filter has a name', async () => {
-  showPage(customersServer(() => new Response(null, { status: 204 })), '/customers', {
-    '/customers': <CustomersPage />,
-  })
+  showPage(
+    customersServer(() => new Response(null, { status: 204 })),
+    '/customers',
+    {
+      '/customers': <CustomersPage />,
+    },
+  )
 
   expect(await screen.findByRole('searchbox', { name: 'Filter Customers' })).toBeTruthy()
 })

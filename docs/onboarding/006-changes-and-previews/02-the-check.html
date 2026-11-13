@@ -49,8 +49,8 @@ flowchart TD
 <h2>The code</h2>
 <h3>1. <code>check_replays</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>check_replays()</code> · lines 184–194</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>184  def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">lending/refusals.py</a> · <code>check_replays()</code> · lines 184–194</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>184  def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -&gt; None:
 185      """Replay each Mortgage; refuse if any Payment is now larger than what was owed."""
 186      replayed = replays(conn, rows)                             ①
 187      for row in rows:
@@ -210,8 +210,8 @@ curl -s -w ' %{http_code}
 <h3>(d) Several Mortgages: which one was refused?</h3>
 <p>A Payment can be allocated to several Mortgages, and the bulk Closures take several at once. When one of them is refused, the Lender needs to know which. <code>_refusal_names_mortgage</code> is wrapped around each one:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_refusal_names_mortgage()</code> · lines 828–837</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>828  @contextmanager
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">lending/refusals.py</a> · <code>_refusal_names_mortgage()</code> · lines 828–837</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>828  @contextmanager
 829  def _refusal_names_mortgage(conn: Connection, mortgage_id: int) -&gt; Iterator[None]:
 830      """A refusal of one of several Mortgages says which, unless it already does."""
 831      try:
@@ -239,8 +239,8 @@ curl -s -w ' %{http_code}
 <h3>(e) A change that calls another change: <code>reopen</code></h3>
 <p>Reopening a Redeemed Mortgage has to Void its Final Payment. Rather than copy the Void, <code>reopen</code> calls <code>void_payment</code>:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>reopen()</code> · lines 840–868, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>840  def reopen(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>reopen()</code> · lines 840–868, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>840  def reopen(
 841      conn: Connection, mortgage_id: int, reason: str, today: date, now: datetime
 842  ) -&gt; None:
 ⋮
@@ -262,8 +262,8 @@ curl -s -w ' %{http_code}
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>340  def void_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>340  def void_payment(
 341      conn: Connection, payment_id: int, reason: str, today: date, now: datetime
 342  ) -&gt; None:
 ⋮

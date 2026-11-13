@@ -64,11 +64,7 @@ function MortgageBeforeAfter({ preview }: { preview: MortgagePreview }) {
   return (
     <div className="stack before-after">
       <div className="change-summary">
-        <Headline
-          label="Owed today"
-          before={before.outstanding}
-          after={after.outstanding}
-        />
+        <Headline label="Owed today" before={before.outstanding} after={after.outstanding} />
         {interestBefore !== undefined && interestAfter !== undefined && (
           <Headline
             label="Interest over the next 12 months"
@@ -164,7 +160,9 @@ function LedgerChanges({ changes }: { changes: LedgerChange[] }) {
         </thead>
         <tbody>
           {changes.map((change) => (
-            <tr key={`${change.on}-${change.event}-${change.before?.payment_id ?? change.after?.payment_id ?? ''}`}>
+            <tr
+              key={`${change.on}-${change.event}-${change.before?.payment_id ?? change.after?.payment_id ?? ''}`}
+            >
               <td>
                 {formatDate(change.on)} {STEP_LABELS[change.event]}
                 {!change.after && <span className="hint"> (removed)</span>}

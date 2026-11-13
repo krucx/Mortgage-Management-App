@@ -94,7 +94,9 @@ def test_more_reminders_take_no_more_queries(
         return len(statements)
 
     settings_now = client.get("/api/settings/messages").json()
-    client.put("/api/settings/messages", json={**settings_now, "reminder_days_before": 5})
+    client.put(
+        "/api/settings/messages", json={**settings_now, "reminder_days_before": 5}
+    )
     engine = make_engine(database_url)
     with engine.begin() as conn:
         ramesh = add_customer(conn)

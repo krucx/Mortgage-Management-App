@@ -23,6 +23,26 @@ jobs:
           node-version: 24
       - run: node --test .github/scripts/test-release-candidate.mjs
 
+  version-bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: node --test .github/scripts/test-check-version-unchanged.mjs
+      - name: Only the release candidate may change VERSION
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+        run: node .github/scripts/check-version-unchanged.mjs
+
   release:
     runs-on: ubuntu-latest
     steps:
@@ -81,6 +101,8 @@ jobs:
         run: node ../.github/scripts/check-version.mjs
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
       - run: uv run mypy src
       - name: Run backend tests and collect line coverage
         run: COVERAGE_CORE=sysmon uv run pytest -n auto --cov=mortgage_backend --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
@@ -114,6 +136,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run format:check
       - name: Run frontend tests and collect line coverage
         run: npm test -- --coverage --coverage.reporter=lcov --coverage.reporter=html --coverage.reporter=text
       - name: Add frontend coverage to the job summary

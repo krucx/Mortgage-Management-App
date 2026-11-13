@@ -37,8 +37,12 @@ test('the Default Terms are loaded, changed and saved, and the saved ones are sh
   )
 
   expect(await within(terms).findByText(/Saved\. New Mortgages will start/)).toBeTruthy()
-  expect(saved).toEqual([{ monthly_rate_bps: 180, interest_mode: 'simple', part_month_rule: 'pro_rata' }])
-  expect((within(terms).getByLabelText('Monthly interest rate (%)') as HTMLInputElement).value).toBe('1.75')
+  expect(saved).toEqual([
+    { monthly_rate_bps: 180, interest_mode: 'simple', part_month_rule: 'pro_rata' },
+  ])
+  expect(
+    (within(terms).getByLabelText('Monthly interest rate (%)') as HTMLInputElement).value,
+  ).toBe('1.75')
 })
 
 test('the Cash Limit is shown in rupees, and clearing it saves no limit', async () => {
@@ -89,9 +93,9 @@ test('the Discount confirmation limit is shown in rupees, changed, and cleared',
   expect(within(changeDialog).getByText('₹750')).toBeTruthy()
   fireEvent.click(within(changeDialog).getByRole('button', { name: 'Confirm and save' }))
   expect(await within(section).findByText('Saved.')).toBeTruthy()
-  expect((within(section).getByLabelText('Ask when Discount exceeds (₹)') as HTMLInputElement).value).toBe(
-    '750',
-  )
+  expect(
+    (within(section).getByLabelText('Ask when Discount exceeds (₹)') as HTMLInputElement).value,
+  ).toBe('750')
 
   fireEvent.change(limit, { target: { value: '' } })
   fireEvent.click(within(section).getByRole('button', { name: 'Save' }))
@@ -110,8 +114,13 @@ test("unprotected Backups warn that they hold Customers' ID Photos", async () =>
   showPage(
     fakeServer({
       'GET /api/backups': {
-        enabled: true, encrypted: false, running: false, last_backup_at: null,
-        last_backup_file: null, last_error: null, keep: 4,
+        enabled: true,
+        encrypted: false,
+        running: false,
+        last_backup_at: null,
+        last_backup_file: null,
+        last_error: null,
+        keep: 4,
       },
     }),
     '/settings',

@@ -12,7 +12,11 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
-from mortgage_backend.collateral.collateral import JewelleryValueIn, collateral_value, gold_rates
+from mortgage_backend.collateral.collateral import (
+    JewelleryValueIn,
+    collateral_value,
+    gold_rates,
+)
 from mortgage_backend.lending.ledger import (
     Allocation,
     HypotheticalPayments,
@@ -31,7 +35,6 @@ from mortgage_backend.lending.replay import (
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.platform.db import EngineDep
 from mortgage_backend.platform.money import format_inr
-
 
 MAX_YEARS = 10  # how long after its start a Simulation can close
 
@@ -62,7 +65,9 @@ class SimulationIn(BaseModel):
     # The plan: paid on every Accrual Date, capped at what is owed, until nothing is
     monthly_payment: int | None = Field(default=None, gt=0)  # paise
     lump_sums: list[LumpSum] = []
-    collateral: JewelleryValueIn | None = None  # for its Loan-to-Value, if valued at all
+    collateral: JewelleryValueIn | None = (
+        None  # for its Loan-to-Value, if valued at all
+    )
 
     @model_validator(mode="after")
     def closes_after_it_starts(self) -> "SimulationIn":
@@ -175,7 +180,9 @@ class _Plan:
         # The engine leaves out whatever came after it was paid off (ADR: the Simulation
         # has no paid-off rule of its own).
         applied = {step.payment_id for step in self.ledger if step.event == "payment"}
-        self.after_paid_off = {a.payment_id for a in asked if a.payment_id not in applied}
+        self.after_paid_off = {
+            a.payment_id for a in asked if a.payment_id not in applied
+        }
         self.paid = [a for a in asked if a.payment_id in applied]
 
     def _replay(
@@ -218,14 +225,18 @@ class _Plan:
                 ignored=(
                     "after_closed_on"
                     if lump.on > closed_on
-                    else "after_paid_off" if n in self.after_paid_off else None
+                    else "after_paid_off"
+                    if n in self.after_paid_off
+                    else None
                 ),
             )
             for n, lump in enumerate(self.simulation.lump_sums)
         ]
 
 
-def _months(ledger: list[LedgerStep], closure: OutstandingOnClosure) -> list[SimulatedMonth]:
+def _months(
+    ledger: list[LedgerStep], closure: OutstandingOnClosure
+) -> list[SimulatedMonth]:
     months: list[SimulatedMonth] = []
     for step in ledger:
         if step.event == "interest":
@@ -330,9 +341,7 @@ def simulate(simulation: SimulationIn, engine: EngineDep) -> Simulation:
             for step in ledger
             if step.event in ("interest", "interest_to_date")
         ),
-        first_month_interest=monthly_interest(
-            simulation.amount_lent, simulation.terms
-        ),
+        first_month_interest=monthly_interest(simulation.amount_lent, simulation.terms),
         effective_annual_rate=effective_annual_rate(start, simulation.terms),
         paid_off_on=plan.paid_off_on,
         collateral_value=value,

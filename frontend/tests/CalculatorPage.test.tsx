@@ -184,7 +184,9 @@ test('each change goes into the URL, with every input, and is worked out again',
   type('Monthly interest rate (%)', '3')
 
   await vi.waitFor(() => expect(asked.at(-1)?.terms.monthly_rate_bps).toBe(300), { timeout: 2000 })
-  expect(Object.fromEntries(new URLSearchParams(screen.getByLabelText('search').textContent!))).toEqual({
+  expect(
+    Object.fromEntries(new URLSearchParams(screen.getByLabelText('search').textContent!)),
+  ).toEqual({
     amount: '100000',
     start: '2026-04-20',
     closed: '2027-04-20',
@@ -390,14 +392,22 @@ test('planned Payments are dots on the line and rows of the table', async () => 
     ],
     months: [
       simulation.months[0],
-      { ...simulation.months[0], interest: 0, paid: 300_000, capitalised: 0, principal: 10_000_000 },
+      {
+        ...simulation.months[0],
+        interest: 0,
+        paid: 300_000,
+        capitalised: 0,
+        principal: 10_000_000,
+      },
     ],
   }))
   showCalculator(server, '/calculator?amount=100000&monthly=3000')
   await worked()
 
   expect(screen.getByRole('img').querySelectorAll('circle.payment')).toHaveLength(2)
-  const rows = [...screen.getByText('Month by month').closest('details')!.querySelectorAll('tbody tr')]
+  const rows = [
+    ...screen.getByText('Month by month').closest('details')!.querySelectorAll('tbody tr'),
+  ]
   expect([...rows[1].querySelectorAll('td')].map((cell) => cell.textContent)).toEqual([
     '20 May 2026',
     '—',
@@ -450,7 +460,9 @@ test('the jewellery value is folded away, and without one there is no Loan-to-Va
   showCalculator(server, '/calculator?amount=100000')
   await worked()
 
-  expect((screen.getByText('Jewellery value').closest('details') as HTMLDetailsElement).open).toBe(false)
+  expect((screen.getByText('Jewellery value').closest('details') as HTMLDetailsElement).open).toBe(
+    false,
+  )
   expect(screen.queryByText(/Loan-to-Value/)).toBeNull()
 })
 

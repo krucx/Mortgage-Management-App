@@ -126,7 +126,12 @@ def test_payments_sort_by_amount_across_pages(client):
     mortgage = lend(client, nth_person(client, 1), amount=100_000 * RUPEE)
     for n in range(25):
         rupees = (n * 7 % 25 + 1) * 10  # 10, 80, 150, … shuffled
-        pay(client, mortgage["customer"], {mortgage["id"]: rupees * RUPEE}, on="2026-04-01")
+        pay(
+            client,
+            mortgage["customer"],
+            {mortgage["id"]: rupees * RUPEE},
+            on="2026-04-01",
+        )
 
     listed = every_page(client, "payments", sort="amount")
 

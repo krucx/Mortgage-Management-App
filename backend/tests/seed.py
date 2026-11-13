@@ -12,19 +12,16 @@ from datetime import date, datetime, time
 
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.lending import changes
-from mortgage_backend.lending.changes import (
-    AllocationIn,
-    ForfeitIn,
-    PaymentIn,
-    RedeemIn,
-    TermChangeIn,
-    WaiveIn,
-)
+from mortgage_backend.collateral import manual_value
+from mortgage_backend.lending import changes, closing
+from mortgage_backend.lending.changes import TermChangeIn
+from mortgage_backend.lending.closing import ForfeitIn, RedeemIn, WaiveIn
 from mortgage_backend.lending.mortgages import MortgageIn
 from mortgage_backend.lending.replay import mortgage_row
 from mortgage_backend.lending.terms import Terms
+from mortgage_backend.payments import recording, writes
 from mortgage_backend.payments.payments import PaymentMethod
+from mortgage_backend.payments.writes import AllocationIn, PaymentIn
 from mortgage_backend.people import customer_changes
 from mortgage_backend.people.customers import CustomerIn
 
@@ -81,7 +78,7 @@ def add_mortgage(
         _at(start_date),
     )
     if collateral is not None:
-        changes.set_collateral(
+        manual_value.set_collateral(
             conn, mortgage_id, collateral, start_date, _at(start_date)
         )
     return mortgage_id
@@ -95,7 +92,7 @@ def add_payment(
     voided: bool = False,
 ) -> int:
     """A cash Payment of `allocations` (paise by Mortgage id); Voided if `voided`."""
-    payment_id = changes.record_payment(
+    payment_id = recording.record_payment(
         conn,
         PaymentIn(
             customer_id=customer_id,
@@ -111,7 +108,7 @@ def add_payment(
         _at(paid_on),
     )
     if voided:
-        changes.void_payment(conn, payment_id, "mistake", paid_on, _at(paid_on))
+        writes.void_payment(conn, payment_id, "mistake", paid_on, _at(paid_on))
     return payment_id
 
 
@@ -132,14 +129,14 @@ def redeem(conn: Connection, mortgage_id: int, on: date) -> int | None:
     """Redeem the Mortgage on `on`, paying its Outstanding in cash; the final
     Payment's id (None if nothing was owed)."""
     redeemed = RedeemIn(redeemed_on=on, method="cash")
-    changes.redeem(conn, mortgage_id, redeemed, on, _at(on))
+    closing.redeem(conn, mortgage_id, redeemed, on, _at(on))
     final: int | None = mortgage_row(conn, mortgage_id)["redemption_payment_id"]
     return final
 
 
 def forfeit(conn: Connection, mortgage_id: int, on: date, recovered: int = 0) -> None:
     """Forfeit the Mortgage on `on`, its jewellery recovering `recovered` (paise)."""
-    changes.forfeit(
+    closing.forfeit(
         conn,
         mortgage_id,
         ForfeitIn(forfeited_on=on, recovered_amount=recovered),
@@ -151,7 +148,7 @@ def forfeit(conn: Connection, mortgage_id: int, on: date, recovered: int = 0) ->
 def waive(conn: Connection, mortgage_id: int, on: date, paid: int = 0) -> int | None:
     """Waive the Mortgage on `on`, the Customer paying `paid` (paise) in cash; the final
     Payment's id (None if nothing was paid)."""
-    changes.waive(
+    closing.waive(
         conn,
         mortgage_id,
         WaiveIn(waived_on=on, amount_paid=paid, method="cash", note="Old friend"),

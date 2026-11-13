@@ -3,9 +3,9 @@
     "cp .env.example .env"
   ],
   "teardown": [
-    "docker compose down"
+    "QA_PROJECT=mortgage-qa-$(basename \"$PWD\") scripts/qa-stack.sh down"
   ],
   "run": [
-    "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d"
+    "QA_PROJECT=mortgage-qa-$(basename \"$PWD\") scripts/qa-stack.sh up --data \"${TMPDIR:-/tmp}/mortgage-qa-$(basename \"$PWD\")/data\" --backups \"${TMPDIR:-/tmp}/mortgage-qa-$(basename \"$PWD\")/backups\""
   ]
 }

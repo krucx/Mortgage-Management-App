@@ -10,7 +10,8 @@ from PIL import Image
 from seed import add_customer, add_mortgage
 from sqlalchemy.engine import Engine
 
-from mortgage_backend.lending import changes
+from mortgage_backend.collateral import mortgage_photos
+from mortgage_backend.lending import mortgages
 from mortgage_backend.people import customer_changes
 from mortgage_backend.platform import photos
 from mortgage_backend.platform.db import make_engine, migrate
@@ -44,7 +45,9 @@ def test_a_refused_change_leaves_no_new_file(engine, photos_dir):
         with photos.photo_change(
             engine, photos_dir, photos.NewPhoto("mortgage", 99, jpeg())
         ) as change:
-            changes.add_photo(change.conn, 99, change.file, NOW)  # no such Mortgage
+            mortgage_photos.add_photo(
+                change.conn, 99, change.file, NOW
+            )  # no such Mortgage
 
     assert files(photos_dir) == []
 
@@ -57,12 +60,12 @@ def test_a_change_that_fails_after_writing_leaves_no_new_file(engine, photos_dir
         with photos.photo_change(
             engine, photos_dir, photos.NewPhoto("mortgage", chain, jpeg())
         ) as change:
-            changes.add_photo(change.conn, chain, change.file, NOW)
+            mortgage_photos.add_photo(change.conn, chain, change.file, NOW)
             raise RuntimeError("the database went away")
 
     assert files(photos_dir) == []
     with engine.connect() as conn:
-        assert changes.load_mortgage(conn, chain, NOW.date()).photos == []
+        assert mortgages.load_mortgage(conn, chain, NOW.date()).photos == []
 
 
 def test_a_saved_replacement_keeps_the_new_file_and_removes_the_old(engine, photos_dir):
@@ -90,10 +93,10 @@ def test_a_saved_removal_removes_the_file(engine, photos_dir):
     with photos.photo_change(
         engine, photos_dir, photos.NewPhoto("mortgage", chain, jpeg())
     ) as change:
-        photo_id = changes.add_photo(change.conn, chain, change.file, NOW)
+        photo_id = mortgage_photos.add_photo(change.conn, chain, change.file, NOW)
 
     with photos.photo_change(engine, photos_dir) as change:
-        removed = changes.remove_photo(change.conn, chain, photo_id, NOW)
+        removed = mortgage_photos.remove_photo(change.conn, chain, photo_id, NOW)
         change.remove_when_saved(removed)
 
     assert files(photos_dir) == []

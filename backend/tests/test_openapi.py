@@ -10,7 +10,12 @@ def test_ready_to_redeem_is_retired_from_the_api() -> None:
     schema = schema_text()
     assert [
         term
-        for term in ("ready_to_redeem", "ready-to-redeem", "ReadyToRedeem", "received_with")
+        for term in (
+            "ready_to_redeem",
+            "ready-to-redeem",
+            "ReadyToRedeem",
+            "received_with",
+        )
         if term in schema
     ] == []
 

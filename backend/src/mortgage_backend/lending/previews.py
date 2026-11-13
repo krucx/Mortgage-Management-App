@@ -13,33 +13,30 @@ from pydantic import BaseModel
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.collateral.collateral import Collateral
+from mortgage_backend.collateral.manual_value import CollateralIn, set_collateral
 from mortgage_backend.follow_up.call_list import (
     CALL_LIST_SETTINGS,
     loan_to_value_too_high,
 )
 from mortgage_backend.lending.changes import (
-    CollateralIn,
-    ForfeitAllIn,
-    ForfeitIn,
-    PaymentIn,
-    RedeemAllIn,
-    RedeemIn,
     TermChangeIn,
-    WaiveAllIn,
-    WaiveIn,
     add_term_change,
     create_mortgage,
     edit_mortgage,
+    remove_term_change,
+)
+from mortgage_backend.lending.closing import (
+    ForfeitAllIn,
+    ForfeitIn,
+    RedeemAllIn,
+    RedeemIn,
+    WaiveAllIn,
+    WaiveIn,
     forfeit,
     forfeit_all,
-    grace_offers_for,
-    record_payment,
     redeem,
     redeem_all,
-    remove_term_change,
     reopen,
-    set_collateral,
-    void_payment,
     waive,
     waive_all,
 )
@@ -53,10 +50,14 @@ from mortgage_backend.lending.projections import (
 from mortgage_backend.lending.replay import Closure, MortgageStatus, replay
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.payments.cash_limit import before_change, cash_sums
-from mortgage_backend.payments.discount_confirmation import get_discount_confirmation_limit
+from mortgage_backend.payments.discount_confirmation import (
+    get_discount_confirmation_limit,
+)
 from mortgage_backend.payments.discount_room import capped, discount_rooms
 from mortgage_backend.payments.grace_period import GraceOffer
 from mortgage_backend.payments.payments import mortgages_of
+from mortgage_backend.payments.recording import record_payment
+from mortgage_backend.payments.writes import PaymentIn, grace_offers_for, void_payment
 from mortgage_backend.platform.clock import NowDep, TodayDep
 from mortgage_backend.platform.db import EngineDep
 

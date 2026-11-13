@@ -51,7 +51,9 @@ def dormant(client, ramesh):
 
 
 def call(client, mortgage, note):
-    return client.post(f"/api/mortgages/{mortgage['id']}/call-notes", json={"note": note})
+    return client.post(
+        f"/api/mortgages/{mortgage['id']}/call-notes", json={"note": note}
+    )
 
 
 def notes_of(client, mortgage) -> list[tuple[str, str]]:

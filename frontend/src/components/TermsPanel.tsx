@@ -22,9 +22,7 @@ export function TermsPanel({
   async function remove(changeId: number, from: string) {
     const confirmed = await confirm({
       title: `Remove the Term Change from ${formatDate(from)}?`,
-      body: (
-        <ChangePreview request={previews.termChangeRemoval(mortgage.id, changeId)} />
-      ),
+      body: <ChangePreview request={previews.termChangeRemoval(mortgage.id, changeId)} />,
       wide: true,
       confirmLabel: 'Remove',
       cancelLabel: 'Cancel',

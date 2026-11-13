@@ -39,7 +39,9 @@ def payment(ramesh, allocations, method="cash"):
         "paid_on": "2026-04-20",
         "amount": sum(allocations.values()),
         "method": method,
-        "allocations": [{"mortgage_id": m, "amount": a} for m, a in allocations.items()],
+        "allocations": [
+            {"mortgage_id": m, "amount": a} for m, a in allocations.items()
+        ],
     }
 
 
@@ -66,12 +68,12 @@ def test_a_payment_that_redeems_is_one_sum_with_its_final_payment(
 def test_redeeming_in_cash_is_its_final_payment(client, chain):
     body = {"redeemed_on": "2026-04-20", "method": "cash"}
 
-    assert cash(client, f"mortgages/{chain['id']}/redeem-preview", body) == [OUTSTANDING]
+    assert cash(client, f"mortgages/{chain['id']}/redeem-preview", body) == [
+        OUTSTANDING
+    ]
 
 
-def test_redeeming_several_judges_each_final_payment_on_its_own(
-    client, ramesh, chain
-):
+def test_redeeming_several_judges_each_final_payment_on_its_own(client, ramesh, chain):
     other = lend(client, ramesh)
     # Paid off mid-month: a full month's ₹3,000 is each one's Final Payment.
     pay(client, ramesh, {chain["id"]: 109_000_00}, on="2026-04-15")
@@ -103,7 +105,10 @@ def test_voiding_or_reopening_writes_no_cash(client, ramesh, chain):
     assert cash(client, f"payments/{paid['id']}/void-preview", {}) == []
 
     redeemed = {"redeemed_on": "2026-04-20", "method": "cash"}
-    assert client.post(f"/api/mortgages/{chain['id']}/redeem", json=redeemed).status_code == 200
+    assert (
+        client.post(f"/api/mortgages/{chain['id']}/redeem", json=redeemed).status_code
+        == 200
+    )
     assert cash(client, f"mortgages/{chain['id']}/reopen-preview", {}) == []
 
 

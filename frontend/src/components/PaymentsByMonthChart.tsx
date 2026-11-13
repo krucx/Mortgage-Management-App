@@ -56,14 +56,12 @@ export function PaymentsByMonthChart({
   const [hovered, setHovered] = useState<number | null>(null)
   const columns: Column[] = [
     ...months.map((m): Column => ({ kind: 'received', ...m })),
-    ...coming.map(
-      (m): Column => ({
-        kind: 'coming',
-        month: m.month,
-        amount: m.payments_estimate,
-        interest: m.interest_charged,
-      }),
-    ),
+    ...coming.map((m): Column => ({
+      kind: 'coming',
+      month: m.month,
+      amount: m.payments_estimate,
+      interest: m.interest_charged,
+    })),
   ]
   if (columns.length === 0) return null
   const max = roundUp(
@@ -126,7 +124,9 @@ export function PaymentsByMonthChart({
               )}
               {named(i) && (
                 <text x={x + slot / 2} y={HEIGHT - 8} textAnchor="middle">
-                  {first ? monthName(column.month).replace(' 20', " '") : monthName(column.month, true)}
+                  {first
+                    ? monthName(column.month).replace(' 20', " '")
+                    : monthName(column.month, true)}
                 </text>
               )}
             </g>
@@ -176,7 +176,9 @@ export function PaymentsByMonthChart({
               <tr key={column.month}>
                 <th scope="row">{monthName(column.month)}</th>
                 <td className="num">
-                  {column.kind === 'coming' ? `about ${formatINR(column.amount)}` : formatINR(column.amount)}
+                  {column.kind === 'coming'
+                    ? `about ${formatINR(column.amount)}`
+                    : formatINR(column.amount)}
                 </td>
                 {coming.length > 0 && (
                   <td className="num">

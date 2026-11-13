@@ -29,7 +29,7 @@
 <figure class="diagram">
 <pre class="mermaid">
 flowchart TD
-  R["GET /mortgages/{id}/outstanding-on-closure?on="] --> C["closable(…, quote_only=True)<br/>changes.py"]
+  R["GET /mortgages/{id}/outstanding-on-closure?on="] --> C["closable(…, quote_only=True)<br/>closing.py"]
   C --> A{"Active, on is after today,<br/>and not a quote?"}
   A -->|"yes"| X1["422: cannot be recorded<br/>for a future date"]
   A -->|"no"| N["not_closable(on)<br/>replay.py"]
@@ -64,8 +64,8 @@ flowchart TD
 
 <h3>2. The guard: <code>closable</code> and <code>not_closable</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>closable()</code> · lines 576–589</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>576  def closable(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>closable()</code> · lines 576–589</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>576  def closable(
 577      conn: Connection, mortgage_id: int, on: date, today: date, quote_only: bool = False
 578  ) -&gt; MortgageReplay:
 579      """The Mortgage, if it can be closed on `on` (or, for a quote, could be then)."""

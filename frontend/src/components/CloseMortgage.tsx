@@ -76,7 +76,12 @@ export function CloseMortgage({
       : action === 'redeem'
         ? {
             kind: 'redeem',
-            redeem: { redeemed_on: on, method, reference: paymentReference, mortgage_ids: [mortgage.id] },
+            redeem: {
+              redeemed_on: on,
+              method,
+              reference: paymentReference,
+              mortgage_ids: [mortgage.id],
+            },
           }
         : action === 'waive'
           ? received === ''
@@ -144,7 +149,11 @@ export function CloseMortgage({
                     rows={[
                       ['Redeemed on', formatDate(on)],
                       ['Final Payment', formatINR(closure?.payment_amount ?? 0)],
-                      ['Method', (methods?.[method] ?? '') + (paymentReference ? ` · ${paymentReference}` : '')],
+                      [
+                        'Method',
+                        (methods?.[method] ?? '') +
+                          (paymentReference ? ` · ${paymentReference}` : ''),
+                      ],
                     ]}
                   />
                   <p className="hint">Return the jewellery to {mortgage.customer.name}.</p>
@@ -189,8 +198,8 @@ export function CloseMortgage({
           Forfeit…
         </button>
         <span className="hint">
-          Redeem when it is paid in full and the jewellery goes back; Waive off when a small
-          balance is let off and the jewellery goes back; Forfeit if the Customer defaulted.
+          Redeem when it is paid in full and the jewellery goes back; Waive off when a small balance
+          is let off and the jewellery goes back; Forfeit if the Customer defaulted.
         </span>
       </div>
     )
@@ -230,7 +239,10 @@ export function CloseMortgage({
               `${formatINR(quote.interest_to_date)} (${formatDays(quote.interest_to_date_days)} of ` +
                 `the month, that day included; ${PART_MONTH_RULES[mortgage.terms.part_month_rule]})`,
             ],
-            [`Outstanding on ${formatDate(on)}`, <strong key="total">{formatINR(quote.total)}</strong>],
+            [
+              `Outstanding on ${formatDate(on)}`,
+              <strong key="total">{formatINR(quote.total)}</strong>,
+            ],
           ]}
         />
       )}

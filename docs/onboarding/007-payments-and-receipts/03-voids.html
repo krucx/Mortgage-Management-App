@@ -42,8 +42,8 @@ stateDiagram-v2
 <h2>The code</h2>
 <h3>1. The request: a reason, always</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>VoidIn</code> · lines 85–93</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>85  class VoidIn(BaseModel):
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>VoidIn</code> · lines 85–93</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>85  class VoidIn(BaseModel):
 86      reason: str = Field(min_length=1)
 87
 88      @model_validator(mode="after")
@@ -58,8 +58,8 @@ stateDiagram-v2
 
 <h3>2. <code>void_payment</code>: refuse, write, check, History</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>340  def void_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>340  def void_payment(
 341      conn: Connection, payment_id: int, reason: str, today: date, now: datetime
 342  ) -&gt; None:
 ⋮    … why it reads voided_at straight from the table: chapter 006, lesson 2 …
@@ -90,8 +90,8 @@ stateDiagram-v2
   <li>Any other Payment to a closed Mortgage is refused too: its Closure was worked out with that Payment in place, so changing what was paid means Reopening first.</li>
 </ol>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_write_void()</code>, <code>_record_void_history()</code> · lines 233–251</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>233  def _write_void(conn: Connection, payment_id: int, reason: str, now: datetime) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>_write_void()</code>, <code>_record_void_history()</code> · lines 233–251</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>233  def _write_void(conn: Connection, payment_id: int, reason: str, now: datetime) -&gt; None:
 234      conn.execute(
 235          update(payment_table)
 236          .where(payment_table.c.id == payment_id)

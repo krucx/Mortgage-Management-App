@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
-from mortgage_backend.collateral import collateral
+from mortgage_backend.collateral import collateral, manual_value, mortgage_photos
 from mortgage_backend.follow_up import (
     call_list,
     call_notes,
@@ -34,6 +34,7 @@ from mortgage_backend.payments import (
     grace_period,
     payments,
     receipts,
+    recording,
 )
 from mortgage_backend.people import customer_changes, customers
 from mortgage_backend.platform import photos, updates
@@ -80,7 +81,9 @@ def create_app(
             reminders.sync(conn, day)
 
     daily_run = DailyRun(
-        engine, today, jobs=[backup.start_if_due, sync_reminders]
+        engine,
+        today,
+        jobs={"backup": backup.start_if_due, "reminders": sync_reminders},
     )
 
     @asynccontextmanager
@@ -100,7 +103,9 @@ def create_app(
 
     # The package version, checked against the root VERSION file in CI.
     app = FastAPI(
-        title="Mortgage Management", version=version("mortgage-backend"), lifespan=lifespan
+        title="Mortgage Management",
+        version=version("mortgage-backend"),
+        lifespan=lifespan,
     )
     app.state.engine = engine
     app.state.photos_dir = photos_dir(database_url)
@@ -130,10 +135,13 @@ def create_app(
     app.include_router(cash_limit.router)
     app.include_router(discount_confirmation.router)
     app.include_router(grace_period.router)
+    app.include_router(recording.router)
     app.include_router(changes.router)
     app.include_router(closing.router)
     app.include_router(favours.router)
     app.include_router(photos.router)
+    app.include_router(manual_value.router)
+    app.include_router(mortgage_photos.router)
     app.include_router(collateral.router)
     app.include_router(call_list.router)
     app.include_router(call_notes.router)

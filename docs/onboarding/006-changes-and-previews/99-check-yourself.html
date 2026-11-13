@@ -126,7 +126,7 @@ uv run pytest -q</code></pre>
 
 <h2>Recap</h2>
 <ul>
-  <li>Every change to a Mortgage or Payment is one function in <code>lending/changes.py</code>: refuse (409 for a state that blocks it, 422 for a request that can't stand) → write → check → History. Its route only parses, calls and answers, inside one <code>engine.begin()</code> transaction, so any refusal saves nothing (<a href="01-one-door-for-every-change.html">lesson 1</a>).</li>
+  <li>Every change to a Mortgage or Payment is one function, in the package that owns its concept: refuse (409 for a state that blocks it, 422 for a request that can't stand) → write → check → History. Its route only parses, calls and answers, inside one <code>engine.begin()</code> transaction, so any refusal saves nothing (<a href="01-one-door-for-every-change.html">lesson 1</a>).</li>
   <li><code>check_replays</code> writes first and replays after, because every figure is replayed from stored facts. It refuses if any Payment is now larger than what was owed on its date, naming the first one. Pass the row as it is after the write (<a href="02-the-check.html">lesson 2</a>).</li>
   <li>History is append-only, one row per changed field, written by each change function itself as its last step, so a refused change leaves none. A Mortgage's History includes its Payments'; every entry shows the Mortgage's current name (<a href="03-history.html">lesson 3</a>).</li>
   <li>A Preview runs the real change inside <code>engine.connect()</code>, reads before and after, and rolls back, so it's refused exactly when saving would be (trap #5). The routes are hand-written on purpose; the rules live once (<a href="04-previews.html">lesson 4</a>, ADR 0007).</li>

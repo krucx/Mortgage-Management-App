@@ -7,6 +7,23 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Added
+
+- A `version-bump` pull request check fails changes to `VERSION` outside the release candidate workflow.
+- **QA stack script:** `scripts/qa-stack.sh up|down` runs the code in this folder in Docker
+  on scratch data only, under its own project, image and port, so QA can't touch the
+  Lender's database.
+
+### Fixed
+
+- **A failed Reminders sync is retried the same day:** the daily run now marks each job
+  done only once it has succeeded, so Reminders no longer stay stale until tomorrow after
+  one failure. Once every job has succeeded, later requests skip the database check.
+- **Crafted uploads are refused, not crashed on:** a decompression-bomb image as a
+  Customer or Mortgage photo now answers "Not an image file" instead of an error, and
+  a filled-in Call Sheet is read with XML-bomb protection, so a crafted file is refused
+  with the usual "not an Excel sheet" message.
+
 ### Security
 
 - **Other websites can no longer reach the app through your browser:** the app now answers

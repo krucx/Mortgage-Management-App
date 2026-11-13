@@ -64,7 +64,7 @@ flowchart TD
 <p>The imports at the top of <code>main.py</code> group the routers by package. Those packages are the backend's seven sections:</p>
 <table class="wide">
 <tr><th>Package in <code>mortgage_backend/</code></th><th>Its own one-line summary (<code>__init__.py</code>)</th><th>Key modules</th></tr>
-<tr><td><code>lending/</code></td><td>Mortgages, their Terms, the Ledger and its Replay, changes and their Previews, Projections, Closures and the Dashboard</td><td><code>ledger.py</code>, <code>replay.py</code>, <code>changes.py</code>, <code>mortgages.py</code></td></tr>
+<tr><td><code>lending/</code></td><td>Mortgages, their Terms, the Ledger and its Replay, changes and their Previews, Projections, Closures and the Dashboard</td><td><code>ledger.py</code>, <code>replay.py</code>, <code>changes.py</code>, <code>closing.py</code>, <code>mortgages.py</code></td></tr>
 <tr><td><code>payments/</code></td><td>Payments, their Allocations and Receipts</td><td><code>payments.py</code>, <code>receipts.py</code>, <code>cash_limit.py</code></td></tr>
 <tr><td><code>people/</code></td><td>Customers, Referrers and the Primary Number that identifies them</td><td><code>customers.py</code></td></tr>
 <tr><td><code>collateral/</code></td><td>Gold Rates and each Mortgage's Collateral Value</td><td><code>collateral.py</code></td></tr>
@@ -154,7 +154,7 @@ flowchart TD
   <p><strong>Predict:</strong> you're asked to change what happens when a Payment is recorded (<code>POST /api/payments</code>). Which file holds that route?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p>Not <code>payments/payments.py</code>. That file only <em>reads</em> Payments (<code>GET /api/payments</code>, <code>GET /api/payments/{payment_id}</code>, the payment methods). The write is in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a>, at <code>@router.post("/payments", …)</code>, beside every other change that moves a Ledger: creating and editing Mortgages, Voiding Payments, Term Changes, Closures and Reopening. Keeping them in one module means every change is refused, written and checked the same way. Chapters 003 and 006 walk through it.</p>
+    <p>Not <code>payments/payments.py</code>. That file only <em>reads</em> Payments (<code>GET /api/payments</code>, <code>GET /api/payments/{payment_id}</code>, the payment methods). The write is in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py"><code>payments/recording.py</code></a>, at <code>@router.post("/payments", …)</code>. Each change lives in the package that owns its concept (Closures in <code>lending/closing.py</code>, Collateral and photos in <code>collateral/</code>), and they share the refusals in <code>lending/refusals.py</code>, so every change is refused, written and checked the same way. Chapters 003 and 006 walk through it.</p>
     <div class="callout warn"><strong>Search the route, not the folder.</strong> When you need the code behind a URL, grep for the path string (<code>"/payments"</code>) across <code>backend/src/</code> rather than guessing from package names.</div>
   </div>
 </div>

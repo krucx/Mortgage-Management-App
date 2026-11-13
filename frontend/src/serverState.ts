@@ -115,7 +115,6 @@ const REFRESHED_AFTER_LEDGER_CHANGE = [
  *  Preview or quote of the very change just made, which the backend would now refuse. */
 const OUTDATED_BY_LEDGER_CHANGE = [keys.previews, keys.outstandingOnClosure]
 
-
 /** A change to what Collateral is worth: Loan-to-Value, so the Call List, everywhere. */
 const STALE_AFTER_REVALUING = [keys.allMortgages, keys.lists, keys.dashboard]
 
@@ -199,7 +198,7 @@ export function useServerState(): ServerState {
  */
 export function useLedgerChange() {
   const { client, queryClient } = useServerState()
-  return async <T,>(
+  return async <T>(
     change: (client: ApiClient) => Promise<T>,
     keep?: (result: T) => void,
   ): Promise<T> => {
@@ -228,7 +227,7 @@ export function useMortgageChange() {
  */
 export function useChange(stale: readonly (readonly unknown[])[]) {
   const { client, queryClient } = useServerState()
-  return async <T,>(change: (client: ApiClient) => Promise<T>): Promise<T> => {
+  return async <T>(change: (client: ApiClient) => Promise<T>): Promise<T> => {
     const result = await change(client)
     markStale(queryClient, stale)
     return result

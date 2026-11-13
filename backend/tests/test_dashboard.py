@@ -78,7 +78,11 @@ def test_activity_totals_use_inclusive_dates_and_include_waived_final_payments(c
     client.post(f"/api/payments/{voided['id']}/void", json={"reason": "typo"})
     client.post(
         f"/api/mortgages/{waived['id']}/waive",
-        json={"waived_on": "2026-04-15", "amount_paid": 10_000 * RUPEE, "method": "cash"},
+        json={
+            "waived_on": "2026-04-15",
+            "amount_paid": 10_000 * RUPEE,
+            "method": "cash",
+        },
     )
     lent_after = lend(client, owner, "2026-04-16", 20_000 * RUPEE, "Later")
 
@@ -178,7 +182,11 @@ def test_waivers_this_month_and_what_was_let_off(client, book):
     # Owes ₹10,600 on 12 Apr (₹300 on 10 Apr, ₹300 more under the Full-month rule).
     client.post(
         f"/api/mortgages/{coin['id']}/waive",
-        json={"waived_on": "2026-04-12", "amount_paid": 10_000 * RUPEE, "method": "cash"},
+        json={
+            "waived_on": "2026-04-12",
+            "amount_paid": 10_000 * RUPEE,
+            "method": "cash",
+        },
     )
 
     figures = dashboard(client)

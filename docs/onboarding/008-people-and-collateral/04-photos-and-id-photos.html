@@ -152,7 +152,7 @@ flowchart TD
 280      return old                                           # for remove_when_saved
 </code></pre>
 </figure>
-<p>The change function knows nothing about files: it's handed a file name, and hands back the one it replaced. That split is what to copy. <code>replace_photo</code> (line 239) is the same for the Customer's own photo, and <code>delete_id_photo</code> (line 390) calls <code>replace_id_photo</code> with <code>None</code> and no <code>NewPhoto</code>. <code>delete_customer</code> (line 404) passes every file <code>remove_customer</code> returns (lesson 3) to <code>remove_when_saved</code>. Mortgage photos use the same pattern from <code>lending/changes.py</code>: <code>add_photo</code> (line 542) and <code>remove_photo</code> (line 556), called by <code>post_photo</code> and <code>delete_photo</code> (lines 1064–1090).</p>
+<p>The change function knows nothing about files: it's handed a file name, and hands back the one it replaced. That split is what to copy. <code>replace_photo</code> (line 239) is the same for the Customer's own photo, and <code>delete_id_photo</code> (line 390) calls <code>replace_id_photo</code> with <code>None</code> and no <code>NewPhoto</code>. <code>delete_customer</code> (line 404) passes every file <code>remove_customer</code> returns (lesson 3) to <code>remove_when_saved</code>. Mortgage photos use the same pattern from <code>collateral/mortgage_photos.py</code>: <code>add_photo</code> and <code>remove_photo</code>, called by <code>post_photo</code> and <code>delete_photo</code> in the same file.</p>
 
 <h3>4. Serving a file: <code>read_photo</code></h3>
 <figure class="snippet">

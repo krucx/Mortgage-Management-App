@@ -321,7 +321,9 @@ def test_a_discount_pays_unpaid_interest_the_interest_to_date_and_principal_in_o
 # --- Closing a Mortgage (Redemption / Forfeiture): its Interest to Date, then no more interest.
 
 
-def closed(start, closed_on, rule, allocations=(), as_of=None, principal=LAKH, **closure):
+def closed(
+    start, closed_on, rule, allocations=(), as_of=None, principal=LAKH, **closure
+):
     rule_terms = Terms(
         monthly_rate_bps=300, interest_mode=InterestMode.SIMPLE, part_month_rule=rule
     )
@@ -695,7 +697,9 @@ def test_the_interest_to_date_is_on_the_capitalised_principal_and_never_capitali
         PartMonthRule.FULL_MONTH, date(2026, 12, 1), InterestMode.COMPOUNDED_MONTHLY
     )
 
-    assert [(s.event, s.amount, s.principal, s.unpaid_interest) for s in ledger[1:]] == [
+    assert [
+        (s.event, s.amount, s.principal, s.unpaid_interest) for s in ledger[1:]
+    ] == [
         ("interest", 90_00, 3_000_00, 90_00),
         ("capitalised", 90_00, 3_090_00, 0),
         ("interest_to_date", 93_00, 3_090_00, 93_00),  # ₹92.70 rounds up
@@ -723,7 +727,8 @@ def test_a_payment_on_an_accrual_date_leaves_the_new_month_charged_on_its_start(
 
 
 @pytest.mark.parametrize(
-    ("rule", "owed_after"), [(PartMonthRule.FULL_MONTH, 90), (PartMonthRule.PRO_RATA, 3)]
+    ("rule", "owed_after"),
+    [(PartMonthRule.FULL_MONTH, 90), (PartMonthRule.PRO_RATA, 3)],
 )
 def test_paying_principal_and_charged_interest_on_an_accrual_date_still_owes_the_new_month(
     rule, owed_after
@@ -753,10 +758,16 @@ def test_paying_the_outstanding_on_an_accrual_date_closes_the_mortgage_at_nothin
     mode, outstanding
 ):
     rule_terms = Terms(
-        monthly_rate_bps=300, interest_mode=mode, part_month_rule=PartMonthRule.FULL_MONTH
+        monthly_rate_bps=300,
+        interest_mode=mode,
+        part_month_rule=PartMonthRule.FULL_MONTH,
     )
     quoted = compute_ledger(
-        date(2026, 11, 1), 3_000_00, rule_terms, date(2026, 12, 1), closed_on=date(2026, 12, 1)
+        date(2026, 11, 1),
+        3_000_00,
+        rule_terms,
+        date(2026, 12, 1),
+        closed_on=date(2026, 12, 1),
     )
     final = Allocation(on=date(2026, 12, 1), amount=outstanding, payment_id=1)
 
@@ -825,14 +836,19 @@ def test_a_waiver_is_charged_the_whole_interest_to_date():
         final_payment=1,
     )
 
-    assert [(s.event, s.amount) for s in ledger[-2:]] == [("payment", 3_000_00), ("waived", 45_00)]
+    assert [(s.event, s.amount) for s in ledger[-2:]] == [
+        ("payment", 3_000_00),
+        ("waived", 45_00),
+    ]
 
 
 def test_the_interest_to_date_follows_the_terms_of_the_month_under_way():
     # From 1 Dec, 2% and pro-rata: November's interest and the Interest to Date on
     # 30 Nov keep the old Terms; 10 Dec is charged under the new.
     change = TermChange(
-        on=date(2026, 12, 1), monthly_rate_bps=200, part_month_rule=PartMonthRule.PRO_RATA
+        on=date(2026, 12, 1),
+        monthly_rate_bps=200,
+        part_month_rule=PartMonthRule.PRO_RATA,
     )
 
     def to_date(as_of):
@@ -868,19 +884,29 @@ def test_redeeming_after_a_payment_on_the_same_accrual_date_costs_the_outstandin
     # ₹1,000 on 1 Dec pays November's ₹90 (so nothing capitalises), December's ₹90
     # ahead and ₹820 Principal, so ₹2,180 is owed.
     rule_terms = Terms(
-        monthly_rate_bps=300, interest_mode=mode, part_month_rule=PartMonthRule.FULL_MONTH
+        monthly_rate_bps=300,
+        interest_mode=mode,
+        part_month_rule=PartMonthRule.FULL_MONTH,
     )
     earlier = Allocation(on=date(2026, 12, 1), amount=1_000_00, payment_id=1)
     final = Allocation(on=date(2026, 12, 1), amount=2_180_00, payment_id=2)
 
     def ledger(allocations, **closing):
         return compute_ledger(
-            date(2026, 11, 1), 3_000_00, rule_terms, date(2026, 12, 1), allocations, **closing
+            date(2026, 11, 1),
+            3_000_00,
+            rule_terms,
+            date(2026, 12, 1),
+            allocations,
+            **closing,
         )
 
     quoted = ledger([earlier], closed_on=date(2026, 12, 1))
     redeemed = ledger(
-        [earlier, final], closed_on=date(2026, 12, 1), closure="redeemed", final_payment=2
+        [earlier, final],
+        closed_on=date(2026, 12, 1),
+        closure="redeemed",
+        final_payment=2,
     )
 
     assert owed(ledger([earlier])) == owed(quoted) == 2180
@@ -930,7 +956,9 @@ def test_a_mid_month_payment_pays_the_interest_to_date_before_principal(
 
 
 def test_a_month_paid_ahead_counts_as_covered_once_charged():
-    full = paid_on(PartMonthRule.FULL_MONTH, date(2026, 12, 1), (date(2026, 11, 15), 90))
+    full = paid_on(
+        PartMonthRule.FULL_MONTH, date(2026, 12, 1), (date(2026, 11, 15), 90)
+    )
     half = paid_on(PartMonthRule.PRO_RATA, date(2026, 12, 1), (date(2026, 11, 15), 45))
 
     assert (months_unpaid(full), months_unpaid(half)) == (0, 1)
