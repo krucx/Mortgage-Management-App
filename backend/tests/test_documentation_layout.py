@@ -3,7 +3,6 @@
 import re
 from pathlib import Path
 
-
 REPO = Path(__file__).resolve().parents[2]
 DOCUMENTATION = REPO / "Documentation"
 PAGES = REPO / "docs"
@@ -21,29 +20,39 @@ def test_canonical_domain_docs_and_architecture_records_are_present():
 
     adr_dir = DOCUMENTATION / "adr"
     adrs = sorted(adr_dir.glob("*.md"))
-    assert [path.stem[:4] for path in adrs] == [f"{number:04d}" for number in range(1, 21)]
+    assert [path.stem[:4] for path in adrs] == [
+        f"{number:04d}" for number in range(1, 21)
+    ]
     assert all(path.read_text().strip() for path in adrs)
-    assert "The Ledger is derived, not stored" in (
-        adr_dir / "0001-ledger-is-derived-not-stored.md"
-    ).read_text()
-    assert "non-cash" in (
-        adr_dir / "0014-discounts-are-non-cash-payment-reductions.md"
-    ).read_text()
-    assert "Starting Terms can be corrected" in (
-        adr_dir / "0015-starting-terms-can-be-corrected.md"
-    ).read_text()
+    assert (
+        "The Ledger is derived, not stored"
+        in (adr_dir / "0001-ledger-is-derived-not-stored.md").read_text()
+    )
+    assert (
+        "non-cash"
+        in (adr_dir / "0014-discounts-are-non-cash-payment-reductions.md").read_text()
+    )
+    assert (
+        "Starting Terms can be corrected"
+        in (adr_dir / "0015-starting-terms-can-be-corrected.md").read_text()
+    )
 
     for name in ("domain.md", "issue-tracker.md", "triage-labels.md"):
         assert (DOCUMENTATION / "agents" / name).is_file()
-    assert len(list((DOCUMENTATION / "architecture-reviews").glob("review-pass-*/**/*.html"))) == 7
+    assert (
+        len(
+            list(
+                (DOCUMENTATION / "architecture-reviews").glob("review-pass-*/**/*.html")
+            )
+        )
+        == 7
+    )
     assert not (REPO / "GLOSSARY.md").exists()
 
 
 def test_pages_tree_has_no_source_markdown_or_duplicate_reference_trees():
     markdown = [
-        path
-        for path in PAGES.rglob("*.md")
-        if "node_modules" not in path.parts
+        path for path in PAGES.rglob("*.md") if "node_modules" not in path.parts
     ]
     assert not markdown
     for name in ("adr", "agents", "architecture-reviews"):

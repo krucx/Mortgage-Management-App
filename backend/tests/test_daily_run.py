@@ -70,7 +70,9 @@ def test_once_every_job_has_succeeded_a_request_does_not_touch_the_database(engi
     run = DailyRun(engine, today, {"job": Job()})
     run.run_if_due()
     statements: list[str] = []
-    event.listen(engine, "before_cursor_execute", lambda *args: statements.append(args[2]))
+    event.listen(
+        engine, "before_cursor_execute", lambda *args: statements.append(args[2])
+    )
 
     run.run_if_due()
 

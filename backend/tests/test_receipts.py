@@ -44,7 +44,13 @@ def test_a_receipt_lists_what_each_mortgage_was_paid_and_still_owes(client, paym
         "UPI",
     )
     assert [
-        (r["description"], r["paid"], r["interest_paid"], r["principal_paid"], r["owed_after"])
+        (
+            r["description"],
+            r["paid"],
+            r["interest_paid"],
+            r["principal_paid"],
+            r["owed_after"],
+        )
         for r in shown["lines"]
     ] == [
         # Still owed: what would redeem it that day, the Interest to Date included
@@ -94,7 +100,11 @@ def test_a_waivers_final_payment_leaves_nothing_owed(client, ramesh):
     # ₹1,12,000 owed on 20 Apr: ₹1,11,000 paid and ₹1,000 waived.
     waived = client.post(
         f"/api/mortgages/{chain['id']}/waive",
-        json={"waived_on": "2026-04-20", "amount_paid": 111_000 * RUPEE, "method": "cash"},
+        json={
+            "waived_on": "2026-04-20",
+            "amount_paid": 111_000 * RUPEE,
+            "method": "cash",
+        },
     ).json()
 
     shown = receipt(client, {"id": waived["closure"]["payment_id"]})
@@ -113,7 +123,11 @@ def test_a_grace_payments_receipt_shows_both_dates_and_what_each_mortgage_was_le
     assert response.status_code == 200, response.text
     chain = lend(client, ramesh)
     bangle = lend(
-        client, ramesh, start="2026-01-15", description="Bangle", name="2026-Ramesh-Bangle"
+        client,
+        ramesh,
+        start="2026-01-15",
+        description="Bangle",
+        name="2026-Ramesh-Bangle",
     )
     paid = pay(
         client,
@@ -127,7 +141,8 @@ def test_a_grace_payments_receipt_shows_both_dates_and_what_each_mortgage_was_le
 
     assert (shown["paid_on"], shown["received_on"]) == ("2026-04-13", "2026-04-16")
     assert [
-        (r["description"], r["paid"], r["let_off"], r["redeemed"]) for r in shown["lines"]
+        (r["description"], r["paid"], r["let_off"], r["redeemed"])
+        for r in shown["lines"]
     ] == [
         ("Gold chain", 20_000 * RUPEE, 330 * RUPEE, False),
         ("Bangle", 1_09_000 * RUPEE, 3_000 * RUPEE, True),
@@ -139,7 +154,9 @@ def test_a_grace_payments_receipt_shows_both_dates_and_what_each_mortgage_was_le
     assert "Total let off     ₹3,330\n" in text
     assert "2026-Ramesh" not in text
     # The bangle's Final Payment shares the one Receipt, Grace and all
-    final_id = client.get(f"/api/mortgages/{bangle['id']}").json()["closure"]["payment_id"]
+    final_id = client.get(f"/api/mortgages/{bangle['id']}").json()["closure"][
+        "payment_id"
+    ]
     assert receipt(client, {"id": final_id})["text"] == text
 
 

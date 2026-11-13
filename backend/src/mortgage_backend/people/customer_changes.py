@@ -365,7 +365,9 @@ async def put_customer_photo(
 ) -> Customer:
     new = photos.NewPhoto("customer", customer_id, await photo.read())
     with photos.photo_change(engine, photos_dir, new) as change:
-        change.remove_when_saved(replace_photo(change.conn, customer_id, change.file, now))
+        change.remove_when_saved(
+            replace_photo(change.conn, customer_id, change.file, now)
+        )
         return load_customer(change.conn, customer_id)
 
 
@@ -397,7 +399,9 @@ def delete_id_photo(
 ) -> Customer:
     """Remove one of the Customer's ID Photos."""
     with photos.photo_change(engine, photos_dir) as change:
-        change.remove_when_saved(replace_id_photo(change.conn, customer_id, card, None, now))
+        change.remove_when_saved(
+            replace_id_photo(change.conn, customer_id, card, None, now)
+        )
         return load_customer(change.conn, customer_id)
 
 

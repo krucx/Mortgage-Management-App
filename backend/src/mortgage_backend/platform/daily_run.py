@@ -46,7 +46,9 @@ class DailyRun:
             with self.engine.begin() as conn:
                 done = get_config(conn, [_done_key(name) for name in self.jobs])
             due = [
-                name for name in self.jobs if done.get(_done_key(name)) != today.isoformat()
+                name
+                for name in self.jobs
+                if done.get(_done_key(name)) != today.isoformat()
             ]
             if due:
                 self.count += 1
