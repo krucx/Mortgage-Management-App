@@ -32,8 +32,12 @@ def all_placeholders(placeholders: tuple[str, ...]) -> str:
 def mortgages(client):
     """Two Mortgages described alike, a start date apart, with distinctive names."""
     zorblax = person(client, name="Zorblax Patel")
-    first = lend(client, zorblax, "2026-01-14", description="Silver anklet", name=NAMES[0])
-    second = lend(client, zorblax, "2026-02-14", description="Silver anklet", name=NAMES[1])
+    first = lend(
+        client, zorblax, "2026-01-14", description="Silver anklet", name=NAMES[0]
+    )
+    second = lend(
+        client, zorblax, "2026-02-14", description="Silver anklet", name=NAMES[1]
+    )
     return zorblax, first, second
 
 
@@ -68,14 +72,19 @@ def assert_hides_internal_names(text: str, ids: list[int]) -> None:
     [
         pytest.param((RECEIPT_TEMPLATE, REMINDER_TEMPLATE), id="default"),
         pytest.param(
-            (all_placeholders(RECEIPT_PLACEHOLDERS), all_placeholders(REMINDER_PLACEHOLDERS)),
+            (
+                all_placeholders(RECEIPT_PLACEHOLDERS),
+                all_placeholders(REMINDER_PLACEHOLDERS),
+            ),
             id="customised, every placeholder",
         ),
     ],
 )
 def test_customer_messages_show_no_mortgage_name_or_id(client, mortgages, templates):
     zorblax, first, second = mortgages
-    paid = pay(client, zorblax, {first["id"]: 1_000 * RUPEE, second["id"]: 1_000 * RUPEE})
+    paid = pay(
+        client, zorblax, {first["id"]: 1_000 * RUPEE, second["id"]: 1_000 * RUPEE}
+    )
     use_templates(client, *templates)
     ids = [first["id"], second["id"], zorblax["id"], paid["id"]]
 

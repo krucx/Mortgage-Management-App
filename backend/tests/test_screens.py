@@ -22,12 +22,16 @@ def screens(tmp_path):
 
 @pytest.fixture
 def served(database_url, screens):
-    with TestClient(create_app(database_url, today=lambda: TODAY, screens_dir=screens)) as client:
+    with TestClient(
+        create_app(database_url, today=lambda: TODAY, screens_dir=screens)
+    ) as client:
         yield client
 
 
 @pytest.mark.parametrize("path", ["/", "/mortgages/7", "/payments/new"])
-def test_the_app_opens_at_any_of_its_paths_checked_for_a_new_version_each_time(served, path):
+def test_the_app_opens_at_any_of_its_paths_checked_for_a_new_version_each_time(
+    served, path
+):
     response = served.get(path)
 
     assert response.status_code == 200
@@ -51,8 +55,10 @@ def test_the_service_worker_and_manifest_are_always_checked(served, path):
 
 
 def test_the_manifest_has_its_own_type(served):
-    assert served.get("/manifest.webmanifest").headers["content-type"].startswith(
-        "application/manifest+json"
+    assert (
+        served.get("/manifest.webmanifest")
+        .headers["content-type"]
+        .startswith("application/manifest+json")
     )
 
 
@@ -72,4 +78,3 @@ def test_a_page_can_be_asked_for_its_headers_alone(served):
 
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-cache"
-

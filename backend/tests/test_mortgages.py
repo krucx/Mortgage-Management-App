@@ -198,7 +198,12 @@ def test_mortgages_can_be_searched_by_name_or_customer(client, ramesh):
 def test_mortgages_can_be_searched_by_the_customers_primary_number(client, ramesh):
     sita = client.post(
         "/api/customers",
-        json={"name": "Sita", "address": "", "phone_1": "9000000005", "phone_2": "9414000006"},
+        json={
+            "name": "Sita",
+            "address": "",
+            "phone_1": "9000000005",
+            "phone_2": "9414000006",
+        },
     ).json()
     create_mortgage(client, ramesh)
     create_mortgage(client, sita, name="2026-Sita-Bangles", description="Two bangles")

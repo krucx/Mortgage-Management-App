@@ -10,15 +10,15 @@ from seed import RUPEE
 
 from mortgage_backend.follow_up.message_settings import RECEIPT_TEMPLATE
 from mortgage_backend.follow_up.messages import (
-    REMINDER_PLACEHOLDERS,
     RECEIPT_PLACEHOLDERS,
-    ReminderLine,
-    ReminderMessage,
+    REMINDER_PLACEHOLDERS,
     ReceiptLine,
     ReceiptMessage,
+    ReminderLine,
+    ReminderMessage,
     fill,
-    reminder_text,
     receipt_text,
+    reminder_text,
     unknown_placeholders,
 )
 
@@ -116,7 +116,9 @@ def test_a_card_widens_for_a_large_amount_and_wraps_a_long_item() -> None:
     ]
 
 
-def test_a_grace_payment_says_when_it_was_received_and_what_each_mortgage_was_let_off() -> None:
+def test_a_grace_payment_says_when_it_was_received_and_what_each_mortgage_was_let_off() -> (
+    None
+):
     # A template without {grace} (one saved before it existed) still tells the Customer,
     # in {date}
     graced = receipt(chain(let_off=330 * RUPEE)).model_copy(

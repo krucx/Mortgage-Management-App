@@ -66,13 +66,21 @@ def test_a_newer_release_is_offered_with_its_notes(database_url, clock):
 
 
 @pytest.mark.parametrize("by", [0, -1])
-def test_nothing_is_offered_when_the_running_version_is_the_newest(database_url, clock, by):
-    with start(database_url, GitHub(Release(version=bumped(by), notes="")), clock) as client:
-        assert client.get("/api/update").json() == {"running": RUNNING, "available": None}
+def test_nothing_is_offered_when_the_running_version_is_the_newest(
+    database_url, clock, by
+):
+    with start(
+        database_url, GitHub(Release(version=bumped(by), notes="")), clock
+    ) as client:
+        assert client.get("/api/update").json() == {
+            "running": RUNNING,
+            "available": None,
+        }
 
 
 @pytest.mark.parametrize(
-    ("running", "latest", "offered"), [("3.9.0", "3.10.0", True), ("3.10.0", "3.9.0", False)]
+    ("running", "latest", "offered"),
+    [("3.9.0", "3.10.0", True), ("3.10.0", "3.9.0", False)],
 )
 def test_versions_are_compared_by_number_not_as_text(clock, running, latest, offered):
     github = GitHub(Release(version=latest, notes=""))
@@ -82,7 +90,9 @@ def test_versions_are_compared_by_number_not_as_text(clock, running, latest, off
     assert (available is not None) == offered
 
 
-def test_nothing_is_offered_and_nothing_fails_when_github_cannot_be_reached(database_url, clock):
+def test_nothing_is_offered_and_nothing_fails_when_github_cannot_be_reached(
+    database_url, clock
+):
     with start(database_url, GitHub(offline=True), clock) as client:
         response = client.get("/api/update")
 
@@ -105,4 +115,7 @@ def test_github_is_asked_at_most_once_a_day(database_url, clock):
 
 def test_a_development_build_never_asks(database_url):
     with TestClient(create_app(database_url, today=lambda: TODAY)) as client:
-        assert client.get("/api/update").json() == {"running": RUNNING, "available": None}
+        assert client.get("/api/update").json() == {
+            "running": RUNNING,
+            "available": None,
+        }

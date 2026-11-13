@@ -14,7 +14,9 @@ def grace_period(client):
 
 
 def set_grace_period(client, value):
-    response = client.put("/api/settings/grace-period", json={"grace_period_days": value})
+    response = client.put(
+        "/api/settings/grace-period", json={"grace_period_days": value}
+    )
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -52,7 +54,9 @@ def test_a_grace_period_of_zero_days_is_the_same_as_none(client):
 def test_a_grace_period_that_is_not_a_whole_number_of_days_is_refused(client, days):
     set_grace_period(client, 5)
 
-    response = client.put("/api/settings/grace-period", json={"grace_period_days": days})
+    response = client.put(
+        "/api/settings/grace-period", json={"grace_period_days": days}
+    )
 
     assert response.status_code == 422
     assert "The Grace Period must be a whole number of days" in response.text

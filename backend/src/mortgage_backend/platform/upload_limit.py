@@ -33,7 +33,9 @@ class UploadLimit:
             received += len(message.get("body", b""))
             if received > MAX_BODY_BYTES:
                 # Raised while the route reads its body, which FastAPI answers as it is.
-                raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, TOO_LARGE_MESSAGE)
+                raise HTTPException(
+                    status.HTTP_413_CONTENT_TOO_LARGE, TOO_LARGE_MESSAGE
+                )
             return message
 
         await self.app(scope, counted, send)

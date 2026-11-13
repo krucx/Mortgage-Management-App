@@ -245,16 +245,18 @@ own API: `docs/sample-book/run.sh` retakes them all (see its README).
 - `backend/`: FastAPI + SQLite (SQLAlchemy, Alembic migrations), managed with [uv](https://docs.astral.sh/uv/).
 - `frontend/`: React + TypeScript + Vite; its built screens are served by the backend, in Docker and without it.
 
-### Tests and type checks
+### Tests, lint and type checks
 
 ```sh
+cd backend && uv run ruff check . && uv run ruff format --check .
 cd backend && COVERAGE_CORE=sysmon uv run pytest -n auto && uv run mypy src
 cd frontend && npm test && npm run typecheck
 ```
 
 The backend tests use `pytest-xdist` to run in parallel. `COVERAGE_CORE=sysmon`
 keeps coverage collection compatible with that parallel run. CI additionally
-uses pytest-cov to retain XML and HTML coverage reports.
+uses pytest-cov to retain XML and HTML coverage reports. `ruff format .` applies
+the backend formatting and `ruff check . --fix` the safe lint fixes.
 
 ### API types
 

@@ -101,7 +101,9 @@ def create_app(
 
     # The package version, checked against the root VERSION file in CI.
     app = FastAPI(
-        title="Mortgage Management", version=version("mortgage-backend"), lifespan=lifespan
+        title="Mortgage Management",
+        version=version("mortgage-backend"),
+        lifespan=lifespan,
     )
     app.state.engine = engine
     app.state.photos_dir = photos_dir(database_url)

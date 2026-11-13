@@ -92,7 +92,9 @@ mortgage_table = Table(
     Column("gross_weight_mg", Integer, nullable=False),
     Column("net_weight_mg", Integer, nullable=False),
     Column("purity_karat", Integer, nullable=False),
-    Column("lent_through", String),  # a Payment method; None if made before it was asked
+    Column(
+        "lent_through", String
+    ),  # a Payment method; None if made before it was asked
     # Terms, copied from the Default Terms when the Mortgage is created.
     Column("monthly_rate_bps", Integer, nullable=False),
     Column("interest_mode", String, nullable=False),

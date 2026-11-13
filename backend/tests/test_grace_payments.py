@@ -21,7 +21,9 @@ def chain(client, ramesh):
 
 
 def set_grace_period(client, days):
-    response = client.put("/api/settings/grace-period", json={"grace_period_days": days})
+    response = client.put(
+        "/api/settings/grace-period", json={"grace_period_days": days}
+    )
     assert response.status_code == 200, response.text
 
 
@@ -215,7 +217,11 @@ def test_a_grace_payment_keeps_its_received_date_and_the_amount_let_off(
     set_grace_period(client, 2)
 
     payment = pay(
-        client, ramesh, {chain["id"]: 20_000_00}, on="2026-04-13", received_on="2026-04-15"
+        client,
+        ramesh,
+        {chain["id"]: 20_000_00},
+        on="2026-04-13",
+        received_on="2026-04-15",
     )
 
     saved = client.get(f"/api/payments/{payment['id']}").json()
@@ -260,7 +266,11 @@ def test_a_grace_payment_is_judged_by_the_grace_period_as_set_when_it_is_saved(
 ):
     set_grace_period(client, 2)
     payment = pay(
-        client, ramesh, {chain["id"]: 20_000_00}, on="2026-04-13", received_on="2026-04-15"
+        client,
+        ramesh,
+        {chain["id"]: 20_000_00},
+        on="2026-04-13",
+        received_on="2026-04-15",
     )
 
     set_grace_period(client, None)
@@ -278,7 +288,11 @@ def test_a_redeeming_grace_payment_lets_off_the_new_month_and_its_final_payment_
     set_grace_period(client, 2)
 
     payment = pay(
-        client, ramesh, {chain["id"]: 1_09_000_00}, on="2026-04-13", received_on="2026-04-15"
+        client,
+        ramesh,
+        {chain["id"]: 1_09_000_00},
+        on="2026-04-13",
+        received_on="2026-04-15",
     )
 
     closure = client.get(f"/api/mortgages/{chain['id']}").json()["closure"]
@@ -305,7 +319,9 @@ def test_a_grace_payment_paying_one_mortgage_and_redeeming_another_keeps_both_am
         received_on="2026-04-16",
     )
 
-    final_id = client.get(f"/api/mortgages/{bangle['id']}").json()["closure"]["payment_id"]
+    final_id = client.get(f"/api/mortgages/{bangle['id']}").json()["closure"][
+        "payment_id"
+    ]
     final = client.get(f"/api/payments/{final_id}").json()
     assert [a["let_off"] for a in first["allocations"]] == [330_00]
     assert (final["paid_on"], final["received_on"]) == ("2026-04-13", "2026-04-16")
@@ -315,10 +331,16 @@ def test_a_grace_payment_paying_one_mortgage_and_redeeming_another_keeps_both_am
 def test_a_grace_payment_can_be_voided_like_any_other(client, ramesh, chain):
     set_grace_period(client, 2)
     payment = pay(
-        client, ramesh, {chain["id"]: 20_000_00}, on="2026-04-13", received_on="2026-04-15"
+        client,
+        ramesh,
+        {chain["id"]: 20_000_00},
+        on="2026-04-13",
+        received_on="2026-04-15",
     )
 
-    response = client.post(f"/api/payments/{payment['id']}/void", json={"reason": "Twice"})
+    response = client.post(
+        f"/api/payments/{payment['id']}/void", json={"reason": "Twice"}
+    )
 
     assert response.status_code == 200, response.text
     assert response.json()["voided_at"] is not None
@@ -332,7 +354,9 @@ def test_a_grace_payment_that_lets_off_nothing_is_refused(client, ramesh, chain)
 
     response = client.post(
         "/api/payments",
-        json=draft(ramesh, {chain["id"]: 9_000_00}, "2026-04-13", received_on="2026-04-15"),
+        json=draft(
+            ramesh, {chain["id"]: 9_000_00}, "2026-04-13", received_on="2026-04-15"
+        ),
     )
 
     assert response.status_code == 422, response.text
@@ -345,7 +369,11 @@ def test_the_ledger_shows_each_grace_payment_with_its_received_date_and_amount_l
     set_grace_period(client, 2)
     ordinary = pay(client, ramesh, {chain["id"]: 3_000_00}, on="2026-02-20")
     grace = pay(
-        client, ramesh, {chain["id"]: 20_000_00}, on="2026-04-13", received_on="2026-04-15"
+        client,
+        ramesh,
+        {chain["id"]: 20_000_00},
+        on="2026-04-13",
+        received_on="2026-04-15",
     )
 
     mortgage = client.get(f"/api/mortgages/{chain['id']}").json()
@@ -354,7 +382,9 @@ def test_the_ledger_shows_each_grace_payment_with_its_received_date_and_amount_l
     assert mortgage["graces"] == [
         {"payment_id": grace["id"], "received_on": "2026-04-15", "let_off": let_off}
     ]
-    paid = [step["payment_id"] for step in mortgage["ledger"] if step["event"] == "payment"]
+    paid = [
+        step["payment_id"] for step in mortgage["ledger"] if step["event"] == "payment"
+    ]
     assert paid == [ordinary["id"], grace["id"]]
 
 
@@ -362,7 +392,13 @@ def test_a_redeeming_grace_payment_shows_in_the_ledger_by_its_final_payment(
     client, ramesh, chain
 ):
     set_grace_period(client, 2)
-    pay(client, ramesh, {chain["id"]: 1_09_000_00}, on="2026-04-13", received_on="2026-04-15")
+    pay(
+        client,
+        ramesh,
+        {chain["id"]: 1_09_000_00},
+        on="2026-04-13",
+        received_on="2026-04-15",
+    )
 
     mortgage = client.get(f"/api/mortgages/{chain['id']}").json()
 
@@ -376,7 +412,11 @@ def test_a_redeeming_grace_payment_shows_in_the_ledger_by_its_final_payment(
 def test_a_voided_grace_payment_leaves_the_ledger_with_its_grace(client, ramesh, chain):
     set_grace_period(client, 2)
     grace = pay(
-        client, ramesh, {chain["id"]: 20_000_00}, on="2026-04-13", received_on="2026-04-15"
+        client,
+        ramesh,
+        {chain["id"]: 20_000_00},
+        on="2026-04-13",
+        received_on="2026-04-15",
     )
     client.post(f"/api/payments/{grace['id']}/void", json={"reason": "Twice"})
 
@@ -387,7 +427,11 @@ def test_the_payments_list_marks_grace_payments_voided_or_not(client, ramesh, ch
     set_grace_period(client, 2)
     ordinary = pay(client, ramesh, {chain["id"]: 3_000_00}, on="2026-02-20")
     grace = pay(
-        client, ramesh, {chain["id"]: 20_000_00}, on="2026-04-13", received_on="2026-04-15"
+        client,
+        ramesh,
+        {chain["id"]: 20_000_00},
+        on="2026-04-13",
+        received_on="2026-04-15",
     )
     client.post(f"/api/payments/{grace['id']}/void", json={"reason": "Twice"})
 
