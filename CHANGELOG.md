@@ -24,6 +24,13 @@ Every release of Mortgage Management, newest first. The format follows
   a filled-in Call Sheet is read with XML-bomb protection, so a crafted file is refused
   with the usual "not an Excel sheet" message.
 
+### Security
+
+- **Other websites can no longer reach the app through your browser:** the app now answers
+  only requests addressed to it as `localhost` or `127.0.0.1`, which stops a page that
+  points its own domain at your PC from reading Customers' details, and refuses any
+  change (including a Call Sheet import or a photo upload) sent from another site.
+
 ## [3.4.9] - 2026-11-10
 
 ### Added

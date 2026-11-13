@@ -71,6 +71,7 @@ export default defineConfig({
   // The dev server passes /api on to the backend. (Installed, in Docker or not, the app is
   // served by the backend itself: Dockerfile, windows/run.ps1.)
   // 127.0.0.1, not localhost: on Windows localhost can mean IPv6, where the API isn't.
+  // No changeOrigin: the backend refuses writes whose Origin differs from the Host it sees.
   server: {
     proxy: { '/api': 'http://127.0.0.1:8000' },
   },
