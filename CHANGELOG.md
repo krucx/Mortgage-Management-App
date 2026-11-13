@@ -7,6 +7,12 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Added
+
+- **QA stack script:** `scripts/qa-stack.sh up|down` runs the code in this folder in Docker
+  on scratch data only, under its own project, image and port, so QA can't touch the
+  Lender's database.
+
 ## [3.4.9] - 2026-11-10
 
 ### Added
