@@ -44,6 +44,7 @@ from mortgage_backend.platform.db import (
     migrate,
     photos_dir,
 )
+from mortgage_backend.platform.local_only import LocalOnly
 from mortgage_backend.platform.screens import screens_dir_from_env, serve_screens
 from mortgage_backend.platform.updates import (
     LatestRelease,
@@ -111,6 +112,7 @@ def create_app(
     # Inside the daily jobs' middleware, which would turn its refusal of a body sent
     # without its length into a 400; neither reads a body before it.
     app.add_middleware(UploadLimit)
+    app.add_middleware(LocalOnly)  # outermost: refuses before anything is read or run
 
     @app.middleware("http")
     async def run_daily_jobs(

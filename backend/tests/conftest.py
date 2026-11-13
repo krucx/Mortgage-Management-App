@@ -11,6 +11,19 @@ from mortgage_backend.platform.db import make_engine, migrate
 TODAY = date(2026, 4, 20)
 
 
+@pytest.fixture(autouse=True)
+def addressed_as_localhost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clients reach the app as localhost, the only host it answers to."""
+    init = TestClient.__init__
+    monkeypatch.setattr(
+        TestClient,
+        "__init__",
+        lambda self, *args, **kwargs: init(
+            self, *args, **{"base_url": "http://localhost", **kwargs}
+        ),
+    )
+
+
 @pytest.fixture
 def database_url(tmp_path):
     return f"sqlite:///{tmp_path / 'mortgage.db'}"
