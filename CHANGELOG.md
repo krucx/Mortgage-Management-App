@@ -9,6 +9,9 @@ Every release of Mortgage Management, newest first. The format follows
 
 ### Fixed
 
+- **A failed Reminders sync is retried the same day:** the daily run now marks each job
+  done only once it has succeeded, so Reminders no longer stay stale until tomorrow after
+  one failure. Once every job has succeeded, later requests skip the database check.
 - **Crafted uploads are refused, not crashed on:** a decompression-bomb image as a
   Customer or Mortgage photo now answers "Not an image file" instead of an error, and
   a filled-in Call Sheet is read with XML-bomb protection, so a crafted file is refused
