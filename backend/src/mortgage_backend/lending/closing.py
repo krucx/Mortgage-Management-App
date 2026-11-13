@@ -3,8 +3,8 @@ Reopening, and what closing a Mortgage would take on a date, its Outstanding the
 which Mortgages are Dormant, owing nothing with their jewellery still held.
 
 Each is refused if it isn't allowed, written, replayed, and kept in History. A final
-Payment is written through payments/writes.py; paying a Mortgage's whole Outstanding in
-payments/recording.py Redeems it here.
+Payment is written through payments/writes.py. A Payment that pays a Mortgage's whole
+Outstanding (payments/recording.py) Redeems it through here.
 """
 
 from collections.abc import Callable
