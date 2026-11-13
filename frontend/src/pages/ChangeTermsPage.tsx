@@ -100,7 +100,9 @@ function ChangeTermsForm({ mortgage }: { mortgage: Mortgage }) {
           {changed ? (
             <PreviewSection preview={preview} />
           ) : (
-            <p className="hint">Change the rate, Interest Mode or Part-Month Rule to see the effect.</p>
+            <p className="hint">
+              Change the rate, Interest Mode or Part-Month Rule to see the effect.
+            </p>
           )}
 
           <div className="row">

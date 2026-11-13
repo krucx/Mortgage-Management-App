@@ -28,7 +28,11 @@
   --exact: #00806a;
   --estimate: #945c00;
 
-  font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
+  font:
+    16px/1.5 system-ui,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   color: var(--text);
   background: var(--bg);
   color-scheme: light dark;
@@ -36,7 +40,7 @@
 
 /* Dark: the browser's theme unless the Lender chose light; or chosen (see theme.ts). */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme='light']) {
     --text: #e6edf3;
     --wa-chat: #0b141a;
     --wa-bubble: #005c4b;
@@ -61,7 +65,7 @@
   }
 }
 
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   --text: #e6edf3;
   --wa-chat: #0b141a;
   --wa-bubble: #005c4b;
@@ -85,7 +89,7 @@
   color-scheme: dark;
 }
 
-:root[data-theme="light"] {
+:root[data-theme='light'] {
   color-scheme: light;
 }
 
@@ -147,7 +151,7 @@ body {
 }
 
 .layout nav a.active,
-.layout nav a[aria-current="page"] {
+.layout nav a[aria-current='page'] {
   color: var(--text);
   font-weight: 600;
 }
@@ -1159,12 +1163,24 @@ figure.chart .marker text {
   margin: -0.75rem 0 0;
 }
 
-.dashboard .group.owed { --tone: var(--tone-owed); }
-.dashboard .group.money-in { --tone: var(--tone-money-in); }
-.dashboard .group.collateral { --tone: var(--tone-collateral); }
-.dashboard .group.closed { --tone: var(--tone-closed); }
-.dashboard .group.ahead { --tone: var(--tone-owed); }
-.dashboard .group.activity { --tone: var(--tone-owed); }
+.dashboard .group.owed {
+  --tone: var(--tone-owed);
+}
+.dashboard .group.money-in {
+  --tone: var(--tone-money-in);
+}
+.dashboard .group.collateral {
+  --tone: var(--tone-collateral);
+}
+.dashboard .group.closed {
+  --tone: var(--tone-closed);
+}
+.dashboard .group.ahead {
+  --tone: var(--tone-owed);
+}
+.dashboard .group.activity {
+  --tone: var(--tone-owed);
+}
 
 .dashboard .group {
   display: grid;
@@ -1262,7 +1278,9 @@ a.tile.figure {
   border-left: 4px solid var(--tone, var(--border));
   background: color-mix(in srgb, var(--tone, var(--border)) 7%, var(--surface));
   align-content: start;
-  transition: background 120ms, border-color 120ms;
+  transition:
+    background 120ms,
+    border-color 120ms;
 }
 
 a.tile.figure:hover,
@@ -1349,11 +1367,7 @@ figure.chart.payments-by-month .today line {
 }
 
 .key.estimate::before {
-  background: repeating-linear-gradient(
-    45deg,
-    var(--tone-money-in) 0 2px,
-    transparent 2px 4px
-  );
+  background: repeating-linear-gradient(45deg, var(--tone-money-in) 0 2px, transparent 2px 4px);
   outline: 1px solid var(--tone-money-in);
   height: 0.7rem;
 }

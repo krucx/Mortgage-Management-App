@@ -50,8 +50,8 @@ export function PaymentPage() {
       </div>
       {payment.voided_at && (
         <p className="status error">
-          Voided {formatDateTime(payment.voided_at)}: {payment.void_reason}. It is kept on
-          record but counts towards no Mortgage.
+          Voided {formatDateTime(payment.voided_at)}: {payment.void_reason}. It is kept on record
+          but counts towards no Mortgage.
         </p>
       )}
       <dl>
@@ -160,7 +160,11 @@ function ReceiptPanel({ paymentId }: { paymentId: number }) {
       <div className="receipt-panel">
         <WhatsAppPreview text={receipt.text} />
         <div className="stack">
-          <SendOnWhatsApp phones={receipt.phones} text={receipt.text} onSent={() => setSent(true)} />
+          <SendOnWhatsApp
+            phones={receipt.phones}
+            text={receipt.text}
+            onSent={() => setSent(true)}
+          />
           {sent && <p className="hint">WhatsApp opened: press Send there.</p>}
           <Link to={`/payments/${paymentId}/receipt`}>Print or save as PDF</Link>
           <p className="hint">The wording comes from the Receipt template in Settings.</p>

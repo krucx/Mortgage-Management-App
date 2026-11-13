@@ -39,11 +39,11 @@ const forfeited = (profitLoss: number) => ({
 const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
 const preview = changePreview(
   [3, 4].map((id, i) => ({
-  mortgage_id: id,
-  mortgage_name: `Mortgage ${id}`,
-  before: side(null),
-  after: side(forfeited(i === 0 ? 60_000 : -1_340_000)),
-  ledger_changes: [],
+    mortgage_id: id,
+    mortgage_name: `Mortgage ${id}`,
+    before: side(null),
+    after: side(forfeited(i === 0 ? 60_000 : -1_340_000)),
+    ledger_changes: [],
   })),
 )
 

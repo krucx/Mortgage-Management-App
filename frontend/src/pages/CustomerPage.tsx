@@ -22,9 +22,13 @@ export function CustomerPage() {
     lists.mortgages({ customerId: id, status: 'active' }),
   )
   // Redeemed, Waived and Forfeited, tucked away below the Active ones.
-  const closedList = useListPage(MORTGAGE_SORTS, lists.mortgages({ customerId: id, closed: true }), {
-    sortParam: 'closed_sort',
-  })
+  const closedList = useListPage(
+    MORTGAGE_SORTS,
+    lists.mortgages({ customerId: id, closed: true }),
+    {
+      sortParam: 'closed_sort',
+    },
+  )
   const active = activeList.listed
   const closed = closedList.listed
   const listError = activeList.error ?? closedList.error
@@ -122,7 +126,11 @@ export function CustomerPage() {
       <PersonList people={customer.referred} empty="Nobody yet." />
 
       <h3>History</h3>
-      <History query={customerHistoryQuery(client, id)} showMortgage title={`History of ${customer.name}`} />
+      <History
+        query={customerHistoryQuery(client, id)}
+        showMortgage
+        title={`History of ${customer.name}`}
+      />
     </section>
   )
 }

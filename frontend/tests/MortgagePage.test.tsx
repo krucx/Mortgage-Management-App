@@ -48,8 +48,15 @@ test('how the Mortgage was lent is shown, or a dash if it was made before that w
 
 test('setting how a Mortgage was lent shows in its History by name', async () => {
   const entry = {
-    id: 1, at: '2026-10-18T10:00:00', entity: 'mortgage', entity_id: 7, action: 'edited',
-    field: 'lent_through', old_value: null, new_value: 'bank_transfer', note: null,
+    id: 1,
+    at: '2026-10-18T10:00:00',
+    entity: 'mortgage',
+    entity_id: 7,
+    action: 'edited',
+    field: 'lent_through',
+    old_value: null,
+    new_value: 'bank_transfer',
+    note: null,
     mortgage_name: mortgage.name,
   }
   showMortgagePage(
@@ -110,9 +117,7 @@ test('the Ledger says how much of a month was paid ahead', async () => {
   }
   showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger: [step] } }))
 
-  expect(
-    await screen.findByText('Interest: 1.5% of ₹50,000, ₹450 of it paid ahead'),
-  ).toBeTruthy()
+  expect(await screen.findByText('Interest: 1.5% of ₹50,000, ₹450 of it paid ahead')).toBeTruthy()
 })
 
 test("the Mortgage page shows the backend's reason when it cannot load", async () => {
@@ -161,7 +166,9 @@ test('a photo over 20 MB is refused in plain words, and not sent', async () => {
   showMortgagePage(server)
 
   fireEvent.change(await screen.findByLabelText('Upload photos'), {
-    target: { files: [new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'ring.jpg', { type: 'image/jpeg' })] },
+    target: {
+      files: [new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'ring.jpg', { type: 'image/jpeg' })],
+    },
   })
 
   expect(await screen.findByText('The photo is too large (over 20 MB).')).toBeTruthy()
@@ -214,7 +221,13 @@ const closingPreview =
     const made = closureOf(body)
     if (typeof made === 'string') return Response.json({ detail: made }, { status: 422 })
     return changePreview([
-      { mortgage_id: 7, mortgage_name: mortgage.name, before: side(null), after: side(made), ledger_changes: [] },
+      {
+        mortgage_id: 7,
+        mortgage_name: mortgage.name,
+        before: side(null),
+        after: side(made),
+        ledger_changes: [],
+      },
     ])
   }
 const paidOf = (body: Record<string, unknown>) =>
@@ -222,7 +235,11 @@ const paidOf = (body: Record<string, unknown>) =>
 const waivePreview = closingPreview((body) =>
   paidOf(body) >= quote.total
     ? `${mortgage.name}: ₹50,750 covers the ₹50,750 owed: Redeem it instead`
-    : closure({ kind: 'waived', payment_amount: paidOf(body), waived_amount: quote.total - paidOf(body) }),
+    : closure({
+        kind: 'waived',
+        payment_amount: paidOf(body),
+        waived_amount: quote.total - paidOf(body),
+      }),
 )
 
 test('waiving off shows what is let off, asks first, then shows the Waiver', async () => {
@@ -302,13 +319,22 @@ test('a Redeemed Mortgage gives the Outstanding it was Redeemed for', async () =
   showMortgagePage(fakeServer({ 'GET /api/mortgages/7': redeemed }))
 
   expect(
-    await screen.findByText((_, el) => el?.textContent === 'Redeemed on 20 Apr 2026, paying its Outstanding of ₹50,750. Final Payment (receipt)'),
+    await screen.findByText(
+      (_, el) =>
+        el?.textContent ===
+        'Redeemed on 20 Apr 2026, paying its Outstanding of ₹50,750. Final Payment (receipt)',
+    ),
   ).toBeTruthy()
 })
 
-test("the Projection shows one Outstanding per date, the Interest to Date included", async () => {
+test('the Projection shows one Outstanding per date, the Interest to Date included', async () => {
   const point = (months: number, on: string, owed: number) => ({
-    months, on, principal: 5_000_000, unpaid_interest: owed - 5_000_000, outstanding: owed + 22_500, loan_to_value: null,
+    months,
+    on,
+    principal: 5_000_000,
+    unpaid_interest: owed - 5_000_000,
+    outstanding: owed + 22_500,
+    loan_to_value: null,
   })
   showMortgagePage(
     fakeServer({
@@ -318,7 +344,11 @@ test("the Projection shows one Outstanding per date, the Interest to Date includ
         collateral_value: null,
         monthly_payment: null,
         baseline: {
-          points: [point(3, '2026-07-20', 5_525_000), point(6, '2026-10-20', 5_975_000), point(12, '2027-04-20', 6_875_000)],
+          points: [
+            point(3, '2026-07-20', 5_525_000),
+            point(6, '2026-10-20', 5_975_000),
+            point(12, '2027-04-20', 6_875_000),
+          ],
           term_changes: [],
           paid_off_on: null,
         },
@@ -328,9 +358,11 @@ test("the Projection shows one Outstanding per date, the Interest to Date includ
   )
 
   const owed = (await screen.findByRole('cell', { name: 'Outstanding' })).closest('tr')!
-  expect(within(owed).getAllByRole('cell').map((td) => td.textContent)).toEqual([
-    'Outstanding', '₹55,475', '₹59,975', '₹68,975',
-  ])
+  expect(
+    within(owed)
+      .getAllByRole('cell')
+      .map((td) => td.textContent),
+  ).toEqual(['Outstanding', '₹55,475', '₹59,975', '₹68,975'])
   expect(screen.queryByText(/Redemption Amount/)).toBeNull()
 })
 
@@ -347,15 +379,25 @@ test("waiving off the whole Outstanding is refused by the backend's Preview", as
   fireEvent.change(await screen.findByLabelText(/Received now/), { target: { value: '50750' } })
 
   expect(
-    await screen.findByText(`${mortgage.name}: ₹50,750 covers the ₹50,750 owed: Redeem it instead`, {}, { timeout: 2000 }),
+    await screen.findByText(
+      `${mortgage.name}: ₹50,750 covers the ₹50,750 owed: Redeem it instead`,
+      {},
+      { timeout: 2000 },
+    ),
   ).toBeTruthy()
-  expect((screen.getByRole('button', { name: /^Waive off/ }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: /^Waive off/ }) as HTMLButtonElement).disabled).toBe(
+    true,
+  )
 })
 
 test('forfeiting shows the profit or loss from the Preview, then Forfeits it alone', async () => {
   let body: unknown = null
   const forfeited = (recovered: number) =>
-    closure({ kind: 'forfeited', recovered_amount: recovered, profit_loss: recovered - quote.total })
+    closure({
+      kind: 'forfeited',
+      recovered_amount: recovered,
+      profit_loss: recovered - quote.total,
+    })
   const server = fakeServer({
     'GET /api/mortgages/7': () =>
       body ? { ...mortgage, status: 'forfeited', closure: forfeited(4_000_000) } : mortgage,
@@ -391,7 +433,8 @@ test('a future date is quoted, but the backend refuses to record it', async () =
       'GET /api/mortgages/7': mortgage,
       'GET /api/mortgages/7/outstanding-on-closure': quote,
       'POST /api/closures/redeem-preview': closingPreview(
-        () => `${mortgage.name}: A Redemption, Waiver or Forfeiture cannot be recorded for a future date`,
+        () =>
+          `${mortgage.name}: A Redemption, Waiver or Forfeiture cannot be recorded for a future date`,
       ),
     }),
   )
@@ -406,7 +449,9 @@ test('a future date is quoted, but the backend refuses to record it', async () =
   expect(
     await screen.findByText(/cannot be recorded for a future date/, {}, { timeout: 2000 }),
   ).toBeTruthy()
-  expect((screen.getByRole('button', { name: /^Redeem for/ }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: /^Redeem for/ }) as HTMLButtonElement).disabled).toBe(
+    true,
+  )
 })
 
 test("a Grace Payment's Ledger row shows both dates and what this Mortgage was let off", async () => {

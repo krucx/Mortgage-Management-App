@@ -68,7 +68,10 @@ export function draftFromParams(params: URLSearchParams, suffix = ''): TermsDraf
 
 /** Terms as a URL keeps them (see draftFromParams); with none, each is removed. */
 export function draftParams(draft: TermsDraft, suffix?: string): Record<string, string>
-export function draftParams(draft: TermsDraft | null, suffix?: string): Record<string, string | null>
+export function draftParams(
+  draft: TermsDraft | null,
+  suffix?: string,
+): Record<string, string | null>
 export function draftParams(draft: TermsDraft | null, suffix = '') {
   return {
     [`rate${suffix}`]: draft?.ratePercent ?? null,

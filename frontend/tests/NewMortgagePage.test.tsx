@@ -63,7 +63,8 @@ function server(created: unknown[], overrides: Record<string, unknown> = {}) {
   })
 }
 
-const createButton = () => screen.getByRole('button', { name: 'Create Mortgage' }) as HTMLButtonElement
+const createButton = () =>
+  screen.getByRole('button', { name: 'Create Mortgage' }) as HTMLButtonElement
 
 async function fillMortgageForm(
   backend: FakeServer,
@@ -74,7 +75,9 @@ async function fillMortgageForm(
   fireEvent.change(await screen.findByLabelText('Start date'), { target: { value: '2026-09-23' } })
   fireEvent.change(screen.getByLabelText('Principal lent (₹)'), { target: { value: '25000' } })
   fireEvent.change(screen.getByLabelText('Gross weight (grams)'), { target: { value: '5' } })
-  fireEvent.change(screen.getByLabelText('Net weight, gold only (grams)'), { target: { value: '4.5' } })
+  fireEvent.change(screen.getByLabelText('Net weight, gold only (grams)'), {
+    target: { value: '4.5' },
+  })
   fireEvent.change(screen.getByLabelText('Description of the jewellery'), {
     target: { value: description },
   })
@@ -108,7 +111,9 @@ test("pressing Create straight after typing waits for that description's Mortgag
 test('a Mortgage Name the Lender typed is kept, whatever the description', async () => {
   const created: { name: string | null }[] = []
   await fillMortgageForm(server(created), 'Gold pendant')
-  fireEvent.change(screen.getByLabelText(/Mortgage Name/), { target: { value: '2026-Asha-Special' } })
+  fireEvent.change(screen.getByLabelText(/Mortgage Name/), {
+    target: { value: '2026-Asha-Special' },
+  })
   fireEvent.change(screen.getByLabelText('Description of the jewellery'), {
     target: { value: 'Gold pendant with stones' },
   })
@@ -120,7 +125,7 @@ test('a Mortgage Name the Lender typed is kept, whatever the description', async
   expect(created.map((m) => m.name)).toEqual(['2026-Asha-Special'])
 })
 
-test("if no Mortgage Name can be suggested, it says so and one can be typed", async () => {
+test('if no Mortgage Name can be suggested, it says so and one can be typed', async () => {
   const created: { name: string | null }[] = []
   await fillMortgageForm(
     server(created, {
@@ -132,7 +137,9 @@ test("if no Mortgage Name can be suggested, it says so and one can be typed", as
 
   expect(await screen.findByText(/No Mortgage Name could be suggested/)).toBeTruthy()
   expect(createButton().disabled).toBe(true)
-  fireEvent.change(screen.getByLabelText(/Mortgage Name/), { target: { value: '2026-Asha-Pendant' } })
+  fireEvent.change(screen.getByLabelText(/Mortgage Name/), {
+    target: { value: '2026-Asha-Pendant' },
+  })
   await confirmCreate()
 
   expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()
@@ -153,7 +160,9 @@ test('a new Mortgage is lent in Cash unless changed, warned about from its Previ
   fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm and save' }))
 
   await screen.findByText('Now at /mortgages/7')
-  expect(created).toEqual([expect.objectContaining({ lent_through: 'cash', amount_lent: 2_500_000 })])
+  expect(created).toEqual([
+    expect.objectContaining({ lent_through: 'cash', amount_lent: 2_500_000 }),
+  ])
 })
 
 test("opened from the Calculator, it asks for a Customer, then shows the Simulation's amount, start date and Terms", async () => {
@@ -174,9 +183,13 @@ test("opened from the Calculator, it asks for a Customer, then shows the Simulat
   expect(amount.value).toBe('50000')
   expect((screen.getByLabelText('Start date') as HTMLInputElement).value).toBe('2026-01-31')
   await vi.waitFor(() =>
-    expect((screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).value).toBe('2.5'),
+    expect((screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).value).toBe(
+      '2.5',
+    ),
   )
-  expect((screen.getByLabelText('Interest Mode') as HTMLSelectElement).value).toBe('compounded_monthly')
+  expect((screen.getByLabelText('Interest Mode') as HTMLSelectElement).value).toBe(
+    'compounded_monthly',
+  )
   expect((screen.getByLabelText(/Part-Month Rule/) as HTMLSelectElement).value).toBe('pro_rata')
 
   // Still editable

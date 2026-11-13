@@ -74,7 +74,11 @@ export function Tip({
         role="tooltip"
         className={`reason-bubble${place?.above ? ' above' : ''}`}
         hidden={!place}
-        style={place ? { right: place.right, maxWidth: place.maxWidth, top: place.top, bottom: place.bottom } : undefined}
+        style={
+          place
+            ? { right: place.right, maxWidth: place.maxWidth, top: place.top, bottom: place.bottom }
+            : undefined
+        }
       >
         {tip}
       </span>

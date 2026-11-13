@@ -73,8 +73,7 @@ export function amountsFromPercentages(
   if (Math.abs(sum - 100) > 1e-9) return null
   const amounts = percentages.map(
     // The epsilon keeps e.g. 29% of ₹1,00,000 from flooring to ₹28,999 through float error.
-    (percent, i) =>
-      Math.min(caps[i], Math.floor((total * percent) / 100 / RUPEE + 1e-9) * RUPEE),
+    (percent, i) => Math.min(caps[i], Math.floor((total * percent) / 100 / RUPEE + 1e-9) * RUPEE),
   )
   const order = percentages.map((_, i) => i).filter((i) => percentages[i] > 0)
   // Anything that can't be placed is left over, so the Allocations visibly fall short.

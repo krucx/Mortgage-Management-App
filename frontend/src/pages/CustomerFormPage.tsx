@@ -19,16 +19,31 @@ import { normalisePhone } from '../phone'
 import { customerChanges, customerQuery, searchQuery } from '../requests'
 import { STALE_AFTER, useChange, useServerState, type ApiClient } from '../serverState'
 
-const EMPTY = { name: '', address: '', phone_1: '', phone_2: '', email: '', aadhaar_last4: '', pan: '' }
+const EMPTY = {
+  name: '',
+  address: '',
+  phone_1: '',
+  phone_2: '',
+  email: '',
+  aadhaar_last4: '',
+  pan: '',
+}
 
 /** An ID Photo as the form will leave it: kept, replaced by a new one, or removed. */
 type IdPhotoChange = { kind: 'keep' } | { kind: 'new'; photo: Blob } | { kind: 'remove' }
 const ID_CARDS: { card: IdCard; label: string; urlOf: (c: Customer) => string | null }[] = [
-  { card: 'aadhaar', label: 'Aadhaar card photo (the masked front)', urlOf: (c) => c.aadhaar_photo_url },
+  {
+    card: 'aadhaar',
+    label: 'Aadhaar card photo (the masked front)',
+    urlOf: (c) => c.aadhaar_photo_url,
+  },
   { card: 'pan', label: 'PAN card photo', urlOf: (c) => c.pan_photo_url },
 ]
 /** The field each card's number goes in, and how it is found in the card's text. */
-const READ_FROM: Record<IdCard, { field: 'aadhaar_last4' | 'pan'; find: (text: string) => string | null }> = {
+const READ_FROM: Record<
+  IdCard,
+  { field: 'aadhaar_last4' | 'pan'; find: (text: string) => string | null }
+> = {
   aadhaar: { field: 'aadhaar_last4', find: findAadhaarLast4 },
   pan: { field: 'pan', find: findPan },
 }
@@ -130,7 +145,9 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
     read[card] === 'reading' ? (
       <span className="hint">Reading the photo…</span>
     ) : (
-      read[card] === 'read' && <span className="status warning">Read from the photo: check it.</span>
+      read[card] === 'read' && (
+        <span className="status warning">Read from the photo: check it.</span>
+      )
     )
   const [phone2Shared, setPhone2Shared] = useState<PersonSummary[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -156,7 +173,9 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
       : { ...details, referrer }
   const idPhotoChanges = ID_CARDS.flatMap(({ card }) => {
     const change = idPhotos[card]
-    return change.kind === 'keep' ? [] : [`${CARD_NAMES[card]} ${change.kind === 'new' ? 'new' : 'removed'}`]
+    return change.kind === 'keep'
+      ? []
+      : [`${CARD_NAMES[card]} ${change.kind === 'new' ? 'new' : 'removed'}`]
   })
   const check = usePreview(asked && customerChanges.preview(asked, customerId))
   const unchecked = asked !== null && (check.loading || check.error !== null)
@@ -265,8 +284,8 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
       )}
       {numberOwner?.kind === 'referrer' && customerId === undefined && (
         <span className="status warning">
-          Belongs to <PersonLink person={numberOwner} />. Saving makes them this Customer, and
-          the people they referred move with them.
+          Belongs to <PersonLink person={numberOwner} />. Saving makes them this Customer, and the
+          people they referred move with them.
         </span>
       )}
     </label>
@@ -302,9 +321,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
                 <input
                   required
                   value={fields.name}
-                  onChange={(event) =>
-                    setFields({ ...fields, name: event.target.value })
-                  }
+                  onChange={(event) => setFields({ ...fields, name: event.target.value })}
                 />
               </label>
               <label>
@@ -312,9 +329,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
                 <textarea
                   rows={2}
                   value={fields.address}
-                  onChange={(event) =>
-                    setFields({ ...fields, address: event.target.value })
-                  }
+                  onChange={(event) => setFields({ ...fields, address: event.target.value })}
                 />
               </label>
               {phone1Field}
@@ -324,9 +339,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
                 <input
                   type="email"
                   value={fields.email}
-                  onChange={(event) =>
-                    setFields({ ...fields, email: event.target.value })
-                  }
+                  onChange={(event) => setFields({ ...fields, email: event.target.value })}
                 />
               </label>
             </div>
@@ -444,7 +457,11 @@ function IdPhotoPicker({
       />
       {shown && (
         <div>
-          <button type="button" className="secondary small" onClick={() => onChange({ kind: 'remove' })}>
+          <button
+            type="button"
+            className="secondary small"
+            onClick={() => onChange({ kind: 'remove' })}
+          >
             Remove
           </button>
         </div>

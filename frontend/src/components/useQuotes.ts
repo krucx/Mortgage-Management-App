@@ -7,7 +7,10 @@ import type { Quote } from './Owed'
 export function useQuotes(mortgages: { id: number }[], on: string) {
   const { client } = useServerState()
   const quoted = useQueries({
-    queries: mortgages.map((m) => ({ ...outstandingOnClosureQuery(client, m.id, on), enabled: on !== '' })),
+    queries: mortgages.map((m) => ({
+      ...outstandingOnClosureQuery(client, m.id, on),
+      enabled: on !== '',
+    })),
   })
   const quotes: Record<string, Quote> = Object.fromEntries(
     mortgages.map((m, i) => [`${on}:${m.id}`, quoted[i].data ?? quoted[i].error?.message]),

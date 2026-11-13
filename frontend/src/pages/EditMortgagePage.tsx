@@ -66,7 +66,8 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
   // Starting Terms, the start date and Principal change what is owed.
   const numbersChanged =
     Number(amountLent) > 0 &&
-    (startDate !== mortgage.start_date || edited.amount_lent !== mortgage.amount_lent ||
+    (startDate !== mortgage.start_date ||
+      edited.amount_lent !== mortgage.amount_lent ||
       !sameTerms(terms, mortgage.starting_terms))
   // Lent Through is previewed too, unshown, for what the edit would write in cash.
   const worthPreviewing =
