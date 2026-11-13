@@ -116,8 +116,8 @@ erDiagram
 
 <h3>2. What the request must look like: <code>PaymentIn</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>AllocationIn</code>, <code>PaymentIn</code> · lines 62–85, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>62  class AllocationIn(BaseModel):
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>AllocationIn</code>, <code>PaymentIn</code> · lines 62–85, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>62  class AllocationIn(BaseModel):
 63      mortgage_id: int
 64      amount: int = Field(ge=0)  # cash in paise
 65      discount: int = Field(default=0, ge=0)  # paise; applied after cash
@@ -151,8 +151,8 @@ erDiagram
 <h3>3. What the database must allow: <code>_refuse_payment</code></h3>
 <p><code>PaymentIn</code> can only check the body on its own. Whether the Customer exists, or whether a Mortgage is theirs, needs the database. That's step 1 of every change (chapter 006: refuse → write → check → History):</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_refuse_payment()</code> · lines 257–282, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>257  def _refuse_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>_refuse_payment()</code> · lines 257–282, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>257  def _refuse_payment(
 258      conn: Connection, payment: PaymentIn, today: date
 259  ) -&gt; list[RowMapping]:
 260      """The Mortgages the Payment is allocated to, unless it cannot be made at all."""
@@ -288,7 +288,7 @@ erDiagram
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L1). Without <code>month</code> or <code>year</code>, <code>interest_paid</code> is <code>null</code>.</p>
 
-<div class="callout warn"><strong>Trap #1: where the writes live.</strong> This lesson's reads are in <code>payments/payments.py</code>, but <code>PaymentIn</code>, <code>_refuse_payment</code> and <code>record_payment</code> are in <code>lending/changes.py</code>. Every write that can move a Ledger lives there (<a href="../reference/traps.html#t1">trap #1</a>, owned by chapter 003).</div>
+<div class="callout warn"><strong>Trap #1: where the writes live.</strong> This lesson's reads are in <code>payments/payments.py</code>, but <code>PaymentIn</code>, <code>_refuse_payment</code> and <code>record_payment</code> are in <code>payments/writes.py</code> and <code>payments/recording.py</code> (<a href="../reference/traps.html#t1">trap #1</a>, owned by chapter 003).</div>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">

@@ -99,7 +99,7 @@
     <p>They fail while seeding, before any assertion, with the app's own refusal:</p>
 <pre><code>&gt;           raise unprocessable("The Payment date cannot be in the future")
 E           fastapi.exceptions.HTTPException: 422: The Payment date cannot be in the future
-src/mortgage_backend/lending/changes.py:259: HTTPException</code></pre>
+src/mortgage_backend/payments/writes.py:153: HTTPException</code></pre>
     <p>This is the seeds doing their job: the app refused to set up a history it would never have accepted, and the test failed at setup, not with a wrong figure. Every other seeded Payment is dated on or before 20 Apr, so recording it on 20 Apr is still allowed, which is why only three fail. A fixed today for seeds would work for most tests and quietly forbid the rest: each change on its own date is the only today that's right for all of them.</p>
   </div>
 </div>

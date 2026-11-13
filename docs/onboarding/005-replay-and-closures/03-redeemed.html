@@ -49,8 +49,8 @@ flowchart TD
 <h2>The code</h2>
 <h3>1. The Redeem route</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>redeem()</code> · lines 644–664, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>644  def redeem(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>redeem()</code> · lines 644–664, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>644  def redeem(
 ⋮
 650  ) -&gt; None:
 ⋮
@@ -74,8 +74,8 @@ flowchart TD
 
 <h3>2. The Payment route: <code>_redeemed_by</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_redeemed_by()</code> · lines 325–337</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>325  def _redeemed_by(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>_redeemed_by()</code> · lines 325–337</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>325  def _redeemed_by(
 326      conn: Connection, allocation: AllocationIn, on: date, today: date
 327  ) -&gt; MortgageReplay | None:
 328      """The Mortgage, if the Allocation is its whole Outstanding on `on`: paying all of
@@ -96,8 +96,8 @@ flowchart TD
 </ol>
 
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>record_payment()</code> · lines 282–322, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>282  def record_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>record_payment()</code> · lines 282–322, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>282  def record_payment(
 ⋮
 288      rows = _refuse_payment(conn, payment, today)                ① chapter 003
 289      redeemed = []
@@ -136,8 +136,8 @@ flowchart TD
 
 <h3>3. Where both meet</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_close_redeemed()</code> · lines 667–700, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>667  def _close_redeemed(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>_close_redeemed()</code> · lines 667–700, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>667  def _close_redeemed(
 ⋮
 677  ) -&gt; int | None:
 ⋮
@@ -154,8 +154,8 @@ flowchart TD
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_close_with_payment()</code> · lines 600–641, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>600  def _close_with_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>_close_with_payment()</code> · lines 600–641, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>600  def _close_with_payment(
 ⋮
 610      **closure: object,                                          ① status=…, closure_note=…
 611  ) -&gt; int | None:

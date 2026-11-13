@@ -65,9 +65,9 @@
 <div class="quiz" data-answer="1">
   <p class="q">8. Where is the code that records a new Payment, <code>POST /api/payments</code>?</p>
   <button class="opt"><code>payments/payments.py</code>, by its name</button>
-  <button class="opt"><code>lending/changes.py</code>, with other changes</button>
+  <button class="opt"><code>payments/recording.py</code>, with the other Payment writes</button>
   <button class="opt"><code>payments/receipts.py</code>, which writes Receipts</button>
-  <div class="why">Every change that moves a Ledger, Payments included, lives in <code>lending/changes.py</code>. <code>payments/payments.py</code> only reads Payments. Search for the route's path, not the folder name.</div>
+  <div class="why">Payments are recorded in <code>payments/recording.py</code>. <code>payments/payments.py</code> only reads Payments. Search for the route's path, not the folder name.</div>
 </div>
 <p><span class="score"></span></p>
 
@@ -168,7 +168,7 @@ git status                                  # clean</code></pre>
 <h2>Recap</h2>
 <ul>
   <li>The repo is a backend and a frontend, plus the things that ship them (<code>windows/</code>, the compose files), show them (<code>docs/</code>) and explain them (<code>Documentation/</code>, <code>Documentation/GLOSSARY.md</code>). <a href="01-the-repo-at-a-glance.html">Lesson 1</a></li>
-  <li><code>App.tsx</code> maps addresses to pages; <code>main.py</code> includes every router; the request's URL string connects them. Payment writes live in <code>lending/changes.py</code>. <a href="02-inside-backend-and-frontend.html">Lesson 2</a></li>
+  <li><code>App.tsx</code> maps addresses to pages; <code>main.py</code> includes every router; the request's URL string connects them. Payment writes live in <code>payments/recording.py</code>. <a href="02-inside-backend-and-frontend.html">Lesson 2</a></li>
   <li><code>Documentation/GLOSSARY.md</code> says what a word means and what not to call it; the ADRs say why a rule is the way it is. <a href="03-the-words-and-the-decisions.html">Lesson 3</a></li>
   <li><code>book.py</code> builds the sample book through the API into a fresh folder; <code>serve.py</code> serves it with the clock held on 19 Oct 2026. A fresh database's Default Terms are 3% full month; the book's are 2% pro-rata. <a href="04-serve-the-sample-book.html">Lesson 4</a></li>
   <li>For hot reload, Vite on :5173 proxies <code>/api</code> to :8000: the sample book or uvicorn. Always pass scratch <code>DATA_DIR</code> and <code>BACKUP_DIR</code>, and on every <code>docker compose</code> command. <a href="05-run-it-while-you-code.html">Lesson 5</a></li>

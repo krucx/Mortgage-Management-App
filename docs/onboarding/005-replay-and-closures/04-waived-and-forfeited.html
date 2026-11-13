@@ -46,8 +46,8 @@ flowchart TD
 <h2>The code</h2>
 <h3>1. <code>waive</code>: a Final Payment short of the quote</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>waive()</code> · lines 703–741, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>703  def waive(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>waive()</code> · lines 703–741, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>703  def waive(
 704      conn: Connection, mortgage_id: int, waive: WaiveIn, today: date, now: datetime
 705  ) -&gt; None:
 ⋮
@@ -85,8 +85,8 @@ flowchart TD
 
 <h3>2. <code>forfeit</code>: no Payment at all</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>forfeit()</code> · lines 744–768, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>744  def forfeit(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>forfeit()</code> · lines 744–768, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>744  def forfeit(
 745      conn: Connection, mortgage_id: int, forfeit: ForfeitIn, today: date, now: datetime
 746  ) -&gt; None:
 747      """Mark the Mortgage Forfeited, recording what the jewellery recovered (or refuse)."""

@@ -48,12 +48,12 @@ sequenceDiagram
 
 <h2>The code</h2>
 <h3>Where is it? Not where you'd look</h3>
-<div class="callout warn"><strong>Newcomer trap #1: Payment writes live in <code>lending/changes.py</code>, not in <code>payments/</code>.</strong> <code>payments/payments.py</code> only <em>reads</em> Payments, and <code>payments/</code> also holds Receipts and the Cash Limit. Every change that moves a Ledger, for Mortgages and Payments alike, is in the one module <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a>, so they all refuse, write, check and record the same way. Find a route by searching for its path string, as chapter 002 showed. See the <a href="../reference/traps.html#t1">traps sheet</a>.</div>
+<div class="callout warn"><strong>Newcomer trap #1: Payment writes live in <code>payments/recording.py</code> and <code>payments/writes.py</code>, not in <code>payments/payments.py</code>.</strong> <code>payments/payments.py</code> only <em>reads</em> Payments, and <code>payments/</code> also holds Receipts and the Cash Limit. Every change that moves a Ledger, whichever package it lives in, shares the refusals in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py"><code>lending/refusals.py</code></a>, so they all refuse, write, check and record the same way. Find a route by searching for its path string, as chapter 002 showed. See the <a href="../reference/traps.html#t1">traps sheet</a>.</div>
 
 <h3>1. The route</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">backend/src/mortgage_backend/lending/changes.py</a> · <code>post_payment()</code> · lines 905–910</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>905  @router.post("/payments", status_code=status.HTTP_201_CREATED)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">backend/src/mortgage_backend/payments/recording.py</a> · <code>post_payment()</code> · lines 905–910</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>905  @router.post("/payments", status_code=status.HTTP_201_CREATED)
 906  def post_payment(
 907      payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
 908  ) -&gt; Payment:
@@ -68,8 +68,8 @@ sequenceDiagram
 
 <h3>2. Validation, before any code of ours runs</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">backend/src/mortgage_backend/lending/changes.py</a> · <code>PaymentIn</code> · lines 62–82, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>62  class AllocationIn(BaseModel):
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">backend/src/mortgage_backend/payments/writes.py</a> · <code>PaymentIn</code> · lines 62–82, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>62  class AllocationIn(BaseModel):
 63      mortgage_id: int
 64      amount: int = Field(gt=0)  # paise
 ⋮
@@ -90,8 +90,8 @@ sequenceDiagram
 
 <h3>3. <code>record_payment</code>: refuse, write, check, record</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">backend/src/mortgage_backend/lending/changes.py</a> · <code>record_payment()</code> · lines 282–304, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>282  def record_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">backend/src/mortgage_backend/payments/recording.py</a> · <code>record_payment()</code> · lines 282–304, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>282  def record_payment(
 283      conn: Connection, payment: PaymentIn, today: date, now: datetime
 284  ) -&gt; int:
 ⋮
@@ -118,8 +118,8 @@ sequenceDiagram
   <li><strong>Record</strong> the new Payment in <a href="../reference/glossary.html#history"><dfn class="term" title="The record of every change to a Customer, Mortgage or Payment — when, what, and the old and new values — which is never edited or removed.">History</dfn></a>.</li>
 </ol>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">backend/src/mortgage_backend/lending/changes.py</a> · <code>_refuse_payment()</code> · lines 254–279, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>254  def _refuse_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">backend/src/mortgage_backend/payments/writes.py</a> · <code>_refuse_payment()</code> · lines 254–279, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>254  def _refuse_payment(
 ⋮
 258      if payment.paid_on &gt; today:
 259          raise unprocessable("The Payment date cannot be in the future")
@@ -134,8 +134,8 @@ sequenceDiagram
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">backend/src/mortgage_backend/lending/changes.py</a> · <code>_write_payment()</code> · lines 197–214, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>197  def _write_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">backend/src/mortgage_backend/payments/writes.py</a> · <code>_write_payment()</code> · lines 197–214, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>197  def _write_payment(
 198      conn: Connection, payment: PaymentIn, received_with: int | None = None
 199  ) -&gt; int:
 ⋮
@@ -155,8 +155,8 @@ sequenceDiagram
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">backend/src/mortgage_backend/lending/changes.py</a> · <code>check_replays()</code> · lines 184–194</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>184  def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">backend/src/mortgage_backend/lending/refusals.py</a> · <code>check_replays()</code> · lines 184–194</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>184  def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -&gt; None:
 185      """Replay each Mortgage; refuse if any Payment is now larger than what was owed."""
 186      replayed = replays(conn, rows)
 187      for row in rows:
@@ -231,9 +231,9 @@ sequenceDiagram
 <div class="quiz" data-answer="1">
   <p class="q">You need to change what happens when a Payment is recorded. Which file?</p>
   <button class="opt"><code>payments/payments.py</code></button>
-  <button class="opt"><code>lending/changes.py</code></button>
+  <button class="opt"><code>payments/recording.py</code></button>
   <button class="opt"><code>lending/previews.py</code></button>
-  <div class="why"><code>record_payment</code> and <code>post_payment</code> are in <code>lending/changes.py</code> (trap #1). <code>payments/payments.py</code> reads Payments; <code>previews.py</code> only wraps <code>record_payment</code> in a rollback.</div>
+  <div class="why"><code>record_payment</code> and <code>post_payment</code> are in <code>payments/recording.py</code> (trap #1). <code>payments/payments.py</code> reads Payments; <code>previews.py</code> only wraps <code>record_payment</code> in a rollback.</div>
 </div>
 <div class="quiz" data-answer="2">
   <p class="q">Why does <code>check_replays</code> run after <code>_write_payment</code>, not before?</p>
@@ -252,7 +252,7 @@ sequenceDiagram
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read the docstring at the top of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a> (lines 1–9), then <code>record_payment</code> in full (lines 282–322). The <a href="../reference/routes.html">routes sheet</a> sums up the Payment routes.</p>
+<p>Read the docstring at the top of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py"><code>payments/recording.py</code></a>, then <code>record_payment</code> in full. The <a href="../reference/routes.html">routes sheet</a> sums up the Payment routes.</p>
 
 <nav class="lessons">
   <a href="02-the-form-and-the-preview.html">← The form and the Preview</a>
