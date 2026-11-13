@@ -7,3 +7,5 @@
   credentials before merging the PR that starts the tag-driven publish workflow.
 - Read [Documentation/GLOSSARY.md](Documentation/GLOSSARY.md) and relevant decisions in
   [Documentation/adr](Documentation/adr) when changing domain behavior.
+- Agent skills live in `.claude/skills`; `.agents/skills` is a symlink to it. Edit skills
+  only under `.claude/skills` so Claude Code and other agents read the same copy.
