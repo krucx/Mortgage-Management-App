@@ -54,9 +54,7 @@ test('a retry uploads only the photos that failed, and does not save the record 
 test('a photo failing on the first save says the record was saved', async () => {
   const { result } = saving()
 
-  const saved = await act(() =>
-    result.current.run(async () => record, [upload('front', [], 1)]),
-  )
+  const saved = await act(() => result.current.run(async () => record, [upload('front', [], 1)]))
 
   expect(saved).toBeUndefined()
   expect(result.current.error).toBe('Mortgage saved, but a photo failed: Network error')
@@ -80,7 +78,7 @@ test('a refused save shows its reason, and is tried again on a retry', async () 
   expect(sent).toEqual(['front for 7'])
 })
 
-test("adding photos to a record that is already there names no save in the error", async () => {
+test('adding photos to a record that is already there names no save in the error', async () => {
   const { result } = saving(7)
 
   await act(() => result.current.run(null, [upload('front', [], 1)]))

@@ -69,18 +69,14 @@ test('a closed Mortgage shows its Terms as locked, with the start date and Princ
   await screen.findByRole('heading', { name: `Edit ${mortgage.name}` })
   expect(
     screen.getByText((text) =>
-      text.includes(
-        'It is redeemed, so its start date, Principal and Terms stay as they were',
-      ),
+      text.includes('It is redeemed, so its start date, Principal and Terms stay as they were'),
     ),
   ).toBeTruthy()
   expect((screen.getByLabelText('Start date') as HTMLInputElement).disabled).toBe(true)
-  expect((screen.getByLabelText('Principal lent (₹)') as HTMLInputElement).disabled).toBe(
+  expect((screen.getByLabelText('Principal lent (₹)') as HTMLInputElement).disabled).toBe(true)
+  expect((screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).disabled).toBe(
     true,
   )
-  expect(
-    (screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).disabled,
-  ).toBe(true)
   expect((screen.getByLabelText('Interest Mode') as HTMLSelectElement).disabled).toBe(true)
   expect(
     (
@@ -106,9 +102,7 @@ test('a Mortgage closing mid-edit drops the stale Terms draft, keeping other edi
   const rate = (await screen.findByLabelText('Monthly interest rate (%)')) as HTMLInputElement
   await vi.waitFor(() => expect(rate.disabled).toBe(false))
   fireEvent.change(rate, { target: { value: '2.5' } })
-  const description = screen.getByLabelText(
-    'Description of the jewellery',
-  ) as HTMLTextAreaElement
+  const description = screen.getByLabelText('Description of the jewellery') as HTMLTextAreaElement
   fireEvent.change(description, { target: { value: 'Gold chain, re-weighed' } })
   expect(rate.value).toBe('2.5')
 

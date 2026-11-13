@@ -36,10 +36,12 @@ export function RemindersPage() {
   const shown = SHOWN.find(([value]) => value === params.get('status'))?.[0] ?? 'queued'
   // Sorted on the server across every page; any change of tab (a click, Back, a link)
   // starts again at page 1.
-  const { listed, sorting, error: listError, pager } = useListPage(
-    REMINDER_SORTS,
-    lists.reminders(shown === 'all' ? undefined : shown),
-  )
+  const {
+    listed,
+    sorting,
+    error: listError,
+    pager,
+  } = useListPage(REMINDER_SORTS, lists.reminders(shown === 'all' ? undefined : shown))
   const changeReminders = useChange(STALE_AFTER.reminder)
   const reminders = listed?.items
   const [actionError, setActionError] = useState<string | null>(null)
@@ -153,7 +155,8 @@ export function RemindersPage() {
                           Message
                         </button>
                       )}
-                      {(reminder.status === 'awaiting_approval' || reminder.status === 'queued') && (
+                      {(reminder.status === 'awaiting_approval' ||
+                        reminder.status === 'queued') && (
                         <button
                           type="button"
                           className="small secondary"

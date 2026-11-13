@@ -124,7 +124,9 @@ test('a coming Term Change is removed from the Terms panel after its removal is 
   const server = showComingChange()
 
   fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
-  const dialog = await screen.findByRole('dialog', { name: 'Remove the Term Change from 10 Nov 2099?' })
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Remove the Term Change from 10 Nov 2099?',
+  })
   expect(await within(dialog).findByText(/No change to the Ledger so far/)).toBeTruthy()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }))
 

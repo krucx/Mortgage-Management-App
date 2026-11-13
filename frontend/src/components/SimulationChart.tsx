@@ -39,7 +39,9 @@ export function SimulationChart({
           { on: last, label: formatDate(last), anchor: 'end' },
         ]}
         // Not past the line's end: a plan may pay it off sooner
-        markers={closedOn <= last ? [{ on: closedOn, label: `Closed on ${formatDate(closedOn)}` }] : []}
+        markers={
+          closedOn <= last ? [{ on: closedOn, label: `Closed on ${formatDate(closedOn)}` }] : []
+        }
       >
         {({ x, y }) =>
           lines.map((line, index) => {

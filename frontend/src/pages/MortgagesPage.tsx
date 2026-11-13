@@ -32,7 +32,10 @@ export function MortgagesPage() {
   // One Customer's only (e.g. from the Call List's count of their Mortgages).
   const customerId = Number(searchParams.get('customer')) || undefined
   const { client } = useServerState()
-  const customer = useQuery({ ...customerQuery(client, customerId ?? 0), enabled: !!customerId }).data
+  const customer = useQuery({
+    ...customerQuery(client, customerId ?? 0),
+    enabled: !!customerId,
+  }).data
   // Any change of filter starts again at page 1.
   const {
     listed: result,
@@ -95,10 +98,19 @@ export function MortgagesPage() {
       {customerId && (
         <p className="row filter-note">
           <span>
-            Only {customer ? <Link to={`/customers/${customerId}`}>{customer.name}</Link> : 'one Customer'}
+            Only{' '}
+            {customer ? (
+              <Link to={`/customers/${customerId}`}>{customer.name}</Link>
+            ) : (
+              'one Customer'
+            )}
             's Mortgages
           </span>
-          <button type="button" className="secondary small" onClick={() => setFilters({ customer: null })}>
+          <button
+            type="button"
+            className="secondary small"
+            onClick={() => setFilters({ customer: null })}
+          >
             Show every Customer
           </button>
         </p>
@@ -114,7 +126,9 @@ export function MortgagesPage() {
       {error && <p className="status error">{error}</p>}
       {result && result.total === 0 ? (
         <p className="hint">
-          {debouncedQuery || closedFilter || customerId ? 'No Mortgages match.' : 'No Mortgages yet.'}
+          {debouncedQuery || closedFilter || customerId
+            ? 'No Mortgages match.'
+            : 'No Mortgages yet.'}
         </p>
       ) : (
         result && <MortgageTable rows={result.items} sorting={sorting} />

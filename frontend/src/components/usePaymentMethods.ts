@@ -7,8 +7,10 @@ import { useServerState } from '../serverState'
 export type PaymentMethodNames = Record<PaymentMethod, string>
 
 /** How a Mortgage was lent, by name: a dash for one made before that was asked. */
-export const lentThroughName = (methods: PaymentMethodNames | null, method: PaymentMethod | null) =>
-  method === null ? '—' : (methods?.[method] ?? '')
+export const lentThroughName = (
+  methods: PaymentMethodNames | null,
+  method: PaymentMethod | null,
+) => (method === null ? '—' : (methods?.[method] ?? ''))
 
 const RETRY_MS = 3000
 

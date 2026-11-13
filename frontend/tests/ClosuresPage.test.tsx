@@ -12,13 +12,22 @@ afterEach(() => {
 })
 
 const row = {
-  id: 3, name: '2025-Arjun-GoldRing', customer: { kind: 'customer', id: 2, name: 'Arjun Patel' },
-  start_date: '2025-06-15', amount_lent: 2_000_000, status: 'active', outstanding_total: 2_180_000,
+  id: 3,
+  name: '2025-Arjun-GoldRing',
+  customer: { kind: 'customer', id: 2, name: 'Arjun Patel' },
+  start_date: '2025-06-15',
+  amount_lent: 2_000_000,
+  status: 'active',
+  outstanding_total: 2_180_000,
 }
 const quote = {
-  on: '2026-04-20', principal: 2_000_000, unpaid_interest: 180_000, last_accrual_on: '2026-04-14',
+  on: '2026-04-20',
+  principal: 2_000_000,
+  unpaid_interest: 180_000,
+  last_accrual_on: '2026-04-14',
   interest_to_date_days: 6,
-  interest_to_date: 60_000, total: 2_240_000,
+  interest_to_date: 60_000,
+  total: 2_240_000,
 }
 
 const noneDormant = {
@@ -50,13 +59,13 @@ async function waivePreview(request: Request) {
   })
   const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
   return changePreview(
-mortgages.map((m) => ({
-    mortgage_id: m.mortgage_id,
-    mortgage_name: row.name,
-    before: side(null),
-    after: side(closure(m.amount_paid)),
-    ledger_changes: [],
-  })),
+    mortgages.map((m) => ({
+      mortgage_id: m.mortgage_id,
+      mortgage_name: row.name,
+      before: side(null),
+      after: side(closure(m.amount_paid)),
+      ledger_changes: [],
+    })),
   )
 }
 
@@ -97,7 +106,9 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   await waiveOff('22000')
   expect(screen.queryByText(/Ready to Redeem|waiting/i)).toBeNull()
   expect(server.requests.filter((r) => r.includes('ready-to-redeem'))).toEqual([])
-  expect(screen.getByRole('columnheader', { name: `Outstanding on ${formatDate(todayIso())}` })).toBeTruthy()
+  expect(
+    screen.getByRole('columnheader', { name: `Outstanding on ${formatDate(todayIso())}` }),
+  ).toBeTruthy()
   expect(screen.queryByText(/Redemption Amount/)).toBeNull()
   fireEvent.change(screen.getByLabelText('Reference (for all)'), { target: { value: 'UTR9' } })
   expect(await screen.findByText('Total waived off ₹400', {}, { timeout: 2000 })).toBeTruthy()
@@ -132,10 +143,12 @@ test("receiving all that is owed cannot be Waived off: the Preview gives the bac
       { timeout: 2000 },
     ),
   ).toBeTruthy()
-  expect((screen.getByRole('button', { name: 'Waive off 1' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: 'Waive off 1' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  )
 })
 
-test("if the backend refuses the Waiver when it is saved, nothing is Waived off and its reason is shown", async () => {
+test('if the backend refuses the Waiver when it is saved, nothing is Waived off and its reason is shown', async () => {
   const server = fakeServer({
     ...noneDormant,
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
@@ -151,7 +164,8 @@ test("if the backend refuses the Waiver when it is saved, nothing is Waived off 
 
   expect(await screen.findByText('2025-Arjun-GoldRing is already forfeited')).toBeTruthy()
   expect(
-    (screen.getByRole('checkbox', { name: 'Choose 2025-Arjun-GoldRing' }) as HTMLInputElement).checked,
+    (screen.getByRole('checkbox', { name: 'Choose 2025-Arjun-GoldRing' }) as HTMLInputElement)
+      .checked,
   ).toBe(true)
 })
 
@@ -182,13 +196,13 @@ function forfeitRoutes(extra: Record<string, unknown>) {
         mortgages: { mortgage_id: number; recovered_amount: number }[]
       }
       return changePreview(
-mortgages.map((m) => ({
-        mortgage_id: m.mortgage_id,
-        mortgage_name: m.mortgage_id === 3 ? row.name : second.name,
-        before: side(null),
-        after: side(forfeited(m.recovered_amount)),
-        ledger_changes: [],
-      })),
+        mortgages.map((m) => ({
+          mortgage_id: m.mortgage_id,
+          mortgage_name: m.mortgage_id === 3 ? row.name : second.name,
+          before: side(null),
+          after: side(forfeited(m.recovered_amount)),
+          ledger_changes: [],
+        })),
       )
     },
     ...extra,
@@ -251,10 +265,12 @@ test('confirming Forfeits all the chosen in one request', async () => {
       ],
     },
   ])
-  expect(server.requests.filter((r) => r.endsWith('/forfeit'))).toEqual(['POST /api/closures/forfeit'])
+  expect(server.requests.filter((r) => r.endsWith('/forfeit'))).toEqual([
+    'POST /api/closures/forfeit',
+  ])
 })
 
-test("if the backend refuses one, none are Forfeited and its reason is shown", async () => {
+test('if the backend refuses one, none are Forfeited and its reason is shown', async () => {
   const server = fakeServer(
     forfeitRoutes({
       'POST /api/closures/forfeit': () =>
@@ -277,7 +293,8 @@ test("if the backend refuses one, none are Forfeited and its reason is shown", a
     await screen.findByText('2025-Arjun-Bangles: There are Payments after that date'),
   ).toBeTruthy()
   expect(
-    (screen.getByRole('checkbox', { name: 'Choose 2025-Arjun-Bangles' }) as HTMLInputElement).checked,
+    (screen.getByRole('checkbox', { name: 'Choose 2025-Arjun-Bangles' }) as HTMLInputElement)
+      .checked,
   ).toBe(true)
 })
 
@@ -295,9 +312,15 @@ test("a Forfeiture the Preview says would be refused can't be confirmed, and its
   await forfeitBoth()
 
   expect(
-    await screen.findByText('2025-Arjun-Bangles: There are Payments after that date', {}, { timeout: 2000 }),
+    await screen.findByText(
+      '2025-Arjun-Bangles: There are Payments after that date',
+      {},
+      { timeout: 2000 },
+    ),
   ).toBeTruthy()
-  expect((screen.getByRole('button', { name: 'Forfeit 2' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: 'Forfeit 2' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  )
   expect(server.requests).not.toContain('POST /api/closures/forfeit')
 })
 
@@ -321,7 +344,10 @@ test('Dormant Mortgages, owing nothing, are listed each with Redeem… and none 
 
 test('with nothing Dormant, the page says so', async () => {
   showPage(
-    fakeServer({ ...noneDormant, 'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 } }),
+    fakeServer({
+      ...noneDormant,
+      'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
+    }),
     '/closures',
     { '/closures': <ClosuresPage /> },
   )

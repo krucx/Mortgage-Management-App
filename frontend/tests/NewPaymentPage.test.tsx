@@ -149,18 +149,33 @@ test('an over-balance Discount is reduced to the room the Preview reports, not O
     'POST /api/payments/preview': discountAwarePreview({ 7: 30_000 }),
     'POST /api/payments': async (request: Request) => {
       saved = (await request.json()) as PaymentIn
-      return { ...saved, id: 9, customer: { kind: 'customer', id: 3, name: customer.name }, allocations: [], voided_at: null, void_reason: null }
+      return {
+        ...saved,
+        id: 9,
+        customer: { kind: 'customer', id: 3, name: customer.name },
+        allocations: [],
+        voided_at: null,
+        void_reason: null,
+      }
     },
   })
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
-  fireEvent.change(await screen.findByLabelText('Amount received (₹)'), { target: { value: '50000' } })
-  fireEvent.change(await screen.findByLabelText('Discount for 2026GoldChain'), { target: { value: '3000' } })
-  const save = await screen.findByRole('button', { name: 'Record Payment of ₹50,000 with ₹3,000 Discount' })
+  fireEvent.change(await screen.findByLabelText('Amount received (₹)'), {
+    target: { value: '50000' },
+  })
+  fireEvent.change(await screen.findByLabelText('Discount for 2026GoldChain'), {
+    target: { value: '3000' },
+  })
+  const save = await screen.findByRole('button', {
+    name: 'Record Payment of ₹50,000 with ₹3,000 Discount',
+  })
   await vi.waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(save)
 
   const cap = await screen.findByRole('dialog')
-  expect(within(cap).getByRole('heading', { name: 'Reduce Discount to the remaining balance?' })).toBeTruthy()
+  expect(
+    within(cap).getByRole('heading', { name: 'Reduce Discount to the remaining balance?' }),
+  ).toBeTruthy()
   expect(within(cap).getByText('₹3,000 → ₹300')).toBeTruthy()
   expect(saved).toBeUndefined()
 
@@ -182,7 +197,9 @@ test('an over-balance Discount is reduced to the room the Preview reports, not O
   const regular = await screen.findByRole('dialog')
   expect(within(regular).getByRole('heading', { name: /Record a Payment of/ })).toBeTruthy()
   fireEvent.click(within(regular).getByRole('button', { name: 'Confirm and save' }))
-  await vi.waitFor(() => expect(saved?.allocations).toEqual([{ mortgage_id: 7, amount: 5_000_000, discount: 30_000 }]))
+  await vi.waitFor(() =>
+    expect(saved?.allocations).toEqual([{ mortgage_id: 7, amount: 5_000_000, discount: 30_000 }]),
+  )
 })
 
 test('declining the cap or the large-Discount confirmation saves nothing', async () => {
@@ -191,7 +208,14 @@ test('declining the cap or the large-Discount confirmation saves nothing', async
     'POST /api/payments/preview': discountAwarePreview(),
     'POST /api/payments': async (request: Request) => {
       saves += 1
-      return { ...((await request.json()) as Record<string, unknown>), id: 9, customer: { kind: 'customer', id: 3, name: customer.name }, allocations: [], voided_at: null, void_reason: null }
+      return {
+        ...((await request.json()) as Record<string, unknown>),
+        id: 9,
+        customer: { kind: 'customer', id: 3, name: customer.name },
+        allocations: [],
+        voided_at: null,
+        void_reason: null,
+      }
     },
   })
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
@@ -278,7 +302,9 @@ test('each Mortgage shows one figure, its Outstanding on the Payment date, back-
   ])
 
   fireEvent.change(screen.getByLabelText('Date received'), { target: { value: '2026-03-15' } })
-  expect(await screen.findByRole('columnheader', { name: 'Outstanding on 15 Mar 2026' })).toBeTruthy()
+  expect(
+    await screen.findByRole('columnheader', { name: 'Outstanding on 15 Mar 2026' }),
+  ).toBeTruthy()
   expect(await within(chain).findByText('₹51,000')).toBeTruthy()
   expect(screen.queryByText(/Redemption Amount/)).toBeNull()
 })
@@ -357,7 +383,9 @@ async function record(amounts: Record<string, string>) {
     fireEvent.change(screen.getByLabelText(`Amount for ${name}`), { target: { value: amount } })
     total += Number(amount)
   }
-  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: String(total) } })
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), {
+    target: { value: String(total) },
+  })
   await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
   const save = screen.getByRole('button', { name: /^Record Payment of/ }) as HTMLButtonElement
   await vi.waitFor(() => expect(save.disabled).toBe(false), { timeout: 2000 })
@@ -369,7 +397,9 @@ test('paying the full Outstanding asks to Redeem first, as the Preview says, the
   const saved = recording()
   const asked = await record({ [row.name]: '51500', [ring.name]: '20000' })
 
-  expect(within(asked).getByRole('heading', { name: 'Redeem and hand back the jewellery?' })).toBeTruthy()
+  expect(
+    within(asked).getByRole('heading', { name: 'Redeem and hand back the jewellery?' }),
+  ).toBeTruthy()
   expect(
     within(asked).getByText(
       `This pays the full Outstanding of ${row.name} (₹51,500, including 15 days of Interest to Date).`,
@@ -382,7 +412,7 @@ test('paying the full Outstanding asks to Redeem first, as the Preview says, the
   expect(saved.map((p) => 'redeeming' in p)).toEqual([false])
 })
 
-test("each Allocation says whether it Redeems, and the page asks for no quotes", async () => {
+test('each Allocation says whether it Redeems, and the page asks for no quotes', async () => {
   const backend = quoting()
   showPage(backend, '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
   const asked = await record({ [row.name]: '51500', [ring.name]: '5000' })

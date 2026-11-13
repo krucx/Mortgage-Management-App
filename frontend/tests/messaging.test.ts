@@ -13,7 +13,8 @@ function opened(act: () => void): URL {
 
 test('a message opens in WhatsApp with every emoji intact, not through the wa.me redirect', () => {
   // wa.me redirects to api.whatsapp.com and turns emoji such as 🙏 and ✅ into "�" on the way.
-  const text = 'Interest reminder 🔔\nNamaste Sunita Rao,\nTotal owed: *₹35,700* ✅\nPlease get in touch 🙏'
+  const text =
+    'Interest reminder 🔔\nNamaste Sunita Rao,\nTotal owed: *₹35,700* ✅\nPlease get in touch 🙏'
   const url = opened(() => sender.send('9860067890', text))
 
   expect(url.hostname).toBe('api.whatsapp.com')

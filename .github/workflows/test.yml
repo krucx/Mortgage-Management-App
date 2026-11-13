@@ -114,6 +114,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run format:check
       - name: Run frontend tests and collect line coverage
         run: npm test -- --coverage --coverage.reporter=lcov --coverage.reporter=html --coverage.reporter=text
       - name: Add frontend coverage to the job summary

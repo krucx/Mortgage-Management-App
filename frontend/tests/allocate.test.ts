@@ -25,7 +25,9 @@ describe('allocateEqually', () => {
   })
 
   it('pays a capped Mortgage to the paisa', () => {
-    expect(rupees(allocateEqually(r(20_000), [r(5_000.5), r(100_000)]))).toEqual([5_000.5, 14_999.5])
+    expect(rupees(allocateEqually(r(20_000), [r(5_000.5), r(100_000)]))).toEqual([
+      5_000.5, 14_999.5,
+    ])
   })
 
   it('puts leftover paise of the total on the first Mortgage', () => {
@@ -54,13 +56,13 @@ describe('allocateEqually', () => {
 
 describe('amountsFromPercentages', () => {
   it('turns percentages of the total into whole-rupee amounts', () => {
-    expect(rupees(amountsFromPercentages(r(100_000), [50, 25, 25]))).toEqual([50_000, 25_000, 25_000])
+    expect(rupees(amountsFromPercentages(r(100_000), [50, 25, 25]))).toEqual([
+      50_000, 25_000, 25_000,
+    ])
   })
 
   it('gives rounding leftovers to the first Mortgage so the amounts add up', () => {
-    expect(rupees(amountsFromPercentages(r(1_000), [33.33, 33.33, 33.34]))).toEqual([
-      334, 333, 333,
-    ])
+    expect(rupees(amountsFromPercentages(r(1_000), [33.33, 33.33, 33.34]))).toEqual([334, 333, 333])
   })
 
   it('returns null unless the percentages add up to 100', () => {

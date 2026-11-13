@@ -2,12 +2,7 @@ import { useQuery, type QueryKey, type UseQueryOptions } from '@tanstack/react-q
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { usePaymentMethods, type PaymentMethodNames } from './usePaymentMethods'
-import {
-  type AuditEntry,
-  type InterestMode,
-  type PartMonthRule,
-  type PaymentMethod,
-} from '../api'
+import { type AuditEntry, type InterestMode, type PartMonthRule, type PaymentMethod } from '../api'
 import { formatRate, INTEREST_MODES, PART_MONTH_RULES } from '../terms'
 import { formatDate, formatDateTime, formatGrams, maskedAadhaar } from '../format'
 import { formatINR } from '../money'
@@ -144,7 +139,14 @@ function describe(change: Change, showMortgage: boolean, methods: PaymentMethodN
           {formatValue(e.field ?? '', e.new_value, methods)}
         </span>
       ))
-    if (from) detail = <> from {formatDate(from)}{detail}</>
+    if (from)
+      detail = (
+        <>
+          {' '}
+          from {formatDate(from)}
+          {detail}
+        </>
+      )
   } else if (first.action === 'voided') {
     detail = <span className="hint"> · {valueOf('void_reason')}</span>
   } else if (first.action === 'created' && first.entity === 'payment') {
@@ -198,7 +200,11 @@ export function History<Key extends QueryKey>({
   )
   return (
     <div className="stack">
-      {changes.length === 0 ? <p className="hint">No changes yet.</p> : list(changes.slice(0, HISTORY_SHOWN))}
+      {changes.length === 0 ? (
+        <p className="hint">No changes yet.</p>
+      ) : (
+        list(changes.slice(0, HISTORY_SHOWN))
+      )}
       {changes.length > HISTORY_SHOWN && (
         <div className="row">
           <span className="hint">
