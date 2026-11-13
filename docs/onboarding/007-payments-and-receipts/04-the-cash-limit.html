@@ -140,7 +140,7 @@ sequenceDiagram
   <li>The heart of it: each part is added to its first part's total. A first part has <code>received_with</code> empty, so <code>received_with or id</code> is its own id; every other part names the first. That's <a href="../reference/traps.html#t2">trap #2</a>'s grouping, and the line the check-yourself exercise breaks from the other end.</li>
   <li>A list, not a total. Each sum is judged on its own: two different Payments of ₹15,000 aren't one sum of ₹30,000.</li>
 </ol>
-<p><code>_preview</code> (<code>lending/previews.py</code>, lines 157–164) calls <code>before_change</code> before running the change and <code>cash_sums</code> after, then rolls everything back. The New Mortgage Preview does the same (line 370). So every Preview answers with a <code>cash</code> list, whatever the change.</p>
+<p><code>_preview</code> (<code>lending/previews.py</code>, lines 168–171) calls <code>before_change</code> before running the change and <code>cash_sums</code> after, then rolls everything back. The New Mortgage Preview does the same (line 404). So every Preview answers with a <code>cash</code> list, whatever the change.</p>
 
 <h3>4. The warning, on the screen</h3>
 <figure class="snippet">

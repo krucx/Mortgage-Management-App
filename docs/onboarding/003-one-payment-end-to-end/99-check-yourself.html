@@ -76,16 +76,16 @@
 
 <h3>1. Run the tests</h3>
 <pre><code>cd backend
-uv run pytest tests/test_payments.py tests/test_previews.py</code></pre>
-<p>Expect <code>45 passed</code>.</p>
+uv run pytest tests/test_payments.py tests/test_previews.py tests/test_changes.py tests/test_seed.py</code></pre>
+<p>Expect <code>91 passed</code>.</p>
 
 <h3>2. Remove the check</h3>
-<p>In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py"><code>payments/recording.py</code></a>, in <code>record_payment</code>, comment out line 303 by putting <code>#</code> in front of it:</p>
+<p>In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py"><code>payments/recording.py</code></a>, in <code>record_payment</code>, comment out line 54 by putting <code>#</code> in front of it:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">backend/src/mortgage_backend/payments/recording.py</a> · <code>record_payment()</code> · lines 302–304</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>302          first = _write_payment(conn, paid)
-303          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)  ◀ comment this out
-304          _record_payment_history(conn, first, paid, now)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">backend/src/mortgage_backend/payments/recording.py</a> · <code>record_payment()</code> · lines 53–55</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>53          first = write_payment(conn, paid, grace=grace)
+54          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)  ◀ comment this out
+55          record_payment_history(conn, first, paid, now)
 </code></pre>
 </figure>
 
@@ -94,26 +94,31 @@ uv run pytest tests/test_payments.py tests/test_previews.py</code></pre>
   <p><strong>Predict:</strong> which tests fail? Think about the tests of Payments that are too large, and remember what a Preview runs.</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p>At commit 361c7fa, <strong>5 fail and 40 pass</strong>:</p>
+    <p>At commit 0c54ef0, <strong>8 fail and 83 pass</strong>:</p>
 <pre><code>FAILED tests/test_payments.py::test_a_payment_larger_than_what_is_owed_is_refused
 FAILED tests/test_payments.py::test_a_back_dated_payment_that_would_overpay_a_later_one_is_refused
 FAILED tests/test_payments.py::test_a_lump_sum_larger_than_everything_owed_is_refused
 FAILED tests/test_previews.py::test_a_payment_preview_refuses_what_saving_refuses
 FAILED tests/test_previews.py::test_a_payment_preview_refuses_more_than_is_owed
-5 failed, 40 passed</code></pre>
+FAILED tests/test_changes.py::test_a_payment_larger_than_what_is_owed_is_refused
+FAILED tests/test_changes.py::test_a_back_dated_payment_that_breaks_a_later_one_is_refused
+FAILED tests/test_seed.py::test_a_seeded_overpayment_fails_at_setup
+8 failed, 83 passed</code></pre>
     <table class="steps text">
     <tr><th>Tests</th><th>Why they fail</th></tr>
     <tr><td>The three in <code>test_payments.py</code></td><td>They expect a 422 with "… would be more than the ₹… owed then". That message was <code>check_replays</code>'s.</td></tr>
+    <tr><td>The two in <code>test_changes.py</code></td><td>The same two rules, called on <code>record_payment</code> directly, without HTTP.</td></tr>
+    <tr><td><code>test_seed.py</code></td><td>The seeds use the same <code>record_payment</code>, so a seeded overpayment no longer fails at setup (chapter 013).</td></tr>
     <tr class="changed"><td>The two in <code>test_previews.py</code></td><td>The Preview runs the real <code>record_payment</code>, so it lost the check too. You changed one line of the save, and the Preview changed with it.</td></tr>
     </table>
     <p>Look at the error pytest prints: <code>mortgage_backend.lending.ledger.Overpayment: Payment of 11200001 paise on 2026-04-20 exceeds the 11200000 paise owed</code>. The overpayment is still caught, just too late and in the wrong form. The rows are written; then the next replay in the same request (<code>load_payment</code> after a save, the "after" snapshot in a Preview) raises <code>Overpayment</code>. Nothing turns it into a 422, so the Lender would get a 500 Internal Server Error instead of a clear reason. The transaction still rolls back, so nothing is saved. <code>check_replays</code> is what turns a crash into a refusal the Lender can read.</p>
-    <p class="cite">Failures and the 500 rechecked at commit 361c7fa; the 500 was confirmed against the sample book by sending ₹1 more than the chain's Outstanding.</p>
+    <p class="cite">Failures rechecked at commit 0c54ef0; the 500 was confirmed at 361c7fa against the sample book by sending ₹1 more than the chain's Outstanding.</p>
   </div>
 </div>
 
 <h3>4. Undo it</h3>
 <pre><code>git checkout -- src/mortgage_backend/payments/recording.py
-uv run pytest tests/test_payments.py tests/test_previews.py   # 45 passed again
+uv run pytest tests/test_payments.py tests/test_previews.py tests/test_changes.py tests/test_seed.py   # 91 passed again
 git status                                                    # clean</code></pre>
 <p>(From <code>backend/</code>. From the repo root the path is <code>backend/src/mortgage_backend/payments/recording.py</code>.)</p>
 

@@ -12,7 +12,7 @@
 <h1>A Payment and its Allocations</h1>
 <p class="lede">What exactly is stored when a Customer pays? This lesson reads one real Payment straight out of the database, then shows what the app refuses to store, and what it deliberately never stores at all.</p>
 
-<div class="callout win"><strong>By the end</strong> you can read the <code>payment</code> and <code>allocation</code> tables, say what <code>PaymentIn</code> and <code>_refuse_payment</code> refuse, and say why the interest/Principal split is never stored.</div>
+<div class="callout win"><strong>By the end</strong> you can read the <code>payment</code> and <code>allocation</code> tables, say what <code>PaymentIn</code> and <code>refuse_payment</code> refuse, and say why the interest/Principal split is never stored.</div>
 
 <h2>The problem</h2>
 <p>On 10 Sep 2026 Meera Sharma sends the Lender ₹12,000 by UPI. She has two Mortgages: a gold chain and a pair of bangles. She says "₹2,000 for the chain, ₹10,000 for the bangles". That's one sum of money, from one person, on one date, with one UPI reference. But it changes two Ledgers.</p>
@@ -25,18 +25,18 @@
 <p>For example, in the Payment behavior test, ₹19,000 cash pays ₹12,000 interest and ₹7,000 Principal; a further ₹5,000 Discount then reduces Principal. The Payment and Receipt cash amount stay ₹19,000, and the Discount is reported separately. The Discount never enters the monthly cash totals.</p>
 <h3>How much Discount an Allocation can take: the Payment Preview decides</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/discount_room.py">payments/discount_room.py</a> · <code>discount_rooms()</code> · lines 12–22, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/discount_room.py"><code>12  def discount_rooms(conn: Connection, payment: PaymentIn) -&gt; dict[int, int]:
-13      """Each Allocation's room for a Discount, by Mortgage id: what is owed on the
-14      Payment date, less its cash (never negative)."""
-15      return {
-16          allocation.mortgage_id: max(
-17              0,
-18              replay(conn, allocation.mortgage_id).outstanding(payment.paid_on).total
-19              - allocation.amount,                                   ◀
-20          )
-21          for allocation in payment.allocations
-22      }
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/discount_room.py">payments/discount_room.py</a> · <code>discount_rooms()</code> · lines 11–21, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/discount_room.py"><code>11  def discount_rooms(conn: Connection, payment: PaymentIn) -&gt; dict[int, int]:
+12      """Each Allocation's room for a Discount, by Mortgage id: what is owed on the
+13      Payment date, less its cash (never negative)."""
+14      return {
+15          allocation.mortgage_id: max(
+16              0,
+17              replay(conn, allocation.mortgage_id).outstanding(payment.paid_on).total
+18              - allocation.amount,                                   ◀
+19          )
+20          for allocation in payment.allocations
+21      }
 </code></pre>
 </figure>
 <p><code>POST /api/payments/preview</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py"><code>preview_payment</code></a> in <code>lending/previews.py</code>) works out each Allocation's room, caps any larger Discount to it with <code>capped()</code>, runs the real <code>record_payment</code> on that, and returns two extra fields on each Mortgage: <code>discount_room</code>, and <code>over_threshold</code> (the Discount is above the Discount confirmation setting). The page only shows dialogs from those two fields: "Reduce Discount to the remaining balance?" when the Discount is larger than its room, and "Confirm a Discount over ₹500?" when it is over the threshold.</p>
@@ -116,30 +116,30 @@ erDiagram
 
 <h3>2. What the request must look like: <code>PaymentIn</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>AllocationIn</code>, <code>PaymentIn</code> · lines 62–85, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>62  class AllocationIn(BaseModel):
-63      mortgage_id: int
-64      amount: int = Field(ge=0)  # cash in paise
-65      discount: int = Field(default=0, ge=0)  # paise; applied after cash
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>AllocationIn</code>, <code>PaymentIn</code> · lines 34–60, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>34  class AllocationIn(BaseModel):
+35      mortgage_id: int
+36      amount: int = Field(ge=0)  # cash in paise
+37      discount: int = Field(default=0, ge=0)  # paise; applied after cash
 ⋮
-68  class PaymentIn(BaseModel):
-69      customer_id: int
-70      paid_on: date
-71      amount: int = Field(ge=0)  # cash in paise
-72      method: PaymentMethod
-73      reference: str | None = None
-74      allocations: list[AllocationIn] = Field(min_length=1)       ①
+40  class PaymentIn(BaseModel):
+41      customer_id: int
+42      paid_on: date
+46      amount: int = Field(ge=0)  # cash in paise
+47      method: PaymentMethod
+48      reference: str | None = None
+49      allocations: list[AllocationIn] = Field(min_length=1)       ①
 75
-76      @model_validator(mode="after")                              ②
-77      def allocations_add_up(self) -&gt; "PaymentIn":
-78          if sum(allocation.amount for allocation in self.allocations) != self.amount:
-79              raise ValueError("Allocations must add up to the Payment amount")   ◀
-80          if not any(a.amount + a.discount for a in self.allocations):
-81              raise ValueError("A Payment must include cash or a Discount")
-82          if len({a.mortgage_id for a in self.allocations}) != len(self.allocations):
-83              raise ValueError("Each Mortgage can appear only once in a Payment")
-84          self.reference = (self.reference or "").strip() or None   ③
-85          return self
+51      @model_validator(mode="after")                              ②
+52      def allocations_add_up(self) -&gt; "PaymentIn":
+53          if sum(allocation.amount for allocation in self.allocations) != self.amount:
+54              raise ValueError("Allocations must add up to the Payment amount")   ◀
+55          if not any(a.amount + a.discount for a in self.allocations):
+56              raise ValueError("A Payment must include cash or a Discount")
+57          if len({a.mortgage_id for a in self.allocations}) != len(self.allocations):
+58              raise ValueError("Each Mortgage can appear only once in a Payment")
+59          self.reference = (self.reference or "").strip() or None   ③
+60          return self
 </code></pre>
 </figure>
 <ol class="marks">
@@ -148,60 +148,62 @@ erDiagram
   <li>A blank or all-spaces reference is stored as <code>NULL</code>, not as an empty string.</li>
 </ol>
 
-<h3>3. What the database must allow: <code>_refuse_payment</code></h3>
+<h3>3. What the database must allow: <code>refuse_payment</code></h3>
 <p><code>PaymentIn</code> can only check the body on its own. Whether the Customer exists, or whether a Mortgage is theirs, needs the database. That's step 1 of every change (chapter 006: refuse → write → check → History):</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>_refuse_payment()</code> · lines 257–282, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>257  def _refuse_payment(
-258      conn: Connection, payment: PaymentIn, today: date
-259  ) -&gt; list[RowMapping]:
-260      """The Mortgages the Payment is allocated to, unless it cannot be made at all."""
-261      if payment.paid_on &gt; today:
-262          raise unprocessable("The Payment date cannot be in the future")       ①
-263      if not exists(conn, customer_table, payment.customer_id):
-264          raise unprocessable("Customer not found")
-265      rows = []
-266      for allocation in payment.allocations:
-267          row = (
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>refuse_payment()</code> · lines 148–173, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>148  def refuse_payment(
+149      conn: Connection, payment: PaymentIn, today: date
+150  ) -&gt; list[RowMapping]:
+151      """The Mortgages the Payment is allocated to, unless it cannot be made at all."""
+152      if payment.paid_on &gt; today:
+153          raise unprocessable("The Payment date cannot be in the future")       ①
+154      if not exists(conn, customer_table, payment.customer_id):
+155          raise unprocessable("Customer not found")
+156      rows = []
+157      for allocation in payment.allocations:
+158          row = (
 ⋮    … SELECT the Mortgage by allocation.mortgage_id …
-275          )
-276          if row is None or row["customer_id"] != payment.customer_id:
-277              raise unprocessable("Each Mortgage must belong to the paying Customer")   ②
-278          _refuse_unless_active(row)                                          ③  ◀
-279          if payment.paid_on &lt; row["start_date"]:
-280              raise unprocessable(f"{row['name']} had not started on that date")
-281          rows.append(row)
-282      return rows
+166          )
+167          if row is None or row["customer_id"] != payment.customer_id:
+168              raise unprocessable("Each Mortgage must belong to the paying Customer")   ②
+169          refuse_unless_active(row)                                          ③  ◀
+170          if payment.paid_on &lt; row["start_date"]:
+171              raise unprocessable(f"{row['name']} had not started on that date")
+172          rows.append(row)
+173      return rows
 </code></pre>
 </figure>
 <ol class="marks">
   <li><code>unprocessable</code> (in <code>platform/errors.py</code>, chapter 006) raises a 422 with a message for the Lender.</li>
   <li>A Mortgage that doesn't exist and a Mortgage of someone else get the same message: either way, the Payment can't go there.</li>
-  <li>A closed Mortgage (Redeemed, Waived or Forfeited) refuses with <strong>409</strong>, "reopen it first" (<code>_refuse_unless_active</code>, line 176). 409 means "conflicts with the current state": the body is fine, the Mortgage just isn't open.</li>
+  <li>A closed Mortgage (Redeemed, Waived or Forfeited) refuses with <strong>409</strong>, "reopen it first" (<code>refuse_unless_active</code>, line 18). 409 means "conflicts with the current state": the body is fine, the Mortgage just isn't open.</li>
 </ol>
 <p>One refusal isn't here. A Payment larger than everything the Mortgage owed on its date is refused later, by <code>check_replays</code> after the write (chapter 006, lesson 2), because only a replay knows what was owed then.</p>
 
 <h3>4. The split, worked out on request</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/payments.py">payments/payments.py</a> · <code>load_payment()</code> · lines 127–152, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/payments.py"><code>127  def load_payment(conn: Connection, payment_id: int) -&gt; Payment:
-128      payment = conn.execute(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/payments.py">payments/payments.py</a> · <code>load_payment()</code> · lines 140–171, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/payments.py"><code>140  def load_payment(conn: Connection, payment_id: int) -&gt; Payment:
+141      payment = conn.execute(
 ⋮    … the payment row, with the Customer's name; 404 if missing …
-136      mortgages = mortgages_of(conn, payment_id)                   ①
-137      voided = payment.voided_at is not None
-138      # How it was applied comes from the replay, so it reflects every earlier Payment; a
-139      # Voided Payment is in no Ledger, so only its amounts remain.
-140      replayed = {} if voided else replays(conn, mortgages)        ②
-141      allocations = []
-142      for mortgage in mortgages:
-143          step = None if voided else replayed[mortgage["id"]].steps_by_payment()[payment_id]   ③  ◀
-144          allocations.append(
-145              AllocationOut(
+149      mortgages = mortgages_of(conn, payment_id)                   ①
+150      voided = payment.voided_at is not None
+151      # How it was applied comes from the replay, so it reflects every earlier Payment; a
+152      # Voided Payment is in no Ledger, so only its amounts remain.
+153      replayed = {} if voided else replays(conn, mortgages)        ②
+154      allocations = []
+155      for mortgage in mortgages:
+156          step = (                                                 ③  ◀
+157              None if voided else replayed[mortgage["id"]].steps_by_payment()[payment_id]
+158          )
+159          allocations.append(
+160              AllocationOut(
 ⋮
-149                  interest_paid=step.interest_paid if step else None,
-150                  principal_paid=step.principal_paid if step else None,
-151              )
-152          )
+166                  interest_paid=step.interest_paid if step else None,
+167                  principal_paid=step.principal_paid if step else None,
+170              )
+171          )
 </code></pre>
 </figure>
 <ol class="marks">
@@ -267,10 +269,10 @@ erDiagram
 <tr><td><code>"amount": 200000</code> (Allocations add up to ₹1,000)</td><td>422 · Value error, Allocations must add up to the Payment amount</td><td><code>PaymentIn</code></td></tr>
 <tr><td>Two Allocations of ₹500, both to Mortgage 2</td><td>422 · Value error, Each Mortgage can appear only once in a Payment</td><td><code>PaymentIn</code></td></tr>
 <tr><td><code>"method": "cheque"</code></td><td>422 · Input should be 'cash', 'upi' or 'bank_transfer'</td><td><code>PaymentIn</code></td></tr>
-<tr><td><code>"paid_on": "2026-10-20"</code></td><td>422 · The Payment date cannot be in the future</td><td><code>_refuse_payment</code></td></tr>
-<tr><td><code>"mortgage_id": 3</code> (Kavita's coin, paid by Meera)</td><td>422 · Each Mortgage must belong to the paying Customer</td><td><code>_refuse_payment</code></td></tr>
-<tr class="changed"><td><code>"customer_id": 3</code> and <code>"mortgage_id": 3</code> (Kavita's coin, Redeemed on 5 Oct)</td><td>409 · 2026-Kavita-GoldCoin is redeemed: reopen it first</td><td><code>_refuse_unless_active</code></td></tr>
-<tr><td><code>"paid_on": "2025-11-01"</code> (the chain started on 10 Nov)</td><td>422 · 2025-Meera-GoldChainPendant had not started on that date</td><td><code>_refuse_payment</code></td></tr>
+<tr><td><code>"paid_on": "2026-10-20"</code></td><td>422 · The Payment date cannot be in the future</td><td><code>refuse_payment</code></td></tr>
+<tr><td><code>"mortgage_id": 3</code> (Kavita's coin, paid by Meera)</td><td>422 · Each Mortgage must belong to the paying Customer</td><td><code>refuse_payment</code></td></tr>
+<tr class="changed"><td><code>"customer_id": 3</code> and <code>"mortgage_id": 3</code> (Kavita's coin, Redeemed on 5 Oct)</td><td>409 · 2026-Kavita-GoldCoin is redeemed: reopen it first</td><td><code>refuse_unless_active</code></td></tr>
+<tr><td><code>"paid_on": "2025-11-01"</code> (the chain started on 10 Nov)</td><td>422 · 2025-Meera-GoldChainPendant had not started on that date</td><td><code>refuse_payment</code></td></tr>
 <tr><td>Kavita, ₹1 to the anklet (10) on <code>2026-08-25</code>, in cash</td><td>422 · 2026-Kavita-SilverGoldAnklet: the Payment on 26 Aug 2026 would be more than the ₹299 owed then</td><td><code>check_replays</code></td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L1), through <code>POST /api/payments</code> on a copy: the <code>payment</code> table still had 33 rows afterwards.</p>
@@ -288,7 +290,7 @@ erDiagram
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L1). Without <code>month</code> or <code>year</code>, <code>interest_paid</code> is <code>null</code>.</p>
 
-<div class="callout warn"><strong>Trap #1: where the writes live.</strong> This lesson's reads are in <code>payments/payments.py</code>, but <code>PaymentIn</code>, <code>_refuse_payment</code> and <code>record_payment</code> are in <code>payments/writes.py</code> and <code>payments/recording.py</code> (<a href="../reference/traps.html#t1">trap #1</a>, owned by chapter 003).</div>
+<div class="callout warn"><strong>Trap #1: where the writes live.</strong> This lesson's reads are in <code>payments/payments.py</code>, but <code>PaymentIn</code>, <code>refuse_payment</code> and <code>record_payment</code> are in <code>payments/writes.py</code> and <code>payments/recording.py</code> (<a href="../reference/traps.html#t1">trap #1</a>, owned by chapter 003).</div>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">
@@ -303,11 +305,11 @@ erDiagram
   <button class="opt">422: the Mortgage must belong to the payer</button>
   <button class="opt">409: the anklet must be reopened first</button>
   <button class="opt">201: anyone may pay any Customer's Mortgage</button>
-  <div class="why"><code>_refuse_payment</code> compares each Mortgage's <code>customer_id</code> with the Payment's: "Each Mortgage must belong to the paying Customer". The anklet is Active, so 409 doesn't apply.</div>
+  <div class="why"><code>refuse_payment</code> compares each Mortgage's <code>customer_id</code> with the Payment's: "Each Mortgage must belong to the paying Customer". The anklet is Active, so 409 doesn't apply.</div>
 </div>
 <div class="quiz" data-answer="1">
   <p class="q">A body's Allocations add up to ₹1,000 and its <code>amount</code> says ₹2,000. Which code refuses it?</p>
-  <button class="opt"><code>_refuse_payment</code>, inside the transaction</button>
+  <button class="opt"><code>refuse_payment</code>, inside the transaction</button>
   <button class="opt"><code>PaymentIn</code>, before any route code runs</button>
   <button class="opt"><code>check_replays</code>, after the rows are written</button>
   <div class="why"><code>allocations_add_up</code> is a Pydantic validator on <code>PaymentIn</code>. FastAPI runs it while parsing the body, so the route function never even starts.</div>

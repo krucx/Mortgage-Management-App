@@ -46,35 +46,35 @@ flowchart TD
 <h2>The code</h2>
 <h3>1. <code>waive</code>: a Final Payment short of the quote</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>waive()</code> · lines 703–741, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>703  def waive(
-704      conn: Connection, mortgage_id: int, waive: WaiveIn, today: date, now: datetime
-705  ) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>waive()</code> · lines 251–289, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>251  def waive(
+252      conn: Connection, mortgage_id: int, waive: WaiveIn, today: date, now: datetime
+253  ) -&gt; None:
 ⋮
-708      mortgage = closable(conn, mortgage_id, waive.waived_on, today)
-709      owed = mortgage.outstanding_on_closure(waive.waived_on).total
-710      if owed == 0:                                                  ①
-711          raise unprocessable(
-712              f"{mortgage.row['name']} owes nothing then: Redeem it instead"
-713          )
-714      if waive.amount_paid &gt;= owed:                                  ②  ◀
-715          raise unprocessable(
-716              f"{format_inr(waive.amount_paid)} covers the {format_inr(owed)} owed: "
-717              "Redeem it instead"
-718          )
-719      _close_with_payment(                                           ③
+256      mortgage = closable(conn, mortgage_id, waive.waived_on, today)
+257      owed = mortgage.outstanding_on_closure(waive.waived_on).total
+258      if owed == 0:                                                  ①
+259          raise unprocessable(
+260              f"{mortgage.row['name']} owes nothing then: Redeem it instead"
+261          )
+262      if waive.amount_paid &gt;= owed:                                  ②  ◀
+263          raise unprocessable(
+264              f"{format_inr(waive.amount_paid)} covers the {format_inr(owed)} owed: "
+265              "Redeem it instead"
+266          )
+267      _close_with_payment(                                           ③
 ⋮        … waived_on, amount_paid, method, reference, today, now …
-728          status=MortgageStatus.WAIVED,
-729          closure_note=waive.note.strip() or None,
-730      )
-731      audit.record(
+276          status=MortgageStatus.WAIVED,
+277          closure_note=waive.note.strip() or None,
+278      )
+279      audit.record(
 ⋮
-736          "waived",
+284          "waived",
 ⋮
-738              f"on {waive.waived_on:%d %b %Y}: paid {format_inr(waive.amount_paid)}, "
-739              f"waived {format_inr(owed - waive.amount_paid)}"
+286              f"on {waive.waived_on:%d %b %Y}: paid {format_inr(waive.amount_paid)}, "
+287              f"waived {format_inr(owed - waive.amount_paid)}"
 ⋮
-741      )
+289      )
 </code></pre>
 </figure>
 <ol class="marks">
@@ -85,27 +85,27 @@ flowchart TD
 
 <h3>2. <code>forfeit</code>: no Payment at all</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>forfeit()</code> · lines 744–768, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>744  def forfeit(
-745      conn: Connection, mortgage_id: int, forfeit: ForfeitIn, today: date, now: datetime
-746  ) -&gt; None:
-747      """Mark the Mortgage Forfeited, recording what the jewellery recovered (or refuse)."""
-748      closable(conn, mortgage_id, forfeit.forfeited_on, today)
-749      _set_closure(
-750          conn,
-751          mortgage_id,
-752          status=MortgageStatus.FORFEITED,
-753          closed_on=forfeit.forfeited_on,
-754          recovered_amount=forfeit.recovered_amount,        ◀ the only money stored
-755          closure_note=forfeit.note.strip() or None,
-756      )
-757      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>forfeit()</code> · lines 292–316, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>292  def forfeit(
+293      conn: Connection, mortgage_id: int, forfeit: ForfeitIn, today: date, now: datetime
+294  ) -&gt; None:
+295      """Mark the Mortgage Forfeited, recording what the jewellery recovered (or refuse)."""
+296      closable(conn, mortgage_id, forfeit.forfeited_on, today)
+297      _set_closure(
+298          conn,
+299          mortgage_id,
+300          status=MortgageStatus.FORFEITED,
+301          closed_on=forfeit.forfeited_on,
+302          recovered_amount=forfeit.recovered_amount,        ◀ the only money stored
+303          closure_note=forfeit.note.strip() or None,
+304      )
+305      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
 ⋮
-764          note=(
-765              f"on {forfeit.forfeited_on:%d %b %Y}, recovered "
-766              f"{format_inr(forfeit.recovered_amount)}"
+312          note=(
+313              f"on {forfeit.forfeited_on:%d %b %Y}, recovered "
+314              f"{format_inr(forfeit.recovered_amount)}"
 ⋮
-768      )
+316      )
 </code></pre>
 </figure>
 <p>The jewellery's sale isn't a Payment from the Customer, so nothing goes in the <code>payment</code> table. The <a href="../reference/glossary.html#recovered-amount"><dfn class="term" title="What a Forfeited Mortgage's jewellery fetched (or is worth, if kept); its difference from the Outstanding on the Closure date is the Lender's profit or loss.">Recovered Amount</dfn></a> sits on the <code>mortgage</code> row, and the jewellery settles the debt.</p>
@@ -282,7 +282,7 @@ curl -s -X POST -H 'content-type: application/json' "$B/2/waive-preview" \
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_closing.py"><code>tests/test_closing.py</code></a>, read <code>test_forfeiting_records_what_was_recovered_and_the_profit_or_loss</code> (line 159) and <code>test_waiving_records_the_final_payment_and_lets_off_the_rest</code> (line 220). Then <code>test_if_any_one_cannot_be_forfeited_none_are_and_the_reason_names_it</code> (line 373) for the bulk rule.</p>
+<p>In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_closing.py"><code>tests/test_closing.py</code></a>, read <code>test_forfeiting_records_what_was_recovered_and_the_profit_or_loss</code> (line 161) and <code>test_waiving_records_the_final_payment_and_lets_off_the_rest</code> (line 222). Then <code>test_if_any_one_cannot_be_forfeited_none_are_and_the_reason_names_it</code> (line 373) for the bulk rule.</p>
 
 <nav class="lessons">
   <a href="03-redeemed.html">← Redeemed, two ways</a>

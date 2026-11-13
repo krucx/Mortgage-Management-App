@@ -62,7 +62,7 @@ sequenceDiagram
 <h2>The code</h2>
 <h3>1. What the module promises</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · module docstring · lines 1–10</figcaption>
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · module docstring · lines 1–9</figcaption>
 <pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>1  """Changes to Mortgages that stay in lending: creating a Mortgage, correcting its
 2  details, and adding and removing Term Changes. Payments are in payments/, Closures in
 3  lending/closing.py, and Collateral Values and photos in collateral/.
@@ -78,63 +78,63 @@ sequenceDiagram
 
 <h3>2. The route: parse, call, answer</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>post_term_change()</code> · lines 923–935</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>923  @router.post(
-924      "/mortgages/{mortgage_id}/term-changes", status_code=status.HTTP_201_CREATED
-925  )
-926  def post_term_change(
-927      mortgage_id: int,
-928      change: TermChangeIn,                         ①
-929      engine: EngineDep,
-930      today: TodayDep,
-931      now: NowDep,
-932  ) -&gt; Mortgage:
-933      with engine.begin() as conn:                  ②  ◀
-934          add_term_change(conn, mortgage_id, change, today, now)   ③
-935          return load_mortgage(conn, mortgage_id, today)           ④
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>post_term_change()</code> · lines 269–281</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>269  @router.post(
+270      "/mortgages/{mortgage_id}/term-changes", status_code=status.HTTP_201_CREATED
+271  )
+272  def post_term_change(
+273      mortgage_id: int,
+274      change: TermChangeIn,                         ①
+275      engine: EngineDep,
+276      today: TodayDep,
+277      now: NowDep,
+278  ) -&gt; Mortgage:
+279      with engine.begin() as conn:                  ②  ◀
+280          add_term_change(conn, mortgage_id, change, today, now)   ③
+281          return load_mortgage(conn, mortgage_id, today)           ④
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>FastAPI turns the JSON body into a <code>TermChangeIn</code> (a Pydantic model, lines 96–102) before your code runs. A body that doesn't fit it, such as a rate of 0, is refused with a 422 right here, and the change function never runs.</li>
+  <li>FastAPI turns the JSON body into a <code>TermChangeIn</code> (a Pydantic model, lines 37–43) before your code runs. A body that doesn't fit it, such as a rate of 0, is refused with a 422 right here, and the change function never runs.</li>
   <li><code>engine.begin()</code> opens a transaction and <strong>commits</strong> it when the <code>with</code> block ends normally. If anything inside raises, it <strong>rolls back</strong> instead. Everything the change writes, History included, is saved together or not at all.</li>
   <li>The only line that does anything. <code>today</code> and <code>now</code> come from the app's clock (held on 19 Oct 2026 for the sample book), never from <code>date.today()</code>, so tests and the sample book can choose the day.</li>
   <li>Read back inside the transaction, so the page gets the Mortgage as just saved, with its new Term Change.</li>
 </ol>
-<p>Every save route in lines 905–1090 has this shape. Open the file and skim them: <code>post_payment</code>, <code>put_mortgage</code>, <code>post_redeem</code>, … each is a few lines long.</p>
+<p>Every save route has this shape. Skim the four at the bottom of <code>changes.py</code> (lines 269–318: <code>post_term_change</code>, <code>put_mortgage</code>, <code>delete_term_change</code>, <code>post_mortgage</code>), then <code>post_payment</code> in <code>payments/recording.py</code> and <code>post_redeem</code> in <code>lending/closing.py</code>: each is a few lines long.</p>
 
 <h3>3. The change function, part 1: refuse</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>add_term_change()</code> · lines 368–397, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>368  def add_term_change(
-369      conn: Connection, mortgage_id: int, change: TermChangeIn, today: date, now: datetime
-370  ) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>add_term_change()</code> · lines 76–105, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>76   def add_term_change(
+77      conn: Connection, mortgage_id: int, change: TermChangeIn, today: date, now: datetime
+78   ) -&gt; None:
 ⋮
-372      mortgage = replay(conn, mortgage_id)
-373      row = mortgage.row
-374      _refuse_unless_active(row)                                  ① 409
-375      next_one = next(
-376          d for d in upcoming_accrual_dates(row["start_date"], today) if d &gt; today
-377      )
-378      effective_on = change.effective_on or next_one              ②
-379      if effective_on &lt; today or not is_accrual_date(row["start_date"], effective_on):
-380          raise unprocessable(                                    ③ 422  ◀
-381              "A Term Change starts on an Accrual Date, today or later "
-382              f"(the next is {next_one:%d %b %Y})"
-383          )
-384      if any(c.on == effective_on for c in mortgage.term_changes):
-385          raise HTTPException(                                    ④ 409  ◀
-386              status.HTTP_409_CONFLICT,
-387              f"There is already a Term Change on {effective_on:%d %b %Y}",
-388          )
-389      before = mortgage.terms_on(effective_on)                    ⑤
+80      mortgage = replay(conn, mortgage_id)
+81      row = mortgage.row
+82      refuse_unless_active(row)                                  ① 409
+83      next_one = next(
+84          d for d in upcoming_accrual_dates(row["start_date"], today) if d &gt; today
+85      )
+86      effective_on = change.effective_on or next_one              ②
+87      if effective_on &lt; today or not is_accrual_date(row["start_date"], effective_on):
+88          raise unprocessable(                                    ③ 422  ◀
+89              "A Term Change starts on an Accrual Date, today or later "
+90              f"(the next is {next_one:%d %b %Y})"
+91          )
+92      if any(c.on == effective_on for c in mortgage.term_changes):
+93          raise HTTPException(                                    ④ 409  ◀
+94              status.HTTP_409_CONFLICT,
+95              f"There is already a Term Change on {effective_on:%d %b %Y}",
+96          )
+97      before = mortgage.terms_on(effective_on)                    ⑤
 ⋮    … comment: only what differs is stored …
-391      changed = audit.changes(
-392          before.model_dump(),
-393          {**before.model_dump(), **change.model_dump(exclude_none=True)},
-394          Terms.model_fields,
-395      )
-396      if not changed:
-397          raise unprocessable("The Term Change must change the rate, mode or rule")   ⑥ 422
+99      changed = audit.changes(
+100          before.model_dump(),
+101          {**before.model_dump(), **change.model_dump(exclude_none=True)},
+102          Terms.model_fields,
+103      )
+104      if not changed:
+105          raise unprocessable("The Term Change must change the rate, mode or rule")   ⑥ 422
 </code></pre>
 </figure>
 <ol class="marks">
@@ -148,43 +148,43 @@ sequenceDiagram
 
 <h3>4. The change function, part 2: write, check, History</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>add_term_change()</code> · lines 398–416</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>398      conn.execute(                                               ① write
-399          insert(term_change_table).values(
-400              mortgage_id=mortgage_id,
-401              effective_on=effective_on,
-402              **{c.field: getattr(change, c.field) for c in changed},   ◀
-403          )
-404      )
-405      check_replays(conn, [row], today)                           ② check
-406      audit.record(                                               ③ History
-407          conn,
-408          now,
-409          "mortgage",
-410          mortgage_id,
-411          "term_change_added",
-412          [
-413              audit.Change("effective_on", None, effective_on.isoformat()),
-414              *changed,
-415          ],
-416      )
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>add_term_change()</code> · lines 106–124</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>106      conn.execute(                                               ① write
+107          insert(term_change_table).values(
+108              mortgage_id=mortgage_id,
+109              effective_on=effective_on,
+110              **{c.field: getattr(change, c.field) for c in changed},   ◀
+111          )
+112      )
+113      check_replays(conn, [row], today)                           ② check
+114      audit.record(                                               ③ History
+115          conn,
+116          now,
+117          "mortgage",
+118          mortgage_id,
+119          "term_change_added",
+120          [
+121              audit.Change("effective_on", None, effective_on.isoformat()),
+122              *changed,
+123          ],
+124      )
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>Only the fields in <code>changed</code> get a value. The others stay <code>NULL</code>, meaning "carry over whatever is in force then". The comment at line 390 says why: "so a later Term Change keeps its own effect". If this one stored the Interest Mode too, a different mode set by an earlier Term Change would be overwritten from here on.</li>
+  <li>Only the fields in <code>changed</code> get a value. The others stay <code>NULL</code>, meaning "carry over whatever is in force then". The comment at line 98 says why: "so a later Term Change keeps its own effect". If this one stored the Interest Mode too, a different mode set by an earlier Term Change would be overwritten from here on.</li>
   <li>Replay the Mortgage with the new row in place (lesson 2).</li>
   <li>One History row for the date, and one for each changed field (lesson 3).</li>
 </ol>
 
 <h3>5. Two kinds of refusal</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">lending/refusals.py</a> · <code>_refuse_unless_active()</code> · lines 176–181</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>176  def _refuse_unless_active(row: RowMapping) -&gt; None:
-177      if row["status"] != MortgageStatus.ACTIVE:
-178          raise HTTPException(
-179              status.HTTP_409_CONFLICT,                          ◀
-180              f"{row['name']} is {row['status']}: reopen it first",
-181          )
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">lending/refusals.py</a> · <code>refuse_unless_active()</code> · lines 18–23</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>18  def refuse_unless_active(row: RowMapping) -&gt; None:
+19      if row["status"] != MortgageStatus.ACTIVE:
+20          raise HTTPException(
+21              status.HTTP_409_CONFLICT,                          ◀
+22              f"{row['name']} is {row['status']}: reopen it first",
+23          )
 </code></pre>
 </figure>
 <figure class="snippet">
@@ -228,14 +228,14 @@ sequenceDiagram
 <p>The sample book's script (<code>docs/sample-book/book.py</code>) made this change on 12 Oct, with the clock set to that day, by posting <code>{"effective_on": "2026-10-25", "monthly_rate_bps": 150}</code>. Here it is, step by step through <code>add_term_change</code>:</p>
 <table class="steps text">
 <tr><th>Step</th><th>Line</th><th>What happened</th></tr>
-<tr><td>Refuse?</td><td>374</td><td>The bangles are Active: go on</td></tr>
-<tr><td></td><td>375–378</td><td><code>next_one</code> is 25 Oct; the request gave 25 Oct anyway</td></tr>
-<tr><td></td><td>379</td><td>25 Oct is not before 12 Oct, and it is an Accrual Date (the bangles started on 25 Apr): go on</td></tr>
-<tr><td></td><td>384</td><td>No Term Change on 25 Oct yet: go on</td></tr>
-<tr><td></td><td>389–395</td><td><code>before</code>: 2%, Compounded Yearly, pro-rata. <code>changed</code>: only <code>monthly_rate_bps</code>, 200 → 150</td></tr>
-<tr class="changed"><td>Write</td><td>398</td><td>One <code>term_change</code> row: <code>effective_on</code> 2026-10-25, <code>monthly_rate_bps</code> 150, <code>interest_mode</code> NULL, <code>part_month_rule</code> NULL</td></tr>
-<tr><td>Check</td><td>405</td><td>The bangles replay without a problem</td></tr>
-<tr><td>History</td><td>406</td><td>Two rows, action <code>term_change_added</code>: <code>effective_on</code> (none) → 2026-10-25, and <code>monthly_rate_bps</code> 200 → 150</td></tr>
+<tr><td>Refuse?</td><td>82</td><td>The bangles are Active: go on</td></tr>
+<tr><td></td><td>83–86</td><td><code>next_one</code> is 25 Oct; the request gave 25 Oct anyway</td></tr>
+<tr><td></td><td>87</td><td>25 Oct is not before 12 Oct, and it is an Accrual Date (the bangles started on 25 Apr): go on</td></tr>
+<tr><td></td><td>92</td><td>No Term Change on 25 Oct yet: go on</td></tr>
+<tr><td></td><td>97–103</td><td><code>before</code>: 2%, Compounded Yearly, pro-rata. <code>changed</code>: only <code>monthly_rate_bps</code>, 200 → 150</td></tr>
+<tr class="changed"><td>Write</td><td>106</td><td>One <code>term_change</code> row: <code>effective_on</code> 2026-10-25, <code>monthly_rate_bps</code> 150, <code>interest_mode</code> NULL, <code>part_month_rule</code> NULL</td></tr>
+<tr><td>Check</td><td>113</td><td>The bangles replay without a problem</td></tr>
+<tr><td>History</td><td>114</td><td>Two rows, action <code>term_change_added</code>: <code>effective_on</code> (none) → 2026-10-25, and <code>monthly_rate_bps</code> 200 → 150</td></tr>
 </table>
 <p class="cite">The stored row and History from <code>scripts/run_throughs.py</code> (sections L1 and L3), on the built book, at commit d6a92ab.</p>
 
@@ -248,8 +248,8 @@ curl -s -w ' %{http_code}
 ' -X POST -H "$J" -d '{"effective_on": "2026-10-25", "monthly_rate_bps": 100}' "$B/term-changes"</code></pre>
 <table class="steps text">
 <tr><th>Request</th><th>Refused at</th><th>Answer</th></tr>
-<tr><td>1% from 1 Nov</td><td>line 379</td><td>422 · A Term Change starts on an Accrual Date, today or later (the next is 25 Oct 2026)</td></tr>
-<tr class="changed"><td>1% from 25 Oct</td><td>line 384</td><td>409 · There is already a Term Change on 25 Oct 2026</td></tr>
+<tr><td>1% from 1 Nov</td><td>line 87</td><td>422 · A Term Change starts on an Accrual Date, today or later (the next is 25 Oct 2026)</td></tr>
+<tr class="changed"><td>1% from 25 Oct</td><td>line 92</td><td>409 · There is already a Term Change on 25 Oct 2026</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L1), through the real API on the built book. The book's History had 271 rows before these requests and 271 after.</p>
 <p>The first is a 422 because no state of the Mortgage could make 1 Nov an Accrual Date. The second is a 409 because 25 Oct is a perfectly good date that's already taken. Remove the existing Term Change and the same request would succeed.</p>
@@ -261,7 +261,7 @@ curl -s -w ' %{http_code}
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <pre><code>422  The Term Change must change the rate, mode or rule</code></pre>
-    <p>From 25 Oct the bangles are already at 1.5%. <code>terms_on(25 Nov)</code> includes the 25 Oct Term Change, so <code>changed</code> comes out empty and line 397 refuses. A Term Change is compared with the Terms <em>in force then</em>, not with the Terms the Mortgage started with.</p>
+    <p>From 25 Oct the bangles are already at 1.5%. <code>terms_on(25 Nov)</code> includes the 25 Oct Term Change, so <code>changed</code> comes out empty and line 105 refuses. A Term Change is compared with the Terms <em>in force then</em>, not with the Terms the Mortgage started with.</p>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L1).</p>
   </div>
 </div>
@@ -289,7 +289,7 @@ curl -s -w ' %{http_code}
   <button class="opt">In the route, <code>post_term_change</code></button>
   <button class="opt">In the request model, <code>TermChangeIn</code></button>
   <button class="opt">In the change, <code>add_term_change</code></button>
-  <div class="why">It needs the Mortgage's start date, so it can't be on the request model. Routes only parse, call and answer. It's in the change function (line 379), which is also what the Preview runs.</div>
+  <div class="why">It needs the Mortgage's start date, so it can't be on the request model. Routes only parse, call and answer. It's in the change function (line 87), which is also what the Preview runs.</div>
 </div>
 <div class="quiz" data-answer="0">
   <p class="q">Voiding a Payment that is already Voided. Which status?</p>
@@ -303,12 +303,12 @@ curl -s -w ' %{http_code}
   <button class="opt">The Interest Mode was cleared from 25 Oct</button>
   <button class="opt">The Interest Mode carries over as it was then</button>
   <button class="opt">The row is broken; NULL should never be stored</button>
-  <div class="why">Only what differs is stored (line 402). NULL means "whatever is in force then", so a later Term Change that sets the Interest Mode keeps its effect.</div>
+  <div class="why">Only what differs is stored (line 99). NULL means "whatever is in force then", so a later Term Change that sets the Interest Mode keeps its effect.</div>
 </div>
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a> to the end: every save route, one after another. You'll see the same three lines each time. Then pick one change function you haven't met, <code>remove_term_change</code>, and find its four steps yourself.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>lending/changes.py</code></a> to the end: its four save routes, one after another. You'll see the same three lines each time. Then pick one change function you haven't met, <code>remove_term_change</code>, and find its four steps yourself.</p>
 
 <nav class="lessons">
   <a href="index.html">← Chapter overview</a>

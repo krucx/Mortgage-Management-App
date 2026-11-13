@@ -30,7 +30,7 @@
 <ul>
   <li><strong>Where "today" comes from.</strong> <a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">Chapter 010, lesson 2</a>: the app never reads the clock itself; <code>create_app(today=…)</code> injects it, and most tests set it to 20 Apr 2026.</li>
   <li><strong>How a test's database is built.</strong> <a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">Chapter 010, lesson 5</a>: every test's database is made by the real migrations, and the drift test.</li>
-  <li><strong>Changes, refusals and History.</strong> <a href="../006-changes-and-previews/index.html">Chapter 006</a>: every change goes through one module that refuses, writes, checks and records History. The seeds in this chapter use those same functions.</li>
+  <li><strong>Changes, refusals and History.</strong> <a href="../006-changes-and-previews/index.html">Chapter 006</a>: every change goes through one function that refuses, writes, checks and records History. The seeds in this chapter use those same functions.</li>
   <li><strong>The typed client and the cache.</strong> <a href="../011-the-frontends-data-layer/index.html">Chapter 011</a>: pages ask the backend only through the typed client (<a href="../reference/traps.html#t11">trap #11</a>), and the contract tests that keep both sides' types in step (<a href="../reference/traps.html#t10">trap #10</a>).</li>
   <li><strong>Pages.</strong> <a href="../012-frontend-pages-and-the-pwa/index.html">Chapter 012</a>: <code>ChangeTermsPage</code> (lesson 2) and <code>StartGate</code> (lesson 6), whose tests this chapter reads.</li>
 </ul>

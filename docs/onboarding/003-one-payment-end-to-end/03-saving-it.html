@@ -33,10 +33,10 @@ sequenceDiagram
   Note over R: FastAPI validates PaymentIn, or 422
   R->>DB: engine.begin()
   R->>C: record_payment(conn, payment, today, now)
-  C->>DB: _refuse_payment: read Customer and Mortgages
-  C->>DB: _write_payment: INSERT payment, INSERT allocation x2
+  C->>DB: refuse_payment: read Customer and Mortgages
+  C->>DB: write_payment: INSERT payment, INSERT allocation x2
   C->>DB: check_replays: replay each Mortgage
-  C->>DB: _record_payment_history: INSERT audit_entry
+  C->>DB: record_payment_history: INSERT audit_entry
   C-->>R: payment id 34
   R->>DB: load_payment(34): read and replay
   R->>DB: commit
@@ -52,13 +52,13 @@ sequenceDiagram
 
 <h3>1. The route</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">backend/src/mortgage_backend/payments/recording.py</a> · <code>post_payment()</code> · lines 905–910</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>905  @router.post("/payments", status_code=status.HTTP_201_CREATED)
-906  def post_payment(
-907      payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
-908  ) -&gt; Payment:
-909      with engine.begin() as conn:                                        ①
-910          return load_payment(conn, record_payment(conn, payment, today, now))  ②
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">backend/src/mortgage_backend/payments/recording.py</a> · <code>post_payment()</code> · lines 97–102</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>97   @router.post("/payments", status_code=status.HTTP_201_CREATED)
+98   def post_payment(
+99      payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
+100  ) -&gt; Payment:
+101      with engine.begin() as conn:                                        ①
+102          return load_payment(conn, record_payment(conn, payment, today, now))  ②
 </code></pre>
 </figure>
 <ol class="marks">
@@ -68,49 +68,49 @@ sequenceDiagram
 
 <h3>2. Validation, before any code of ours runs</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">backend/src/mortgage_backend/payments/writes.py</a> · <code>PaymentIn</code> · lines 62–82, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>62  class AllocationIn(BaseModel):
-63      mortgage_id: int
-64      amount: int = Field(gt=0)  # paise
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">backend/src/mortgage_backend/payments/writes.py</a> · <code>PaymentIn</code> · lines 34–54, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>34  class AllocationIn(BaseModel):
+35      mortgage_id: int
+36      amount: int = Field(ge=0)  # cash in paise
 ⋮
-67  class PaymentIn(BaseModel):
-68      customer_id: int
-69      paid_on: date
-70      amount: int = Field(gt=0)  # paise
-71      method: PaymentMethod
-72      reference: str | None = None
-73      allocations: list[AllocationIn] = Field(min_length=1)
+40  class PaymentIn(BaseModel):
+41      customer_id: int
+42      paid_on: date
+46      amount: int = Field(ge=0)  # cash in paise
+47      method: PaymentMethod
+48      reference: str | None = None
+49      allocations: list[AllocationIn] = Field(min_length=1)
 ⋮
-76      def allocations_add_up(self) -&gt; "PaymentIn":
-77          if sum(allocation.amount for allocation in self.allocations) != self.amount:
-78              raise ValueError("Allocations must add up to the Payment amount")
+52      def allocations_add_up(self) -&gt; "PaymentIn":
+53          if sum(allocation.amount for allocation in self.allocations) != self.amount:
+54              raise ValueError("Allocations must add up to the Payment amount")
 </code></pre>
 </figure>
 <p><code>PaymentIn</code> is a Pydantic model: a class that describes the JSON body. FastAPI parses the request into it and answers 422 by itself if the body doesn't fit: a missing field, a negative amount, Allocations that don't add up. It's also the model the frontend's <code>PaymentIn</code> type is generated from.</p>
 
 <h3>3. <code>record_payment</code>: refuse, write, check, record</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">backend/src/mortgage_backend/payments/recording.py</a> · <code>record_payment()</code> · lines 282–304, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>282  def record_payment(
-283      conn: Connection, payment: PaymentIn, today: date, now: datetime
-284  ) -&gt; int:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">backend/src/mortgage_backend/payments/recording.py</a> · <code>record_payment()</code> · lines 30–55, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>30  def record_payment(
+31      conn: Connection, payment: PaymentIn, today: date, now: datetime
+32  ) -&gt; int:
 ⋮
-288      rows = _refuse_payment(conn, payment, today)                    ① refuse
-289      redeemed = []
-290      for allocation in payment.allocations:
-⋮        … would this Allocation pay its Mortgage's whole Outstanding? …
-294              redeemed.append((allocation, mortgage))
+38      rows = refuse_payment(conn, payment, today)                    ① refuse
+40      redeemed = []
+41      for allocation in payment.allocations:
 ⋮
-296      ordinary = [a for a in payment.allocations if a.mortgage_id not in redeemed_ids]
+45              redeemed.append((allocation, mortgage))
 ⋮
-298      if ordinary:
+47      ordinary = [a for a in payment.allocations if a.mortgage_id not in redeemed_ids]
 ⋮
-302          first = _write_payment(conn, paid)                         ② write
-303          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)  ③ check ◀
-304          _record_payment_history(conn, first, paid, now)            ④ record
+49      if ordinary:
+⋮
+53          first = write_payment(conn, paid, grace=grace)        ② write
+54          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)  ③ check ◀
+55          record_payment_history(conn, first, paid, now)            ④ record
 </code></pre>
 </figure>
-<p>Meera's Payment pays neither Mortgage in full, so both Allocations are <code>ordinary</code> and the Redemption branch (lines 305–320) does nothing. Chapters 005 and 007 cover that branch.</p>
+<p>Meera's Payment pays neither Mortgage in full, so both Allocations are <code>ordinary</code> and the Redemption branch (lines 56–70) does nothing. Chapters 005 and 007 cover that branch.</p>
 <ol class="marks">
   <li><strong>Refuse</strong> what's wrong on its face (below).</li>
   <li><strong>Write</strong> one <code>payment</code> row and one <code>allocation</code> row per Mortgage.</li>
@@ -118,55 +118,65 @@ sequenceDiagram
   <li><strong>Record</strong> the new Payment in <a href="../reference/glossary.html#history"><dfn class="term" title="The record of every change to a Customer, Mortgage or Payment — when, what, and the old and new values — which is never edited or removed.">History</dfn></a>.</li>
 </ol>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">backend/src/mortgage_backend/payments/writes.py</a> · <code>_refuse_payment()</code> · lines 254–279, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>254  def _refuse_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">backend/src/mortgage_backend/payments/writes.py</a> · <code>refuse_payment()</code> · lines 148–171, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>148  def refuse_payment(
 ⋮
-258      if payment.paid_on &gt; today:
-259          raise unprocessable("The Payment date cannot be in the future")
-260      if not exists(conn, customer_table, payment.customer_id):
-261          raise unprocessable("Customer not found")
+152      if payment.paid_on &gt; today:
+153          raise unprocessable("The Payment date cannot be in the future")
+154      if not exists(conn, customer_table, payment.customer_id):
+155          raise unprocessable("Customer not found")
 ⋮    … for each Allocation, load its Mortgage …
-273          if row is None or row["customer_id"] != payment.customer_id:
-274              raise unprocessable("Each Mortgage must belong to the paying Customer")
-275          _refuse_unless_active(row)                    # 409 if Redeemed, Waived or Forfeited
-276          if payment.paid_on &lt; row["start_date"]:
-277              raise unprocessable(f"{row['name']} had not started on that date")
+167          if row is None or row["customer_id"] != payment.customer_id:
+168              raise unprocessable("Each Mortgage must belong to the paying Customer")
+169          refuse_unless_active(row)
+170          if payment.paid_on &lt; row["start_date"]:
+171              raise unprocessable(f"{row['name']} had not started on that date")
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">backend/src/mortgage_backend/payments/writes.py</a> · <code>_write_payment()</code> · lines 197–214, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>197  def _write_payment(
-198      conn: Connection, payment: PaymentIn, received_with: int | None = None
-199  ) -&gt; int:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">backend/src/mortgage_backend/payments/writes.py</a> · <code>write_payment()</code> · lines 81–108, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>81   def write_payment(
+82       conn: Connection,
+83       payment: PaymentIn,
+84       received_with: int | None = None,
+85       grace: Grace | None = None,
+86   ) -&gt; int:
 ⋮
-202      payment_id: int = conn.execute(
-203          insert(payment_table)
-204          .values(
-205              **payment.model_dump(exclude={"allocations"}),   # customer_id, paid_on, amount, method, reference
-206              received_with=received_with,
-207          )
-208          .returning(payment_table.c.id)
-209      ).scalar_one()
-210      conn.execute(
-211          insert(allocation_table),
-212          [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
-213      )
-214      return payment_id
+89       payment_id: int = conn.execute(
+90           insert(payment_table)
+91           .values(
+92               **payment.model_dump(exclude={"allocations"}),
+93               received_with=received_with,
+94           )
+95           .returning(payment_table.c.id)
+96       ).scalar_one()
+97       conn.execute(
+98           insert(allocation_table),
+99           [
+100              {
+101                  "payment_id": payment_id,
+102                  **a.model_dump(),
+103                  "let_off": grace.let_off[a.mortgage_id] if grace else None,
+104              }
+105              for a in payment.allocations
+106          ],
+107      )
+108      return payment_id
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">backend/src/mortgage_backend/lending/refusals.py</a> · <code>check_replays()</code> · lines 184–194</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>184  def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -&gt; None:
-185      """Replay each Mortgage; refuse if any Payment is now larger than what was owed."""
-186      replayed = replays(conn, rows)
-187      for row in rows:
-188          try:
-189              replayed[row["id"]].ledger(today)          # rebuild its Ledger to today
-190          except Overpayment as over:                    ◀
-191              raise unprocessable(
-192                  f"{row['name']}: the Payment on {over.on:%d %b %Y} would be more than "
-193                  f"the {format_inr(over.outstanding)} owed then"
-194              ) from None
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">backend/src/mortgage_backend/lending/refusals.py</a> · <code>check_replays()</code> · lines 26–36</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>26   def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -&gt; None:
+27      """Replay each Mortgage; refuse if any Payment is now larger than what was owed."""
+28      replayed = replays(conn, rows)
+29      for row in rows:
+30          try:
+31              replayed[row["id"]].ledger(today)
+32          except Overpayment as over:                    ◀
+33              raise unprocessable(
+34                  f"{row['name']}: the Payment on {over.on:%d %b %Y} would be more than "
+35                  f"the {format_inr(over.outstanding)} owed then"
+36              ) from None
 </code></pre>
 </figure>
 <p><code>replays</code> and <code>Overpayment</code> come from the Ledger engine, lesson 4's black box. All you need now: rebuilding a Mortgage's Ledger raises <code>Overpayment</code> if any Payment in it, old or new, is larger than what was owed on its date.</p>
@@ -203,11 +213,11 @@ sequenceDiagram
 <table class="steps text">
 <tr><th>Step</th><th>Function</th><th>Effect in the transaction</th></tr>
 <tr><td>Parse</td><td><code>PaymentIn</code></td><td>Body valid: ₹6,600 = ₹5,000 + ₹1,600</td></tr>
-<tr><td>Refuse</td><td><code>_refuse_payment</code></td><td>19 Oct is not after today (19 Oct); Customer 1 exists; Mortgages 5 and 2 are hers, Active, and started before 19 Oct</td></tr>
+<tr><td>Refuse</td><td><code>refuse_payment</code></td><td>19 Oct is not after today (19 Oct); Customer 1 exists; Mortgages 5 and 2 are hers, Active, and started before 19 Oct</td></tr>
 <tr><td>Redeem?</td><td><code>_redeemed_by</code></td><td>₹5,000 ≠ ₹1,51,500 and ₹1,600 ≠ ₹83,333: neither Redeems</td></tr>
-<tr class="changed"><td>Write</td><td><code>_write_payment</code></td><td><code>payment</code> (34, customer 1, 2026-10-19, 660000, 'upi', NULL, received_with NULL); <code>allocation</code> (35, payment 34, mortgage 5, 500000) and (36, payment 34, mortgage 2, 160000)</td></tr>
+<tr class="changed"><td>Write</td><td><code>write_payment</code></td><td><code>payment</code> (34, customer 1, 2026-10-19, 660000, 'upi', NULL, received_with NULL); <code>allocation</code> (35, payment 34, mortgage 5, 500000) and (36, payment 34, mortgage 2, 160000)</td></tr>
 <tr><td>Check</td><td><code>check_replays</code></td><td>Both Mortgages replay to 19 Oct without <code>Overpayment</code></td></tr>
-<tr><td>Record</td><td><code>_record_payment_history</code></td><td><code>audit_entry</code> rows for payment 34, action <code>created</code>: <code>paid_on</code> 2026-10-19, <code>amount</code> 660000, <code>method</code> upi</td></tr>
+<tr><td>Record</td><td><code>record_payment_history</code></td><td><code>audit_entry</code> rows for payment 34, action <code>created</code>: <code>paid_on</code> 2026-10-19, <code>amount</code> 660000, <code>method</code> upi</td></tr>
 <tr><td>Answer</td><td><code>load_payment</code></td><td>The Payment as JSON (lesson 4); then commit</td></tr>
 </table>
 <p class="cite">Rows read straight from the scratch database by <code>scripts/run_throughs.py</code> (step 4) after the same request, at commit 361c7fa.</p>
@@ -215,7 +225,7 @@ sequenceDiagram
 <h2>Nuances</h2>
 <h3>(a) A refusal saves nothing</h3>
 <div class="reveal">
-  <p><strong>Predict:</strong> after saving, try a second Payment of ₹81,734 to the chain alone, ₹1 more than it now owes. <code>_write_payment</code> inserts its rows before <code>check_replays</code> notices. Are the rows still there afterwards?</p>
+  <p><strong>Predict:</strong> after saving, try a second Payment of ₹81,734 to the chain alone, ₹1 more than it now owes. <code>write_payment</code> inserts its rows before <code>check_replays</code> notices. Are the rows still there afterwards?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <p>No. <code>check_replays</code> raises a 422:</p>
@@ -236,7 +246,7 @@ sequenceDiagram
   <div class="why"><code>record_payment</code> and <code>post_payment</code> are in <code>payments/recording.py</code> (trap #1). <code>payments/payments.py</code> reads Payments; <code>previews.py</code> only wraps <code>record_payment</code> in a rollback.</div>
 </div>
 <div class="quiz" data-answer="2">
-  <p class="q">Why does <code>check_replays</code> run after <code>_write_payment</code>, not before?</p>
+  <p class="q">Why does <code>check_replays</code> run after <code>write_payment</code>, not before?</p>
   <button class="opt">Writing first is faster than checking first</button>
   <button class="opt">History must be written before any check runs</button>
   <button class="opt">The replay reads the new rows from the database</button>
@@ -245,7 +255,7 @@ sequenceDiagram
 <div class="quiz" data-answer="0">
   <p class="q">A Payment's body has Allocations of ₹5,000 and ₹1,600 but <code>amount</code> 650000. Who refuses it?</p>
   <button class="opt">FastAPI, through <code>PaymentIn</code>'s validator</button>
-  <button class="opt"><code>_refuse_payment</code>, before writing</button>
+  <button class="opt"><code>refuse_payment</code>, before writing</button>
   <button class="opt"><code>check_replays</code>, after writing</button>
   <div class="why"><code>allocations_add_up</code> on <code>PaymentIn</code> raises while the body is parsed, so FastAPI answers 422 before <code>record_payment</code> runs at all.</div>
 </div>

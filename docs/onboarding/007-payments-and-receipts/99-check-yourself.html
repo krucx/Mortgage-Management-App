@@ -83,8 +83,8 @@
 <ol>
   <li>Run every backend test, from the repo root:
 <pre><code>cd backend &amp;&amp; uv run pytest</code></pre>
-    All 607 pass (checked at commit 15df77d).</li>
-  <li>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py"><code>payments/recording.py</code></a> at line 316, inside <code>record_payment</code>, and change
+    All 826 pass (checked at commit 0c54ef0).</li>
+  <li>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py"><code>payments/recording.py</code></a> at line 67, inside <code>record_payment</code>, and change
 <pre><code>                received_with=first,</code></pre>
     to
 <pre><code>                received_with=None,</code></pre>
@@ -96,10 +96,11 @@
   <p><strong>Check:</strong> how many failed, and which?</p>
   <button class="show">I've run it. Show me.</button>
   <div class="reveal-body">
-    <p><strong>3 failed, 604 passed</strong> (at commit 15df77d):</p>
+    <p><strong>4 failed, 822 passed</strong> (at commit 0c54ef0):</p>
     <table class="steps text">
     <tr><th>Test</th><th>Why it fails</th></tr>
     <tr><td><code>test_cash_sums.py::test_a_payment_that_redeems_is_one_sum_with_its_final_payment</code></td><td>The Preview's <code>cash</code> is now two sums, the ordinary part and the Final Payment, instead of one</td></tr>
+    <tr><td><code>test_receipts.py::test_a_grace_payments_receipt_shows_both_dates_and_what_each_mortgage_was_let_off</code></td><td>A Grace Payment's Final Payment keeps its own received date and what it let off, so without the link its Receipt no longer shows the whole Payment</td></tr>
     <tr><td><code>test_redeeming_payments.py::test_a_payment_that_redeems_and_part_pays_has_one_receipt_for_all_of_it</code></td><td>Each part now has its own Receipt, with one line each, and an amount that isn't the whole</td></tr>
     <tr><td><code>test_redeeming_payments.py::test_one_payment_can_redeem_several_mortgages_with_one_receipt_even_after_a_reopen</code></td><td>Both parts are Final Payments; the second no longer points at the first, so its Receipt is only the ring's</td></tr>
     </table>
@@ -109,12 +110,12 @@
 <ol start="5">
   <li>Undo the change:
 <pre><code>git checkout -- backend/src/mortgage_backend/payments/recording.py</code></pre>
-    (from the repo root), and run <code>uv run pytest</code> once more: 607 pass.</li>
+    (from the repo root), and run <code>uv run pytest</code> once more: 826 pass.</li>
 </ol>
 
 <h2>Recap</h2>
 <ul>
-  <li>A Payment is one <code>payment</code> row and an <code>allocation</code> row per Mortgage, amounts in paise. <code>PaymentIn</code> refuses Allocations that don't add up or name a Mortgage twice; <code>_refuse_payment</code> refuses a future date, another Customer's Mortgage, a closed one (409) and a date before the start; <code>check_replays</code> refuses a Payment larger than what was owed. The interest/Principal split is never stored: it's replayed (<a href="01-a-payment-and-its-allocations.html">lesson 1</a>).</li>
+  <li>A Payment is one <code>payment</code> row and an <code>allocation</code> row per Mortgage, amounts in paise. <code>PaymentIn</code> refuses Allocations that don't add up or name a Mortgage twice; <code>refuse_payment</code> refuses a future date, another Customer's Mortgage, a closed one (409) and a date before the start; <code>check_replays</code> refuses a Payment larger than what was owed. The interest/Principal split is never stored: it's replayed (<a href="01-a-payment-and-its-allocations.html">lesson 1</a>).</li>
   <li>A Payment that Redeems is stored in parts: the ordinary Allocations first, then each Final Payment as its own row with <code>received_with</code> = the first part. The id returned is the first part's. The API never shows <code>received_with</code>; only <code>record_payment</code> sets it (<a href="02-one-payment-several-parts.html">lesson 2</a>, trap #2).</li>
   <li>A Payment is never edited or deleted. A correction is a Void with a reason plus a new Payment. A Void is refused if already Voided, if it's a Closure's Final Payment (Reopen instead), or if the Mortgage is closed. A Voided Payment stays listed, has no Receipt and no split (<a href="03-voids.html">lesson 3</a>).</li>
   <li>The Cash Limit only warns. Each Preview lists what the change writes in cash: each new Payment as one sum with its Final Payments, and each Principal lent in cash that's new, newly in cash, or larger. The page asks at or above the limit; saving checks nothing. No stored value means ₹20,000; an empty one means never warn (<a href="04-the-cash-limit.html">lesson 4</a>).</li>

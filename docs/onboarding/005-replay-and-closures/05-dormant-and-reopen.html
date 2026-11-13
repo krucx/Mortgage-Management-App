@@ -65,57 +65,57 @@ stateDiagram-v2
 
 <h3>2. The Dormant list</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>dormant()</code> route · lines 50–74, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>50  @router.get("/closures/dormant")
-51  def dormant(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>dormant()</code> route · lines 429–453, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>429 @router.get("/closures/dormant")
+430 def dormant(
 ⋮
-57  ) -&gt; Page[MortgageRow]:
+436 ) -&gt; Page[MortgageRow]:
 ⋮
-60      with engine.connect() as conn:
-61          rows = (
-62              conn.execute(
-63                  select_with_customer()
-64                  .where(mortgage_table.c.status == MortgageStatus.ACTIVE)    ① Active rows only
-65                  .order_by(mortgage_table.c.start_date, mortgage_table.c.id)
+439      with engine.connect() as conn:
+440          rows = (
+441              conn.execute(
+442                  select_with_customer()
+443                  .where(mortgage_table.c.status == MortgageStatus.ACTIVE)    ① Active rows only
+444                  .order_by(mortgage_table.c.start_date, mortgage_table.c.id)
 ⋮
-69          )
-70          replayed = replays(conn, rows)                                    ② lesson 1: two queries
-71          listed = mortgage_rows(
-72              conn, [r for r in rows if replayed[r["id"]].dormant(today)], today, replayed   ◀
-73          )
-74      return rows_page(listed, page, _SORT_KEYS, sort=sort, descending=descending)
+445              )
+449          replayed = replays(conn, rows)                                    ② lesson 1: two queries
+450          listed = mortgage_rows(
+451              conn, [r for r in rows if replayed[r["id"]].dormant(today)], today, replayed   ◀
+452          )
+453      return rows_page(listed, page, _SORT_KEYS, sort=sort, descending=descending)
 </code></pre>
 </figure>
 <p>The Closures page lists these with a red dot on its tab (<a href="../012-frontend-pages-and-the-pwa/03-the-money-forms.html">chapter 012, lesson 3</a> owns the page). Reminders and the Call List skip Dormant Mortgages the same way, by calling <code>dormant()</code> on their replays (chapter 009, <a href="../009-follow-up/01-the-call-list.html">lesson 1</a> and <a href="../009-follow-up/03-the-notice-queue.html">lesson 3</a>).</p>
 
 <h3>3. <code>reopen()</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>reopen()</code> · lines 840–868, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>840  def reopen(
-841      conn: Connection, mortgage_id: int, reason: str, today: date, now: datetime
-842  ) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>reopen()</code> · lines 376–404, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>376  def reopen(
+377      conn: Connection, mortgage_id: int, reason: str, today: date, now: datetime
+378  ) -&gt; None:
 ⋮
-845      row = mortgage_row(conn, mortgage_id)                   # read before it changes
-846      if row["status"] == MortgageStatus.ACTIVE:
-847          raise HTTPException(status.HTTP_409_CONFLICT, f"{row['name']} is Active")
-848      _set_closure(                                            ①
-849          conn,
-850          mortgage_id,
-851          status=MortgageStatus.ACTIVE,
-852          closed_on=None,
-853          redemption_payment_id=None,
-854          recovered_amount=None,
-855          closure_note=None,
-856      )
-857      if row["redemption_payment_id"] is not None:             ②  ◀
-858          void_payment(conn, row["redemption_payment_id"], reason, today, now)
-859      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
-860      audit.record(                                            ③
+381      row = mortgage_row(conn, mortgage_id)
+382      if row["status"] == MortgageStatus.ACTIVE:
+383          raise HTTPException(status.HTTP_409_CONFLICT, f"{row['name']} is Active")
+384      _set_closure(                                            ①
+385          conn,
+386          mortgage_id,
+387          status=MortgageStatus.ACTIVE,
+388          closed_on=None,
+389          redemption_payment_id=None,
+390          recovered_amount=None,
+391          closure_note=None,
+392      )
+393      if row["redemption_payment_id"] is not None:             ②  ◀
+394          void_payment(conn, row["redemption_payment_id"], reason, today, now)
+395      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
+396      audit.record(                                            ③
 ⋮
-865          "reopened",
-866          [audit.Change("status", row["status"], MortgageStatus.ACTIVE)],
-867          note=reason,
-868      )
+401          "reopened",
+402          [audit.Change("status", row["status"], MortgageStatus.ACTIVE)],
+403          note=reason,
+404      )
 </code></pre>
 </figure>
 <ol class="marks">
@@ -126,27 +126,27 @@ stateDiagram-v2
 
 <h3>4. Why you can't just Void a Final Payment</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>340  def void_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>void_payment()</code> · lines 223–247, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>223  def void_payment(
 ⋮
-343      """Void a Payment (or refuse): a Redemption's final Payment, or one to a closed
-344      Mortgage, is Voided by reopening instead."""
+226      """Void a Payment (or refuse): a Redemption's final Payment, or one to a closed
+227      Mortgage, is Voided by reopening instead."""
 ⋮
-354      rows = mortgages_of(conn, payment_id)
-355      for row in rows:
-356          if row["redemption_payment_id"] == payment_id:                    ◀
-357              raise HTTPException(
-358                  status.HTTP_409_CONFLICT,
-359                  f"This is the final Payment of the closing of {row['name']}: "
-360                  "reopen the Mortgage instead, which voids it",
-361              )
-362          _refuse_unless_active(row)
-363      _write_void(conn, payment_id, reason, now)
-364      check_replays(conn, rows, today)
+237      rows = mortgages_of(conn, payment_id)
+238      for row in rows:
+239          if row["redemption_payment_id"] == payment_id:                    ◀
+240              raise HTTPException(
+241                  status.HTTP_409_CONFLICT,
+242                  f"This is the final Payment of the closing of {row['name']}: "
+243                  "reopen the Mortgage instead, which voids it",
+244              )
+245          refuse_unless_active(row)
+246      write_void(conn, payment_id, reason, now)
+247      check_replays(conn, rows, today)
 ⋮
 </code></pre>
 </figure>
-<p>Voiding a Final Payment on its own would leave a Redeemed Mortgage whose Redemption was never paid. So the app sends you to Reopen, which undoes both together. <code>_refuse_unless_active</code> (line 176) gives every other change on a closed Mortgage the same answer: "… is redeemed: reopen it first".</p>
+<p>Voiding a Final Payment on its own would leave a Redeemed Mortgage whose Redemption was never paid. So the app sends you to Reopen, which undoes both together. <code>refuse_unless_active</code> (line 176) gives every other change on a closed Mortgage the same answer: "… is redeemed: reopen it first".</p>
 
 <h2>Run-through: Kavita's anklet goes Dormant</h2>
 <p>Lesson 1's <code>outstanding(on)</code> and <code>dormant(on)</code> for the anklet on the dates around its Payments. Its Part-Month Rule is "nothing", so there's never any Interest to Date.</p>
@@ -245,7 +245,7 @@ curl -s -X POST -H "$J" "$B/mortgages/3/reopen" -d '{"reason": "Redeemed on the 
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a> (two paragraphs). Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_dormant.py"><code>tests/test_dormant.py</code></a> from line 57, and <code>test_reopening_the_redeemed_mortgage_voids_only_its_final_payment</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_redeeming_payments.py"><code>tests/test_redeeming_payments.py</code></a> (line 125).</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a> (two paragraphs). Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_dormant.py"><code>tests/test_dormant.py</code></a> from line 57, and <code>test_reopening_the_redeemed_mortgage_voids_only_its_final_payment</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_redeeming_payments.py"><code>tests/test_redeeming_payments.py</code></a> (line 133).</p>
 
 <nav class="lessons">
   <a href="04-waived-and-forfeited.html">← Waived and Forfeited</a>

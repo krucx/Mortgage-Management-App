@@ -26,7 +26,7 @@
   <button class="opt">Nothing: <code>engine.connect()</code> never commits</button>
   <button class="opt">The Payment, but not its History rows</button>
   <button class="opt">The Payment and its History, as a save would</button>
-  <div class="why">The Preview route opened the connection with <code>engine.connect()</code>, and closing it rolls back anything uncommitted. All 607 tests still pass. The real guard is never using <code>engine.begin()</code> in a Preview; making <code>_preview</code> commit breaks 13 tests. Lesson 4.</div>
+  <div class="why">The Preview route opened the connection with <code>engine.connect()</code>, and closing it rolls back anything uncommitted. All 826 tests still pass. The real guard is never using <code>engine.begin()</code> in a Preview; making <code>_preview</code> commit breaks 13 tests. Lesson 4.</div>
 </div>
 
 <div class="quiz" data-answer="1">
@@ -66,7 +66,7 @@
   <button class="opt"><code>void_payment</code>, because a Void raises what's owed</button>
   <button class="opt"><code>forfeit</code>, because it writes no Payment</button>
   <button class="opt"><code>set_collateral</code>, because no Ledger reads it</button>
-  <div class="why"><code>void_payment</code> calls it, although it can't trip today. <code>forfeit</code> calls it at line 757. A Collateral Value isn't a fact any Ledger is replayed from, so <code>set_collateral</code> has nothing to check. Lessons 2 and 5.</div>
+  <div class="why"><code>void_payment</code> calls it, although it can't trip today. <code>forfeit</code> calls it at line 305. A Collateral Value isn't a fact any Ledger is replayed from, so <code>set_collateral</code> has nothing to check. Lessons 2 and 5.</div>
 </div>
 
 <div class="quiz" data-answer="1">
@@ -82,11 +82,11 @@
 <p>You'll remove the one line that checks an edit by replaying it. Work from the repo root. This touches only source code, never data.</p>
 <ol>
   <li>
-    <p>Run all the backend tests. All 607 pass:</p>
+    <p>Run all the backend tests. All 826 pass:</p>
     <pre><code>cd backend &amp;&amp; uv run pytest -q</code></pre>
   </li>
   <li>
-    <p>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>backend/src/mortgage_backend/lending/changes.py</code></a> at line 494, in <code>edit_mortgage</code>, and delete this line:</p>
+    <p>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py"><code>backend/src/mortgage_backend/lending/changes.py</code></a> at line 185, in <code>edit_mortgage</code>, and delete this line:</p>
     <pre><code>    check_replays(conn, [mortgage_row(conn, mortgage_id)], today)</code></pre>
   </li>
   <li>
@@ -98,7 +98,7 @@
   <p><strong>Check your prediction.</strong></p>
   <button class="show">I've run it. Show me what fails.</button>
   <div class="reveal-body">
-    <p>Exactly <strong>6 fail, 742 pass</strong> (checked at commit <code>8323e01</code>; at <code>d6a92ab</code>, before starting Terms could be corrected, it was 4 of 607):</p>
+    <p>Exactly <strong>6 fail, 820 pass</strong> (checked at commit <code>0c54ef0</code>; at <code>d6a92ab</code>, before starting Terms could be corrected, it was 4 of 607):</p>
     <ul>
       <li><code>test_changes.py::test_an_edit_that_would_make_a_payment_too_large_is_refused</code></li>
       <li><code>test_changes.py::test_a_refused_change_records_no_history</code></li>
@@ -118,7 +118,7 @@
 </div>
 <ol start="4">
   <li>
-    <p>Undo the change (you're still in <code>backend/</code>), and check that all 607 pass again:</p>
+    <p>Undo the change (you're still in <code>backend/</code>), and check that all 826 pass again:</p>
     <pre><code>git checkout -- src/mortgage_backend/lending/changes.py
 uv run pytest -q</code></pre>
   </li>

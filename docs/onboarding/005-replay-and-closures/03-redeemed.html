@@ -23,7 +23,7 @@
 <p>Suppose the second way recorded just a Payment. The necklace would owe ₹0 and still be Active: its jewellery should have gone back, but the book says it's held. That's a Dormant Mortgage (lesson 5), made on purpose by the app's own Payment form. And if the Payment came a rupee short, the Lender would have to notice, ask for ₹1, and Redeem by hand. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0011-outstanding-includes-interest-to-date.md">ADR 0011</a> settles it: "paying the whole Outstanding Redeems".</p>
 
 <h2>The idea</h2>
-<p>Both routes end in the same function, <code>_close_redeemed</code>. It records the money as a <a href="../reference/glossary.html#final-payment"><dfn class="term" title="What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.">Final Payment</dfn></a>, marks the Mortgage Redeemed on that date, checks the replay and writes History. The Redeem route gets the amount from the quote. The Payment route spots an Allocation that equals the quote on its date, and hands it over instead of writing an ordinary Payment.</p>
+<p>Both routes end in the same function, <code>close_redeemed</code>. It records the money as a <a href="../reference/glossary.html#final-payment"><dfn class="term" title="What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the Payment it came in, so a Reopen Voids it alone and leaves the rest.">Final Payment</dfn></a>, marks the Mortgage Redeemed on that date, checks the replay and writes History. The Redeem route gets the amount from the quote. The Payment route spots an Allocation that equals the quote on its date, and hands it over instead of writing an ordinary Payment.</p>
 <p>The combined cash Allocation and Discount can also equal the quote. The Mortgage is then Redeemed, and the Final Payment records that cash and Discount together. Reopen Voids this Final Payment, so Replay restores the Outstanding as if neither reduction had happened. Discounts on an ordinary Payment that does not Redeem are reversed by Voiding that Payment. See <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0014-discounts-are-non-cash-payment-reductions.md">ADR 0014</a>.</p>
 <p>One tested case records ₹100,000 cash plus a ₹12,000 Discount on a Mortgage owing ₹112,000: the Payment Redeems it, but the Receipt's cash total remains ₹100,000. Reopen Voids that Final Payment and restores the ₹112,000 Outstanding. The behavior is covered by <code>test_a_discount_can_redeem_and_reopen_voids_its_cash_and_discount</code> in <code>backend/tests/test_payments.py</code>.</p>
 
@@ -32,39 +32,39 @@
 <pre class="mermaid">
 flowchart TD
   R1["POST /mortgages/3/redeem<br/>post_redeem"] --> RD["redeem()"]
-  RD -->|"closable(), then<br/>outstanding_on_closure().total"| CR["_close_redeemed()"]
+  RD -->|"closable(), then<br/>outstanding_on_closure().total"| CR["close_redeemed()"]
   R2["POST /payments<br/>post_payment"] --> RP["record_payment()"]
   RP -->|"each Allocation"| RB{"_redeemed_by():<br/>amount == the quote<br/>on paid_on?"}
-  RB -->|"no"| ORD["_write_payment()<br/>check_replays()<br/>ordinary Payment"]
+  RB -->|"no"| ORD["write_payment()<br/>check_replays()<br/>ordinary Payment"]
   RB -->|"yes, and closable"| CR
   RB -->|"yes, but not closable"| X["422: whole Payment refused"]
   CR --> CWP["_close_with_payment()<br/>status = redeemed"]
   CWP -->|"payment + allocation rows,<br/>mortgage row's Closure columns"| DB[("database")]
   CR -->|"audit.record: redeemed"| DB
 </pre>
-<figcaption>Two front doors, one back room. Everything below <code>_close_redeemed</code> is the same for Kavita and Lakshmi.</figcaption>
+<figcaption>Two front doors, one back room. Everything below <code>close_redeemed</code> is the same for Kavita and Lakshmi.</figcaption>
 </figure>
 <p>Notice the third arrow out of the diamond. An Allocation of the whole Outstanding is never written as an ordinary Payment. If it can't Redeem, it's refused.</p>
 
 <h2>The code</h2>
 <h3>1. The Redeem route</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>redeem()</code> · lines 644–664, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>644  def redeem(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>redeem()</code> · lines 188–208, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>188  def redeem(
 ⋮
-650  ) -&gt; None:
+194  ) -&gt; None:
 ⋮
-653      mortgage = closable(conn, mortgage_id, redeem.redeemed_on, today)        ① lesson 2's guard
-654      owed = mortgage.outstanding_on_closure(redeem.redeemed_on).total          ②  ◀
-655      _close_redeemed(
-656          conn,
-657          mortgage,
-658          redeem.redeemed_on,
-659          owed,
-660          redeem.method,
-661          redeem.reference,
+197      mortgage = closable(conn, mortgage_id, redeem.redeemed_on, today)        ① lesson 2's guard
+198      owed = mortgage.outstanding_on_closure(redeem.redeemed_on).total          ②  ◀
+199      close_redeemed(
+200          conn,
+201          mortgage,
+202          redeem.redeemed_on,
+203          owed,
+204          redeem.method,
+205          redeem.reference,
 ⋮
-664      )
+208      )
 </code></pre>
 </figure>
 <ol class="marks">
@@ -74,20 +74,21 @@ flowchart TD
 
 <h3>2. The Payment route: <code>_redeemed_by</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>_redeemed_by()</code> · lines 325–337</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>325  def _redeemed_by(
-326      conn: Connection, allocation: AllocationIn, on: date, today: date
-327  ) -&gt; MortgageReplay | None:
-328      """The Mortgage, if the Allocation is its whole Outstanding on `on`: paying all of
-329      it Redeems it, so it is refused if the Mortgage can't be Redeemed then."""
-330      mortgage = replay(conn, allocation.mortgage_id)
-331      if allocation.amount != mortgage.outstanding_on_closure(on).total:        ①  ◀
-332          return None
-333      # (Not a future date: the Payment's own checks refuse that.)
-334      refusal = mortgage.not_closable(on)                                         ②
-335      if refusal is not None:
-336          raise unprocessable(refusal)
-337      return mortgage
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>_redeemed_by()</code> · lines 78–91</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>78   def _redeemed_by(
+79      conn: Connection, allocation: AllocationIn, on: date, today: date
+80   ) -&gt; MortgageReplay | None:
+81      """The Mortgage, if the Allocation is its whole Outstanding on `on`: paying all of
+82      it Redeems it, so it is refused if the Mortgage can't be Redeemed then."""
+83      mortgage = replay(conn, allocation.mortgage_id)
+84      full_payment = allocation.amount + allocation.discount
+85      if full_payment != mortgage.outstanding_on_closure(on).total:        ①  ◀
+86          return None
+87      # (Not a future date: the Payment's own checks refuse that.)
+88      refusal = mortgage.not_closable(on)                                         ②
+89      if refusal is not None:
+90          raise unprocessable(refusal)
+91      return mortgage
 </code></pre>
 </figure>
 <ol class="marks">
@@ -96,95 +97,97 @@ flowchart TD
 </ol>
 
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>record_payment()</code> · lines 282–322, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>282  def record_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>record_payment()</code> · lines 30–75, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>30   def record_payment(
 ⋮
-288      rows = _refuse_payment(conn, payment, today)                ① chapter 003
-289      redeemed = []
-290      for allocation in payment.allocations:
-291          with _refusal_names_mortgage(conn, allocation.mortgage_id):
-292              mortgage = _redeemed_by(conn, allocation, payment.paid_on, today)   ②  ◀
-293          if mortgage is not None:
-294              redeemed.append((allocation, mortgage))
-295      redeemed_ids = {allocation.mortgage_id for allocation, _ in redeemed}
-296      ordinary = [a for a in payment.allocations if a.mortgage_id not in redeemed_ids]
-297      first = None
-298      if ordinary:                                               ③
+38      rows = refuse_payment(conn, payment, today)                ① chapter 003
+40      redeemed = []
+41      for allocation in payment.allocations:
+42          with refusal_names_mortgage(conn, allocation.mortgage_id):
+43              mortgage = _redeemed_by(conn, allocation, payment.paid_on, today)   ②  ◀
+44          if mortgage is not None:
+45              redeemed.append((allocation, mortgage))
+46      redeemed_ids = {allocation.mortgage_id for allocation, _ in redeemed}
+47      ordinary = [a for a in payment.allocations if a.mortgage_id not in redeemed_ids]
+48      first = None
+49      if ordinary:                                               ③
 ⋮        … the ordinary Allocations as one Payment of their own sum …
-302          first = _write_payment(conn, paid)
-303          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
+53          first = write_payment(conn, paid, grace=grace)
+54          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
 ⋮
-305      for allocation, mortgage in redeemed:                      ④
+56      for allocation, mortgage in redeemed:                      ④
 ⋮
-307              final = _close_redeemed(
+58              final = close_redeemed(
 ⋮                    … mortgage, paid_on, amount, method, reference, today, now …
-316                  received_with=first,
-317              )
+67                  received_with=first,
+70              )
 ⋮
-319          if first is None:
-320              first = final
+72          if first is None:
+73              first = final
 ⋮
-322      return first
+75      return first
 </code></pre>
 </figure>
 <ol class="marks">
   <li>The checks every Payment gets: not in the future, the Customer's own Mortgages, all Active.</li>
-  <li>Every Allocation is tested <em>before</em> anything is written. <code>with _refusal_names_mortgage(…)</code> is a context manager: if the block raises, it puts the Mortgage Name in front of the message.</li>
+  <li>Every Allocation is tested <em>before</em> anything is written. <code>with refusal_names_mortgage(…)</code> is a context manager: if the block raises, it puts the Mortgage Name in front of the message.</li>
   <li>The ordinary Allocations, if any, become one Payment, checked by replaying (chapter 006 owns <code>check_replays</code>).</li>
   <li>Each Redeeming Allocation becomes a Final Payment, "received with" the ordinary part. Lakshmi's Payment had only the necklace, so there was no ordinary part, and her Final Payment <em>is</em> the Payment.</li>
 </ol>
 
 <h3>3. Where both meet</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>_close_redeemed()</code> · lines 667–700, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>667  def _close_redeemed(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>close_redeemed()</code> · lines 211–248, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>211  def close_redeemed(
 ⋮
-677  ) -&gt; int | None:
+223  ) -&gt; int | None:
 ⋮
-680      payment_id = _close_with_payment(
+226      payment_id = _close_with_payment(
 ⋮        … mortgage, on, owed, method, reference, today, now, received_with …
-690          status=MortgageStatus.REDEEMED,
-691      )
-692      audit.record(                                   # History: chapter 006
+238          status=MortgageStatus.REDEEMED,
+239      )
+240      audit.record(
 ⋮
-697          "redeemed",
-698          note=f"on {on:%d %b %Y} for {format_inr(owed)}",
-699      )
-700      return payment_id
+245          "redeemed",
+246          note=f"on {on:%d %b %Y} for {format_inr(owed)}",
+247      )
+248      return payment_id
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>_close_with_payment()</code> · lines 600–641, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>600  def _close_with_payment(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>_close_with_payment()</code> · lines 139–185, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>139  def _close_with_payment(
 ⋮
-610      **closure: object,                                          ① status=…, closure_note=…
-611  ) -&gt; int | None:
+151      **closure: object,                                          ① status=…, closure_note=…
+152  ) -&gt; int | None:
 ⋮
-618      final = None
-619      payment_id = None
-620      if amount &gt; 0:                                              ②  ◀
-621          final = PaymentIn(
-622              customer_id=row["customer_id"],
-623              paid_on=closed_on,
+159      final = None
+160      payment_id = None
+161      if amount + discount &gt; 0:                                              ②  ◀
+162          final = PaymentIn(
+163              customer_id=row["customer_id"],
+164              paid_on=closed_on,
 ⋮
-627              allocations=[AllocationIn(mortgage_id=row["id"], amount=amount)],
-628          )
-629          _refuse_payment(conn, final, today)
-630          payment_id = _write_payment(conn, final, received_with)
-631      _set_closure(                                               ③
-632          conn,
-633          row["id"],
-634          closed_on=closed_on,
-635          redemption_payment_id=payment_id,
-636          **closure,
-637      )
-638      check_replays(conn, [mortgage_row(conn, row["id"])], today)  ④
+169              allocations=[
+170                  AllocationIn(mortgage_id=row["id"], amount=amount, discount=discount)
+171              ],
+172          )
+173          refuse_payment(conn, final, today)
+174          payment_id = write_payment(conn, final, received_with, grace)
+175      _set_closure(                                               ③
+176          conn,
+177          row["id"],
+178          closed_on=closed_on,
+179          redemption_payment_id=payment_id,
+180          **closure,
+181      )
+182      check_replays(conn, [mortgage_row(conn, row["id"])], today)  ④
 ⋮
-641      return payment_id
+185      return payment_id
 </code></pre>
 </figure>
 <ol class="marks">
-  <li><code>**closure</code> collects any extra keyword arguments into a dict. <code>_close_redeemed</code> passes <code>status</code>; lesson 4's <code>waive</code> also passes <code>closure_note</code>. They're written straight onto the <code>mortgage</code> row.</li>
+  <li><code>**closure</code> collects any extra keyword arguments into a dict. <code>close_redeemed</code> passes <code>status</code>; lesson 4's <code>waive</code> also passes <code>closure_note</code>. They're written straight onto the <code>mortgage</code> row.</li>
   <li>No Payment of ₹0 is ever written. A Mortgage that owes nothing is Redeemed with no Final Payment (lesson 5's anklet).</li>
   <li>The Closure is three columns on the <code>mortgage</code> row: <code>status</code>, <code>closed_on</code> and <code>redemption_payment_id</code>. Despite its name, that last column holds a Waiver's Final Payment too.</li>
   <li>Replay the newly closed Mortgage. If the Final Payment were more than it owed, this refuses, and the transaction rolls back.</li>
@@ -206,7 +209,7 @@ flowchart TD
 <tr><th></th><th>Kavita's coin</th><th>Lakshmi's necklace</th></tr>
 <tr><td>Request</td><td><code>POST /api/mortgages/3/redeem</code><br><code>{"redeemed_on": "2026-10-05", "method": "upi", "reference": "UPI 7781"}</code></td><td><code>POST /api/payments</code>, one Allocation to Mortgage 4 of ₹2,03,600, bank transfer, "NEFT final", dated 16 Oct</td></tr>
 <tr><td>The quote that day</td><td>₹50,000 + ₹4,000 unpaid (June to September) + ₹600 (18 days from 18 Sep) = <strong>₹54,600</strong></td><td>₹2,00,000 + ₹0 + ₹3,600 (27 days from 20 Sep) = <strong>₹2,03,600</strong></td></tr>
-<tr><td>Which path</td><td><code>redeem</code> → <code>_close_redeemed</code></td><td><code>record_payment</code> → <code>_redeemed_by</code> matches → no ordinary part → <code>_close_redeemed</code></td></tr>
+<tr><td>Which path</td><td><code>redeem</code> → <code>close_redeemed</code></td><td><code>record_payment</code> → <code>_redeemed_by</code> matches → no ordinary part → <code>close_redeemed</code></td></tr>
 <tr><td><code>payment</code> row</td><td>id 26, ₹54,600, UPI, "UPI 7781"</td><td>id 29, ₹2,03,600, bank transfer, "NEFT final"</td></tr>
 <tr class="changed"><td><code>mortgage</code> row</td><td><code>status</code> redeemed, <code>closed_on</code> 5 Oct, <code>redemption_payment_id</code> 26</td><td><code>status</code> redeemed, <code>closed_on</code> 16 Oct, <code>redemption_payment_id</code> 29</td></tr>
 <tr><td>History note</td><td>"on 05 Oct 2026 for ₹54,600"</td><td>"on 16 Oct 2026 for ₹2,03,600"</td></tr>
@@ -254,12 +257,12 @@ flowchart TD
   <div class="reveal-body">
     <pre><code>422  2026-Lakshmi-TempleNecklace: There are Payments after that date (latest 20 Sep 2026); close it on or after then</code></pre>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L3): <code>POST /api/payments/preview</code> on the Reopened copy.</p>
-    <p>The amount matches the quote, so <code>_redeemed_by</code> treats it as a Redemption, and <code>not_closable</code> refuses one before 20 Sep. The app doesn't quietly save it as an ordinary Payment instead, because that would leave the necklace Dormant on 1 Sep. If the same Payment had other Allocations, they're refused with it (<code>test_if_the_redemption_is_refused_the_ordinary_part_is_not_recorded_either</code>). The message names the Mortgage because of <code>_refusal_names_mortgage</code>.</p>
+    <p>The amount matches the quote, so <code>_redeemed_by</code> treats it as a Redemption, and <code>not_closable</code> refuses one before 20 Sep. The app doesn't quietly save it as an ordinary Payment instead, because that would leave the necklace Dormant on 1 Sep. If the same Payment had other Allocations, they're refused with it (<code>test_if_the_redemption_is_refused_the_ordinary_part_is_not_recorded_either</code>). The message names the Mortgage because of <code>refusal_names_mortgage</code>.</p>
   </div>
 </div>
 
 <h3>(c) A Redeemed Mortgage takes no more Payments</h3>
-<p>On the served book, a ₹1 Payment to the necklace is refused with <strong>409</strong>: "2026-Lakshmi-TempleNecklace is redeemed: reopen it first". That comes from <code>_refuse_unless_active</code> in <code>_refuse_payment</code>. A 409 Conflict, not a 422, because the request is fine and it's the Mortgage's state that's in the way. Lesson 5 covers Reopen.</p>
+<p>On the served book, a ₹1 Payment to the necklace is refused with <strong>409</strong>: "2026-Lakshmi-TempleNecklace is redeemed: reopen it first". That comes from <code>refuse_unless_active</code> in <code>refuse_payment</code>. A 409 Conflict, not a 422, because the request is fine and it's the Mortgage's state that's in the way. Lesson 5 covers Reopen.</p>
 
 <h3>(d) One Payment, a Redemption and a part-payment</h3>
 <p>Try this one yourself: it's a Preview, so it saves nothing. Meera (Customer 1) pays the chain's whole ₹83,333 and ₹1,000 to her bangles, together, on 19 Oct:</p>
