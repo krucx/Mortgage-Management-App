@@ -81,6 +81,8 @@ jobs:
         run: node ../.github/scripts/check-version.mjs
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
       - run: uv run mypy src
       - name: Run backend tests and collect line coverage
         run: COVERAGE_CORE=sysmon uv run pytest -n auto --cov=mortgage_backend --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term

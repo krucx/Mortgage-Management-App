@@ -31,9 +31,7 @@ def mortgage(client, m):
 def test_a_payment_of_the_whole_outstanding_redeems_the_mortgage_on_its_date(
     client, ramesh, chain
 ):
-    payment = pay(
-        client, ramesh, {chain["id"]: OUTSTANDING}, on=ON
-    )
+    payment = pay(client, ramesh, {chain["id"]: OUTSTANDING}, on=ON)
 
     closure = mortgage(client, chain)["closure"]
     assert (closure["kind"], closure["on"], closure["payment_amount"]) == (
@@ -60,7 +58,10 @@ def test_the_outstanding_listed_for_a_back_dated_payment_is_what_redeems_it(
     pay(client, ramesh, {pro_rata["id"]: owed}, on="2026-03-05")
 
     redeemed = mortgage(client, pro_rata)
-    assert (redeemed["status"], redeemed["closure"]["outstanding"]) == ("redeemed", owed)
+    assert (redeemed["status"], redeemed["closure"]["outstanding"]) == (
+        "redeemed",
+        owed,
+    )
     assert redeemed["outstanding"]["total"] == 0
 
 
@@ -71,7 +72,9 @@ def payment_of(ramesh, allocations, **fields):
         "amount": sum(allocations.values()),
         "method": "upi",
         "reference": "UTR9",
-        "allocations": [{"mortgage_id": m, "amount": a} for m, a in allocations.items()],
+        "allocations": [
+            {"mortgage_id": m, "amount": a} for m, a in allocations.items()
+        ],
         **fields,
     }
 
@@ -81,7 +84,9 @@ def payments(client):
 
 
 def test_a_payment_of_less_than_the_outstanding_does_not_redeem(client, ramesh, chain):
-    response = client.post("/api/payments", json=payment_of(ramesh, {chain["id"]: LAKH}))
+    response = client.post(
+        "/api/payments", json=payment_of(ramesh, {chain["id"]: LAKH})
+    )
 
     assert response.status_code == 201, response.text
     shown = mortgage(client, chain)
@@ -96,17 +101,20 @@ def ring(client, ramesh):
 def test_one_payment_can_redeem_one_mortgage_and_part_pay_another(
     client, ramesh, chain, ring
 ):
-    asked = payment_of(
-        ramesh, {chain["id"]: OUTSTANDING, ring["id"]: 8_000_00}
-    )
+    asked = payment_of(ramesh, {chain["id"]: OUTSTANDING, ring["id"]: 8_000_00})
 
     response = client.post("/api/payments", json=asked)
 
     assert response.status_code == 201, response.text
     assert mortgage(client, chain)["status"] == "redeemed"
     # ₹1,500 charged on each of three Accrual Dates, and as the Interest to Date
-    assert mortgage(client, ring)["outstanding"]["total"] == 50_000_00 + 6_000_00 - 8_000_00
-    recorded = sorted((p["amount"], p["method"], p["reference"]) for p in payments(client))
+    assert (
+        mortgage(client, ring)["outstanding"]["total"]
+        == 50_000_00 + 6_000_00 - 8_000_00
+    )
+    recorded = sorted(
+        (p["amount"], p["method"], p["reference"]) for p in payments(client)
+    )
     assert recorded == [(8_000_00, "upi", "UTR9"), (OUTSTANDING, "upi", "UTR9")]
 
 
@@ -181,7 +189,10 @@ def test_a_payment_that_redeems_and_part_pays_has_one_receipt_for_all_of_it(
 
     assert shown[0]["lines"] == shown[1]["lines"]
     assert shown[0]["amount"] == OUTSTANDING + 8_000_00
-    assert [(r["description"], r["paid"], r["owed_after"], r["redeemed"]) for r in shown[0]["lines"]] == [
+    assert [
+        (r["description"], r["paid"], r["owed_after"], r["redeemed"])
+        for r in shown[0]["lines"]
+    ] == [
         ("Gold ring", 8_000_00, 50_000_00 + 6_000_00 - 8_000_00, False),
         ("Gold chain", OUTSTANDING, 0, True),
     ]
@@ -210,7 +221,9 @@ def test_once_the_redeemed_mortgage_is_reopened_the_receipt_covers_the_rest(
 def test_one_payment_can_redeem_several_mortgages_with_one_receipt_even_after_a_reopen(
     client, ramesh, chain, ring
 ):
-    ring_amount = 50_000_00 + 4_500_00 + 1_500_00  # with its Interest to Date (full month)
+    ring_amount = (
+        50_000_00 + 4_500_00 + 1_500_00
+    )  # with its Interest to Date (full month)
     pay(
         client,
         ramesh,
@@ -235,7 +248,9 @@ def test_the_ordinary_part_can_be_voided_on_its_own(client, ramesh, chain, ring)
         on=ON,
     )
 
-    response = client.post(f"/api/payments/{first['id']}/void", json={"reason": "Bounced"})
+    response = client.post(
+        f"/api/payments/{first['id']}/void", json={"reason": "Bounced"}
+    )
 
     assert response.status_code == 200, response.text
     assert mortgage(client, chain)["status"] == "redeemed"
@@ -273,9 +288,7 @@ def test_a_mortgage_paid_up_to_its_last_accrual_date_owes_its_interest_to_date(
     shown = mortgage(client, chain)
     assert (shown["status"], shown["outstanding"]["total"]) == ("active", 3_000_00)
 
-    payment = pay(
-        client, ramesh, {chain["id"]: 3_000_00}, on=ON
-    )
+    payment = pay(client, ramesh, {chain["id"]: 3_000_00}, on=ON)
 
     redeemed = mortgage(client, chain)
     assert (redeemed["status"], redeemed["outstanding"]["total"]) == ("redeemed", 0)

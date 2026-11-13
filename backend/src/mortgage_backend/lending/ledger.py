@@ -102,8 +102,7 @@ class Overpayment(Exception):
         if allocation.discount:
             applied += f" and {allocation.discount} Discount"
         super().__init__(
-            f"{applied} paise on {allocation.on} exceeds the "
-            f"{outstanding} paise owed"
+            f"{applied} paise on {allocation.on} exceeds the {outstanding} paise owed"
         )
         self.payment_id = allocation.payment_id
         self.on = allocation.on
@@ -249,7 +248,9 @@ class _Run:
     ) -> None:
         """Apply the cash Allocation, then the Discount (ADR 0014)."""
         to_unpaid, ahead, to_principal = self.apply_amount(on, amount)
-        discount_unpaid, discount_ahead, discount_principal = self.apply_amount(on, discount)
+        discount_unpaid, discount_ahead, discount_principal = self.apply_amount(
+            on, discount
+        )
         self.steps.append(
             LedgerStep(
                 on,
@@ -413,7 +414,9 @@ def compute_ledger(
     # owed closes it; every other Payment comes before, as on any day.
     allocations = list(allocations)
     final = [
-        a for a in allocations if closing and a.on == as_of and a.payment_id == final_payment
+        a
+        for a in allocations
+        if closing and a.on == as_of and a.payment_id == final_payment
     ]
     run = _Run(
         start,
@@ -445,7 +448,9 @@ def paid_off_on(steps: Iterable[LedgerStep]) -> date | None:
         (
             step.on
             for step in steps
-            if step.event == "payment" and not step.principal and not step.unpaid_interest
+            if step.event == "payment"
+            and not step.principal
+            and not step.unpaid_interest
         ),
         None,
     )

@@ -141,15 +141,13 @@ def sync(
     }
     # Unsent Reminders are only actionable while at least one Mortgage remains
     # Active and accrues on their date. A future reopen can queue a fresh one.
-    unsent_rows = conn.execute(
-        select(reminder_table).where(reminder_table.c.status.in_(_UNSENT))
-    ).mappings().all()
+    unsent_rows = (
+        conn.execute(select(reminder_table).where(reminder_table.c.status.in_(_UNSENT)))
+        .mappings()
+        .all()
+    )
     still_eligible = _accruing(conn, unsent_rows, replayed)
-    ineligible = [
-        row["id"]
-        for row in unsent_rows
-        if not still_eligible[row["id"]]
-    ]
+    ineligible = [row["id"] for row in unsent_rows if not still_eligible[row["id"]]]
     if ineligible:
         conn.execute(delete(reminder_table).where(reminder_table.c.id.in_(ineligible)))
     already = {
@@ -187,7 +185,9 @@ def sync(
     )
 
 
-def _reminder_line(mortgage: MortgageReplay, description: str, on: date) -> ReminderLine:
+def _reminder_line(
+    mortgage: MortgageReplay, description: str, on: date
+) -> ReminderLine:
     """The month's interest `mortgage` will be charged on `on`, and its Outstanding
     then, with no further Payments."""
     [then] = mortgage.projection([on]).snapshots
@@ -229,7 +229,9 @@ def _accruing(
         by_customer[mortgage["customer_id"]].append(replayed[mortgage["id"]])
     return {
         row["id"]: [
-            m for m in by_customer[row["customer_id"]] if is_eligible(m, row["accrues_on"])
+            m
+            for m in by_customer[row["customer_id"]]
+            if is_eligible(m, row["accrues_on"])
         ]
         for row in unsent
     }
@@ -291,7 +293,9 @@ def list_reminders(
             customer_table.c.phone_2,
         )
         .join(customer_table, customer_table.c.id == reminder_table.c.customer_id)
-        .order_by(reminder_table.c.accrues_on, customer_table.c.name, reminder_table.c.id)
+        .order_by(
+            reminder_table.c.accrues_on, customer_table.c.name, reminder_table.c.id
+        )
     )
     if status_filter is not None:
         query = query.where(reminder_table.c.status == status_filter)
@@ -395,7 +399,10 @@ def act(
     if not found:
         raise ReminderNotFound(reminder_id)
     reminder = found[0]
-    if action in {ReminderAction.APPROVE, ReminderAction.SEND} and not reminder.mortgages:
+    if (
+        action in {ReminderAction.APPROVE, ReminderAction.SEND}
+        and not reminder.mortgages
+    ):
         raise ReminderRefused(
             "None of their Mortgages accruing that day still owes anything: skip it"
         )
@@ -421,7 +428,9 @@ def act(
     if becomes == ReminderStatus.SENT:
         values["sent_at"] = now
     conn.execute(
-        update(reminder_table).where(reminder_table.c.id == reminder_id).values(**values)
+        update(reminder_table)
+        .where(reminder_table.c.id == reminder_id)
+        .values(**values)
     )
     return list_reminders(conn, reminder_id=reminder_id)[0]
 

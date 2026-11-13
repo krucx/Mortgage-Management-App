@@ -7,8 +7,8 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select, true
 from sqlalchemy import exists as sql_exists
+from sqlalchemy import func, or_, select, true
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.activity import activity, all_replays
@@ -153,7 +153,9 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
     replayed = {} if voided else replays(conn, mortgages)
     allocations = []
     for mortgage in mortgages:
-        step = None if voided else replayed[mortgage["id"]].steps_by_payment()[payment_id]
+        step = (
+            None if voided else replayed[mortgage["id"]].steps_by_payment()[payment_id]
+        )
         allocations.append(
             AllocationOut(
                 mortgage_id=mortgage["id"],
@@ -265,9 +267,7 @@ def list_payments(
     return PaymentPage(**dict(listed), interest_paid=interest)
 
 
-def _payment_rows(
-    conn: Connection, payments: Sequence[RowMapping]
-) -> list[PaymentRow]:
+def _payment_rows(conn: Connection, payments: Sequence[RowMapping]) -> list[PaymentRow]:
     """Payments as listed, with the Mortgages each paid."""
     allocated: dict[int, list[MortgageLink]] = {p["id"]: [] for p in payments}
     for row in conn.execute(

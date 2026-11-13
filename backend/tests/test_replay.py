@@ -105,7 +105,10 @@ def test_the_outstanding_on_a_closure_date_leaves_out_its_own_final_payment(
     assert replay(conn, chain).steps_by_payment()[final].amount == 1_08_000 * RUPEE
 
     # Owed on 14 Mar before the final Payment: ₹1,09,000 less the earlier ₹1,000.
-    assert replay(conn, chain).outstanding_on_closure(date(2026, 3, 14)).total == 1_08_000 * RUPEE
+    assert (
+        replay(conn, chain).outstanding_on_closure(date(2026, 3, 14)).total
+        == 1_08_000 * RUPEE
+    )
 
 
 def test_a_forfeited_mortgage_accrues_nothing_after_and_its_debt_is_settled(
@@ -250,11 +253,9 @@ def test_each_payment_is_found_applied_as_its_ledger_step(conn: Connection) -> N
     # ₹9,000 of interest is unpaid on 15 Apr, and ₹3,000 Interest to Date: the first
     # ₹2,000 and the next ₹10,000 are all interest.
     first = add_payment(conn, ramesh, date(2026, 4, 15), {chain: 2_000 * RUPEE})
-    voided = add_payment(
-        conn, ramesh, date(2026, 4, 16), {chain: 5_000 * RUPEE}, voided=True
-    )
+    add_payment(conn, ramesh, date(2026, 4, 16), {chain: 5_000 * RUPEE}, voided=True)
     second = add_payment(conn, ramesh, date(2026, 4, 18), {chain: 10_000 * RUPEE})
-    elsewhere = add_payment(conn, ramesh, date(2026, 4, 18), {ring: 1_000 * RUPEE})
+    add_payment(conn, ramesh, date(2026, 4, 18), {ring: 1_000 * RUPEE})
 
     applied = replay(conn, chain).steps_by_payment()
 
@@ -271,7 +272,9 @@ def test_each_payment_is_found_applied_as_its_ledger_step(conn: Connection) -> N
     ) == (10_000 * RUPEE, 0, 1_00_000 * RUPEE)
 
 
-def test_two_payments_on_one_day_are_applied_in_the_order_made(conn: Connection) -> None:
+def test_two_payments_on_one_day_are_applied_in_the_order_made(
+    conn: Connection,
+) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
     # ₹9,000 of interest is unpaid on 15 Apr, and ₹3,000 Interest to Date.
@@ -317,7 +320,9 @@ def test_payments_up_to_a_date_and_a_mortgage_never_paid(conn: Connection) -> No
     assert replay(conn, unpaid).steps_by_payment() == {}
 
 
-def test_a_outstanding_on_closure_leaves_out_interest_to_date_paid_ahead(conn: Connection) -> None:
+def test_a_outstanding_on_closure_leaves_out_interest_to_date_paid_ahead(
+    conn: Connection,
+) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
     # 15 Apr: ₹9,000 charged, then ₹1,000 of the month starting 14 Apr paid ahead.

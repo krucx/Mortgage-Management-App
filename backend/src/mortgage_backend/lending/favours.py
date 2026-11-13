@@ -128,9 +128,7 @@ def favours_given(conn: Connection, customer_id: int) -> FavoursGiven:
             )
     given.sort(key=lambda pair: (pair[1].on, pair[0]), reverse=True)  # newest first
     favours = [favour for _, favour in given]
-    return FavoursGiven(
-        favours=favours, total=sum(favour.amount for favour in favours)
-    )
+    return FavoursGiven(favours=favours, total=sum(favour.amount for favour in favours))
 
 
 router = APIRouter(prefix="/api")

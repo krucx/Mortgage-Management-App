@@ -1,3 +1,6 @@
+import pytest
+from api_seed import lend
+
 RAMESH = {
     "name": "Ramesh Kumar",
     "address": "12 MG Road, Jaipur",
@@ -24,10 +27,6 @@ def test_lender_can_create_a_customer_and_open_their_page(client):
     assert page["phone_2"] is None
     assert page["photo_url"] is None
     assert page["referrer"] is None
-
-
-import pytest
-from api_seed import lend
 
 
 @pytest.mark.parametrize(

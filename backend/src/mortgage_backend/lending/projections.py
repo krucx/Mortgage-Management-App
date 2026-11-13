@@ -74,9 +74,7 @@ def _series(
                 unpaid_interest=point.outstanding - point.principal,
                 outstanding=point.outstanding,
                 loan_to_value=(
-                    point.outstanding / collateral_value
-                    if collateral_value
-                    else None
+                    point.outstanding / collateral_value if collateral_value else None
                 ),
             )
             for months, point in enumerate(projected.snapshots)

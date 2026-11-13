@@ -246,7 +246,11 @@ def test_reopening_a_forfeiture_clears_what_was_recovered(client, mortgage):
 def test_reopening_a_waiver_voids_its_final_payment_and_the_waiver(client, mortgage):
     waived = client.post(
         f"/api/mortgages/{mortgage['id']}/waive",
-        json={"waived_on": "2026-04-20", "amount_paid": 1_11_000 * RUPEE, "method": "cash"},
+        json={
+            "waived_on": "2026-04-20",
+            "amount_paid": 1_11_000 * RUPEE,
+            "method": "cash",
+        },
     ).json()
 
     reopened = client.post(

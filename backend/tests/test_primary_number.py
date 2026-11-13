@@ -193,7 +193,9 @@ def test_the_preview_of_saving_a_customer_gives_the_same_refusal_and_saves_nothi
     assert (edit.status_code, new.status_code) == (409, 409)
     assert "Mohan Lal" in edit.json()["detail"]
     assert "Ramesh Kumar" in new.json()["detail"]
-    assert client.get(f"/api/customers/{suresh['id']}").json()["phone_1"] == "9000000002"
+    assert (
+        client.get(f"/api/customers/{suresh['id']}").json()["phone_1"] == "9000000002"
+    )
 
 
 def test_the_preview_of_saving_a_customer_that_would_save_saves_nothing(client):

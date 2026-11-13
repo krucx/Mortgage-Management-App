@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.follow_up.messages import (
-    REMINDER_PLACEHOLDERS,
     RECEIPT_PLACEHOLDERS,
+    REMINDER_PLACEHOLDERS,
     unknown_placeholders,
 )
 from mortgage_backend.platform.clock import TodayDep

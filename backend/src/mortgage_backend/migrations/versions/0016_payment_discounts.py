@@ -15,7 +15,8 @@ depends_on = None
 
 def upgrade() -> None:
     op.add_column(
-        "allocation", sa.Column("discount", sa.Integer(), nullable=False, server_default="0")
+        "allocation",
+        sa.Column("discount", sa.Integer(), nullable=False, server_default="0"),
     )
 
 

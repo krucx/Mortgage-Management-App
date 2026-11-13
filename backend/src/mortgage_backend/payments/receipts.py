@@ -70,7 +70,9 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
         conn.execute(
             select(payment_table.c.id, payment_table.c.amount)
             .where(
-                or_(payment_table.c.id == first, payment_table.c.received_with == first),
+                or_(
+                    payment_table.c.id == first, payment_table.c.received_with == first
+                ),
                 payment_table.c.voided_at.is_(None),
             )
             .order_by(payment_table.c.id)

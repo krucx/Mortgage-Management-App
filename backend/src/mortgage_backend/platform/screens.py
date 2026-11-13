@@ -33,9 +33,13 @@ def serve_screens(app: FastAPI, screens_dir: Path) -> None:
         file = (root / path).resolve()
         if path and file.is_file() and file.is_relative_to(root):
             kept = path.startswith("assets/")
-            media_type = "application/manifest+json" if file.suffix == ".webmanifest" else None
+            media_type = (
+                "application/manifest+json" if file.suffix == ".webmanifest" else None
+            )
             return FileResponse(
-                file, media_type=media_type, headers={"Cache-Control": IMMUTABLE if kept else NO_CACHE}
+                file,
+                media_type=media_type,
+                headers={"Cache-Control": IMMUTABLE if kept else NO_CACHE},
             )
         if path.startswith("assets/"):
             raise HTTPException(status_code=404, detail="Not Found")

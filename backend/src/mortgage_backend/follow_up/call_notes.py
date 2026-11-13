@@ -57,13 +57,17 @@ def record_call_note(
     reason = left_out_because(mortgage, today, note, today)
     if reason is not None:
         raise unprocessable(f"{mortgage.name}: {reason}")
-    same = conn.execute(
-        select(call_note_table).where(
-            call_note_table.c.mortgage_id == mortgage_id,
-            call_note_table.c.called_on == today,
-            call_note_table.c.note == note,
+    same = (
+        conn.execute(
+            select(call_note_table).where(
+                call_note_table.c.mortgage_id == mortgage_id,
+                call_note_table.c.called_on == today,
+                call_note_table.c.note == note,
+            )
         )
-    ).mappings().first()
+        .mappings()
+        .first()
+    )
     if same is None:
         same = (
             conn.execute(

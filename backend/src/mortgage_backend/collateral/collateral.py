@@ -68,7 +68,10 @@ def gold_rates(conn: Connection) -> dict[int, GoldRate]:
 
 
 def collateral_value(
-    net_weight_mg: int, purity_karat: Purity, override: int | None, rates: dict[int, GoldRate]
+    net_weight_mg: int,
+    purity_karat: Purity,
+    override: int | None,
+    rates: dict[int, GoldRate],
 ) -> int | None:
     """A Collateral's Value: `override` if set by hand, else the net weight at the Gold
     Rate for its purity, rounded half-up to the paisa; None without a Gold Rate set."""

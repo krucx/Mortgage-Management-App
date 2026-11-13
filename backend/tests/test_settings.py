@@ -49,16 +49,22 @@ def test_what_was_never_set_reads_as_the_default(conn: Connection) -> None:
 def test_values_are_stored_as_the_app_always_stored_them(conn: Connection) -> None:
     EXAMPLE.set(
         conn,
-        Example(approve_first=True, mode=InterestMode.COMPOUNDED_YEARLY, updated_on=TODAY),
+        Example(
+            approve_first=True, mode=InterestMode.COMPOUNDED_YEARLY, updated_on=TODAY
+        ),
         TODAY,
     )
 
-    assert get_config(conn, ["example_days", "example_approve_first", "example_mode"]) == {
+    assert get_config(
+        conn, ["example_days", "example_approve_first", "example_mode"]
+    ) == {
         "example_days": "2",
         "example_approve_first": "true",
         "example_mode": "compounded_yearly",
     }
-    assert get_config(conn, ["example_updated_on"]) == {"example_updated_on": "2026-05-12"}
+    assert get_config(conn, ["example_updated_on"]) == {
+        "example_updated_on": "2026-05-12"
+    }
 
 
 def test_values_stored_before_load_as_they_were_meant(conn: Connection) -> None:

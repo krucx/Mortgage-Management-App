@@ -36,7 +36,9 @@ class GracePeriod(BaseModel):
     ) -> int | None:
         """0 days is no Grace, as is none; anything but a whole number of days is refused
         (true and false included, which would otherwise pass as 1 and 0)."""
-        refused = ValueError("The Grace Period must be a whole number of days, 0 or more")
+        refused = ValueError(
+            "The Grace Period must be a whole number of days, 0 or more"
+        )
         if isinstance(days, bool):
             raise refused
         try:
