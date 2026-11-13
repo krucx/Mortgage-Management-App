@@ -13,8 +13,8 @@ from api_seed import lend, pay, person
 from seed import RUPEE
 
 from mortgage_backend.follow_up.message_settings import (
-    REMINDER_TEMPLATE,
     RECEIPT_TEMPLATE,
+    REMINDER_TEMPLATE,
 )
 from mortgage_backend.follow_up.messages import (
     RECEIPT_PLACEHOLDERS,
@@ -24,7 +24,7 @@ from mortgage_backend.follow_up.messages import (
 NAMES = ("2026-Zorblax-Anklet", "2026-Zorblax-Anklet-Again")
 
 
-def everything(placeholders: tuple[str, ...]) -> str:
+def all_placeholders(placeholders: tuple[str, ...]) -> str:
     return "\n".join("{" + name + "}" for name in placeholders)
 
 
@@ -51,7 +51,7 @@ def use_templates(client, receipt: str, reminder: str) -> None:
     assert response.status_code == 200, response.text
 
 
-def assert_clean(text: str, ids: list[int]) -> None:
+def assert_hides_internal_names(text: str, ids: list[int]) -> None:
     """`text` tells the two Mortgages apart by start date, and shows neither name nor id."""
     unwrapped = " ".join(text.split())  # a card wraps a long title
     assert "Silver anklet (from 14 Jan 2026)" in unwrapped
@@ -68,7 +68,7 @@ def assert_clean(text: str, ids: list[int]) -> None:
     [
         pytest.param((RECEIPT_TEMPLATE, REMINDER_TEMPLATE), id="default"),
         pytest.param(
-            (everything(RECEIPT_PLACEHOLDERS), everything(REMINDER_PLACEHOLDERS)),
+            (all_placeholders(RECEIPT_PLACEHOLDERS), all_placeholders(REMINDER_PLACEHOLDERS)),
             id="customised, every placeholder",
         ),
     ],
@@ -82,10 +82,10 @@ def test_customer_messages_show_no_mortgage_name_or_id(client, mortgages, templa
     receipt = client.get(f"/api/payments/{paid['id']}/receipt").json()
     [reminder] = client.get("/api/reminders").json()["items"]
 
-    assert_clean(receipt["text"], ids)
-    assert_clean(reminder["message"], [*ids, reminder["id"]])
-    # The printed Receipt is drawn from the lines: the only thing of a Mortgage's other
-    # than its description is the id the Lender's links use (see the frontend test).
+    assert_hides_internal_names(receipt["text"], ids)
+    assert_hides_internal_names(reminder["message"], [*ids, reminder["id"]])
+    # The printed Receipt is drawn from these lines: besides the description, a line
+    # carries only the id the Lender's links use (the frontend test checks it isn't shown).
     assert NAMES[0] not in json.dumps(receipt)
     assert [line["description"] for line in receipt["lines"]] == [
         "Silver anklet (from 14 Jan 2026)",
