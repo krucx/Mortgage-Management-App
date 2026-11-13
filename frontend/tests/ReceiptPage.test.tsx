@@ -90,3 +90,35 @@ test("an ordinary Payment's Receipt has no Grace", async () => {
   expect(await screen.findByText('1 Oct 2026')).not.toBeNull()
   expect(screen.queryByText(/Grace/)).toBeNull()
 })
+
+test('the printed Receipt tells two Mortgages described alike apart by start date and shows no id', async () => {
+  const line = {
+    discount: 0,
+    discount_interest_paid: 0,
+    discount_principal_paid: 0,
+    redeemed: false,
+    principal_paid: 0,
+    let_off: 0,
+    paid: 100_000,
+    interest_paid: 100_000,
+    owed_after: 9_000_000,
+  }
+  const twins: Receipt = {
+    ...receipt,
+    payment_id: 9191,
+    amount: 200_000,
+    lines: [
+      { ...line, mortgage_id: 4242, description: 'Silver anklet (from 14 Jan 2026)' },
+      { ...line, mortgage_id: 4343, description: 'Silver anklet (from 14 Feb 2026)' },
+    ],
+    total_owed: 18_000_000,
+  }
+  const server = fakeServer({ 'GET /api/payments/9191/receipt': twins })
+  showPage(server, '/payments/9191/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
+
+  expect(await screen.findByText('Silver anklet (from 14 Jan 2026)')).not.toBeNull()
+  expect(screen.getByText('Silver anklet (from 14 Feb 2026)')).not.toBeNull()
+  const printed = document.body.textContent ?? ''
+  expect(printed).toContain(mortgage.customer.name)
+  for (const id of ['4242', '4343', '9191']) expect(printed).not.toContain(id)
+})
