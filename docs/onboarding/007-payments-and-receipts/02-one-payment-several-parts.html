@@ -30,13 +30,13 @@
 <figure class="diagram">
 <pre class="mermaid">
 flowchart TD
-  IN["POST /payments<br/>chain ₹83,333 + bangles ₹1,000"] --> RF["_refuse_payment<br/>line 288"]
+  IN["POST /payments<br/>chain ₹83,333 + bangles ₹1,000"] --> RF["refuse_payment<br/>line 38"]
   RF --> RB{"each Allocation:<br/>_redeemed_by()<br/>is it the whole Outstanding?"}
   RB -->|"bangles: no"| ORD["ordinary"]
   RB -->|"chain: yes"| RED["redeemed"]
-  ORD --> W1["_write_payment(paid)<br/>first = 34, received_with NULL"]
+  ORD --> W1["write_payment(paid)<br/>first = 34, received_with NULL"]
   W1 --> CK["check_replays, History"]
-  CK --> W2["_close_redeemed(..., received_with=first)<br/>row 35, received_with 34"]
+  CK --> W2["close_redeemed(..., received_with=first)<br/>row 35, received_with 34"]
   RED --> W2
   W2 --> CL["chain: Redeemed,<br/>redemption_payment_id 35"]
   CL --> RET["return first: 34"]
@@ -48,92 +48,104 @@ flowchart TD
 <h2>The code</h2>
 <h3>1. Sorting the Allocations</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>record_payment()</code> · lines 282–304</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>282  def record_payment(
-283      conn: Connection, payment: PaymentIn, today: date, now: datetime
-284  ) -&gt; int:
-285      """Record a Payment (or refuse); returns its id. Each Mortgage it pays its whole
-286      Outstanding on the Payment date is Redeemed (ADR 0011), with its Final Payment kept
-287      as a part of its own: the id is then the Payment's first part."""
-288      rows = _refuse_payment(conn, payment, today)
-289      redeemed = []
-290      for allocation in payment.allocations:
-291          with _refusal_names_mortgage(conn, allocation.mortgage_id):
-292              mortgage = _redeemed_by(conn, allocation, payment.paid_on, today)   ①
-293          if mortgage is not None:
-294              redeemed.append((allocation, mortgage))
-295      redeemed_ids = {allocation.mortgage_id for allocation, _ in redeemed}
-296      ordinary = [a for a in payment.allocations if a.mortgage_id not in redeemed_ids]
-297      first = None
-298      if ordinary:
-299          paid = payment.model_copy(                                  ②
-300              update={"amount": sum(a.amount for a in ordinary), "allocations": ordinary}
-301          )
-302          first = _write_payment(conn, paid)                          ③  ◀
-303          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
-304          _record_payment_history(conn, first, paid, now)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>record_payment()</code> · lines 30–55</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>30   def record_payment(
+31      conn: Connection, payment: PaymentIn, today: date, now: datetime
+32   ) -&gt; int:
+33      """Record a Payment (or refuse); returns its id. Each Mortgage it pays its whole
+34      Outstanding on the Payment date is Redeemed (ADR 0011), with its Final Payment kept
+35      as a part of its own: the id is then the Payment's first part. A Grace Payment
+36      keeps its received date and what it let off on each Mortgage, its Final Payments
+37      too."""
+38      rows = refuse_payment(conn, payment, today)
+40      redeemed = []
+41      for allocation in payment.allocations:
+42          with refusal_names_mortgage(conn, allocation.mortgage_id):
+43              mortgage = _redeemed_by(conn, allocation, payment.paid_on, today)   ①
+44          if mortgage is not None:
+45              redeemed.append((allocation, mortgage))
+46      redeemed_ids = {allocation.mortgage_id for allocation, _ in redeemed}
+47      ordinary = [a for a in payment.allocations if a.mortgage_id not in redeemed_ids]
+48      first = None
+49      if ordinary:
+50          paid = payment.model_copy(                                  ②
+51              update={"amount": sum(a.amount for a in ordinary), "allocations": ordinary}
+52          )
+53          first = write_payment(conn, paid, grace=grace)                          ③  ◀
+54          check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
+55          record_payment_history(conn, first, paid, now)
 </code></pre>
 </figure>
 <ol class="marks">
-  <li><code>_redeemed_by</code> (line 325) returns the replayed Mortgage if the Allocation equals its whole Outstanding on the Payment date, and <code>None</code> otherwise. If the Mortgage can't be Redeemed on that date, it refuses the whole Payment (chapter 005, lesson 3).</li>
+  <li><code>_redeemed_by</code> (line 78) returns the replayed Mortgage if the Allocation equals its whole Outstanding on the Payment date, and <code>None</code> otherwise. If the Mortgage can't be Redeemed on that date, it refuses the whole Payment (chapter 005, lesson 3).</li>
   <li><code>model_copy(update=…)</code> makes a copy of a Pydantic model with some fields replaced. Here it's the same Payment with only the ordinary Allocations, and an amount that adds up to them.</li>
   <li>The first part is written. Its id becomes <code>first</code>.</li>
 </ol>
 
 <h3>2. Each Final Payment, as a part of its own</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>record_payment()</code> · lines 305–322</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>305      for allocation, mortgage in redeemed:
-306          with _refusal_names_mortgage(conn, allocation.mortgage_id):
-307              final = _close_redeemed(
-308                  conn,
-309                  mortgage,
-310                  payment.paid_on,
-311                  allocation.amount,
-312                  payment.method,
-313                  payment.reference,
-314                  today,
-315                  now,
-316                  received_with=first,                                ①  ◀
-317              )
-318          assert final is not None  # an Allocation is more than nothing
-319          if first is None:
-320              first = final                                           ②
-321      assert first is not None  # there is at least one Allocation
-322      return first                                                    ③
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/recording.py">payments/recording.py</a> · <code>record_payment()</code> · lines 56–75</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/recording.py"><code>56      for allocation, mortgage in redeemed:
+57          with refusal_names_mortgage(conn, allocation.mortgage_id):
+58              final = close_redeemed(
+59                  conn,
+60                  mortgage,
+61                  payment.paid_on,
+62                  allocation.amount,
+63                  payment.method,
+64                  payment.reference,
+65                  today,
+66                  now,
+67                  received_with=first,                                ①  ◀
+70              )
+71          assert final is not None  # an Allocation is more than nothing
+72          if first is None:
+73              first = final                                           ②
+74      assert first is not None  # there is at least one Allocation
+75      return first                                                    ③
 </code></pre>
 </figure>
 <ol class="marks">
-  <li>The same <code>_close_redeemed</code> that the Redeem route uses (chapter 005), told which Payment this part belongs to. Line 316 is the line the check-yourself exercise breaks.</li>
+  <li>The same <code>close_redeemed</code> that the Redeem route uses (chapter 005), told which Payment this part belongs to. Line 316 is the line the check-yourself exercise breaks.</li>
   <li>If there was no ordinary part, the first Final Payment written becomes the first part, and later ones point at it.</li>
   <li>The id returned is always the first part's.</li>
 </ol>
 
 <h3>3. Where <code>received_with</code> is written</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>_write_payment()</code> · lines 197–214</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>197  def _write_payment(
-198      conn: Connection, payment: PaymentIn, received_with: int | None = None
-199  ) -&gt; int:
-200      """Write the Payment, or a part of one: `received_with` is the Payment's first part,
-201      whose Receipt the part shares."""
-202      payment_id: int = conn.execute(
-203          insert(payment_table)
-204          .values(
-205              **payment.model_dump(exclude={"allocations"}),
-206              received_with=received_with,                            ◀
-207          )
-208          .returning(payment_table.c.id)
-209      ).scalar_one()
-210      conn.execute(
-211          insert(allocation_table),
-212          [{"payment_id": payment_id, **a.model_dump()} for a in payment.allocations],
-213      )
-214      return payment_id
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>write_payment()</code> · lines 81–108</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>81  def write_payment(
+82      conn: Connection,
+83      payment: PaymentIn,
+84      received_with: int | None = None,
+85      grace: Grace | None = None,
+86  ) -&gt; int:
+87      """Write the Payment, or a part of one: `received_with` is the Payment's first part,
+88      whose Receipt the part shares. A Grace Payment keeps its `grace`."""
+89      payment_id: int = conn.execute(
+90          insert(payment_table)
+91          .values(
+92              **payment.model_dump(exclude={"allocations"}),
+93              received_with=received_with,                            ◀
+94          )
+95          .returning(payment_table.c.id)
+96      ).scalar_one()
+97      conn.execute(
+98          insert(allocation_table),
+99          [
+100              {
+101                  "payment_id": payment_id,
+102                  **a.model_dump(),
+103                  "let_off": grace.let_off[a.mortgage_id] if grace else None,
+104              }
+105              for a in payment.allocations
+106          ],
+107      )
+108      return payment_id
 </code></pre>
 </figure>
 <p><code>model_dump()</code> turns the Pydantic model into a dict; <code>**</code> spreads it into keyword arguments. <code>.returning(…)</code> asks the database for the new row's id in the same statement. The second <code>insert</code> is given a list of dicts, so it writes one <code>allocation</code> row per Allocation.</p>
-<p><code>_close_redeemed</code> reaches this through <code>_close_with_payment</code> (line 600), which builds a one-Allocation <code>PaymentIn</code> for the Final Payment, calls <code>_write_payment(conn, final, received_with)</code> at line 630, sets the Closure, and only then runs <code>check_replays</code>. The comment at lines 616–617 says why it's checked after closing: the Final Payment may include the Interest to Date, which is owed only once the Mortgage closes.</p>
+<p><code>close_redeemed</code> reaches this through <code>_close_with_payment</code> (line 139), which builds a one-Allocation <code>PaymentIn</code> for the Final Payment, calls <code>write_payment(conn, final, received_with)</code> at line 630, sets the Closure, and only then runs <code>check_replays</code>. The comment at lines 616–617 says why it's checked after closing: the Final Payment may include the Interest to Date, which is owed only once the Mortgage closes.</p>
 
 <h2>Run-through: pay off the chain, and ₹1,000 on the bangles</h2>
 <p>This one <strong>saves</strong>, on your served scratch book. Later lessons expect it. Preview it first, then save it:</p>
@@ -147,7 +159,7 @@ curl -s -H 'content-type: application/json' -d "$BODY" http://127.0.0.1:8765/api
   <p><strong>Predict:</strong> the save answers 201 with a Payment. What are its <code>id</code> and <code>amount</code>, and which Allocations does it list?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p><code>id</code> 34, <code>amount</code> 100000 (₹1,000), and one Allocation: the bangles. The route returns <code>load_payment(conn, first)</code> (line 910), and the first part is only the ordinary part. The chain's ₹83,333 is not in this response at all. The New Payment page doesn't show this response: it opens the Receipt, which gathers every part (lesson 5).</p>
+    <p><code>id</code> 34, <code>amount</code> 100000 (₹1,000), and one Allocation: the bangles. The route returns <code>load_payment(conn, first)</code> (line 102), and the first part is only the ordinary part. The chain's ₹83,333 is not in this response at all. The New Payment page doesn't show this response: it opens the Receipt, which gathers every part (lesson 5).</p>
   </div>
 </div>
 <p>Now look at the rows:</p>
@@ -181,7 +193,7 @@ curl -s -H 'content-type: application/json' -d "$BODY" http://127.0.0.1:8765/api
     <tr><td>35</td><td>₹1,51,500 (the bangles' Final Payment)</td><td>34</td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L2).</p>
-    <p>There's no ordinary part, so <code>first</code> is still <code>None</code> when the loop starts. The chain's Final Payment is written with <code>received_with=None</code> and becomes the first part (line 320). The bangles' points at it. The route returns 34. Both Mortgages are Redeemed, and the Receipt is ₹2,34,833 with nothing still owed. With just one Allocation that Redeems (the chain alone), there's a single row and <code>received_with</code> stays empty: a Payment of one part is an ordinary-looking row.</p>
+    <p>There's no ordinary part, so <code>first</code> is still <code>None</code> when the loop starts. The chain's Final Payment is written with <code>received_with=None</code> and becomes the first part (line 72). The bangles' points at it. The route returns 34. Both Mortgages are Redeemed, and the Receipt is ₹2,34,833 with nothing still owed. With just one Allocation that Redeems (the chain alone), there's a single row and <code>received_with</code> stays empty: a Payment of one part is an ordinary-looking row.</p>
   </div>
 </div>
 

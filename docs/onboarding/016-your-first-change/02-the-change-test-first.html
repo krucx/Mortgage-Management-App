@@ -8,20 +8,20 @@
   Route->>Change: parsed TermChangeIn
   Change->>DB: validate and update
   Change->>Route: Mortgage with replayed Ledger
-  Route->>Test: response or refusal</pre><figcaption>The API boundary test checks parsing, refusal status and the resulting Mortgage together.</figcaption></figure><h2>Code to compare</h2><figure class="snippet"><figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>add_term_change()</code> · lines 368–388, trimmed (main)</figcaption><pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>368  def add_term_change(
-369      conn: Connection, mortgage_id: int, change: TermChangeIn, today: date, now: datetime
-370  ) -&gt; None:
-371      """Add a Term Change (or refuse)."""
-372      mortgage = replay(conn, mortgage_id)
-373      row = mortgage.row
-374      _refuse_unless_active(row)
-375      next_one = next(
-376          d for d in upcoming_accrual_dates(row["start_date"], today) if d &gt; today
-377      )
-378      effective_on = change.effective_on or next_one
-379      if effective_on &lt; today or not is_accrual_date(row["start_date"], effective_on):
-380          raise unprocessable(
-381              "A Term Change starts on an Accrual Date, today or later "
+  Route->>Test: response or refusal</pre><figcaption>The API boundary test checks parsing, refusal status and the resulting Mortgage together.</figcaption></figure><h2>Code to compare</h2><figure class="snippet"><figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>add_term_change()</code> · lines 76–89, trimmed (main)</figcaption><pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>76   def add_term_change(
+77      conn: Connection, mortgage_id: int, change: TermChangeIn, today: date, now: datetime
+78   ) -&gt; None:
+79      """Add a Term Change (or refuse)."""
+80      mortgage = replay(conn, mortgage_id)
+81      row = mortgage.row
+82      refuse_unless_active(row)
+83      next_one = next(
+84          d for d in upcoming_accrual_dates(row["start_date"], today) if d &gt; today
+85      )
+86      effective_on = change.effective_on or next_one
+87      if effective_on &lt; today or not is_accrual_date(row["start_date"], effective_on):
+88          raise unprocessable(
+89              "A Term Change starts on an Accrual Date, today or later "
 ⋮
 </code></pre></figure><p>Mirror the checks in the add path, but find the existing row by both ids and refuse if its date is today or earlier. Recompute what differs against Terms at the chosen effective date; then update the row and record History.</p><h2>Run-through: Meera's bangles</h2><p>From the practice branch, add one API test at a time. Begin by moving 25 Oct to 25 Nov; change the rate to 1% (100 basis points). Then add refusal tests for a non-Accrual Date, a clashing date, no effective difference, a Term Change effective today, and one already in the past. Run each specific test before implementing.</p><table class="steps"><tr><th>Attempt</th><th>Expected</th><th>Why</th></tr><tr><td>Move coming change and set rate</td><td>200, date and rate updated</td><td>The existing row remains the same decision record.</td></tr><tr><td>Move to another Term Change's date</td><td>409</td><td>Only one change can start on each date.</td></tr><tr><td>Edit effective today or earlier</td><td>409</td><td>Earlier interest is already determined.</td></tr><tr><td>Nothing differs</td><td>422</td><td>There is no edit to record.</td></tr></table><p class="cite">API test figures are status and body assertions from <code>tests/test_term_changes.py</code>, using its <code>client</code> fixture.</p><h2>Nuance: check_replays</h2><p>The edit path calls <code>check_replays</code> like other Ledger changes. For an ordinary coming Term Change this check cannot trip; keep the shared sequence, but don't invent a test that claims to exercise an impossible refusal. Chapter <a href="../006-changes-and-previews/05-adding-a-change-route.html">006 · Lesson 5</a> explains the route checklist.</p><div class="quiz" data-answer="1"><p class="q">Why is an edit of a Term Change effective today refused?</p><button class="opt">It would change the Mortgage's name</button><button class="opt">It would rewrite Terms used for already-counted interest</button><button class="opt">It would create a second Mortgage</button><div class="why">A Term Change applies from its Accrual Date onward. Once that date arrives, add a later Term Change to change future Terms.</div></div><p><span class="score"></span></p><p>Try the tests first; then compare your implementation with the behavior list and nearby examples above.</p><h2>Go deeper</h2><p><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">changes.py</a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_term_changes.py">test_term_changes.py</a>, <a href="../006-changes-and-previews/05-adding-a-change-route.html">006 · Lesson 5</a>, <a href="../013-testing/02-backend-tests-through-the-api.html">013 · Lesson 2</a>.</p><nav><a href="01-from-an-idea-to-an-issue.html">Previous</a> · <a href="index.html">Chapter overview</a> · Next: <a href="03-preview-and-history.html">Preview and History</a></nav><script src="../assets/quiz.js"></script><script src="../assets/snippet.js"></script><script src="../assets/mermaid.min.js"></script><script src="../assets/diagrams.js"></script><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
 <script>

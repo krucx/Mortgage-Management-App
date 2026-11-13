@@ -21,7 +21,7 @@
 <h2>The idea</h2>
 <p>A <a href="../reference/glossary.html#preview"><dfn class="term" title="What a change would do, shown before it is saved: the change is made and then undone, so a Preview is refused exactly when saving would be.">Preview</dfn></a> makes the real change, inside a transaction, by calling the very same change function the save route calls. It reads every figure it needs while the change is in place, then rolls the transaction back. Nothing is saved, and there is no second copy of any rule.</p>
 <p>That gives the glossary's promise for free: a Preview is refused exactly when saving would be, because it <em>is</em> the save, up to the moment of committing.</p>
-<div class="callout warn"><strong>Trap #5, owned here.</strong> Previews run the real change and roll it back. So a bug in a change shows up in its Preview too, and a refusal you see in a Preview is the save's refusal. When a Preview looks wrong, debug the change function in <code>changes.py</code>, not <code>previews.py</code>. See the <a href="../reference/traps.html#t5">traps sheet</a>.</div>
+<div class="callout warn"><strong>Trap #5, owned here.</strong> Previews run the real change and roll it back. So a bug in a change shows up in its Preview too, and a refusal you see in a Preview is the save's refusal. When a Preview looks wrong, debug the change function (in <code>changes.py</code>, <code>payments/recording.py</code>, <code>lending/closing.py</code> or <code>collateral/</code>), not <code>previews.py</code>. See the <a href="../reference/traps.html#t5">traps sheet</a>.</div>
 
 <h2>The flow</h2>
 <figure class="diagram">
@@ -51,33 +51,33 @@ sequenceDiagram
 <h2>The code</h2>
 <h3>1. The heart: <code>_preview</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>_preview()</code> · lines 149–177, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>149  def _preview(
-150      conn: Connection,
-151      mortgage_ids: Sequence[int],
-152      today: date,
-153      change: Callable[[], object],                               ①
-154  ) -&gt; PreviewOfChange:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>_preview()</code> · lines 159–187, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>159  def _preview(
+160      conn: Connection,
+161      mortgage_ids: Sequence[int],
+162      today: date,
+163      change: Callable[[], object],                               ①
+164  ) -&gt; PreviewOfChange:
 ⋮
-157      try:
-158          before = _snapshot(conn, mortgage_ids, today)
-159          written = before_change(conn)                            ②
-160          change()                                                 ③  ◀
-161          after = _snapshot(conn, mortgage_ids, today)
-162          cash = cash_sums(conn, written)
-163      finally:
-164          conn.rollback()                                          ④  ◀
-165      mortgages = [
-166          MortgagePreview(
-167              mortgage_id=mortgage_id,
-168              mortgage_name=after[mortgage_id].name,
-169              before=before[mortgage_id].side,
-170              after=after[mortgage_id].side,
-171              ledger_changes=_ledger_changes(
-172                  before[mortgage_id].ledger, after[mortgage_id].ledger
-173              ),
+167      try:
+168          before = _snapshot(conn, mortgage_ids, today)
+169          written = before_change(conn)                            ②
+170          change()                                                 ③  ◀
+171          after = _snapshot(conn, mortgage_ids, today)
+172          cash = cash_sums(conn, written)
+173      finally:
+174          conn.rollback()                                          ④  ◀
+175      mortgages = [
+176          MortgagePreview(
+177              mortgage_id=mortgage_id,
+178              mortgage_name=after[mortgage_id].name,
+179              before=before[mortgage_id].side,
+180              after=after[mortgage_id].side,
+181              ledger_changes=_ledger_changes(
+182                  before[mortgage_id].ledger, after[mortgage_id].ledger
+183              ),
 ⋮
-177      return PreviewOfChange(mortgages=mortgages, cash=cash)
+187      return PreviewOfChange(mortgages=mortgages, cash=cash)
 </code></pre>
 </figure>
 <ol class="marks">
@@ -89,19 +89,20 @@ sequenceDiagram
 
 <h3>2. A Preview route</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>preview_payment()</code> · lines 340–351</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>340  @router.post("/payments/preview")
-341  def preview_payment(
-342      payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep   ① same body as the save
-343  ) -&gt; PreviewOfChange:
-344      """Every Mortgage the Payment is allocated to, before and after recording it."""
-345      with engine.connect() as conn:                               ②  ◀
-346          return _preview(
-347              conn,
-348              [allocation.mortgage_id for allocation in payment.allocations],
-349              today,
-350              lambda: record_payment(conn, payment, today, now),   ③
-351          )
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>preview_payment()</code> · lines 350–368, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>350  @router.post("/payments/preview")
+351  def preview_payment(
+352      payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep   ① same body as the save
+353  ) -&gt; PreviewOfChange:
+357      with engine.connect() as conn:   ②  ◀
+358          rooms = discount_rooms(conn, payment)
+⋮
+363          preview = _preview(
+364              conn,
+365              [allocation.mortgage_id for allocation in payment.allocations],
+366              today,
+367              lambda: record_payment(conn, capped(payment, rooms), today, now),   ③
+368          )
 </code></pre>
 </figure>
 <ol class="marks">
@@ -111,43 +112,43 @@ sequenceDiagram
 </ol>
 <p>Every other Preview route has this shape. Here's the one you'll use in the run-through:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>preview_term_change_removal()</code> · lines 232–242</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>232  @router.post("/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview")
-233  def preview_term_change_removal(
-234      mortgage_id: int, change_id: int, engine: EngineDep, today: TodayDep, now: NowDep
-235  ) -&gt; PreviewOfChange:
-236      with engine.connect() as conn:
-237          return _preview(
-238              conn,
-239              [mortgage_id],
-240              today,
-241              lambda: remove_term_change(conn, mortgage_id, change_id, today, now),   ◀
-242          )
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>preview_term_change_removal()</code> · lines 242–252</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>242  @router.post("/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview")
+243  def preview_term_change_removal(
+244      mortgage_id: int, change_id: int, engine: EngineDep, today: TodayDep, now: NowDep
+245  ) -&gt; PreviewOfChange:
+246      with engine.connect() as conn:
+247          return _preview(
+248              conn,
+249              [mortgage_id],
+250              today,
+251              lambda: remove_term_change(conn, mortgage_id, change_id, today, now),   ◀
+252          )
 </code></pre>
 </figure>
 <p>The save is <code>DELETE /api/mortgages/{mortgage_id}/term-changes/{change_id}</code>. A Preview is always a <code>POST</code> to a path ending in <code>preview</code>, because it computes something new for you rather than changing anything.</p>
 
 <h3>3. What a Preview reads: <code>_snapshot</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>_snapshot()</code> · lines 126–146, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>126  def _snapshot(
-127      conn: Connection, mortgage_ids: Sequence[int], today: date
-128  ) -&gt; dict[int, _Snapshot]:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>_snapshot()</code> · lines 136–154, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>136  def _snapshot(
+137      conn: Connection, mortgage_ids: Sequence[int], today: date
+138  ) -&gt; dict[int, _Snapshot]:
 ⋮
-131      for mortgage_id in mortgage_ids:
-132          mortgage = replay(conn, mortgage_id)
+141      for mortgage_id in mortgage_ids:
+142          mortgage = replay(conn, mortgage_id)
 ⋮
-134          active = mortgage.row["status"] == MortgageStatus.ACTIVE
-135          projection = baseline(conn, mortgage, today) if active else None   ①
-136          found[mortgage_id] = _Snapshot(
-137              mortgage.row["name"],
-138              mortgage.ledger(today),                                ②
-139              PreviewSide(
-140                  outstanding=mortgage.outstanding(today).total,
-141                  points=projection.points if projection else [],
-142                  term_changes=projection.term_changes if projection else [],
-143                  closure=mortgage.closure(),                       ③
-144              ),
+144          active = mortgage.row["status"] == MortgageStatus.ACTIVE
+145          projection = baseline(conn, mortgage, today) if active else None   ①
+146          found[mortgage_id] = _Snapshot(
+147              mortgage.row["name"],
+148              mortgage.ledger(today),                                ②
+149              PreviewSide(
+150                  outstanding=mortgage.outstanding(today).total,
+151                  points=projection.points if projection else [],
+152                  term_changes=projection.term_changes if projection else [],
+153                  closure=mortgage.closure(),                       ③
+154              ),
 </code></pre>
 </figure>
 <ol class="marks">
@@ -155,28 +156,28 @@ sequenceDiagram
   <li>The whole Ledger up to today, kept to compare before with after.</li>
   <li>The <code>Closure</code> (chapter 005, lesson 4), or <code>None</code> while Active. This is how a Payment Preview shows that it would Redeem.</li>
 </ol>
-<p>The response models, <code>PreviewSide</code>, <code>LedgerChange</code>, <code>MortgagePreview</code> and <code>PreviewOfChange</code>, are at lines 60–90. A <code>PreviewOfChange</code> has one <code>MortgagePreview</code> per Mortgage touched, each with a <code>before</code> and an <code>after</code> side, and a list of <code>ledger_changes</code>.</p>
+<p>The response models, <code>PreviewSide</code>, <code>LedgerChange</code>, <code>MortgagePreview</code> and <code>PreviewOfChange</code>, are at lines 65–105. A <code>PreviewOfChange</code> has one <code>MortgagePreview</code> per Mortgage touched, each with a <code>before</code> and an <code>after</code> side, and a list of <code>ledger_changes</code>.</p>
 
 <h3>4. Which Ledger steps moved</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>_step_identity()</code>, <code>_ledger_changes()</code> · lines 97–117, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>97  def _step_identity(step: LedgerStep) -&gt; tuple[date, int, int]:
-98      """Matches a step across two Ledgers: its date, kind and Payment."""
-99      return (step.on, _EVENT_ORDER.index(step.event), step.payment_id or 0)   ①
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">lending/previews.py</a> · <code>_step_identity()</code>, <code>_ledger_changes()</code> · lines 107–127, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>107 def _step_identity(step: LedgerStep) -&gt; tuple[date, int, int]:
+108      """Matches a step across two Ledgers: its date, kind and Payment."""
+109      return (step.on, _EVENT_ORDER.index(step.event), step.payment_id or 0)   ①
 ⋮
-102  def _ledger_changes(
-103      before: Sequence[LedgerStep], after: Sequence[LedgerStep]
-104  ) -&gt; list[LedgerChange]:
+112  def _ledger_changes(
+113      before: Sequence[LedgerStep], after: Sequence[LedgerStep]
+114  ) -&gt; list[LedgerChange]:
 ⋮
-106      old = {_step_identity(step): step for step in before}
-107      new = {_step_identity(step): step for step in after}
-108      return [
-109          LedgerChange(
+116      old = {_step_identity(step): step for step in before}
+117      new = {_step_identity(step): step for step in after}
+118      return [
+119          LedgerChange(
 ⋮    … on, event, and the step on each side (None where it doesn't exist) …
-114          )
-115          for key in sorted(old.keys() | new.keys())                ②
-116          if old.get(key) != new.get(key)                            ③  ◀
-117      ]
+124          )
+125          for key in sorted(old.keys() | new.keys())                ②
+126          if old.get(key) != new.get(key)                            ③  ◀
+127      ]
 </code></pre>
 </figure>
 <ol class="marks">
@@ -236,11 +237,11 @@ POST /payments          422  2025-Meera-GoldChainPendant: the Payment on 19 Oct 
 
 <h3>(c) Belt and braces: what really stops a Preview saving?</h3>
 <div class="reveal">
-  <p><strong>Predict:</strong> delete <code>conn.rollback()</code> at line 164 of <code>previews.py</code> (leave the <code>finally</code> with a <code>pass</code>). Does a Preview now save its change? How many of the 607 tests fail?</p>
+  <p><strong>Predict:</strong> delete <code>conn.rollback()</code> at line 174 of <code>previews.py</code> (leave the <code>finally</code> with a <code>pass</code>). Does a Preview now save its change? How many of the 826 tests fail?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <p><strong>Nothing saves, and no test fails.</strong> The route opened the connection with <code>engine.connect()</code>, which never commits; when the <code>with</code> block closes it, SQLAlchemy rolls back whatever is left. <code>conn.rollback()</code> is a second guard, so the snapshot-and-undo inside <code>_preview</code> doesn't depend on how the route opened the connection.</p>
-    <p>The guard that matters is the route never using <code>engine.begin()</code>. Change line 164 to <code>conn.commit()</code> instead, and <strong>13 tests fail</strong>: nine in <code>test_previews.py</code>, three in <code>test_closing.py</code>, one in <code>test_redeeming_payments.py</code>. Each one Previews a change and then checks that nothing was saved, by reading the Mortgage, or its History, back.</p>
+    <p>The guard that matters is the route never using <code>engine.begin()</code>. Change line 174 to <code>conn.commit()</code> instead, and <strong>13 tests fail</strong>: nine in <code>test_previews.py</code>, three in <code>test_closing.py</code>, one in <code>test_redeeming_payments.py</code>. Each one Previews a change and then checks that nothing was saved, by reading the Mortgage, or its History, back.</p>
     <p class="cite">Both checked at commit d6a92ab by running <code>uv run pytest</code> with each edit, then <code>git checkout</code>.</p>
   </div>
 </div>
@@ -248,8 +249,8 @@ POST /payments          422  2025-Meera-GoldChainPendant: the Payment on 19 Oct 
 <h3>(d) Why the routes are written out by hand</h3>
 <p>Every change has a save route beside its change function and a Preview route in <code>previews.py</code> that look very alike. Couldn't one declaration generate both? <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a> decided not to. Generating them would mean rewriting FastAPI route signatures at import time, to save about a hundred lines. And not every pair fits one mould:</p>
 <ul>
-  <li>The <strong>Void and Reopen</strong> Previews take no body, but their saves need a reason (<code>VoidIn</code>). So <code>preview_void</code> (line 217) and <code>preview_reopen</code> (line 326) pass the reason <code>"preview"</code>. It's written into History and rolled back with it.</li>
-  <li>Two Previews return <strong>their own shapes</strong>: <code>preview_new_mortgage</code> (line 364) returns a <code>NewMortgagePreview</code>, since there's no "before" for a Mortgage that doesn't exist yet, and <code>preview_collateral</code> (line 399) returns a <code>CollateralPreview</code> (lesson 5). Both do their own <code>try</code> … <code>finally: conn.rollback()</code> instead of calling <code>_preview</code>.</li>
+  <li>The <strong>Void and Reopen</strong> Previews take no body, but their saves need a reason (<code>VoidIn</code>). So <code>preview_void</code> (line 228) and <code>preview_reopen</code> (line 337) pass the reason <code>"preview"</code>. It's written into History and rolled back with it.</li>
+  <li>Two Previews return <strong>their own shapes</strong>: <code>preview_new_mortgage</code> (line 398) returns a <code>NewMortgagePreview</code>, since there's no "before" for a Mortgage that doesn't exist yet, and <code>preview_collateral</code> (line 433) returns a <code>CollateralPreview</code> (lesson 5). Both do their own <code>try</code> … <code>finally: conn.rollback()</code> instead of calling <code>_preview</code>.</li>
 </ul>
 <p>The ADR's argument: the repetition is shallow, because the <em>rules</em> live once, in the change functions. What repeats is only each route's parameters.</p>
 
@@ -283,7 +284,7 @@ POST /payments          422  2025-Meera-GoldChainPendant: the Payment on 19 Oct 
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a> (one paragraph), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py"><code>lending/previews.py</code></a> from line 180 to the end: every Preview route. In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_previews.py"><code>tests/test_previews.py</code></a>, read <code>nothing_saved</code> (line 51), the helper the Preview tests use to prove a Preview saved nothing.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0007-preview-routes-written-out-by-hand.md">ADR 0007</a> (one paragraph), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py"><code>lending/previews.py</code></a> from line 193 to the end: every Preview route. In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_previews.py"><code>tests/test_previews.py</code></a>, read <code>nothing_saved</code> (line 50), the helper the Preview tests use to prove a Preview saved nothing.</p>
 
 <nav class="lessons">
   <a href="03-history.html">← History</a>

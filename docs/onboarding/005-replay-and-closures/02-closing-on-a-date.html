@@ -47,15 +47,15 @@ flowchart TD
 <h2>The code</h2>
 <h3>1. The route</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>outstanding_on_closure()</code> route · lines 31–38</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>31  @router.get("/mortgages/{mortgage_id}/outstanding-on-closure")
-32  def outstanding_on_closure(
-33      mortgage_id: int, on: date, engine: EngineDep, today: TodayDep
-34  ) -&gt; OutstandingOnClosure:
-35      """What it takes to close the Mortgage on `on`: its Outstanding then."""
-36      with engine.connect() as conn:                              ①
-37          mortgage = closable(conn, mortgage_id, on, today, quote_only=True)   ◀
-38          return mortgage.outstanding_on_closure(on)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>outstanding_on_closure()</code> route · lines 410–417</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>410 @router.get("/mortgages/{mortgage_id}/outstanding-on-closure")
+411 def outstanding_on_closure(
+412      mortgage_id: int, on: date, engine: EngineDep, today: TodayDep
+413 ) -&gt; OutstandingOnClosure:
+414      """What it takes to close the Mortgage on `on`: its Outstanding then."""
+415      with engine.connect() as conn:                              ①
+416          mortgage = closable(conn, mortgage_id, on, today, quote_only=True)   ◀
+417          return mortgage.outstanding_on_closure(on)
 </code></pre>
 </figure>
 <ol class="marks">
@@ -64,21 +64,25 @@ flowchart TD
 
 <h3>2. The guard: <code>closable</code> and <code>not_closable</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>closable()</code> · lines 576–589</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>576  def closable(
-577      conn: Connection, mortgage_id: int, on: date, today: date, quote_only: bool = False
-578  ) -&gt; MortgageReplay:
-579      """The Mortgage, if it can be closed on `on` (or, for a quote, could be then)."""
-580      mortgage = replay(conn, mortgage_id)
-581      # A closed Mortgage is refused for being closed, whatever the date.
-582      if mortgage.row["status"] == MortgageStatus.ACTIVE and on &gt; today and not quote_only:  ◀
-583          raise unprocessable(
-584              "A Redemption, Waiver or Forfeiture cannot be recorded for a future date"
-585          )
-586      refusal = mortgage.not_closable(on)
-587      if refusal is not None:
-588          raise unprocessable(refusal)                    # 422
-589      return mortgage
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>closable()</code> · lines 111–128</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>111  def closable(
+112      conn: Connection, mortgage_id: int, on: date, today: date, quote_only: bool = False
+113  ) -&gt; MortgageReplay:
+114      """The Mortgage, if it can be closed on `on` (or, for a quote, could be then)."""
+115      mortgage = replay(conn, mortgage_id)
+116      # A closed Mortgage is refused for being closed, whatever the date.
+117      if (                                                          ◀
+118          mortgage.row["status"] == MortgageStatus.ACTIVE
+119          and on &gt; today
+120          and not quote_only
+121      ):
+122          raise unprocessable(
+123              "A Redemption, Waiver or Forfeiture cannot be recorded for a future date"
+124          )
+125      refusal = mortgage.not_closable(on)
+126      if refusal is not None:
+127          raise unprocessable(refusal)
+128      return mortgage
 </code></pre>
 </figure>
 <figure class="snippet">

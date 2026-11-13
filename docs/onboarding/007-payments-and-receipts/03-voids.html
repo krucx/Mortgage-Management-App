@@ -42,46 +42,46 @@ stateDiagram-v2
 <h2>The code</h2>
 <h3>1. The request: a reason, always</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>VoidIn</code> · lines 85–93</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>85  class VoidIn(BaseModel):
-86      reason: str = Field(min_length=1)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>VoidIn</code> · lines 63–71</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>63  class VoidIn(BaseModel):
+64      reason: str = Field(min_length=1)
 87
-88      @model_validator(mode="after")
-89      def tidy(self) -&gt; "VoidIn":
-90          self.reason = self.reason.strip()
-91          if not self.reason:
-92              raise ValueError("A reason is needed")                     ◀
-93          return self
+66      @model_validator(mode="after")
+67      def tidy(self) -&gt; "VoidIn":
+68          self.reason = self.reason.strip()
+69          if not self.reason:
+70              raise ValueError("A reason is needed")                     ◀
+71          return self
 </code></pre>
 </figure>
 <p><code>min_length=1</code> alone would let <code>"   "</code> through. The validator strips the spaces first, then refuses what's left if it's empty.</p>
 
 <h3>2. <code>void_payment</code>: refuse, write, check, History</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>340  def void_payment(
-341      conn: Connection, payment_id: int, reason: str, today: date, now: datetime
-342  ) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>void_payment()</code> · lines 223–248, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>223  def void_payment(
+224      conn: Connection, payment_id: int, reason: str, today: date, now: datetime
+225  ) -&gt; None:
 ⋮    … why it reads voided_at straight from the table: chapter 006, lesson 2 …
-347      found = conn.execute(
-348          select(payment_table.c.voided_at).where(payment_table.c.id == payment_id)
-349      ).one_or_none()
-350      if found is None:
-351          raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
-352      if found.voided_at is not None:
-353          raise HTTPException(status.HTTP_409_CONFLICT, "Already voided")       ①
-354      rows = mortgages_of(conn, payment_id)
-355      for row in rows:
-356          if row["redemption_payment_id"] == payment_id:                         ②  ◀
-357              raise HTTPException(
-358                  status.HTTP_409_CONFLICT,
-359                  f"This is the final Payment of the closing of {row['name']}: "
-360                  "reopen the Mortgage instead, which voids it",
-361              )
-362          _refuse_unless_active(row)                                             ③
-363      _write_void(conn, payment_id, reason, now)
-364      check_replays(conn, rows, today)
-365      _record_void_history(conn, payment_id, reason, now)
+230      found = conn.execute(
+231          select(payment_table.c.voided_at).where(payment_table.c.id == payment_id)
+232      ).one_or_none()
+233      if found is None:
+234          raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
+235      if found.voided_at is not None:
+236          raise HTTPException(status.HTTP_409_CONFLICT, "Already voided")       ①
+237      rows = mortgages_of(conn, payment_id)
+238      for row in rows:
+239          if row["redemption_payment_id"] == payment_id:                         ②  ◀
+240              raise HTTPException(
+241                  status.HTTP_409_CONFLICT,
+242                  f"This is the final Payment of the closing of {row['name']}: "
+243                  "reopen the Mortgage instead, which voids it",
+244              )
+245          refuse_unless_active(row)                                             ③
+246      write_void(conn, payment_id, reason, now)
+247      check_replays(conn, rows, today)
+248      record_void_history(conn, payment_id, reason, now)
 </code></pre>
 </figure>
 <ol class="marks">
@@ -90,33 +90,33 @@ stateDiagram-v2
   <li>Any other Payment to a closed Mortgage is refused too: its Closure was worked out with that Payment in place, so changing what was paid means Reopening first.</li>
 </ol>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>_write_void()</code>, <code>_record_void_history()</code> · lines 233–251</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>233  def _write_void(conn: Connection, payment_id: int, reason: str, now: datetime) -&gt; None:
-234      conn.execute(
-235          update(payment_table)
-236          .where(payment_table.c.id == payment_id)
-237          .values(voided_at=now, void_reason=reason)                    ① the only UPDATE on a Payment
-238      )
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>write_void()</code>, <code>record_void_history()</code> · lines 127–145</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>127  def write_void(conn: Connection, payment_id: int, reason: str, now: datetime) -&gt; None:
+128      conn.execute(
+129          update(payment_table)
+130          .where(payment_table.c.id == payment_id)
+131          .values(voided_at=now, void_reason=reason)                    ① the only UPDATE on a Payment
+132      )
 239
 240
-241  def _record_void_history(
-242      conn: Connection, payment_id: int, reason: str, now: datetime
-243  ) -&gt; None:
-244      audit.record(
-245          conn,
-246          now,
-247          "payment",
-248          payment_id,
-249          "voided",
-250          [audit.Change("void_reason", None, reason)],                  ②
-251      )
+135  def record_void_history(
+136      conn: Connection, payment_id: int, reason: str, now: datetime
+137  ) -&gt; None:
+138      audit.record(
+139          conn,
+140          now,
+141          "payment",
+142          payment_id,
+143          "voided",
+144          [audit.Change("void_reason", None, reason)],                  ②
+145      )
 </code></pre>
 </figure>
 <ol class="marks">
   <li>Search the backend for <code>update(payment_table)</code>: this is the only one. There's no <code>delete(payment_table)</code> anywhere, and nothing updates or deletes an <code>allocation</code> row.</li>
   <li>The reason is recorded as a change of <code>void_reason</code> from nothing to the reason, not as a <code>note</code> (chapter 006, lesson 3).</li>
 </ol>
-<p>After a Void, a replay simply doesn't see the Payment: <code>replays()</code> loads only non-Voided Allocations (chapter 005, lesson 1). That's why <code>load_payment</code> skips the replay for a Voided Payment (lines 137–140, lesson 1) and shows <code>interest_paid</code> and <code>principal_paid</code> as <code>null</code>: it's in no Ledger, so it paid nothing.</p>
+<p>After a Void, a replay simply doesn't see the Payment: <code>replays()</code> loads only non-Voided Allocations (chapter 005, lesson 1). That's why <code>load_payment</code> skips the replay for a Voided Payment (lines 149–153, lesson 1) and shows <code>interest_paid</code> and <code>principal_paid</code> as <code>null</code>: it's in no Ledger, so it paid nothing.</p>
 
 <h2>Run-through: the ₹16,000 that should have been ₹6,000</h2>
 <p>The sample book already holds this correction, made the way the Lender would. Look at it on your served book:</p>
@@ -179,7 +179,7 @@ curl -s -w ' %{http_code}
 </div>
 
 <h3>(c) <code>check_replays</code> can't refuse a Void today</h3>
-<p>A Void only takes a Payment away, so what's owed afterwards can only go up. Chapter 006, lesson 2 shows that deleting line 364 fails no test. It stays so the Void follows the same four steps as every change.</p>
+<p>A Void only takes a Payment away, so what's owed afterwards can only go up. Chapter 006, lesson 2 shows that deleting line 247 fails no test. It stays so the Void follows the same four steps as every change.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="2">

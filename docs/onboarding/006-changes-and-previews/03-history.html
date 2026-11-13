@@ -93,7 +93,7 @@ flowchart LR
   <li><code>_text</code> (lines 47–52) turns a date into <code>2026-10-25</code>, anything else into <code>str(value)</code>, and keeps <code>None</code>. Values are compared as text, so ₹80,000 is stored as <code>8000000</code>: paise, as the code holds it.</li>
   <li><code>dict.fromkeys(fields)</code> is a dict with every field set to <code>None</code>. So "created" is just "changed from nothing", and a field created empty gives no row at all.</li>
 </ol>
-<p>The caller chooses the fields. <code>edit_mortgage</code> passes <code>_AUDITED_EDITS</code> (changes.py lines 164–173: name, start date, Principal, description, weights, purity, Lent Through) and <code>create_mortgage</code> passes <code>_AUDITED_ON_CREATE</code> (lines 473–486: those, plus the Customer and the three Terms). Fields not on the list, like <code>status</code> or the Closure columns, are recorded by their own actions instead.</p>
+<p>The caller chooses the fields. <code>edit_mortgage</code> passes <code>_AUDITED_EDITS</code> (changes.py lines 54–66: name, start date, Principal, description, weights, purity, Lent Through) and <code>create_mortgage</code> passes <code>_AUDITED_ON_CREATE</code> (lines 190–203: those, plus the Customer and the three Terms). Fields not on the list, like <code>status</code> or the Closure columns, are recorded by their own actions instead.</p>
 
 <h3>3. Writing it</h3>
 <figure class="snippet">
@@ -218,7 +218,7 @@ flowchart LR
 <p>The Void's entry comes first because <code>reopen</code> calls <code>void_payment</code> (lesson 2) before its own <code>audit.record</code>. The old <code>redeemed</code> entry stays, below them.</p>
 
 <h3>(d) Nothing changed, nothing recorded; refused, nothing recorded</h3>
-<p>Save the chain's Edit form without changing anything and the History stays at the same number of rows: <code>changed</code> is empty, and line 469 of <code>edit_mortgage</code> skips <code>record</code>. A refused change records nothing either, as lesson 2's ₹1,000 edit showed (271 rows before and after). That second rule is pinned by <code>test_a_refused_change_records_no_history</code> in <code>tests/test_changes.py</code>.</p>
+<p>Save the chain's Edit form without changing anything and the History stays at the same number of rows: <code>changed</code> is empty, and line 186 of <code>edit_mortgage</code> skips <code>record</code>. A refused change records nothing either, as lesson 2's ₹1,000 edit showed (271 rows before and after). That second rule is pinned by <code>test_a_refused_change_records_no_history</code> in <code>tests/test_changes.py</code>.</p>
 <p class="aside">History is mostly tested inside the tests of each change: <code>test_an_edit_is_written_and_recorded</code>, <code>test_term_changes_are_in_the_history</code>, <code>test_closing_and_reopening_are_in_the_history</code> and others assert the entries a change leaves. <code>tests/test_audit.py</code> itself is tiny: three tests of <code>changes()</code>.</p>
 
 <h2>Quiz</h2>
@@ -234,7 +234,7 @@ flowchart LR
   <button class="opt">The new value of the <code>void_reason</code> row</button>
   <button class="opt">The <code>note</code> of the <code>voided</code> row</button>
   <button class="opt">Nowhere: only the <code>payment</code> row has it</button>
-  <div class="why"><code>_record_void_history</code> records <code>Change("void_reason", None, reason)</code> with no note. It's the Reopen that puts its reason in <code>note</code>.</div>
+  <div class="why"><code>record_void_history</code> records <code>Change("void_reason", None, reason)</code> with no note. It's the Reopen that puts its reason in <code>note</code>.</div>
 </div>
 <div class="quiz" data-answer="1">
   <p class="q">Why is the Voided ₹16,000 Payment in the bangles' History?</p>
@@ -246,7 +246,7 @@ flowchart LR
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read all of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/safekeeping/audit.py"><code>safekeeping/audit.py</code></a>: it's 179 lines. Then read <code>test_a_mortgages_history_shows_every_change_newest_first</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_corrections.py"><code>tests/test_corrections.py</code></a> (line 255). How the page shows History (<code>History.tsx</code>) is <a href="../012-frontend-pages-and-the-pwa/04-the-mortgage-and-customer-pages.html">chapter 012, lesson 4</a>'s.</p>
+<p>Read all of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/safekeeping/audit.py"><code>safekeeping/audit.py</code></a>: it's 179 lines. Then read <code>test_a_mortgages_history_shows_every_change_newest_first</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_corrections.py"><code>tests/test_corrections.py</code></a> (line 281). How the page shows History (<code>History.tsx</code>) is <a href="../012-frontend-pages-and-the-pwa/04-the-mortgage-and-customer-pages.html">chapter 012, lesson 4</a>'s.</p>
 
 <nav class="lessons">
   <a href="02-the-check.html">← The check</a>

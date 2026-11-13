@@ -131,29 +131,29 @@ flowchart LR
 
 <h3>4. A value set by hand: <code>set_collateral</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/collateral/manual_value.py">collateral/manual_value.py</a> · <code>set_collateral()</code> · lines 518–539</figcaption>
-<pre data-file="backend/src/mortgage_backend/collateral/manual_value.py"><code>518  def set_collateral(
-519      conn: Connection, mortgage_id: int, value: int | None, today: date, now: datetime
-520  ) -&gt; None:
-521      """Set the Collateral Value by hand, or clear it (None) to value the jewellery at
-522      the Gold Rate again; only while the jewellery is held (Active)."""
-523      before = mortgage_row(conn, mortgage_id)            # 404 if missing
-524      _refuse_unless_active(before)                       # 409 if closed  ◀
-525      if value is not None and value &lt;= 0:
-526          raise unprocessable("A Collateral Value must be more than ₹0")
-527      conn.execute(
-528          update(mortgage_table)
-529          .where(mortgage_table.c.id == mortgage_id)
-530          .values(
-531              collateral_override=value,
-532              collateral_override_on=None if value is None else today,
-533          )
-534      )
-535      changed = audit.changes(
-536          before, {"collateral_override": value}, ["collateral_override"]
-537      )
-538      if changed:
-539          audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/collateral/manual_value.py">collateral/manual_value.py</a> · <code>set_collateral()</code> · lines 26–47</figcaption>
+<pre data-file="backend/src/mortgage_backend/collateral/manual_value.py"><code>26   def set_collateral(
+27      conn: Connection, mortgage_id: int, value: int | None, today: date, now: datetime
+28   ) -&gt; None:
+29      """Set the Collateral Value by hand, or clear it (None) to value the jewellery at
+30      the Gold Rate again; only while the jewellery is held (Active)."""
+31      before = mortgage_row(conn, mortgage_id)
+32      refuse_unless_active(before)  ◀
+33      if value is not None and value &lt;= 0:
+34          raise unprocessable("A Collateral Value must be more than ₹0")
+35      conn.execute(
+36          update(mortgage_table)
+37          .where(mortgage_table.c.id == mortgage_id)
+38          .values(
+39              collateral_override=value,
+40              collateral_override_on=None if value is None else today,
+41          )
+42      )
+43      changed = audit.changes(
+44          before, {"collateral_override": value}, ["collateral_override"]
+45      )
+46      if changed:
+47          audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
 </code></pre>
 </figure>
 <p>It lives in <code>collateral/manual_value.py</code>; it changes a <code>mortgage</code> row, with the same refuse → write → History shape (chapter 006). It has no <code>check_replays</code>: a Collateral Value doesn't touch the Ledger. The route <code>PUT /mortgages/{id}/collateral</code> (line 1050) takes <code>{"value": paise}</code> or <code>{"value": null}</code>; its body model <code>CollateralIn</code> (line 1046) already refuses 0, so line 525 is a second guard for other callers. Its Preview, <code>POST /mortgages/{id}/collateral-preview</code>, shows the value before and after and whether the Mortgage would be on the Call List.</p>

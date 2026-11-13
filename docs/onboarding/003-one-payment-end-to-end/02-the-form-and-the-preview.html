@@ -115,39 +115,40 @@ flowchart TD
 
 <h3>4. The backend makes it, reads it, undoes it</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">backend/src/mortgage_backend/lending/previews.py</a> · <code>preview_payment()</code> · lines 340–351</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>340  @router.post("/payments/preview")
-341  def preview_payment(
-342      payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
-343  ) -&gt; PreviewOfChange:
-344      """Every Mortgage the Payment is allocated to, before and after recording it."""
-345      with engine.connect() as conn:
-346          return _preview(
-347              conn,
-348              [allocation.mortgage_id for allocation in payment.allocations],
-349              today,
-350              lambda: record_payment(conn, payment, today, now),  ◀ the real save
-351          )
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">backend/src/mortgage_backend/lending/previews.py</a> · <code>preview_payment()</code> · lines 350–368, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>350  @router.post("/payments/preview")
+351  def preview_payment(
+352      payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
+353  ) -&gt; PreviewOfChange:
+357      with engine.connect() as conn:
+358          rooms = discount_rooms(conn, payment)
+⋮
+363          preview = _preview(
+364              conn,
+365              [allocation.mortgage_id for allocation in payment.allocations],
+366              today,
+367              lambda: record_payment(conn, capped(payment, rooms), today, now),  ◀ the real save
+368          )
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">backend/src/mortgage_backend/lending/previews.py</a> · <code>_preview()</code> · lines 149–164</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>149  def _preview(
-150      conn: Connection,
-151      mortgage_ids: Sequence[int],
-152      today: date,
-153      change: Callable[[], object],
-154  ) -&gt; PreviewOfChange:
-155      """Each Mortgage before and after `change`, which is then undone, and what it
-156      would write in cash."""
-157      try:
-158          before = _snapshot(conn, mortgage_ids, today)   # replay each Mortgage
-159          written = before_change(conn)
-160          change()                                        # write it, every check included
-161          after = _snapshot(conn, mortgage_ids, today)    # replay again
-162          cash = cash_sums(conn, written)
-163      finally:
-164          conn.rollback()  ◀ nothing stays
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/previews.py">backend/src/mortgage_backend/lending/previews.py</a> · <code>_preview()</code> · lines 159–174</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/previews.py"><code>159  def _preview(
+160      conn: Connection,
+161      mortgage_ids: Sequence[int],
+162      today: date,
+163      change: Callable[[], object],
+164  ) -&gt; PreviewOfChange:
+165      """Each Mortgage before and after `change`, which is then undone, and what it
+166      would write in cash."""
+167      try:
+168          before = _snapshot(conn, mortgage_ids, today)
+169          written = before_change(conn)
+170          change()
+171          after = _snapshot(conn, mortgage_ids, today)
+172          cash = cash_sums(conn, written)
+173      finally:
+174          conn.rollback()  ◀ nothing stays
 </code></pre>
 </figure>
 <p><code>try … finally</code> guarantees the rollback even when <code>change()</code> raises. A refusal inside <code>record_payment</code> is an <code>HTTPException</code> (a 422 or 409), so the Preview is refused with exactly the message saving would give.</p>

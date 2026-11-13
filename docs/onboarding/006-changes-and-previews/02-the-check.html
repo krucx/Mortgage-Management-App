@@ -31,10 +31,10 @@
 <figure class="diagram">
 <pre class="mermaid">
 flowchart TD
-  E["PUT /api/mortgages/2<br/>amount_lent: ₹1,000"] --> R1{"early refusals<br/>lines 423–464"}
+  E["PUT /api/mortgages/2<br/>amount_lent: ₹1,000"] --> R1{"early refusals<br/>lines 131–180"}
   R1 -->|"fails"| X1["409 / 422"]
-  R1 -->|"pass"| W["UPDATE mortgage<br/>line 465 (not committed)"]
-  W --> C["check_replays(conn, [mortgage_row(…)])<br/>line 494"]
+  R1 -->|"pass"| W["UPDATE mortgage<br/>line 182 (not committed)"]
+  W --> C["check_replays(conn, [mortgage_row(…)])<br/>line 185"]
   C --> RP["replays(): this row +<br/>stored Payments, Term Changes"]
   RP --> L["ledger(today)<br/>compute_ledger()"]
   L -->|"a Payment &gt; owed"| OP["raise Overpayment"]
@@ -49,18 +49,18 @@ flowchart TD
 <h2>The code</h2>
 <h3>1. <code>check_replays</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">lending/refusals.py</a> · <code>check_replays()</code> · lines 184–194</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>184  def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -&gt; None:
-185      """Replay each Mortgage; refuse if any Payment is now larger than what was owed."""
-186      replayed = replays(conn, rows)                             ①
-187      for row in rows:
-188          try:
-189              replayed[row["id"]].ledger(today)                  ②  ◀
-190          except Overpayment as over:
-191              raise unprocessable(                               ③
-192                  f"{row['name']}: the Payment on {over.on:%d %b %Y} would be more than "
-193                  f"the {format_inr(over.outstanding)} owed then"
-194              ) from None
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">lending/refusals.py</a> · <code>check_replays()</code> · lines 26–36</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>26   def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -&gt; None:
+27      """Replay each Mortgage; refuse if any Payment is now larger than what was owed."""
+28      replayed = replays(conn, rows)                             ①
+29      for row in rows:
+30          try:
+31              replayed[row["id"]].ledger(today)                  ②  ◀
+32          except Overpayment as over:
+33              raise unprocessable(                               ③
+34                  f"{row['name']}: the Payment on {over.on:%d %b %Y} would be more than "
+35                  f"the {format_inr(over.outstanding)} owed then"
+36              ) from None
 </code></pre>
 </figure>
 <ol class="marks">
@@ -94,56 +94,61 @@ flowchart TD
 
 <h3>3. <code>edit_mortgage</code>: refuse what's obvious, then write and check</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_LOCKED_WHEN_CLOSED</code> and <code>edit_mortgage()</code> · lines 166–172 and 440–489, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>166  _LOCKED_WHEN_CLOSED = {
-167      "start_date": "start date",
-168      "amount_lent": "Principal",
-169      "monthly_rate_bps": "Terms",                             ⑤
-170      "interest_mode": "Terms",
-171      "part_month_rule": "Terms",
-172  }
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>_LOCKED_WHEN_CLOSED</code> and <code>edit_mortgage()</code> · lines 47–53 and 127–180, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>47   _LOCKED_WHEN_CLOSED = {
+48      "start_date": "start date",
+49      "amount_lent": "Principal",
+50      "monthly_rate_bps": "Terms",                             ⑤
+51      "interest_mode": "Terms",
+52      "part_month_rule": "Terms",
+53   }
 ⋮
-440  def edit_mortgage(
-441      conn: Connection, mortgage_id: int, edit: MortgageEdit, today: date, now: datetime
-442  ) -&gt; None:
+127  def edit_mortgage(
+128      conn: Connection, mortgage_id: int, edit: MortgageEdit, today: date, now: datetime
+129  ) -&gt; None:
 ⋮
-444      if edit.start_date &gt; today:
-445          raise unprocessable("Start date cannot be in the future")
-446      mortgage = replay(conn, mortgage_id)
-447      before = mortgage.row                                       ①
-448      after = edit.model_dump(exclude={"terms"})
-449      after.update(edit.terms.model_dump() if edit.terms else { … the stored Terms … })
+131      if edit.start_date &gt; today:
+132          raise unprocessable("Start date cannot be in the future")
+133      mortgage = replay(conn, mortgage_id)
+134      before = mortgage.row                                       ①
+135      after = edit.model_dump(exclude={"terms"})
+136      after.update(
+137          edit.terms.model_dump()
+138          if edit.terms
+139          else {
+⋮    … the stored Terms …
+143      )
 ⋮    … keep lent_through if it was left out …
-455      changed = audit.changes(before, after, _AUDITED_EDITS)
-456      locked = dict.fromkeys(
-457          _LOCKED_WHEN_CLOSED[c.field] for c in changed if c.field in _LOCKED_WHEN_CLOSED
-458      )
-459      if before["status"] != MortgageStatus.ACTIVE and locked:
+146      changed = audit.changes(before, after, _AUDITED_EDITS)
+147      locked = dict.fromkeys(
+148          _LOCKED_WHEN_CLOSED[c.field] for c in changed if c.field in _LOCKED_WHEN_CLOSED
+149      )
+150      if before["status"] != MortgageStatus.ACTIVE and locked:
 ⋮    … 409: "… is redeemed: reopen it to change its start date, Principal and Terms" …
-465      taken = conn.execute(
+156      taken = conn.execute(
 ⋮    … 409: the Mortgage Name is already used …
-476      stranded = [
+167      stranded = [
 ⋮    … 422: a Term Change would no longer be on an Accrual Date …
-486      first_payment = min((a.on for a in mortgage.allocations), default=None)
-487      if first_payment is not None and edit.start_date &gt; first_payment:
-488          raise unprocessable(
-489              f"There is a Payment on {first_payment:%d %b %Y}, before that start date"
+177      first_payment = min((a.on for a in mortgage.allocations), default=None)
+178      if first_payment is not None and edit.start_date &gt; first_payment:
+179          raise unprocessable(
+180              f"There is a Payment on {first_payment:%d %b %Y}, before that start date"
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>edit_mortgage()</code> · lines 491–496</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>491      conn.execute(                                               ② write
-492          update(mortgage_table).where(mortgage_table.c.id == mortgage_id).values(**after)
-493      )
-494      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)   ③ check  ◀
-495      if changed:
-496          audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)   ④ History
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/changes.py">lending/changes.py</a> · <code>edit_mortgage()</code> · lines 182–187</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/changes.py"><code>182      conn.execute(                                               ② write
+183          update(mortgage_table).where(mortgage_table.c.id == mortgage_id).values(**after)
+184      )
+185      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)   ③ check  ◀
+186      if changed:
+187          audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)   ④ History
 </code></pre>
 </figure>
 <ol class="marks">
   <li><code>before</code> is the row as it was <em>before</em> the edit.</li>
   <li>The <code>UPDATE</code> runs inside the route's transaction. Nothing is committed yet, but every later query on the same <code>conn</code> sees the new values.</li>
-  <li>The row is read again with <code>mortgage_row</code>, so the check replays the <em>new</em> Principal, start date and starting Terms. Line 494 is the line the check-yourself exercise deletes.</li>
+  <li>The row is read again with <code>mortgage_row</code>, so the check replays the <em>new</em> Principal, start date and starting Terms. Line 185 is the line the check-yourself exercise deletes.</li>
   <li>History only if a field actually changed (lesson 3).</li>
   <li>Every field that moves the Ledger is locked on a closed Mortgage. The starting Terms joined the list after architecture review pass 7 (#273): before, a Redeemed Mortgage with a corrected, higher rate ended up still owing money. The Edit page shows the same fields as locked, and falls back to the saved values if the Mortgage closes while it is being edited.</li>
 </ol>
@@ -164,13 +169,13 @@ curl -s -w ' %{http_code}
 <p>Here's what happened inside the <code>PUT</code>:</p>
 <table class="steps text">
 <tr><th>Step</th><th>Line</th><th>What happened</th></tr>
-<tr><td>Refuse?</td><td>423–464</td><td>Start date not in the future; the chain is Active; the name is its own; no Term Changes; first Payment (10 Dec 2025) not before 10 Nov. All pass</td></tr>
-<tr><td>Write</td><td>465</td><td><code>amount_lent</code> = 1,00,000 paise, uncommitted</td></tr>
-<tr><td>Check</td><td>494</td><td>Replay from the new row: started ₹1,000 on 10 Nov</td></tr>
+<tr><td>Refuse?</td><td>131–180</td><td>Start date not in the future; the chain is Active; the name is its own; no Term Changes; first Payment (10 Dec 2025) not before 10 Nov. All pass</td></tr>
+<tr><td>Write</td><td>182</td><td><code>amount_lent</code> = 1,00,000 paise, uncommitted</td></tr>
+<tr><td>Check</td><td>185</td><td>Replay from the new row: started ₹1,000 on 10 Nov</td></tr>
 <tr><td></td><td></td><td>10 Dec, <code>interest</code>: 2% of ₹1,000 = ₹20 (unpaid ₹20)</td></tr>
 <tr><td></td><td></td><td>10 Dec, <code>interest_to_date</code>: 1 day of the new month, ₹1 (unpaid ₹21)</td></tr>
 <tr class="changed"><td></td><td>ledger.py 256</td><td>10 Dec Payment ₹1,600 &gt; ₹1,021 owed: <code>Overpayment</code></td></tr>
-<tr><td>Refused</td><td>191</td><td>422 with the message above. The route's transaction rolls back</td></tr>
+<tr><td>Refused</td><td>33</td><td>422 with the message above. The route's transaction rolls back</td></tr>
 <tr><td>After</td><td></td><td>The chain is still lent ₹80,000. History: 271 rows before, 271 after</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L2): the requests through the real API, and the ₹1,000 Ledger from <code>MortgageReplay</code> with the chain's real row at ₹1,000 and no Payments, at commit d6a92ab.</p>
@@ -190,37 +195,37 @@ curl -s -w ' %{http_code}
 
 <h3>(b) Why read the row again?</h3>
 <div class="reveal">
-  <p><strong>Predict:</strong> suppose line 494 passed <code>[before]</code> instead of <code>[mortgage_row(conn, mortgage_id)]</code>. What would the ₹1,000 edit do?</p>
+  <p><strong>Predict:</strong> suppose line 185 passed <code>[before]</code> instead of <code>[mortgage_row(conn, mortgage_id)]</code>. What would the ₹1,000 edit do?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p><strong>It would save.</strong> <code>replays()</code> takes the Principal and start date from the row it's handed, and only queries the Payments and Term Changes. <code>before</code> still says ₹80,000, so the replay would check the old Mortgage and pass. That's why <code>edit_mortgage</code> reads the row back after writing it. <code>add_term_change</code> can pass its old <code>row</code> (line 405), because a Term Change doesn't change the <code>mortgage</code> row: the new <code>term_change</code> row is queried fresh.</p>
+    <p><strong>It would save.</strong> <code>replays()</code> takes the Principal and start date from the row it's handed, and only queries the Payments and Term Changes. <code>before</code> still says ₹80,000, so the replay would check the old Mortgage and pass. That's why <code>edit_mortgage</code> reads the row back after writing it. <code>add_term_change</code> can pass its old <code>row</code> (line 113), because a Term Change doesn't change the <code>mortgage</code> row: the new <code>term_change</code> row is queried fresh.</p>
   </div>
 </div>
 
 <h3>(c) Checks that can't fail today</h3>
 <p>Three changes call <code>check_replays</code> although nothing they do can make a Payment too large:</p>
 <ul>
-  <li><strong><code>void_payment</code></strong> (line 364). A Void only takes a Payment away, so what's owed afterwards can only go up. A Void Preview of Meera's 10 Sep Payment (Payment 23, ₹2,000 to the chain and ₹10,000 to the bangles) shows the chain going from ₹83,333 to ₹85,333 owed today, and the bangles from ₹1,51,500 to ₹1,61,500. No later Payment becomes too large.</li>
-  <li><strong><code>add_term_change</code></strong> (line 405) and <strong><code>remove_term_change</code></strong> (line 891). A Term Change starts today or later, and only a coming one can be removed, so neither reaches the months that past Payments paid.</li>
+  <li><strong><code>void_payment</code></strong> (line 247). A Void only takes a Payment away, so what's owed afterwards can only go up. A Void Preview of Meera's 10 Sep Payment (Payment 23, ₹2,000 to the chain and ₹10,000 to the bangles) shows the chain going from ₹83,333 to ₹85,333 owed today, and the bangles from ₹1,51,500 to ₹1,61,500. No later Payment becomes too large.</li>
+  <li><strong><code>add_term_change</code></strong> (line 113) and <strong><code>remove_term_change</code></strong> (line 255). A Term Change starts today or later, and only a coming one can be removed, so neither reaches the months that past Payments paid.</li>
 </ul>
 <p>Delete any of those three lines and all 607 tests still pass (checked at commit d6a92ab). They stay so every change follows the same pattern, and so a future rule that <em>could</em> trip them is caught without anyone having to remember to add the check.</p>
 <p class="cite">The Void Preview figures from <code>scripts/run_throughs.py</code> (section L2).</p>
 <p>Three changes don't call it at all: <code>create_mortgage</code> (a new Mortgage has no Payments), <code>set_collateral</code> and the photo changes (they don't touch anything a Ledger is replayed from).</p>
 
 <h3>(d) Several Mortgages: which one was refused?</h3>
-<p>A Payment can be allocated to several Mortgages, and the bulk Closures take several at once. When one of them is refused, the Lender needs to know which. <code>_refusal_names_mortgage</code> is wrapped around each one:</p>
+<p>A Payment can be allocated to several Mortgages, and the bulk Closures take several at once. When one of them is refused, the Lender needs to know which. <code>refusal_names_mortgage</code> is wrapped around each one:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">lending/refusals.py</a> · <code>_refusal_names_mortgage()</code> · lines 828–837</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>828  @contextmanager
-829  def _refusal_names_mortgage(conn: Connection, mortgage_id: int) -&gt; Iterator[None]:
-830      """A refusal of one of several Mortgages says which, unless it already does."""
-831      try:
-832          yield                                                    ①
-833      except HTTPException as refused:
-834          name = mortgage_row(conn, mortgage_id)["name"]
-835          if name not in str(refused.detail):                      ②  ◀
-836              refused.detail = f"{name}: {refused.detail}"
-837          raise
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/refusals.py">lending/refusals.py</a> · <code>refusal_names_mortgage()</code> · lines 39–48</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/refusals.py"><code>39   @contextmanager
+40  def refusal_names_mortgage(conn: Connection, mortgage_id: int) -&gt; Iterator[None]:
+41      """A refusal of one of several Mortgages says which, unless it already does."""
+42      try:
+43          yield                                                    ①
+44      except HTTPException as refused:
+45          name = mortgage_row(conn, mortgage_id)["name"]
+46          if name not in str(refused.detail):                      ②  ◀
+47              refused.detail = f"{name}: {refused.detail}"
+48          raise
 </code></pre>
 </figure>
 <ol class="marks">
@@ -239,52 +244,52 @@ curl -s -w ' %{http_code}
 <h3>(e) A change that calls another change: <code>reopen</code></h3>
 <p>Reopening a Redeemed Mortgage has to Void its Final Payment. Rather than copy the Void, <code>reopen</code> calls <code>void_payment</code>:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>reopen()</code> · lines 840–868, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>840  def reopen(
-841      conn: Connection, mortgage_id: int, reason: str, today: date, now: datetime
-842  ) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/closing.py">lending/closing.py</a> · <code>reopen()</code> · lines 376–404, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/lending/closing.py"><code>376  def reopen(
+377      conn: Connection, mortgage_id: int, reason: str, today: date, now: datetime
+378  ) -&gt; None:
 ⋮
-845      row = mortgage_row(conn, mortgage_id)
-846      if row["status"] == MortgageStatus.ACTIVE:
-847          raise HTTPException(status.HTTP_409_CONFLICT, f"{row['name']} is Active")
-848      _set_closure(                                                ① Active again
-849          conn,
-850          mortgage_id,
-851          status=MortgageStatus.ACTIVE,
+381      row = mortgage_row(conn, mortgage_id)
+382      if row["status"] == MortgageStatus.ACTIVE:
+383          raise HTTPException(status.HTTP_409_CONFLICT, f"{row['name']} is Active")
+384      _set_closure(                                                ① Active again
+385          conn,
+386          mortgage_id,
+387          status=MortgageStatus.ACTIVE,
 ⋮    … clear closed_on, redemption_payment_id, recovered_amount, closure_note …
-856      )
-857      if row["redemption_payment_id"] is not None:
-858          void_payment(conn, row["redemption_payment_id"], reason, today, now)   ②  ◀
-859      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
-860      audit.record(
+392      )
+393      if row["redemption_payment_id"] is not None:
+394          void_payment(conn, row["redemption_payment_id"], reason, today, now)   ②  ◀
+395      check_replays(conn, [mortgage_row(conn, mortgage_id)], today)
+396      audit.record(
 ⋮    … "reopened", status old → active, note=reason (lesson 3) …
-868      )
+404      )
 </code></pre>
 </figure>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>void_payment()</code> · lines 340–365, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>340  def void_payment(
-341      conn: Connection, payment_id: int, reason: str, today: date, now: datetime
-342  ) -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/writes.py">payments/writes.py</a> · <code>void_payment()</code> · lines 223–248, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/writes.py"><code>223  def void_payment(
+224      conn: Connection, payment_id: int, reason: str, today: date, now: datetime
+225  ) -&gt; None:
 ⋮
-345      # Read straight from the table: loading the Payment would replay its Mortgages,   ③
-346      # which Reopening has just made Active with its final Payment still in place.
-347      found = conn.execute(
-348          select(payment_table.c.voided_at).where(payment_table.c.id == payment_id)
-349      ).one_or_none()
+228      # Read straight from the table: loading the Payment would replay its Mortgages,   ③
+229      # which Reopening has just made Active with its final Payment still in place.
+230      found = conn.execute(
+231          select(payment_table.c.voided_at).where(payment_table.c.id == payment_id)
+232      ).one_or_none()
 ⋮    … 404 if missing; 409 "Already voided" …
-354      rows = mortgages_of(conn, payment_id)
-355      for row in rows:
-356          if row["redemption_payment_id"] == payment_id:            ④
-357              raise HTTPException(
-358                  status.HTTP_409_CONFLICT,
-359                  f"This is the final Payment of the closing of {row['name']}: "
-360                  "reopen the Mortgage instead, which voids it",
-361              )
-362          _refuse_unless_active(row)
-363      _write_void(conn, payment_id, reason, now)
-364      check_replays(conn, rows, today)
-365      _record_void_history(conn, payment_id, reason, now)
+237      rows = mortgages_of(conn, payment_id)
+238      for row in rows:
+239          if row["redemption_payment_id"] == payment_id:            ④
+240              raise HTTPException(
+241                  status.HTTP_409_CONFLICT,
+242                  f"This is the final Payment of the closing of {row['name']}: "
+243                  "reopen the Mortgage instead, which voids it",
+244              )
+245          refuse_unless_active(row)
+246      write_void(conn, payment_id, reason, now)
+247      check_replays(conn, rows, today)
+248      record_void_history(conn, payment_id, reason, now)
 </code></pre>
 </figure>
 <ol class="marks">
@@ -295,7 +300,7 @@ curl -s -w ' %{http_code}
 </ol>
 <p>On the served book, <code>POST /api/payments/26/void</code> (the coin's Final Payment) is refused: "409 This is the final Payment of the closing of 2026-Kavita-GoldCoin: reopen the Mortgage instead, which voids it". <code>POST /api/mortgages/3/reopen-preview</code> shows the Reopen doing it instead: the coin goes from Redeemed owing ₹0 to Active owing ₹55,067, with Payment 26 and the 5 Oct Interest to Date gone from its Ledger (from <code>scripts/run_throughs.py</code>, section L2).</p>
 
-<div class="callout warn"><strong>Trap #3, from the check's side.</strong> A Payment of exactly a Mortgage's Outstanding Redeems it in the same request (chapter 005 owns <a href="../reference/traps.html#t3">this trap</a>). In <code>record_payment</code>, line 303 checks only the <em>ordinary</em> part of the Payment. Each redeeming part is written by <code>_close_with_payment</code> and checked there, at line 638, after the Closure is set, because its Interest to Date is only owed once the Mortgage closes.</div>
+<div class="callout warn"><strong>Trap #3, from the check's side.</strong> A Payment of exactly a Mortgage's Outstanding Redeems it in the same request (chapter 005 owns <a href="../reference/traps.html#t3">this trap</a>). In <code>record_payment</code>, line 54 checks only the <em>ordinary</em> part of the Payment. Each redeeming part is written by <code>_close_with_payment</code> and checked there, at line 638, after the Closure is set, because its Interest to Date is only owed once the Mortgage closes.</div>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="1">
@@ -322,7 +327,7 @@ curl -s -w ' %{http_code}
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_changes.py"><code>tests/test_changes.py</code></a>, read <code>test_an_edit_that_would_make_a_payment_too_large_is_refused</code> (line 202). It builds a ₹1,00,000 Mortgage with a ₹1,06,000 Payment, then lowers the Principal to ₹50,000. Work out the ₹54,500 in its message by hand, then read <code>check_replays</code> again.</p>
+<p>In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_changes.py"><code>tests/test_changes.py</code></a>, read <code>test_an_edit_that_would_make_a_payment_too_large_is_refused</code> (line 206). It builds a ₹1,00,000 Mortgage with a ₹1,06,000 Payment, then lowers the Principal to ₹50,000. Work out the ₹54,500 in its message by hand, then read <code>check_replays</code> again.</p>
 
 <nav class="lessons">
   <a href="01-one-door-for-every-change.html">← One door for every change</a>

@@ -110,7 +110,7 @@ sequenceDiagram
 </figure>
 <ol class="marks">
   <li>Every refusal is in <code>_checked</code>. Nothing has been written when it raises.</li>
-  <li>A Customer has no Ledger, so there's no <code>check_replays</code> step after the write, unlike <code>lending/changes.py</code>.</li>
+  <li>A Customer has no Ledger, so there's no <code>check_replays</code> step after the write, unlike the Mortgage changes in <code>lending/changes.py</code>.</li>
   <li><code>audit.created</code> and <code>audit.changes</code> (chapter 006, lesson 3) turn the before and after into one row per field that differs. An edit that changes nothing records nothing.</li>
 </ol>
 

@@ -37,27 +37,29 @@ flowchart LR
 <h2>The code</h2>
 <h3>1. <code>load_payment</code>: the facts, then the replay</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/payments.py">backend/src/mortgage_backend/payments/payments.py</a> · <code>load_payment()</code> · lines 127–152, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/payments/payments.py"><code>127  def load_payment(conn: Connection, payment_id: int) -&gt; Payment:
-128      payment = conn.execute(                    # the payment row, with the Customer's name
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/payments.py">backend/src/mortgage_backend/payments/payments.py</a> · <code>load_payment()</code> · lines 140–171, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/payments/payments.py"><code>140  def load_payment(conn: Connection, payment_id: int) -&gt; Payment:
+141      payment = conn.execute(
 ⋮
-136      mortgages = mortgages_of(conn, payment_id)  # its Mortgages, each with its Allocation
-137      voided = payment.voided_at is not None
-138      # How it was applied comes from the replay, so it reflects every earlier Payment; a
-139      # Voided Payment is in no Ledger, so only its amounts remain.
-140      replayed = {} if voided else replays(conn, mortgages)   ◀
-141      allocations = []
-142      for mortgage in mortgages:
-143          step = None if voided else replayed[mortgage["id"]].steps_by_payment()[payment_id]
-144          allocations.append(
-145              AllocationOut(
-146                  mortgage_id=mortgage["id"],
-147                  mortgage_name=mortgage["name"],
-148                  amount=mortgage["allocated"],               # stored
-149                  interest_paid=step.interest_paid if step else None,    # replayed
-150                  principal_paid=step.principal_paid if step else None,  # replayed
-151              )
-152          )
+149      mortgages = mortgages_of(conn, payment_id)
+150      voided = payment.voided_at is not None
+151      # How it was applied comes from the replay, so it reflects every earlier Payment; a
+152      # Voided Payment is in no Ledger, so only its amounts remain.
+153      replayed = {} if voided else replays(conn, mortgages)   ◀
+154      allocations = []
+155      for mortgage in mortgages:
+156          step = (
+157              None if voided else replayed[mortgage["id"]].steps_by_payment()[payment_id]
+158          )
+159          allocations.append(
+160              AllocationOut(
+161                  mortgage_id=mortgage["id"],
+162                  mortgage_name=mortgage["name"],
+163                  amount=mortgage["allocated"],
+166                  interest_paid=step.interest_paid if step else None,
+167                  principal_paid=step.principal_paid if step else None,
+170              )
+171          )
 </code></pre>
 </figure>
 <p>Lines 148–150 are the whole lesson in three lines: the amount is a stored fact; the interest and Principal it paid are replayed.</p>
