@@ -9,6 +9,7 @@ Every release of Mortgage Management, newest first. The format follows
 
 ### Added
 
+- A `version-bump` pull request check fails changes to `VERSION` outside the release candidate workflow.
 - **QA stack script:** `scripts/qa-stack.sh up|down` runs the code in this folder in Docker
   on scratch data only, under its own project, image and port, so QA can't touch the
   Lender's database.
