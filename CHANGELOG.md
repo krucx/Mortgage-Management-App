@@ -7,6 +7,13 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- **Crafted uploads are refused, not crashed on:** a decompression-bomb image as a
+  Customer or Mortgage photo now answers "Not an image file" instead of an error, and
+  a filled-in Call Sheet is read with XML-bomb protection, so a crafted file is refused
+  with the usual "not an Excel sheet" message.
+
 ## [3.4.9] - 2026-11-10
 
 ### Added
