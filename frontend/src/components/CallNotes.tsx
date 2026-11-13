@@ -69,7 +69,13 @@ export function MarkCalled({
 }
 
 /** A Mortgage's Call Notes, newest first, with a form to add one. */
-export function CallNotes({ mortgageId, mortgageName }: { mortgageId: number; mortgageName: string }) {
+export function CallNotes({
+  mortgageId,
+  mortgageName,
+}: {
+  mortgageId: number
+  mortgageName: string
+}) {
   const { client } = useServerState()
   const { data: notes, error } = useQuery(callNotesQuery(client, mortgageId))
 
@@ -87,11 +93,7 @@ export function CallNotes({ mortgageId, mortgageName }: { mortgageId: number; mo
           ))}
         </ul>
       )}
-      <MarkCalled
-        mortgageId={mortgageId}
-        mortgageName={mortgageName}
-        onSaved={() => {}}
-      />
+      <MarkCalled mortgageId={mortgageId} mortgageName={mortgageName} onSaved={() => {}} />
     </div>
   )
 }

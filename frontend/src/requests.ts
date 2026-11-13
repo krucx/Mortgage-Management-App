@@ -184,7 +184,9 @@ export const previews = {
 /** Each change that can alter what Mortgages owe; save them through useLedgerChange. */
 export const changes = {
   edit: (client: ApiClient, id: number, edit: MortgageEdit) =>
-    dataOrThrow(client.PUT('/api/mortgages/{mortgage_id}', { params: mortgagePath(id), body: edit })),
+    dataOrThrow(
+      client.PUT('/api/mortgages/{mortgage_id}', { params: mortgagePath(id), body: edit }),
+    ),
   addTermChange: (client: ApiClient, id: number, change: TermChangeIn) =>
     dataOrThrow(
       client.POST('/api/mortgages/{mortgage_id}/term-changes', {
@@ -289,12 +291,7 @@ export const lists = {
           }),
         ),
     }) satisfies ListRequest<MortgageSort, unknown>,
-  payments: (filters: {
-    query: string
-    month?: string
-    year?: string
-    includeVoided: boolean
-  }) =>
+  payments: (filters: { query: string; month?: string; year?: string; includeVoided: boolean }) =>
     ({
       key: ['payments', filters],
       load: (client, page, sort) =>
@@ -317,13 +314,17 @@ export const lists = {
     ({
       key: ['reminders', { status }],
       load: (client, page, sort) =>
-        dataOrThrow(client.GET('/api/reminders', { params: { query: { page, status, ...sortQuery(sort) } } })),
+        dataOrThrow(
+          client.GET('/api/reminders', { params: { query: { page, status, ...sortQuery(sort) } } }),
+        ),
     }) satisfies ListRequest<ReminderSort, unknown>,
   callList: () =>
     ({
       key: ['call-list'],
       load: (client, page, sort) =>
-        dataOrThrow(client.GET('/api/call-list', { params: { query: { page, ...sortQuery(sort) } } })),
+        dataOrThrow(
+          client.GET('/api/call-list', { params: { query: { page, ...sortQuery(sort) } } }),
+        ),
     }) satisfies ListRequest<CallListSort, unknown>,
   dormant: () =>
     ({
@@ -367,10 +368,8 @@ export const settings = {
     dataOrThrow(client.PUT('/api/settings/default-terms', { body: terms })),
   goldRates: (client: ApiClient) =>
     settingsQuery('gold-rates', () => dataOrThrow(client.GET('/api/settings/gold-rates'))),
-  saveGoldRates: (
-    client: ApiClient,
-    rates: { purity_karat: Purity; rate_per_gram: number }[],
-  ) => dataOrThrow(client.PUT('/api/settings/gold-rates', { body: rates })),
+  saveGoldRates: (client: ApiClient, rates: { purity_karat: Purity; rate_per_gram: number }[]) =>
+    dataOrThrow(client.PUT('/api/settings/gold-rates', { body: rates })),
   callList: (client: ApiClient) =>
     settingsQuery('call-list', () => dataOrThrow(client.GET('/api/settings/call-list'))),
   saveCallList: (client: ApiClient, thresholds: CallListSettings) =>
@@ -392,9 +391,7 @@ export const settings = {
   gracePeriod: (client: ApiClient) =>
     settingsQuery('grace-period', () => dataOrThrow(client.GET('/api/settings/grace-period'))),
   saveGracePeriod: (client: ApiClient, days: number | null) =>
-    dataOrThrow(
-      client.PUT('/api/settings/grace-period', { body: { grace_period_days: days } }),
-    ),
+    dataOrThrow(client.PUT('/api/settings/grace-period', { body: { grace_period_days: days } })),
   messages: (client: ApiClient) =>
     settingsQuery('messages', () => dataOrThrow(client.GET('/api/settings/messages'))),
   saveMessages: (client: ApiClient, messages: MessageSettings) =>
@@ -532,7 +529,9 @@ export function referrerQuery(client: ApiClient, id: number) {
   return queryOptions({
     queryKey: keys.referrer(id),
     queryFn: () =>
-      dataOrThrow(client.GET('/api/referrers/{referrer_id}', { params: { path: { referrer_id: id } } })),
+      dataOrThrow(
+        client.GET('/api/referrers/{referrer_id}', { params: { path: { referrer_id: id } } }),
+      ),
   })
 }
 
@@ -606,7 +605,8 @@ export const customerChanges = {
  *  Call Notes written in (previewed first; all of them or none). */
 export const callSheet = {
   exportUrl: (kind: 'xlsx' | 'pdf') => `/api/call-list/export.${kind}`,
-  previewImport: (client: ApiClient, sheet: File) => importSheet(client, sheet, '/api/call-list/import-preview'),
+  previewImport: (client: ApiClient, sheet: File) =>
+    importSheet(client, sheet, '/api/call-list/import-preview'),
   import: (client: ApiClient, sheet: File) => importSheet(client, sheet, '/api/call-list/import'),
 }
 
@@ -701,7 +701,8 @@ export const createMortgage = (client: ApiClient, mortgage: MortgageIn) =>
 export function paymentQuery(client: ApiClient, id: number) {
   return queryOptions({
     queryKey: keys.payment(id),
-    queryFn: () => dataOrThrow(client.GET('/api/payments/{payment_id}', { params: paymentPath(id) })),
+    queryFn: () =>
+      dataOrThrow(client.GET('/api/payments/{payment_id}', { params: paymentPath(id) })),
   })
 }
 

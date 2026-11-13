@@ -146,11 +146,7 @@ export function CustomersPage() {
                       <Link className="button secondary small" to={`/customers/${row.id}/edit`}>
                         Edit
                       </Link>
-                      <button
-                        type="button"
-                        className="danger small"
-                        onClick={() => remove(row)}
-                      >
+                      <button type="button" className="danger small" onClick={() => remove(row)}>
                         Delete
                       </button>
                     </div>

@@ -44,7 +44,9 @@ def test_a_photo_over_20_mb_is_refused_on_every_photo_route_and_nothing_is_store
 
     for method, path in routes:
         response = client.request(
-            method, path, files={"photo": ("photo.jpg", photo_of(20 * MB + 1), "image/jpeg")}
+            method,
+            path,
+            files={"photo": ("photo.jpg", photo_of(20 * MB + 1), "image/jpeg")},
         )
 
         assert response.status_code == 413, path

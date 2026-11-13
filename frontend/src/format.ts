@@ -48,7 +48,9 @@ export const formatPercent = (ratio: number, decimals = 1) =>
 export function addMonths(isoDate: string, months: number): string {
   const [year, month, day] = isoDate.split('-').map(Number)
   const first = new Date(Date.UTC(year, month - 1 + months, 1))
-  const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate()
+  const lastDay = new Date(
+    Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0),
+  ).getUTCDate()
   first.setUTCDate(Math.min(day, lastDay))
   return first.toISOString().slice(0, 10)
 }

@@ -26,8 +26,8 @@ export function JewelleryValue({
     <details className="tucked" open={open}>
       <summary>Jewellery value</summary>
       <p className="hint">
-        What the jewellery is worth today, to measure the loan against: its net weight at
-        today's Gold Rate, or a Collateral Value typed in, which counts instead.
+        What the jewellery is worth today, to measure the loan against: its net weight at today's
+        Gold Rate, or a Collateral Value typed in, which counts instead.
       </p>
       <div className="grid-3">
         <label>

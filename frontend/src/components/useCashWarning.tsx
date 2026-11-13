@@ -31,8 +31,8 @@ export function useCashWarning(): [(cash: number[]) => Promise<boolean>, ReactNo
       title: `${formatINR(largest)} in cash`,
       body: (
         <p>
-          Government of India rules ask for {formatINR(RULE_FROM)} or more to be lent or received
-          by UPI or bank transfer, not cash.
+          Government of India rules ask for {formatINR(RULE_FROM)} or more to be lent or received by
+          UPI or bank transfer, not cash.
         </p>
       ),
       cancelLabel: 'Go back',

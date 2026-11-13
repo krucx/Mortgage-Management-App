@@ -37,25 +37,14 @@ function Projections({ figures }: { figures: Dashboard }) {
   const horizons = figures.projections
   const [first, last] = [figures.trend_months[0], figures.trend_months.at(-1)]
   const rows: [string, boolean, (h: ProjectionHorizon) => string][] = [
-    [
-      'Interest the Active Mortgages will be charged',
-      true,
-      (h) => formatINR(h.interest_accrued),
-    ],
-    [
-      'Payments received',
-      false,
-      (h) => `about ${formatINR(h.payments_estimate)}`,
-    ],
-    [
-      'Principal lent',
-      false,
-      (h) => `about ${formatINR(h.principal_lent_estimate)}`,
-    ],
+    ['Interest the Active Mortgages will be charged', true, (h) => formatINR(h.interest_accrued)],
+    ['Payments received', false, (h) => `about ${formatINR(h.payments_estimate)}`],
+    ['Principal lent', false, (h) => `about ${formatINR(h.principal_lent_estimate)}`],
     [
       'Mortgages Redeemed',
       false,
-      (h) => `about ${h.redemptions_estimate.toLocaleString('en-IN', { maximumFractionDigits: 1 })}`,
+      (h) =>
+        `about ${h.redemptions_estimate.toLocaleString('en-IN', { maximumFractionDigits: 1 })}`,
     ],
   ]
   return (
@@ -92,8 +81,8 @@ function Projections({ figures }: { figures: Dashboard }) {
         </table>
       </div>
       <p className="hint">
-        Exact: the Active Mortgages as they stand, with no further Payments. Estimates: the
-        monthly average of {monthName(first)} to {monthName(last ?? first)}, carried forward.
+        Exact: the Active Mortgages as they stand, with no further Payments. Estimates: the monthly
+        average of {monthName(first)} to {monthName(last ?? first)}, carried forward.
       </p>
     </>
   )
@@ -106,9 +95,7 @@ export function DashboardPage() {
   const [endDate, setEndDate] = useState<string>()
   const [timeframeMode, setTimeframeMode] = useState<'month' | 'custom'>('month')
   // Figures cached from an earlier visit show at once, dimmed until they are refreshed.
-  const { data: figures, error, isFetching } = useQuery(
-    dashboardQuery(client, startDate, endDate),
-  )
+  const { data: figures, error, isFetching } = useQuery(dashboardQuery(client, startDate, endDate))
 
   if (!figures) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
 
@@ -282,7 +269,8 @@ export function DashboardPage() {
                 ) : (
                   'Nothing to send'
                 )}
-                {figures.reminders_to_approve > 0 && ` · ${figures.reminders_to_approve} to approve`}
+                {figures.reminders_to_approve > 0 &&
+                  ` · ${figures.reminders_to_approve} to approve`}
               </>
             }
           />

@@ -53,7 +53,9 @@ from mortgage_backend.lending.projections import (
 from mortgage_backend.lending.replay import Closure, MortgageStatus, replay
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.payments.cash_limit import before_change, cash_sums
-from mortgage_backend.payments.discount_confirmation import get_discount_confirmation_limit
+from mortgage_backend.payments.discount_confirmation import (
+    get_discount_confirmation_limit,
+)
 from mortgage_backend.payments.discount_room import capped, discount_rooms
 from mortgage_backend.payments.grace_period import GraceOffer
 from mortgage_backend.payments.payments import mortgages_of

@@ -1,0 +1,9 @@
+# Generated from the backend's OpenAPI schema (npm run gen:types)
+openapi.json
+src/api.gen.ts
+
+# Build output and copied files
+dist
+public/ocr
+coverage
+package-lock.json

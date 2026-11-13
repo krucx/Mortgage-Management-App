@@ -12,7 +12,16 @@ from datetime import date, datetime
 import pytest
 from api_seed import lend, person
 from fastapi.testclient import TestClient
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, forfeit, redeem, waive
+from seed import (
+    LAKH,
+    RUPEE,
+    add_customer,
+    add_mortgage,
+    add_payment,
+    forfeit,
+    redeem,
+    waive,
+)
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.follow_up.message_settings import (
@@ -71,8 +80,12 @@ def test_a_reminder_is_queued_days_before_the_accrual_date(conn: Connection) -> 
     assert "2026-Ramesh" not in reminder.message
 
 
-def test_is_eligible_decides_which_mortgages_a_reminder_covers(conn: Connection) -> None:
-    nothing = Terms(monthly_rate_bps=300, interest_mode="simple", part_month_rule="nothing")
+def test_is_eligible_decides_which_mortgages_a_reminder_covers(
+    conn: Connection,
+) -> None:
+    nothing = Terms(
+        monthly_rate_bps=300, interest_mode="simple", part_month_rule="nothing"
+    )
     ramesh = add_customer(conn)
     accruing = add_mortgage(conn, ramesh, suffix="Accruing")
     off_day = add_mortgage(conn, ramesh, suffix="OffDay", start_date=date(2026, 1, 20))
@@ -220,7 +233,9 @@ def app_client(database_url: str, clock: Clock) -> Iterator[TestClient]:
 def test_the_daily_run_queues_reminders_the_lender_sends(app_client, clock) -> None:
     ramesh = person(app_client)
     lend(app_client, ramesh)
-    assert app_client.get("/api/reminders").json()["items"] == []  # 14 May is 3 days away
+    assert (
+        app_client.get("/api/reminders").json()["items"] == []
+    )  # 14 May is 3 days away
 
     clock.today = date(2026, 5, 12)  # the first request today starts the daily run
     [reminder] = app_client.get("/api/reminders").json()["items"]
@@ -255,9 +270,9 @@ def test_an_awaiting_reminder_is_approved_or_skipped(app_client, clock) -> None:
     skipped = app_client.post(f"/api/reminders/{anklet['id']}/skip").json()
 
     assert (approved["status"], skipped["status"]) == ("queued", "skipped")
-    assert [n["id"] for n in app_client.get("/api/reminders?status=queued").json()["items"]] == [
-        ring["id"]
-    ]
+    assert [
+        n["id"] for n in app_client.get("/api/reminders?status=queued").json()["items"]
+    ] == [ring["id"]]
 
 
 def test_a_queued_reminder_shows_what_is_owed_when_it_is_read(conn: Connection) -> None:
@@ -320,7 +335,9 @@ def test_a_reminder_quotes_the_months_interest_and_the_outstanding_on_the_accrua
 def test_a_compounded_reminder_quotes_the_interest_before_capitalising_and_the_outstanding_after(
     conn: Connection, mode: str, start: date, sync_on: date, owed: str
 ) -> None:
-    terms = Terms(monthly_rate_bps=300, interest_mode=mode, part_month_rule="full_month")
+    terms = Terms(
+        monthly_rate_bps=300, interest_mode=mode, part_month_rule="full_month"
+    )
     add_mortgage(
         conn,
         add_customer(conn),
@@ -406,7 +423,9 @@ def test_saving_settings_with_approval_on_keeps_approved_reminders_approved(
 ) -> None:
     def save(**changes: object) -> None:
         now = app_client.get("/api/settings/messages").json()
-        assert app_client.put("/api/settings/messages", json={**now, **changes}).is_success
+        assert app_client.put(
+            "/api/settings/messages", json={**now, **changes}
+        ).is_success
 
     save(reminder_approve_first=True)
     owner = person(app_client, "Suresh Jain", "9829054321")
@@ -433,31 +452,40 @@ def test_the_reminders_page_queues_what_is_due_without_waiting_a_day(
     app_client, clock
 ) -> None:
     clock.today = date(2026, 5, 12)
-    assert app_client.get("/api/reminders").json()["items"] == []  # today's daily run is done
+    assert (
+        app_client.get("/api/reminders").json()["items"] == []
+    )  # today's daily run is done
     owner = person(app_client)
     for start in ("2026-01-14", "2026-01-25"):  # accrue on 14 May and 25 May
         lend(app_client, owner, start)
 
     # Added today: its Reminder shows at once, not tomorrow.
-    assert [n["accrues_on"] for n in app_client.get("/api/reminders").json()["items"]] == [
-        "2026-05-14"
-    ]
+    assert [
+        n["accrues_on"] for n in app_client.get("/api/reminders").json()["items"]
+    ] == ["2026-05-14"]
 
     # Reminders 15 days ahead now reach 25 May as well.
     settings_now = app_client.get("/api/settings/messages").json()
     app_client.put(
         "/api/settings/messages", json={**settings_now, "reminder_days_before": 15}
     )
-    assert [n["accrues_on"] for n in app_client.get("/api/reminders").json()["items"]] == [
+    assert [
+        n["accrues_on"] for n in app_client.get("/api/reminders").json()["items"]
+    ] == [
         "2026-05-14",
         "2026-05-25",
     ]
 
 
-def test_the_dashboard_counts_the_reminders_to_send_and_approve(app_client, clock) -> None:
+def test_the_dashboard_counts_the_reminders_to_send_and_approve(
+    app_client, clock
+) -> None:
     clock.today = date(2026, 5, 12)
     owner = person(app_client)
-    for start in ("2026-01-13", "2026-01-14"):  # one Reminder for 13 May, one for 14 May
+    for start in (
+        "2026-01-13",
+        "2026-01-14",
+    ):  # one Reminder for 13 May, one for 14 May
         lend(app_client, owner, start)
 
     def counts():
@@ -583,8 +611,9 @@ def test_a_template_with_an_unknown_placeholder_is_refused(app_client) -> None:
     assert "{name}" in refused.json()["detail"]
     assert "Reminder" in refused.json()["detail"]
     assert saved.status_code == 200
-    assert app_client.get("/api/settings/messages").json()["reminder_template"] == (
-        now["reminder_template"]
+    assert (
+        app_client.get("/api/settings/messages").json()["reminder_template"]
+        == (now["reminder_template"])
     )
 
 

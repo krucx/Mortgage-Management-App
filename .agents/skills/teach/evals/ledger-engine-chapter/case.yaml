@@ -1,8 +1,0 @@
-schema_version: "1.1"
-name: ledger-engine-chapter
-expected_outcome: |
-  A complete onboarding chapter on the Ledger engine for a new developer who can program
-  but has never seen this codebase: a numbered chapter folder with an overview and several
-  lessons, each opening with the problem, using Mermaid diagrams, line-numbered trimmed code
-  snippets that match the real source, run-throughs on scratch data with figures from the
-  real engine, nuance cases, and quizzes.

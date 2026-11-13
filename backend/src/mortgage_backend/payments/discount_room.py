@@ -27,7 +27,11 @@ def capped(payment: PaymentIn, rooms: dict[int, int]) -> PaymentIn:
         update={
             "allocations": [
                 allocation.model_copy(
-                    update={"discount": min(allocation.discount, rooms[allocation.mortgage_id])}
+                    update={
+                        "discount": min(
+                            allocation.discount, rooms[allocation.mortgage_id]
+                        )
+                    }
                 )
                 for allocation in payment.allocations
             ]

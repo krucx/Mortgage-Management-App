@@ -250,7 +250,9 @@ def test_an_older_version_takes_no_backup_of_a_newer_database_and_does_not_start
     with start(database_url, clock, backup_dir) as client:
         client.app.state.backups.wait()
     # The newer version backed up the database before migrating it.
-    (backup_dir / "mortgage-backup-2026-04-20-1031-before-update.zip").write_bytes(b"PK")
+    (backup_dir / "mortgage-backup-2026-04-20-1031-before-update.zip").write_bytes(
+        b"PK"
+    )
     with sqlite3.connect(database_url.removeprefix("sqlite:///")) as db:
         db.execute("UPDATE alembic_version SET version_num = '9999'")
 

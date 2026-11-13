@@ -90,11 +90,7 @@ export function MortgagePage() {
   }
 
   if (!mortgage) {
-    return loaded.error ? (
-      <p className="status error">{loaded.error.message}</p>
-    ) : (
-      <p>Loading…</p>
-    )
+    return loaded.error ? <p className="status error">{loaded.error.message}</p> : <p>Loading…</p>
   }
   const { outstanding } = mortgage
 
@@ -102,7 +98,8 @@ export function MortgagePage() {
     <section className="card wide">
       <div className="row spread">
         <h2>
-          {mortgage.name} <span className={`badge status-${mortgage.status}`}>{mortgage.status}</span>
+          {mortgage.name}{' '}
+          <span className={`badge status-${mortgage.status}`}>{mortgage.status}</span>
         </h2>
         <div className="row">
           <span>
@@ -144,9 +141,7 @@ export function MortgagePage() {
         <dt>Principal lent</dt>
         <dd>{formatINR(mortgage.amount_lent)}</dd>
         <dt>Lent Through</dt>
-        <dd>
-          {lentThroughName(methods, mortgage.lent_through)}
-        </dd>
+        <dd>{lentThroughName(methods, mortgage.lent_through)}</dd>
         <dt>Jewellery</dt>
         <dd>{mortgage.description}</dd>
         <dt>Weight</dt>
@@ -173,11 +168,7 @@ export function MortgagePage() {
               <a href={photo.url} target="_blank" rel="noreferrer">
                 <Photo url={photo.url} alt={`Photo ${index + 1}`} />
               </a>
-              <button
-                type="button"
-                className="danger small"
-                onClick={() => removePhoto(photo.id)}
-              >
+              <button type="button" className="danger small" onClick={() => removePhoto(photo.id)}>
                 Delete
               </button>
             </div>
@@ -243,8 +234,8 @@ export function MortgagePage() {
           body={
             <>
               <p>
-                It becomes Active again as if it had never been closed: interest is charged for
-                the whole time, up to today.
+                It becomes Active again as if it had never been closed: interest is charged for the
+                whole time, up to today.
                 {mortgage.closure?.payment_id &&
                   ' Its final Payment is voided, so it is no longer counted.'}
               </p>

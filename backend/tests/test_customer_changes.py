@@ -119,25 +119,31 @@ def test_a_customer_cannot_be_their_own_referrer(conn: Connection) -> None:
     themselves = ExistingCustomerReferrer(kind="customer", id=ramesh)
     assert refused_save(conn, customer(referrer=themselves), ramesh) == own
     # A new Referrer with their own number
-    assert refused_save(
-        conn,
-        customer(
-            "Asha Rao",
-            "9000000004",
-            referrer=NewStandaloneReferrer(
-                kind="new", name="Asha", address="", phone="9000000004"
+    assert (
+        refused_save(
+            conn,
+            customer(
+                "Asha Rao",
+                "9000000004",
+                referrer=NewStandaloneReferrer(
+                    kind="new", name="Asha", address="", phone="9000000004"
+                ),
             ),
-        ),
-    ) == own
+        )
+        == own
+    )
     # The Standalone Referrer they are being promoted from
-    assert refused_save(
-        conn,
-        customer(
-            "Mohan Lal",
-            MOHAN.phone,
-            referrer=ExistingStandaloneReferrer(kind="referrer", id=mohan_referrer),
-        ),
-    ) == own
+    assert (
+        refused_save(
+            conn,
+            customer(
+                "Mohan Lal",
+                MOHAN.phone,
+                referrer=ExistingStandaloneReferrer(kind="referrer", id=mohan_referrer),
+            ),
+        )
+        == own
+    )
 
 
 def test_an_edit_is_recorded_field_by_field(conn: Connection) -> None:

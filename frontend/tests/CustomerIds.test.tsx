@@ -58,7 +58,9 @@ test('the form takes an email, the Aadhaar Number, the PAN and ID Photos, and sa
   const sent: { route: string; body?: unknown }[] = []
   form(sent)
 
-  fireEvent.change(await screen.findByLabelText('Email (optional)'), { target: { value: 'suresh@kumar.in' } })
+  fireEvent.change(await screen.findByLabelText('Email (optional)'), {
+    target: { value: 'suresh@kumar.in' },
+  })
   fireEvent.change(screen.getByLabelText('Aadhaar Number: last 4 digits (optional)'), {
     target: { value: '9012' },
   })
@@ -80,10 +82,14 @@ test('the form takes an email, the Aadhaar Number, the PAN and ID Photos, and sa
 
   expect(await screen.findByText('Now at /customers/5')).toBeTruthy()
   expect(sent.map((s) => s.route)).toEqual(['PUT /api/customers/5', 'PUT aadhaar', 'DELETE pan'])
-  expect(sent[0].body).toMatchObject({ email: 'suresh@kumar.in', aadhaar_last4: '9012', pan: 'ABCDE1234F' })
+  expect(sent[0].body).toMatchObject({
+    email: 'suresh@kumar.in',
+    aadhaar_last4: '9012',
+    pan: 'ABCDE1234F',
+  })
 })
 
-test("the Customer page shows them, the Aadhaar Number masked, and the ID Photos to open", async () => {
+test('the Customer page shows them, the Aadhaar Number masked, and the ID Photos to open', async () => {
   showPage(
     fakeServer({
       'GET /api/customers/5': {
@@ -174,7 +180,9 @@ test('a reading that finishes after its photo was removed fills in nothing', asy
 test('a number already typed is never overwritten', async () => {
   reads('Permanent Account Number\nABCPS1234K')
   form([])
-  fireEvent.change(await screen.findByLabelText('PAN (optional)'), { target: { value: 'ZZZZZ9999Z' } })
+  fireEvent.change(await screen.findByLabelText('PAN (optional)'), {
+    target: { value: 'ZZZZZ9999Z' },
+  })
 
   addPhoto('PAN card photo')
   await vi.waitFor(() => expect(readText).toHaveBeenCalled())

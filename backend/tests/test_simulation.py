@@ -276,14 +276,18 @@ def test_a_plan_that_pays_it_off_ends_the_simulation_that_day(client):
     assert simulation["paid_off_on"] == "2026-05-14"
     assert simulation["on_closure"]["on"] == "2026-05-14"
     assert simulation["on_closure"]["total"] == 0
-    assert simulation["interest_earned"] == (3_000 + 3_000 + 2_280 + 1_448 + 592) * RUPEE
+    assert (
+        simulation["interest_earned"] == (3_000 + 3_000 + 2_280 + 1_448 + 592) * RUPEE
+    )
     points = outstanding_by_date(simulation)
     assert list(points)[-1] == "2026-05-14"
     assert points["2026-05-14"] == 0
 
 
 def test_a_plan_paying_it_off_after_closed_on_still_says_when(client):
-    simulation = simulated(client, monthly_payment=30_000 * RUPEE, closed_on="2026-03-01")
+    simulation = simulated(
+        client, monthly_payment=30_000 * RUPEE, closed_on="2026-03-01"
+    )
 
     assert simulation["paid_off_on"] == "2026-05-14"
     assert simulation["on_closure"]["on"] == "2026-03-01"
@@ -401,7 +405,9 @@ def test_a_collateral_value_and_loan_to_value_are_returned_when_given(client):
         json=[{"purity_karat": 22, "rate_per_gram": 6_000 * RUPEE}],
     )
 
-    simulation = simulated(client, collateral={"net_weight_mg": 25_000, "purity_karat": 22})
+    simulation = simulated(
+        client, collateral={"net_weight_mg": 25_000, "purity_karat": 22}
+    )
 
     assert simulation["collateral_value"] == 1_50_000 * RUPEE
     assert simulation["loan_to_value"] == pytest.approx(139_000 / 1_50_000)
@@ -429,7 +435,9 @@ def test_no_collateral_given_returns_neither_value_nor_ratio(client):
 
 
 def test_a_purity_with_no_gold_rate_gives_no_collateral_value(client):
-    simulation = simulated(client, collateral={"net_weight_mg": 25_000, "purity_karat": 18})
+    simulation = simulated(
+        client, collateral={"net_weight_mg": 25_000, "purity_karat": 18}
+    )
 
     assert simulation["collateral_value"] is None
     assert simulation["loan_to_value"] is None

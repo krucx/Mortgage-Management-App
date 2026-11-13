@@ -195,7 +195,7 @@ _AUDITED_EDITS = [
 
 
 def _join(items: list[str]) -> str:
-    """"start date", "Principal" and "Terms" -> "start date, Principal or Terms"."""
+    """ "start date", "Principal" and "Terms" -> "start date, Principal or Terms"."""
     if len(items) == 1:
         return items[0]
     return ", ".join(items[:-1]) + " or " + items[-1]
@@ -523,10 +523,14 @@ def edit_mortgage(
     mortgage = replay(conn, mortgage_id)
     before = mortgage.row
     after = edit.model_dump(exclude={"terms"})
-    after.update(edit.terms.model_dump() if edit.terms else {
-        field: before[field]
-        for field in ("monthly_rate_bps", "interest_mode", "part_month_rule")
-    })
+    after.update(
+        edit.terms.model_dump()
+        if edit.terms
+        else {
+            field: before[field]
+            for field in ("monthly_rate_bps", "interest_mode", "part_month_rule")
+        }
+    )
     if after["lent_through"] is None:  # left out: kept, never cleared
         after["lent_through"] = before["lent_through"]
     changed = audit.changes(before, after, _AUDITED_EDITS)
@@ -642,9 +646,7 @@ def set_collateral(
         audit.record(conn, now, "mortgage", mortgage_id, "edited", changed)
 
 
-def add_photo(
-    conn: Connection, mortgage_id: int, file_name: str, now: datetime
-) -> int:
+def add_photo(conn: Connection, mortgage_id: int, file_name: str, now: datetime) -> int:
     """Keep a photo of the jewellery, already saved as `file_name`; its id."""
     mortgage_row(conn, mortgage_id)  # refused if there is no such Mortgage
     photo_id: int = conn.execute(
@@ -682,7 +684,11 @@ def closable(
     """The Mortgage, if it can be closed on `on` (or, for a quote, could be then)."""
     mortgage = replay(conn, mortgage_id)
     # A closed Mortgage is refused for being closed, whatever the date.
-    if mortgage.row["status"] == MortgageStatus.ACTIVE and on > today and not quote_only:
+    if (
+        mortgage.row["status"] == MortgageStatus.ACTIVE
+        and on > today
+        and not quote_only
+    ):
         raise unprocessable(
             "A Redemption, Waiver or Forfeiture cannot be recorded for a future date"
         )

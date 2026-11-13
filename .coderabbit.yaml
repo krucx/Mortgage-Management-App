@@ -11,6 +11,20 @@ reviews:
     - '!**/package-lock.json'
     - '!skills-lock.json'
     - '!docs/shots/**'
+  # Judgement rules live in CODING_STANDARDS.md; each path points reviewers at it.
+  path_instructions:
+    - path: 'backend/**'
+      instructions: >-
+        Review against CODING_STANDARDS.md, especially: the module that owns a concept
+        decides its rules, and callers must not.
+    - path: 'frontend/**'
+      instructions: >-
+        Review against CODING_STANDARDS.md, especially: user-visible copy uses Documentation/GLOSSARY.md
+        terms and is written for the Lender.
+    - path: '{Documentation,docs}/**'
+      instructions: >-
+        Review against CODING_STANDARDS.md: use GLOSSARY terms, and a new domain decision
+        needs an ADR in Documentation/adr.
   request_changes_workflow: false
   high_level_summary: true
   review_status: true
@@ -21,3 +35,7 @@ reviews:
     drafts: false
 chat:
   auto_reply: true
+knowledge_base:
+  code_guidelines:
+    filePatterns:
+      - CODING_STANDARDS.md

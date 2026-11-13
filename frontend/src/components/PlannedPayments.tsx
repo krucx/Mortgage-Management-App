@@ -105,7 +105,8 @@ function Ignored({ runs, index }: { runs: Run[]; index: number }) {
   const ignoredBy = runs.map((run) => run.simulation.lump_sums[index]?.ignored ?? null)
   const reason = ignoredBy.find(Boolean)
   if (!reason) return null
-  const text = reason === 'after_closed_on' ? 'Ignored: after Closed on' : 'Ignored: paid off by then'
+  const text =
+    reason === 'after_closed_on' ? 'Ignored: after Closed on' : 'Ignored: paid off by then'
   // Paid off sooner under one set of Terms than the other
   const under = ignoredBy.every(Boolean) ? '' : ` under ${runs[ignoredBy.indexOf(reason)].label}`
   return <span className="hint">{text + under}</span>

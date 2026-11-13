@@ -151,7 +151,9 @@ class Mortgage(BaseModel):
     photos: list[MortgagePhoto]
     as_of: date
     ledger: list[LedgerStep]
-    graces: list[LedgerGrace]  # its Grace Payments, by `payment_id` of the Ledger's steps
+    graces: list[
+        LedgerGrace
+    ]  # its Grace Payments, by `payment_id` of the Ledger's steps
     outstanding: Outstanding
     collateral: Collateral | None  # None until a Gold Rate or manual value is set
     closure: Closure | None
@@ -430,9 +432,7 @@ def list_mortgages(
         if owing or not paged or after_replay:
             # Outstanding is computed, so these are listed after the replay.
             rows = (
-                conn.execute(
-                    matching.order_by(*_SORTING.order(by_column, descending))
-                )
+                conn.execute(matching.order_by(*_SORTING.order(by_column, descending)))
                 .mappings()
                 .all()
             )

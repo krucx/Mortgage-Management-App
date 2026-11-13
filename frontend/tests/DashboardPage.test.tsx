@@ -52,7 +52,8 @@ test('activity timeframe defaults to this month and refreshes totals when dates 
   const server = fakeServer({
     'GET /api/dashboard': (request: Request) => {
       const url = new URL(request.url)
-      if (url.search) ranges.push(`${url.searchParams.get('start_date')}:${url.searchParams.get('end_date')}`)
+      if (url.search)
+        ranges.push(`${url.searchParams.get('start_date')}:${url.searchParams.get('end_date')}`)
       return {
         ...figures,
         principal_lent_in_period: url.search ? 50000 : figures.principal_lent_in_period,

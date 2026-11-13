@@ -15,7 +15,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
-LATEST_RELEASE_URL = "https://api.github.com/repos/krucx/Mortgage-Management-App/releases/latest"
+LATEST_RELEASE_URL = (
+    "https://api.github.com/repos/krucx/Mortgage-Management-App/releases/latest"
+)
 ASK_EVERY = timedelta(days=1)
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -38,17 +40,28 @@ def latest_release_from_github() -> Release | None:
     """GitHub's latest release of the app, given a few seconds to answer."""
     request = urllib.request.Request(
         LATEST_RELEASE_URL,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": "mortgage-management"},
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "mortgage-management",
+        },
     )
     with urllib.request.urlopen(request, timeout=5) as response:
         release = json.load(response)
     tag = str(release.get("tag_name", ""))
-    return Release(version=tag, notes=str(release.get("body") or "")) if VERSION.match(tag) else None
+    return (
+        Release(version=tag, notes=str(release.get("body") or ""))
+        if VERSION.match(tag)
+        else None
+    )
 
 
 def latest_release_from_env() -> LatestRelease | None:
     """Where to ask for the latest release: GitHub when CHECK_FOR_UPDATES is true, else nowhere."""
-    return latest_release_from_github if os.environ.get("CHECK_FOR_UPDATES") == "true" else None
+    return (
+        latest_release_from_github
+        if os.environ.get("CHECK_FOR_UPDATES") == "true"
+        else None
+    )
 
 
 def _newer(version: str, than: str) -> bool:
@@ -85,7 +98,11 @@ class UpdateCheck:
                 except Exception:
                     self._latest = None  # offline, or GitHub didn't answer: no banner
             latest = self._latest
-        available = latest if latest is not None and _newer(latest.version, self.running) else None
+        available = (
+            latest
+            if latest is not None and _newer(latest.version, self.running)
+            else None
+        )
         return UpdateStatus(running=self.running, available=available)
 
 
