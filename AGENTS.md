@@ -7,5 +7,7 @@
   credentials before merging the PR that starts the tag-driven publish workflow.
 - Read [Documentation/GLOSSARY.md](Documentation/GLOSSARY.md) and relevant decisions in
   [Documentation/adr](Documentation/adr) when changing domain behavior.
+- QA the real stack only with `scripts/qa-stack.sh up --data DIR --backups DIR` (scratch
+  folders, built from source, own project and port) and `down`; never `docker compose` directly.
 - Agent skills live in `.claude/skills`; `.agents/skills` is a symlink to it. Edit skills
   only under `.claude/skills` so Claude Code and other agents read the same copy.

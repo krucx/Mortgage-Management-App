@@ -212,6 +212,12 @@ Use a scratch `DATA_DIR` and `BACKUP_DIR` (on every `docker compose` command) wh
 trying unreleased code, so it never runs a migration on real data. Plain
 `docker compose up -d` goes back to the published image.
 
+`scripts/qa-stack.sh` makes that the only path for QA: `scripts/qa-stack.sh up --data DIR
+--backups DIR` refuses unless both are scratch folders (not the ones in `.env`), builds
+from source under its own project and a free port, and checks the API is serving the scratch
+data. `scripts/qa-stack.sh down` removes its containers and image, never the folders. Set
+`QA_PROJECT` to run several at once.
+
 The Windows setup lives in `windows/`: `Setup.bat` → `setup.ps1` (gets the code) →
 `install.ps1` (Docker or local, `.env`, installs, shortcut, `mortgage-management://`
 link), `Run.bat` → `run.ps1`, `link.ps1` (opens the link: `mortgage-management://start`
