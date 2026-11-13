@@ -80,8 +80,10 @@ is not enforced. Automated findings never count as approval.
 The importable [main ruleset](.github/rulesets/main.json) targets `main`, allows the
 `maintain` role to bypass its rules on pull requests, and requires a pull request, one
 human approval, and these status checks: `backend`, `frontend`, `image`, `windows`,
-`Analyze (actions)`, `Analyze (javascript-typescript)`, `Analyze (python)`, and
-`CodeRabbit`. These are the exact check names GitHub reports. The ruleset blocks force
+`version-bump`, `Analyze (actions)`, `Analyze (javascript-typescript)`, `Analyze (python)`, and
+`CodeRabbit`. `version-bump` fails a pull request that changes `VERSION` or the package versions synced from
+it, unless it is the `release/X.Y.Z` pull request from the Prepare release candidate workflow;
+add notes under `## Unreleased` in the changelog instead. These are the exact check names GitHub reports. The ruleset blocks force
 pushes and deletion. A repository administrator should import and activate it under
 Settings → Rules → Rulesets. GitHub Free supports branch protection and rulesets for public repositories;
 private repository availability depends on the repository plan. If rulesets are not

@@ -7,6 +7,10 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Added
+
+- A `version-bump` pull request check fails changes to `VERSION` outside the release candidate workflow.
+
 ## [3.4.9] - 2026-11-10
 
 ### Added
