@@ -20,6 +20,9 @@ or merge a pull request.
    that disposition.
 5. A human reviewer checks the diff, CI, automated findings and their dispositions,
    then records an approving review. The author should not approve their own change.
+   The reviewer records the approval themselves: an agent never submits an approving
+   review or merges, even when told "yes, merge", and preparing, drafting or
+   summarising a review is not approval. The agent opens the pull request and stops.
    Resolve conversations and wait for required checks before the human merges.
 6. Merge with the repository's configured merge method. Do not push commits directly
    to `main`.
