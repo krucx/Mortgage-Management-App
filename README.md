@@ -278,7 +278,7 @@ Mortgage-Management-App is Copyright 2026 Kritarth Jain and is released under th
 [Apache License 2.0](LICENSE). You may use, modify, and distribute it under those terms;
 see [LICENSE](LICENSE) for the full text.
 
-By submitting a contribution, you agree that it is licensed under the Apache License 2.0, as described in section 5 of the licence.
+Unless you explicitly state otherwise, contributions you intentionally submit for inclusion are licensed under the Apache License 2.0, as described in section 5 of the licence; any separate licence agreement you have with the project owner still applies.
 
 Third-party components keep their own licences. The app uses
 [fpdf2](https://github.com/py-pdf/fpdf2) (LGPL-3.0-only), unmodified, to generate PDF call
