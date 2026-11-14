@@ -12,7 +12,8 @@ simplifying, reusing, and eventually creating a cleaner, maintainable system.
 
 - Before changing code, follow [CONTRIBUTING.md](CONTRIBUTING.md): work on a branch,
   open a pull request targeting `main`, respond to automated findings, and leave the merge
-  decision and approval to a human.
+  decision and approval to a human. The human records the approving review and merges; you
+  open the pull request and stop. Never submit an approving review or merge, even if told to.
 - For release work, follow the canonical
   [release checklist](Documentation/RELEASE_CHECKLIST.md). A release owner must supply and
   verify the version, release PR, changelog, and required credentials before any version tag
