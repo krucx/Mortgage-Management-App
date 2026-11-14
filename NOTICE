@@ -1,0 +1,28 @@
+Mortgage-Management-App
+Copyright 2026 Kritarth Jain
+
+This product is licensed under the Apache License, Version 2.0. See LICENSE.
+
+Third-party notices
+-------------------
+
+fpdf2
+-----
+
+This product includes fpdf2 (https://github.com/py-pdf/fpdf2), a library for PDF
+generation, Copyright (c) Olivier Plathey, Mariano Reingart, and the fpdf2
+contributors.
+
+fpdf2 is free software: you can redistribute it and/or modify it under the terms
+of the GNU Lesser General Public License as published by the Free Software
+Foundation, version 3 of the License only (LGPL-3.0-only).
+
+fpdf2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE. See the GNU Lesser General Public License for more details.
+
+fpdf2 is used unmodified as a Python dependency. Its source is available at
+https://github.com/py-pdf/fpdf2. The full LGPL-3.0 text is included with the
+fpdf2 distribution and at https://www.gnu.org/licenses/lgpl-3.0.txt.
+
+Other dependencies retain their own licences.

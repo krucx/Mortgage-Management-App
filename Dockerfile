@@ -26,6 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends zip \
 RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home --shell /usr/sbin/nologin app
 
 WORKDIR /app
+
+# Attribution travels with the distributed image (Apache-2.0 section 4; fpdf2 LGPL-3.0).
+COPY LICENSE NOTICE /app/
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH"
 
 COPY backend/pyproject.toml backend/uv.lock ./
