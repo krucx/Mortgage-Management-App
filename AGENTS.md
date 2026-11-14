@@ -33,3 +33,9 @@ simplifying, reusing, and eventually creating a cleaner, maintainable system.
   folders, built from source, own project and port) and `down`; never `docker compose` directly.
 - Agent skills live in `.claude/skills`; `.agents/skills` is a symlink to it. Edit skills
   only under `.claude/skills` so Claude Code and other agents read the same copy.
+- Two documentation folders, not interchangeable: `docs/` is the published GitHub Pages site
+  the Lender reads (installer, walkthrough, screenshots); never put internal material there.
+  `Documentation/` is internal engineering material, never published. Put generated reports,
+  research notes, comparisons and diagrams in a subfolder of `Documentation/` by kind:
+  [architecture-reviews](Documentation/architecture-reviews), [market-research](Documentation/market-research)
+  or [proposals](Documentation/proposals). Don't create a new top-level folder.
