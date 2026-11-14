@@ -4,6 +4,8 @@
 
 - [Documentation/GLOSSARY.md](../../Documentation/GLOSSARY.md)
   The canonical domain language, with the words to avoid. Use for: every term a lesson uses, word for word.
+- [Documentation/ARCHITECTURE.md](../../Documentation/ARCHITECTURE.md)
+  System architecture, component diagrams, UI pages, API endpoints, custom protocol, and deployment models.
 - [The Gold Chain Story](../../docs/story.html) (`docs/story.html`)
   A year of the sample book told through the app's screenshots; every figure is the app's own. Use for: chapter 001's Go-deeper reading and checking hand-worked figures. A resource, not taught.
 - [The sample book](../../Documentation/sample-book/README.md) (`docs/sample-book/book.py`, `serve.py`)

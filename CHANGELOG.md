@@ -7,6 +7,12 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Added
+
+- **System architecture documentation:** `Documentation/ARCHITECTURE.md` documents the
+  system architecture, UI pages, API endpoints, custom protocol (`mortgage-management://`),
+  and Docker vs host deployments, with Mermaid architecture and sequence diagrams.
+
 ## [3.4.10] - 2026-11-13
 
 ### Added
