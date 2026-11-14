@@ -271,3 +271,15 @@ and commit `frontend/openapi.json` and `frontend/src/api.gen.ts`. The backend te
 ### Database migrations
 
 Add a new revision under `backend/src/mortgage_backend/migrations/versions/`. Migrations run every time the backend starts.
+
+## Licence
+
+Mortgage-Management-App is Copyright 2026 Kritarth Jain and is released under the
+[Apache License 2.0](LICENSE). You may use, modify, and distribute it under those terms;
+see [LICENSE](LICENSE) for the full text.
+
+By submitting a contribution, you agree that it is licensed under the Apache License 2.0, as described in section 5 of the licence.
+
+Third-party components keep their own licences. The app uses
+[fpdf2](https://github.com/py-pdf/fpdf2) (LGPL-3.0-only), unmodified, to generate PDF call
+sheets; its notice and the attribution for this project are in [NOTICE](NOTICE).

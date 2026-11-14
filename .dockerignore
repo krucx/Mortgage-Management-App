@@ -1,6 +1,8 @@
 # Only what the image is built from (Dockerfile); never the Lender's data or a local build.
 *
 !VERSION
+!LICENSE
+!NOTICE
 !backend/pyproject.toml
 !backend/uv.lock
 !backend/src
