@@ -1,6 +1,6 @@
 # Mortgage-Management-App
 
-App for a jewellery Lender to manage Mortgages, Payments and follow-ups. It runs entirely on the Lender's own laptop. Domain terms are defined in [Documentation/GLOSSARY.md](Documentation/GLOSSARY.md); key decisions are in [Documentation/adr](Documentation/adr).
+App for a jewellery Lender to manage Mortgages, Payments and follow-ups. It runs entirely on the Lender's own laptop. System architecture is documented in [Documentation/ARCHITECTURE.md](Documentation/ARCHITECTURE.md); domain terms are defined in [Documentation/GLOSSARY.md](Documentation/GLOSSARY.md); key decisions are in [Documentation/adr](Documentation/adr).
 
 Contributors and coding agents: follow [CONTRIBUTING.md](CONTRIBUTING.md) for branch,
 pull request, review, and merge requirements, and use the
