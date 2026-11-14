@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mortgage Management — Licence &amp; Competitor Review</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #fff; --surface-2: #fbfaf7; --text: #1f2328; --muted: #59636e;
+    --border: #d8dee4; --accent: #8a5a00; --accent-soft: #f5ecdc;
+    --ok: #1a7f37; --ok-soft: #e8f5ec; --bad: #b42318; --bad-soft: #fdeceb;
+    --warn: #9a6700; --warn-soft: #fff4d6; --info: #0b5f8a; --info-soft: #e7f3fa;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --display: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117; --surface: #161b22; --surface-2: #12171e; --text: #e6edf3; --muted: #9198a1;
+      --border: #30363d; --accent: #d4a72c; --accent-soft: #2a2312;
+      --ok: #3fb950; --ok-soft: #12261a; --bad: #ff7b72; --bad-soft: #2a1513;
+      --warn: #d29922; --warn-soft: #2a2312; --info: #58a6ff; --info-soft: #0d2233;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 1.5rem; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--body); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.2; text-wrap: balance; }
+  h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); margin: 0 0 .4rem; }
+  h2 { font-size: 1.55rem; margin: 2.8rem 0 .9rem; padding-top: .4rem; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.08rem; margin: 1.5rem 0 .5rem; font-family: var(--body); font-weight: 650; }
+  p { margin: .55rem 0; max-width: 74ch; }
+  ul, ol { margin: .4rem 0 .8rem; padding-left: 1.25rem; }
+  li { margin: .3rem 0; max-width: 74ch; }
+  a { color: var(--accent); }
+  code { font-family: var(--mono); font-size: .86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: .05em .35em; }
+  .eyebrow { font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .lede { font-size: 1.1rem; color: var(--muted); max-width: 78ch; }
+  .meta { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; font-size: .88rem; color: var(--muted); margin-top: .7rem; }
+  .meta b { color: var(--text); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .75rem; margin: 1.4rem 0 .5rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: .85rem 1rem; }
+  .card .k { font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
+  .card .v { font-size: 1.25rem; font-weight: 700; margin-top: .15rem; }
+  .card .s { font-size: .82rem; color: var(--muted); }
+  .note { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; padding: .9rem 1.1rem; margin: 1.2rem 0; }
+  .note.good { border-color: var(--ok); background: var(--ok-soft); }
+  .note.bad { border-color: var(--bad); background: var(--bad-soft); }
+  .note.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .note.info { border-color: var(--info); background: var(--info-soft); }
+  .note p:first-child { margin-top: 0; } .note p:last-child { margin-bottom: 0; }
+  .note strong { font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.4rem; font-size: .9rem; background: var(--surface); }
+  th, td { text-align: left; vertical-align: top; padding: .55rem .7rem; border-bottom: 1px solid var(--border); }
+  thead th { background: var(--surface-2); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  tbody tr:last-child td { border-bottom: none; }
+  .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  .scroll table { margin: 0; min-width: 760px; border: 0; }
+  .scroll thead th { position: sticky; top: 0; }
+  .yes { color: var(--ok); font-weight: 700; }
+  .part { color: var(--warn); font-weight: 700; }
+  .no { color: var(--bad); font-weight: 700; }
+  .unk { color: var(--muted); }
+  .center { text-align: center; }
+  .legend { font-size: .82rem; color: var(--muted); margin: -.6rem 0 1rem; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: .4rem 1rem .6rem; }
+  .panel.pro { border-top: 4px solid var(--ok); }
+  .panel.con { border-top: 4px solid var(--bad); }
+  .panel h3 { margin: .8rem 0 .3rem; }
+  .panel ul { padding-left: 1.1rem; }
+  .panel li { font-size: .92rem; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: .9rem; margin: 1rem 0; }
+  .comp { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; }
+  .comp h3 { margin: 0 0 .15rem; font-size: 1.05rem; }
+  .comp .tag { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: .1rem .45rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-bottom: .5rem; }
+  .comp .price { font-size: .88rem; color: var(--muted); margin: .1rem 0 .5rem; }
+  .comp ul { padding-left: 1.05rem; margin: .35rem 0; }
+  .comp li { font-size: .88rem; margin: .22rem 0; }
+  .comp .lbl { font-size: .74rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .comp .p { color: var(--ok); } .comp .c { color: var(--bad); }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: .9rem 1.1rem; margin-top: 1.4rem; }
+  .toc ol { margin: .3rem 0 0; padding-left: 1.2rem; columns: 2; column-gap: 2rem; }
+  @media (max-width: 640px) { .toc ol { columns: 1; } }
+  .toc a { text-decoration: none; } .toc a:hover { text-decoration: underline; }
+  .verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .8rem; margin: 1rem 0; }
+  .verdict > div { border: 1px solid var(--border); border-radius: 10px; padding: .8rem 1rem; background: var(--surface); }
+  .verdict .h { font-weight: 700; font-size: .92rem; }
+  .verdict .q { color: var(--muted); font-size: .82rem; margin-bottom: .35rem; }
+  .verdict .a { font-weight: 650; }
+  footer { margin-top: 3.5rem; padding-top: 1.2rem; border-top: 1px solid var(--border); font-size: .85rem; color: var(--muted); }
+  .src { font-size: .85rem; }
+  .src li { margin: .25rem 0; }
+  .pill { display: inline-block; font-size: .74rem; font-weight: 700; padding: .08rem .45rem; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); }
+  .pill.g { color: var(--ok); border-color: var(--ok); } .pill.r { color: var(--bad); border-color: var(--bad); }
+  @media print {
+    body { background: #fff; color: #000; font-size: 11pt; }
+    .wrap { max-width: none; padding: 0; }
+    h2 { page-break-after: avoid; } .comp, .panel, .card, .note { break-inside: avoid; }
+    .toc { display: none; } a { color: #000; text-decoration: underline; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">Repository review</p>
+  <h1>Mortgage Management: licence &amp; competitor review</h1>
+  <p class="lede">What the Apache&nbsp;2.0 licence actually lets people do with this code, and how the app compares with the gold-pledge and loan-management software available publicly.</p>
+  <div class="meta">
+    <span><b>Repo</b> github.com/krucx/Mortgage-Management-App (public)</span>
+    <span><b>Version</b> 3.4.10</span>
+    <span><b>Checked</b> 14 Nov 2026</span>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="k">Licence</div><div class="v">Apache-2.0</div><div class="s">Permissive, OSI-approved</div></div>
+    <div class="card"><div class="k">Can others use it?</div><div class="v">Yes</div><div class="s">Including commercially</div></div>
+    <div class="card"><div class="k">Can they rebrand &amp; sell it?</div><div class="v">Yes</div><div class="s">With notices kept</div></div>
+    <div class="card"><div class="k">Can they claim they wrote it?</div><div class="v">No</div><div class="s">Attribution stays yours</div></div>
+  </div>
+
+  <div class="toc">
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#licence">The licence in plain English</a></li>
+      <li><a href="#steal">“Can someone steal it?”</a></li>
+      <li><a href="#repo">This repo’s specifics &amp; fixes</a></li>
+      <li><a href="#alternatives">If you want more control</a></li>
+      <li><a href="#market">The market at a glance</a></li>
+      <li><a href="#proscons">Your app: pros &amp; cons</a></li>
+      <li><a href="#matrix">Feature matrix</a></li>
+      <li><a href="#competitors">Competitor notes</a></li>
+      <li><a href="#advice">Which to choose</a></li>
+      <li><a href="#sources">Sources &amp; caveats</a></li>
+    </ol>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2 id="licence">1. The licence in plain English</h2>
+
+  <p>The repository ships a single <code>LICENSE</code> file: the unmodified <strong>Apache License, Version 2.0</strong>. GitHub detects it as <code>apache-2.0</code>. Apache&nbsp;2.0 is a <em>permissive</em> open-source licence: it gives away broad rights and asks for very little in return.</p>
+
+  <h3>What it lets anyone do</h3>
+  <table>
+    <thead><tr><th>Permission</th><th>What it means here</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Use</strong></td><td>Run the app for yourself, in a business, at any scale. No fee, no seat count, no registration.</td></tr>
+      <tr><td><strong>Copy &amp; redistribute</strong></td><td>Hand the code, or a built Docker image, to anyone — including on a paid basis.</td></tr>
+      <tr><td><strong>Modify</strong></td><td>Change anything, fork it, rip out parts, build a different product on it.</td></tr>
+      <tr><td><strong>Commercial use</strong></td><td>Run it as a paid service, sell support, sell a hosted version, bundle it into a product.</td></tr>
+      <tr><td><strong>Sublicense</strong></td><td>Distribute a modified version under different terms — including closed-source terms.</td></tr>
+      <tr><td><strong>Patent licence</strong></td><td>Contributors grant a royalty-free patent licence for their contributions. This is the main practical difference from MIT.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>What it requires in return</h3>
+  <ul>
+    <li><strong>Keep the licence.</strong> Anyone redistributing the code or a derivative must include a copy of the Apache&nbsp;2.0 licence.</li>
+    <li><strong>Keep notices.</strong> Copyright, patent, trademark and attribution notices must stay. If a <code>NOTICE</code> file exists, its contents must be carried forward (this repo has none).</li>
+    <li><strong>Mark changes.</strong> Modified files must carry a prominent notice saying they were changed.</li>
+    <li><strong>No trademark grant.</strong> Section&nbsp;6 explicitly withholds rights to the project’s name, logo or branding. A fork cannot market itself as “Mortgage Management by krucx” or imply endorsement.</li>
+    <li><strong>No warranty.</strong> The code is provided “AS IS”. Nobody can sue the author because the app miscalculated a loan.</li>
+    <li><strong>Patent peace.</strong> If someone sues claiming the software infringes their patent, their own patent licence under this project terminates (the “retaliation” clause).</li>
+  </ul>
+
+  <div class="note good">
+    <p><strong>The one-sentence version:</strong> Apache&nbsp;2.0 is “do almost anything, but don’t pretend you wrote it, don’t use my name to sell it, and don’t blame me if it breaks.”</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2 id="steal">2. “Can someone steal it?”</h2>
+
+  <p>Short answer: <strong>they cannot legally steal the authorship, but they can absolutely take the code and make money from it.</strong> That is not a loophole — it is what this licence is designed to allow. The useful question is which specific scenario you care about.</p>
+
+  <div class="verdict">
+    <div>
+      <div class="q">Someone copies it for their own shop</div>
+      <div class="h">Allowed</div>
+      <div class="a"><span class="pill g">permitted</span></div>
+      <p style="font-size:.85rem;margin-bottom:0">No obligation to publish anything. They can even keep their changes private because they are not <em>distributing</em> the software.</p>
+    </div>
+    <div>
+      <div class="q">Someone forks it, rebrands it and sells it as their product</div>
+      <div class="h">Allowed, with conditions</div>
+      <div class="a"><span class="pill g">permitted</span> <span class="pill">license + notices kept</span></div>
+      <p style="font-size:.85rem;margin-bottom:0">They must keep the Apache licence text, retain copyright/attribution notices, and state that they changed the files. They may <em>not</em> use your name or logo to promote it, or imply you endorse them.</p>
+    </div>
+    <div>
+      <div class="q">Someone turns it into a closed-source paid app</div>
+      <div class="h">Allowed</div>
+      <div class="a"><span class="pill g">permitted</span></div>
+      <p style="font-size:.85rem;margin-bottom:0">Apache&nbsp;2.0 is not copyleft. A derivative can be distributed under other terms, provided the Apache conditions are still met for the Apache-licensed parts.</p>
+    </div>
+    <div>
+      <div class="q">Someone claims they wrote it, or strips your name</div>
+      <div class="h">Not allowed</div>
+      <div class="a"><span class="pill r">infringement</span></div>
+      <p style="font-size:.85rem;margin-bottom:0">Removing copyright notices or misrepresenting authorship breaches the licence and copyright law. In practice, enforcing this costs time and money, so it is a deterrent rather than a guarantee.</p>
+    </div>
+    <div>
+      <div class="q">Someone patents a feature and sues you</div>
+      <div class="h">Weaker position for them</div>
+      <div class="a"><span class="pill g">patent grant</span></div>
+      <p style="font-size:.85rem;margin-bottom:0">Contributors granted a patent licence; a contributor who attacks the project patent-wise loses that licence. This is a real advantage over MIT, which is silent on patents.</p>
+    </div>
+    <div>
+      <div class="q">Someone clones the public repo on GitHub</div>
+      <div class="h">Allowed by GitHub’s terms</div>
+      <div class="a"><span class="pill">public repo</span></div>
+      <p style="font-size:.85rem;margin-bottom:0">Public repositories can be viewed and forked by anyone with an account. The only way to prevent that on GitHub is a private repository.</p>
+    </div>
+  </div>
+
+  <div class="note bad">
+    <p><strong>What Apache&nbsp;2.0 does <em>not</em> protect:</strong> exclusivity. It does not stop a competitor from taking this code, changing the name, and selling it — as long as they comply with the notice requirements. If the goal is “nobody may commercialise this without my permission”, Apache&nbsp;2.0 is the wrong licence (see <a href="#alternatives">§4</a>).</p>
+  </div>
+
+  <p>For a jewellery-lending app the realistic risk is not a giant competitor cloning it. It is a local software vendor or an ex-employee taking the code, adding a logo and selling it to nearby shops. Apache&nbsp;2.0 permits that. What it prevents is them passing it off as entirely their own work or using your branding.</p>
+
+  <!-- ============================================================ -->
+  <h2 id="repo">3. This repo’s specifics &amp; small fixes</h2>
+
+  <p>I checked the actual repository, not just the licence name. Some details are worth fixing:</p>
+
+  <table>
+    <thead><tr><th>Item</th><th>Finding</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Licence file</td>
+        <td><span class="pill g">ok</span> Standard Apache&nbsp;2.0 text; GitHub detects it.</td>
+        <td>Nothing required.</td>
+      </tr>
+      <tr>
+        <td>Copyright line</td>
+        <td><span class="pill r">fix</span> The appendix still contains the placeholder <code>Copyright [yyyy] [name of copyright owner]</code>. There is no filled-in copyright statement anywhere.</td>
+        <td>Add a real line — e.g. <code>Copyright 2026 Kritarth Jain</code> — in a <code>NOTICE</code> file, the README, or the appendix. This is the single most useful fix.</td>
+      </tr>
+      <tr>
+        <td><code>NOTICE</code> file</td>
+        <td><span class="pill">optional</span> None exists. Apache&nbsp;2.0 does not require one, but it is where attribution is normally collected.</td>
+        <td>Create one if you want your name and any third-party notices carried by forks.</td>
+      </tr>
+      <tr>
+        <td>Licence in README</td>
+        <td><span class="pill r">gap</span> The README never mentions the licence, and there is no licensing ADR in <code>Documentation/adr</code>.</td>
+        <td>Add a short “Licence” section linking to <code>LICENSE</code>, plus a sentence on what contributions are licensed under.</td>
+      </tr>
+      <tr>
+        <td>Inbound contributions</td>
+        <td><span class="pill">note</span> No CLA and no DCO. Under Apache&nbsp;2.0 §5, contributions are automatically licensed under Apache&nbsp;2.0.</td>
+        <td>Fine for an open project. But it means you <em>cannot later relicense the whole codebase</em> to a restrictive licence without every contributor’s agreement. If relicensing is a future goal, add a CLA now.</td>
+      </tr>
+      <tr>
+        <td>Customer data</td>
+        <td><span class="pill g">good</span> <code>data/</code>, <code>backups/</code> and <code>.env</code> are gitignored, and I found no database, photo, backup, <code>.env</code> or key in the full 363-commit history.</td>
+        <td>Nothing. No real lending data is exposed by the public repo.</td>
+      </tr>
+      <tr>
+        <td>Dependencies</td>
+        <td><span class="pill">mostly permissive</span> FastAPI, SQLAlchemy, Alembic, openpyxl, Pillow, React, React Router, TanStack Query, Vite, Tesseract.js are MIT/BSD/Apache. <code>fpdf2</code> is <strong>LGPL-3.0-only</strong>.</td>
+        <td>Using fpdf2 unmodified as a library is fine. If you distribute the built image, include its licence notice. Nothing here forces you to open-source your own code.</td>
+      </tr>
+      <tr>
+        <td>Trademarks</td>
+        <td><span class="pill">none claimed</span> No ™ or ® notices on “Mortgage Management”.</td>
+        <td>Optional. If the name matters commercially, register it; Apache&nbsp;2.0 alone does not create trademark rights.</td>
+      </tr>
+      <tr>
+        <td>Published image</td>
+        <td><span class="pill">note</span> The Docker image on Docker Hub is public and pullable by anyone.</td>
+        <td>Expected. The image contains the app, not the data. Data lives in <code>DATA_DIR</code> on the lender’s machine.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note info">
+    <p><strong>Recommended 10-minute cleanup:</strong> (1) add a filled-in copyright line, (2) add a short Licence section to the README, (3) add a <code>NOTICE</code> file with your name, year and the fpdf2 LGPL notice. This does not change anyone’s rights, but it makes the attribution requirement enforceable and unambiguous.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2 id="alternatives">4. If you want more control than Apache&nbsp;2.0</h2>
+
+  <p>Licences are a dial, not a switch. From “anyone can do anything” to “nobody can touch it”:</p>
+
+  <table>
+    <thead><tr><th>Licence</th><th>Can others sell a fork?</th><th>Must their changes be published?</th><th>Open source?</th><th>Good fit when…</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Apache-2.0</strong> (current)</td><td class="yes">Yes</td><td class="no">No</td><td class="yes">Yes</td><td>You want adoption, contributions, and no legal friction.</td></tr>
+      <tr><td><strong>MIT</strong></td><td class="yes">Yes</td><td class="no">No</td><td class="yes">Yes</td><td>Same as Apache but simpler; gives up the patent clause.</td></tr>
+      <tr><td><strong>GPL-3.0</strong></td><td class="part">Yes, but…</td><td class="part">If they distribute it</td><td class="yes">Yes</td><td>You want forks to stay open, but hosting it as a service is still allowed.</td></tr>
+      <tr><td><strong>AGPL-3.0</strong></td><td class="part">Yes, but…</td><td class="part">Even for network use</td><td class="yes">Yes</td><td>You want to stop a closed-source paid hosted clone.</td></tr>
+      <tr><td><strong>BUSL-1.1</strong></td><td class="no">Not for production use</td><td class="unk">Depends</td><td class="no">No</td><td>You want to sell commercially later, with a timed conversion to open source.</td></tr>
+      <tr><td><strong>PolyForm Noncommercial</strong></td><td class="no">No</td><td class="unk">Depends</td><td class="no">No</td><td>Personal/educational use only; no commercial use at all.</td></tr>
+      <tr><td><strong>Private repo / proprietary</strong></td><td class="no">No</td><td class="no">N/A</td><td class="no">No</td><td>You want maximum control and do not need public adoption.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note warn">
+    <p><strong>Practical warning:</strong> changing licence later is painful. Apache&nbsp;2.0 is irrevocable for code already published, and contributions already merged came in under Apache&nbsp;2.0. You can relicense <em>future</em> versions, but not retroactively strip rights from existing copies. Decide the strategy now, before more contributors arrive.</p>
+  </div>
+
+  <p>For this project specifically, Apache&nbsp;2.0 is a reasonable default: it is a single-lender niche app, the value is in the domain logic and the trust of the lender, and broad permission helps adoption. If the commercial plan is to sell it to many shops, the more common pattern is <strong>open core</strong>: keep the core Apache-2.0, and put multi-branch, statutory forms or hosted sync in a separately licensed add-on.</p>
+
+  <!-- ============================================================ -->
+  <h2 id="market">5. The market at a glance</h2>
+
+  <p>“Mortgage management” splits into two very different markets. This app belongs to the first one: <strong>Indian gold-pledge / girvi lending</strong>. Most software sold under the “mortgage” label abroad is American residential loan origination, which is a different product entirely.</p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Solution</th><th>Category</th><th>Licence / published price</th><th>Data lives</th><th>Best fit</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Mortgage Management 3.4.10</strong> (yours)</td>
+          <td>Self-hosted gold-pledge book</td>
+          <td><strong>Apache-2.0</strong> · ₹0 + your time</td>
+          <td>Your laptop</td>
+          <td>One lender, one shop, offline, privacy-first</td>
+        </tr>
+        <tr><td>GoldKhata</td><td>Cloud girvi + jewellery SaaS</td><td>₹499–₹999/month + GST</td><td>Vendor cloud (private DB)</td><td>Small firm wanting WhatsApp + GST billing</td></tr>
+        <tr><td>Girvi Management</td><td>Cloud / Android girvi</td><td>₹17,000/year + GST</td><td>Vendor cloud</td><td>Android-first jewellers and pawn brokers</td></tr>
+        <tr><td>Vinfoz FMS</td><td>Cloud pawn SaaS</td><td>₹10–₹35/day (~₹300–₹1,050/month)</td><td>Vendor cloud</td><td>Solo shop growing into a team</td></tr>
+        <tr><td>Adagu</td><td>Cloud gold loan (Tamil Nadu)</td><td>₹1,500/month or ₹15,000/year</td><td>Vendor cloud</td><td>TN pawnbrokers needing statutory forms</td></tr>
+        <tr><td>2Dot Loan Manager</td><td>Offline / on-prem desktop</td><td>₹14,999 one-time (single shop)</td><td>Your PC</td><td>Offline shop, Tamil/English papers</td></tr>
+        <tr><td>FinAcc</td><td>On-prem licence</td><td>₹21,000–₹30,000 one-time + ₹6,000/year</td><td>Your server</td><td>Multi-branch + Tally accounting</td></tr>
+        <tr><td>frappe/lending</td><td>Open-source LMS on ERPNext</td><td><strong>GPL-3.0</strong> · free + hosting</td><td>Your server</td><td>Lender wanting full accounting/ERP</td></tr>
+        <tr><td>LOSLite</td><td>Open-source mortgage LOS</td><td>README says MIT; <strong>no LICENSE file</strong></td><td>Your infra</td><td>Dev team building US origination</td></tr>
+        <tr><td>openNPL</td><td>Open-source NPL portfolio</td><td><strong>MIT</strong> · free</td><td>Your server</td><td>Analysts and regulators, not a shop</td></tr>
+        <tr><td>loanproject</td><td>Open-source Django LMS</td><td><strong>MIT</strong> · free</td><td>Your server</td><td>Small lender or learning project</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="legend">Prices are vendor-published and exclude GST unless stated; they change often. See <a href="#sources">§10</a> for links and caveats.</p>
+
+  <!-- ============================================================ -->
+  <h2 id="proscons">6. Your app: pros &amp; cons</h2>
+
+  <div class="cols">
+    <div class="panel pro">
+      <h3>Strengths</h3>
+      <ul>
+        <li><strong>Free and genuinely open.</strong> Apache-2.0 means no seats, no per-loan fee, no vendor lock-in. Any developer can read, audit or extend it.</li>
+        <li><strong>Data never leaves the laptop.</strong> No vendor cloud, no third-party processor, no subscription that can be switched off. This is a real advantage under India’s DPDP Act for Aadhaar/PAN photos.</li>
+        <li><strong>Works offline</strong> once installed; only update checks and WhatsApp links need the internet.</li>
+        <li><strong>Correct-by-construction ledger.</strong> Outstanding is derived from terms and payments every time, never stored. Money-affecting changes show a preview first. Payments are voided, closures reopened — never deleted. That is better audit behaviour than most competitors.</li>
+        <li><strong>Purpose-built domain model.</strong> Pledged packets, weights, purity, gold rates, LTV, part payments, split payments across mortgages, redeem/waive/forfeit closures, reminders and a daily call list.</li>
+        <li><strong>On-device OCR</strong> for Aadhaar/PAN, with only the last four Aadhaar digits stored. Nothing is uploaded to an OCR service.</li>
+        <li><strong>Backup discipline.</strong> Weekly zip backups (password-protected where the platform allows it), a pre-migration backup that blocks the update if it fails, and a documented restore path. This is stronger than many paid products.</li>
+        <li><strong>Engineering quality.</strong> Typed API with generated frontend types, migrations, 90% backend / 80% frontend coverage gates, CI, CodeQL, release automation, Pester tests for the Windows installer.</li>
+        <li><strong>Two deployment paths.</strong> Double-click Windows setup, or Docker on Intel and Apple silicon. PWA install gives it an app icon and window.</li>
+        <li><strong>No sign-in to lose.</strong> Bound to loopback, single user, no password reset flow to attack.</li>
+      </ul>
+    </div>
+
+    <div class="panel con">
+      <h3>Weaknesses</h3>
+      <ul>
+        <li><strong>Single user, no authentication or roles.</strong> No staff accounts, no per-clerk permissions, no concurrent use from two devices. Fine for one lender; a blocker for a counter with employees.</li>
+        <li><strong>No multi-branch or consolidation.</strong> One book, one machine.</li>
+        <li><strong>Compliance gaps.</strong> No state pawnbroking registers or statutory forms (e.g. Tamil Nadu Form&nbsp;E/G/H/M), no auction notice or RDO paperwork, no police/pawn-act reporting.</li>
+        <li><strong>Messaging is manual.</strong> WhatsApp opens with a prefilled message; the lender presses Send. No bulk sends, delivery tracking, SMS gateway or two-way inbox.</li>
+        <li><strong>No accounting layer.</strong> No double-entry, day book, GST invoices, Tally export, trial balance or P&amp;L. The accountant will keep a separate book.</li>
+        <li><strong>Narrow interest engine.</strong> Simple, compounded yearly, compounded monthly, plus a part-month rule — but no slab rates, multiple named schemes, daily interest, minimum-interest slabs, renewals or top-ups.</li>
+        <li><strong>No repledge / bank funding module</strong> to track gold sent to a bank for liquidity.</li>
+        <li><strong>Gold rates are entered by hand.</strong> No live rate feed, no rate history automation.</li>
+        <li><strong>No nominee or guarantor fields</strong> (it models Referrers instead), which some state rules and many shops expect.</li>
+        <li><strong>No payment integration.</strong> No UPI reconciliation or gateway; only a cash-limit warning.</li>
+        <li><strong>PWA, not a native app.</strong> Figures require the laptop/server to be running; there is no phone-first workflow.</li>
+        <li><strong>Windows-first installer.</strong> Linux needs manual <code>chown</code>; no macOS installer.</li>
+        <li><strong>Bus factor of one.</strong> 1 star, 0 forks, essentially one maintainer. No support SLA, no community, no security certification or independent pen test.</li>
+        <li><strong>Backup encryption caveat.</strong> On Windows the README says backups are plain zips because Windows lacks built-in zip encryption — and they contain ID photos.</li>
+        <li><strong>Limited export.</strong> Excel/PDF export exists for the call sheet only; there is no one-click full-book Excel/CSV export for an accountant or a migration.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    <p><strong>Net:</strong> this is a high-quality, narrowly scoped ledger for one lender. It wins on correctness, privacy, cost and offline operation. It loses on everything a growing shop needs: staff, branches, compliance paperwork, messaging automation and accounting.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2 id="matrix">7. Feature matrix</h2>
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th class="center">Yours</th>
+          <th class="center">GoldKhata</th>
+          <th class="center">Girvi Mgmt</th>
+          <th class="center">Adagu</th>
+          <th class="center">2Dot</th>
+          <th class="center">FinAcc</th>
+          <th class="center">Frappe Lending</th>
+          <th class="center">LOSLite</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Gold-pledge / ornament register</td><td class="center part">◐</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center no">○</td><td class="center no">○</td></tr>
+        <tr><td>Part payments &amp; renewals</td><td class="center part">◐</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center part">◐</td></tr>
+        <tr><td>Slab / multiple interest schemes</td><td class="center no">○</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center part">◐</td></tr>
+        <tr><td>Automated WhatsApp / SMS</td><td class="center part">◐</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center part">◐</td><td class="center no">○</td></tr>
+        <tr><td>Auction notices / workflow</td><td class="center no">○</td><td class="center yes">●</td><td class="center part">◐</td><td class="center yes">●</td><td class="center yes">●</td><td class="center part">◐</td><td class="center no">○</td><td class="center no">○</td></tr>
+        <tr><td>State statutory forms / registers</td><td class="center no">○</td><td class="center yes">●</td><td class="center part">◐</td><td class="center yes">●</td><td class="center part">◐</td><td class="center part">◐</td><td class="center no">○</td><td class="center no">○</td></tr>
+        <tr><td>Repledge / bank funding</td><td class="center no">○</td><td class="center unk">?</td><td class="center part">◐</td><td class="center unk">?</td><td class="center yes">●</td><td class="center yes">●</td><td class="center no">○</td><td class="center no">○</td></tr>
+        <tr><td>GST billing / Tally / accounting</td><td class="center no">○</td><td class="center yes">●</td><td class="center yes">●</td><td class="center no">○</td><td class="center part">◐</td><td class="center yes">●</td><td class="center yes">●</td><td class="center no">○</td></tr>
+        <tr><td>Multi-user &amp; roles</td><td class="center no">○</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center part">◐</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td></tr>
+        <tr><td>Multi-branch</td><td class="center no">○</td><td class="center yes">●</td><td class="center yes">●</td><td class="center no">○</td><td class="center no">○</td><td class="center yes">●</td><td class="center yes">●</td><td class="center part">◐</td></tr>
+        <tr><td>Mobile app</td><td class="center part">◐ PWA</td><td class="center part">◐ web</td><td class="center yes">● Android</td><td class="center part">◐ web</td><td class="center part">◐</td><td class="center part">◐</td><td class="center part">◐</td><td class="center part">◐</td></tr>
+        <tr><td>Runs offline / data on your machine</td><td class="center yes">●</td><td class="center no">○</td><td class="center no">○</td><td class="center no">○</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td><td class="center yes">●</td></tr>
+        <tr><td>Live gold rate feed</td><td class="center no">○</td><td class="center yes">●</td><td class="center unk">?</td><td class="center yes">●</td><td class="center unk">?</td><td class="center unk">?</td><td class="center no">○</td><td class="center no">○</td></tr>
+        <tr><td>On-device KYC photo OCR</td><td class="center yes">●</td><td class="center part">◐</td><td class="center part">◐</td><td class="center part">◐</td><td class="center part">◐</td><td class="center yes">●</td><td class="center no">○</td><td class="center no">○</td></tr>
+        <tr><td>Open source / auditable</td><td class="center yes">●</td><td class="center no">○</td><td class="center no">○</td><td class="center no">○</td><td class="center no">○</td><td class="center no">○</td><td class="center yes">● GPL</td><td class="center yes">●</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="legend"><span class="yes">●</span> supported &nbsp; <span class="part">◐</span> partial / limited &nbsp; <span class="no">○</span> not offered &nbsp; <span class="unk">?</span> not stated on the vendor’s public material. Vendor rows are based on marketing pages, not hands-on testing.</p>
+
+  <!-- ============================================================ -->
+  <h2 id="competitors">8. Competitor notes</h2>
+
+  <h3>Commercial gold-pledge / girvi software (India)</h3>
+  <div class="grid2">
+
+    <div class="comp">
+      <span class="tag">Cloud SaaS</span>
+      <h3>GoldKhata</h3>
+      <div class="price">₹499–₹999/month + GST · 30-day trial</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>WhatsApp receipts and reminders from the shop’s own number; two-way inbox on higher plans.</li><li>Gold loans plus jewellery counter, GST returns and Tally file in one login.</li><li>Publishes prices openly; one-tap Excel download; claims a private database and nightly encrypted backup.</li><li>Runs in a phone browser, nothing to install.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>Subscription forever; data sits on the vendor’s cloud.</li><li>Needs connectivity; no true offline mode.</li><li>Less control over the ledger than a self-hosted, derived model.</li></ul>
+    </div>
+
+    <div class="comp">
+      <span class="tag">Cloud + Android</span>
+      <h3>Girvi Management</h3>
+      <div class="price">₹17,000/year + GST (15 months) · free trial</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>Android and web from day one — a genuine phone-first counter.</li><li>Pledge and locker tracking, interest automation, GST receipts, day book.</li><li>SMS/WhatsApp reminders, branch-wise roles and consolidated reports.</li><li>Free data import and onboarding help.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>Annual cost and cloud dependency; no offline operation.</li><li>Jewellery + girvi bundle costs ₹35,000/year.</li><li>Vendor lock-in for data and workflow.</li></ul>
+    </div>
+
+    <div class="comp">
+      <span class="tag">Cloud SaaS</span>
+      <h3>Vinfoz FMS</h3>
+      <div class="price">₹10/day starter · ₹35/day lite (≈₹300–₹1,050/month)</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>Low entry price, pay-as-you-go, no contract.</li><li>PWA for Android/iOS, push alerts when a pledge goes overdue.</li><li>Slab interest, multiple schemes, nominee and guarantor records, repledge, FD/RD tracking.</li><li>Audit trail on every pledge action.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>Cloud-only; the cheap tier excludes most features (staff logins, photos, repledge, schemes).</li><li>Per-day pricing adds up and can change.</li><li>No on-prem option for privacy-sensitive shops.</li></ul>
+    </div>
+
+    <div class="comp">
+      <span class="tag">Cloud · Tamil Nadu</span>
+      <h3>Adagu</h3>
+      <div class="price">₹1,500/month or ₹15,000/year · onboarding ₹10,000–₹15,000</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>Deep statutory coverage: Form&nbsp;M half-yearly return, pledge book (Form&nbsp;E), sale book (Form&nbsp;G), redemption receipts (Form&nbsp;H).</li><li>Auction workflow with RDO application list and 80% gold-content upset price.</li><li>Live gold-rate LTV alarm ranked by risk; owner money dashboard.</li><li>Bilingual Tamil/English papers; UPI matching on the Pro plan.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>Region-specific: built around Tamil Nadu pawnbroking rules.</li><li>Cloud-only; highest monthly price in this group plus a large onboarding fee.</li><li>Overkill if you do not need the statutory paperwork.</li></ul>
+    </div>
+
+    <div class="comp">
+      <span class="tag">Offline / one-time</span>
+      <h3>2Dot Loan Manager</h3>
+      <div class="price">₹14,999 one-time (single shop, offline)</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>Works offline, one-time purchase — closest commercial model to yours.</li><li>Ornament-by-ornament records with customer, ornament and proof photos.</li><li>Part payments, overdue lists, warning and auction notices, bank repledge tracking.</li><li>Tamil and English; free installation help and small customisations.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>Desktop-era UX; cloud and multi-branch cost extra.</li><li>No open source, no self-audit, no API.</li><li>Single-shop licence limits growth.</li></ul>
+    </div>
+
+    <div class="comp">
+      <span class="tag">On-prem licence</span>
+      <h3>FinAcc</h3>
+      <div class="price">₹21,000–₹30,000 one-time + ₹6,000/year support</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>Lifetime licence with an accounting module included — day book, ledgers, trial balance.</li><li>Repledge, KYC photo capture, Aadhaar/biometric integration.</li><li>Tally export plugin, multi-branch books, role-based permissions.</li><li>Free migration and training; NBFC edition with LOS/LMS.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>₹6,000/year support/updates on top of the licence; hosting is yours to run.</li><li>Dated interface compared with modern web apps.</li><li>Closed source; customisation depends on the vendor.</li></ul>
+    </div>
+  </div>
+
+  <h3>Open-source alternatives</h3>
+  <div class="grid2">
+
+    <div class="comp">
+      <span class="tag">GPL-3.0</span>
+      <h3>frappe/lending</h3>
+      <div class="price">Free · 368 stars · 329 forks · active</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>Full loan lifecycle on ERPNext/Frappe: products, disbursement, collateral, accounting entries, billing, co-lending.</li><li>Serious accounting and reporting out of the box; large framework community.</li><li>Self-hosted, data stays with you.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>Heavy ERPNext stack to install, upgrade and operate.</li><li>Generic lending — not built around gold packets, purity, girvi registers or Indian pawn acts.</li><li>GPL-3.0: distributing a modified version obliges you to publish source.</li><li>Overkill for a one-person shop.</li></ul>
+    </div>
+
+    <div class="comp">
+      <span class="tag">MIT (README only)</span>
+      <h3>dearvn/loslite</h3>
+      <div class="price">Free · 0 stars · early-stage</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>Modern Java 21 / Spring Boot microservices + React; API-first, multi-tenant.</li><li>Covers US residential origination: URLA fields, pricing, LLPA, rate locks, conditions.</li><li>Docker Compose setup and an audit log.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>Origination only — no interest accrual, servicing, collections or gold collateral.</li><li>Very immature: 0 stars, no releases, and <strong>no LICENSE file</strong> despite the README saying MIT (legally, that means “all rights reserved” by default).</li><li>Microservices + Java + Postgres + Redis + RabbitMQ is a lot to run.</li></ul>
+    </div>
+
+    <div class="comp">
+      <span class="tag">MIT</span>
+      <h3>open-risk/openNPL</h3>
+      <div class="price">Free · 35 stars · active</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>Loan-level NPL data management aligned to EBA and Fannie Mae templates.</li><li>Django + REST API; portfolio analytics focus.</li><li>Useful for regulators, funds and analysts.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>Portfolio reporting, not day-to-day lending or pledge management.</li><li>No customer, payment, reminder or closure workflow.</li><li>Not a fit for a jewellery lender.</li></ul>
+    </div>
+
+    <div class="comp">
+      <span class="tag">MIT</span>
+      <h3>kuth-chi/loanproject</h3>
+      <div class="price">Free · 1 star · last push 2025</div>
+      <div class="lbl p">Pros</div>
+      <ul><li>Django REST loan management: customers, schedules, overdue notifications, documents.</li><li>Docker support and simple setup.</li><li>Good learning base for a custom LMS.</li></ul>
+      <div class="lbl c">Cons</div>
+      <ul><li>Generic and small; no gold pledge, girvi or statutory features.</li><li>Minimal maintenance and community.</li><li>Not production-ready for real lending without significant work.</li></ul>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2 id="advice">9. Which to choose</h2>
+
+  <table>
+    <thead><tr><th>If your situation is…</th><th>Best fit</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>One lender, one shop, privacy is the priority, comfortable running Setup.bat or Docker</td><td><strong>Your app</strong></td><td>Free, offline, exact ledger, no vendor access to customer data.</td></tr>
+      <tr><td>Two or more staff at the counter, or a second branch</td><td><strong>Girvi Management / FinAcc</strong></td><td>Roles, concurrent users and branch consolidation are table stakes; yours has none.</td></tr>
+      <tr><td>You need Tamil Nadu statutory forms and auction paperwork</td><td><strong>Adagu</strong></td><td>Form M/E/G/H and RDO workflow are built in; yours has none.</td></tr>
+      <tr><td>You want WhatsApp automation and a GST jewellery counter in one login</td><td><strong>GoldKhata</strong></td><td>Messaging from your own number plus GST/Tally export.</td></tr>
+      <tr><td>Lowest possible entry cost, phone-first, happy to pay monthly</td><td><strong>Vinfoz</strong></td><td>₹10/day starter tier, PWA on any phone.</td></tr>
+      <tr><td>You want a one-time purchase with no cloud</td><td><strong>2Dot / FinAcc</strong></td><td>On-prem licences, offline operation, no subscription.</td></tr>
+      <tr><td>You are building a lending business and want an ERP foundation</td><td><strong>frappe/lending</strong></td><td>Accounting, collateral and lifecycle on a real framework — at the cost of operational weight.</td></tr>
+      <tr><td>You are building US mortgage origination</td><td><strong>LOSLite</strong> (cautiously)</td><td>Right domain, but early-stage and legally unlicensed as shipped.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note good">
+    <p><strong>A practical hybrid:</strong> keep your app as the pledge book — it is the strongest part — and add the two things that actually block growth: (1) a one-click full-book Excel export and (2) a printable statutory/auction pack. Both are small features relative to rebuilding the ledger, and they remove the main reasons a shop would be forced onto paid software.</p>
+  </div>
+
+  <div class="note info">
+    <p><strong>On the licence decision:</strong> if you want the code to stay open but stop a paid closed-source clone, AGPL-3.0 is the standard tool. If you might sell it commercially later, keep Apache-2.0 and plan an open-core split. Either way, add the copyright/NOTICE line first — it costs nothing and makes attribution enforceable.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2 id="sources">10. Sources &amp; caveats</h2>
+
+  <ul class="src">
+    <li>Repo &amp; licence: <a href="https://github.com/krucx/Mortgage-Management-App">github.com/krucx/Mortgage-Management-App</a>; GitHub licence API reports <code>apache-2.0</code>; <code>LICENSE</code> is the unmodified Apache&nbsp;2.0 text (read locally).</li>
+    <li>Licence terms: <a href="https://www.apache.org/licenses/LICENSE-2.0">apache.org/licenses/LICENSE-2.0</a> — sections 2 (grant), 4 (redistribution), 5 (contributions), 6 (trademarks), 3 (patent retaliation), 7 (no warranty).</li>
+    <li>App behaviour and scope: local <code>README.md</code>, <code>Documentation/ARCHITECTURE.md</code>, <code>Documentation/GLOSSARY.md</code>, <code>docs/index.html</code>, <code>docs/walkthrough.html</code>, <code>Documentation/adr</code>. Version 3.4.10.</li>
+    <li>GoldKhata: <a href="https://goldkhata.com/downloads/GoldKhata-Brochure-English.pdf">goldkhata.com brochure</a> (published plans ₹499–₹999/month).</li>
+    <li>Girvi Management: <a href="https://girvimanagement.com/">girvimanagement.com</a> (₹17,000/year; ₹35,000/year with jewellery).</li>
+    <li>Vinfoz: <a href="https://vinfoz.com/jewel-loan">vinfoz.com/jewel-loan</a> (₹10/day and ₹35/day tiers).</li>
+    <li>Adagu: <a href="https://adagu.consign.tech/">adagu.consign.tech</a> (₹1,500/month or ₹15,000/year).</li>
+    <li>2Dot: <a href="https://2dotsolutions.in/pledge-management-software/">2dotsolutions.in</a> (₹14,999 one-time single-shop offline).</li>
+    <li>FinAcc: <a href="https://finaccsaas.in/gold-loan-software-pricing/">finaccsaas.in</a> (₹21,000–₹30,000 one-time + ₹6,000/year).</li>
+    <li>PawnSoftware.in market overview: <a href="https://pawnsoftware.in/pages/gold-loan-software.html">pawnsoftware.in</a> (SaaS ₹999–₹5,000/month; on-prem ₹25,000–₹1,50,000).</li>
+    <li>frappe/lending: <a href="https://github.com/frappe/lending">github.com/frappe/lending</a> (GPL-3.0; 368 stars, 329 forks; pushed 13 Nov 2026).</li>
+    <li>LOSLite: <a href="https://github.com/dearvn/loslite">github.com/dearvn/loslite</a> (README claims MIT; GitHub reports no licence; 0 stars; pushed 2 Sep 2026).</li>
+    <li>openNPL: <a href="https://github.com/open-risk/openNPL">github.com/open-risk/openNPL</a> (MIT; 35 stars; pushed 24 Oct 2026).</li>
+    <li>loanproject: <a href="https://github.com/kuth-chi/loanproject">github.com/kuth-chi/loanproject</a> (MIT; 1 star; pushed 19 Nov 2025).</li>
+  </ul>
+
+  <div class="note warn">
+    <p><strong>Caveats.</strong> This is an engineering and market review, not legal advice; for enforcement or a commercial licensing strategy, consult a lawyer. Vendor prices and features are taken from their public pages in November 2026 and change without notice; the vendor rows and the matrix were not verified by hands-on trials. “?” means the vendor does not state the capability publicly.</p>
+  </div>
+
+  <footer>
+    Generated 14 Nov 2026 for the Mortgage-Management-App repository (v3.4.10).
+  </footer>
+
+</div>
+</body>
+</html>
