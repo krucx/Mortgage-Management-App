@@ -202,7 +202,7 @@ printf '%s' "$S" | jq '.reminder_approve_first = true' | curl -s -o /dev/null -w
     <tr class="changed"><td>after</td><td>none: both rows deleted</td><td><code>rate_per_gram=None, updated_on=None</code></td></tr>
     </table>
     <p class="cite">From <code>scripts/run_throughs.py</code> (section L3), on a copy, calling the group directly.</p>
-    <p>Here the default <em>is</em> <code>None</code>, so forgetting is exactly right: the 22K rate is back to "not set". But if a field's default were something else, setting it to <code>None</code> would bring that default back. That's the Cash Limit's problem: if its key were deleted, <code>get_cash_limit</code> would read <code>cash_limit=2000000</code>, and the Lender's "never warn me" would quietly turn into "warn at ₹20,000". Pinned by <code>test_setting_nothing_forgets_the_value</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_settings.py"><code>tests/test_settings.py</code></a>.</p>
+    <p>Here the default <em>is</em> <code>None</code>, so forgetting is exactly right: the 22K rate is back to "not set". But if a field's default were something else, setting it to <code>None</code> would bring that default back. That's the Cash Limit's problem: if its key were deleted, <code>get_cash_limit</code> would read <code>cash_limit=2000000</code>, and the Lender's "never warn me" would quietly turn into "warn at ₹20,000". Pinned by <code>test_setting_nothing_forgets_the_value</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/platform/test_settings.py"><code>tests/platform/test_settings.py</code></a>.</p>
   </div>
 </div>
 
@@ -212,8 +212,8 @@ printf '%s' "$S" | jq '.reminder_approve_first = true' | curl -s -o /dev/null -w
 <h3>(c) Adding a group of your own</h3>
 <p>The tests show the whole recipe in a few lines. A model with defaults, a prefix, and optionally a reaction:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_settings.py">tests/test_settings.py</a> · <code>Example</code>, <code>EXAMPLE</code> · lines 16–25</figcaption>
-<pre data-file="backend/tests/test_settings.py"><code>16  class Example(BaseModel):
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/platform/test_settings.py">tests/platform/test_settings.py</a> · <code>Example</code>, <code>EXAMPLE</code> · lines 16–25</figcaption>
+<pre data-file="backend/tests/platform/test_settings.py"><code>16  class Example(BaseModel):
 17      days: int = Field(default=2, ge=1)
 18      approve_first: bool = False
 19      mode: InterestMode = InterestMode.SIMPLE
@@ -252,7 +252,7 @@ printf '%s' "$S" | jq '.reminder_approve_first = true' | curl -s -o /dev/null -w
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/settings.py"><code>platform/settings.py</code></a> (61 lines, its docstring first), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_settings.py"><code>tests/test_settings.py</code></a> whole: seven short tests, one per rule in this lesson, from <code>test_what_is_set_is_read_back</code> to <code>test_a_change_is_told_to_whoever_reacts_to_it</code>.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/settings.py"><code>platform/settings.py</code></a> (61 lines, its docstring first), then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/platform/test_settings.py"><code>tests/platform/test_settings.py</code></a> whole: seven short tests, one per rule in this lesson, from <code>test_what_is_set_is_read_back</code> to <code>test_a_change_is_told_to_whoever_reacts_to_it</code>.</p>
 
 <nav class="lessons">
   <a href="02-today-now-and-the-daily-run.html">← Today, now and the daily run</a>

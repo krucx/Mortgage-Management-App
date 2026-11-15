@@ -209,7 +209,7 @@ flowchart TD
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L2).</p>
 <p>The ₹30,700 matches chapter 001's hand-worked figure. On 12 Oct the quote already has one day: today always counts (chapter 004, lesson 2).</p>
-<p class="aside">The quote's Interest to Date is charged on the Principal at the start of the month under way, like any Interest to Date (ADR 0006). So a Customer who pays off Principal on an Accrual Date and closes the same day still owes that day's Interest to Date on the old Principal. <code>test_redeeming_after_a_payment_on_the_same_accrual_date_costs_the_outstanding</code> in <code>tests/test_ledger.py</code>, run for two Interest Modes, pins this. Those were the two Redemption failures in chapter 004's exercise, when the month started after the day's Payments instead.</p>
+<p class="aside">The quote's Interest to Date is charged on the Principal at the start of the month under way, like any Interest to Date (ADR 0006). So a Customer who pays off Principal on an Accrual Date and closes the same day still owes that day's Interest to Date on the old Principal. <code>test_redeeming_after_a_payment_on_the_same_accrual_date_costs_the_outstanding</code> in <code>tests/lending/test_ledger.py</code>, run for two Interest Modes, pins this. Those were the two Redemption failures in chapter 004's exercise, when the month started after the day's Payments instead.</p>
 <p><strong>Check it on your served book.</strong> Farida's nose ring is Waived there, so the route refuses it (nuance (a)). Ask <code>replay</code> directly, from <code>backend/</code>:</p>
 <pre><code>uv run python - "$BOOK" &lt;&lt;'EOF'
 import sys
@@ -300,7 +300,7 @@ curl -s -X POST -H 'content-type: application/json' \
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <code>compute_ledger</code>'s docstring in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/ledger.py"><code>lending/ledger.py</code></a>, lines 357–364: the Closure rules in one paragraph. In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_closing.py"><code>tests/test_closing.py</code></a>, four tests pin this lesson's rules: <code>test_redeeming_on_an_impossible_date_is_refused</code>, <code>test_redeeming_before_an_existing_payment_is_refused</code>, <code>test_a_mortgage_can_be_closed_only_once</code> and <code>test_the_outstanding_on_a_closure_date_can_be_quoted_for_a_future_date</code>.</p>
+<p>Read <code>compute_ledger</code>'s docstring in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/ledger.py"><code>lending/ledger.py</code></a>, lines 357–364: the Closure rules in one paragraph. In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/lending/test_closing.py"><code>tests/lending/test_closing.py</code></a>, four tests pin this lesson's rules: <code>test_redeeming_on_an_impossible_date_is_refused</code>, <code>test_redeeming_before_an_existing_payment_is_refused</code>, <code>test_a_mortgage_can_be_closed_only_once</code> and <code>test_the_outstanding_on_a_closure_date_can_be_quoted_for_a_future_date</code>.</p>
 
 <nav class="lessons">
   <a href="01-outstanding.html">← Outstanding</a>

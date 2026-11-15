@@ -211,8 +211,8 @@ curl -s -H 'content-type: application/json' -d "$BODY" http://127.0.0.1:8765/api
 <h3>(c) Why the API hides <code>received_with</code></h3>
 <p>Look at <code>Payment</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/payments/payments.py"><code>payments/payments.py</code></a> (line 55): no <code>received_with</code>. And a test makes sure it never appears anywhere in the API:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_openapi.py">tests/test_openapi.py</a> · <code>test_ready_to_redeem_is_retired_from_the_api</code> · lines 8–15</figcaption>
-<pre data-file="backend/tests/test_openapi.py"><code>8  def test_ready_to_redeem_is_retired_from_the_api() -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/platform/test_openapi.py">tests/platform/test_openapi.py</a> · <code>test_ready_to_redeem_is_retired_from_the_api</code> · lines 8–15</figcaption>
+<pre data-file="backend/tests/platform/test_openapi.py"><code>8  def test_ready_to_redeem_is_retired_from_the_api() -&gt; None:
 9      # Paying the whole Outstanding Redeems (ADR 0011), so nothing waits to be Redeemed.
 10      schema = schema_text()
 11      assert [
@@ -253,7 +253,7 @@ curl -s -H 'content-type: application/json' -d "$BODY" http://127.0.0.1:8765/api
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_redeeming_payments.py"><code>tests/test_redeeming_payments.py</code></a> from line 96 (<code>test_one_payment_can_redeem_one_mortgage_and_part_pay_another</code>) to line 266. Each test is a short story about parts: refused together, one Receipt, a Reopen, Voiding the ordinary part alone, and a whole Outstanding that can't Redeem.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/payments/test_redeeming_payments.py"><code>tests/payments/test_redeeming_payments.py</code></a> from line 96 (<code>test_one_payment_can_redeem_one_mortgage_and_part_pay_another</code>) to line 266. Each test is a short story about parts: refused together, one Receipt, a Reopen, Voiding the ordinary part alone, and a whole Outstanding that can't Redeem.</p>
 
 <nav class="lessons">
   <a href="01-a-payment-and-its-allocations.html">← A Payment and its Allocations</a>

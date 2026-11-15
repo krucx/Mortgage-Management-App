@@ -40,8 +40,8 @@
 <table class="wide">
 <tr><th>From</th><th>Command</th><th>What it does</th></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest</code></td><td>All backend tests; each makes its own throwaway database</td></tr>
-<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_default_terms.py</code></td><td>One test file (002's check-yourself exercise)</td></tr>
-<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_ledger.py</code></td><td>The Ledger engine's 84 tests, pure and database-free (004's check-yourself exercise)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/lending/test_default_terms.py</code></td><td>One test file (002's check-yourself exercise)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/lending/test_ledger.py</code></td><td>The Ledger engine's 84 tests, pure and database-free (004's check-yourself exercise)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../docs/onboarding/004-the-ledger-engine/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 004 quotes</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest -q</code></td><td>All 607 backend tests, one line of dots (005's check-yourself exercise: 6 fail when the quote counts its own Final Payment; 010's: 422 break when <code>db.py</code> declares a column the migrations don't make)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../docs/onboarding/005-replay-and-closures/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 005 quotes, making its Closures, Reopens and refusals on throwaway copies</td></tr>
@@ -86,7 +86,7 @@
 <tr><td>anywhere</td><td><code>export COPY=$(mktemp -d) &amp;&amp; cp -R "$BOOK/data" "$COPY/"</code></td><td>A copy of the book's data to start the app on, so <code>$BOOK</code> is never migrated (010 · Lessons 5, 6)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../docs/sample-book/serve.py "$COPY" 8766</code></td><td>Starts the app on the copy, beside your served book; Backups into <code>$COPY/backups</code>. A <code>-before-update</code> Backup there means it migrated</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python - "$COPY" &lt;&lt;'EOF'</code> … <code>command.downgrade(config, "0014")</code> … <code>EOF</code></td><td>Makes the copy look like it came from an older version (there's no <code>alembic.ini</code>, so the script builds Alembic's <code>Config</code> as <code>migrate()</code> does). Scratch copies only; the Lender never downgrades (010 · Lesson 5)</td></tr>
-<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_migrations.py</code></td><td>The chain runs, settings survive a restart, and <code>db.py</code>'s Tables match the migrated schema (the drift test, 010 · Lesson 6)</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/platform/test_migrations.py</code></td><td>The chain runs, settings survive a restart, and <code>db.py</code>'s Tables match the migrated schema (the drift test, 010 · Lesson 6)</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../docs/onboarding/010-platform-database-and-migrations/scripts/run_throughs.py</code></td><td>Rebuilds the sample book in a temp folder and prints every figure chapter 010 quotes, starting the app on throwaway copies (some on later days, one with a temporary migration 0016)</td></tr>
 </table>
 
@@ -99,7 +99,7 @@
 <tr><td><code>frontend/</code></td><td><code>npm run typecheck</code></td><td>Compiles everything (<code>tsc -b</code>): a path, parameter or body the backend doesn't take fails here. CI runs it</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm test</code></td><td>Every frontend test (Vitest): 230 at commit 87a96c7. CI runs it</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npm run lint</code></td><td>oxlint, which bans <code>fetch</code> outside the typed client (<a href="traps.html#t11">trap #11</a>). The frontend CI job runs it too</td></tr>
-<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_openapi.py</code></td><td>Whether the checked-in <code>openapi.json</code> matches the backend, and that retired words stay out of the schema</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/platform/test_openapi.py</code></td><td>Whether the checked-in <code>openapi.json</code> matches the backend, and that retired words stay out of the schema</td></tr>
 <tr><td>repo root</td><td><code>sh docs/onboarding/011-the-frontends-data-layer/scripts/run_throughs.sh</code></td><td>Builds the sample book in a temp folder, serves it on 8000 with the dev server on 5199, drives the screens headless and prints every <code>/api/</code> request chapter 011 quotes. Ports 8000 and 5199 must be free; needs Playwright (<code>cd docs/sample-book &amp;&amp; npm install</code>)</td></tr>
 </table>
 
@@ -126,7 +126,7 @@
 <tr><td><code>frontend/</code></td><td><code>npm run lint</code></td><td>oxlint. Runs in CI; bans <code>fetch</code> outside the typed client (<a href="traps.html#t11">trap #11</a>). Prints nothing when clean</td></tr>
 <tr><td>repo root</td><td><code>cmp windows/Setup.bat docs/Setup.bat</code></td><td>CI's <code>pages</code> job: the downloadable <code>Setup.bat</code> is the one in <code>windows/</code>. No output means the same</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run pytest -k cash_limit -v</code></td><td>Only tests whose name or file name contains the words (5 here: one is in <code>test_lent_through.py</code>)</td></tr>
-<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_cash_limit.py</code><br><code>uv run pytest tests/test_cash_limit.py::test_a_cash_limit_of_nothing_is_refused</code></td><td>One file; one test</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/payments/test_cash_limit.py</code><br><code>uv run pytest tests/payments/test_cash_limit.py::test_a_cash_limit_of_nothing_is_refused</code></td><td>One file; one test</td></tr>
 <tr><td><code>frontend/</code></td><td><code>npx vitest run -t "Term Change"</code><br><code>npx vitest run tests/ChangeTermsPage.test.tsx</code></td><td>Tests whose name contains the words (4 here); one file</td></tr>
 <tr><td>repo root</td><td><code>docker build -t mm-pester -f docs/onboarding/013-testing/scripts/pester.Dockerfile .</code><br><code>docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke-Pester windows/tests'</code></td><td>The Windows scripts' Pester tests, in Debian with PowerShell's <code>linux-arm64</code> release (not on the Mac, not Microsoft's image): "Tests Passed: 65". On Intel/AMD, change <code>linux-arm64</code> to <code>linux-x64</code> in the Dockerfile</td></tr>
 <tr><td><code>backend/</code></td><td><code>uv run python ../docs/onboarding/013-testing/scripts/figures.py</code></td><td>The tests' cast through the real app on 20 Apr 2026: Ramesh's chain, the Loan-to-Value boundary, a ₹12,000 Payment</td></tr>
@@ -137,8 +137,8 @@
 <p>Taught in <a href="../015-releases-updates-and-backups/index.html">chapter 015</a>. Use scratch folders for every app instance; a real <code>BACKUP_DIR</code> may contain the Lender's database and Customer photos.</p>
 <table class="wide">
 <tr><th>From</th><th>Command</th><th>What it does</th></tr>
-<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_backups.py -q</code></td><td>Exercises Backup creation, encrypted and plain zips, weekly cadence, retention and pre-migration safety on temporary data</td></tr>
-<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_updates.py -q</code></td><td>Checks version ordering, daily lookup interval, offline response and no update lookup in a development build</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/safekeeping/test_backups.py -q</code></td><td>Exercises Backup creation, encrypted and plain zips, weekly cadence, retention and pre-migration safety on temporary data</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/platform/test_updates.py -q</code></td><td>Checks version ordering, daily lookup interval, offline response and no update lookup in a development build</td></tr>
 <tr><td>repo root</td><td><code>git tag --list '[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1</code></td><td>Shows the highest numeric release tag; release workflow uses this to avoid moving <code>latest</code> backwards</td></tr>
 <tr><td>repo root</td><td><code>node .github/scripts/check-version.mjs</code> (add <code>--tag 3.4.8</code> to check a tag)</td><td>Every copy of the version matches the one <code>VERSION</code> file: package metadata, lockfiles, <code>openapi.json</code>, the Pages labels. CI and the release run it (015 · Lesson 2)</td></tr>
 <tr><td>repo root</td><td><code>node .github/scripts/release-candidate.mjs --version 3.4.8 --latest-published 3.4.7 --current-version 3.4.7 --check-only</code></td><td>Would the candidate workflow accept this version? Publishes nothing</td></tr>
@@ -168,7 +168,7 @@
 <tr><td>repo root</td><td><code>$DC config</code></td><td>The merged configuration, with every variable filled in: check which folders it will mount before you <code>up</code></td></tr>
 <tr><td>repo root</td><td><code>$DC stop app</code> · <code>$DC start app</code> · <code>$DC down</code></td><td>Stop and start the container; <code>down</code> removes it and its network, never the mounted folders</td></tr>
 <tr><td>anywhere</td><td><code>curl -sI http://127.0.0.1:8081/sw.js</code> (and <code>:8765</code>)</td><td>Status and <code>Cache-Control</code> of one path, headers only. Pages, <code>sw.js</code>, <code>registerSW.js</code>, the manifest: <code>no-cache</code>; <code>/assets/…</code>: <code>public, max-age=31536000, immutable</code>. The same in both modes</td></tr>
-<tr><td><code>backend/</code></td><td><code>uv run pytest tests/test_screens.py</code></td><td>The 10 tests that pin <code>screens.py</code>'s answers and headers</td></tr>
+<tr><td><code>backend/</code></td><td><code>uv run pytest tests/platform/test_screens.py</code></td><td>The 10 tests that pin <code>screens.py</code>'s answers and headers</td></tr>
 <tr><td>repo root</td><td><code>docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke-Pester windows/tests -Output Detailed'</code></td><td>The Windows scripts' 65 Pester tests, one line each (build <code>mm-pester</code> first: <a href="#testing">Testing</a>)</td></tr>
 <tr><td>repo root</td><td><code>LC_ALL=C grep -c "$(printf '[\200-\377]')" windows/*.ps1 windows/*.bat windows/tests/*.ps1</code></td><td>Non-ASCII bytes per file in <code>windows/</code>: each must be 0 (<a href="traps.html#t14">trap #14</a>)</td></tr>
 <tr><td>Windows, optional</td><td><code>powershell -ExecutionPolicy Bypass -File windows\setup.ps1 -NonInteractive -Mode local -Ref main -InstallDir C:\scratch\mm</code></td><td>What CI's <code>windows</code> job runs, into a scratch folder. Remove with <code>C:\scratch\mm\app\windows\Uninstall.bat</code>. Never leave out <code>-InstallDir</code> where the app is installed for real</td></tr>

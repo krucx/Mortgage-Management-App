@@ -192,7 +192,7 @@ ls "$OLDER/backups"; sqlite3 "$OLDER/data/mortgage.db" "SELECT * FROM alembic_ve
 <tr class="changed"><td><code>$OLDER</code></td><td>0014</td><td>Backup, then 0015, 0016 and 0017 run in order</td><td><code>…-2026-10-19-1100-before-update.zip</code> only</td><td>0017</td></tr>
 </table>
 <p class="cite">From <code>scripts/run_throughs.py</code> (section L5), with the real <code>create_app</code> as <code>serve.py</code> builds it.</p>
-<p>The refusal is the point of <code>known_revisions</code>. Docker restarts a crashed backend over and over (<code>restart: unless-stopped</code>). If the older version took a Backup each time before failing, it would fill the Backup folder with copies of a database it can't even read, and push out the older Backups the Lender needs to go back. <code>test_an_older_version_takes_no_backup_of_a_newer_database_and_does_not_start</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_backups.py"><code>test_backups.py</code></a> line 247) starts it five times and checks.</p>
+<p>The refusal is the point of <code>known_revisions</code>. Docker restarts a crashed backend over and over (<code>restart: unless-stopped</code>). If the older version took a Backup each time before failing, it would fill the Backup folder with copies of a database it can't even read, and push out the older Backups the Lender needs to go back. <code>test_an_older_version_takes_no_backup_of_a_newer_database_and_does_not_start</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/safekeeping/test_backups.py"><code>test_backups.py</code></a> line 247) starts it five times and checks.</p>
 
 <h2>Nuances</h2>
 <h3>(a) Only one Backup on an update morning</h3>
@@ -247,7 +247,7 @@ ls "$OLDER/backups"; sqlite3 "$OLDER/data/mortgage.db" "SELECT * FROM alembic_ve
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <code>migrate()</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/db.py"><code>platform/db.py</code></a> (lines 285–316), its docstring first. Then read the three tests in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_backups.py"><code>tests/test_backups.py</code></a> from line 231 to line 275: one per outcome in this lesson's run-through. The first upgrades a database to 0007 by hand to make it look old, the same trick as your <code>downgrade</code> above, in the other direction.</p>
+<p>Read <code>migrate()</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/db.py"><code>platform/db.py</code></a> (lines 285–316), its docstring first. Then read the three tests in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/safekeeping/test_backups.py"><code>tests/safekeeping/test_backups.py</code></a> from line 231 to line 275: one per outcome in this lesson's run-through. The first upgrades a database to 0007 by hand to make it look old, the same trick as your <code>downgrade</code> above, in the other direction.</p>
 
 <nav class="lessons">
   <a href="04-tables-engine-and-pages.html">← Tables, the engine and pages</a>

@@ -177,7 +177,7 @@ cd frontend &amp;&amp; npx vitest run -t "Term Change"</code></pre>
     <tr><td><code>test_cash_limit.py</code></td><td><code>test_a_cash_limit_of_nothing_is_refused</code></td></tr>
     <tr class="changed"><td><code>test_lent_through.py</code></td><td><code>test_cash_above_the_cash_limit_is_lent_all_the_same</code></td></tr>
     </table>
-    <p>"5 passed, 704 deselected". The fifth is a test in another file that happens to say "cash limit" in its name. That's usually what you want: everything about the Cash Limit. For exactly one file, name it: <code>uv run pytest tests/test_cash_limit.py</code>. For exactly one test, add <code>::</code> and its name.</p>
+    <p>"5 passed, 704 deselected". The fifth is a test in another file that happens to say "cash limit" in its name. That's usually what you want: everything about the Cash Limit. For exactly one file, name it: <code>uv run pytest tests/payments/test_cash_limit.py</code>. For exactly one test, add <code>::</code> and its name.</p>
   </div>
 </div>
 <p><code>vitest -t "Term Change"</code> works the same way on test names: it runs the 4 tests in <code>ChangeTermsPage.test.tsx</code> and skips the other 226. To run one file, give its path: <code>npx vitest run tests/ChangeTermsPage.test.tsx</code>.</p>
@@ -230,8 +230,8 @@ docker run --rm -v "$PWD:/repo:ro" -w /repo mm-pester pwsh -NoProfile -c 'Invoke
   <div class="why">mypy reads only the backend. <code>tsc</code> checks types, and <code>window.fetch</code> is well typed. The frontend CI job runs oxlint, whose <code>no-restricted-properties</code> rule rejects <code>window.fetch</code>. No test draws the page, so the test-time guard would not run.</div>
 </div>
 <div class="quiz" data-answer="0">
-  <p class="q">You want to run only the four tests in <code>backend/tests/test_cash_limit.py</code>. Which command does exactly that?</p>
-  <button class="opt"><code>uv run pytest tests/test_cash_limit.py</code></button>
+  <p class="q">You want to run only the four tests in <code>backend/tests/payments/test_cash_limit.py</code>. Which command does exactly that?</p>
+  <button class="opt"><code>uv run pytest tests/payments/test_cash_limit.py</code></button>
   <button class="opt"><code>uv run pytest -k cash_limit</code></button>
   <button class="opt"><code>uv run pytest -k test_cash_limit.py</code></button>
   <div class="why">A path runs that file. <code>-k cash_limit</code> matches by substring and also runs <code>test_lent_through.py</code>'s <code>test_cash_above_the_cash_limit_is_lent_all_the_same</code>: five tests. <code>-k</code> takes name expressions, not paths; a dot in it is an error.</div>

@@ -135,8 +135,8 @@ flowchart TD
 <p>Each change is tested at two levels, in two files:</p>
 <table class="wide">
 <tr><th>File</th><th>Calls</th><th>The Collateral Value's tests</th><th>What they pin</th></tr>
-<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_changes.py"><code>tests/test_changes.py</code></a></td><td>The change function directly, on a <code>conn</code> fixture</td><td><code>test_a_collateral_value_is_set_by_hand_cleared_and_recorded</code>, <code>test_a_collateral_value_is_refused_when_it_cannot_stand</code></td><td>What is written; its History; each refusal's status and message (404, 422, 409)</td></tr>
-<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_previews.py"><code>tests/test_previews.py</code></a></td><td>The Preview route, through the API <code>client</code></td><td><code>test_a_collateral_preview_shows_the_loan_to_value_and_call_list_either_side</code></td><td>Both sides of the Preview, and that nothing was saved</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/lending/test_changes.py"><code>tests/lending/test_changes.py</code></a></td><td>The change function directly, on a <code>conn</code> fixture</td><td><code>test_a_collateral_value_is_set_by_hand_cleared_and_recorded</code>, <code>test_a_collateral_value_is_refused_when_it_cannot_stand</code></td><td>What is written; its History; each refusal's status and message (404, 422, 409)</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/lending/test_previews.py"><code>tests/lending/test_previews.py</code></a></td><td>The Preview route, through the API <code>client</code></td><td><code>test_a_collateral_preview_shows_the_loan_to_value_and_call_list_either_side</code></td><td>Both sides of the Preview, and that nothing was saved</td></tr>
 </table>
 <p>For a Ledger-changing change, add to <code>test_previews.py</code> a test that the Preview is refused like the save (as <code>test_a_void_preview_is_refused_like_the_void</code> does), and to <code>test_changes.py</code> a test that a refused change records no History. <a href="../013-testing/index.html">Chapter 013</a> owns the fixtures.</p>
 
@@ -220,7 +220,7 @@ flowchart TD
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read the three Collateral Value tests named above, then <code>test_a_void_preview_is_refused_like_the_void</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_previews.py"><code>tests/test_previews.py</code></a>, line 136). Together they're the template for the tests of any new change.</p>
+<p>Read the three Collateral Value tests named above, then <code>test_a_void_preview_is_refused_like_the_void</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/lending/test_previews.py"><code>tests/lending/test_previews.py</code></a>, line 136). Together they're the template for the tests of any new change.</p>
 
 <nav class="lessons">
   <a href="04-previews.html">← Previews</a>

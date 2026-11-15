@@ -169,8 +169,8 @@ sequenceDiagram
 
 <h3>3. The pattern: <code>test_cash_limit.py</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_cash_limit.py">backend/tests/test_cash_limit.py</a> · the whole file · lines 1–33</figcaption>
-<pre data-file="backend/tests/test_cash_limit.py"><code>1   """The Cash Limit: at or above it, the Lender is warned on screen before lending or     ①
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/payments/test_cash_limit.py">backend/tests/payments/test_cash_limit.py</a> · the whole file · lines 1–33</figcaption>
+<pre data-file="backend/tests/payments/test_cash_limit.py"><code>1   """The Cash Limit: at or above it, the Lender is warned on screen before lending or     ①
 2   receiving cash. A setting, ₹20,000 unless changed; cleared, there is no warning."""
 3
 4
@@ -215,8 +215,8 @@ sequenceDiagram
 
 <h3>4. A test with data: <code>test_call_list.py</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_call_list.py">backend/tests/test_call_list.py</a> · <code>listed</code>, <code>ramesh</code>, two tests · lines 1–72, trimmed</figcaption>
-<pre data-file="backend/tests/test_call_list.py"><code>1   """The Call List: Mortgages to phone about today (today is 20 Apr 2026, see conftest)."""
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/follow_up/test_call_list.py">backend/tests/follow_up/test_call_list.py</a> · <code>listed</code>, <code>ramesh</code>, two tests · lines 1–72, trimmed</figcaption>
+<pre data-file="backend/tests/follow_up/test_call_list.py"><code>1   """The Call List: Mortgages to phone about today (today is 20 Apr 2026, see conftest)."""
 ⋮
 4   from api_seed import lend, pay, person                         # ① plain imports
 5   from seed import LAKH, RUPEE
@@ -247,7 +247,7 @@ sequenceDiagram
 </ol>
 
 <h2>Run-through: a test of your own</h2>
-<p>The Cash Limit's tests cover the default, a change, a clearing and a refusal. One thing is missing: once cleared, can the Lender turn the warning back on? Add this at the end of <code>backend/tests/test_cash_limit.py</code>:</p>
+<p>The Cash Limit's tests cover the default, a change, a clearing and a refusal. One thing is missing: once cleared, can the Lender turn the warning back on? Add this at the end of <code>backend/tests/payments/test_cash_limit.py</code>:</p>
 <pre><code>def test_the_cash_limit_can_be_set_back_to_20000_rupees_after_being_cleared(client):
     set_cash_limit(client, None)
 
@@ -255,7 +255,7 @@ sequenceDiagram
     assert cash_limit(client) == {"cash_limit": 20_000_00}</code></pre>
 <p>Arrange (clear it), blank line, act and assert. Then run the file:</p>
 <pre><code>cd backend
-uv run pytest tests/test_cash_limit.py -v</code></pre>
+uv run pytest tests/payments/test_cash_limit.py -v</code></pre>
 <table class="steps text">
 <tr><th>Test</th><th>Result</th></tr>
 <tr><td><code>test_the_cash_limit_is_20000_rupees_unless_changed</code></td><td>PASSED</td></tr>
@@ -277,7 +277,7 @@ E         {'cash_limit': 2000000} != {'cash_limit': 20000}</code></pre>
   </div>
 </div>
 <p class="cite">From <code>scripts/run_throughs.sh</code>, section L2.</p>
-<p>Put it back to <code>20_000_00</code>. Keep the test or drop it (<code>git checkout -- tests/test_cash_limit.py</code>); it's a fine test, but this course doesn't commit it for you.</p>
+<p>Put it back to <code>20_000_00</code>. Keep the test or drop it (<code>git checkout -- tests/payments/test_cash_limit.py</code>); it's a fine test, but this course doesn't commit it for you.</p>
 
 <h2>Nuances</h2>
 <h3>a. No test depends on another</h3>
@@ -339,7 +339,7 @@ E   ImportError: cannot import name 'APIRouter' from partially initialized modul
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_call_list.py"><code>tests/test_call_list.py</code></a> whole (about 150 lines): its tests build each situation in two or three lines with <code>person</code> and <code>lend</code>, and the comments say what the figures will be. Then pytest's own <a href="https://docs.pytest.org/en/stable/how-to/fixtures.html">guide to fixtures</a>, for <code>yield</code> fixtures and how they're shared through <code>conftest.py</code>.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/follow_up/test_call_list.py"><code>tests/follow_up/test_call_list.py</code></a> whole (about 150 lines): its tests build each situation in two or three lines with <code>person</code> and <code>lend</code>, and the comments say what the figures will be. Then pytest's own <a href="https://docs.pytest.org/en/stable/how-to/fixtures.html">guide to fixtures</a>, for <code>yield</code> fixtures and how they're shared through <code>conftest.py</code>.</p>
 
 <nav class="lessons">
   <a href="01-every-check-and-how-to-run-it.html">← Every check, and how to run it</a>

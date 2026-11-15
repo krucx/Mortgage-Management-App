@@ -2,7 +2,7 @@ from pathlib import Path
 
 from mortgage_backend.openapi import schema_text
 
-CHECKED_IN = Path(__file__).parents[2] / "frontend" / "openapi.json"
+CHECKED_IN = Path(__file__).parents[3] / "frontend" / "openapi.json"
 
 
 def test_ready_to_redeem_is_retired_from_the_api() -> None:

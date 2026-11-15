@@ -74,7 +74,7 @@ flowchart TD
 <h2>Run-through 1: the Loan-to-Value boundary</h2>
 <p>Both of these gaps were found while planning this course, filed as issues (<a href="https://github.com/krucx/Mortgage-Management-App/issues/114">#114</a> and <a href="https://github.com/krucx/Mortgage-Management-App/issues/116">#116</a>), and fixed, so today each line <em>is</em> pinned. To see the gap as it was, you first delete the test that closed it. Then you write your own, and compare.</p>
 <ol>
-  <li>In <code>backend/tests/test_call_list.py</code>, delete <code>test_a_mortgage_at_exactly_the_loan_to_value_limit_is_not_listed</code> (lines 75–85).</li>
+  <li>In <code>backend/tests/follow_up/test_call_list.py</code>, delete <code>test_a_mortgage_at_exactly_the_loan_to_value_limit_is_not_listed</code> (lines 75–85).</li>
   <li>In <code>follow_up/call_list.py</code> line 94, change <code>&gt;</code> to <code>&gt;=</code>.</li>
   <li>Run <code>uv run pytest</code>.</li>
 </ol>
@@ -114,7 +114,7 @@ def test_a_mortgage_owing_a_rupee_over_85_percent_is_listed(client, ramesh):
 <tr class="changed"><td>₹51,001</td><td>₹52,531</td><td>₹61,800</td><td>0.8500161…</td><td>yes</td></tr>
 </table>
 <p class="cite">From <code>scripts/figures.py</code>, section L5. The month's interest is rounded to the rupee, so ₹51,001 owes ₹1,530 of it, not ₹1,530.03.</p>
-<p>Now run your two tests, on the broken line first: <code>uv run pytest tests/test_call_list.py</code>.</p>
+<p>Now run your two tests, on the broken line first: <code>uv run pytest tests/follow_up/test_call_list.py</code>.</p>
 <table class="steps text">
 <tr><th>Line 94</th><th>At exactly 85%</th><th>A rupee over</th></tr>
 <tr class="changed"><td><code>&gt;=</code> (broken)</td><td>FAILED: <code>assert [('2026-Rames...n_to_value'])] == []</code>, "Left contains one more item: ('2026-Ramesh-GoldChain', ['loan_to_value'])"</td><td>passed</td></tr>
@@ -124,8 +124,8 @@ def test_a_mortgage_owing_a_rupee_over_85_percent_is_listed(client, ramesh):
 <p>The test at exactly 85% is the one that catches <code>&gt;=</code>. The one a rupee over guards the other direction: a limit that creeps upward (<code>&gt; settings.loan_to_value_pct + 1</code>, say) would take it off the list, and that test would fail.</p>
 <h3>Compare with the real test</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_call_list.py">backend/tests/test_call_list.py</a> · the test you deleted · lines 75–85</figcaption>
-<pre data-file="backend/tests/test_call_list.py"><code>75  def test_a_mortgage_at_exactly_the_loan_to_value_limit_is_not_listed(client, ramesh):
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/follow_up/test_call_list.py">backend/tests/follow_up/test_call_list.py</a> · the test you deleted · lines 75–85</figcaption>
+<pre data-file="backend/tests/follow_up/test_call_list.py"><code>75  def test_a_mortgage_at_exactly_the_loan_to_value_limit_is_not_listed(client, ramesh):
 76      client.put(
 77          "/api/settings/gold-rates",
 78          json=[{"purity_karat": 22, "rate_per_gram": 5_150 * RUPEE}],
@@ -138,7 +138,7 @@ def test_a_mortgage_owing_a_rupee_over_85_percent_is_listed(client, ramesh):
 85      assert listed(client) == [(above["name"], ["loan_to_value"])]
 </code></pre>
 </figure>
-<p>The same two sides in one test, with the other knob turned: both owe ₹87,550, and the second is a milligram lighter, so worth a little less. Either way works. Put the code back: <code>git checkout -- tests/test_call_list.py src/mortgage_backend/follow_up/call_list.py</code>. With your tests gone and the real one back, run the real one on the broken line to see that it is the one that pins it: <strong>1 failed, 708 passed</strong>, with <code>assert '2026-Ramesh-GoldChain' not in ['2026-Ramesh-GoldChain-2', '2026-Ramesh-GoldChain']</code>.</p>
+<p>The same two sides in one test, with the other knob turned: both owe ₹87,550, and the second is a milligram lighter, so worth a little less. Either way works. Put the code back: <code>git checkout -- tests/follow_up/test_call_list.py src/mortgage_backend/follow_up/call_list.py</code>. With your tests gone and the real one back, run the real one on the broken line to see that it is the one that pins it: <strong>1 failed, 708 passed</strong>, with <code>assert '2026-Ramesh-GoldChain' not in ['2026-Ramesh-GoldChain-2', '2026-Ramesh-GoldChain']</code>.</p>
 
 <h2>Run-through 2: StartGate and a 5xx</h2>
 <ol>
