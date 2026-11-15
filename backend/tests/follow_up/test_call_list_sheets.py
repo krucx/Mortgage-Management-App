@@ -122,7 +122,7 @@ def upload(client, sheet: bytes, preview: bool = False):
 
 def notes_of(client, mortgage) -> list[tuple[str, str]]:
     response = client.get(f"/api/mortgages/{mortgage['id']}/call-notes")
-    return [(n["called_on"], n["note"]) for n in response.json()]
+    return [(n["called_on"], n["note"]) for n in response.json()["items"]]
 
 
 def test_the_preview_shows_the_notes_it_would_add_skipping_empty_rows_and_saves_nothing(

@@ -15,10 +15,16 @@ def chain(client, ramesh):
     return lend(client, ramesh, description="Gold chain")
 
 
-def favours(client, customer):
-    response = client.get(f"/api/customers/{customer['id']}/favours")
+def favours_page(client, customer, page=1):
+    response = client.get(f"/api/customers/{customer['id']}/favours?page={page}")
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def favours(client, customer):
+    """The first page's favours, and what every page let off as `total`."""
+    listed = favours_page(client, customer)
+    return {"favours": listed["items"], "total": listed["let_off"]}
 
 
 def discounted(client, customer, mortgage, discount, on="2026-04-15", cash=2_000_00):
@@ -281,3 +287,27 @@ def test_a_mortgage_a_grace_payment_lets_off_nothing_on_is_left_out(
         (f["mortgage"]["description"], f["amount"])
         for f in favours(client, ramesh)["favours"]
     ] == [("Gold chain", 330_00)]
+
+
+def test_favours_come_a_page_at_a_time_with_the_total_across_every_page(
+    client, ramesh, chain
+):
+    for day in range(1, 23):  # 22 Discounts of Rs 10, past the 20 on a page
+        discounted(client, ramesh, chain, 10_00, on=f"2026-03-{day:02d}", cash=100_00)
+
+    first = favours_page(client, ramesh)
+    second = favours_page(client, ramesh, page=2)
+
+    assert (first["total"], first["page"], first["page_size"]) == (22, 1, 20)
+    assert (len(first["items"]), len(second["items"])) == (20, 2)
+    assert first["items"][0]["on"] == "2026-03-22"  # newest first, across pages
+    assert second["items"][-1]["on"] == "2026-03-01"
+    assert first["let_off"] == second["let_off"] == 220_00
+
+
+def test_a_page_past_the_last_has_no_favours_but_still_the_total(client, ramesh, chain):
+    discounted(client, ramesh, chain, 8_000_00)
+
+    past = favours_page(client, ramesh, page=2)
+
+    assert (past["items"], past["total"], past["let_off"]) == ([], 1, 8_000_00)

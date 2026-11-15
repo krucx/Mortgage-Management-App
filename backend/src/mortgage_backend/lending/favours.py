@@ -26,6 +26,7 @@ from mortgage_backend.platform.db import (
     mortgage_table,
     payment_table,
 )
+from mortgage_backend.platform.paging import Page, PageNumber, rows_page
 
 
 class FavourMortgage(BaseModel):
@@ -43,9 +44,10 @@ class Favour(BaseModel):
     amount: int  # paise let off
 
 
-class FavoursGiven(BaseModel):
-    favours: list[Favour]  # newest first
-    total: int
+class FavoursGiven(Page[Favour]):
+    """A page of favours, newest first; `let_off` totals every page."""
+
+    let_off: int  # paise
 
 
 def _graces(
@@ -82,7 +84,7 @@ def _graces(
     ]
 
 
-def favours_given(conn: Connection, customer_id: int) -> FavoursGiven:
+def favours_given(conn: Connection, customer_id: int, page: int) -> FavoursGiven:
     rows = (
         conn.execute(
             select(mortgage_table).where(mortgage_table.c.customer_id == customer_id)
@@ -128,17 +130,22 @@ def favours_given(conn: Connection, customer_id: int) -> FavoursGiven:
             )
     given.sort(key=lambda pair: (pair[1].on, pair[0]), reverse=True)  # newest first
     favours = [favour for _, favour in given]
-    return FavoursGiven(favours=favours, total=sum(favour.amount for favour in favours))
+    listed = rows_page(favours, page)
+    return FavoursGiven(
+        **dict(listed), let_off=sum(favour.amount for favour in favours)
+    )
 
 
 router = APIRouter(prefix="/api")
 
 
 @router.get("/customers/{customer_id}/favours")
-def read_favours_given(customer_id: int, engine: EngineDep) -> FavoursGiven:
-    """Every Grace, Discount and Waived Amount still standing, newest first, with their
-    total."""
+def read_favours_given(
+    customer_id: int, engine: EngineDep, page: PageNumber = 1
+) -> FavoursGiven:
+    """Every Grace, Discount and Waived Amount still standing, newest first, with the
+    total let off across every page."""
     with engine.connect() as conn:
         if not exists(conn, customer_table, customer_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
-        return favours_given(conn, customer_id)
+        return favours_given(conn, customer_id, page)

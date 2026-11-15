@@ -18,6 +18,7 @@ from mortgage_backend.lending.replay import MortgageStatus
 from mortgage_backend.platform.clock import TodayDep
 from mortgage_backend.platform.db import EngineDep, call_note_table, mortgage_table
 from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.paging import Page, PageNumber, Sorting, query_page
 
 
 class CallNoteIn(BaseModel):
@@ -105,14 +106,23 @@ def add_call_note(
         return record_call_note(conn, mortgage_id, call_note.note, today)
 
 
+# No sort keys: newest first, always.
+_SORTING: Sorting[str] = Sorting(
+    columns={}, default_order=[call_note_table.c.id.desc()]
+)
+
+
 @router.get("/mortgages/{mortgage_id}/call-notes")
-def list_call_notes(mortgage_id: int, engine: EngineDep) -> list[CallNote]:
+def list_call_notes(
+    mortgage_id: int, engine: EngineDep, page: PageNumber = 1
+) -> Page[CallNote]:
     """A Mortgage's Call Notes, newest first."""
     with engine.connect() as conn:
         _mortgage(conn, mortgage_id)
-        notes = conn.execute(
-            select(call_note_table)
-            .where(call_note_table.c.mortgage_id == mortgage_id)
-            .order_by(call_note_table.c.id.desc())
-        ).mappings()
-        return [CallNote.model_validate(note) for note in notes]
+        return query_page(
+            conn,
+            select(call_note_table).where(call_note_table.c.mortgage_id == mortgage_id),
+            _SORTING,
+            page,
+            lambda notes: [CallNote.model_validate(note) for note in notes],
+        )

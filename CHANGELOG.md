@@ -13,6 +13,12 @@ Every release of Mortgage Management, newest first. The format follows
   system architecture, UI pages, API endpoints, custom protocol (`mortgage-management://`),
   and Docker vs host deployments, with Mermaid architecture and sequence diagrams.
 
+### Changed
+
+- **Call Notes and Favours Given come a page at a time:** a Mortgage's Call Notes and a
+  Customer's Favours Given show 20 at a time, newest first, with Previous and Next, as the
+  other lists do. The Favours Given total still counts every page.
+
 ## [3.4.10] - 2026-11-13
 
 ### Added

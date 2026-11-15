@@ -1,5 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
-import { dataOrThrow, keys, type ApiClient } from '../serverState'
+import { dataOrThrow, type ApiClient } from '../serverState'
 import { mortgagePath, reminderPath } from './paths'
 import { fileForm } from './files'
 
@@ -11,17 +10,6 @@ export const reminderActions = {
     dataOrThrow(client.POST('/api/reminders/{reminder_id}/skip', { params: reminderPath(id) })),
   markSent: (client: ApiClient, id: number) =>
     dataOrThrow(client.POST('/api/reminders/{reminder_id}/sent', { params: reminderPath(id) })),
-}
-
-/** A Mortgage's Call Notes, newest first. */
-export function callNotesQuery(client: ApiClient, mortgageId: number) {
-  return queryOptions({
-    queryKey: keys.callNotes(mortgageId),
-    queryFn: () =>
-      dataOrThrow(
-        client.GET('/api/mortgages/{mortgage_id}/call-notes', { params: mortgagePath(mortgageId) }),
-      ),
-  })
 }
 
 /** Note that the Customer was phoned about a Mortgage today. */

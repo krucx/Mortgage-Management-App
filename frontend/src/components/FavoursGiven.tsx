@@ -1,27 +1,28 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { formatDate, formatDayMonth } from '../format'
 import { formatINR } from '../money'
-import { favoursGivenQuery } from '../requests'
-import { useServerState } from '../serverState'
+import { lists } from '../requests'
+import { useListPage } from './useListPage'
 
 const KIND = { grace: 'Grace', discount: 'Discount', waived: 'Waived off' } as const
 
+const NO_SORTS = [] as const
+
 /** Every Grace, Discount and Waived Amount the Lender has given the Customer, still
- *  standing, newest first with their total; nothing at all when there are none. */
+ *  standing, newest first a page at a time with the total of them all; nothing at all
+ *  when there are none. */
 export function FavoursGiven({ customerId }: { customerId: number }) {
-  const { client } = useServerState()
-  const { data, error } = useQuery(favoursGivenQuery(client, customerId))
+  const { listed, error, pager } = useListPage(NO_SORTS, lists.favours(customerId))
 
   if (error) {
     return (
       <>
         <h3>Favours Given</h3>
-        <p className="status error">{error.message}</p>
+        <p className="status error">{error}</p>
       </>
     )
   }
-  if (!data || data.favours.length === 0) return null
+  if (!listed || listed.total === 0) return null
   return (
     <>
       <h3>Favours Given</h3>
@@ -36,7 +37,7 @@ export function FavoursGiven({ customerId }: { customerId: number }) {
             </tr>
           </thead>
           <tbody>
-            {data.favours.map((favour, i) => (
+            {listed.items.map((favour, i) => (
               <tr key={i}>
                 <td>
                   {formatDate(favour.on)}
@@ -55,11 +56,12 @@ export function FavoursGiven({ customerId }: { customerId: number }) {
               <th scope="row" colSpan={3}>
                 Total
               </th>
-              <td className="num">{formatINR(data.total)}</td>
+              <td className="num">{formatINR(listed.let_off)}</td>
             </tr>
           </tfoot>
         </table>
       </div>
+      {pager}
     </>
   )
 }

@@ -1,11 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import type { CallNote } from '../api'
 import { formatDate } from '../format'
-import { addCallNote, callNotesQuery } from '../requests'
-import { STALE_AFTER, useChange, useServerState } from '../serverState'
+import { addCallNote, lists } from '../requests'
+import { STALE_AFTER, useChange } from '../serverState'
 import { Summary } from './ConfirmDialog'
 import { useConfirm } from './useConfirm'
+import { useListPage } from './useListPage'
 
 /** Mark a Mortgage as called today, with a note of what was said (one is needed); the
  *  Call List and Call Notes show it. */
@@ -68,7 +68,9 @@ export function MarkCalled({
   )
 }
 
-/** A Mortgage's Call Notes, newest first, with a form to add one. */
+const NO_SORTS = [] as const
+
+/** A Mortgage's Call Notes, newest first a page at a time, with a form to add one. */
 export function CallNotes({
   mortgageId,
   mortgageName,
@@ -76,12 +78,12 @@ export function CallNotes({
   mortgageId: number
   mortgageName: string
 }) {
-  const { client } = useServerState()
-  const { data: notes, error } = useQuery(callNotesQuery(client, mortgageId))
+  const { listed, error, pager } = useListPage(NO_SORTS, lists.callNotes(mortgageId))
+  const notes = listed?.items
 
   return (
     <div className="stack">
-      {error && <p className="status error">{error.message}</p>}
+      {error && <p className="status error">{error}</p>}
       {!notes ? null : notes.length === 0 ? (
         <p className="hint">Not called yet.</p>
       ) : (
@@ -93,6 +95,7 @@ export function CallNotes({
           ))}
         </ul>
       )}
+      {pager}
       <MarkCalled mortgageId={mortgageId} mortgageName={mortgageName} onSaved={() => {}} />
     </div>
   )

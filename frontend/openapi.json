@@ -1460,13 +1460,26 @@
         "type": "object"
       },
       "FavoursGiven": {
+        "description": "A page of favours, newest first; `let_off` totals every page.",
         "properties": {
-          "favours": {
+          "items": {
             "items": {
               "$ref": "#/components/schemas/Favour"
             },
-            "title": "Favours",
+            "title": "Items",
             "type": "array"
+          },
+          "let_off": {
+            "title": "Let Off",
+            "type": "integer"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
           },
           "total": {
             "title": "Total",
@@ -1474,8 +1487,11 @@
           }
         },
         "required": [
-          "favours",
-          "total"
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "let_off"
         ],
         "title": "FavoursGiven",
         "type": "object"
@@ -2706,6 +2722,37 @@
           "total"
         ],
         "title": "OutstandingOnClosure",
+        "type": "object"
+      },
+      "Page_CallNote_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CallNote"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[CallNote]",
         "type": "object"
       },
       "Page_CustomerRow_": {
@@ -5181,7 +5228,7 @@
     },
     "/api/customers/{customer_id}/favours": {
       "get": {
-        "description": "Every Grace, Discount and Waived Amount still standing, newest first, with their\ntotal.",
+        "description": "Every Grace, Discount and Waived Amount still standing, newest first, with the\ntotal let off across every page.",
         "operationId": "read_favours_given_api_customers__customer_id__favours_get",
         "parameters": [
           {
@@ -5190,6 +5237,17 @@
             "required": true,
             "schema": {
               "title": "Customer Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
               "type": "integer"
             }
           }
@@ -5950,6 +6008,17 @@
               "title": "Mortgage Id",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -5957,11 +6026,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/CallNote"
-                  },
-                  "title": "Response List Call Notes Api Mortgages  Mortgage Id  Call Notes Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_CallNote_"
                 }
               }
             },
