@@ -105,14 +105,14 @@ Tests Passed: 64, Failed: 1, Skipped: 0, Inconclusive: 0, NotRun: 0</code></pre>
 </ol>
 
 <h3>Extra: test the server's cache headers</h3>
-<p>The plan for this step was to change <code>nginx.conf</code> and watch nothing fail. nginx is gone, so break the one place the headers live instead. In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a> line 35, change <code>kept = path.startswith("assets/")</code> to <code>kept = path.endswith(".js")</code>: "keep every script a year". Predict which of the ten tests in <code>test_screens.py</code> fail, then run <code>cd backend &amp;&amp; uv run pytest tests/test_screens.py -q</code>.</p>
+<p>The plan for this step was to change <code>nginx.conf</code> and watch nothing fail. nginx is gone, so break the one place the headers live instead. In <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/screens.py"><code>platform/screens.py</code></a> line 35, change <code>kept = path.startswith("assets/")</code> to <code>kept = path.endswith(".js")</code>: "keep every script a year". Predict which of the ten tests in <code>test_screens.py</code> fail, then run <code>cd backend &amp;&amp; uv run pytest tests/platform/test_screens.py -q</code>.</p>
 <div class="reveal">
   <p><strong>Check your prediction.</strong></p>
   <button class="show">I've run it. Show me.</button>
   <div class="reveal-body">
     <pre><code>E         - no-cache
 E         + public, max-age=31536000, immutable
-FAILED tests/test_screens.py::test_the_service_worker_and_manifest_are_always_checked[/sw.js]
+FAILED tests/platform/test_screens.py::test_the_service_worker_and_manifest_are_always_checked[/sw.js]
 1 failed, 9 passed in 0.60s</code></pre>
     <p>Only <code>/sw.js</code>. That one test is what stands between this change and an installed app that wouldn't see an update for a year: the browser would never re-fetch the service worker, so never learn of the new precache list. The asset test still passes (an <code>assets/</code> script ends in <code>.js</code> too), and so does the manifest's. Nothing notices <code>registerSW.js</code> going immutable as well, since the test's fake <code>dist/</code> has no such file: a candidate for a test of your own (<a href="../013-testing/05-finding-what-no-test-pins.html">chapter 013, lesson 5</a>). Undo it with <code>git checkout -- backend/src/mortgage_backend/platform/screens.py</code>.</p>
   </div>

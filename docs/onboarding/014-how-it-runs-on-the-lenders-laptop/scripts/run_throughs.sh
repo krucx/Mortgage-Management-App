@@ -143,4 +143,4 @@ echo "== 99 extra: screens.py keeps every .js a year, in a copy of backend/"
 rsync -a --exclude .venv --exclude .pytest_cache --exclude .mypy_cache backend/ "$WORK/backend/"
 sed -i.orig 's/kept = path.startswith("assets\/")/kept = path.endswith(".js")/' \
   "$WORK/backend/src/mortgage_backend/platform/screens.py"
-(cd "$WORK/backend" && uv run -q pytest tests/test_screens.py -q 2>&1 | grep -E '^E |FAILED|passed|failed' || true)
+(cd "$WORK/backend" && uv run -q pytest tests/platform/test_screens.py -q 2>&1 | grep -E '^E |FAILED|passed|failed' || true)

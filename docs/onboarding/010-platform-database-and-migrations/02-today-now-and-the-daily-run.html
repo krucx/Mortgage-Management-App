@@ -150,7 +150,7 @@ flowchart TD
   <p><strong>Predict:</strong> look at the 26 Oct rows. The last Backup is 7 days old. Which code took the new one: the daily run on the first request, or something else?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p>The lifespan (<code>main.py</code> line 87), before any request. It calls the same <code>start_if_due</code> as the daily run. By the time the first request runs the daily jobs, the last Backup is from that morning, so the daily run doesn't take another. Starting a Backup at start-up means a Backup that a shutdown interrupted is retried the next time the app starts. So "the weekly Backup runs on the first request" is only half true: on a laptop that is switched on each morning, it usually runs at start-up. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_backups.py"><code>test_backups.py</code></a> line 278 pins the retry.</p>
+    <p>The lifespan (<code>main.py</code> line 87), before any request. It calls the same <code>start_if_due</code> as the daily run. By the time the first request runs the daily jobs, the last Backup is from that morning, so the daily run doesn't take another. Starting a Backup at start-up means a Backup that a shutdown interrupted is retried the next time the app starts. So "the weekly Backup runs on the first request" is only half true: on a laptop that is switched on each morning, it usually runs at start-up. <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/safekeeping/test_backups.py"><code>test_backups.py</code></a> line 278 pins the retry.</p>
   </div>
 </div>
 
@@ -202,7 +202,7 @@ flowchart TD
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/daily_run.py"><code>platform/daily_run.py</code></a> whole (52 lines, its docstring first), then <code>test_the_daily_run_happens_once_a_day</code> and the test above it in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_backups.py"><code>tests/test_backups.py</code></a> (lines 129–156). They move a fake clock forward a day at a time and count runs and Backups, the same way the run-through above does.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/daily_run.py"><code>platform/daily_run.py</code></a> whole (52 lines, its docstring first), then <code>test_the_daily_run_happens_once_a_day</code> and the test above it in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/safekeeping/test_backups.py"><code>tests/safekeeping/test_backups.py</code></a> (lines 129–156). They move a fake clock forward a day at a time and count runs and Backups, the same way the run-through above does.</p>
 
 <nav class="lessons">
   <a href="01-the-composition-root.html">← The composition root</a>

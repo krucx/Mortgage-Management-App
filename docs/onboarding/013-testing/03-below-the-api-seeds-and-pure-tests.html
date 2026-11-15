@@ -131,8 +131,8 @@ flowchart TD
 
 <h3>3. The tests that the seeds refuse</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_seed.py">backend/tests/test_seed.py</a> · the whole file but the imports · lines 1–30, trimmed</figcaption>
-<pre data-file="backend/tests/test_seed.py"><code>1   """The test seeds make their data through the change modules, so a seed the app would
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/lending/test_seed.py">backend/tests/lending/test_seed.py</a> · the whole file but the imports · lines 1–30, trimmed</figcaption>
+<pre data-file="backend/tests/lending/test_seed.py"><code>1   """The test seeds make their data through the change modules, so a seed the app would
 2   refuse fails at setup instead of starting a test from an impossible state."""
 ⋮
 12  def test_a_seeded_overpayment_fails_at_setup(conn: Connection) -&gt; None:
@@ -164,8 +164,8 @@ flowchart TD
 
 <h3>4. A <code>conn</code> test, and a pure one</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_reminders.py">backend/tests/test_reminders.py</a> · its own today, and its first test · lines 33–69, trimmed</figcaption>
-<pre data-file="backend/tests/test_reminders.py"><code>33  TODAY = date(2026, 5, 12)                                      # ① not conftest's
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/follow_up/test_reminders.py">backend/tests/follow_up/test_reminders.py</a> · its own today, and its first test · lines 33–69, trimmed</figcaption>
+<pre data-file="backend/tests/follow_up/test_reminders.py"><code>33  TODAY = date(2026, 5, 12)                                      # ① not conftest's
 ⋮
 53  def test_a_reminder_is_queued_days_before_the_accrual_date(conn: Connection) -&gt; None:
 54      ramesh = add_customer(conn)
@@ -192,8 +192,8 @@ flowchart TD
   <li>Customer-facing text names the jewellery, never the Mortgage Name (<a href="../reference/traps.html#t16">trap #16</a>).</li>
 </ol>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_ledger.py">backend/tests/test_ledger.py</a> · the imports and a helper · lines 1–37, trimmed</figcaption>
-<pre data-file="backend/tests/test_ledger.py"><code>1   """The ledger engine: a pure calculation, no database (ADR 0001)."""
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/lending/test_ledger.py">backend/tests/lending/test_ledger.py</a> · the imports and a helper · lines 1–37, trimmed</figcaption>
+<pre data-file="backend/tests/lending/test_ledger.py"><code>1   """The ledger engine: a pure calculation, no database (ADR 0001)."""
 ⋮
 8   from mortgage_backend.lending.ledger import (
 ⋮
@@ -299,7 +299,7 @@ E   AssertionError: assert [('2026-04-21... 'No answer')] == [('2026-04-20... 'N
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/seed.py"><code>tests/seed.py</code></a> whole (162 lines): <code>redeem</code> and <code>waive</code> show how a seed reads back the Final Payment's id. Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_dormant.py"><code>tests/test_dormant.py</code></a>, a short file that uses both seed layers, <code>client</code> tests and <code>conn</code> tests side by side; lesson 5 comes back to one of them. For the pure layer, the first hundred lines of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_ledger.py"><code>tests/test_ledger.py</code></a>, with <a href="../004-the-ledger-engine/02-one-months-interest.html">chapter 004, lesson 2</a> beside it.</p>
+<p>Read <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/seed.py"><code>tests/seed.py</code></a> whole (162 lines): <code>redeem</code> and <code>waive</code> show how a seed reads back the Final Payment's id. Then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/lending/test_dormant.py"><code>tests/lending/test_dormant.py</code></a>, a short file that uses both seed layers, <code>client</code> tests and <code>conn</code> tests side by side; lesson 5 comes back to one of them. For the pure layer, the first hundred lines of <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/lending/test_ledger.py"><code>tests/lending/test_ledger.py</code></a>, with <a href="../004-the-ledger-engine/02-one-months-interest.html">chapter 004, lesson 2</a> beside it.</p>
 
 <nav class="lessons">
   <a href="02-backend-tests-through-the-api.html">← Backend tests through the API</a>

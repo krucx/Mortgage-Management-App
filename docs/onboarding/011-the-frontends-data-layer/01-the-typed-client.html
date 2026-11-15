@@ -240,8 +240,8 @@ flowchart LR
 <h3>(a) Change a model, regenerate, commit both files (trap #10)</h3>
 <div class="callout warn"><strong>Trap #10.</strong> Change a Pydantic model a route takes or returns, or add a route, and the types are out of date until you run <code>npm run gen:types</code> in <code>frontend/</code> and commit <strong>both</strong> <code>openapi.json</code> and <code>api.gen.ts</code>. Never edit <code>api.gen.ts</code> by hand: the next regeneration throws your edit away.</div>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_openapi.py">backend/tests/test_openapi.py</a> · lines 18–21</figcaption>
-<pre data-file="backend/tests/test_openapi.py"><code>18  def test_the_frontends_copy_of_the_openapi_schema_is_up_to_date() -&gt; None:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/platform/test_openapi.py">backend/tests/platform/test_openapi.py</a> · lines 18–21</figcaption>
+<pre data-file="backend/tests/platform/test_openapi.py"><code>18  def test_the_frontends_copy_of_the_openapi_schema_is_up_to_date() -&gt; None:
 19      assert CHECKED_IN.read_text() == schema_text(), (
 20          "The API changed: run `npm run gen:types` in frontend/ and commit the result"
 21      )

@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 DOCUMENTATION = REPO / "Documentation"
 PAGES = REPO / "docs"
 

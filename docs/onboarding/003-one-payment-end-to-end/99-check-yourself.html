@@ -76,7 +76,7 @@
 
 <h3>1. Run the tests</h3>
 <pre><code>cd backend
-uv run pytest tests/test_payments.py tests/test_previews.py tests/test_changes.py tests/test_seed.py</code></pre>
+uv run pytest tests/payments/test_payments.py tests/lending/test_previews.py tests/lending/test_changes.py tests/lending/test_seed.py</code></pre>
 <p>Expect <code>91 passed</code>.</p>
 
 <h3>2. Remove the check</h3>
@@ -95,14 +95,14 @@ uv run pytest tests/test_payments.py tests/test_previews.py tests/test_changes.p
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
     <p>At commit 0c54ef0, <strong>8 fail and 83 pass</strong>:</p>
-<pre><code>FAILED tests/test_payments.py::test_a_payment_larger_than_what_is_owed_is_refused
-FAILED tests/test_payments.py::test_a_back_dated_payment_that_would_overpay_a_later_one_is_refused
-FAILED tests/test_payments.py::test_a_lump_sum_larger_than_everything_owed_is_refused
-FAILED tests/test_previews.py::test_a_payment_preview_refuses_what_saving_refuses
-FAILED tests/test_previews.py::test_a_payment_preview_refuses_more_than_is_owed
-FAILED tests/test_changes.py::test_a_payment_larger_than_what_is_owed_is_refused
-FAILED tests/test_changes.py::test_a_back_dated_payment_that_breaks_a_later_one_is_refused
-FAILED tests/test_seed.py::test_a_seeded_overpayment_fails_at_setup
+<pre><code>FAILED tests/payments/test_payments.py::test_a_payment_larger_than_what_is_owed_is_refused
+FAILED tests/payments/test_payments.py::test_a_back_dated_payment_that_would_overpay_a_later_one_is_refused
+FAILED tests/payments/test_payments.py::test_a_lump_sum_larger_than_everything_owed_is_refused
+FAILED tests/lending/test_previews.py::test_a_payment_preview_refuses_what_saving_refuses
+FAILED tests/lending/test_previews.py::test_a_payment_preview_refuses_more_than_is_owed
+FAILED tests/lending/test_changes.py::test_a_payment_larger_than_what_is_owed_is_refused
+FAILED tests/lending/test_changes.py::test_a_back_dated_payment_that_breaks_a_later_one_is_refused
+FAILED tests/lending/test_seed.py::test_a_seeded_overpayment_fails_at_setup
 8 failed, 83 passed</code></pre>
     <table class="steps text">
     <tr><th>Tests</th><th>Why they fail</th></tr>
@@ -118,7 +118,7 @@ FAILED tests/test_seed.py::test_a_seeded_overpayment_fails_at_setup
 
 <h3>4. Undo it</h3>
 <pre><code>git checkout -- src/mortgage_backend/payments/recording.py
-uv run pytest tests/test_payments.py tests/test_previews.py tests/test_changes.py tests/test_seed.py   # 91 passed again
+uv run pytest tests/payments/test_payments.py tests/lending/test_previews.py tests/lending/test_changes.py tests/lending/test_seed.py   # 91 passed again
 git status                                                    # clean</code></pre>
 <p>(From <code>backend/</code>. From the repo root the path is <code>backend/src/mortgage_backend/payments/recording.py</code>.)</p>
 
