@@ -137,7 +137,7 @@ def test_call_notes_are_kept_on_the_mortgage_newest_first(client, ramesh):
     for note in ["No answer", "Will pay Friday"]:
         client.post(f"/api/mortgages/{mortgage['id']}/call-notes", json={"note": note})
 
-    notes = client.get(f"/api/mortgages/{mortgage['id']}/call-notes").json()
+    notes = client.get(f"/api/mortgages/{mortgage['id']}/call-notes").json()["items"]
 
     assert [(n["called_on"], n["note"]) for n in notes] == [
         ("2026-04-20", "Will pay Friday"),

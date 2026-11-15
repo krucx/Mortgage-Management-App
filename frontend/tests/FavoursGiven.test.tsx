@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Favours Given on the Customer page: every Grace, Discount and Waived Amount still
 // standing.
-import { cleanup, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { CustomerPage } from '../src/pages/CustomerPage'
 import { fakeServer } from './fakeServer'
@@ -29,12 +29,15 @@ const asha = {
   pan_photo_url: null,
 }
 
+/** The page fields of a Customer's favours that all fit on one page. */
+const ONE_PAGE = { page: 1, page_size: 20 }
+
 function customerPage(favours: unknown) {
   const server = fakeServer({
     'GET /api/customers/3': asha,
     'GET /api/customers/3/favours': favours,
     'GET /api/customers/3/history': [],
-    'GET /api/mortgages': { items: [], total: 0, page: 1, pages: 1 },
+    'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 20 },
   })
   showPage(server, '/customers/3', { '/customers/:id': <CustomerPage /> })
   return server
@@ -42,7 +45,8 @@ function customerPage(favours: unknown) {
 
 test('the Customer page lists each favour newest first, by Mortgage description, with the total', async () => {
   customerPage({
-    favours: [
+    ...ONE_PAGE,
+    items: [
       {
         on: '2026-04-20',
         received_on: null,
@@ -58,7 +62,8 @@ test('the Customer page lists each favour newest first, by Mortgage description,
         amount: 100_000,
       },
     ],
-    total: 150_000,
+    total: 2,
+    let_off: 150_000,
   })
 
   const table = await screen.findByRole('table', { name: 'Favours Given' })
@@ -81,7 +86,8 @@ test('the Customer page lists each favour newest first, by Mortgage description,
 
 test('a Grace shows the date it was received after its date', async () => {
   customerPage({
-    favours: [
+    ...ONE_PAGE,
+    items: [
       {
         on: '2026-11-06',
         received_on: '2026-11-08',
@@ -90,7 +96,8 @@ test('a Grace shows the date it was received after its date', async () => {
         amount: 42_000,
       },
     ],
-    total: 42_000,
+    total: 1,
+    let_off: 42_000,
   })
 
   const table = await screen.findByRole('table', { name: 'Favours Given' })
@@ -100,7 +107,7 @@ test('a Grace shows the date it was received after its date', async () => {
 })
 
 test('the section is hidden when the Customer has no favours', async () => {
-  const server = customerPage({ favours: [], total: 0 })
+  const server = customerPage({ ...ONE_PAGE, items: [], total: 0, let_off: 0 })
 
   await screen.findByRole('heading', { name: 'Asha Rao' })
   await vi.waitFor(() => expect(server.requests).toContain('GET /api/customers/3/favours'))
@@ -113,4 +120,34 @@ test('a failure to load them says so under the heading', async () => {
 
   const heading = await screen.findByRole('heading', { name: 'Favours Given' })
   expect(heading.nextElementSibling?.textContent).toBe('Something went wrong')
+})
+
+test('favours come a page at a time, the total still counting every page', async () => {
+  const favour = (day: number) => ({
+    on: `2026-03-${String(day).padStart(2, '0')}`,
+    received_on: null,
+    mortgage: { id: 7, description: 'Gold chain' },
+    kind: 'discount',
+    amount: 10_000,
+  })
+  customerPage((request: Request) => {
+    const page = Number(new URL(request.url).searchParams.get('page'))
+    return {
+      items: page === 1 ? [favour(22), favour(21)] : [favour(2), favour(1)],
+      total: 22,
+      page,
+      page_size: 20,
+      let_off: 220_000,
+    }
+  })
+
+  const table = await screen.findByRole('table', { name: 'Favours Given' })
+  expect(within(table).getAllByRole('row')[1].textContent).toContain('22 Mar 2026')
+  expect(screen.getByText('Showing 1–2 of 22')).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+  expect(await screen.findByText('Showing 21–22 of 22')).toBeTruthy()
+  expect(within(table).getAllByRole('row')[1].textContent).toContain('2 Mar 2026')
+  expect(within(table).getByRole('row', { name: /Total/ }).textContent).toBe('Total₹2,200')
 })

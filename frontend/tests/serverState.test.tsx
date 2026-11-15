@@ -120,7 +120,7 @@ test('new message settings reword the Receipts as well as the Reminders', () => 
 test('marking a Mortgage called changes the Call List, its Call Notes and the Dashboard count', () => {
   const cached = {
     callList: keys.list('call-list'),
-    callNotes: keys.callNotes(7),
+    callNotes: [...keys.list('call-notes'), 7],
     dashboard: keys.dashboard,
   }
   expect(staleAfter(STALE_AFTER.callNote, cached)).toEqual(['callList', 'callNotes', 'dashboard'])

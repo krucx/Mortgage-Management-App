@@ -56,10 +56,14 @@ def call(client, mortgage, note):
     )
 
 
-def notes_of(client, mortgage) -> list[tuple[str, str]]:
-    response = client.get(f"/api/mortgages/{mortgage['id']}/call-notes")
+def notes_page(client, mortgage, page=1):
+    response = client.get(f"/api/mortgages/{mortgage['id']}/call-notes?page={page}")
     assert response.status_code == 200, response.text
-    return [(n["called_on"], n["note"]) for n in response.json()]
+    return response.json()
+
+
+def notes_of(client, mortgage) -> list[tuple[str, str]]:
+    return [(n["called_on"], n["note"]) for n in notes_page(client, mortgage)["items"]]
 
 
 def sheet(*rows: tuple[str, object, str]) -> bytes:
@@ -173,3 +177,20 @@ def test_an_imported_duplicate_of_a_stored_call_note_is_skipped(client, chain):
 
     assert (result["adding"], result["skipped_duplicates"]) == ([], 1)
     assert notes_of(client, chain) == [("2026-04-20", "Will pay Friday")]
+
+
+def test_call_notes_come_a_page_at_a_time_newest_first(client, chain):
+    for number in range(1, 23):  # 22 notes, past the 20 on a page
+        assert call(client, chain, f"Note {number}").status_code == 201
+
+    first = notes_page(client, chain)
+    second = notes_page(client, chain, page=2)
+
+    assert (first["total"], first["page"], first["page_size"]) == (22, 1, 20)
+    assert [n["note"] for n in first["items"]][:2] == ["Note 22", "Note 21"]
+    assert [n["note"] for n in second["items"]] == ["Note 2", "Note 1"]
+    assert notes_page(client, chain, page=3)["items"] == []
+
+
+def test_the_call_notes_of_an_unknown_mortgage_are_not_found(client):
+    assert client.get("/api/mortgages/999/call-notes").status_code == 404

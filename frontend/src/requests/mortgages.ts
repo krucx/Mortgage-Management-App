@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import type { Mortgage, MortgageIn, MortgageStatus, SimulationIn } from '../api'
 import { dataOrThrow, keys, type ApiClient } from '../serverState'
-import { mortgagePath, customerPath } from './paths'
+import { mortgagePath } from './paths'
 import { photoBody } from './files'
 
 /** How many Mortgages are Dormant: Active yet owing nothing, to be Redeemed. */
@@ -61,17 +61,6 @@ export function mortgageHistoryQuery(client: ApiClient, id: number) {
     queryKey: keys.mortgageHistory(id),
     queryFn: () =>
       dataOrThrow(client.GET('/api/mortgages/{mortgage_id}/history', { params: mortgagePath(id) })),
-  })
-}
-
-/** Every Discount and Waived Amount still standing for a Customer, newest first (Grace
- *  joins them later); under the Customer, so a change to what Mortgages owe makes it
- *  stale. */
-export function favoursGivenQuery(client: ApiClient, id: number) {
-  return queryOptions({
-    queryKey: [...keys.customer(id), 'favours'],
-    queryFn: () =>
-      dataOrThrow(client.GET('/api/customers/{customer_id}/favours', { params: customerPath(id) })),
   })
 }
 

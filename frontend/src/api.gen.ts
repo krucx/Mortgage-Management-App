@@ -362,8 +362,8 @@ export interface paths {
         };
         /**
          * Read Favours Given
-         * @description Every Grace, Discount and Waived Amount still standing, newest first, with their
-         *     total.
+         * @description Every Grace, Discount and Waived Amount still standing, newest first, with the
+         *     total let off across every page.
          */
         get: operations["read_favours_given_api_customers__customer_id__favours_get"];
         put?: never;
@@ -1954,10 +1954,19 @@ export interface components {
             /** Id */
             id: number;
         };
-        /** FavoursGiven */
+        /**
+         * FavoursGiven
+         * @description A page of favours, newest first; `let_off` totals every page.
+         */
         FavoursGiven: {
-            /** Favours */
-            favours: components["schemas"]["Favour"][];
+            /** Items */
+            items: components["schemas"]["Favour"][];
+            /** Let Off */
+            let_off: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
             /** Total */
             total: number;
         };
@@ -2515,6 +2524,17 @@ export interface components {
             total: number;
             /** Unpaid Interest */
             unpaid_interest: number;
+        };
+        /** Page[CallNote] */
+        Page_CallNote_: {
+            /** Items */
+            items: components["schemas"]["CallNote"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
         };
         /** Page[CustomerRow] */
         Page_CustomerRow_: {
@@ -3754,7 +3774,9 @@ export interface operations {
     };
     read_favours_given_api_customers__customer_id__favours_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+            };
             header?: never;
             path: {
                 customer_id: number;
@@ -4192,7 +4214,9 @@ export interface operations {
     };
     list_call_notes_api_mortgages__mortgage_id__call_notes_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+            };
             header?: never;
             path: {
                 mortgage_id: number;
@@ -4207,7 +4231,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CallNote"][];
+                    "application/json": components["schemas"]["Page_CallNote_"];
                 };
             };
             /** @description Validation Error */

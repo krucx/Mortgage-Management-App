@@ -9,6 +9,7 @@ import type {
   PaymentSort,
 } from '../api'
 import { dataOrThrow, type ApiClient } from '../serverState'
+import { customerPath, mortgagePath } from './paths'
 import type { Sort } from '../sort'
 
 /** A list read a page at a time and sorted on the server: which list (with its
@@ -114,4 +115,25 @@ export const lists = {
           client.GET('/api/closures/dormant', { params: { query: { page, ...sortQuery(sort) } } }),
         ),
     }) satisfies ListRequest<DormantSort, unknown>,
+  // Newest first, with no sort of their own.
+  callNotes: (mortgageId: number) =>
+    ({
+      key: ['call-notes', mortgageId],
+      load: (client, page) =>
+        dataOrThrow(
+          client.GET('/api/mortgages/{mortgage_id}/call-notes', {
+            params: { ...mortgagePath(mortgageId), query: { page } },
+          }),
+        ),
+    }) satisfies ListRequest<never, unknown>,
+  favours: (customerId: number) =>
+    ({
+      key: ['favours', customerId],
+      load: (client, page) =>
+        dataOrThrow(
+          client.GET('/api/customers/{customer_id}/favours', {
+            params: { ...customerPath(customerId), query: { page } },
+          }),
+        ),
+    }) satisfies ListRequest<never, unknown>,
 }

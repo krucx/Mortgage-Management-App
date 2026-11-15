@@ -71,9 +71,6 @@ export const keys = {
   payment: (id: number) => ['payment', id] as const,
   /** Every Payment, and everything under one (its Receipt). */
   allPayments: ['payment'] as const,
-  /** A Mortgage's Call Notes. */
-  callNotes: (mortgageId: number) => ['call-notes', mortgageId] as const,
-  allCallNotes: ['call-notes'] as const,
   /** A Standalone Referrer; under the Customers, as saving one they referred changes it. */
   referrer: (id: number) => ['customer', 'referrer', id] as const,
   /** Who matches a search, and who owns a Primary Number: under the Customers too. */
@@ -123,7 +120,7 @@ export const STALE_AFTER = {
   /** Approving, skipping or sending a Reminder: the Reminders, and the Dashboard's counts. */
   reminder: [keys.list('reminders'), keys.dashboard],
   /** Marking a Mortgage called: the Call List, the Call Notes and the Dashboard's count. */
-  callNote: [keys.list('call-list'), keys.allCallNotes, keys.dashboard],
+  callNote: [keys.list('call-list'), keys.list('call-notes'), keys.dashboard],
   /** Adding or removing a Mortgage's photo: the Mortgage and its History, and the
    *  Customer's History, which holds it. */
   mortgagePhoto: [keys.allMortgages, keys.allCustomers],

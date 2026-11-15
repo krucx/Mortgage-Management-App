@@ -12,7 +12,10 @@ afterEach(() => {
 })
 
 function showCallNotes(routes: Record<string, unknown> = {}) {
-  const server = fakeServer({ 'GET /api/mortgages/7/call-notes': [], ...routes })
+  const server = fakeServer({
+    'GET /api/mortgages/7/call-notes': { items: [], total: 0, page: 1, page_size: 20 },
+    ...routes,
+  })
   showPage(server, '/mortgages/7', {
     '/mortgages/:id': <CallNotes mortgageId={7} mortgageName="2026GoldRing" />,
   })
@@ -47,4 +50,35 @@ test('a Call Note the backend refuses shows its reason', async () => {
   )
 
   expect(await screen.findByText('2026GoldRing: it is redeemed')).toBeTruthy()
+})
+
+test('Call Notes come a page at a time, newest first', async () => {
+  const note = (id: number) => ({
+    id,
+    called_on: '2026-04-20',
+    note: `Note ${id}`,
+    created_at: '2026-04-20T10:00:00',
+  })
+  const server = showCallNotes({
+    'GET /api/mortgages/7/call-notes': (request: Request) => {
+      const page = Number(new URL(request.url).searchParams.get('page'))
+      return {
+        items: page === 1 ? [note(22), note(21)] : [note(2), note(1)],
+        total: 22,
+        page,
+        page_size: 20,
+      }
+    },
+  })
+
+  expect(await screen.findByText('Note 22')).toBeTruthy()
+  expect(screen.getByText('Showing 1–2 of 22')).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+  expect(await screen.findByText('Note 1')).toBeTruthy()
+  expect(screen.queryByText('Note 22')).toBeNull()
+  expect(
+    server.requests.filter((r) => r.endsWith('/call-notes') && r.startsWith('GET')),
+  ).toHaveLength(2)
 })
