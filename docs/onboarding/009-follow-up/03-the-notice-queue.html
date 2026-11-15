@@ -333,7 +333,7 @@ printf '%s' "$S" | jq '.reminder_approve_first = true'  | curl -s -X PUT -H 'con
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read <code>sync</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py"><code>follow_up/reminders.py</code></a> (lines 89–161) with its docstring, then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_reminders.py"><code>tests/test_reminders.py</code></a> from line 53 to line 161: one test per rule in this lesson, from <code>test_a_reminder_is_queued_days_before_the_accrual_date</code> to <code>test_closed_mortgages_get_no_reminders</code>.</p>
+<p>Read <code>sync</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py"><code>follow_up/reminders.py</code></a> (lines 89–161) with its docstring, then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/follow_up/test_reminders.py"><code>tests/follow_up/test_reminders.py</code></a> from line 53 to line 161: one test per rule in this lesson, from <code>test_a_reminder_is_queued_days_before_the_accrual_date</code> to <code>test_closed_mortgages_get_no_reminders</code>.</p>
 
 <nav class="lessons">
   <a href="02-call-notes-and-call-sheets.html">← Call Notes and Call Sheets</a>

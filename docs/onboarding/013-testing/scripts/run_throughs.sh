@@ -57,7 +57,7 @@ else
 fi
 
 section "L2 the reader's test of the Cash Limit"
-cat >> "$B/tests/test_cash_limit.py" <<'EOF'
+cat >> "$B/tests/payments/test_cash_limit.py" <<'EOF'
 
 
 def test_the_cash_limit_can_be_set_back_to_20000_rupees_after_being_cleared(client):
@@ -66,10 +66,10 @@ def test_the_cash_limit_can_be_set_back_to_20000_rupees_after_being_cleared(clie
     assert set_cash_limit(client, 20_000_00) == {"cash_limit": 20_000_00}
     assert cash_limit(client) == {"cash_limit": 20_000_00}
 EOF
-(cd "$B" && uv run pytest -p no:cacheprovider tests/test_cash_limit.py -v 2>&1 | grep -E 'PASSED|FAILED|passed|failed')
+(cd "$B" && uv run pytest -p no:cacheprovider tests/payments/test_cash_limit.py -v 2>&1 | grep -E 'PASSED|FAILED|passed|failed')
 section "L2 ... with 20_000 (rupees, not paise) expected"
-sed -i.bak 's/{"cash_limit": 20_000_00}$/{"cash_limit": 20_000}/' "$B/tests/test_cash_limit.py"
-(cd "$B" && uv run pytest -p no:cacheprovider tests/test_cash_limit.py -q 2>&1 | grep -E '^E |passed|failed' | head -8)
+sed -i.bak 's/{"cash_limit": 20_000_00}$/{"cash_limit": 20_000}/' "$B/tests/payments/test_cash_limit.py"
+(cd "$B" && uv run pytest -p no:cacheprovider tests/payments/test_cash_limit.py -q 2>&1 | grep -E '^E |passed|failed' | head -8)
 undo
 
 section "L2 a refused seed: lend before the Customer exists (customer_id 99)"
@@ -90,13 +90,13 @@ pytest_summary | tail -3
 undo
 
 section "L3 test_seed"
-(cd "$B" && uv run pytest -p no:cacheprovider tests/test_seed.py -v 2>&1 | grep -E 'PASSED|FAILED|passed')
+(cd "$B" && uv run pytest -p no:cacheprovider tests/lending/test_seed.py -v 2>&1 | grep -E 'PASSED|FAILED|passed')
 section "L3 TODAY moved forward a day (21 Apr 2026)"
 sed -i.bak 's/^TODAY = date(2026, 4, 20)/TODAY = date(2026, 4, 21)/' "$B/tests/conftest.py"
 grep -n '^TODAY' "$B/tests/conftest.py"
 pytest_summary > "$WT/l3.txt"; tail -1 "$WT/l3.txt"; by_file < "$WT/l3.txt"
-grep -E '^FAILED tests/test_call_list' "$WT/l3.txt"
-(cd "$B" && uv run pytest -q -p no:cacheprovider tests/test_call_list.py 2>&1 | grep -E '^E ' | head -6)
+grep -E '^FAILED tests/follow_up/test_call_list' "$WT/l3.txt"
+(cd "$B" && uv run pytest -q -p no:cacheprovider tests/follow_up/test_call_list.py 2>&1 | grep -E '^E ' | head -6)
 undo
 
 section "L3 the three layers' speed"
@@ -145,7 +145,7 @@ vitest_summary | grep ' Tests '
 undo
 
 section "L5 backend: the boundary test deleted, then > broken to >="
-python3 - "$B/tests/test_call_list.py" <<'EOF'
+python3 - "$B/tests/follow_up/test_call_list.py" <<'EOF'
 import re, sys
 p = sys.argv[1]; s = open(p).read()
 s = re.sub(r"def test_a_mortgage_at_exactly_the_loan_to_value_limit_is_not_listed.*?\n\n\n", "", s, flags=re.S)
@@ -155,7 +155,7 @@ sed -i.bak '94s/ > settings/ >= settings/' "$B/src/mortgage_backend/follow_up/ca
 sed -n '94p' "$B/src/mortgage_backend/follow_up/call_list.py"
 pytest_summary | tail -1
 section "L5 backend: the reader's two tests, on the broken line"
-cat >> "$B/tests/test_call_list.py" <<'EOF'
+cat >> "$B/tests/follow_up/test_call_list.py" <<'EOF'
 
 
 def test_a_mortgage_owing_exactly_85_percent_of_its_value_is_not_listed(client, ramesh):
@@ -179,16 +179,16 @@ def test_a_mortgage_owing_a_rupee_over_85_percent_is_listed(client, ramesh):
 
     assert listed(client) == [(over["name"], ["loan_to_value"])]
 EOF
-(cd "$B" && uv run pytest -q -p no:cacheprovider tests/test_call_list.py 2>&1 | grep -E '^FAILED|^E  |passed|failed' | sed 's/ - .*//' | head -8)
+(cd "$B" && uv run pytest -q -p no:cacheprovider tests/follow_up/test_call_list.py 2>&1 | grep -E '^FAILED|^E  |passed|failed' | sed 's/ - .*//' | head -8)
 section "L5 backend: ... and on the real line"
 git -C "$WT" checkout -- backend/src/mortgage_backend/follow_up/call_list.py
-pytest_summary tests/test_call_list.py
-(cd "$B" && uv run pytest -q -p no:cacheprovider tests/test_call_list.py -k "85_percent or rupee_over" -v 2>&1 | grep -E 'PASSED|FAILED')
+pytest_summary tests/follow_up/test_call_list.py
+(cd "$B" && uv run pytest -q -p no:cacheprovider tests/follow_up/test_call_list.py -k "85_percent or rupee_over" -v 2>&1 | grep -E 'PASSED|FAILED')
 section "L5 backend: the real test, on the broken line"
 undo
 sed -i.bak '94s/ > settings/ >= settings/' "$B/src/mortgage_backend/follow_up/call_list.py"
 pytest_summary | tail -2
-(cd "$B" && uv run pytest -q -p no:cacheprovider tests/test_call_list.py 2>&1 | grep -E '^E  ' | head -3)
+(cd "$B" && uv run pytest -q -p no:cacheprovider tests/follow_up/test_call_list.py 2>&1 | grep -E '^E  ' | head -3)
 undo
 
 section "L5 #113 Dormant: the status check removed"
@@ -240,5 +240,5 @@ section "99 add_payment records every Payment on the tests' today (20 Apr 2026)"
 sed -i.bak '110s/        paid_on,/        date(2026, 4, 20),/' "$B/tests/seed.py"
 sed -n '108,112p' "$B/tests/seed.py"
 pytest_summary
-(cd "$B" && uv run pytest -q -p no:cacheprovider tests/test_reminders.py 2>&1 | grep -E 'HTTPException|cannot be in the future' | sort -u | head -3)
+(cd "$B" && uv run pytest -q -p no:cacheprovider tests/follow_up/test_reminders.py 2>&1 | grep -E 'HTTPException|cannot be in the future' | sort -u | head -3)
 undo

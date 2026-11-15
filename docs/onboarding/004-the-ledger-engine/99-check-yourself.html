@@ -85,7 +85,7 @@
 <ol>
   <li>
     <p>Run the engine's tests. All 84 pass:</p>
-    <pre><code>cd backend &amp;&amp; uv run pytest tests/test_ledger.py</code></pre>
+    <pre><code>cd backend &amp;&amp; uv run pytest tests/lending/test_ledger.py</code></pre>
   </li>
   <li>
     <p>Open <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/lending/ledger.py"><code>backend/src/mortgage_backend/lending/ledger.py</code></a> at line 280, in <code>_Run.accrue_through</code>. Split this line:</p>
@@ -98,7 +98,7 @@
   </li>
   <li>
     <p><strong>Predict</strong> before you run: which tests fail? Think about which ones make a Payment <em>on</em> an Accrual Date and then look at the next month. Write your guess down.</p>
-    <pre><code>uv run pytest tests/test_ledger.py</code></pre>
+    <pre><code>uv run pytest tests/lending/test_ledger.py</code></pre>
   </li>
 </ol>
 <div class="reveal">
@@ -121,7 +121,7 @@
   <li>
     <p>Undo the change (you're still in <code>backend/</code>), and check that all 84 pass again:</p>
     <pre><code>git checkout -- src/mortgage_backend/lending/ledger.py
-uv run pytest tests/test_ledger.py</code></pre>
+uv run pytest tests/lending/test_ledger.py</code></pre>
   </li>
 </ol>
 

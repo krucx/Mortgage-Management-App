@@ -117,8 +117,8 @@ def downgrade() -&gt; None:
 
 <h3>4. The test that compares the two</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_migrations.py">tests/test_migrations.py</a> · <code>test_the_migrations_build_the_tables_the_app_declares</code> · lines 29–37</figcaption>
-<pre data-file="backend/tests/test_migrations.py"><code>29  # SQLite can't reflect an expression-based index, so uq_mortgage_name goes unchecked.
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/platform/test_migrations.py">tests/platform/test_migrations.py</a> · <code>test_the_migrations_build_the_tables_the_app_declares</code> · lines 29–37</figcaption>
+<pre data-file="backend/tests/platform/test_migrations.py"><code>29  # SQLite can't reflect an expression-based index, so uq_mortgage_name goes unchecked.
 30  @pytest.mark.filterwarnings("ignore:.*uq_mortgage_name")
 31  def test_the_migrations_build_the_tables_the_app_declares(database_url):
 32      migrate(database_url)                                            # ① the real chain
@@ -201,8 +201,8 @@ rm src/mortgage_backend/migrations/versions/0016_customer_nickname.py</code></pr
 <h3>(d) Testing a migration against old rows</h3>
 <p>The tests show two ways to check what an old database looks like after your migration:</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_backups.py">tests/test_backups.py</a> · <code>test_an_update_backs_up_the_database_before_migrating_it</code> · lines 231–244</figcaption>
-<pre data-file="backend/tests/test_backups.py"><code>231  def test_an_update_backs_up_the_database_before_migrating_it(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/safekeeping/test_backups.py">tests/safekeeping/test_backups.py</a> · <code>test_an_update_backs_up_the_database_before_migrating_it</code> · lines 231–244</figcaption>
+<pre data-file="backend/tests/safekeeping/test_backups.py"><code>231  def test_an_update_backs_up_the_database_before_migrating_it(
 232      database_url, clock, backup_dir
 233  ):
 234      old = Config()
@@ -218,7 +218,7 @@ rm src/mortgage_backend/migrations/versions/0016_customer_nickname.py</code></pr
 244      ]
 </code></pre>
 </figure>
-<p>Upgrade to the revision <em>before</em> yours, write the rows an old database would have, then start the app or call <code>migrate</code>, and check what the old rows hold. The other way is cheaper when the column is nullable: <code>test_a_mortgage_made_before_shows_none_until_an_edit_sets_it</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/test_lent_through.py"><code>test_lent_through.py</code></a> (line 68) makes a Mortgage normally, then sets <code>lent_through</code> to <code>None</code> "as every Mortgage made before Lent Through was asked", and checks the screens cope.</p>
+<p>Upgrade to the revision <em>before</em> yours, write the rows an old database would have, then start the app or call <code>migrate</code>, and check what the old rows hold. The other way is cheaper when the column is nullable: <code>test_a_mortgage_made_before_shows_none_until_an_edit_sets_it</code> in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/payments/test_lent_through.py"><code>test_lent_through.py</code></a> (line 68) makes a Mortgage normally, then sets <code>lent_through</code> to <code>None</code> "as every Mortgage made before Lent Through was asked", and checks the screens cope.</p>
 
 <h3>(e) Tell the Lender</h3>
 <p>Every release note in <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/CHANGELOG.md"><code>CHANGELOG.md</code></a> says whether it changes the database. 3.2.0, which shipped 0015: "<strong>Updates the database</strong> (the new Customer details): the app takes a Backup marked <code>-before-update</code> first, and 3.1.1 does not start on the updated database." A release without a migration says "<strong>No database changes:</strong> updating keeps all data and Backups". Adding 0016 means the next release note uses the first form. Cutting a release is chapter 015's.</p>
