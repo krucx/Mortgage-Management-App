@@ -127,7 +127,7 @@ export function CustomerPage() {
 
       <h3>History</h3>
       <History
-        query={customerHistoryQuery(client, id)}
+        query={(page) => customerHistoryQuery(client, id, page)}
         showMortgage
         title={`History of ${customer.name}`}
       />

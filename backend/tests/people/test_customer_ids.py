@@ -4,7 +4,7 @@ Photos (see Documentation/GLOSSARY.md)."""
 import io
 
 import pytest
-from api_seed import person
+from api_seed import history_entries, person
 from PIL import Image
 
 
@@ -20,7 +20,7 @@ def saved(response):
 def history(client, customer):
     return [
         (e["action"], e["field"], e["old_value"], e["new_value"], e["note"])
-        for e in client.get(f"/api/customers/{customer['id']}/history").json()
+        for e in history_entries(client, f"customers/{customer['id']}")
     ]
 
 

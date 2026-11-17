@@ -2848,6 +2848,40 @@
         "title": "Page[Reminder]",
         "type": "object"
       },
+      "Page_list_AuditEntry__": {
+        "properties": {
+          "items": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/AuditEntry"
+              },
+              "type": "array"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[list[AuditEntry]]",
+        "type": "object"
+      },
       "PartMonthRule": {
         "enum": [
           "pro_rata",
@@ -5289,6 +5323,17 @@
               "title": "Customer Id",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -5296,11 +5341,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AuditEntry"
-                  },
-                  "title": "Response Read Customer History Api Customers  Customer Id  History Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_list_AuditEntry__"
                 }
               }
             },
@@ -6353,6 +6394,17 @@
               "title": "Mortgage Id",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -6360,11 +6412,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AuditEntry"
-                  },
-                  "title": "Response Read Mortgage History Api Mortgages  Mortgage Id  History Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_list_AuditEntry__"
                 }
               }
             },

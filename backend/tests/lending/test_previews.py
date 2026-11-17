@@ -2,7 +2,7 @@
 anything (today is 20 Apr 2026, see conftest)."""
 
 import pytest
-from api_seed import lend, pay, person
+from api_seed import history_entries, lend, pay, person
 from seed import LAKH, RUPEE
 
 
@@ -49,7 +49,7 @@ def at(side, months):
 
 def nothing_saved(client, mortgage):
     saved = client.get(f"/api/mortgages/{mortgage['id']}").json()
-    history = client.get(f"/api/mortgages/{mortgage['id']}/history").json()
+    history = history_entries(client, f"mortgages/{mortgage['id']}")
     return (
         saved["amount_lent"] == LAKH
         and saved["term_changes"] == []

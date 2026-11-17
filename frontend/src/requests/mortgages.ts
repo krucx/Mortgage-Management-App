@@ -55,12 +55,16 @@ export const removeMortgagePhoto = (client: ApiClient, id: number, photoId: numb
     }),
   )
 
-/** A Mortgage's History, newest first. */
-export function mortgageHistoryQuery(client: ApiClient, id: number) {
+/** Page `page` of a Mortgage's History, newest first. */
+export function mortgageHistoryQuery(client: ApiClient, id: number, page: number) {
   return queryOptions({
-    queryKey: keys.mortgageHistory(id),
+    queryKey: [...keys.mortgageHistory(id), page],
     queryFn: () =>
-      dataOrThrow(client.GET('/api/mortgages/{mortgage_id}/history', { params: mortgagePath(id) })),
+      dataOrThrow(
+        client.GET('/api/mortgages/{mortgage_id}/history', {
+          params: { ...mortgagePath(id), query: { page } },
+        }),
+      ),
   })
 }
 

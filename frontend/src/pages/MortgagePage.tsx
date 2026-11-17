@@ -226,7 +226,10 @@ export function MortgagePage() {
       )}
 
       <h3>History</h3>
-      <History query={mortgageHistoryQuery(client, id)} title={`History of ${mortgage.name}`} />
+      <History
+        query={(page) => mortgageHistoryQuery(client, id, page)}
+        title={`History of ${mortgage.name}`}
+      />
       {reopening && (
         <ReasonDialog
           title={`Reopen ${mortgage.name}?`}

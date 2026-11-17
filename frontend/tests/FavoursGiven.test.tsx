@@ -36,7 +36,7 @@ function customerPage(favours: unknown) {
   const server = fakeServer({
     'GET /api/customers/3': asha,
     'GET /api/customers/3/favours': favours,
-    'GET /api/customers/3/history': [],
+    'GET /api/customers/3/history': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 20 },
   })
   showPage(server, '/customers/3', { '/customers/:id': <CustomerPage /> })

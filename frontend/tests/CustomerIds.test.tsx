@@ -100,7 +100,7 @@ test('the Customer page shows them, the Aadhaar Number masked, and the ID Photos
         aadhaar_photo_url: '/api/photos/customer-5-aadhaar.jpg',
       },
       'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 20 },
-      'GET /api/customers/5/history': [],
+      'GET /api/customers/5/history': { items: [], total: 0, page: 1, page_size: 20 },
     }),
     '/customers/5',
     { '/customers/:id': <CustomerPage /> },

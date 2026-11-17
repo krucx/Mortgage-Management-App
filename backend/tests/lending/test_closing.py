@@ -2,7 +2,7 @@
 part, the rest let off, jewellery returned) or Forfeiture."""
 
 import pytest
-from api_seed import SIMPLE_3, lend, pay, person
+from api_seed import SIMPLE_3, history_entries, lend, pay, person
 from seed import LAKH
 
 
@@ -346,7 +346,7 @@ def test_forfeiting_several_closes_each_with_its_own_recovered_amount(
         ("forfeited", 120_000_00, 8_000_00, "Auctioned"),
         ("forfeited", 100_000_00, -12_000_00, "Auctioned"),
     ]
-    history = client.get(f"/api/mortgages/{other['id']}/history").json()
+    history = history_entries(client, f"mortgages/{other['id']}")
     assert ("forfeited", "on 20 Apr 2026, recovered ₹1,00,000") in [
         (entry["action"], entry["note"]) for entry in history
     ]
@@ -386,7 +386,7 @@ def test_if_any_one_cannot_be_forfeited_none_are_and_the_reason_names_it(
     assert detail.startswith("2026-Ramesh-Bangles: There are Payments after that date")
     for m in (mortgage, other):
         assert client.get(f"/api/mortgages/{m['id']}").json()["status"] == "active"
-    history = client.get(f"/api/mortgages/{mortgage['id']}/history").json()
+    history = history_entries(client, f"mortgages/{mortgage['id']}")
     assert "forfeited" not in [entry["action"] for entry in history]
 
 

@@ -1,11 +1,23 @@
-import { useQuery, type QueryKey, type UseQueryOptions } from '@tanstack/react-query'
-import { useState } from 'react'
+import {
+  keepPreviousData,
+  useQuery,
+  type QueryKey,
+  type UseQueryOptions,
+} from '@tanstack/react-query'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { usePaymentMethods, type PaymentMethodNames } from './usePaymentMethods'
-import { type AuditEntry, type InterestMode, type PartMonthRule, type PaymentMethod } from '../api'
+import {
+  type AuditEntry,
+  type HistoryPage,
+  type InterestMode,
+  type PartMonthRule,
+  type PaymentMethod,
+} from '../api'
 import { formatRate, INTEREST_MODES, PART_MONTH_RULES } from '../terms'
 import { formatDate, formatDateTime, formatGrams, maskedAadhaar } from '../format'
 import { formatINR } from '../money'
+import { Pager } from './Pager'
 import { ScrollPopup } from './ScrollPopup'
 
 const FIELD_LABELS: Record<string, string> = {
@@ -97,22 +109,6 @@ const ACTION_LABELS: Record<AuditEntry['action'], string> = {
 /** One change: the audit log keeps a row per field, written together. */
 type Change = AuditEntry[]
 
-function groupChanges(entries: AuditEntry[]): Change[] {
-  const changes: Change[] = []
-  for (const entry of entries) {
-    const last = changes.at(-1)?.[0]
-    const same =
-      last &&
-      last.at === entry.at &&
-      last.entity === entry.entity &&
-      last.entity_id === entry.entity_id &&
-      last.action === entry.action
-    if (same) changes[changes.length - 1].push(entry)
-    else changes.push([entry])
-  }
-  return changes
-}
-
 function describe(change: Change, showMortgage: boolean, methods: PaymentMethodNames | null) {
   const [first] = change
   const valueOf = (field: string) => change.find((e) => e.field === field)?.new_value ?? null
@@ -170,24 +166,28 @@ function describe(change: Change, showMortgage: boolean, methods: PaymentMethodN
 /** Changes shown on the page; the rest are in the complete-history popup. */
 const HISTORY_SHOWN = 5
 
+/** Asks for one page of a History. */
+type HistoryQuery<Key extends QueryKey> = (
+  page: number,
+) => UseQueryOptions<HistoryPage, Error, HistoryPage, Key>
+
 /** A Customer's or Mortgage's change history, newest first. */
 export function History<Key extends QueryKey>({
   query,
   showMortgage = false,
   title,
 }: {
-  query: UseQueryOptions<AuditEntry[], Error, AuditEntry[], Key>
+  query: HistoryQuery<Key>
   /** Name the Mortgage in its entries (on a Customer's page, which has several). */
   showMortgage?: boolean
   /** Heading of the complete-history popup. */
   title: string
 }) {
-  const { data: entries, error } = useQuery(query)
+  const { data: latest, error } = useQuery(query(1))
   const [open, setOpen] = useState(false)
   const methods = usePaymentMethods()
 
-  if (!entries) return error ? <p className="status error">{error.message}</p> : null
-  const changes = groupChanges(entries)
+  if (!latest) return error ? <p className="status error">{error.message}</p> : null
   const list = (shown: Change[]) => (
     <ul className="history">
       {shown.map((change) => (
@@ -200,15 +200,15 @@ export function History<Key extends QueryKey>({
   )
   return (
     <div className="stack">
-      {changes.length === 0 ? (
+      {latest.total === 0 ? (
         <p className="hint">No changes yet.</p>
       ) : (
-        list(changes.slice(0, HISTORY_SHOWN))
+        list(latest.items.slice(0, HISTORY_SHOWN))
       )}
-      {changes.length > HISTORY_SHOWN && (
+      {latest.total > HISTORY_SHOWN && (
         <div className="row">
           <span className="hint">
-            Showing the latest {HISTORY_SHOWN} of {changes.length} changes.
+            Showing the latest {HISTORY_SHOWN} of {latest.total} changes.
           </span>
           <button type="button" className="secondary small" onClick={() => setOpen(true)}>
             Show complete history
@@ -217,9 +217,37 @@ export function History<Key extends QueryKey>({
       )}
       {open && (
         <ScrollPopup title={title} onClose={() => setOpen(false)}>
-          {list(changes)}
+          <CompleteHistory query={query} list={list} />
         </ScrollPopup>
       )}
+    </div>
+  )
+}
+
+/** Every change, a page at a time, with the pager above so a new page starts at its top.
+ *  Not useListPage: its pages are kept under the lists, but History's must stay under
+ *  its Customer or Mortgage, so whatever makes them stale makes their History stale. */
+function CompleteHistory<Key extends QueryKey>({
+  query,
+  list,
+}: {
+  query: HistoryQuery<Key>
+  list: (shown: Change[]) => ReactNode
+}) {
+  const [page, setPage] = useState(1)
+  const { data: shown, error } = useQuery({ ...query(page), placeholderData: keepPreviousData })
+
+  if (!shown) return error ? <p className="status error">{error.message}</p> : null
+  return (
+    <div className="stack">
+      <Pager
+        page={shown.page}
+        pageSize={shown.page_size}
+        total={shown.total}
+        shown={shown.items.length}
+        onPage={setPage}
+      />
+      {list(shown.items)}
     </div>
   )
 }

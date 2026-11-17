@@ -7,8 +7,8 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import and_, insert, or_, select
-from sqlalchemy.engine import Connection
+from sqlalchemy import ColumnElement, and_, func, insert, or_, select, tuple_
+from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.platform.db import (
     EngineDep,
@@ -19,6 +19,7 @@ from mortgage_backend.platform.db import (
     mortgage_table,
     payment_table,
 )
+from mortgage_backend.platform.paging import Page, PageNumber, Sorting, query_page
 
 Entity = Literal["customer", "mortgage", "payment"]
 Action = Literal[
@@ -111,7 +112,37 @@ class AuditEntry(BaseModel):
     mortgage_name: str | None  # for a Mortgage's entries: which one (its current name)
 
 
-def _entries(conn: Connection, *where: object) -> list[AuditEntry]:
+# What identifies a change: the entries one `record` wrote together.
+_CHANGE_KEY = (
+    audit_entry_table.c.at,
+    audit_entry_table.c.entity,
+    audit_entry_table.c.entity_id,
+    audit_entry_table.c.action,
+)
+_NEWEST_CHANGE_FIRST: Sorting[str] = Sorting(
+    columns={}, default_order=[func.max(audit_entry_table.c.id).desc()]
+)
+
+
+def _history(
+    conn: Connection, page: int, *about: ColumnElement[bool]
+) -> Page[list[AuditEntry]]:
+    """Page `page` of the changes to what `about` picks out, newest first: a page holds
+    whole changes, so one is never split across two."""
+    return query_page(
+        conn,
+        select(*_CHANGE_KEY).where(or_(*about)).group_by(*_CHANGE_KEY),
+        _NEWEST_CHANGE_FIRST,
+        page,
+        lambda shown: _changes(conn, shown),
+    )
+
+
+def _changes(conn: Connection, shown: Sequence[RowMapping]) -> list[list[AuditEntry]]:
+    """Each change's entries, newest first, in the order the changes are `shown`."""
+    keys = [_key_of(change) for change in shown]
+    if not keys:
+        return []
     rows = conn.execute(
         select(audit_entry_table, mortgage_table.c.name.label("mortgage_name"))
         .outerjoin(
@@ -121,30 +152,41 @@ def _entries(conn: Connection, *where: object) -> list[AuditEntry]:
                 mortgage_table.c.id == audit_entry_table.c.entity_id,
             ),
         )
-        .where(or_(*where))  # type: ignore[arg-type]
+        .where(tuple_(*_CHANGE_KEY).in_(keys))
         .order_by(audit_entry_table.c.id.desc())
     ).mappings()
-    return [AuditEntry.model_validate(row) for row in rows]
+    entries: dict[tuple[Any, ...], list[AuditEntry]] = {key: [] for key in keys}
+    for row in rows:
+        entries[_key_of(row)].append(AuditEntry.model_validate(row))
+    return list(entries.values())
 
 
-def _about(entity: Entity, ids: object) -> object:
+def _key_of(row: RowMapping) -> tuple[Any, ...]:
+    return tuple(row[column.name] for column in _CHANGE_KEY)
+
+
+def _about(entity: Entity, ids: object) -> ColumnElement[bool]:
     return and_(
         audit_entry_table.c.entity == entity,
         audit_entry_table.c.entity_id.in_(ids),  # type: ignore[arg-type]
     )
 
 
-def mortgage_history(conn: Connection, mortgage_id: int) -> list[AuditEntry]:
+def mortgage_history(
+    conn: Connection, mortgage_id: int, page: int = 1
+) -> Page[list[AuditEntry]]:
     """A Mortgage's changes, and those of the Payments made to it, newest first."""
     payments = select(allocation_table.c.payment_id).where(
         allocation_table.c.mortgage_id == mortgage_id
     )
-    return _entries(
-        conn, _about("mortgage", [mortgage_id]), _about("payment", payments)
+    return _history(
+        conn, page, _about("mortgage", [mortgage_id]), _about("payment", payments)
     )
 
 
-def customer_history(conn: Connection, customer_id: int) -> list[AuditEntry]:
+def customer_history(
+    conn: Connection, customer_id: int, page: int = 1
+) -> Page[list[AuditEntry]]:
     """A Customer's changes, and those of their Mortgages and Payments, newest first."""
     mortgages = select(mortgage_table.c.id).where(
         mortgage_table.c.customer_id == customer_id
@@ -152,8 +194,9 @@ def customer_history(conn: Connection, customer_id: int) -> list[AuditEntry]:
     payments = select(payment_table.c.id).where(
         payment_table.c.customer_id == customer_id
     )
-    return _entries(
+    return _history(
         conn,
+        page,
         _about("customer", [customer_id]),
         _about("mortgage", mortgages),
         _about("payment", payments),
@@ -164,16 +207,20 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/mortgages/{mortgage_id}/history")
-def read_mortgage_history(mortgage_id: int, engine: EngineDep) -> list[AuditEntry]:
+def read_mortgage_history(
+    mortgage_id: int, engine: EngineDep, page: PageNumber = 1
+) -> Page[list[AuditEntry]]:
     with engine.connect() as conn:
         if not exists(conn, mortgage_table, mortgage_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
-        return mortgage_history(conn, mortgage_id)
+        return mortgage_history(conn, mortgage_id, page)
 
 
 @router.get("/customers/{customer_id}/history")
-def read_customer_history(customer_id: int, engine: EngineDep) -> list[AuditEntry]:
+def read_customer_history(
+    customer_id: int, engine: EngineDep, page: PageNumber = 1
+) -> Page[list[AuditEntry]]:
     with engine.connect() as conn:
         if not exists(conn, customer_table, customer_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
-        return customer_history(conn, customer_id)
+        return customer_history(conn, customer_id, page)

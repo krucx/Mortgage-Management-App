@@ -24,6 +24,8 @@ from mortgage_backend.payments.payments import PaymentMethod
 from mortgage_backend.payments.writes import AllocationIn, PaymentIn
 from mortgage_backend.people import customer_changes
 from mortgage_backend.people.customers import CustomerIn
+from mortgage_backend.platform.paging import Page
+from mortgage_backend.safekeeping.audit import AuditEntry
 
 RUPEE = 100  # paise
 LAKH = 1_00_000 * RUPEE
@@ -157,3 +159,8 @@ def waive(conn: Connection, mortgage_id: int, on: date, paid: int = 0) -> int | 
     )
     final: int | None = mortgage_row(conn, mortgage_id)["redemption_payment_id"]
     return final
+
+
+def entries(history: Page[list[AuditEntry]]) -> list[AuditEntry]:
+    """Every entry on a page of History, newest first."""
+    return [entry for change in history.items for entry in change]

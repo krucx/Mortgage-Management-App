@@ -62,7 +62,7 @@ test('setting how a Mortgage was lent shows in its History by name', async () =>
   showMortgagePage(
     fakeServer({
       'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/history': [entry],
+      'GET /api/mortgages/7/history': { items: [[entry]], total: 1, page: 1, page_size: 20 },
       'GET /api/payment-methods': [{ method: 'bank_transfer', name: 'Bank transfer' }],
     }),
   )
@@ -74,6 +74,54 @@ test('setting how a Mortgage was lent shows in its History by name', async () =>
     ),
   )
   expect(line).toContain('(none)')
+})
+
+test('History shows the latest changes, and the complete history a page of changes at a time', async () => {
+  // Change n is an edit of the Jewellery (to "Jewellery n") on day n; a page holds 20 changes, newest first.
+  const change = (n: number) => [
+    {
+      id: n,
+      at: `2026-10-${String(n).padStart(2, '0')}T10:00:00`,
+      entity: 'mortgage',
+      entity_id: 7,
+      action: 'edited',
+      field: 'description',
+      old_value: null,
+      new_value: `Jewellery ${n}`,
+      note: null,
+      mortgage_name: mortgage.name,
+    },
+  ]
+  const server = fakeServer({
+    'GET /api/mortgages/7': mortgage,
+    'GET /api/mortgages/7/history': (request: Request) => {
+      const page = Number(new URL(request.url).searchParams.get('page'))
+      const newest = page === 1 ? 23 : 3
+      const count = page === 1 ? 20 : 3
+      return {
+        items: Array.from({ length: count }, (_, i) => change(newest - i)),
+        total: 23,
+        page,
+        page_size: 20,
+      }
+    },
+  })
+  showMortgagePage(server)
+
+  expect(await screen.findByText('Showing the latest 5 of 23 changes.')).toBeTruthy()
+  expect(screen.getByText(/Jewellery 19/)).toBeTruthy()
+  expect(screen.queryByText(/Jewellery 18/)).toBeNull()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show complete history' }))
+  const popup = within(await screen.findByRole('dialog'))
+  expect(popup.getByText('Showing 1–20 of 23')).toBeTruthy()
+  expect(popup.getByText(/Jewellery 4/)).toBeTruthy()
+
+  fireEvent.click(popup.getByRole('button', { name: 'Next' }))
+
+  expect(await popup.findByText(/Jewellery 1$/)).toBeTruthy()
+  expect(popup.getByText('Showing 21–23 of 23')).toBeTruthy()
+  expect(popup.queryByText(/Jewellery 23/)).toBeNull()
 })
 
 test("an Active pro-rata Mortgage's Ledger ends with its Interest to Date, growing daily", async () => {
@@ -150,8 +198,8 @@ test("adding a photo shows it, and makes the Mortgage's and its Customer's Histo
       (stored = { ...mortgage, photos: [{ id: 5, url: '/api/photos/mortgage-7-a.jpg' }] }),
   })
   const state = showMortgagePage(server)
-  const customerHistory = customerHistoryQuery(state.client, 3).queryKey
-  state.queryClient.setQueryData(customerHistory, [])
+  const customerHistory = customerHistoryQuery(state.client, 3, 1).queryKey
+  state.queryClient.setQueryData(customerHistory, { items: [], total: 0, page: 1, page_size: 20 })
 
   fireEvent.change(await screen.findByLabelText('Upload photos'), {
     target: { files: [new File(['x'], 'ring.jpg', { type: 'image/jpeg' })] },
