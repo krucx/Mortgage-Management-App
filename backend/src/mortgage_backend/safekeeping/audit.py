@@ -112,8 +112,8 @@ class AuditEntry(BaseModel):
     mortgage_name: str | None  # for a Mortgage's entries: which one (its current name)
 
 
-# A change: the entries one `record` wrote together, newest change first.
-_CHANGE = (
+# What identifies a change: the entries one `record` wrote together.
+_CHANGE_KEY = (
     audit_entry_table.c.at,
     audit_entry_table.c.entity,
     audit_entry_table.c.entity_id,
@@ -131,7 +131,7 @@ def _history(
     whole changes, so one is never split across two."""
     return query_page(
         conn,
-        select(*_CHANGE).where(or_(*about)).group_by(*_CHANGE),
+        select(*_CHANGE_KEY).where(or_(*about)).group_by(*_CHANGE_KEY),
         _NEWEST_CHANGE_FIRST,
         page,
         lambda shown: _changes(conn, shown),
@@ -140,7 +140,7 @@ def _history(
 
 def _changes(conn: Connection, shown: Sequence[RowMapping]) -> list[list[AuditEntry]]:
     """Each change's entries, newest first, in the order the changes are `shown`."""
-    keys = [tuple(change.values()) for change in shown]
+    keys = [_key_of(change) for change in shown]
     if not keys:
         return []
     rows = conn.execute(
@@ -152,15 +152,17 @@ def _changes(conn: Connection, shown: Sequence[RowMapping]) -> list[list[AuditEn
                 mortgage_table.c.id == audit_entry_table.c.entity_id,
             ),
         )
-        .where(tuple_(*_CHANGE).in_(keys))
+        .where(tuple_(*_CHANGE_KEY).in_(keys))
         .order_by(audit_entry_table.c.id.desc())
     ).mappings()
     entries: dict[tuple[Any, ...], list[AuditEntry]] = {key: [] for key in keys}
     for row in rows:
-        entries[tuple(row[column.name] for column in _CHANGE)].append(
-            AuditEntry.model_validate(row)
-        )
+        entries[_key_of(row)].append(AuditEntry.model_validate(row))
     return list(entries.values())
+
+
+def _key_of(row: RowMapping) -> tuple[Any, ...]:
+    return tuple(row[column.name] for column in _CHANGE_KEY)
 
 
 def _about(entity: Entity, ids: object) -> ColumnElement[bool]:

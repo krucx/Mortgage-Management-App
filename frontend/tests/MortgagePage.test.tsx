@@ -77,7 +77,7 @@ test('setting how a Mortgage was lent shows in its History by name', async () =>
 })
 
 test('History shows the latest changes, and the complete history a page of changes at a time', async () => {
-  // Change n is an edit of the address (n) on day n; a page holds 20 changes, newest first.
+  // Change n is an edit of the Jewellery (to "Jewellery n") on day n; a page holds 20 changes, newest first.
   const change = (n: number) => [
     {
       id: n,

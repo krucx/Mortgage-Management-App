@@ -224,7 +224,9 @@ export function History<Key extends QueryKey>({
   )
 }
 
-/** Every change, a page at a time, with the pager above so a new page starts at its top. */
+/** Every change, a page at a time, with the pager above so a new page starts at its top.
+ *  Not useListPage: its pages are kept under the lists, but History's must stay under
+ *  its Customer or Mortgage, so whatever makes them stale makes their History stale. */
 function CompleteHistory<Key extends QueryKey>({
   query,
   list,
