@@ -4,7 +4,7 @@ bank transfer); required on new Mortgages, unset ("—") on those made before it
 from datetime import date
 
 import pytest
-from api_seed import lend, person
+from api_seed import history_entries, lend, person
 from seed import add_customer, add_mortgage
 from sqlalchemy import update
 
@@ -23,7 +23,7 @@ def shown(client, mortgage_id):
 def history(client, mortgage_id):
     return [
         (entry["action"], entry["field"], entry["old_value"], entry["new_value"])
-        for entry in client.get(f"/api/mortgages/{mortgage_id}/history").json()
+        for entry in history_entries(client, f"mortgages/{mortgage_id}")
     ]
 
 

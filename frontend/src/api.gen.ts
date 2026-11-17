@@ -2569,6 +2569,17 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** Page[list[AuditEntry]] */
+        Page_list_AuditEntry__: {
+            /** Items */
+            items: components["schemas"]["AuditEntry"][][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
         /**
          * PartMonthRule
          * @enum {string}
@@ -3807,7 +3818,9 @@ export interface operations {
     };
     read_customer_history_api_customers__customer_id__history_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+            };
             header?: never;
             path: {
                 customer_id: number;
@@ -3822,7 +3835,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuditEntry"][];
+                    "application/json": components["schemas"]["Page_list_AuditEntry__"];
                 };
             };
             /** @description Validation Error */
@@ -4457,7 +4470,9 @@ export interface operations {
     };
     read_mortgage_history_api_mortgages__mortgage_id__history_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+            };
             header?: never;
             path: {
                 mortgage_id: number;
@@ -4472,7 +4487,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuditEntry"][];
+                    "application/json": components["schemas"]["Page_list_AuditEntry__"];
                 };
             };
             /** @description Validation Error */

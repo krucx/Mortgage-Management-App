@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 from fastapi import HTTPException
-from seed import add_mortgage
+from seed import add_mortgage, entries
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
@@ -58,7 +58,7 @@ def test_a_new_customer_is_saved_and_recorded(conn: Connection) -> None:
     ramesh = save(conn, customer())
 
     assert load_customer(conn, ramesh).name == "Ramesh Kumar"
-    created = {e.field: e.new_value for e in customer_history(conn, ramesh)}
+    created = {e.field: e.new_value for e in entries(customer_history(conn, ramesh))}
     assert (created["name"], created["phone_1"]) == ("Ramesh Kumar", "9829012345")
 
 
@@ -151,7 +151,9 @@ def test_an_edit_is_recorded_field_by_field(conn: Connection) -> None:
 
     save(conn, customer(address="Ajmer"), ramesh)
 
-    [edited] = [e for e in customer_history(conn, ramesh) if e.action == "edited"]
+    [edited] = [
+        e for e in entries(customer_history(conn, ramesh)) if e.action == "edited"
+    ]
     assert (edited.field, edited.old_value, edited.new_value) == (
         "address",
         "Jaipur",
@@ -189,7 +191,7 @@ def test_deleting_a_customer_unlinks_those_they_referred_and_is_recorded(
 
     assert photos == []
     assert load_customer(conn, sita).referrer is None
-    assert [(e.action, e.note) for e in customer_history(conn, ramesh)][0] == (
+    assert [(e.action, e.note) for e in entries(customer_history(conn, ramesh))][0] == (
         "deleted",
         "Ramesh Kumar",
     )
@@ -204,7 +206,7 @@ def test_a_replaced_photo_gives_back_the_old_file_and_is_recorded(
     second = customer_changes.replace_photo(conn, ramesh, "customer-1-b.jpg", NOW)
 
     assert (first, second) == (None, "customer-1-a.jpg")
-    assert [e.action for e in customer_history(conn, ramesh)][:2] == [
+    assert [e.action for e in entries(customer_history(conn, ramesh))][:2] == [
         "photo_added",
         "photo_added",
     ]

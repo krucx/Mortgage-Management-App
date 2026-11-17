@@ -18,6 +18,9 @@ Every release of Mortgage Management, newest first. The format follows
 - **Call Notes and Favours Given come a page at a time:** a Mortgage's Call Notes and a
   Customer's Favours Given show 20 at a time, newest first, with Previous and Next, as the
   other lists do. The Favours Given total still counts every page.
+- **Complete history comes a page at a time:** a Customer's or Mortgage's "Show complete
+  history" popup shows 20 changes at a time, newest first, with Previous and Next. A change
+  is never split across two pages, and the History panel still shows the latest 5.
 
 ## [3.4.10] - 2026-11-13
 

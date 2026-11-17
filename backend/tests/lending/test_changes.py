@@ -10,7 +10,16 @@ from datetime import date, datetime
 import pytest
 from conftest import TODAY
 from fastapi import HTTPException
-from seed import LAKH, RUPEE, add_customer, add_mortgage, add_payment, forfeit, redeem
+from seed import (
+    LAKH,
+    RUPEE,
+    add_customer,
+    add_mortgage,
+    add_payment,
+    entries,
+    forfeit,
+    redeem,
+)
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.collateral import manual_value, mortgage_photos
@@ -51,7 +60,9 @@ def test_a_payment_is_written_replayed_and_recorded(conn: Connection) -> None:
     )
 
     assert replay(conn, chain).outstanding(TODAY).total == 1_07_000 * RUPEE
-    created = [e for e in mortgage_history(conn, chain) if e.entity == "payment"]
+    created = [
+        e for e in entries(mortgage_history(conn, chain)) if e.entity == "payment"
+    ]
     assert {(e.entity_id, e.action, e.field, e.new_value) for e in created} >= {
         (payment_id, "created", "amount", str(5_000 * RUPEE))
     }
@@ -123,7 +134,7 @@ def test_voiding_a_payment_takes_it_out_of_the_ledger_and_records_why(
     writes.void_payment(conn, paid, "Typed the wrong amount", TODAY, NOW)
 
     assert replay(conn, chain).outstanding(TODAY).total == 1_12_000 * RUPEE
-    voided = [e for e in mortgage_history(conn, chain) if e.action == "voided"]
+    voided = [e for e in entries(mortgage_history(conn, chain)) if e.action == "voided"]
     assert [(e.entity_id, e.new_value) for e in voided] == [
         (paid, "Typed the wrong amount")
     ]
@@ -180,7 +191,9 @@ def test_a_term_change_is_written_and_recorded(conn: Connection) -> None:
 
     assert replay(conn, chain).terms_on(date(2026, 5, 14)).monthly_rate_bps == 200
     added = [
-        e for e in mortgage_history(conn, chain) if e.action == "term_change_added"
+        e
+        for e in entries(mortgage_history(conn, chain))
+        if e.action == "term_change_added"
     ]
     assert {(e.field, e.new_value) for e in added} == {
         ("effective_on", "2026-05-14"),
@@ -227,7 +240,7 @@ def test_an_edit_is_written_and_recorded(conn: Connection) -> None:
     changes.edit_mortgage(conn, chain, edit(amount_lent=90_000 * RUPEE), TODAY, NOW)
 
     assert replay(conn, chain).outstanding(TODAY).total == (90_000 + 10_800) * RUPEE
-    edited = [e for e in mortgage_history(conn, chain) if e.action == "edited"]
+    edited = [e for e in entries(mortgage_history(conn, chain)) if e.action == "edited"]
     assert [(e.field, e.old_value, e.new_value) for e in edited] == [
         ("amount_lent", str(LAKH), str(90_000 * RUPEE))
     ]
@@ -406,7 +419,9 @@ def test_a_refused_change_records_no_history(conn: Connection) -> None:
         changes.edit_mortgage(conn, chain, edit(amount_lent=50_000 * RUPEE), TODAY, NOW)
 
     # History is written only once the replay holds (the caller rolls back the rest).
-    assert [e for e in mortgage_history(conn, chain) if e.action == "edited"] == []
+    assert [
+        e for e in entries(mortgage_history(conn, chain)) if e.action == "edited"
+    ] == []
 
 
 def redeem_in(on: str = "2026-04-20") -> closing.RedeemIn:
@@ -430,7 +445,10 @@ def test_redeeming_records_the_final_payment_closes_and_is_recorded(
         (final, 1_12_000 * RUPEE)
     ]
     assert mortgage.outstanding(TODAY).total == 0
-    history = {(e.entity, e.entity_id, e.action) for e in mortgage_history(conn, chain)}
+    history = {
+        (e.entity, e.entity_id, e.action)
+        for e in entries(mortgage_history(conn, chain))
+    }
     assert {("payment", final, "created"), ("mortgage", chain, "redeemed")} <= history
 
 
@@ -486,7 +504,11 @@ def test_forfeiting_records_what_was_recovered(conn: Connection) -> None:
         "Sold",
     )
     # Nothing but the Forfeiture since the Mortgage was lent
-    made = [e.action for e in mortgage_history(conn, chain) if e.action != "created"]
+    made = [
+        e.action
+        for e in entries(mortgage_history(conn, chain))
+        if e.action != "created"
+    ]
     assert made == ["forfeited"]
 
 
@@ -503,7 +525,10 @@ def test_reopening_a_redemption_voids_its_final_payment(conn: Connection) -> Non
         None,
     )
     assert mortgage.outstanding(TODAY).total == 1_12_000 * RUPEE
-    newest = [(e.entity, e.entity_id, e.action) for e in mortgage_history(conn, chain)]
+    newest = [
+        (e.entity, e.entity_id, e.action)
+        for e in entries(mortgage_history(conn, chain))
+    ]
     assert newest[:2] == [("mortgage", chain, "reopened"), ("payment", final, "voided")]
 
 
@@ -524,7 +549,7 @@ def test_a_coming_term_change_is_removed_and_recorded(conn: Connection) -> None:
     changes.remove_term_change(conn, chain, coming.id, TODAY, NOW)
 
     assert replay(conn, chain).term_changes == []
-    assert mortgage_history(conn, chain)[0].action == "term_change_removed"
+    assert entries(mortgage_history(conn, chain))[0].action == "term_change_removed"
 
 
 def test_a_term_change_on_a_closed_mortgage_stays(conn: Connection) -> None:
@@ -566,7 +591,9 @@ def test_a_new_mortgage_is_named_given_the_default_terms_and_recorded(
         300,
         "compounded_yearly",
     )
-    [entry] = [e for e in mortgage_history(conn, created) if e.field == "amount_lent"]
+    [entry] = [
+        e for e in entries(mortgage_history(conn, created)) if e.field == "amount_lent"
+    ]
     assert (entry.action, entry.new_value) == ("created", str(LAKH))
 
 
@@ -607,7 +634,7 @@ def test_a_collateral_value_is_set_by_hand_cleared_and_recorded(
     )
     assert cleared_row["collateral_override"] is None
     assert cleared_row["collateral_override_on"] is None
-    edited = [e for e in mortgage_history(conn, chain) if e.action == "edited"]
+    edited = [e for e in entries(mortgage_history(conn, chain)) if e.action == "edited"]
     assert [(e.old_value, e.new_value) for e in reversed(edited)] == [
         (None, str(90_000 * RUPEE)),
         (str(90_000 * RUPEE), None),
@@ -640,7 +667,11 @@ def test_a_photo_is_added_and_removed_and_recorded(conn: Connection) -> None:
     removed = mortgage_photos.remove_photo(conn, chain, photo, NOW)
 
     assert removed == "mortgage-1-a.jpg"
-    made = [e.action for e in mortgage_history(conn, chain) if e.action != "created"]
+    made = [
+        e.action
+        for e in entries(mortgage_history(conn, chain))
+        if e.action != "created"
+    ]
     assert made == ["photo_removed", "photo_added"]
 
 

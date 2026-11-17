@@ -2,7 +2,7 @@
 audit log of every change (today is 20 Apr 2026, see conftest)."""
 
 import pytest
-from api_seed import SIMPLE_3, lend, pay, person
+from api_seed import SIMPLE_3, history_entries, lend, pay, person
 from seed import LAKH, RUPEE
 
 
@@ -43,8 +43,6 @@ def outstanding(client, mortgage):
 
 
 def history(client, kind, id_):
-    response = client.get(f"/api/{kind}/{id_}/history")
-    assert response.status_code == 200, response.text
     return [
         (
             e["entity"],
@@ -54,7 +52,7 @@ def history(client, kind, id_):
             e["new_value"],
             e["note"],
         )
-        for e in response.json()
+        for e in history_entries(client, f"{kind}/{id_}")
     ]
 
 

@@ -14,14 +14,14 @@ export const previewDeleteCustomer = (client: ApiClient, id: number) =>
     client.POST('/api/customers/{customer_id}/delete-preview', { params: customerPath(id) }),
   )
 
-/** A Customer's History (and their Mortgages'), newest first. */
-export function customerHistoryQuery(client: ApiClient, id: number) {
+/** Page `page` of a Customer's History (and their Mortgages'), newest first. */
+export function customerHistoryQuery(client: ApiClient, id: number, page: number) {
   return queryOptions({
-    queryKey: [...keys.customer(id), 'history'],
+    queryKey: [...keys.customer(id), 'history', page],
     queryFn: () =>
       dataOrThrow(
         client.GET('/api/customers/{customer_id}/history', {
-          params: customerPath(id),
+          params: { ...customerPath(id), query: { page } },
         }),
       ),
   })

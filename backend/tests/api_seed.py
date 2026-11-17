@@ -92,3 +92,11 @@ def pay(
         **fields,
     }
     return _created(client.post("/api/payments", json=details))
+
+
+def history_entries(client: TestClient, path: str) -> list[dict[str, Any]]:
+    """Every entry on the first page of `path`'s History (e.g. "customers/3"), newest
+    first."""
+    response = client.get(f"/api/{path}/history")
+    assert response.status_code == 200, response.text
+    return [entry for change in response.json()["items"] for entry in change]

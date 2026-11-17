@@ -1,7 +1,7 @@
 """Term Changes on a running Mortgage (today is 20 Apr 2026)."""
 
 import pytest
-from api_seed import SIMPLE_3, lend, person
+from api_seed import SIMPLE_3, history_entries, lend, person
 from seed import LAKH, RUPEE
 
 
@@ -117,7 +117,7 @@ def test_term_changes_are_in_the_history(client, mortgage):
     ][0]
     client.delete(f"/api/mortgages/{mortgage['id']}/term-changes/{change['id']}")
 
-    history = client.get(f"/api/mortgages/{mortgage['id']}/history").json()
+    history = history_entries(client, f"mortgages/{mortgage['id']}")
     actions = [(e["action"], e["field"], e["new_value"]) for e in history]
     assert ("term_change_removed", None, None) in actions
     assert ("term_change_added", "monthly_rate_bps", "200") in actions

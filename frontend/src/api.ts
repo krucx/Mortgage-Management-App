@@ -124,6 +124,8 @@ export type BackupStatus = Schemas['BackupStatus']
 
 /** One change in the History; edits have one entry per changed field. */
 export type AuditEntry = Schemas['AuditEntry']
+/** A page of the History: whole changes (each its entries), newest first. */
+export type HistoryPage = Schemas['Page_list_AuditEntry__']
 
 export type CallListSettings = Schemas['CallListSettings']
 export type DiscountConfirmationLimit = Schemas['DiscountConfirmationLimit']
