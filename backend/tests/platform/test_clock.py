@@ -1,21 +1,26 @@
 """Request-scoped QA clock (platform/clock.py)."""
 
-import os
-
 import pytest
-from fastapi import Depends
+from conftest import TODAY
 from fastapi.testclient import TestClient
 
-from conftest import TODAY
 from mortgage_backend.main import create_app
 from mortgage_backend.platform.clock import NowDep, TodayDep
 
 
 def _app(database_url, monkeypatch_qa=None):
-    app = create_app(database_url, today=lambda: TODAY, now=lambda: __import__("datetime").datetime.combine(TODAY, __import__("datetime").time(9, 0)))
+    app = create_app(
+        database_url,
+        today=lambda: TODAY,
+        now=lambda: __import__("datetime").datetime.combine(
+            TODAY, __import__("datetime").time(9, 0)
+        ),
+    )
+
     @app.get("/_clock")
     def _clock(today: TodayDep, now: NowDep):
         return {"today": today.isoformat(), "now": now.isoformat()}
+
     return app
 
 
@@ -53,7 +58,13 @@ def test_date_only_pins_now_to_noon(qa_app):
 
 def test_now_header_overrides(qa_app):
     with TestClient(qa_app, base_url="http://localhost") as c:
-        r = c.get("/_clock", headers={"X-QA-Clock": "2026-12-25", "X-QA-Clock-Now": "2026-12-25T08:30:00"})
+        r = c.get(
+            "/_clock",
+            headers={
+                "X-QA-Clock": "2026-12-25",
+                "X-QA-Clock-Now": "2026-12-25T08:30:00",
+            },
+        )
         assert r.json()["now"] == "2026-12-25T08:30:00"
 
 

@@ -6,11 +6,12 @@ COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /usr/local/bin/uv
 
 WORKDIR /qa
 
-# Backend (for qa/fixtures/golden_book.py seeding) — reuse the frozen lock.
+# Backend (for qa/fixtures/golden_book.py seeding) — reuse the frozen lock. The dev group
+# brings httpx2, which the golden book's TestClient needs.
 COPY backend/pyproject.toml backend/uv.lock /qa/backend/
-RUN cd /qa/backend && uv sync --frozen --no-dev --no-install-project
+RUN cd /qa/backend && uv sync --frozen --no-install-project
 COPY backend/src /qa/backend/src
-RUN cd /qa/backend && uv sync --frozen --no-dev
+RUN cd /qa/backend && uv sync --frozen
 
 ENV PYTHONPATH=/qa/backend/src
 

@@ -11,7 +11,7 @@ const PHOTO = {
   ),
 };
 
-test.describe('blank slate', () => {
+test.describe('blank slate', { tag: '@fresh' }, () => {
   test('creates a customer with a photo and a first mortgage', async ({ page }) => {
     await page.goto('/customers/new?next=mortgage');
 
