@@ -241,8 +241,18 @@ export function CloseMortgage({
             ],
             [
               `Outstanding on ${formatDate(on)}`,
-              <strong key="total">{formatINR(quote.total)}</strong>,
+              quote.advance_held ? (
+                formatINR(quote.total)
+              ) : (
+                <strong key="total">{formatINR(quote.total)}</strong>
+              ),
             ],
+            ...(quote.advance_held
+              ? ([
+                  ['Advance held', `− ${formatINR(quote.advance_held)}`],
+                  ['To pay', <strong key="to-pay">{formatINR(quote.to_pay)}</strong>],
+                ] satisfies [string, React.ReactNode][])
+              : []),
           ]}
         />
       )}
@@ -334,7 +344,7 @@ export function CloseMortgage({
           disabled={!canSave || !proposedClosure}
         >
           {action === 'redeem'
-            ? `Redeem${quote ? ` for ${formatINR(quote.total)}` : ''}`
+            ? `Redeem${quote ? ` for ${formatINR(quote.to_pay)}` : ''}`
             : action === 'waive'
               ? `Waive off${waived !== null && waived > 0 ? ` ${formatINR(waived)}` : ''}`
               : 'Forfeit'}
@@ -353,6 +363,11 @@ export function CloseMortgage({
   )
 }
 
+/** The Advance held a Closure applied, as a Summary row; none if there was none. */
+function advanceHeld(amount: number): [string, string][] {
+  return amount ? [['Advance held', formatINR(amount)]] : []
+}
+
 /** How a closed Mortgage ended. */
 export function ClosureSummary({ mortgage }: { mortgage: Mortgage }) {
   const closure = mortgage.closure
@@ -361,7 +376,11 @@ export function ClosureSummary({ mortgage }: { mortgage: Mortgage }) {
     return (
       <div className="close-panel">
         <strong>Redeemed on {formatDate(closure.on)}</strong>, paying its Outstanding of{' '}
-        {formatINR(closure.outstanding)}.{' '}
+        {formatINR(closure.outstanding)}
+        {closure.advance_held > 0 && (
+          <>, {formatINR(closure.advance_held)} of it from the Advance held</>
+        )}
+        .{' '}
         {closure.payment_id && (
           <Link to={`/payments/${closure.payment_id}`}>Final Payment (receipt)</Link>
         )}
@@ -375,6 +394,7 @@ export function ClosureSummary({ mortgage }: { mortgage: Mortgage }) {
         <Summary
           rows={[
             ['Outstanding on the Closure date', formatINR(closure.outstanding)],
+            ...advanceHeld(closure.advance_held),
             [
               'Final Payment',
               closure.payment_id ? (
@@ -398,6 +418,7 @@ export function ClosureSummary({ mortgage }: { mortgage: Mortgage }) {
       <Summary
         rows={[
           ['Outstanding on the Closure date', formatINR(closure.outstanding)],
+          ...advanceHeld(closure.advance_held),
           ['Recovered Amount', formatINR(closure.recovered_amount ?? 0)],
           ['Result', <ProfitLoss key="result" amount={closure.profit_loss ?? 0} />],
           ['Note', closure.note ?? '—'],

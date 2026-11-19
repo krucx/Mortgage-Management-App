@@ -141,6 +141,7 @@ def test_a_waived_mortgage_closure_has_its_final_payment_and_what_was_let_off(
         kind="waived",
         on=date(2026, 3, 20),
         outstanding=1_09_000 * RUPEE,
+        advance_held=0,
         interest_to_date=3_000 * RUPEE,  # 14 to 20 Mar, a month charged in full
         interest_to_date_days=7,
         payment_id=final,

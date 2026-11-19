@@ -53,6 +53,8 @@ def test_a_outstanding_on_closure_includes_the_interest_to_date(
         "interest_to_date_days": 7,
         "interest_to_date": charge,
         "total": LAKH + 9_000_00 + charge,
+        "advance_held": 0,
+        "to_pay": LAKH + 9_000_00 + charge,
     }
 
 
@@ -177,6 +179,7 @@ def test_forfeiting_records_what_was_recovered_and_the_profit_or_loss(
         "kind": "forfeited",
         "on": "2026-04-20",
         "outstanding": 112_000_00,
+        "advance_held": 0,
         "interest_to_date": 3_000_00,  # 14 to 20 Apr, a month charged in full
         "interest_to_date_days": 7,
         "payment_id": None,

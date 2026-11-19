@@ -98,12 +98,13 @@ def record_payment(
 def _redeemed_by(
     conn: Connection, allocation: AllocationIn, on: date, today: date
 ) -> MortgageReplay | None:
-    """The Mortgage, if the Allocation is its whole Outstanding on `on`: paying all of
-    it Redeems it, so it is refused if the Mortgage can't be Redeemed then, or if it
-    also holds an Advance: a Mortgage being closed has no interest to come."""
+    """The Mortgage, if the Allocation is its whole Outstanding on `on`, after the
+    Advance held then: paying all of it Redeems it, so it is refused if the Mortgage
+    can't be Redeemed then, or if it also holds an Advance: a Mortgage being closed
+    has no interest to come."""
     mortgage = replay(conn, allocation.mortgage_id)
     full_payment = allocation.amount + allocation.discount
-    if full_payment != mortgage.outstanding_on_closure(on).total:
+    if full_payment != mortgage.outstanding_on_closure(on).to_pay:
         return None
     if allocation.advance:
         raise unprocessable("This Payment Redeems it, so it can't hold an Advance")

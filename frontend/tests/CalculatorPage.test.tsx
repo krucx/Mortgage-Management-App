@@ -34,6 +34,8 @@ const simulation: Simulation = {
     interest_to_date_days: 1,
     interest_to_date: 253_600,
     total: 12_936_000,
+    advance_held: 0,
+    to_pay: 12_936_000,
   },
   interest_earned: 2_936_000,
   first_month_interest: 200_000,

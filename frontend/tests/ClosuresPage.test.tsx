@@ -28,6 +28,8 @@ const quote = {
   interest_to_date_days: 6,
   interest_to_date: 60_000,
   total: 2_240_000,
+  advance_held: 0,
+  to_pay: 2_240_000,
 }
 
 const noneDormant = {
