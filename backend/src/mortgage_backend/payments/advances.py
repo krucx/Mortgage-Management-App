@@ -18,8 +18,6 @@ from mortgage_backend.platform.db import advance_instalment_table
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.money import format_inr
 
-MAX_MONTHS = 12
-
 
 def split(advance: int, months: int) -> list[int]:
     """As equal as the paise allow: each part rounded down to the paisa, the last also
