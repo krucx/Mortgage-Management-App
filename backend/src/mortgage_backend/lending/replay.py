@@ -24,6 +24,7 @@ from mortgage_backend.lending.ledger import (
     LedgerStep,
     Projected,
     TermChange,
+    accrual_date,
     compute_ledger,
     interest_to_date_days,
     project,
@@ -188,6 +189,26 @@ class MortgageReplay:
             unpaid_interest=last.unpaid_interest,
             total=last.principal + last.unpaid_interest,
         )
+
+    def unpaid_interest(self, on: date) -> int:
+        """The interest it has charged by `on` and not been paid, never the Interest to
+        Date: what a Payment that day pays first. Nothing once closed."""
+        if self.row["status"] != MortgageStatus.ACTIVE:
+            return 0
+        ledger = self.ledger(on)
+        to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
+        charge = to_date.amount - to_date.paid_ahead if to_date else 0
+        return ledger[-1].unpaid_interest - charge
+
+    def month_interest(self, on: date) -> int:
+        """The month's interest its next Accrual Date after `on` charges, as projected.
+        Nothing once closed."""
+        if self.row["status"] != MortgageStatus.ACTIVE:
+            return 0
+        start, n = self.row["start_date"], 1
+        while accrual_date(start, n) <= on:
+            n += 1
+        return self.projection([accrual_date(start, n)]).snapshots[0].interest_charged
 
     def dormant(self, on: date) -> bool:
         """Active, yet owing nothing on `on`: its jewellery should already have gone

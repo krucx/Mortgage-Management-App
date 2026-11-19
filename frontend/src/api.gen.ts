@@ -2523,6 +2523,8 @@ export interface components {
             customer: components["schemas"]["PersonSummary"];
             /** Id */
             id: number;
+            /** Month Interest */
+            month_interest: number;
             /** Name */
             name: string;
             /** Not Redeemable */
@@ -2535,6 +2537,8 @@ export interface components {
              */
             start_date: string;
             status: components["schemas"]["MortgageStatus"];
+            /** Unpaid Interest */
+            unpaid_interest: number;
         };
         /**
          * MortgageStatus

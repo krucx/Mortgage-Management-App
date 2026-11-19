@@ -22,6 +22,7 @@ import {
   DEFAULT_ADVANCE_MONTHS,
   discountCaps,
   owesSomething,
+  redeemedHere,
   suggestEqually,
 } from './allocation'
 import { useSelection } from './useSelection'
@@ -78,6 +79,7 @@ export function PaymentForm({
   const chosen = payable.filter((m) => selected.has(m.id))
   const outstanding = chosen.map((m) => m.outstanding_total)
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
+  const discounts = chosen.map((m) => rupeesToPaise(discountText[m.id]))
   const advances = chosen.map((m) => rupeesToPaise(advanceText[m.id]))
   const advanceTotal = advances.reduce((a, b) => a + b, 0)
   const months = chosen.map((m) => Number(monthsText[m.id] ?? DEFAULT_ADVANCE_MONTHS))
@@ -86,7 +88,6 @@ export function PaymentForm({
   const payNow = total - advanceTotal
   // By amount, Amount received follows the Allocations (blank while there are none).
   const shownTotalText = mode === 'amount' ? (total ? paiseToRupees(total) : '') : totalText
-  const discounts = chosen.map((m) => rupeesToPaise(discountText[m.id]))
   const discountTotal = discounts.reduce((a, b) => a + b, 0)
 
   // Why they can't all be paid in full: the first chosen one that can't be Redeemed then
@@ -102,11 +103,14 @@ export function PaymentForm({
     discountTotal,
     chosen,
     outstanding,
+    discounts,
+    advances,
     amountText,
     percentText,
   }
   const amounts = allocationAmounts(draft)
   const problems = allocationProblems(draft, amounts)
+  const redeemed = redeemedHere(draft, amounts)
   // What saving would send; previewed (and refused, if it would be) by the backend.
   const proposed: PaymentIn | null =
     problems.length || !amounts
@@ -182,6 +186,17 @@ export function PaymentForm({
     if (mode !== 'amount')
       setTotalText(paiseToRupees(total + rupeesToPaise(text) - rupeesToPaise(advanceText[id])))
     setAdvanceText({ ...advanceText, [id]: text })
+  }
+
+  /** Pay a Mortgage its unpaid interest now, by amount, the others keeping theirs. */
+  function payUnpaidInterest(id: number) {
+    if (!amounts) return
+    setAmountText(
+      Object.fromEntries(
+        chosen.map((m, i) => [m.id, paiseToRupees(m.id === id ? m.unpaid_interest : amounts[i])]),
+      ),
+    )
+    setMode('amount')
   }
 
   function toggle(id: number) {
@@ -300,6 +315,8 @@ export function PaymentForm({
           selected={selected}
           onToggle={toggle}
           amounts={amounts}
+          redeemed={redeemed}
+          onPayUnpaidInterest={payUnpaidInterest}
           paidOn={paidOn}
           receivedOn={receivedOn}
           received={received}
