@@ -261,9 +261,15 @@ class MortgageReplay:
             return f"{row['name']} is already {row['status']}"
         if on < row["start_date"]:
             return f"{row['name']} had not started on that date"
-        # An upcoming Advance Instalment is no later Payment: a Closure deals with it.
+        # A future scheduled Advance Instalment is no later Payment: a Closure deals
+        # with it. A part already cancelled is an Allocation on its cancel date, so a
+        # backdated Closure must follow it like any other later Payment.
         later = max(
-            (a.on for a in self.allocations if a.on > on and a.instalment_id is None),
+            (
+                a.on
+                for a in self.allocations
+                if a.on > on and (a.instalment_id is None or a.cancelled)
+            ),
             default=None,
         )
         if later is not None:
