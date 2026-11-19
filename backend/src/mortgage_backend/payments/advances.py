@@ -8,7 +8,7 @@ on the date cancelled."""
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
@@ -30,10 +30,6 @@ from mortgage_backend.platform.db import (
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.money import format_inr
 from mortgage_backend.safekeeping import audit
-
-if TYPE_CHECKING:
-    # Only a type here: writes reaches this module through payments.payments.
-    from mortgage_backend.payments.writes import AllocationIn
 
 
 def split(advance: int, months: int) -> list[int]:
@@ -77,15 +73,21 @@ def _upcoming(mortgage: MortgageReplay, on: date) -> list[Allocation]:
 
 
 def refuse_overheld(
-    conn: Connection, allocation: "AllocationIn", received_on: date, today: date
+    conn: Connection,
+    mortgage_id: int,
+    advance: int,
+    taking: int,
+    received_on: date,
+    today: date,
 ) -> None:
-    """Refuse a Payment, now written, that leaves the Allocation's Mortgage with
+    """Refuse a Payment, now written, that leaves an Allocation's Mortgage with
     upcoming Advance Instalments holding more than it owes: a Closure could then
     overpay it. Its own Advance is checked on the date received; any other Payment or
     Discount against the parts still upcoming today, which are the ones the Lender can
-    cancel. Names the most that fits, and the latest parts to cancel first."""
-    on = received_on if allocation.advance else today
-    mortgage = replay(conn, allocation.mortgage_id)
+    cancel. Names the most that fits, and the latest parts to cancel first. `advance`
+    is the Allocation's Advance; `taking` is its cash and Discount."""
+    on = received_on if advance else today
+    mortgage = replay(conn, mortgage_id)
     owed = mortgage.outstanding(on).total
     upcoming = _upcoming(mortgage, on)
     held = sum(i.amount for i in upcoming)
@@ -93,11 +95,11 @@ def refuse_overheld(
     if excess <= 0:
         return
     name = mortgage.row["name"]
-    if allocation.advance:
+    if advance:
         raise unprocessable(
-            f"{name}: an Advance of {format_inr(allocation.advance)} would hold more "
+            f"{name}: an Advance of {format_inr(advance)} would hold more "
             f"than the {format_inr(owed)} it owes on {on:%d %b %Y}; at most "
-            f"{format_inr(max(0, allocation.advance - excess))} fits"
+            f"{format_inr(max(0, advance - excess))} fits"
         )
     # Cancelling a part applies it at once, so the latest parts covering the excess
     # can pay that much of this Payment instead.
@@ -106,7 +108,6 @@ def refuse_overheld(
         cancel.insert(0, part)
         if sum(i.amount for i in cancel) >= excess:
             break
-    taking = allocation.amount + allocation.discount
     raise unprocessable(
         f"{name}: this would leave its upcoming Advance Instalments holding "
         f"{format_inr(held)}, more than the {format_inr(owed)} it would owe on "
