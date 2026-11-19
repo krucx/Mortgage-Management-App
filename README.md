@@ -219,11 +219,12 @@ data. `scripts/qa-stack.sh down` removes its containers and image, never the fol
 `QA_PROJECT` to run several at once.
 
 `scripts/qa-stack.sh test` runs the Playwright suite in `qa/e2e` against the app built from
-source, with Docker only: `--mode fresh` runs the specs that start from no data, `--mode
+source, needing only Docker (and `python3`, as `up` does): `--mode fresh` runs the specs that start from no data, `--mode
 golden` the rest on the golden book (`qa/fixtures/golden_book.py`), and the default `all`
 runs both, each on its own scratch volumes. It exits 0 when every spec passes and 1
 otherwise, always removing its containers and volumes; failures leave screenshots in
-`qa/test-results`. `--ui` serves Playwright's UI on a local port instead, until Ctrl-C.
+`qa/test-results`. `--ui` serves Playwright's UI on a local port instead, until Ctrl-C, with the golden book
+unless `--mode fresh`.
 The `qa` job in `.github/workflows/test.yml` runs it on pull requests to `main`.
 
 The Windows setup lives in `windows/`: `Setup.bat` → `setup.ps1` (gets the code) →

@@ -106,7 +106,7 @@ run_tests() {
   SPECS=
 
   override=$(mktemp)
-  trap 'qa down -v --remove-orphans; docker rmi "$IMAGE" >/dev/null 2>&1 || true; rm -f "$override"' EXIT
+  trap 'qa_compose down -v --remove-orphans || true; docker rmi "$IMAGE" >/dev/null 2>&1 || true; rm -f "$override"' EXIT
   trap 'exit 1' INT TERM
   printf 'services:\n  app:\n    image: %s\n' "$IMAGE" > "$override"
 
@@ -114,7 +114,7 @@ run_tests() {
     [ "$MODE" = all ] || SPECS=$MODE
     ui=$(free_port)
     echo "qa-stack: Playwright UI at http://127.0.0.1:$ui once built; stop with Ctrl-C"
-    qa run --rm --build -p "127.0.0.1:$ui:$ui" qa-runner npx playwright test --ui-host=0.0.0.0 --ui-port="$ui"
+    qa_compose run --rm --build -p "127.0.0.1:$ui:$ui" qa-runner npx playwright test --ui-host=0.0.0.0 --ui-port="$ui"
     return
   fi
 
@@ -122,16 +122,17 @@ run_tests() {
   [ "$MODE" = all ] && runs="fresh golden" || runs=$MODE
   for SPECS in $runs; do
     echo "qa-stack: $SPECS specs"
-    qa up --build --exit-code-from qa-runner --attach qa-runner || failed=yes
-    qa down -v --remove-orphans
+    qa_compose up --build --exit-code-from qa-runner --attach qa-runner || failed=yes
+    qa_compose down -v --remove-orphans
   done
   [ -z "$failed" ] || die "tests failed; see qa/test-results"
   echo "qa-stack: passed (--mode $MODE)"
 }
 
-# Compose with the QA overlay. The base file requires DATA_DIR and BACKUP_DIR; the overlay
-# mounts its own scratch volumes over them, so they never reach the Lender's folders.
-qa() {
+# Compose with the QA overlay, for run_tests (it sets PORT, SPECS and override). The base file
+# requires DATA_DIR and BACKUP_DIR; the overlay mounts its own scratch volumes over them, so they
+# never reach the Lender's folders.
+qa_compose() {
   DATA_DIR=qa-data BACKUP_DIR=qa-backups APP_PORT=$PORT BACKUP_PASSWORD= QA_SPECS=$SPECS \
     dc -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.qa.yml -f "$override" "$@"
 }
