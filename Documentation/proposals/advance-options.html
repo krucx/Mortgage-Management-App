@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Advance prototypes</title>
+<style>
+  :root {
+    --text: #1f2328; --muted: #59636e; --bg: #f6f7f9; --surface: #fff; --border: #d8dee4;
+    --accent: #8a5a00; --accent-text: #fff; --ok: #1a7f37; --error: #cf222e; --warning: #9a6700;
+    --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    --warn-soft: color-mix(in srgb, var(--warning) 12%, var(--surface));
+    --error-soft: color-mix(in srgb, var(--error) 10%, var(--surface));
+    --upcoming: color-mix(in srgb, var(--muted) 8%, var(--surface));
+    font: 15px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif; color: var(--text); background: var(--bg);
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --text: #e6edf3; --muted: #9198a1; --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --accent: #d29922; --accent-text: #0d1117; --ok: #3fb950; --error: #f85149; --warning: #d29922; } }
+  body { margin: 0; background: var(--bg); }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.4rem; margin: .2rem 0; } h2 { font-size: 1.1rem; margin: 0 0 .6rem; }
+  p.lead { color: var(--muted); margin: 0 0 1rem; }
+  nav.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  nav.tabs button { border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; }
+  nav.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  section.panel { display: none; } section.panel.on { display: block; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+  .note { background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: .92rem; }
+  .note b { color: var(--accent); }
+  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 2px; }
+  input[type=text], input[type=number], select { font: inherit; padding: 5px 8px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--surface); color: var(--text); width: 100%; box-sizing: border-box; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: .82rem; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll { overflow-x: auto; }
+  tr.warn td { background: var(--warn-soft); }
+  tr.upcoming td { background: var(--upcoming); color: var(--muted); font-style: italic; }
+  tr.cancelled td { text-decoration: line-through; color: var(--muted); }
+  .pill { display: inline-block; font-size: .75rem; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); font-style: normal; }
+  .pill.up { color: var(--accent); border-color: var(--accent); }
+  .pill.ok { color: var(--ok); border-color: var(--ok); }
+  .msg { padding: 8px 12px; border-radius: 6px; margin-top: 10px; font-size: .9rem; }
+  .msg.warn { background: var(--warn-soft); color: var(--warning); }
+  .msg.err { background: var(--error-soft); color: var(--error); }
+  .msg.ok { background: color-mix(in srgb, var(--ok) 10%, var(--surface)); color: var(--ok); }
+  .btn { font: inherit; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent);
+    color: var(--accent-text); cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .btn.small { padding: 2px 10px; font-size: .82rem; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
+  .seg button { font: inherit; border: 0; background: var(--surface); color: var(--text); padding: 6px 14px; cursor: pointer; }
+  .seg button.on { background: var(--accent); color: var(--accent-text); }
+  .totals { display: flex; gap: 24px; flex-wrap: wrap; margin: 10px 0; font-size: .95rem; }
+  .totals div span { display: block; color: var(--muted); font-size: .8rem; }
+  .totals div b { font-variant-numeric: tabular-nums; }
+  details.drawer { border: 1px dashed var(--accent); border-radius: 8px; padding: 8px 12px; margin-top: 8px; background: var(--accent-soft); }
+  details.drawer summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+  .pc { font-size: .85rem; color: var(--muted); margin: 0; padding-left: 18px; }
+  .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .scenario { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; font-size: .9rem; }
+  .scenario button { font: inherit; font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Advance: prototypes</h1>
+  <p class="lead">Working prototype, not the app. The Mortgage is "Gold chain and 2 bangles", Principal 5,00,000 at 2% a month (10,000 a month), accruing on the 5th. 10,000 of interest is unpaid (the month ending 5 Nov). Received 19 Nov 2026. The figures use a simplified engine: each part pays the month ending on its date, then Principal. The real Preview would come from Replay.</p>
+
+  <div class="scenario">
+    <span>Try a scenario:</span>
+    <button class="btn ghost small" data-s="exact">Exact: 10,000 now + 30,000 over 3</button>
+    <button class="btn ghost small" data-s="over">Too much per part: 45,000 over 3</button>
+    <button class="btn ghost small" data-s="overpay">Overpays: 6,00,000 over 3</button>
+    <button class="btn ghost small" data-s="short">Short: 24,000 over 3</button>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-t="a" aria-selected="true">A · Advance column in the table</button>
+    <button role="tab" data-t="am">A+ · several Mortgages</button>
+    <button role="tab" data-t="b">B · Payment kind switch</button>
+    <button role="tab" data-t="c">C · "Add Advance" drawer on the row</button>
+    <button role="tab" data-t="m">Mortgage page</button>
+  </nav>
+
+  <!-- A -->
+  <section class="panel on" id="p-a">
+    <div class="note"><b>A.</b> The allocation table you already have gets two more columns, <i>Advance</i> and <i>Months</i>. Only one row may have an Advance. Amount received = pay-now + Advance. The schedule appears under the table. It's the smallest change, but the table gets wide on a phone.</div>
+    <div class="card">
+      <div class="row">
+        <div><label>Customer</label><input type="text" value="Ramesh Kumar" readonly></div>
+        <div><label>Date received</label><input type="text" value="19 Nov 2026" readonly></div>
+        <div><label>Amount received</label><input type="text" class="js-total" readonly></div>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th>Mortgage</th><th class="num">Outstanding</th><th class="num">Pay now</th><th class="num">Discount</th><th class="num">Advance</th><th class="num">Months</th></tr></thead>
+        <tbody>
+          <tr><td><input type="checkbox" checked></td><td>Gold chain and 2 bangles</td><td class="num">5,15,000</td>
+            <td class="num"><input type="number" class="js-now" style="width:100px"></td>
+            <td class="num"><input type="number" value="0" style="width:80px"></td>
+            <td class="num"><input type="number" class="js-adv" style="width:100px"></td>
+            <td class="num"><input type="number" class="js-months" min="1" max="24" style="width:60px"></td></tr>
+          <tr><td><input type="checkbox"></td><td>Ear tops</td><td class="num">62,400</td>
+            <td class="num"><input type="number" value="0" style="width:100px"></td>
+            <td class="num"><input type="number" value="0" style="width:80px"></td>
+            <td class="num"><input type="number" disabled placeholder="—" style="width:100px"></td>
+            <td class="num"><input type="number" disabled placeholder="—" style="width:60px"></td></tr>
+        </tbody>
+      </table></div>
+      <div class="js-schedule"></div>
+      <div class="flex" style="margin-top:12px"><button class="btn js-save">Save Payment</button></div>
+    </div>
+  </section>
+
+  <!-- A+ -->
+  <section class="panel" id="p-am">
+    <div class="note"><b>A+.</b> Any Mortgage row can have its own Advance and Months. Each one splits equally over <i>that Mortgage's</i> Accrual Dates: the 5th for the chain, the 12th for the ear tops. Amount received = all Pay now + all Advances. Below the table there's one schedule per Mortgage, each with its own warning, and Save is refused if any Mortgage would be overpaid. The scenario buttons above don't apply here. Type in the table instead.</div>
+    <div class="card">
+      <div class="row">
+        <div><label>Customer</label><input type="text" value="Ramesh Kumar" readonly></div>
+        <div><label>Date received</label><input type="text" value="19 Nov 2026" readonly></div>
+        <div><label>Amount received</label><input type="text" class="am-total" readonly></div>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>Mortgage</th><th>Accrues</th><th class="num">Outstanding</th><th class="num">Pay now</th><th class="num">Discount</th><th class="num">Advance</th><th class="num">Months</th></tr></thead>
+        <tbody class="am-rows"></tbody>
+      </table></div>
+      <div class="am-schedules"></div>
+      <div class="flex" style="margin-top:12px"><button class="btn am-save">Save Payment</button></div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="panel" id="p-b">
+    <div class="note"><b>B.</b> A switch at the top: <i>Ordinary</i> keeps today's form untouched. <i>With Advance</i> narrows the form to one Mortgage and shows three fields: Pay now, Advance and Months. The page explains itself best, and the ordinary form never changes. It costs a second form layout.</div>
+    <div class="card">
+      <div class="seg"><button>Ordinary</button><button class="on">With Advance</button></div>
+      <div class="row">
+        <div><label>Customer</label><input type="text" value="Ramesh Kumar" readonly></div>
+        <div><label>Mortgage</label><select><option>Gold chain and 2 bangles · Outstanding 5,15,000</option><option>Ear tops · Outstanding 62,400</option></select></div>
+        <div><label>Date received</label><input type="text" value="19 Nov 2026" readonly></div>
+      </div>
+      <div class="row">
+        <div><label>Pay now</label><input type="number" class="js-now">
+          <small style="color:var(--muted)">Unpaid interest: 10,000 · <a href="#" class="js-fillnow">use</a></small></div>
+        <div><label>Advance</label><input type="number" class="js-adv">
+          <small style="color:var(--muted)">Months × 10,000 · <a href="#" class="js-filladv">use</a></small></div>
+        <div><label>Over the next</label><select class="js-months-sel"></select></div>
+      </div>
+      <div class="totals"><div><span>Amount received</span><b class="js-total-txt"></b></div><div><span>Each part</span><b class="js-part"></b></div></div>
+      <div class="js-schedule"></div>
+      <div class="flex" style="margin-top:12px"><button class="btn js-save">Save Payment</button></div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="panel" id="p-c">
+    <div class="note"><b>C.</b> The ordinary table is unchanged. Each row gets a small <i>+ Advance</i> link that opens a drawer underneath it, with the Advance fields and its schedule. Ordinary Payments look exactly as they do today, and the Advance sits next to its Mortgage. It's easy to miss on a phone, and only one drawer can be open at a time.</div>
+    <div class="card">
+      <div class="row">
+        <div><label>Customer</label><input type="text" value="Ramesh Kumar" readonly></div>
+        <div><label>Date received</label><input type="text" value="19 Nov 2026" readonly></div>
+        <div><label>Amount received</label><input type="text" class="js-total" readonly></div>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th>Mortgage</th><th class="num">Outstanding</th><th class="num">Allocation</th><th class="num">Discount</th></tr></thead>
+        <tbody>
+          <tr><td><input type="checkbox" checked></td><td>Gold chain and 2 bangles</td><td class="num">5,15,000</td>
+            <td class="num"><input type="number" class="js-now" style="width:100px"></td>
+            <td class="num"><input type="number" value="0" style="width:80px"></td></tr>
+          <tr><td></td><td colspan="4">
+            <details class="drawer" open><summary>Advance on this Mortgage</summary>
+              <div class="row" style="margin-top:8px">
+                <div><label>Advance</label><input type="number" class="js-adv"></div>
+                <div><label>Over the next</label><select class="js-months-sel"></select></div>
+                <div><label>Each part</label><input type="text" class="js-part-in" readonly></div>
+              </div>
+              <div class="js-schedule"></div>
+            </details></td></tr>
+          <tr><td><input type="checkbox"></td><td>Ear tops <a href="#" style="font-size:.8rem">+ Advance</a></td><td class="num">62,400</td>
+            <td class="num"><input type="number" value="0" style="width:100px"></td>
+            <td class="num"><input type="number" value="0" style="width:80px"></td></tr>
+        </tbody>
+      </table></div>
+      <div class="flex" style="margin-top:12px"><button class="btn js-save">Save Payment</button></div>
+    </div>
+  </section>
+
+  <!-- Mortgage page -->
+  <section class="panel" id="p-m">
+    <div class="note"><b>Mortgage page</b> after saving the "Exact" scenario, viewed on 10 Jan 2027: the 5 Dec and 5 Jan parts have landed and 5 Feb is upcoming. Upcoming parts come last in the Ledger in grey. The Advance panel lets you cancel a part, and a cancel shows its Preview first.</div>
+    <div class="card">
+      <h2>Gold chain and 2 bangles</h2>
+      <div class="totals"><div><span>Principal</span><b>5,00,000</b></div><div><span>Outstanding today</span><b>2,000</b></div><div><span>Months Unpaid</span><b>0</b></div><div><span>Advance held</span><b class="js-held">10,000</b></div></div>
+    </div>
+    <div class="card">
+      <h2>Advance received 19 Nov 2026 · 30,000 over 3 months</h2>
+      <table><thead><tr><th>Accrual Date</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody class="js-adv-panel"></tbody></table>
+      <div class="js-cancel-preview"></div>
+    </div>
+    <div class="card scroll">
+      <h2>Ledger</h2>
+      <table><thead><tr><th>Date</th><th>Step</th><th class="num">Interest</th><th class="num">Paid</th><th class="num">Principal</th><th class="num">Unpaid interest</th></tr></thead>
+        <tbody class="js-ledger"></tbody></table>
+    </div>
+  </section>
+</main>
+<script>
+  const P0 = 500000, RATE = 0.02, UNPAID0 = 10000, OUT0 = 515000;
+  const DATES = ['5 Dec 2026','5 Jan 2027','5 Feb 2027','5 Mar 2027','5 Apr 2027','5 May 2027','5 Jun 2027','5 Jul 2027','5 Aug 2027','5 Sep 2027','5 Oct 2027','5 Nov 2027'];
+  const fmt = n => Math.round(n).toLocaleString('en-IN');
+  const state = { now: 10000, adv: 30000, months: 3 };
+
+  function schedule() {
+    let principal = P0, unpaid = UNPAID0 - Math.min(state.now, UNPAID0);
+    principal -= Math.max(0, state.now - UNPAID0 - 5000); // pay-now beyond unpaid + Interest to Date reduces Principal
+    const part = state.months ? state.adv / state.months : 0, rows = [];
+    for (let i = 0; i < state.months; i++) {
+      const interest = principal * RATE; unpaid += interest;
+      const toInterest = Math.min(part, unpaid), toPrincipal = part - toInterest;
+      unpaid -= toInterest; principal -= toPrincipal;
+      rows.push({ date: DATES[i], interest, part, toInterest, toPrincipal, principal, unpaid });
+    }
+    const overpaid = principal < 0;
+    return { rows, part, overpaid };
+  }
+
+  function scheduleHtml() {
+    if (!state.adv || !state.months) return '';
+    const { rows, overpaid } = schedule();
+    const warnRows = rows.filter(r => r.toPrincipal > 0.5), shortRows = rows.filter(r => r.unpaid > 0.5);
+    let h = `<h2 style="margin-top:14px">Advance Instalments</h2><div class="scroll"><table><thead><tr><th>Accrual Date</th><th class="num">Part</th><th class="num">Month's interest</th><th class="num">Pays interest</th><th class="num">Pays Principal</th><th class="num">Principal after</th><th class="num">Unpaid after</th></tr></thead><tbody>`;
+    rows.forEach(r => { h += `<tr class="${r.toPrincipal > 0.5 ? 'warn' : ''}"><td>${r.date}</td><td class="num">${fmt(r.part)}</td><td class="num">${fmt(r.interest)}</td><td class="num">${fmt(r.toInterest)}</td><td class="num">${r.toPrincipal > 0.5 ? fmt(r.toPrincipal) : '—'}</td><td class="num">${fmt(Math.max(0, r.principal))}</td><td class="num">${r.unpaid > 0.5 ? fmt(r.unpaid) : '—'}</td></tr>`; });
+    h += '</tbody></table></div>';
+    if (overpaid) h += `<div class="msg err">Refused: this Advance pays more than the Mortgage would owe by ${rows.at(-1).date}, so you would owe the Customer.</div>`;
+    else if (warnRows.length) h += `<div class="msg warn">${warnRows.length} part${warnRows.length > 1 ? 's' : ''} would reduce Principal by ${fmt(warnRows.reduce((s, r) => s + r.toPrincipal, 0))} in all. You can still save.</div>`;
+    else if (shortRows.length) h += `<div class="msg warn">The parts fall short of the interest. ${fmt(shortRows.at(-1).unpaid)} would still be unpaid after ${shortRows.at(-1).date}.</div>`;
+    else h += `<div class="msg ok">Each part pays exactly its month's interest. Principal stays at ${fmt(rows.at(-1).principal)}.</div>`;
+    return h;
+  }
+
+  function render() {
+    const total = (state.now || 0) + (state.adv || 0), s = schedule();
+    document.querySelectorAll('.js-now').forEach(e => { if (document.activeElement !== e) e.value = state.now; });
+    document.querySelectorAll('.js-adv').forEach(e => { if (document.activeElement !== e) e.value = state.adv; });
+    document.querySelectorAll('.js-months').forEach(e => { if (document.activeElement !== e) e.value = state.months; });
+    document.querySelectorAll('.js-months-sel').forEach(e => {
+      if (!e.options.length) for (let i = 1; i <= 12; i++) e.add(new Option(`${i} Accrual Date${i > 1 ? 's' : ''}`, i));
+      e.value = state.months; });
+    document.querySelectorAll('.js-total').forEach(e => e.value = fmt(total));
+    document.querySelectorAll('.js-total-txt').forEach(e => e.textContent = fmt(total));
+    document.querySelectorAll('.js-part').forEach(e => e.textContent = fmt(s.part));
+    document.querySelectorAll('.js-part-in').forEach(e => e.value = fmt(s.part));
+    document.querySelectorAll('.js-schedule').forEach(e => e.innerHTML = scheduleHtml());
+    document.querySelectorAll('.js-save').forEach(e => e.disabled = s.overpaid);
+  }
+  const num = v => Math.max(0, Number(v) || 0);
+  document.addEventListener('input', e => {
+    const c = e.target.classList;
+    if (c.contains('js-now')) state.now = num(e.target.value);
+    else if (c.contains('js-adv')) state.adv = num(e.target.value);
+    else if (c.contains('js-months') || c.contains('js-months-sel')) state.months = Math.min(12, Math.max(1, num(e.target.value)));
+    else return;
+    render();
+  });
+  document.addEventListener('click', e => {
+    const t = e.target;
+    if (t.matches('.js-fillnow')) { e.preventDefault(); state.now = UNPAID0; render(); }
+    if (t.matches('.js-filladv')) { e.preventDefault(); state.adv = state.months * P0 * RATE; render(); }
+    if (t.dataset.s) {
+      Object.assign(state, { exact: { now: 10000, adv: 30000, months: 3 }, over: { now: 10000, adv: 45000, months: 3 },
+        overpay: { now: 10000, adv: 600000, months: 3 }, short: { now: 10000, adv: 24000, months: 3 } }[t.dataset.s]);
+      render();
+    }
+    if (t.dataset.t) {
+      document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-selected', b === t));
+      document.querySelectorAll('section.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + t.dataset.t));
+    }
+    if (t.matches('.js-cancel')) showCancel();
+    if (t.matches('.js-confirm')) { feb.cancelled = true; renderMortgage(); }
+    if (t.matches('.js-keep')) { document.querySelector('.js-cancel-preview').innerHTML = ''; }
+  });
+
+  // Mortgage page
+  const feb = { cancelled: false };
+  function showCancel() {
+    document.querySelector('.js-cancel-preview').innerHTML = `<div class="msg warn">Preview: cancelling the 5 Feb part applies 10,000 today (10 Jan) as an ordinary Allocation. It pays the Interest to Date (2,000), then 8,000 of Principal, and a new Receipt is sent.<div class="flex" style="margin-top:8px"><button class="btn small js-confirm">Cancel this part</button><button class="btn ghost small js-keep">Keep it</button></div></div>`;
+  }
+  function renderMortgage() {
+    const c = feb.cancelled;
+    document.querySelector('.js-held').textContent = c ? '0' : '10,000';
+    document.querySelector('.js-adv-panel').innerHTML = `
+      <tr><td>5 Dec 2026</td><td class="num">10,000</td><td><span class="pill ok">Applied</span></td><td></td></tr>
+      <tr><td>5 Jan 2027</td><td class="num">10,000</td><td><span class="pill ok">Applied</span></td><td></td></tr>
+      <tr class="${c ? 'cancelled' : ''}"><td>5 Feb 2027</td><td class="num">10,000</td><td>${c ? '<span class="pill">Cancelled 10 Jan</span>' : '<span class="pill up">Upcoming</span>'}</td><td>${c ? '' : '<button class="btn ghost small js-cancel">Cancel…</button>'}</td></tr>`;
+    if (c) document.querySelector('.js-cancel-preview').innerHTML = '';
+    const L = [
+      ['5 Nov 2026', 'Interest (month to 5 Nov)', '10,000', '', '5,00,000', '10,000'],
+      ['19 Nov 2026', 'Payment: pay now', '', '10,000', '5,00,000', '—'],
+      ['5 Dec 2026', 'Interest (month to 5 Dec)', '10,000', '', '5,00,000', '10,000'],
+      ['5 Dec 2026', 'Advance Instalment 1 of 3', '', '10,000', '5,00,000', '—'],
+      ['5 Jan 2027', 'Interest (month to 5 Jan)', '10,000', '', '5,00,000', '10,000'],
+      ['5 Jan 2027', 'Advance Instalment 2 of 3', '', '10,000', '5,00,000', '—'],
+    ];
+    if (c) L.push(['10 Jan 2027', 'Payment: cancelled Advance Instalment 3 of 3', '', '10,000', '4,92,000', '—']);
+    let h = L.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${r[2]}</td><td class="num">${r[3]}</td><td class="num">${r[4]}</td><td class="num">${r[5]}</td></tr>`).join('');
+    h += `<tr><td>10 Jan 2027</td><td>Interest to Date (6 days)</td><td class="num">${c ? '—' : '2,000'}</td><td class="num"></td><td class="num">${c ? '4,92,000' : '5,00,000'}</td><td class="num"></td></tr>`;
+    if (!c) h += `<tr class="upcoming"><td>5 Feb 2027</td><td>Advance Instalment 3 of 3 <span class="pill up">Upcoming</span></td><td class="num"></td><td class="num">10,000</td><td class="num"></td><td class="num"></td></tr>`;
+    document.querySelector('.js-ledger').innerHTML = h;
+  }
+  render(); renderMortgage();
+</script>
+<script>
+  // A+: several Mortgages, each with its own Advance over its own Accrual Dates.
+  const amFmt = n => Math.round(n).toLocaleString('en-IN');
+  const months = d => ['Dec 2026','Jan 2027','Feb 2027','Mar 2027','Apr 2027','May 2027','Jun 2027','Jul 2027','Aug 2027','Sep 2027','Oct 2027','Nov 2027'].map(m => `${d} ${m}`);
+  const M = [
+    { name: 'Gold chain and 2 bangles', day: 5, P: 500000, rate: 0.02, unpaid: 10000, out: 515000, now: 10000, adv: 30000, months: 3 },
+    { name: 'Ear tops', day: 12, P: 60000, rate: 0.02, unpaid: 1200, out: 62400, now: 1200, adv: 6000, months: 6 },
+    { name: 'Silver anklets', day: 28, P: 40000, rate: 0.025, unpaid: 0, out: 40700, now: 0, adv: 0, months: 3 },
+  ];
+  function amSchedule(m) {
+    let principal = m.P, unpaid = Math.max(0, m.unpaid - m.now);
+    principal -= Math.max(0, m.now - m.unpaid - (m.out - m.P - m.unpaid));
+    const part = m.months ? m.adv / m.months : 0, dates = months(m.day), rows = [];
+    for (let i = 0; i < m.months; i++) {
+      const interest = principal * m.rate; unpaid += interest;
+      const toI = Math.min(part, unpaid), toP = part - toI; unpaid -= toI; principal -= toP;
+      rows.push({ date: dates[i], part, interest, toI, toP, principal, unpaid });
+    }
+    return { rows, overpaid: principal < 0 };
+  }
+  function amRenderRows() {
+    document.querySelector('.am-rows').innerHTML = M.map((m, i) => `<tr>
+      <td>${m.name}</td><td>${m.day}th</td><td class="num">${amFmt(m.out)}</td>
+      <td class="num"><input type="number" data-i="${i}" data-k="now" value="${m.now}" style="width:95px"></td>
+      <td class="num"><input type="number" value="0" style="width:70px"></td>
+      <td class="num"><input type="number" data-i="${i}" data-k="adv" value="${m.adv}" style="width:95px">
+        <div><a href="#" data-fill="${i}" style="font-size:.75rem">fill ${m.months} × ${amFmt(m.P * m.rate)}</a></div></td>
+      <td class="num"><input type="number" data-i="${i}" data-k="months" min="1" max="12" value="${m.months}" style="width:55px"></td></tr>`).join('');
+  }
+  function amRender() {
+    let total = 0, blocked = false, h = '';
+    M.forEach(m => {
+      total += m.now + m.adv;
+      if (!m.adv) return;
+      const { rows, overpaid } = amSchedule(m); blocked ||= overpaid;
+      const warn = rows.filter(r => r.toP > 0.5), short = rows.filter(r => r.unpaid > 0.5);
+      h += `<details open style="margin-top:14px"><summary><b>${m.name}</b>: ${amFmt(m.adv)} over ${m.months}, ${amFmt(m.adv / m.months)} on each ${m.day}th
+        ${overpaid ? '<span class="pill" style="color:var(--error);border-color:var(--error)">Refused</span>' : warn.length ? '<span class="pill" style="color:var(--warning);border-color:var(--warning)">Reduces Principal</span>' : short.length ? '<span class="pill" style="color:var(--warning);border-color:var(--warning)">Falls short</span>' : '<span class="pill ok">Exact</span>'}</summary>
+        <div class="scroll"><table><thead><tr><th>Accrual Date</th><th class="num">Part</th><th class="num">Month's interest</th><th class="num">Pays interest</th><th class="num">Pays Principal</th><th class="num">Principal after</th><th class="num">Unpaid after</th></tr></thead><tbody>
+        ${rows.map(r => `<tr class="${r.toP > 0.5 ? 'warn' : ''}"><td>${r.date}</td><td class="num">${amFmt(r.part)}</td><td class="num">${amFmt(r.interest)}</td><td class="num">${amFmt(r.toI)}</td><td class="num">${r.toP > 0.5 ? amFmt(r.toP) : '—'}</td><td class="num">${amFmt(Math.max(0, r.principal))}</td><td class="num">${r.unpaid > 0.5 ? amFmt(r.unpaid) : '—'}</td></tr>`).join('')}
+        </tbody></table></div>
+        ${overpaid ? `<div class="msg err">Refused: pays more than this Mortgage would owe.</div>` : warn.length ? `<div class="msg warn">Reduces Principal by ${amFmt(warn.reduce((s, r) => s + r.toP, 0))}. You can still save.</div>` : ''}</details>`;
+    });
+    document.querySelector('.am-total').value = amFmt(total);
+    document.querySelector('.am-schedules').innerHTML = h;
+    document.querySelector('.am-save').disabled = blocked;
+  }
+  document.addEventListener('input', e => {
+    const { i, k } = e.target.dataset; if (i === undefined) return;
+    M[i][k] = k === 'months' ? Math.min(12, Math.max(1, Number(e.target.value) || 1)) : Math.max(0, Number(e.target.value) || 0);
+    if (k === 'months') amRenderRows(), document.querySelector(`[data-i="${i}"][data-k="months"]`).focus();
+    amRender();
+  });
+  document.addEventListener('click', e => {
+    const i = e.target.dataset.fill; if (i === undefined) return;
+    e.preventDefault(); M[i].adv = M[i].months * M[i].P * M[i].rate; amRenderRows(); amRender();
+  });
+  amRenderRows(); amRender();
+</script>
+</body>
+</html>
