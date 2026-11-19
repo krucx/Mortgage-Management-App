@@ -2,11 +2,10 @@
 Lender visits can still aim a browser at it, so the backend answers only requests addressed
 to it as localhost / 127.0.0.1, and refuses a state-changing one made from another site."""
 
+import os
 from urllib.parse import urlsplit
 
 from fastapi.responses import JSONResponse
-import os
-
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 # In QA mode the app is reached as `app:8000` inside the Docker network, so the
