@@ -29,6 +29,14 @@ Every release of Mortgage Management, newest first. The format follows
   still works. A Payment or Discount that would leave a Mortgage's upcoming parts holding
   more than it owes is refused, naming the latest parts to cancel first or the most it can
   take.
+- **Advances after saving:** a Mortgage's page has an Advances panel showing each
+  Advance's date received, total and months, and each part's date, amount and status
+  (Applied, Upcoming or Cancelled on a date), with the **Advance held** by its upcoming
+  parts beside what it owes. **Cancel…** on an upcoming part shows a Preview, then
+  applies its amount at once on the cancel date like any Payment; the part stays on
+  record as Cancelled with its original date, and the cancel is in History. The Payments
+  list tags a Payment with an Advance "Advance · k of N upcoming", and a Customer's page
+  shows the Advance held across their Mortgages.
 
 ### Changed
 

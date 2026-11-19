@@ -54,6 +54,7 @@ from mortgage_backend.payments.advances import (
     AdvanceWarning,
     advance_schedules,
     advance_warnings,
+    cancel_instalment,
     upcoming_parts,
 )
 from mortgage_backend.payments.cash_limit import before_change, cash_sums
@@ -116,9 +117,15 @@ class PreviewOfChange(BaseModel):
 _EVENT_ORDER: tuple[str, ...] = get_args(LedgerEvent)
 
 
-def _step_identity(step: LedgerStep) -> tuple[date, int, int]:
-    """Matches a step across two Ledgers: its date, kind and Payment."""
-    return (step.on, _EVENT_ORDER.index(step.event), step.payment_id or 0)
+def _step_identity(step: LedgerStep) -> tuple[date, int, int, int]:
+    """Matches a step across two Ledgers: its date, kind, Payment and, for an Advance
+    Instalment cancelled on the day its Payment was received, which part."""
+    return (
+        step.on,
+        _EVENT_ORDER.index(step.event),
+        step.payment_id or 0,
+        step.instalment_id or 0,
+    )
 
 
 def _ledger_changes(
@@ -266,6 +273,26 @@ def preview_term_change_removal(
             [mortgage_id],
             today,
             lambda: remove_term_change(conn, mortgage_id, change_id, today, now),
+        )
+
+
+@router.post(
+    "/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel-preview"
+)
+def preview_instalment_cancel(
+    mortgage_id: int,
+    instalment_id: int,
+    engine: EngineDep,
+    today: TodayDep,
+    now: NowDep,
+) -> PreviewOfChange:
+    """The Mortgage before and after cancelling the Advance Instalment today."""
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [mortgage_id],
+            today,
+            lambda: cancel_instalment(conn, mortgage_id, instalment_id, today, now),
         )
 
 

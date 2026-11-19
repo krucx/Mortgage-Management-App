@@ -558,9 +558,11 @@ test('the Ledger shows applied Advance Instalments on their dates and upcoming o
     payment_id: 4,
     on,
     amount: 75_000,
+    received_on: '2026-09-20',
     number,
     of: 2,
     upcoming,
+    cancelled_on: null,
   })
   showMortgagePage(
     fakeServer({

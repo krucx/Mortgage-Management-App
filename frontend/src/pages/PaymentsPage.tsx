@@ -213,6 +213,13 @@ export function PaymentsPage() {
                           Grace
                         </span>
                       )}{' '}
+                      {payment.advance && (
+                        <>
+                          <span className="badge">
+                            Advance · {payment.advance.upcoming} of {payment.advance.of} upcoming
+                          </span>{' '}
+                        </>
+                      )}
                       {formatINR(payment.amount)}
                     </td>
                   </tr>

@@ -1,5 +1,6 @@
 """Changes to Mortgages that stay in lending: creating a Mortgage, correcting its
-details, and adding and removing Term Changes. Payments are in payments/, Closures in
+details, adding and removing Term Changes, and cancelling an upcoming Advance
+Instalment (its rules are in payments/advances.py). Payments are in payments/, Closures in
 lending/closing.py, and Collateral Values and photos in collateral/.
 
 Every change is refused if it isn't allowed, written, then checked by replaying each
@@ -28,6 +29,7 @@ from mortgage_backend.lending.mortgages import (
 from mortgage_backend.lending.refusals import check_replays, refuse_unless_active
 from mortgage_backend.lending.replay import MortgageStatus, mortgage_row, replay
 from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
+from mortgage_backend.payments.advances import cancel_instalment
 from mortgage_backend.platform.clock import NowDep, TodayDep
 from mortgage_backend.platform.db import EngineDep, mortgage_table, term_change_table
 from mortgage_backend.platform.errors import unprocessable
@@ -306,6 +308,20 @@ def delete_term_change(
     """Remove a Term Change that has not taken effect yet."""
     with engine.begin() as conn:
         remove_term_change(conn, mortgage_id, change_id, today, now)
+        return load_mortgage(conn, mortgage_id, today)
+
+
+@router.post("/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel")
+def post_instalment_cancel(
+    mortgage_id: int,
+    instalment_id: int,
+    engine: EngineDep,
+    today: TodayDep,
+    now: NowDep,
+) -> Mortgage:
+    """Cancel an upcoming Advance Instalment, applying its amount today."""
+    with engine.begin() as conn:
+        cancel_instalment(conn, mortgage_id, instalment_id, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
 

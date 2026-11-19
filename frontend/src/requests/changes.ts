@@ -28,6 +28,12 @@ export const changes = {
         params: { path: { mortgage_id: id, change_id: changeId } },
       }),
     ),
+  cancelAdvanceInstalment: (client: ApiClient, id: number, instalmentId: number) =>
+    dataOrThrow(
+      client.POST('/api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel', {
+        params: { path: { mortgage_id: id, instalment_id: instalmentId } },
+      }),
+    ),
   recordPayment: (client: ApiClient, payment: PaymentIn) =>
     dataOrThrow(client.POST('/api/payments', { body: payment })),
   voidPayment: (client: ApiClient, paymentId: number, reason: string) =>

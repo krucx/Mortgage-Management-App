@@ -8,6 +8,7 @@ import { MortgageTable } from '../components/MortgageTable'
 import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { maskedAadhaar } from '../format'
+import { formatINR } from '../money'
 import { useListPage } from '../components/useListPage'
 import type { Sorting } from '../components/useUrlSort'
 import { customerHistoryQuery, customerQuery, lists } from '../requests'
@@ -68,6 +69,12 @@ export function CustomerPage() {
           <dd>{customer.aadhaar_last4 ? maskedAadhaar(customer.aadhaar_last4) : '—'}</dd>
           <dt>PAN</dt>
           <dd>{customer.pan ?? '—'}</dd>
+          {customer.advance_held > 0 && (
+            <>
+              <dt>Advance held</dt>
+              <dd>{formatINR(customer.advance_held)}</dd>
+            </>
+          )}
         </dl>
       </div>
 

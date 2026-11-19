@@ -486,6 +486,15 @@ button.link.shortcut {
   min-width: 0;
 }
 
+/* A cancelled Advance Instalment: kept on record, applied on the day it was cancelled. */
+tr.cancelled td {
+  color: var(--muted);
+}
+
+tr.cancelled td:first-child {
+  text-decoration: line-through;
+}
+
 /* An Advance Instalment not yet applied, after the Ledger's last step. */
 tr.ledger-upcoming td {
   color: var(--muted);

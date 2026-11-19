@@ -57,6 +57,7 @@ export const mortgage: Mortgage = {
   as_of: '2026-10-18',
   ledger: [],
   advance_instalments: [],
+  advance_held: 0,
   graces: [],
   outstanding: { principal: 5_000_000, unpaid_interest: 75_000, total: 5_075_000 },
   collateral: null,
