@@ -24,13 +24,8 @@ export function ScrollPopup({
   }, [start])
 
   return (
-    <Modal onClose={onClose} className="scroll-popup" labelledBy={titleId} closeOnOutsideClick>
-      <div className="row spread">
-        <h2 id={titleId}>{title}</h2>
-        <button type="button" className="secondary small" autoFocus onClick={onClose}>
-          Close
-        </button>
-      </div>
+    <Modal onClose={onClose} className="scroll-popup" labelledBy={titleId}>
+      <h2 id={titleId}>{title}</h2>
       <div ref={scroller} className="scroll-popup-body">
         {children}
       </div>

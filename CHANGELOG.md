@@ -68,6 +68,14 @@ Every release of Mortgage Management, newest first. The format follows
   history" popup shows 20 changes at a time, newest first, with Previous and Next. A change
   is never split across two pages, and the History panel still shows the latest 5.
 
+### Fixed
+
+- **Every pop-up can be closed without scrolling:** each in-app dialog has a × in its top
+  corner, and a click on the dimmed page around it closes it too, as Esc already did. This
+  includes confirmations such as cancelling an Advance Instalment, which before closed only
+  from the button at the bottom. A Void or other change that asks for a reason ignores a
+  click outside once a reason is typed, so a stray click does not lose it.
+
 ## [3.4.10] - 2026-11-13
 
 ### Added

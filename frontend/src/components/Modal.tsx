@@ -1,14 +1,15 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 
-/** An in-app modal window (never a browser popup); Esc closes it, and so does a click on
- *  the dimmed page around it when `closeOnOutsideClick` (not for one holding a form,
- *  which would lose what was typed). Named by the element with id `labelledBy`. */
+/** An in-app modal window (never a browser popup); its × button and Esc close it, and so
+ *  does a click on the dimmed page around it unless `closeOnOutsideClick` is off (for one
+ *  holding typed input, which a stray click would lose). Named by the element with id
+ *  `labelledBy`. */
 export function Modal({
   onClose,
   children,
   className = '',
   labelledBy,
-  closeOnOutsideClick = false,
+  closeOnOutsideClick = true,
 }: {
   onClose: () => void
   children: ReactNode
@@ -44,6 +45,10 @@ export function Modal({
       }}
     >
       {children}
+      {/* Last in the tab order; it sits in the top corner. */}
+      <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+        ×
+      </button>
     </dialog>
   )
 }

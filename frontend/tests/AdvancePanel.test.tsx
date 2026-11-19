@@ -195,6 +195,25 @@ test('keeping the part cancels nothing', async () => {
   expect(server.requests).not.toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
 })
 
+test.each([
+  [
+    'its ×',
+    (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Close' })),
+  ],
+  [
+    'a click outside it',
+    (dialog: HTMLElement) => fireEvent.click(dialog, { clientX: 5000, clientY: 5000 }),
+  ],
+])('closing the cancel dialog with %s cancels nothing', async (_, close) => {
+  const server = showAdvance()
+
+  fireEvent.click((await screen.findAllByRole('button', { name: 'Cancel…' }))[0])
+  close(await screen.findByRole('dialog'))
+
+  await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(server.requests).not.toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
+})
+
 test('a part cannot be cancelled again while its cancel is being saved', async () => {
   let answer: (mortgage: Mortgage) => void = () => {}
   showAdvance(() => new Promise<Mortgage>((resolve) => (answer = resolve)))
