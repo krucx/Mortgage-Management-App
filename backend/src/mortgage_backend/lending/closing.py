@@ -200,10 +200,10 @@ def redeem(
     today: date,
     now: datetime,
 ) -> None:
-    """Record the final Payment of the Outstanding (unless nothing is owed) and mark
-    the Mortgage Redeemed (or refuse)."""
+    """Apply the Advance held, record the final Payment of the rest of the Outstanding
+    (unless nothing is left) and mark the Mortgage Redeemed (or refuse)."""
     mortgage = closable(conn, mortgage_id, redeem.redeemed_on, today)
-    owed = mortgage.outstanding_on_closure(redeem.redeemed_on).total
+    owed = mortgage.outstanding_on_closure(redeem.redeemed_on).to_pay
     close_redeemed(
         conn,
         mortgage,
@@ -259,10 +259,11 @@ def close_redeemed(
 def waive(
     conn: Connection, mortgage_id: int, waive: WaiveIn, today: date, now: datetime
 ) -> None:
-    """Record a final Payment of less than the Outstanding (or none), waive the
-    rest, and mark the Mortgage Waived: the jewellery goes back (or refuse)."""
+    """Apply the Advance held, record a final Payment of less than the rest of the
+    Outstanding (or none), waive what is left, and mark the Mortgage Waived: the
+    jewellery goes back (or refuse)."""
     mortgage = closable(conn, mortgage_id, waive.waived_on, today)
-    owed = mortgage.outstanding_on_closure(waive.waived_on).total
+    owed = mortgage.outstanding_on_closure(waive.waived_on).to_pay
     if owed == 0:
         raise unprocessable(
             f"{mortgage.row['name']} owes nothing then: Redeem it instead"

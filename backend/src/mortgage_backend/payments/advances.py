@@ -22,7 +22,11 @@ from mortgage_backend.lending.ledger import (
 )
 from mortgage_backend.lending.refusals import check_replays, refuse_unless_active
 from mortgage_backend.lending.replay import MortgageReplay, mortgage_row, replay
-from mortgage_backend.platform.db import advance_instalment_table, payment_table
+from mortgage_backend.platform.db import (
+    advance_instalment_table,
+    mortgage_table,
+    payment_table,
+)
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.money import format_inr
 from mortgage_backend.safekeeping import audit
@@ -238,16 +242,22 @@ def advance_instalments(
     conn: Connection, as_of: date, *where: ColumnElement[bool]
 ) -> list[AdvanceInstalmentOut]:
     """The Advance Instalments `where` picks out, by date, each numbered within its
-    Advance (one Payment's on one Mortgage); none of a Voided Payment."""
+    Advance (one Payment's on one Mortgage); none of a Voided Payment. One still
+    upcoming when its Mortgage was closed was cancelled by the Closure, on its date."""
     rows = conn.execute(
         select(
             advance_instalment_table,
             func.coalesce(payment_table.c.received_on, payment_table.c.paid_on).label(
                 "received_on"
             ),
+            mortgage_table.c.closed_on,
         )
         .join(
             payment_table, payment_table.c.id == advance_instalment_table.c.payment_id
+        )
+        .join(
+            mortgage_table,
+            mortgage_table.c.id == advance_instalment_table.c.mortgage_id,
         )
         .where(payment_table.c.voided_at.is_(None), *where)
         .order_by(advance_instalment_table.c.on, advance_instalment_table.c.id)
@@ -257,7 +267,7 @@ def advance_instalments(
     for row in rows:
         advance = (row["payment_id"], row["mortgage_id"])
         numbered[advance] += 1
-        found.append((advance, numbered[advance], row))
+        found.append((advance, numbered[advance], row, _cancelled_on(row)))
     return [
         AdvanceInstalmentOut(
             id=row["id"],
@@ -267,11 +277,21 @@ def advance_instalments(
             amount=row["amount"],
             number=number,
             of=numbered[advance],
-            upcoming=row["cancelled_on"] is None and row["on"] > as_of,
-            cancelled_on=row["cancelled_on"],
+            upcoming=cancelled_on is None and row["on"] > as_of,
+            cancelled_on=cancelled_on,
         )
-        for advance, number, row in found
+        for advance, number, row, cancelled_on in found
     ]
+
+
+def _cancelled_on(row: RowMapping) -> date | None:
+    """When it was cancelled: by the Lender, or by its Mortgage's Closure if it was
+    still upcoming then (as Replay applies it)."""
+    closed_on: date | None = row["closed_on"]
+    cancelled_on: date | None = row["cancelled_on"]
+    if closed_on is not None and (cancelled_on or row["on"]) > closed_on:
+        return closed_on
+    return cancelled_on
 
 
 def advance_held(instalments: Sequence[AdvanceInstalmentOut]) -> int:

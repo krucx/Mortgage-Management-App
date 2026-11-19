@@ -838,6 +838,10 @@
       "Closure": {
         "description": "How and when a Mortgage was closed, and what it came to.",
         "properties": {
+          "advance_held": {
+            "title": "Advance Held",
+            "type": "integer"
+          },
           "interest_to_date": {
             "title": "Interest To Date",
             "type": "integer"
@@ -935,6 +939,7 @@
           "kind",
           "on",
           "outstanding",
+          "advance_held",
           "interest_to_date",
           "interest_to_date_days",
           "payment_id",
@@ -3083,6 +3088,10 @@
       "OutstandingOnClosure": {
         "description": "What it takes to close a Mortgage on a date: its Outstanding on that Closure date.",
         "properties": {
+          "advance_held": {
+            "title": "Advance Held",
+            "type": "integer"
+          },
           "interest_to_date": {
             "title": "Interest To Date",
             "type": "integer"
@@ -3105,6 +3114,10 @@
             "title": "Principal",
             "type": "integer"
           },
+          "to_pay": {
+            "title": "To Pay",
+            "type": "integer"
+          },
           "total": {
             "title": "Total",
             "type": "integer"
@@ -3121,7 +3134,9 @@
           "last_accrual_on",
           "interest_to_date_days",
           "interest_to_date",
-          "total"
+          "total",
+          "advance_held",
+          "to_pay"
         ],
         "title": "OutstandingOnClosure",
         "type": "object"

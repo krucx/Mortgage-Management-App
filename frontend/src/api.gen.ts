@@ -1846,6 +1846,8 @@ export interface components {
          * @description How and when a Mortgage was closed, and what it came to.
          */
         Closure: {
+            /** Advance Held */
+            advance_held: number;
             /** Interest To Date */
             interest_to_date: number;
             /** Interest To Date Days */
@@ -2717,6 +2719,8 @@ export interface components {
          * @description What it takes to close a Mortgage on a date: its Outstanding on that Closure date.
          */
         OutstandingOnClosure: {
+            /** Advance Held */
+            advance_held: number;
             /** Interest To Date */
             interest_to_date: number;
             /** Interest To Date Days */
@@ -2733,6 +2737,8 @@ export interface components {
             on: string;
             /** Principal */
             principal: number;
+            /** To Pay */
+            to_pay: number;
             /** Total */
             total: number;
             /** Unpaid Interest */

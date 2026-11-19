@@ -37,6 +37,12 @@ Every release of Mortgage Management, newest first. The format follows
   record as Cancelled with its original date, and the cancel is in History. The Payments
   list tags a Payment with an Advance "Advance · k of N upcoming", and a Customer's page
   shows the Advance held across their Mortgages.
+- **Closing a Mortgage with an Advance:** the quote for Redeeming, Waiving or
+  Forfeiting shows the **Advance held** and what is left to pay. The Closure applies
+  every upcoming part on the Closure date, before any final Payment, so a Redemption
+  needs less cash, or none, and a Payment of what is left Redeems it. Bulk Closures
+  do the same for each Mortgage. A Reopen puts those parts back as upcoming; parts
+  cancelled before the Closure stay cancelled.
 - **Advances on the Receipt:** a Payment's Receipt, on WhatsApp and printed, shows for each
   Mortgage what it was paid now, each part of its Advance with its date and amount, and what
   it still owes today. Cancelling a part shows a fresh Receipt, to send on WhatsApp or

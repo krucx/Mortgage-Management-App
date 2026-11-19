@@ -248,10 +248,13 @@ const quote = {
   interest_to_date_days: 6,
   interest_to_date: 0,
   total: 5_075_000,
+  advance_held: 0,
+  to_pay: 5_075_000,
 }
 const closure = (fields: Record<string, unknown>) => ({
   on: '2026-04-20',
   outstanding: quote.total,
+  advance_held: 0,
   payment_id: null,
   payment_amount: null,
   waived_amount: null,
@@ -476,6 +479,53 @@ test('forfeiting shows the profit or loss from the Preview, then Forfeits it alo
 
   expect(await screen.findByText(/Forfeited on/)).toBeTruthy()
   expect(body).toMatchObject({ mortgages: [{ mortgage_id: 7, recovered_amount: 4_000_000 }] })
+})
+
+test('the quote takes the Advance held off the Outstanding, and Redeems for the rest', async () => {
+  showMortgagePage(
+    fakeServer({
+      'GET /api/mortgages/7': mortgage,
+      'GET /api/mortgages/7/outstanding-on-closure': {
+        ...quote,
+        advance_held: 600_000,
+        to_pay: 4_475_000,
+      },
+      'POST /api/closures/redeem-preview': closingPreview(() =>
+        closure({ kind: 'redeemed', advance_held: 600_000, payment_amount: 4_475_000 }),
+      ),
+    }),
+  )
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Redeem…' }))
+
+  const held = (await screen.findByText('Advance held')).closest('div')!
+  expect(within(held).getByText('− ₹6,000')).toBeTruthy()
+  const toPay = screen.getByText('To pay').closest('div')!
+  expect(within(toPay).getByText('₹44,750')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Redeem for ₹44,750' })).toBeTruthy()
+})
+
+test('a Redeemed Mortgage says how much of it the Advance held paid', async () => {
+  const redeemed = {
+    ...mortgage,
+    status: 'redeemed' as const,
+    closure: closure({
+      kind: 'redeemed' as const,
+      advance_held: 600_000,
+      payment_id: 12,
+      payment_amount: 4_475_000,
+    }),
+  }
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': redeemed }))
+
+  expect(
+    await screen.findByText(
+      (_, el) =>
+        el?.textContent ===
+        'Redeemed on 20 Apr 2026, paying its Outstanding of ₹50,750, ₹6,000 of it from the ' +
+          'Advance held. Final Payment (receipt)',
+    ),
+  ).toBeTruthy()
 })
 
 test('a future date is quoted, but the backend refuses to record it', async () => {
