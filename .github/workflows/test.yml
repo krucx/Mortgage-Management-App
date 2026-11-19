@@ -197,6 +197,23 @@ jobs:
           echo "$backup_status" | grep -q '"last_error":null'
           ls "$RUNNER_TEMP/backups"/mortgage-backup-*.zip
 
+  # The Lender's workflows end to end in a browser: the app built from source on scratch
+  # volumes, fresh and seeded with the golden book, driven by Playwright in its own container.
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: scripts/qa-stack.sh test
+      - name: Upload Playwright results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: qa-test-results
+          path: qa/test-results/
+          include-hidden-files: true
+          if-no-files-found: ignore
+
   pages:
     runs-on: ubuntu-latest
     steps:

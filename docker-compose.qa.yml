@@ -1,13 +1,35 @@
-# QA overlay: adds the qa-runner service and flips the app into QA mode.
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.qa.yml up
+# QA overlay: seeds scratch volumes, flips the app into QA mode and runs the Playwright suite
+# against it. Run it through `scripts/qa-stack.sh test`, which picks the specs (QA_SPECS) and
+# always tears it down, volumes included.
 services:
+  # One-shot: the golden book for golden specs, no data for `fresh` ones. Root, so the volumes
+  # it hands over belong to the app's user (1000), as on a Linux host.
+  qa-seed:
+    image: mortgage-qa-runner:qa
+    pull_policy: never  # built by qa-runner
+    user: root
+    environment:
+      QA_SPECS: ${QA_SPECS:-}
+    volumes:
+      - qa-data:/book/data
+      - qa-backups:/book/backups
+    command:
+      - sh
+      - -euc
+      - |
+        if [ "$$QA_SPECS" != fresh ]; then /qa/backend/.venv/bin/python fixtures/golden_book.py /book; fi
+        chown -R 1000:1000 /book
+    restart: "no"
   app:
+    depends_on:
+      qa-seed:
+        condition: service_completed_successfully
     environment:
       QA_MODE: "true"
       CHECK_FOR_UPDATES: "false"
     volumes:
-      - ./qa/scratch-data:/data
-      - ./qa/scratch-backups:/backups
+      - qa-data:/data
+      - qa-backups:/backups
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/customers')"]
       interval: 2s
@@ -24,6 +46,11 @@ services:
         condition: service_healthy
     environment:
       BASE_URL: http://app:8000
+      QA_SPECS: ${QA_SPECS:-}
     volumes:
       - ./qa/test-results:/qa/test-results
     restart: "no"
+
+volumes:
+  qa-data:
+  qa-backups:

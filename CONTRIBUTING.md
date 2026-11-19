@@ -82,7 +82,7 @@ is not enforced. Automated findings never count as approval.
 
 The importable [main ruleset](.github/rulesets/main.json) targets `main`, allows the
 `maintain` role to bypass its rules on pull requests, and requires a pull request, one
-human approval, and these status checks: `backend`, `frontend`, `image`, `windows`,
+human approval, and these status checks: `backend`, `frontend`, `image`, `qa`, `windows`,
 `version-bump`, `Analyze (actions)`, `Analyze (javascript-typescript)`, `Analyze (python)`, and
 `CodeRabbit`. `version-bump` fails a pull request that changes `VERSION` or the package versions synced from
 it, unless it is the `release/X.Y.Z` pull request from the Prepare release candidate workflow;
