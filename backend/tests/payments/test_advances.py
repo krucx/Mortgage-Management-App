@@ -375,7 +375,9 @@ def book(database_url: str, advance: int) -> dict[str, Any]:
         chain = lend(app, owner)
         record(app, draft(owner, {chain["id"]: (3_000 * RUPEE, advance, 3)}))
         page = mortgage(app, chain["id"])
+        # What the Advance holds is the one thing it shows today.
         page.pop("advance_instalments")
+        page.pop("advance_held")
         return {
             "mortgage": page,
             "call_list": app.get("/api/call-list").json(),
