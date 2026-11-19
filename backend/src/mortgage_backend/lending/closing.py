@@ -12,7 +12,7 @@ from datetime import date, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import update
 from sqlalchemy.engine import Connection
 
@@ -58,6 +58,10 @@ class RedeemIn(BaseModel):
 
 
 class WaiveIn(BaseModel):
+    # A Waiver closes the Mortgage, so it has no interest to come for an Advance
+    # (ADR 0021): an `advance`, as any field it doesn't take, is refused.
+    model_config = ConfigDict(extra="forbid")
+
     waived_on: date
     amount_paid: int = Field(ge=0)  # paise: the final Payment; the rest is waived
     method: PaymentMethod  # how the final Payment was made, if any
@@ -81,6 +85,10 @@ class RedeemAllIn(BaseModel):
 
 
 class WaivedMortgageIn(BaseModel):
+    # A Waiver closes the Mortgage, so it has no interest to come for an Advance
+    # (ADR 0021): an `advance`, as any field it doesn't take, is refused.
+    model_config = ConfigDict(extra="forbid")
+
     mortgage_id: int
     amount_paid: int = Field(ge=0)  # paise: its final Payment; the rest is waived
 

@@ -43,8 +43,8 @@ export function cashReceived(
 }
 
 /** What the form has entered: the cash to pay now (Amount received less the Advances),
- *  the Advance and Discount totals, and the chosen Mortgages with what each owes and the
- *  amounts or percentages typed against them. */
+ *  the Advance and Discount totals, and the chosen Mortgages with what each owes, its
+ *  Discount and Advance, and the amounts or percentages typed against them. */
 interface Draft {
   mode: AllocationMode
   total: number
@@ -52,6 +52,8 @@ interface Draft {
   discountTotal: number
   chosen: MortgageRow[]
   outstanding: number[]
+  discounts: number[]
+  advances: number[]
   amountText: Record<number, string>
   percentText: Record<number, string>
 }
@@ -75,9 +77,18 @@ export function allocationAmounts({
   )
 }
 
+/** Whether each chosen Mortgage is paid in full by its Allocation and Discount, so this
+ *  Payment Redeems it: being closed, it has no interest to come for an Advance to hold. */
+export function redeemedHere(
+  { chosen, outstanding, discounts }: Draft,
+  amounts: number[] | null,
+): boolean[] {
+  return chosen.map((_, i) => !!amounts && amounts[i] + discounts[i] >= outstanding[i])
+}
+
 /** Why the draft can't be previewed yet, if so. */
 export function allocationProblems(draft: Draft, amounts: number[] | null): string[] {
-  const { mode, total, advanceTotal, discountTotal, chosen, percentText } = draft
+  const { mode, total, advanceTotal, discountTotal, chosen, advances, percentText } = draft
   const allocated = amounts?.reduce((a, b) => a + b, 0) ?? 0
   const problems: string[] = []
   if (chosen.length === 0) problems.push('Choose at least one Mortgage.')
@@ -94,6 +105,11 @@ export function allocationProblems(draft: Draft, amounts: number[] | null): stri
     problems.push('The percentages must add up to 100.')
   if (amounts && total > 0 && allocated !== total)
     problems.push(`The Allocations add up to ${formatINR(allocated)}, not ${formatINR(total)}.`)
+  const redeemed = redeemedHere(draft, amounts)
+  chosen.forEach((m, i) => {
+    if (redeemed[i] && advances[i] > 0)
+      problems.push(`${m.name} is paid in full here, so it is Redeemed and can't hold an Advance.`)
+  })
   return problems
 }
 

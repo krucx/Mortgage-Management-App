@@ -527,3 +527,56 @@ def test_a_back_dated_payment_is_held_to_the_parts_still_upcoming_today(
     record(
         client, draft(ramesh, {chain["id"]: (74_000 * RUPEE, 0, 1)}, on="2026-05-01")
     )
+
+
+def test_new_payment_lists_the_unpaid_interest_and_the_month_s_interest(
+    client, ramesh, chain
+):
+    response = client.get(
+        "/api/mortgages",
+        params={"customer_id": ramesh["id"], "as_of": "2026-04-20", "paged": False},
+    )
+    assert response.status_code == 200, response.text
+    [row] = response.json()["items"]
+
+    # The Interest to Date is never part of the unpaid interest.
+    assert row["unpaid_interest"] == 9_000 * RUPEE
+    assert row["month_interest"] == 3_000 * RUPEE
+
+
+def test_an_advance_on_a_mortgage_the_payment_redeems_is_refused(client, ramesh, chain):
+    closing = draft(ramesh, {chain["id"]: (1_12_000 * RUPEE, 3_000 * RUPEE, 1)})
+
+    for path in ("/api/payments/preview", "/api/payments"):
+        response = client.post(path, json=closing)
+        assert response.status_code == 422, response.text
+        assert chain["name"] in response.json()["detail"]
+        assert "Redeems" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("preview", ["", "-preview"])
+def test_an_advance_on_a_mortgage_being_waived_is_refused(
+    client, ramesh, chain, preview
+):
+    # A Waiver closes the Mortgage, so it has no interest to come for an Advance.
+    advance = {"advance": 3_000 * RUPEE, "months": 1}
+    waive = {"waived_on": "2026-04-20", "method": "cash"}
+    single = client.post(
+        f"/api/mortgages/{chain['id']}/waive{preview}",
+        json={**waive, "amount_paid": 1_000 * RUPEE, **advance},
+    )
+    several = client.post(
+        f"/api/closures/waive{preview}",
+        json={
+            **waive,
+            "mortgages": [
+                {"mortgage_id": chain["id"], "amount_paid": 1_000 * RUPEE, **advance}
+            ],
+        },
+    )
+
+    for response in (single, several):
+        assert response.status_code == 422, response.text
+        assert "advance" in response.text
+    assert instalments(client, chain["id"]) == []
+    assert mortgage(client, chain["id"])["status"] == "active"

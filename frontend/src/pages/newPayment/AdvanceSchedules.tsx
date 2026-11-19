@@ -17,7 +17,7 @@ export function AdvanceSchedules({
   )
   if (schedules.length === 0) return null
   return (
-    <div className="stack">
+    <div className="stack advance-schedules">
       {schedules.map(({ mortgageId, schedule }) => (
         <section key={mortgageId} aria-label={`Advance on ${names.get(mortgageId) ?? ''}`}>
           <h3>

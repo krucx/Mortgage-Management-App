@@ -413,6 +413,79 @@ tr.warn td {
   background: color-mix(in srgb, var(--warning) 12%, transparent);
 }
 
+/* A one-tap fill under a New Payment field: an Advance of Months × the month's interest,
+   or the unpaid interest paid now. */
+button.link.shortcut {
+  display: block;
+  margin-left: auto;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+/* New Payment on a phone: each Mortgage is a card of labelled fields, never scrolling
+   sideways; the include box and Mortgage Name share its first line. */
+@media (max-width: 640px) {
+  table.allocations thead {
+    display: none;
+  }
+
+  table.allocations,
+  table.allocations tbody {
+    display: block;
+  }
+
+  table.allocations tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  table.allocations td {
+    flex: 1 1 40%;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    text-align: left;
+    white-space: normal;
+  }
+
+  table.allocations td.include {
+    flex: 0 0 auto;
+  }
+
+  table.allocations td.mortgage {
+    flex-basis: 70%;
+    font-weight: 600;
+  }
+
+  table.allocations td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  table.allocations input.small-input {
+    width: 100%;
+  }
+
+  table.allocations button.link.shortcut,
+  table.allocations button.grace-choice {
+    margin-left: 0;
+    white-space: normal;
+  }
+}
+
+/* The schedules under New Payment: a wide one scrolls within itself, never the page. */
+.advance-schedules {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
 /* An Advance Instalment not yet applied, after the Ledger's last step. */
 tr.ledger-upcoming td {
   color: var(--muted);

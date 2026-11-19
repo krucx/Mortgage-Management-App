@@ -114,6 +114,10 @@ class MortgageRow(BaseModel):
     outstanding_total: int
     # Why it can't be Redeemed (paid in full) on the date it is listed as of, if not
     not_redeemable: str | None
+    # On that date too, for New Payment's suggestions: its unpaid interest, never the
+    # Interest to Date, and the month's interest its next Accrual Date charges
+    unpaid_interest: int
+    month_interest: int
 
 
 class TermChangeOut(BaseModel):
@@ -216,10 +220,13 @@ def mortgage_rows(
             start_date=row["start_date"],
             amount_lent=row["amount_lent"],
             status=row["status"],
-            outstanding_total=replayed[row["id"]].outstanding(as_of).total,
-            not_redeemable=replayed[row["id"]].not_closable(as_of),
+            outstanding_total=mortgage.outstanding(as_of).total,
+            not_redeemable=mortgage.not_closable(as_of),
+            unpaid_interest=mortgage.unpaid_interest(as_of),
+            month_interest=mortgage.month_interest(as_of),
         )
         for row in rows
+        for mortgage in [replayed[row["id"]]]
     ]
 
 

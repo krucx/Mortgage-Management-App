@@ -2711,6 +2711,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "month_interest": {
+            "title": "Month Interest",
+            "type": "integer"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -2737,6 +2741,10 @@
           },
           "status": {
             "$ref": "#/components/schemas/MortgageStatus"
+          },
+          "unpaid_interest": {
+            "title": "Unpaid Interest",
+            "type": "integer"
           }
         },
         "required": [
@@ -2747,7 +2755,9 @@
           "amount_lent",
           "status",
           "outstanding_total",
-          "not_redeemable"
+          "not_redeemable",
+          "unpaid_interest",
+          "month_interest"
         ],
         "title": "MortgageRow",
         "type": "object"
@@ -4562,6 +4572,7 @@
         "type": "object"
       },
       "WaiveIn": {
+        "additionalProperties": false,
         "properties": {
           "amount_paid": {
             "minimum": 0.0,
@@ -4602,6 +4613,7 @@
         "type": "object"
       },
       "WaivedMortgageIn": {
+        "additionalProperties": false,
         "properties": {
           "amount_paid": {
             "minimum": 0.0,
