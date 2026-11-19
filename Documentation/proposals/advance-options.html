@@ -102,7 +102,7 @@
         <tbody>
           <tr><td><input type="checkbox" checked></td><td>Gold chain and 2 bangles</td><td class="num">5,15,000</td>
             <td class="num"><input type="number" class="js-now" style="width:100px"></td>
-            <td class="num"><input type="number" value="0" style="width:80px"></td>
+            <td class="num"><input type="number" class="js-disc" style="width:80px"></td>
             <td class="num"><input type="number" class="js-adv" style="width:100px"></td>
             <td class="num"><input type="number" class="js-months" min="1" max="24" style="width:60px"></td></tr>
           <tr><td><input type="checkbox"></td><td>Ear tops</td><td class="num">62,400</td>
@@ -172,7 +172,7 @@
         <tbody>
           <tr><td><input type="checkbox" checked></td><td>Gold chain and 2 bangles</td><td class="num">5,15,000</td>
             <td class="num"><input type="number" class="js-now" style="width:100px"></td>
-            <td class="num"><input type="number" value="0" style="width:80px"></td></tr>
+            <td class="num"><input type="number" class="js-disc" style="width:80px"></td></tr>
           <tr><td></td><td colspan="4">
             <details class="drawer" open><summary>Advance on this Mortgage</summary>
               <div class="row" style="margin-top:8px">
@@ -215,7 +215,7 @@
   const P0 = 500000, RATE = 0.02, UNPAID0 = 10000, OUT0 = 515000;
   const DATES = ['5 Dec 2026','5 Jan 2027','5 Feb 2027','5 Mar 2027','5 Apr 2027','5 May 2027','5 Jun 2027','5 Jul 2027','5 Aug 2027','5 Sep 2027','5 Oct 2027','5 Nov 2027'];
   const fmt = n => Math.round(n).toLocaleString('en-IN');
-  const state = { now: 10000, adv: 30000, months: 3 };
+  const state = { now: 10000, disc: 0, adv: 30000, months: 3 };
 
   function schedule() {
     let principal = P0, unpaid = UNPAID0 - Math.min(state.now, UNPAID0);
@@ -227,18 +227,18 @@
       unpaid -= toInterest; principal -= toPrincipal;
       rows.push({ date: DATES[i], interest, part, toInterest, toPrincipal, principal, unpaid });
     }
-    const overpaid = state.adv > OUT0 - state.now; // held may never exceed what is owed today
-    return { rows, part, overpaid };
+    const owed = OUT0 - state.now - state.disc, overpaid = state.adv > owed; // held may never exceed what is owed today
+    return { rows, part, overpaid, owed };
   }
 
   function scheduleHtml() {
     if (!state.adv || !state.months) return '';
-    const { rows, overpaid } = schedule();
+    const { rows, overpaid, owed } = schedule();
     const warnRows = rows.filter(r => r.toPrincipal > 0.5), shortRows = rows.filter(r => r.unpaid > 0.5);
     let h = `<h2 style="margin-top:14px">Advance Instalments</h2><div class="scroll"><table><thead><tr><th>Accrual Date</th><th class="num">Part</th><th class="num">Month's interest</th><th class="num">Pays interest</th><th class="num">Pays Principal</th><th class="num">Principal after</th><th class="num">Unpaid after</th></tr></thead><tbody>`;
     rows.forEach(r => { h += `<tr class="${r.toPrincipal > 0.5 ? 'warn' : ''}"><td>${r.date}</td><td class="num">${fmt(r.part)}</td><td class="num">${fmt(r.interest)}</td><td class="num">${fmt(r.toInterest)}</td><td class="num">${r.toPrincipal > 0.5 ? fmt(r.toPrincipal) : '—'}</td><td class="num">${fmt(Math.max(0, r.principal))}</td><td class="num">${r.unpaid > 0.5 ? fmt(r.unpaid) : '—'}</td></tr>`; });
     h += '</tbody></table></div>';
-    if (overpaid) h += `<div class="msg err">Refused: this Advance would hold ${fmt(state.adv)}, more than the ${fmt(OUT0 - state.now)} the Mortgage owes today after Pay now, so a Closure could leave you owing the Customer.</div>`;
+    if (overpaid) h += `<div class="msg err">Refused: this Advance would hold ${fmt(state.adv)}, more than the ${fmt(owed)} the Mortgage owes today after Pay now and Discount, so a Closure could leave you owing the Customer.</div>`;
     else if (warnRows.length) h += `<div class="msg warn">${warnRows.length} part${warnRows.length > 1 ? 's' : ''} would reduce Principal by ${fmt(warnRows.reduce((s, r) => s + r.toPrincipal, 0))} in all. You can still save.</div>`;
     else if (shortRows.length) h += `<div class="msg warn">The parts fall short of the interest. ${fmt(shortRows.at(-1).unpaid)} would still be unpaid after ${shortRows.at(-1).date}.</div>`;
     else h += `<div class="msg ok">Each part pays exactly its month's interest. Principal stays at ${fmt(rows.at(-1).principal)}.</div>`;
@@ -249,6 +249,7 @@
     const total = (state.now || 0) + (state.adv || 0), s = schedule();
     document.querySelectorAll('.js-now').forEach(e => { if (document.activeElement !== e) e.value = state.now; });
     document.querySelectorAll('.js-adv').forEach(e => { if (document.activeElement !== e) e.value = state.adv; });
+    document.querySelectorAll('.js-disc').forEach(e => { if (document.activeElement !== e) e.value = state.disc; });
     document.querySelectorAll('.js-months').forEach(e => { if (document.activeElement !== e) e.value = state.months; });
     document.querySelectorAll('.js-months-sel').forEach(e => {
       if (!e.options.length) for (let i = 1; i <= 12; i++) e.add(new Option(`${i} Accrual Date${i > 1 ? 's' : ''}`, i));
@@ -265,6 +266,7 @@
     const c = e.target.classList;
     if (c.contains('js-now')) state.now = num(e.target.value);
     else if (c.contains('js-adv')) state.adv = num(e.target.value);
+    else if (c.contains('js-disc')) state.disc = num(e.target.value);
     else if (c.contains('js-months') || c.contains('js-months-sel')) state.months = Math.min(12, Math.max(1, Math.floor(num(e.target.value))));
     else return;
     render();
@@ -324,9 +326,9 @@
   // The next 12 Accrual Dates strictly after the date received (19 Nov 2026).
   const months = d => ['Nov 2026','Dec 2026','Jan 2027','Feb 2027','Mar 2027','Apr 2027','May 2027','Jun 2027','Jul 2027','Aug 2027','Sep 2027','Oct 2027','Nov 2027'].slice(d > 19 ? 0 : 1, (d > 19 ? 0 : 1) + 12).map(m => `${d} ${m}`);
   const M = [
-    { name: 'Gold chain and 2 bangles', day: 5, P: 500000, rate: 0.02, unpaid: 10000, out: 515000, now: 10000, adv: 30000, months: 3 },
-    { name: 'Ear tops', day: 12, P: 60000, rate: 0.02, unpaid: 1200, out: 62400, now: 1200, adv: 6000, months: 6 },
-    { name: 'Silver anklets', day: 28, P: 40000, rate: 0.025, unpaid: 0, out: 40700, now: 0, adv: 0, months: 3 },
+    { name: 'Gold chain and 2 bangles', day: 5, P: 500000, rate: 0.02, unpaid: 10000, out: 515000, now: 10000, disc: 0, adv: 30000, months: 3 },
+    { name: 'Ear tops', day: 12, P: 60000, rate: 0.02, unpaid: 1200, out: 62400, now: 1200, disc: 0, adv: 6000, months: 6 },
+    { name: 'Silver anklets', day: 28, P: 40000, rate: 0.025, unpaid: 0, out: 40700, now: 0, disc: 0, adv: 0, months: 3 },
   ];
   function amSchedule(m) {
     let principal = m.P, unpaid = Math.max(0, m.unpaid - m.now);
@@ -337,13 +339,13 @@
       const toI = Math.min(part, unpaid), toP = part - toI; unpaid -= toI; principal -= toP;
       rows.push({ date: dates[i], part, interest, toI, toP, principal, unpaid });
     }
-    return { rows, overpaid: m.adv > m.out - m.now };
+    return { rows, overpaid: m.adv > m.out - m.now - m.disc };
   }
   function amRenderRows() {
     document.querySelector('.am-rows').innerHTML = M.map((m, i) => `<tr>
       <td>${m.name}</td><td>${m.day}th</td><td class="num">${amFmt(m.out)}</td>
       <td class="num"><input type="number" data-i="${i}" data-k="now" value="${m.now}" style="width:95px"></td>
-      <td class="num"><input type="number" value="0" style="width:70px"></td>
+      <td class="num"><input type="number" data-i="${i}" data-k="disc" value="${m.disc}" style="width:70px"></td>
       <td class="num"><input type="number" data-i="${i}" data-k="adv" value="${m.adv}" style="width:95px">
         <div><a href="#" data-fill="${i}" style="font-size:.75rem">fill ${m.months} × ${amFmt(m.P * m.rate)}</a></div></td>
       <td class="num"><input type="number" data-i="${i}" data-k="months" min="1" max="12" value="${m.months}" style="width:55px"></td></tr>`).join('');
@@ -360,7 +362,7 @@
         <div class="scroll"><table><thead><tr><th>Accrual Date</th><th class="num">Part</th><th class="num">Month's interest</th><th class="num">Pays interest</th><th class="num">Pays Principal</th><th class="num">Principal after</th><th class="num">Unpaid after</th></tr></thead><tbody>
         ${rows.map(r => `<tr class="${r.toP > 0.5 ? 'warn' : ''}"><td>${r.date}</td><td class="num">${amFmt(r.part)}</td><td class="num">${amFmt(r.interest)}</td><td class="num">${amFmt(r.toI)}</td><td class="num">${r.toP > 0.5 ? amFmt(r.toP) : '—'}</td><td class="num">${amFmt(Math.max(0, r.principal))}</td><td class="num">${r.unpaid > 0.5 ? amFmt(r.unpaid) : '—'}</td></tr>`).join('')}
         </tbody></table></div>
-        ${overpaid ? `<div class="msg err">Refused: would hold ${amFmt(m.adv)}, more than the ${amFmt(m.out - m.now)} this Mortgage owes today after Pay now.</div>` : warn.length ? `<div class="msg warn">Reduces Principal by ${amFmt(warn.reduce((s, r) => s + r.toP, 0))}. You can still save.</div>` : ''}</details>`;
+        ${overpaid ? `<div class="msg err">Refused: would hold ${amFmt(m.adv)}, more than the ${amFmt(m.out - m.now - m.disc)} this Mortgage owes today after Pay now and Discount.</div>` : warn.length ? `<div class="msg warn">Reduces Principal by ${amFmt(warn.reduce((s, r) => s + r.toP, 0))}. You can still save.</div>` : ''}</details>`;
     });
     document.querySelector('.am-total').value = amFmt(total);
     document.querySelector('.am-schedules').innerHTML = h;
