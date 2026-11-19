@@ -43,6 +43,11 @@ Every release of Mortgage Management, newest first. The format follows
   needs less cash, or none, and a Payment of what is left Redeems it. Bulk Closures
   do the same for each Mortgage. A Reopen puts those parts back as upcoming; parts
   cancelled before the Closure stay cancelled.
+- **Advances on the Receipt:** a Payment's Receipt, on WhatsApp and printed, shows for each
+  Mortgage what it was paid now, each part of its Advance with its date and amount, and what
+  it still owes today. Cancelling a part shows a fresh Receipt, to send on WhatsApp or
+  print, saying what that amount paid on the cancel date; the Advances panel can reopen it.
+  Receipts without an Advance are unchanged.
 
 ### Changed
 

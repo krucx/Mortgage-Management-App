@@ -191,12 +191,18 @@ class MortgageReplay:
             if step.payment_id is not None and step.instalment_id is None
         }
 
-    def owed_after(self, payment_id: int, on: date) -> int:
-        """What it owed just after its Payment `payment_id` on `on`: Outstanding at the
-        end of that day, as if none of that day's later Payments (or a write-off) had
-        been made."""
+    def owed_after(
+        self, payment_id: int, on: date, instalment_id: int | None = None
+    ) -> int:
+        """What it owed just after its Payment `payment_id` (or that Payment's Advance
+        Instalment `instalment_id`) on `on`: Outstanding at the end of that day, as if
+        none of that day's later Payments (or a write-off) had been made."""
         ledger = self.ledger(on)
-        at = next(i for i, s in enumerate(ledger) if s.payment_id == payment_id)
+        at = next(
+            i
+            for i, s in enumerate(ledger)
+            if s.payment_id == payment_id and s.instalment_id == instalment_id
+        )
         later = sum(
             s.amount + s.discount
             for s in ledger[at + 1 :]

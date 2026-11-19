@@ -1091,6 +1091,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/payments/{payment_id}/advance-instalments/{instalment_id}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Advance Receipt */
+        get: operations["read_advance_receipt_api_payments__payment_id__advance_instalments__instalment_id__receipt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/payments/{payment_id}/receipt": {
         parameters: {
             query?: never;
@@ -2989,6 +3006,8 @@ export interface components {
         };
         /** Receipt */
         Receipt: {
+            /** Advance Due On */
+            advance_due_on: string | null;
             /** Amount */
             amount: number;
             customer: components["schemas"]["PersonSummary"];
@@ -3016,6 +3035,11 @@ export interface components {
         };
         /** ReceiptLineOut */
         ReceiptLineOut: {
+            /**
+             * Advance Parts
+             * @default []
+             */
+            advance_parts: components["schemas"]["ReceiptPart"][];
             /** Description */
             description: string;
             /**
@@ -3053,6 +3077,19 @@ export interface components {
              * @default false
              */
             redeemed: boolean;
+        };
+        /**
+         * ReceiptPart
+         * @description One part of an Advance: what it will apply, and on what date (ADR 0021).
+         */
+        ReceiptPart: {
+            /** Amount */
+            amount: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
         };
         /**
          * RedeemAllIn
@@ -5415,6 +5452,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Payment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_advance_receipt_api_payments__payment_id__advance_instalments__instalment_id__receipt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_id: number;
+                instalment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
                 };
             };
             /** @description Validation Error */

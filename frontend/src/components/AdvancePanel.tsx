@@ -1,15 +1,17 @@
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import type { AdvanceInstalment, Mortgage } from '../api'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
-import { changes, previews } from '../requests'
-import { useMortgageChange } from '../serverState'
+import { advanceReceiptQuery, changes, previews } from '../requests'
+import { useMortgageChange, useServerState } from '../serverState'
 import { ChangePreview } from './BeforeAfter'
+import { ReceiptPanel } from './ReceiptPanel'
 import { useConfirm } from './useConfirm'
 
 /** Each Advance on the Mortgage, part by part (ADR 0021); an upcoming part can be
- *  cancelled, which applies its amount today. */
+ *  cancelled, which applies its amount today and has a Receipt of its own. */
 export function AdvancePanel({
   mortgage,
   onChange,
@@ -18,6 +20,8 @@ export function AdvancePanel({
   onChange: (updated: Mortgage) => void
 }) {
   const [error, setError] = useState<string | null>(null)
+  // The cancelled part whose Receipt is shown: the one just cancelled, or one reopened.
+  const [receiptOf, setReceiptOf] = useState<AdvanceInstalment | null>(null)
   const [confirm, confirmDialog] = useConfirm()
   const changeMortgage = useMortgageChange()
   // One Advance per Payment, its parts by date.
@@ -52,6 +56,7 @@ export function AdvancePanel({
           changes.cancelAdvanceInstalment(client, mortgage.id, instalment.id),
         ),
       )
+      setReceiptOf(instalment)
     } catch (err) {
       setError((err as Error).message)
     }
@@ -85,6 +90,15 @@ export function AdvancePanel({
                       <span className="badge">{status(part)}</span>
                     </td>
                     <td>
+                      {part.cancelled_on && (
+                        <button
+                          type="button"
+                          className="secondary small"
+                          onClick={() => setReceiptOf(part)}
+                        >
+                          Receipt
+                        </button>
+                      )}
                       {part.upcoming && mortgage.status === 'active' && (
                         <button
                           type="button"
@@ -103,6 +117,7 @@ export function AdvancePanel({
         </div>
       ))}
       {error && <p className="status error">{error}</p>}
+      {receiptOf && <CancelReceipt instalment={receiptOf} />}
       {confirmDialog}
     </div>
   )
@@ -111,4 +126,24 @@ export function AdvancePanel({
 function status(part: AdvanceInstalment): string {
   if (part.cancelled_on) return `Cancelled on ${formatDate(part.cancelled_on)}`
   return part.upcoming ? 'Upcoming' : 'Applied'
+}
+
+/** The Receipt for a cancelled part, to send on WhatsApp or print. */
+function CancelReceipt({ instalment }: { instalment: AdvanceInstalment }) {
+  const { client } = useServerState()
+  const { data: receipt, error } = useQuery(
+    advanceReceiptQuery(client, instalment.payment_id, instalment.id),
+  )
+
+  if (error) return <p className="status error">{error.message}</p>
+  if (!receipt) return null
+  return (
+    <div>
+      <h4>Receipt for the part due {formatDate(instalment.on)}</h4>
+      <ReceiptPanel
+        receipt={receipt}
+        printPath={`/payments/${instalment.payment_id}/advance-instalments/${instalment.id}/receipt`}
+      />
+    </div>
+  )
 }

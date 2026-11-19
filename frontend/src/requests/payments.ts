@@ -28,6 +28,20 @@ export function receiptQuery(client: ApiClient, paymentId: number) {
   })
 }
 
+/** The Receipt for a Payment's cancelled Advance Instalment: what its amount paid on
+ *  the date cancelled. */
+export function advanceReceiptQuery(client: ApiClient, paymentId: number, instalmentId: number) {
+  return queryOptions({
+    queryKey: [...keys.payment(paymentId), 'advance-instalment', instalmentId, 'receipt'],
+    queryFn: () =>
+      dataOrThrow(
+        client.GET('/api/payments/{payment_id}/advance-instalments/{instalment_id}/receipt', {
+          params: { path: { payment_id: paymentId, instalment_id: instalmentId } },
+        }),
+      ),
+  })
+}
+
 /** Each way a Payment can be made, by name: fixed while the app runs. */
 export function paymentMethodsQuery(client: ApiClient) {
   return queryOptions({

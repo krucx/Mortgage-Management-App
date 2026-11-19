@@ -6,7 +6,7 @@ import { usePaymentMethods } from '../components/usePaymentMethods'
 import { PersonLink } from '../components/PersonLink'
 import { ChangePreview } from '../components/BeforeAfter'
 import { ReasonDialog } from '../components/ReasonDialog'
-import { SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
+import { ReceiptPanel } from '../components/ReceiptPanel'
 import { formatDate, formatDateTime, formatGraceDate } from '../format'
 import { formatINR } from '../money'
 import { changes, paymentQuery, previews, receiptQuery } from '../requests'
@@ -121,7 +121,7 @@ export function PaymentPage() {
           </tbody>
         </table>
       </div>
-      {!payment.voided_at && <ReceiptPanel paymentId={payment.id} />}
+      {!payment.voided_at && <PaymentReceipt paymentId={payment.id} />}
       {voiding && (
         <ReasonDialog
           title={`Void this Payment of ${formatINR(payment.amount)}?`}
@@ -150,29 +150,16 @@ export function PaymentPage() {
 }
 
 /** The Receipt for the Customer: sent on WhatsApp, or printed. Reopen it any time. */
-function ReceiptPanel({ paymentId }: { paymentId: number }) {
+function PaymentReceipt({ paymentId }: { paymentId: number }) {
   const { client } = useServerState()
   const { data: receipt, error } = useQuery(receiptQuery(client, paymentId))
-  const [sent, setSent] = useState(false)
 
   if (error) return <p className="status error">{error.message}</p>
   if (!receipt) return null
   return (
     <>
       <h3>Receipt</h3>
-      <div className="receipt-panel">
-        <WhatsAppPreview text={receipt.text} />
-        <div className="stack">
-          <SendOnWhatsApp
-            phones={receipt.phones}
-            text={receipt.text}
-            onSent={() => setSent(true)}
-          />
-          {sent && <p className="hint">WhatsApp opened: press Send there.</p>}
-          <Link to={`/payments/${paymentId}/receipt`}>Print or save as PDF</Link>
-          <p className="hint">The wording comes from the Receipt template in Settings.</p>
-        </div>
-      </div>
+      <ReceiptPanel receipt={receipt} printPath={`/payments/${paymentId}/receipt`} />
     </>
   )
 }
