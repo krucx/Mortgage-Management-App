@@ -23,6 +23,12 @@ Every release of Mortgage Management, newest first. The format follows
   Instalment landing that day leaves no interest unpaid, the Mortgage is left out of that
   date's Reminder and out of the Call List's "accruing today". A part that falls short
   still gets both, and once the part is gone the Reminder is back and can be sent.
+- **Warnings when a later change pushes an Advance part into Principal:** the Preview for a
+  new Payment, a Term Change or corrected starting Terms names each upcoming Advance
+  Instalment that would now reduce Principal, with its Mortgage, date and amount; saving
+  still works. A Payment or Discount that would leave a Mortgage's upcoming parts holding
+  more than it owes is refused, naming the latest parts to cancel first or the most it can
+  take.
 
 ### Changed
 
