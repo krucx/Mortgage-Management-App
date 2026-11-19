@@ -21,13 +21,13 @@ def _app(database_url, monkeypatch_qa=None):
 
 @pytest.fixture
 def qa_app(database_url, monkeypatch):
-    monkeypatch.setenv("QA_MODE", "true")
+    monkeypatch.setattr("mortgage_backend.platform.clock._QA_MODE", True)
     return _app(database_url)
 
 
 @pytest.fixture
 def prod_app(database_url, monkeypatch):
-    monkeypatch.delenv("QA_MODE", raising=False)
+    monkeypatch.setattr("mortgage_backend.platform.clock._QA_MODE", False)
     return _app(database_url)
 
 

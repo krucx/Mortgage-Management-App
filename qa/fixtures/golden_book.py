@@ -39,17 +39,6 @@ class Clock:
         return datetime.combine(self.day, time(10, 30))
 
 
-def portrait(skin: str, shirt: str, hair: str) -> bytes:
-    image = Image.new("RGB", (240, 240), "#ece6dc")
-    draw = ImageDraw.Draw(image)
-    draw.ellipse((40, 150, 200, 300), fill=shirt)
-    draw.ellipse((80, 52, 160, 140), fill=skin)
-    draw.chord((78, 46, 162, 120), 180, 360, fill=hair)
-    out = io.BytesIO()
-    image.save(out, "JPEG", quality=90)
-    return out.getvalue()
-
-
 class Book:
     def __init__(self, folder: Path) -> None:
         self.clock = Clock(date(2025, 9, 1))
@@ -67,7 +56,20 @@ class Book:
         assert target >= self.clock.day
         while self.clock.day < target:
             self.clock.day += timedelta(days=1)
+            self.send_reminders()
         return self
+
+    def send_reminders(self) -> None:
+        # Mirror sample book: approve+send any queued reminders accruing by tomorrow.
+        try:
+            for status in ("awaiting_approval", "queued"):
+                for reminder in self.get("/api/reminders", status=status)["items"]:
+                    if reminder["accrues_on"] <= (self.clock.day + timedelta(days=1)).isoformat():
+                        if status == "awaiting_approval":
+                            self.post(f"/api/reminders/{reminder['id']}/approve")
+                        self.post(f"/api/reminders/{reminder['id']}/sent")
+        except Exception:
+            pass
 
     def get(self, path: str, **params: Any) -> Any:
         r = self.api.get(path, params=params)
@@ -148,6 +150,9 @@ def events(book: Book) -> list[tuple[str, Any]]:
         # Ramesh: advance payment across 3 months on r1
         ("2025-09-10", lambda: book.pay(ramesh, {"r1": 15_000}, method="upi", advance_months=3,
                                          reference="UPI advance Ramesh")),
+        # Ramesh: advance payment across 2 months on r2 (multi-mortgage advance)
+        ("2025-09-11", lambda: book.pay(ramesh, {"r2": 6_000}, method="cash", advance_months=2,
+                                         reference="cash advance r2")),
         # Ramesh: cancel the first upcoming instalment of r1
         ("2025-09-20", lambda: book.post(
             f"/api/mortgages/{book.mortgage_id('r1')}/advance-instalments/"
@@ -169,7 +174,10 @@ def events(book: Book) -> list[tuple[str, Any]]:
     return happened
 
 
-def build(folder: Path) -> None:
+def build(folder: Path | None = None) -> "Book":
+    if folder is None:
+        import tempfile
+        folder = Path(tempfile.mkdtemp()) / "golden"
     book = Book(folder)
     with book.api:
         book.put("/api/settings/default-terms", {
@@ -179,6 +187,7 @@ def build(folder: Path) -> None:
             book.on(day)
             action()
         book.on("2025-11-15")
+    return book
 
 
 def write(folder: Path) -> None:

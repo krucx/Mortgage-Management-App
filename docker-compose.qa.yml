@@ -5,6 +5,9 @@ services:
     environment:
       QA_MODE: "true"
       CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./qa/scratch-data:/data
+      - ./qa/scratch-backups:/backups
   qa-runner:
     build:
       context: .
