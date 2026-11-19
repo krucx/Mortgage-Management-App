@@ -131,10 +131,12 @@ class _Trend:
 
 def _owed_on(active: list[MortgageReplay], dates: list[date]) -> dict[date, int]:
     """What the Active Mortgages will owe together at the end of each of `dates` (in
-    order), with no further Payments."""
+    order), with no further Payments: upcoming Advance Instalments are left out too, so
+    the interest the months ahead charge is all counted (ADR 0021)."""
     owed = dict.fromkeys(dates, 0)
     for mortgage in active:
-        for snapshot in mortgage.projection(dates).snapshots:
+        projected = mortgage.projection(dates, upcoming_instalments=False)
+        for snapshot in projected.snapshots:
             owed[snapshot.on] += snapshot.principal + snapshot.unpaid_interest
     return owed
 

@@ -12,9 +12,55 @@ Every release of Mortgage Management, newest first. The format follows
 - **System architecture documentation:** `Documentation/ARCHITECTURE.md` documents the
   system architecture, UI pages, API endpoints, custom protocol (`mortgage-management://`),
   and Docker vs host deployments, with Mermaid architecture and sequence diagrams.
+- **Advances on New Payment:** any Mortgage row can hold an Advance over 1 to 12 months,
+  split into Advance Instalments as equal as the paise allow on that Mortgage's next Accrual
+  Dates after the date received (ADR 0021). Each is applied only once its date arrives. The
+  Advance adds to Amount received, and before saving a schedule per Mortgage shows what
+  each part pays, warning if a part would reduce Principal. An Advance holding more than
+  the Mortgage owes on the date received is refused. The Mortgage's Ledger lists upcoming
+  parts last, in grey, and Voiding the Payment removes every part.
+- **Follow-up skips a month an Advance covers:** on an Accrual Date where an Advance
+  Instalment landing that day leaves no interest unpaid, the Mortgage is left out of that
+  date's Reminder and out of the Call List's "accruing today". A part that falls short
+  still gets both, and once the part is gone the Reminder is back and can be sent.
+- **Warnings when a later change pushes an Advance part into Principal:** the Preview for a
+  new Payment, a Term Change or corrected starting Terms names each upcoming Advance
+  Instalment that would now reduce Principal, with its Mortgage, date and amount; saving
+  still works. A Payment or Discount that would leave a Mortgage's upcoming parts holding
+  more than it owes is refused, naming the latest parts to cancel first or the most it can
+  take.
+- **Advances after saving:** a Mortgage's page has an Advances panel showing each
+  Advance's date received, total and months, and each part's date, amount and status
+  (Applied, Upcoming or Cancelled on a date), with the **Advance held** by its upcoming
+  parts beside what it owes. **Cancel…** on an upcoming part shows a Preview, then
+  applies its amount at once on the cancel date like any Payment; the part stays on
+  record as Cancelled with its original date, and the cancel is in History. The Payments
+  list tags a Payment with an Advance "Advance · k of N upcoming", and a Customer's page
+  shows the Advance held across their Mortgages.
+- **Closing a Mortgage with an Advance:** the quote for Redeeming, Waiving or
+  Forfeiting shows the **Advance held** and what is left to pay. The Closure applies
+  every upcoming part on the Closure date, before any final Payment, so a Redemption
+  needs less cash, or none, and a Payment of what is left Redeems it. Bulk Closures
+  do the same for each Mortgage. A Reopen puts those parts back as upcoming; parts
+  cancelled before the Closure stay cancelled.
+- **Advances on the Receipt:** a Payment's Receipt, on WhatsApp and printed, shows for each
+  Mortgage what it was paid now, each part of its Advance with its date and amount, and what
+  it still owes today. Cancelling a part shows a fresh Receipt, to send on WhatsApp or
+  print, saying what that amount paid on the cancel date; the Advances panel can reopen it.
+  Receipts without an Advance are unchanged.
 
 ### Changed
 
+- **Advance shortcuts on New Payment:** each row's Advance offers a one-tap fill of Months
+  × the month's interest its next Accrual Date charges, and a row with an Advance offers to
+  pay its unpaid interest now, never the Interest to Date. By percentage, the percentages
+  split Amount received less the Advances. A Mortgage the Payment pays in full, and so
+  Redeems, can't hold an Advance, and saving one is refused; a Waiver refuses an Advance
+  too. On a phone each Mortgage row
+  is a card, with no sideways scrolling.
+- **Amount received and the Allocations stay in step on New Payment:** by amount, typing an
+  Allocation sets Amount received to their sum, and typing Amount received switches to
+  Equally and splits it. A Discount never counts toward Amount received.
 - **Call Notes and Favours Given come a page at a time:** a Mortgage's Call Notes and a
   Customer's Favours Given show 20 at a time, newest first, with Previous and Next, as the
   other lists do. The Favours Given total still counts every page.

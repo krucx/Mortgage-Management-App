@@ -32,7 +32,10 @@ const row = {
   amount_lent: mortgage.amount_lent,
   status: 'active',
   outstanding_total: 5_150_000,
+  advance_held: 0,
   not_redeemable: null as string | null,
+  unpaid_interest: 0,
+  month_interest: 75_000,
 }
 /** The backend for recording a ₹50,750 UPI Payment, which leaves ₹750 Outstanding. */
 function server(extra: Record<string, unknown> = {}) {
@@ -98,7 +101,9 @@ test('a Discount can be recorded without cash', async () => {
   await screen.findByRole('dialog')
 
   expect(asked?.amount).toBe(0)
-  expect(asked?.allocations).toEqual([{ mortgage_id: 7, amount: 0, discount: 5_150_000 }])
+  expect(asked?.allocations).toEqual([
+    { mortgage_id: 7, amount: 0, discount: 5_150_000, advance: 0, months: null },
+  ])
 })
 
 /** A fake Preview that computes `discount_room`/`over_threshold` itself from the
@@ -115,6 +120,7 @@ function discountAwarePreview(rooms: Record<number, number> = {}, limit = 50_000
       before: { outstanding: row.outstanding_total, points: [], term_changes: [], closure: null },
       after: { outstanding: 0, points: [], term_changes: [], closure: null },
       ledger_changes: [],
+      advance_warnings: [],
       discount_room: rooms[allocation.mortgage_id] ?? row.outstanding_total,
       over_threshold: allocation.discount > limit,
     }))
@@ -198,7 +204,9 @@ test('an over-balance Discount is reduced to the room the Preview reports, not O
   expect(within(regular).getByRole('heading', { name: /Record a Payment of/ })).toBeTruthy()
   fireEvent.click(within(regular).getByRole('button', { name: 'Confirm and save' }))
   await vi.waitFor(() =>
-    expect(saved?.allocations).toEqual([{ mortgage_id: 7, amount: 5_000_000, discount: 30_000 }]),
+    expect(saved?.allocations).toEqual([
+      { mortgage_id: 7, amount: 5_000_000, discount: 30_000, advance: 0, months: null },
+    ]),
   )
 })
 
@@ -284,6 +292,7 @@ function quoting(extra: Record<string, unknown> = {}) {
             : null,
         ),
         ledger_changes: [],
+        advance_warnings: [],
       }))
       return changePreview(mortgages)
     },
@@ -378,14 +387,8 @@ function recording() {
 
 async function record(amounts: Record<string, string>) {
   fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
-  let total = 0
-  for (const [name, amount] of Object.entries(amounts)) {
+  for (const [name, amount] of Object.entries(amounts))
     fireEvent.change(screen.getByLabelText(`Amount for ${name}`), { target: { value: amount } })
-    total += Number(amount)
-  }
-  fireEvent.change(screen.getByLabelText('Amount received (₹)'), {
-    target: { value: String(total) },
-  })
   await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
   const save = screen.getByRole('button', { name: /^Record Payment of/ }) as HTMLButtonElement
   await vi.waitFor(() => expect(save.disabled).toBe(false), { timeout: 2000 })
@@ -445,6 +448,92 @@ test('equal shares fill the smaller Mortgages up to their Outstanding, and the r
   const ringRow = screen.getByRole('link', { name: ring.name }).closest('tr')!
   expect(within(chain).getAllByText('₹51,500')).toHaveLength(2) // Outstanding, and allocated
   expect(within(ringRow).getAllByText('₹20,000')).toHaveLength(2)
+})
+
+// --- Amount received and the Allocations kept in step: the side typed last stays put.
+
+const received = () => (screen.getByLabelText('Amount received (₹)') as HTMLInputElement).value
+/** The Allocation shown for a Mortgage, equally or by percentage. */
+function allocated(m: { name: string }) {
+  const column = screen
+    .getAllByRole('columnheader')
+    .findIndex((th) => th.textContent === 'Allocation')
+  return screen.getByRole('link', { name: m.name }).closest('tr')!.querySelectorAll('td')[column]
+    .textContent
+}
+
+test('by amount, typing an Allocation sets Amount received to their sum, and a Discount never counts', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
+  await screen.findByLabelText(`Amount for ${ring.name}`)
+
+  fireEvent.change(screen.getByLabelText(`Amount for ${row.name}`), { target: { value: '30000' } })
+  expect(received()).toBe('30000')
+  fireEvent.change(screen.getByLabelText(`Amount for ${ring.name}`), {
+    target: { value: '5000.5' },
+  })
+  expect(received()).toBe('35000.5')
+  fireEvent.change(screen.getByLabelText(`Discount for ${ring.name}`), { target: { value: '500' } })
+  expect(received()).toBe('35000.5')
+  // Unticking one leaves the sum of the Allocations still ticked.
+  fireEvent.click(screen.getByLabelText(`Include ${ring.name}`))
+  expect(received()).toBe('30000')
+  expect(screen.queryByText(/The Allocations add up to/)).toBeNull()
+  expect(await screen.findByRole('button', { name: 'Record Payment of ₹30,000' })).toBeTruthy()
+})
+
+test('by amount, typing Amount received switches to Equally and splits it, each up to its Outstanding', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  const full = await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
+  await vi.waitFor(() => expect((full as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(full)
+
+  fireEvent.change(screen.getByLabelText(`Amount for ${row.name}`), { target: { value: '41500' } })
+  expect(received()).toBe('61500')
+
+  // ₹60,000 equally would be ₹30,000 each, but the ring owes only ₹20,000.
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '60000' } })
+  expect(
+    (screen.getByRole('radio', { name: 'Equally (suggested)' }) as HTMLInputElement).checked,
+  ).toBe(true)
+  expect(received()).toBe('60000')
+  expect(allocated(row)).toBe('₹40,000')
+  expect(allocated(ring)).toBe('₹20,000')
+  expect(screen.queryByText(/The Allocations add up to/)).toBeNull()
+})
+
+test('equally or by percentage, typing Amount received splits it again', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
+
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '10000' } })
+  expect(allocated(row)).toBe('₹5,000')
+  expect(allocated(ring)).toBe('₹5,000')
+
+  fireEvent.click(screen.getByRole('radio', { name: 'By percentage' }))
+  fireEvent.change(screen.getByLabelText(`Percentage for ${row.name}`), { target: { value: '80' } })
+  fireEvent.change(screen.getByLabelText(`Percentage for ${ring.name}`), {
+    target: { value: '20' },
+  })
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '20000' } })
+  expect((screen.getByRole('radio', { name: 'By percentage' }) as HTMLInputElement).checked).toBe(
+    true,
+  )
+  expect(allocated(row)).toBe('₹16,000')
+  expect(allocated(ring)).toBe('₹4,000')
+})
+
+test("switching from by amount to another mode keeps Amount received at the Allocations' sum", async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
+  fireEvent.change(await screen.findByLabelText(`Amount for ${row.name}`), {
+    target: { value: '30000' },
+  })
+  fireEvent.change(screen.getByLabelText(`Amount for ${ring.name}`), { target: { value: '0' } })
+
+  fireEvent.click(screen.getByRole('radio', { name: 'Equally (suggested)' }))
+  expect(received()).toBe('30000')
+  expect(allocated(row)).toBe('₹15,000')
 })
 
 /** A Grace choice: dated `paidOn`, the day before `accrualOn`, letting off `letOff`
@@ -636,4 +725,167 @@ test('each Mortgage shows its last Accrual Date, marked by whether the date rece
   await vi.waitFor(async () => expect((await accrual()).className).toBe('accrual past-grace'))
   expect(screen.queryByRole('button', { name: /^Date it/ })).toBeNull()
   expect((await accrual()).title).toBe('13 Oct is past the 2-day Grace Period after 10 Oct')
+})
+
+// --- Advances (ADR 0021): held for a Mortgage's next months, adding to Amount received.
+
+test('equally, an Advance adds to Amount received and leaves what is paid now as it was', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
+
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '10000' } })
+  fireEvent.change(screen.getByLabelText(`Advance for ${row.name}`), { target: { value: '9000' } })
+
+  expect(received()).toBe('19000')
+  expect(allocated(row)).toBe('₹5,000')
+  expect(allocated(ring)).toBe('₹5,000')
+})
+
+test('by amount, Amount received is the Allocations and the Advances together', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
+  fireEvent.change(await screen.findByLabelText(`Amount for ${row.name}`), {
+    target: { value: '1500' },
+  })
+  fireEvent.change(screen.getByLabelText(`Advance for ${ring.name}`), {
+    target: { value: '4500' },
+  })
+
+  expect(received()).toBe('6000')
+})
+
+test('an Advance is recorded with its months, and its schedule is shown from the Preview', async () => {
+  // Each ₹3,000 part pays the month's ₹750 and ₹2,250 of Principal.
+  const parts = ['2026-11-10', '2026-12-10', '2027-01-10'].map((on) => ({
+    on,
+    amount: 300_000,
+    interest: 75_000,
+    interest_paid: 75_000,
+    principal_paid: 225_000,
+    principal_after: 4_775_000,
+    unpaid_interest_after: 0,
+  }))
+  let asked: PaymentIn | undefined
+  const backend = server({
+    'POST /api/payments/preview': async (request: Request) => {
+      asked = (await request.json()) as PaymentIn
+      return changePreview([
+        {
+          mortgage_id: 7,
+          mortgage_name: row.name,
+          before: { outstanding: 0, points: [], term_changes: [], closure: null },
+          after: { outstanding: 0, points: [], term_changes: [], closure: null },
+          ledger_changes: [],
+          advance_warnings: [],
+          advance: { parts, verdict: 'reduces_principal' },
+        },
+      ])
+    },
+  })
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.change(await screen.findByLabelText(`Advance for ${row.name}`), {
+    target: { value: '9000' },
+  })
+  fireEvent.change(screen.getByLabelText(`Months for ${row.name}`), { target: { value: '3' } })
+
+  const schedule = await screen.findByRole('region', { name: `Advance on ${row.name}` })
+  expect(within(schedule).getByText('10 Nov 2026')).toBeTruthy()
+  expect(
+    within(schedule).getByText(
+      '3 parts would reduce Principal by ₹6,750 in all. You can still save.',
+    ),
+  ).toBeTruthy()
+  expect(asked?.amount).toBe(900_000)
+  expect(asked?.allocations).toEqual([
+    { mortgage_id: 7, amount: 0, discount: 0, advance: 900_000, months: 3 },
+  ])
+})
+
+test("the fill shortcut fills the Advance with Months × the month's interest", async () => {
+  showPage(server(), '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.change(await screen.findByLabelText(`Months for ${row.name}`), {
+    target: { value: '4' },
+  })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Fill 4 × ₹750' }))
+
+  expect((screen.getByLabelText(`Advance for ${row.name}`) as HTMLInputElement).value).toBe('3000')
+  expect(received()).toBe('3000')
+})
+
+test('with an Advance, Pay now suggests the unpaid interest, never the Interest to Date', async () => {
+  // Owing ₹51,500: ₹750 of unpaid interest and ₹750 of Interest to Date on Principal.
+  const owing = { ...row, unpaid_interest: 75_000 }
+  showPage(
+    server({ 'GET /api/mortgages': { items: [owing], total: 1, page: 1, page_size: 1 } }),
+    '/payments/new?customer=3&mortgage=7',
+    { '/payments/new': <NewPaymentPage /> },
+  )
+  await screen.findByLabelText(`Advance for ${row.name}`)
+  expect(screen.queryByRole('button', { name: /unpaid interest/ })).toBeNull()
+
+  fireEvent.change(screen.getByLabelText(`Advance for ${row.name}`), { target: { value: '2250' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Pay the unpaid interest (₹750)' }))
+
+  expect((screen.getByLabelText(`Amount for ${row.name}`) as HTMLInputElement).value).toBe('750')
+  expect(received()).toBe('3000')
+})
+
+test('by percentage, the percentages split Amount received less the Advances', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '14000' } })
+  fireEvent.change(screen.getByLabelText(`Advance for ${ring.name}`), { target: { value: '4000' } })
+  fireEvent.click(screen.getByRole('radio', { name: 'By percentage' }))
+  fireEvent.change(screen.getByLabelText(`Percentage for ${row.name}`), { target: { value: '80' } })
+  fireEvent.change(screen.getByLabelText(`Percentage for ${ring.name}`), {
+    target: { value: '20' },
+  })
+
+  expect(received()).toBe('18000')
+  expect(allocated(row)).toBe('₹11,200')
+  expect(allocated(ring)).toBe('₹2,800')
+  expect(screen.queryByText(/The Allocations add up to/)).toBeNull()
+})
+
+test('a Mortgage holding an Advance is paid in full by what the Advance leaves', async () => {
+  // The chain owes ₹51,500, ₹9,000 of it held by an Advance: ₹42,500 Redeems it.
+  const held = quoting({
+    'GET /api/mortgages': {
+      items: [{ ...row, advance_held: 900_000 }, ring],
+      total: 2,
+      page: 1,
+      page_size: 2,
+    },
+  })
+  showPage(held, '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+
+  const full = await screen.findByRole('button', { name: 'Pay the full Outstanding (₹62,500)' })
+  await vi.waitFor(() => expect((full as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(full)
+
+  expect((screen.getByLabelText(`Amount for ${row.name}`) as HTMLInputElement).value).toBe('42500')
+  expect((screen.getByLabelText(`Advance for ${row.name}`) as HTMLInputElement).disabled).toBe(true)
+})
+
+test('a Mortgage this Payment Redeems has its Advance disabled', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  const advance = (m: { name: string }) =>
+    screen.getByLabelText(`Advance for ${m.name}`) as HTMLInputElement
+  fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
+  fireEvent.change(advance(row), { target: { value: '1500' } })
+  fireEvent.change(screen.getByLabelText(`Amount for ${ring.name}`), { target: { value: '20000' } })
+
+  expect(advance(ring).disabled).toBe(true)
+  expect(screen.queryByRole('button', { name: /^Fill .* × ₹750$/ })).toBeTruthy()
+  expect(screen.getAllByRole('button', { name: /^Fill / })).toHaveLength(1)
+
+  // Already holding one, it stays editable so it can be cleared, but can't be saved.
+  fireEvent.change(screen.getByLabelText(`Amount for ${row.name}`), { target: { value: '51500' } })
+  expect(advance(row).disabled).toBe(false)
+  expect(
+    screen.getByText(
+      `${row.name} is paid in full here, so it is Redeemed and can't hold an Advance.`,
+    ),
+  ).toBeTruthy()
 })

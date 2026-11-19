@@ -22,14 +22,39 @@ export function suggestEqually(total: number, caps: number[]): number[] | null {
   )
 }
 
-/** What the form has entered: the cash and Discount totals, and the chosen Mortgages with
- *  what each owes and the amounts or percentages typed against them. */
+/** The most months an Advance can be split over (ADR 0021), and the months offered. */
+export const MAX_ADVANCE_MONTHS = 12
+export const DEFAULT_ADVANCE_MONTHS = 3
+
+/**
+ * The cash received. By amount the Lender types the Allocations and this is their sum
+ * with the Advances; otherwise it is typed, and the Allocations split what the Advances
+ * leave of it. A Discount is never cash, so never counts.
+ */
+export function cashReceived(
+  mode: AllocationMode,
+  totalText: string,
+  chosen: MortgageRow[],
+  amountText: Record<number, string>,
+  advanceTotal: number,
+): number {
+  if (mode !== 'amount') return rupeesToPaise(totalText)
+  return chosen.reduce((sum, m) => sum + rupeesToPaise(amountText[m.id]), advanceTotal)
+}
+
+/** What the form has entered: the cash to pay now (Amount received less the Advances),
+ *  the Advance and Discount totals, and the chosen Mortgages with what pays each in full
+ *  (its Outstanding less the Advance held), its Discount and Advance, and the amounts or
+ *  percentages typed against them. */
 interface Draft {
   mode: AllocationMode
   total: number
+  advanceTotal: number
   discountTotal: number
   chosen: MortgageRow[]
   outstanding: number[]
+  discounts: number[]
+  advances: number[]
   amountText: Record<number, string>
   percentText: Record<number, string>
 }
@@ -53,14 +78,27 @@ export function allocationAmounts({
   )
 }
 
+/** Whether each chosen Mortgage is paid in full by its Allocation and Discount, so this
+ *  Payment Redeems it: being closed, it has no interest to come for an Advance to hold. */
+export function redeemedHere(
+  { chosen, outstanding, discounts }: Draft,
+  amounts: number[] | null,
+): boolean[] {
+  return chosen.map((_, i) => !!amounts && amounts[i] + discounts[i] >= outstanding[i])
+}
+
 /** Why the draft can't be previewed yet, if so. */
 export function allocationProblems(draft: Draft, amounts: number[] | null): string[] {
-  const { mode, total, discountTotal, chosen, percentText } = draft
+  const { mode, total, advanceTotal, discountTotal, chosen, advances, percentText } = draft
   const allocated = amounts?.reduce((a, b) => a + b, 0) ?? 0
   const problems: string[] = []
   if (chosen.length === 0) problems.push('Choose at least one Mortgage.')
-  if (total < 0 || discountTotal < 0) problems.push('Amounts cannot be negative.')
-  if (total === 0 && discountTotal === 0) problems.push('Enter cash received or a Discount.')
+  if (total < 0 && advanceTotal > 0)
+    problems.push('The Advances add up to more than Amount received.')
+  else if (total < 0 || discountTotal < 0 || advanceTotal < 0)
+    problems.push('Amounts cannot be negative.')
+  if (total === 0 && discountTotal === 0 && advanceTotal === 0)
+    problems.push('Enter cash received or a Discount.')
   if (mode === 'percent' && chosen.some((m) => Number(percentText[m.id] || '0') < 0))
     problems.push('Percentages cannot be negative.')
   if (amounts?.some((amount) => amount < 0)) problems.push('Allocations cannot be negative.')
@@ -68,6 +106,11 @@ export function allocationProblems(draft: Draft, amounts: number[] | null): stri
     problems.push('The percentages must add up to 100.')
   if (amounts && total > 0 && allocated !== total)
     problems.push(`The Allocations add up to ${formatINR(allocated)}, not ${formatINR(total)}.`)
+  const redeemed = redeemedHere(draft, amounts)
+  chosen.forEach((m, i) => {
+    if (redeemed[i] && advances[i] > 0)
+      problems.push(`${m.name} is paid in full here, so it is Redeemed and can't hold an Advance.`)
+  })
   return problems
 }
 

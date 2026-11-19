@@ -17,8 +17,11 @@ from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.replay import MortgageStatus
+from mortgage_backend.payments.advances import advance_held, advance_instalments
+from mortgage_backend.platform.clock import TodayDep
 from mortgage_backend.platform.db import (
     EngineDep,
+    advance_instalment_table,
     customer_table,
     mortgage_table,
     standalone_referrer_table,
@@ -191,6 +194,13 @@ class Customer(CustomerRow):
     pan_photo_url: str | None
 
 
+class CustomerToday(Customer):
+    """A Customer's own page as it stands today."""
+
+    # What all their Mortgages' upcoming Advance Instalments hold (ADR 0021)
+    advance_held: int
+
+
 class SearchHit(BaseModel):
     kind: Literal["customer", "referrer"]
     id: int
@@ -320,9 +330,20 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/customers/{customer_id}")
-def read_customer(customer_id: int, engine: EngineDep) -> Customer:
+def read_customer(
+    customer_id: int, engine: EngineDep, today: TodayDep
+) -> CustomerToday:
     with engine.connect() as conn:
-        return load_customer(conn, customer_id)
+        customer = load_customer(conn, customer_id)
+        mortgages = select(mortgage_table.c.id).where(
+            mortgage_table.c.customer_id == customer_id
+        )
+        instalments = advance_instalments(
+            conn, today, advance_instalment_table.c.mortgage_id.in_(mortgages)
+        )
+        return CustomerToday(
+            **customer.model_dump(), advance_held=advance_held(instalments)
+        )
 
 
 @router.get("/referrers/{referrer_id}")

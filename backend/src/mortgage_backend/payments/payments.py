@@ -13,10 +13,12 @@ from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.activity import activity, all_replays
 from mortgage_backend.lending.replay import replays
+from mortgage_backend.payments.advances import AdvanceInstalmentOut, advance_instalments
 from mortgage_backend.people.customers import PersonSummary
-from mortgage_backend.platform.clock import MonthQuery, month_span
+from mortgage_backend.platform.clock import MonthQuery, TodayDep, month_span
 from mortgage_backend.platform.db import (
     EngineDep,
+    advance_instalment_table,
     allocation_table,
     customer_table,
     mortgage_table,
@@ -47,8 +49,9 @@ class PaymentMethodName(BaseModel):
 class AllocationOut(BaseModel):
     mortgage_id: int
     mortgage_name: str
-    amount: int
+    amount: int  # cash paid now
     discount: int
+    advance: int  # cash held as Advance Instalments (ADR 0021)
     let_off: int | None  # a Grace Payment's, as saved (ADR 0020)
     # How it was applied: interest first, then Principal (None once Voided)
     interest_paid: int | None
@@ -75,6 +78,13 @@ class MortgageLink(BaseModel):
     name: str
 
 
+class AdvanceTag(BaseModel):
+    """A Payment's Advances on the Payments page: `upcoming` of its `of` parts."""
+
+    upcoming: int
+    of: int
+
+
 class PaymentRow(BaseModel):
     """A Payment as listed on the Payments page."""
 
@@ -87,6 +97,7 @@ class PaymentRow(BaseModel):
     reference: str | None
     mortgages: list[MortgageLink]  # in the order the Allocations were made
     voided: bool
+    advance: AdvanceTag | None  # with an Advance, until Voided
 
 
 # A column of the Payments list to sort it by.
@@ -116,8 +127,16 @@ class PaymentPage(Page[PaymentRow]):
 
 
 def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
-    """The Mortgages a Payment is allocated to (with the amount, as `allocated`), in the
-    order the Allocations were made."""
+    """The Mortgages a Payment is allocated to (with the amount, as `allocated`, and
+    any Advance), in the order the Allocations were made."""
+    advance = (
+        select(func.coalesce(func.sum(advance_instalment_table.c.amount), 0))
+        .where(
+            advance_instalment_table.c.payment_id == payment_id,
+            advance_instalment_table.c.mortgage_id == mortgage_table.c.id,
+        )
+        .scalar_subquery()
+    )
     return (
         conn.execute(
             select(
@@ -125,6 +144,7 @@ def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
                 allocation_table.c.amount.label("allocated"),
                 allocation_table.c.discount,
                 allocation_table.c.let_off,
+                advance.label("advance"),
             )
             .join(
                 allocation_table, allocation_table.c.mortgage_id == mortgage_table.c.id
@@ -162,6 +182,7 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
                 mortgage_name=mortgage["name"],
                 amount=mortgage["allocated"],
                 discount=mortgage["discount"],
+                advance=mortgage["advance"],
                 let_off=mortgage["let_off"],
                 interest_paid=step.interest_paid if step else None,
                 principal_paid=step.principal_paid if step else None,
@@ -211,6 +232,7 @@ def read_payment(payment_id: int, engine: EngineDep) -> Payment:
 @router.get("/payments")
 def list_payments(
     engine: EngineDep,
+    today: TodayDep,
     page: PageNumber = 1,
     q: str = "",
     month: MonthQuery = None,
@@ -260,16 +282,23 @@ def list_payments(
             .where(match),
             _SORTING,
             page,
-            lambda payments: _payment_rows(conn, payments),
+            lambda payments: _payment_rows(conn, payments, today),
             sort=sort,
             descending=descending,
         )
     return PaymentPage(**dict(listed), interest_paid=interest)
 
 
-def _payment_rows(conn: Connection, payments: Sequence[RowMapping]) -> list[PaymentRow]:
-    """Payments as listed, with the Mortgages each paid."""
+def _payment_rows(
+    conn: Connection, payments: Sequence[RowMapping], today: date
+) -> list[PaymentRow]:
+    """Payments as listed, with the Mortgages each paid and its Advances' parts."""
     allocated: dict[int, list[MortgageLink]] = {p["id"]: [] for p in payments}
+    parts: dict[int, list[AdvanceInstalmentOut]] = {p["id"]: [] for p in payments}
+    for instalment in advance_instalments(
+        conn, today, advance_instalment_table.c.payment_id.in_(parts)
+    ):
+        parts[instalment.payment_id].append(instalment)
     for row in conn.execute(
         select(
             allocation_table.c.payment_id,
@@ -296,6 +325,12 @@ def _payment_rows(conn: Connection, payments: Sequence[RowMapping]) -> list[Paym
             reference=payment["reference"],
             mortgages=allocated[payment["id"]],
             voided=payment["voided_at"] is not None,
+            advance=AdvanceTag(
+                upcoming=sum(i.upcoming for i in parts[payment["id"]]),
+                of=len(parts[payment["id"]]),
+            )
+            if parts[payment["id"]]
+            else None,
         )
         for payment in payments
     ]

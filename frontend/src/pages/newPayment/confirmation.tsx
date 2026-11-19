@@ -46,6 +46,9 @@ export function paymentConfirmation(
             ...payment.allocations.map((a): [string, string] => [
               names.get(a.mortgage_id) ?? '',
               `${formatINR(a.amount)} cash${a.discount ? ` + ${formatINR(a.discount)} Discount` : ''}` +
+                (a.advance
+                  ? ` + ${formatINR(a.advance)} Advance over ${a.months} ${a.months === 1 ? 'month' : 'months'}`
+                  : '') +
                 (redeemed.some((p) => p.mortgage_id === a.mortgage_id) ? ' · Redeems it' : ''),
             ]),
           ]}

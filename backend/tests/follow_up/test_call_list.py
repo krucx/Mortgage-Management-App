@@ -91,6 +91,64 @@ def test_a_mortgage_accruing_today_is_listed_for_information(client, ramesh):
     assert listed(client) == [(mortgage["name"], ["accrues_today"])]
 
 
+def advance(client, owner, mortgage, held: int, on: str = "2026-03-25") -> None:
+    """A Payment on `on` holding an Advance of `held` for `mortgage`'s next Accrual
+    Date."""
+    response = client.post(
+        "/api/payments",
+        json={
+            "customer_id": owner["id"],
+            "paid_on": on,
+            "amount": held,
+            "method": "cash",
+            "allocations": [
+                {
+                    "mortgage_id": mortgage["id"],
+                    "amount": 0,
+                    "advance": held,
+                    "months": 1,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 201, response.text
+
+
+def test_a_mortgage_accruing_today_is_not_listed_when_an_advance_covers_it(
+    client, ramesh
+):
+    covered = lend(client, ramesh, "2026-03-20")
+    short = lend(client, ramesh, "2026-03-20", description="Gold ring")
+    advance(client, ramesh, covered, 3_000 * RUPEE)  # lands today
+    advance(client, ramesh, short, 2_000 * RUPEE)
+
+    assert listed(client) == [(short["name"], ["accrues_today"])]
+
+
+def test_a_part_cancelled_on_an_accrual_date_does_not_cover_it(client, ramesh):
+    mortgage = lend(client, ramesh, "2026-03-20")
+    advance(client, ramesh, mortgage, 3_000 * RUPEE, on="2026-04-20")  # lands 20 May
+    [part] = client.get(f"/api/mortgages/{mortgage['id']}").json()[
+        "advance_instalments"
+    ]
+
+    cancelled = client.post(
+        f"/api/mortgages/{mortgage['id']}/advance-instalments/{part['id']}/cancel"
+    )
+
+    # Applied today as an ordinary Allocation, like any Payment today.
+    assert cancelled.status_code == 200, cancelled.text
+    assert listed(client) == [(mortgage["name"], ["accrues_today"])]
+
+
+def test_an_advance_leaves_the_other_reasons_to_list(client, ramesh):
+    mortgage = lend(client, ramesh, "2025-12-20")  # Jan, Feb, Mar unpaid
+    advance(client, ramesh, mortgage, 3_000 * RUPEE)  # lands today
+
+    # It pays the oldest month, Jan, leaving Feb, Mar and Apr unpaid.
+    assert listed(client) == [(mortgage["name"], ["months_unpaid", "accrues_today"])]
+
+
 def test_closed_mortgages_are_not_listed(client, ramesh):
     mortgage = lend(client, ramesh, "2026-01-14")
     client.post(

@@ -32,6 +32,7 @@ test('Grace Payments are marked; a Voided one shows as Voided instead', async ()
     reference: null,
     mortgages: [{ id: 7, name: `2026GoldChain${id}` }],
     voided,
+    advance: null,
   })
   const items = [row(1, '2026-11-08', false), row(2, null, false), row(3, '2026-11-08', true)]
   showPage(

@@ -18,8 +18,11 @@ import {
   type AllocationMode,
   allocationAmounts,
   allocationProblems,
+  cashReceived,
+  DEFAULT_ADVANCE_MONTHS,
   discountCaps,
   owesSomething,
+  redeemedHere,
   suggestEqually,
 } from './allocation'
 import { useSelection } from './useSelection'
@@ -31,6 +34,7 @@ import {
   reduceDiscountConfirmation,
 } from './confirmation'
 import { DateReceivedField } from './DateReceivedField'
+import { AdvanceSchedules } from './AdvanceSchedules'
 
 /** The Payment form for a chosen Customer: the date, amount and method, which Mortgages
  *  to pay and how to allocate across them, then the Preview and Save. */
@@ -50,6 +54,8 @@ export function PaymentForm({
   const [amountText, setAmountText] = useState<Record<number, string>>({})
   const [discountText, setDiscountText] = useState<Record<number, string>>({})
   const [percentText, setPercentText] = useState<Record<number, string>>({})
+  const [advanceText, setAdvanceText] = useState<Record<number, string>>({})
+  const [monthsText, setMonthsText] = useState<Record<number, string>>({})
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const methods = usePaymentMethods()
   const [reference, setReference] = useState('')
@@ -71,10 +77,18 @@ export function PaymentForm({
   const payable = (mortgages ?? []).filter(owesSomething)
   const owingNothing = (mortgages ?? []).filter((m) => !owesSomething(m))
   const chosen = payable.filter((m) => selected.has(m.id))
-  const outstanding = chosen.map((m) => m.outstanding_total)
+  // What pays each in full: its Outstanding less the Advance held, as a Redemption counts it.
+  const outstanding = chosen.map((m) => m.outstanding_total - m.advance_held)
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
-  const total = rupeesToPaise(totalText)
   const discounts = chosen.map((m) => rupeesToPaise(discountText[m.id]))
+  const advances = chosen.map((m) => rupeesToPaise(advanceText[m.id]))
+  const advanceTotal = advances.reduce((a, b) => a + b, 0)
+  const months = chosen.map((m) => Number(monthsText[m.id] ?? DEFAULT_ADVANCE_MONTHS))
+  const total = cashReceived(mode, totalText, chosen, amountText, advanceTotal)
+  // What the Allocations pay now: Amount received less the Advances held.
+  const payNow = total - advanceTotal
+  // By amount, Amount received follows the Allocations (blank while there are none).
+  const shownTotalText = mode === 'amount' ? (total ? paiseToRupees(total) : '') : totalText
   const discountTotal = discounts.reduce((a, b) => a + b, 0)
 
   // Why they can't all be paid in full: the first chosen one that can't be Redeemed then
@@ -83,9 +97,21 @@ export function PaymentForm({
     ? undefined
     : chosen.find((m) => m.not_redeemable)?.not_redeemable
 
-  const draft = { mode, total, discountTotal, chosen, outstanding, amountText, percentText }
+  const draft = {
+    mode,
+    total: payNow,
+    advanceTotal,
+    discountTotal,
+    chosen,
+    outstanding,
+    discounts,
+    advances,
+    amountText,
+    percentText,
+  }
   const amounts = allocationAmounts(draft)
   const problems = allocationProblems(draft, amounts)
+  const redeemed = redeemedHere(draft, amounts)
   // What saving would send; previewed (and refused, if it would be) by the backend.
   const proposed: PaymentIn | null =
     problems.length || !amounts
@@ -98,8 +124,14 @@ export function PaymentForm({
           method,
           reference: reference.trim() || null,
           allocations: chosen
-            .map((m, i) => ({ mortgage_id: m.id, amount: amounts[i], discount: discounts[i] }))
-            .filter((allocation) => allocation.amount > 0 || allocation.discount > 0),
+            .map((m, i) => ({
+              mortgage_id: m.id,
+              amount: amounts[i],
+              discount: discounts[i],
+              advance: advances[i],
+              months: advances[i] > 0 ? months[i] : null,
+            }))
+            .filter((a) => a.amount > 0 || a.discount > 0 || a.advance > 0),
         }
 
   // When it was received: the date entered, unless dated earlier under the Grace Period.
@@ -125,15 +157,17 @@ export function PaymentForm({
   const names = new Map(chosen.map((m) => [m.id, m.name]))
   const dateRows = confirmationDateRows(paidOn, receivedOn, letOff)
 
-  /** Switching to a manual mode starts from the current equal Allocations. */
+  /** Switching to a manual mode starts from the current equal Allocations; switching from
+   *  by amount keeps Amount received at their sum. */
   function switchMode(next: AllocationMode) {
-    const equal = suggestEqually(total, outstanding)
+    setTotalText(shownTotalText)
+    const equal = suggestEqually(payNow, outstanding)
     if (next === 'amount' && equal)
       setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, paiseToRupees(equal[i])])))
-    if (next === 'percent' && total > 0 && equal)
+    if (next === 'percent' && payNow > 0 && equal)
       setPercentText(
         Object.fromEntries(
-          percentagesOf(equal, total).map((pct, i) => [chosen[i].id, String(pct)]),
+          percentagesOf(equal, payNow).map((pct, i) => [chosen[i].id, String(pct)]),
         ),
       )
     setMode(next)
@@ -142,8 +176,27 @@ export function PaymentForm({
   /** Each chosen Mortgage's whole Outstanding, by amount. */
   function fillOutstanding() {
     setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, paiseToRupees(outstanding[i])])))
-    setTotalText(paiseToRupees(totalOutstanding))
     setDiscountText(Object.fromEntries(chosen.map((m) => [m.id, ''])))
+    setAdvanceText({}) // paying everything now leaves nothing for an Advance to hold
+    setMode('amount')
+  }
+
+  /** An Advance typed adds to Amount received, leaving what is paid now as it was (by
+   *  amount, Amount received is their sum anyway). */
+  function changeAdvance(id: number, text: string) {
+    if (mode !== 'amount')
+      setTotalText(paiseToRupees(total + rupeesToPaise(text) - rupeesToPaise(advanceText[id])))
+    setAdvanceText({ ...advanceText, [id]: text })
+  }
+
+  /** Pay a Mortgage its unpaid interest now, by amount, the others keeping theirs. */
+  function payUnpaidInterest(id: number) {
+    if (!amounts) return
+    setAmountText(
+      Object.fromEntries(
+        chosen.map((m, i) => [m.id, paiseToRupees(m.id === id ? m.unpaid_interest : amounts[i])]),
+      ),
+    )
     setMode('amount')
   }
 
@@ -235,8 +288,12 @@ export function PaymentForm({
             names={names}
           />
           <AmountReceivedField
-            totalText={totalText}
-            onTotalText={setTotalText}
+            totalText={shownTotalText}
+            onTotalText={(text) => {
+              setTotalText(text)
+              // Typed by amount, the new total is split equally instead.
+              if (mode === 'amount') setMode('equal')
+            }}
             required={discountTotal === 0}
             fullOutstanding={chosen.length > 0 ? totalOutstanding : null}
             notRedeemable={notRedeemable}
@@ -259,6 +316,8 @@ export function PaymentForm({
           selected={selected}
           onToggle={toggle}
           amounts={amounts}
+          redeemed={redeemed}
+          onPayUnpaidInterest={payUnpaidInterest}
           paidOn={paidOn}
           receivedOn={receivedOn}
           received={received}
@@ -275,7 +334,12 @@ export function PaymentForm({
           onPercentText={setPercentText}
           discountText={discountText}
           onDiscountText={setDiscountText}
+          advanceText={advanceText}
+          onAdvance={changeAdvance}
+          monthsText={monthsText}
+          onMonthsText={setMonthsText}
         />
+        <AdvanceSchedules previews={preview.previews?.mortgages ?? []} names={names} />
 
         <label>
           Reference (optional)

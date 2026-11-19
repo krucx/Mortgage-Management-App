@@ -20,6 +20,13 @@ CARD_WIDTH = 24  # characters: fits a phone's WhatsApp monospace line
 RULE = "─"
 
 
+class ReceiptPart(BaseModel):
+    """One part of an Advance: what it will apply, and on what date (ADR 0021)."""
+
+    on: date
+    amount: int  # paise
+
+
 class ReceiptLine(BaseModel):
     """What a Payment did to one Mortgage."""
 
@@ -33,6 +40,8 @@ class ReceiptLine(BaseModel):
     owed_after: int  # Outstanding just after the Payment
     redeemed: bool = False  # the Allocation was its final Payment: jewellery returned
     let_off: int = 0  # paise: a Grace Payment's, as saved (ADR 0020)
+    # The Payment's Advance on it, part by part, as scheduled when it was received
+    advance_parts: Sequence[ReceiptPart] = ()
 
 
 class ReceiptMessage(BaseModel):
@@ -48,6 +57,17 @@ class ReceiptMessage(BaseModel):
     def total_owed(self) -> int:
         """What the Mortgages it paid still owe, between them."""
         return sum(line.owed_after for line in self.lines)
+
+
+class AdvanceAppliedMessage(BaseModel):
+    """An Advance Instalment the Lender cancelled: its amount, due `due_on`, applied on
+    `applied_on` instead, as `line` says."""
+
+    customer_name: str
+    received_on: date  # the Advance's
+    due_on: date
+    applied_on: date
+    line: ReceiptLine
 
 
 class ReminderLine(BaseModel):
@@ -142,7 +162,7 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
             (
                 f"{line.description} (Redeemed)" if line.redeemed else line.description,
                 [
-                    ("Paid", line.paid),
+                    ("Paid now" if line.advance_parts else "Paid", line.paid),
                     ("  Interest", line.interest_paid),
                     ("  Principal", line.principal_paid),
                     *(
@@ -155,6 +175,7 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
                         else []
                     ),
                     *([("Let off (Grace)", line.let_off)] if line.let_off else []),
+                    *_advance_rows(line.advance_parts),
                     ("Still owed", line.owed_after),
                 ],
             )
@@ -189,6 +210,48 @@ def receipt_text(template: str, receipt: ReceiptMessage) -> str:
             "mortgages": block,
             "total_owed": format_inr(receipt.total_owed),
         },
+    )
+
+
+def _advance_rows(parts: Sequence[ReceiptPart]) -> list[Row]:
+    if not parts:
+        return []
+    return [
+        ("Advance", sum(part.amount for part in parts)),
+        *((f"  On {_date(part.on)}", part.amount) for part in parts),
+    ]
+
+
+def advance_applied_text(applied: AdvanceAppliedMessage) -> str:
+    """The Receipt for a cancelled Advance Instalment: what its amount paid on the day
+    it was applied. Not from a template: the Lender's Receipt template says the money
+    was received that day."""
+    line = applied.line
+    block = _card_block(
+        [
+            (
+                line.description,
+                [
+                    ("Applied", line.paid),
+                    ("  Interest", line.interest_paid),
+                    ("  Principal", line.principal_paid),
+                    ("Still owed", line.owed_after),
+                ],
+            )
+        ],
+        [],
+    )
+    return (
+        "*Advance applied* ✅\n"
+        "\n"
+        f"Namaste {applied.customer_name},\n"
+        f"*{format_inr(line.paid)}* of your Advance received on "
+        f"{_date(applied.received_on)}, due on {_date(applied.due_on)}, "
+        f"was applied on {_date(applied.applied_on)}.\n"
+        "\n"
+        f"{block}\n"
+        "\n"
+        f"Total still owed: *{format_inr(line.owed_after)}*"
     )
 
 

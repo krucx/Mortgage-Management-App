@@ -48,6 +48,10 @@ export default function App() {
               <Route path="/payments/new" element={<NewPaymentPage />} />
               <Route path="/payments/:id" element={<PaymentPage />} />
               <Route path="/payments/:id/receipt" element={<ReceiptPage />} />
+              <Route
+                path="/payments/:id/advance-instalments/:instalment/receipt"
+                element={<ReceiptPage />}
+              />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/new" element={<CustomerFormPage />} />
               <Route path="/customers/:id" element={<CustomerPage />} />

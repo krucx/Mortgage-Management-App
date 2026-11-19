@@ -36,12 +36,18 @@ from mortgage_backend.lending.replay import (
     replays,
 )
 from mortgage_backend.lending.terms import Terms
+from mortgage_backend.payments.advances import (
+    AdvanceInstalmentOut,
+    advance_held,
+    advance_instalments,
+)
 from mortgage_backend.payments.grace_period import LedgerGrace, graces_of
 from mortgage_backend.payments.payments import PaymentMethod
 from mortgage_backend.people.customers import PersonSummary, phone_fragment
 from mortgage_backend.platform.clock import MonthQuery, TodayDep, month_span
 from mortgage_backend.platform.db import (
     EngineDep,
+    advance_instalment_table,
     customer_table,
     mortgage_photo_table,
     mortgage_table,
@@ -111,8 +117,15 @@ class MortgageRow(BaseModel):
     amount_lent: int
     status: MortgageStatus
     outstanding_total: int
+    # Of that Outstanding, what upcoming Advance Instalments hold: a Redemption pays the
+    # rest (ADR 0021)
+    advance_held: int
     # Why it can't be Redeemed (paid in full) on the date it is listed as of, if not
     not_redeemable: str | None
+    # On that date too, for New Payment's suggestions: its unpaid interest, never the
+    # Interest to Date, and the month's interest its next Accrual Date charges
+    unpaid_interest: int
+    month_interest: int
 
 
 class TermChangeOut(BaseModel):
@@ -151,6 +164,9 @@ class Mortgage(BaseModel):
     photos: list[MortgagePhoto]
     as_of: date
     ledger: list[LedgerStep]
+    # Applied ones are in the Ledger too; upcoming ones are after `as_of`
+    advance_instalments: list[AdvanceInstalmentOut]
+    advance_held: int  # what the upcoming ones will apply
     graces: list[
         LedgerGrace
     ]  # its Grace Payments, by `payment_id` of the Ledger's steps
@@ -177,10 +193,14 @@ def mortgage_rows(
             start_date=row["start_date"],
             amount_lent=row["amount_lent"],
             status=row["status"],
-            outstanding_total=replayed[row["id"]].outstanding(as_of).total,
-            not_redeemable=replayed[row["id"]].not_closable(as_of),
+            outstanding_total=mortgage.outstanding(as_of).total,
+            advance_held=mortgage.advance_held(as_of),
+            not_redeemable=mortgage.not_closable(as_of),
+            unpaid_interest=mortgage.unpaid_interest(as_of),
+            month_interest=mortgage.month_interest(as_of),
         )
         for row in rows
+        for mortgage in [replayed[row["id"]]]
     ]
 
 
@@ -212,6 +232,9 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
     )
     mortgage = replays(conn, [row])[mortgage_id]
     outstanding = mortgage.outstanding(today)
+    instalments = advance_instalments(
+        conn, today, advance_instalment_table.c.mortgage_id == mortgage_id
+    )
     active = row["status"] == MortgageStatus.ACTIVE
     return Mortgage(
         id=row["id"],
@@ -246,6 +269,8 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         photos=[MortgagePhoto(id=p.id, url=photo_url(p.file) or "") for p in photos],
         as_of=today,
         ledger=mortgage.ledger(today),
+        advance_instalments=instalments,
+        advance_held=advance_held(instalments),
         graces=graces_of(conn, mortgage_id),
         outstanding=outstanding,
         collateral=collateral_of(row, gold_rates(conn), outstanding.total),

@@ -28,6 +28,8 @@ const quote = {
   interest_to_date_days: 6,
   interest_to_date: 60_000,
   total: 2_240_000,
+  advance_held: 0,
+  to_pay: 2_240_000,
 }
 
 const noneDormant = {
@@ -65,6 +67,7 @@ async function waivePreview(request: Request) {
       before: side(null),
       after: side(closure(m.amount_paid)),
       ledger_changes: [],
+      advance_warnings: [],
     })),
   )
 }
@@ -104,6 +107,8 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   showPage(server, '/closures', { '/closures': <ClosuresPage /> })
 
   await waiveOff('22000')
+  // A Mortgage being Waived has no interest to come, so takes no Advance (ADR 0021).
+  expect(screen.queryByLabelText(/Advance/)).toBeNull()
   expect(screen.queryByText(/Ready to Redeem|waiting/i)).toBeNull()
   expect(server.requests.filter((r) => r.includes('ready-to-redeem'))).toEqual([])
   expect(
@@ -202,6 +207,7 @@ function forfeitRoutes(extra: Record<string, unknown>) {
           before: side(null),
           after: side(forfeited(m.recovered_amount)),
           ledger_changes: [],
+          advance_warnings: [],
         })),
       )
     },

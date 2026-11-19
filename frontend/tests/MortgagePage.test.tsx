@@ -248,10 +248,13 @@ const quote = {
   interest_to_date_days: 6,
   interest_to_date: 0,
   total: 5_075_000,
+  advance_held: 0,
+  to_pay: 5_075_000,
 }
 const closure = (fields: Record<string, unknown>) => ({
   on: '2026-04-20',
   outstanding: quote.total,
+  advance_held: 0,
   payment_id: null,
   payment_amount: null,
   waived_amount: null,
@@ -275,6 +278,7 @@ const closingPreview =
         before: side(null),
         after: side(made),
         ledger_changes: [],
+        advance_warnings: [],
       },
     ])
   }
@@ -318,6 +322,8 @@ test('waiving off shows what is let off, asks first, then shows the Waiver', asy
   fireEvent.change(await screen.findByLabelText(/Received now/), { target: { value: '50000' } })
   // What is let off comes from the Preview.
   expect(await screen.findByText('Waived off: ₹750', {}, { timeout: 2000 })).toBeTruthy()
+  // A Mortgage being Waived has no interest to come, so takes no Advance (ADR 0021).
+  expect(screen.queryByLabelText(/Advance/)).toBeNull()
   fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Small balance' } })
   const submit = await screen.findByRole('button', { name: 'Waive off ₹750' })
   await vi.waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false))
@@ -475,6 +481,53 @@ test('forfeiting shows the profit or loss from the Preview, then Forfeits it alo
   expect(body).toMatchObject({ mortgages: [{ mortgage_id: 7, recovered_amount: 4_000_000 }] })
 })
 
+test('the quote takes the Advance held off the Outstanding, and Redeems for the rest', async () => {
+  showMortgagePage(
+    fakeServer({
+      'GET /api/mortgages/7': mortgage,
+      'GET /api/mortgages/7/outstanding-on-closure': {
+        ...quote,
+        advance_held: 600_000,
+        to_pay: 4_475_000,
+      },
+      'POST /api/closures/redeem-preview': closingPreview(() =>
+        closure({ kind: 'redeemed', advance_held: 600_000, payment_amount: 4_475_000 }),
+      ),
+    }),
+  )
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Redeem…' }))
+
+  const held = (await screen.findByText('Advance held')).closest('div')!
+  expect(within(held).getByText('− ₹6,000')).toBeTruthy()
+  const toPay = screen.getByText('To pay').closest('div')!
+  expect(within(toPay).getByText('₹44,750')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Redeem for ₹44,750' })).toBeTruthy()
+})
+
+test('a Redeemed Mortgage says how much of it the Advance held paid', async () => {
+  const redeemed = {
+    ...mortgage,
+    status: 'redeemed' as const,
+    closure: closure({
+      kind: 'redeemed' as const,
+      advance_held: 600_000,
+      payment_id: 12,
+      payment_amount: 4_475_000,
+    }),
+  }
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': redeemed }))
+
+  expect(
+    await screen.findByText(
+      (_, el) =>
+        el?.textContent ===
+        'Redeemed on 20 Apr 2026, paying its Outstanding of ₹50,750, ₹6,000 of it from the ' +
+          'Advance held. Final Payment (receipt)',
+    ),
+  ).toBeTruthy()
+})
+
 test('a future date is quoted, but the backend refuses to record it', async () => {
   showMortgagePage(
     fakeServer({
@@ -529,4 +582,55 @@ test("a Grace Payment's Ledger row shows both dates and what this Mortgage was l
   const ordinary = screen.getByText('1 Oct 2026').closest('tr')!
   expect(within(ordinary).getByRole('link').getAttribute('href')).toBe('/payments/8')
   expect(within(ordinary).queryByText(/Grace|received|let off/)).toBeNull()
+})
+
+test('the Ledger shows applied Advance Instalments on their dates and upcoming ones last, in grey', async () => {
+  const step = {
+    on: '2026-10-10',
+    event: 'payment' as const,
+    amount: 75_000,
+    principal: 5_000_000,
+    unpaid_interest: 0,
+    charged_on: 0,
+    interest_to_date_days: 0,
+    paid_ahead: 0,
+    interest_paid: 75_000,
+    principal_paid: 0,
+    discount: 0,
+    discount_interest_paid: 0,
+    discount_principal_paid: 0,
+    payment_id: 4,
+    terms: null,
+    instalment_id: 21,
+  }
+  const instalment = (id: number, on: string, number: number, upcoming: boolean) => ({
+    id,
+    payment_id: 4,
+    on,
+    amount: 75_000,
+    received_on: '2026-09-20',
+    number,
+    of: 2,
+    upcoming,
+    cancelled_on: null,
+  })
+  showMortgagePage(
+    fakeServer({
+      'GET /api/mortgages/7': {
+        ...mortgage,
+        ledger: [step],
+        advance_instalments: [
+          instalment(21, '2026-10-10', 1, false),
+          instalment(22, '2026-11-10', 2, true),
+        ],
+      },
+    }),
+  )
+
+  const applied = (await screen.findByText(/^Advance Instalment 1 of 2:/)).closest('tr')!
+  expect(applied.className).toBe('ledger-payment')
+  const upcoming = screen.getByText('Advance Instalment 2 of 2').closest('tr')!
+  expect(upcoming.className).toBe('ledger-upcoming')
+  expect(within(upcoming).getByText('Upcoming')).toBeTruthy()
+  expect(upcoming.previousElementSibling).toBe(applied)
 })

@@ -139,7 +139,7 @@ What a Mortgage is paid as it is Redeemed or Waived: kept as its own part of the
 _Avoid_: Settlement, closing payment
 
 **Receipt**:
-The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), and for a Grace Payment the date it was received and what each Mortgage was let off, sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
+The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), for a Grace Payment the date it was received and what each Mortgage was let off, and each Advance part by part with its dates, sent on WhatsApp or printed (cancelling an Advance Instalment has a Receipt of its own, for what its amount paid that day); it names each Mortgage by its description, never its Mortgage Name.
 _Avoid_: Invoice, bill
 
 **Allocation**:
@@ -153,6 +153,10 @@ _Avoid_: Pseudo-payment, prepayment, future payment, credit
 **Advance Instalment**:
 One part of an Advance, applied as an Allocation on its Accrual Date and not before; until then it is upcoming, and the Lender may cancel it, which applies its amount at once as an ordinary Allocation.
 _Avoid_: Scheduled payment, EMI
+
+**Advance held**:
+What a Mortgage's upcoming Advance Instalments (neither applied nor cancelled) will apply; for a Customer, the total across their Mortgages. Never more than the Mortgage's Outstanding.
+_Avoid_: Credit, balance, prepaid
 
 **Discount**:
 A non-cash reduction to what a Customer owes on one Mortgage, recorded alongside that Mortgage's cash Allocation in a Payment. Cash is applied first; the Discount then pays unpaid interest, the Interest to Date, and Principal, in that order. It can contribute to Redeeming the Mortgage. Voiding the Payment, including when Reopen undoes a Redemption, reverses both the cash and Discount.
@@ -177,7 +181,7 @@ _Avoid_: Delete, reverse
 ## Follow-up
 
 **Reminder**:
-A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped. A Reminder that can still be sent includes only Mortgages that remain Active and accrue on that date; sent or skipped Reminders remain as history.
+A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped. A Reminder that can still be sent includes only Mortgages that remain Active and accrue on that date, leaving out any whose month an Advance Instalment landing that day fully covers; sent or skipped Reminders remain as history.
 _Avoid_: Notice, notification
 
 **Months Unpaid**:
@@ -185,7 +189,7 @@ How many of a Mortgage's latest monthly interest charges (never its Interest to 
 _Avoid_: Months overdue, arrears
 
 **Call List**:
-The day's Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today.
+The day's Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today (unless an Advance Instalment landing that day fully covers the month).
 _Avoid_: Due list, payments due
 
 **Call Note**:

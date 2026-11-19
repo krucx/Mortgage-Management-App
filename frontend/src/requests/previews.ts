@@ -51,6 +51,16 @@ export const previews = {
         }),
       ),
   }),
+  advanceInstalmentCancel: (id: number, instalmentId: number): PreviewRequest => ({
+    key: ['advance-instalment-cancel', id, instalmentId],
+    load: (client) =>
+      dataOrThrow(
+        client.POST(
+          '/api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel-preview',
+          { params: { path: { mortgage_id: id, instalment_id: instalmentId } } },
+        ),
+      ),
+  }),
   payment: (payment: PaymentIn): PreviewRequest => ({
     key: ['payment', payment],
     load: (client) => dataOrThrow(client.POST('/api/payments/preview', { body: payment })),

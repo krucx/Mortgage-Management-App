@@ -35,6 +35,7 @@ Action = Literal[
     "photo_removed",
     "term_change_added",
     "term_change_removed",
+    "advance_instalment_cancelled",
 ]
 
 

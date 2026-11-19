@@ -49,6 +49,14 @@ from mortgage_backend.lending.projections import (
 )
 from mortgage_backend.lending.replay import Closure, MortgageStatus, replay
 from mortgage_backend.lending.terms import Terms
+from mortgage_backend.payments.advances import (
+    AdvanceSchedule,
+    AdvanceWarning,
+    advance_schedules,
+    advance_warnings,
+    cancel_instalment,
+    upcoming_parts,
+)
 from mortgage_backend.payments.cash_limit import before_change, cash_sums
 from mortgage_backend.payments.discount_confirmation import (
     get_discount_confirmation_limit,
@@ -85,11 +93,16 @@ class MortgagePreview(BaseModel):
     before: PreviewSide
     after: PreviewSide
     ledger_changes: list[LedgerChange]
+    # Upcoming Advance Instalments that would reduce Principal after the change, or
+    # reduce it more (ADR 0021): a warning; it can still be saved
+    advance_warnings: list[AdvanceWarning] = []
     # Payment Preview only: room for a Discount after cash, and whether it is over
     # the confirmation threshold (a Discount larger than its room is capped, so the
     # Preview never refuses only for that).
     discount_room: int = 0
     over_threshold: bool = False
+    # Payment Preview only: its Advance on this Mortgage, if any, with every part in place
+    advance: AdvanceSchedule | None = None
 
 
 class PreviewOfChange(BaseModel):
@@ -104,9 +117,15 @@ class PreviewOfChange(BaseModel):
 _EVENT_ORDER: tuple[str, ...] = get_args(LedgerEvent)
 
 
-def _step_identity(step: LedgerStep) -> tuple[date, int, int]:
-    """Matches a step across two Ledgers: its date, kind and Payment."""
-    return (step.on, _EVENT_ORDER.index(step.event), step.payment_id or 0)
+def _step_identity(step: LedgerStep) -> tuple[date, int, int, int]:
+    """Matches a step across two Ledgers: its date, kind, Payment and, for an Advance
+    Instalment cancelled on the day its Payment was received, which part."""
+    return (
+        step.on,
+        _EVENT_ORDER.index(step.event),
+        step.payment_id or 0,
+        step.instalment_id or 0,
+    )
 
 
 def _ledger_changes(
@@ -131,6 +150,7 @@ class _Snapshot(NamedTuple):
     name: str
     ledger: list[LedgerStep]
     side: PreviewSide
+    upcoming_parts: dict[int, LedgerStep]
 
 
 def _snapshot(
@@ -152,6 +172,7 @@ def _snapshot(
                 term_changes=projection.term_changes if projection else [],
                 closure=mortgage.closure(),
             ),
+            upcoming_parts(mortgage, today),
         )
     return found
 
@@ -180,6 +201,9 @@ def _preview(
             after=after[mortgage_id].side,
             ledger_changes=_ledger_changes(
                 before[mortgage_id].ledger, after[mortgage_id].ledger
+            ),
+            advance_warnings=advance_warnings(
+                before[mortgage_id].upcoming_parts, after[mortgage_id].upcoming_parts
             ),
         )
         for mortgage_id in mortgage_ids
@@ -249,6 +273,26 @@ def preview_term_change_removal(
             [mortgage_id],
             today,
             lambda: remove_term_change(conn, mortgage_id, change_id, today, now),
+        )
+
+
+@router.post(
+    "/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel-preview"
+)
+def preview_instalment_cancel(
+    mortgage_id: int,
+    instalment_id: int,
+    engine: EngineDep,
+    today: TodayDep,
+    now: NowDep,
+) -> PreviewOfChange:
+    """The Mortgage before and after cancelling the Advance Instalment today."""
+    with engine.connect() as conn:
+        return _preview(
+            conn,
+            [mortgage_id],
+            today,
+            lambda: cancel_instalment(conn, mortgage_id, instalment_id, today, now),
         )
 
 
@@ -353,24 +397,32 @@ def preview_payment(
 ) -> PreviewOfChange:
     """Every Mortgage the Payment is allocated to, before and after recording it, with
     each Allocation's room for a Discount after its cash and whether it is over the
-    confirmation threshold."""
+    confirmation threshold, and each Advance part by part."""
     with engine.connect() as conn:
         rooms = discount_rooms(conn, payment)
         limit = get_discount_confirmation_limit(conn).discount_confirmation_limit
         discounts = {a.mortgage_id: a.discount for a in payment.allocations}
-        # A Discount larger than its room is capped here, so the Preview never refuses
-        # only for that: the room and threshold below are what matter to the page.
+        schedules: dict[int, AdvanceSchedule] = {}
+
+        def record() -> None:
+            # A Discount larger than its room is capped here, so the Preview never
+            # refuses only for that: the room and threshold below are what matter to
+            # the page.
+            payment_id = record_payment(conn, capped(payment, rooms), today, now)
+            schedules.update(advance_schedules(conn, payment_id))
+
         preview = _preview(
             conn,
             [allocation.mortgage_id for allocation in payment.allocations],
             today,
-            lambda: record_payment(conn, capped(payment, rooms), today, now),
+            record,
         )
         for mortgage_preview in preview.mortgages:
             mortgage_preview.discount_room = rooms[mortgage_preview.mortgage_id]
             mortgage_preview.over_threshold = (
                 limit is not None and discounts[mortgage_preview.mortgage_id] > limit
             )
+            mortgage_preview.advance = schedules.get(mortgage_preview.mortgage_id)
         return preview
 
 

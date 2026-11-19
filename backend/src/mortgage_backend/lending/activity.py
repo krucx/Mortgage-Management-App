@@ -37,8 +37,9 @@ def activity(
     for mortgage in replayed.values():
         if start <= mortgage.row["start_date"] <= end:
             lent += mortgage.row["amount_lent"]
-        for step in mortgage.steps_by_payment(end).values():
-            if start <= step.on:
+        # Advance Instalments count on the dates they are applied.
+        for step in mortgage.ledger(end):
+            if step.event == "payment" and start <= step.on:
                 redeemed += step.principal_paid
                 collected += step.interest_paid
     return ActivityTotals(

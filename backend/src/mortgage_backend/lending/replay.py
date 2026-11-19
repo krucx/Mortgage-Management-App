@@ -2,19 +2,21 @@
 
 Every Ledger and Outstanding is read through here, so the rules for what a replay
 includes live in one place: a Voided Payment is in no Ledger, a closed Mortgage accrues
-nothing after its Closure, a Forfeited Mortgage's debt is settled by its jewellery and a
-Waived one's is let off by the Lender, and the Outstanding on a Closure date leaves out
-the Closure's own final Payment.
+nothing after its Closure, an Advance Instalment is applied only once its date arrives
+(or at once, on the date it is cancelled), a Forfeited Mortgage's debt is settled by
+its jewellery and a Waived one's is let off by the Lender, and the Outstanding on a
+Closure date leaves out the Closure's own final Payment.
 """
 
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import date, timedelta
 from enum import StrEnum
 from typing import Literal
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.ledger import (
@@ -23,13 +25,16 @@ from mortgage_backend.lending.ledger import (
     LedgerStep,
     Projected,
     TermChange,
+    accrual_dates_after,
     compute_ledger,
     interest_to_date_days,
+    months_unpaid,
     project,
     terms_on,
 )
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.platform.db import (
+    advance_instalment_table,
     allocation_table,
     mortgage_table,
     payment_table,
@@ -63,13 +68,15 @@ class OutstandingOnClosure(BaseModel):
     interest_to_date_days: int  # of the month under way charged, `on` included
     interest_to_date: int  # per the Part-Month Rule, less what was paid ahead
     total: int  # the Outstanding on that Closure date
+    advance_held: int  # applied by the Closure, before any final Payment (ADR 0021)
+    to_pay: int  # what is left of the Outstanding after the Advance held
 
 
 def outstanding_on_closure_of(
-    ledger: Sequence[LedgerStep], start: date, on: date
+    ledger: Sequence[LedgerStep], start: date, on: date, advance_held: int = 0
 ) -> OutstandingOnClosure:
     """The Outstanding on `on` of a Ledger replayed as if closed then, with no final
-    Payment."""
+    Payment, and the Advance held then."""
     last = ledger[-1]
     to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
     charge = to_date.amount - to_date.paid_ahead if to_date else 0
@@ -82,6 +89,8 @@ def outstanding_on_closure_of(
         interest_to_date_days=days,
         interest_to_date=charge,
         total=last.principal + last.unpaid_interest,
+        advance_held=advance_held,
+        to_pay=last.principal + last.unpaid_interest - advance_held,
     )
 
 
@@ -91,13 +100,16 @@ class Closure(BaseModel):
     kind: Literal["redeemed", "waived", "forfeited"]
     on: date
     outstanding: int  # on the Closure date, before its final Payment
+    advance_held: int  # of that Outstanding: applied by the Closure (ADR 0021)
     interest_to_date: int  # of that Outstanding: the month under way, as yet unpaid
     interest_to_date_days: int  # days of that month, the Closure date included
     payment_id: int | None  # Redeemed or Waived: the final Payment, if any
     payment_amount: int | None  # what that final Payment paid on this Mortgage
     waived_amount: int | None  # Waived: what the Lender let off
     recovered_amount: int | None  # Forfeited: what the jewellery fetched (or is worth)
-    profit_loss: int | None  # Forfeited: recovered − Outstanding on the Closure date
+    # Forfeited: recovered − what the Outstanding on the Closure date left after the
+    # Advance held
+    profit_loss: int | None
     note: str | None
 
 
@@ -111,7 +123,8 @@ class MortgageReplay:
         term_changes: Sequence[TermChange],
     ) -> None:
         self.row = row
-        self.allocations = list(allocations)  # non-Voided, in no particular order
+        # Non-Voided, in no particular order; Advance Instalments too, each on its date
+        self.allocations = list(allocations)
         self.term_changes = list(term_changes)  # in date order
         self._terms = Terms(
             monthly_rate_bps=row["monthly_rate_bps"],
@@ -132,7 +145,7 @@ class MortgageReplay:
         if as_of not in self._ledgers:  # the facts never change, so neither does it
             self._ledgers[as_of] = self._replay(
                 as_of,
-                self.allocations,
+                self._applied(),
                 closed_on=self.row["closed_on"],
                 closure=None
                 if self.row["status"] == MortgageStatus.ACTIVE
@@ -141,26 +154,55 @@ class MortgageReplay:
             )
         return list(self._ledgers[as_of])
 
+    def _applied(self) -> list[Allocation]:
+        """Its Allocations as replayed: once closed, every Advance Instalment still
+        upcoming on the Closure date is applied on it instead (ADR 0021), so a Reopen
+        puts them back as upcoming."""
+        closed_on = self.row["closed_on"]
+        if closed_on is None:
+            return self.allocations
+        return [
+            replace(a, on=closed_on)
+            if a.instalment_id is not None and a.on > closed_on
+            else a
+            for a in self.allocations
+        ]
+
+    def instalments(self) -> list[Allocation]:
+        """Its Advance Instalments, applied or upcoming, by date."""
+        return sorted(
+            (a for a in self.allocations if a.instalment_id is not None),
+            key=lambda a: (a.on, a.instalment_id or 0),
+        )
+
     def steps_by_payment(self, up_to: date | None = None) -> dict[int, LedgerStep]:
-        """How each of its Payments was applied: the Ledger step it made, by Payment id,
-        for those up to `up_to` (every one, without it). A Voided Payment is in no
-        Ledger, so it is not here."""
+        """How each of its Payments was applied on its own date: the Ledger step it
+        made, by Payment id, for those up to `up_to` (every one, without it); never an
+        Advance Instalment's, so never replaying past the last Payment for one. A
+        Voided Payment is in no Ledger, so it is not here."""
+        paid = [a for a in self.allocations if a.instalment_id is None]
         if up_to is None:
-            if not self.allocations:
+            if not paid:
                 return {}
-            up_to = max(allocation.on for allocation in self.allocations)
+            up_to = max(allocation.on for allocation in paid)
         return {
             step.payment_id: step
             for step in self.ledger(up_to)
-            if step.payment_id is not None
+            if step.payment_id is not None and step.instalment_id is None
         }
 
-    def owed_after(self, payment_id: int, on: date) -> int:
-        """What it owed just after its Payment `payment_id` on `on`: Outstanding at the
-        end of that day, as if none of that day's later Payments (or a write-off) had
-        been made."""
+    def owed_after(
+        self, payment_id: int, on: date, instalment_id: int | None = None
+    ) -> int:
+        """What it owed just after its Payment `payment_id` (or that Payment's Advance
+        Instalment `instalment_id`) on `on`: Outstanding at the end of that day, as if
+        none of that day's later Payments (or a write-off) had been made."""
         ledger = self.ledger(on)
-        at = next(i for i, s in enumerate(ledger) if s.payment_id == payment_id)
+        at = next(
+            i
+            for i, s in enumerate(ledger)
+            if s.payment_id == payment_id and s.instalment_id == instalment_id
+        )
         later = sum(
             s.amount + s.discount
             for s in ledger[at + 1 :]
@@ -177,6 +219,24 @@ class MortgageReplay:
             total=last.principal + last.unpaid_interest,
         )
 
+    def unpaid_interest(self, on: date) -> int:
+        """The interest it has charged by `on` and not been paid, never the Interest to
+        Date: what a Payment that day pays first. Nothing once closed."""
+        if self.row["status"] != MortgageStatus.ACTIVE:
+            return 0
+        ledger = self.ledger(on)
+        to_date = next((s for s in ledger if s.event == "interest_to_date"), None)
+        charge = to_date.amount - to_date.paid_ahead if to_date else 0
+        return ledger[-1].unpaid_interest - charge
+
+    def month_interest(self, on: date) -> int:
+        """The month's interest its next Accrual Date after `on` charges, as projected.
+        Nothing once closed."""
+        if self.row["status"] != MortgageStatus.ACTIVE:
+            return 0
+        [next_on] = accrual_dates_after(self.row["start_date"], on, 1)
+        return self.projection([next_on]).snapshots[0].interest_charged
+
     def dormant(self, on: date) -> bool:
         """Active, yet owing nothing on `on`: its jewellery should already have gone
         back (see Dormant in Documentation/GLOSSARY.md, ADR 0012)."""
@@ -185,6 +245,15 @@ class MortgageReplay:
             and self.outstanding(on).total == 0
         )
 
+    def covered_by_advance(self, on: date) -> bool:
+        """Whether an Advance Instalment lands on `on` and leaves no month's interest
+        unpaid then, the month ending that day included (ADR 0021): follow-up need not
+        chase that month. A part that falls short leaves it unpaid; a cancelled one is
+        an ordinary Allocation and covers nothing."""
+        return any(
+            a.on == on and not a.cancelled for a in self.instalments()
+        ) and not months_unpaid(self.ledger(on))
+
     def not_closable(self, on: date) -> str | None:
         """Why it can't be closed on `on`, a date not in the future; None if it can."""
         row = self.row
@@ -192,7 +261,11 @@ class MortgageReplay:
             return f"{row['name']} is already {row['status']}"
         if on < row["start_date"]:
             return f"{row['name']} had not started on that date"
-        later = max((a.on for a in self.allocations if a.on > on), default=None)
+        # An upcoming Advance Instalment is no later Payment: a Closure deals with it.
+        later = max(
+            (a.on for a in self.allocations if a.on > on and a.instalment_id is None),
+            default=None,
+        )
         if later is not None:
             return (
                 f"There are Payments after that date (latest {later:%d %b %Y}); "
@@ -202,14 +275,33 @@ class MortgageReplay:
 
     def outstanding_on_closure(self, on: date) -> OutstandingOnClosure:
         """The Outstanding if closed on `on`, leaving out the Closure's own final
-        Payment."""
+        Payment and the Advance Instalments it would apply (still upcoming then)."""
         final_payment = self.row["redemption_payment_id"]
         ledger = self._replay(
             on,
             [a for a in self.allocations if a.payment_id != final_payment],
             closed_on=on,
         )
-        return outstanding_on_closure_of(ledger, self.row["start_date"], on)
+        return outstanding_on_closure_of(
+            ledger, self.row["start_date"], on, self._held(on)
+        )
+
+    def _held(self, on: date) -> int:
+        """What its Advance Instalments received by `on` and still upcoming then hold
+        (ADR 0021): a Closure that day applies them, before any final Payment."""
+        return sum(
+            a.amount
+            for a in self.instalments()
+            if a.on > on and not (a.received_on and a.received_on > on)
+        )
+
+    def advance_held(self, on: date) -> int:
+        """The Advance held on `on`: nothing once closed by then, its Closure having
+        applied every part still upcoming."""
+        closed_on = self.row["closed_on"]
+        if closed_on is not None and on >= closed_on:
+            return 0
+        return self._held(on)
 
     def closure(self) -> Closure | None:
         """How it was closed and what that came to; None while Active."""
@@ -225,6 +317,7 @@ class MortgageReplay:
             kind=row["status"],
             on=row["closed_on"],
             outstanding=outstanding,
+            advance_held=on_closure.advance_held,
             interest_to_date=on_closure.interest_to_date,
             interest_to_date_days=on_closure.interest_to_date_days,
             payment_id=final_payment_id,
@@ -238,7 +331,9 @@ class MortgageReplay:
             ),
             waived_amount=last.amount if last.event == "waived" else None,
             recovered_amount=row["recovered_amount"],
-            profit_loss=row["recovered_amount"] - outstanding if forfeited else None,
+            profit_loss=row["recovered_amount"] - on_closure.to_pay
+            if forfeited
+            else None,
             note=row["closure_note"],
         )
 
@@ -247,16 +342,24 @@ class MortgageReplay:
         dates: Sequence[date],
         hypothetical: HypotheticalPayments | None = None,
         paid_off_by: date | None = None,
+        upcoming_instalments: bool = True,
     ) -> Projected:
         """An Active Mortgage continued past its Payments in one replay: where it stands
         on each of `dates`, the Term Changes taking effect, and when the hypothetical
-        Payments would pay it off (looking as far as `paid_off_by`)."""
+        Payments would pay it off (looking as far as `paid_off_by`). Without
+        `upcoming_instalments`, the Advance Instalments after the first date are left
+        out, as further Payments."""
+        allocations = [
+            a
+            for a in self.allocations
+            if upcoming_instalments or a.instalment_id is None or a.on <= dates[0]
+        ]
         return project(
             self.row["start_date"],
             self.row["amount_lent"],
             self._terms,
             dates,
-            self.allocations,
+            allocations,
             self.term_changes,
             hypothetical,
             paid_off_by,
@@ -284,7 +387,7 @@ class MortgageReplay:
 
 
 def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageReplay]:
-    """A replay for each Mortgage row, loading all their facts in two queries."""
+    """A replay for each Mortgage row, loading all their facts in three queries."""
     ids = [row["id"] for row in rows]
     allocations: dict[int, list[Allocation]] = {id_: [] for id_ in ids}
     for allocation in conn.execute(
@@ -307,6 +410,32 @@ def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageR
                 amount=allocation.amount,
                 payment_id=allocation.payment_id,
                 discount=allocation.discount,
+            )
+        )
+    for instalment in conn.execute(
+        select(
+            advance_instalment_table,
+            func.coalesce(payment_table.c.received_on, payment_table.c.paid_on).label(
+                "received_on"
+            ),
+        )
+        .join(
+            payment_table, payment_table.c.id == advance_instalment_table.c.payment_id
+        )
+        .where(
+            advance_instalment_table.c.mortgage_id.in_(ids),
+            payment_table.c.voided_at.is_(None),
+        )
+    ).mappings():
+        allocations[instalment["mortgage_id"]].append(
+            Allocation(
+                # A cancelled one is applied at once, on the date it was cancelled.
+                on=instalment["cancelled_on"] or instalment["on"],
+                amount=instalment["amount"],
+                payment_id=instalment["payment_id"],
+                instalment_id=instalment["id"],
+                cancelled=instalment["cancelled_on"] is not None,
+                received_on=instalment["received_on"],
             )
         )
     changes: dict[int, list[TermChange]] = {id_: [] for id_ in ids}

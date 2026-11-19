@@ -12,7 +12,7 @@ from datetime import date, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import update
 from sqlalchemy.engine import Connection
 
@@ -58,6 +58,10 @@ class RedeemIn(BaseModel):
 
 
 class WaiveIn(BaseModel):
+    # A Waiver closes the Mortgage, so it has no interest to come for an Advance
+    # (ADR 0021): an `advance`, as any field it doesn't take, is refused.
+    model_config = ConfigDict(extra="forbid")
+
     waived_on: date
     amount_paid: int = Field(ge=0)  # paise: the final Payment; the rest is waived
     method: PaymentMethod  # how the final Payment was made, if any
@@ -81,6 +85,10 @@ class RedeemAllIn(BaseModel):
 
 
 class WaivedMortgageIn(BaseModel):
+    # A Waiver closes the Mortgage, so it has no interest to come for an Advance
+    # (ADR 0021): an `advance`, as any field it doesn't take, is refused.
+    model_config = ConfigDict(extra="forbid")
+
     mortgage_id: int
     amount_paid: int = Field(ge=0)  # paise: its final Payment; the rest is waived
 
@@ -192,10 +200,10 @@ def redeem(
     today: date,
     now: datetime,
 ) -> None:
-    """Record the final Payment of the Outstanding (unless nothing is owed) and mark
-    the Mortgage Redeemed (or refuse)."""
+    """Apply the Advance held, record the final Payment of the rest of the Outstanding
+    (unless nothing is left) and mark the Mortgage Redeemed (or refuse)."""
     mortgage = closable(conn, mortgage_id, redeem.redeemed_on, today)
-    owed = mortgage.outstanding_on_closure(redeem.redeemed_on).total
+    owed = mortgage.outstanding_on_closure(redeem.redeemed_on).to_pay
     close_redeemed(
         conn,
         mortgage,
@@ -251,10 +259,11 @@ def close_redeemed(
 def waive(
     conn: Connection, mortgage_id: int, waive: WaiveIn, today: date, now: datetime
 ) -> None:
-    """Record a final Payment of less than the Outstanding (or none), waive the
-    rest, and mark the Mortgage Waived: the jewellery goes back (or refuse)."""
+    """Apply the Advance held, record a final Payment of less than the rest of the
+    Outstanding (or none), waive what is left, and mark the Mortgage Waived: the
+    jewellery goes back (or refuse)."""
     mortgage = closable(conn, mortgage_id, waive.waived_on, today)
-    owed = mortgage.outstanding_on_closure(waive.waived_on).total
+    owed = mortgage.outstanding_on_closure(waive.waived_on).to_pay
     if owed == 0:
         raise unprocessable(
             f"{mortgage.row['name']} owes nothing then: Redeem it instead"
