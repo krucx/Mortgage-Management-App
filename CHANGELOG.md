@@ -32,7 +32,8 @@ Every release of Mortgage Management, newest first. The format follows
   × the month's interest its next Accrual Date charges, and a row with an Advance offers to
   pay its unpaid interest now, never the Interest to Date. By percentage, the percentages
   split Amount received less the Advances. A Mortgage the Payment pays in full, and so
-  Redeems, can't hold an Advance, and saving one is refused. On a phone each Mortgage row
+  Redeems, can't hold an Advance, and saving one is refused; a Waiver refuses an Advance
+  too. On a phone each Mortgage row
   is a card, with no sideways scrolling.
 - **Amount received and the Allocations stay in step on New Payment:** by amount, typing an
   Allocation sets Amount received to their sum, and typing Amount received switches to

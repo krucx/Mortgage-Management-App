@@ -552,3 +552,31 @@ def test_an_advance_on_a_mortgage_the_payment_redeems_is_refused(client, ramesh,
         assert response.status_code == 422, response.text
         assert chain["name"] in response.json()["detail"]
         assert "Redeems" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("preview", ["", "-preview"])
+def test_an_advance_on_a_mortgage_being_waived_is_refused(
+    client, ramesh, chain, preview
+):
+    # A Waiver closes the Mortgage, so it has no interest to come for an Advance.
+    advance = {"advance": 3_000 * RUPEE, "months": 1}
+    waive = {"waived_on": "2026-04-20", "method": "cash"}
+    single = client.post(
+        f"/api/mortgages/{chain['id']}/waive{preview}",
+        json={**waive, "amount_paid": 1_000 * RUPEE, **advance},
+    )
+    several = client.post(
+        f"/api/closures/waive{preview}",
+        json={
+            **waive,
+            "mortgages": [
+                {"mortgage_id": chain["id"], "amount_paid": 1_000 * RUPEE, **advance}
+            ],
+        },
+    )
+
+    for response in (single, several):
+        assert response.status_code == 422, response.text
+        assert "advance" in response.text
+    assert instalments(client, chain["id"]) == []
+    assert mortgage(client, chain["id"])["status"] == "active"

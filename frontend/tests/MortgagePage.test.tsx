@@ -319,6 +319,8 @@ test('waiving off shows what is let off, asks first, then shows the Waiver', asy
   fireEvent.change(await screen.findByLabelText(/Received now/), { target: { value: '50000' } })
   // What is let off comes from the Preview.
   expect(await screen.findByText('Waived off: ₹750', {}, { timeout: 2000 })).toBeTruthy()
+  // A Mortgage being Waived has no interest to come, so takes no Advance (ADR 0021).
+  expect(screen.queryByLabelText(/Advance/)).toBeNull()
   fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Small balance' } })
   const submit = await screen.findByRole('button', { name: 'Waive off ₹750' })
   await vi.waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false))

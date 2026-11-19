@@ -105,6 +105,8 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   showPage(server, '/closures', { '/closures': <ClosuresPage /> })
 
   await waiveOff('22000')
+  // A Mortgage being Waived has no interest to come, so takes no Advance (ADR 0021).
+  expect(screen.queryByLabelText(/Advance/)).toBeNull()
   expect(screen.queryByText(/Ready to Redeem|waiting/i)).toBeNull()
   expect(server.requests.filter((r) => r.includes('ready-to-redeem'))).toEqual([])
   expect(
