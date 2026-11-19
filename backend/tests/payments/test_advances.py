@@ -513,3 +513,17 @@ def test_a_payment_leaving_the_parts_holding_more_than_the_outstanding_is_refuse
     fits = draft(ramesh, {chain["id"]: (2_000 * RUPEE, 0, 1)})
     fits["allocations"][0]["discount"] = 1_000 * RUPEE
     record(client, fits)
+
+
+def test_a_back_dated_payment_is_held_to_the_parts_still_upcoming_today(
+    client, ramesh, chain, clock
+):
+    # ₹30,000 held from 14 May; by 20 Jun the 14 May and 14 Jun parts are applied.
+    record(client, draft(ramesh, {chain["id"]: (9_000 * RUPEE, 30_000 * RUPEE, 3)}))
+    clock.today = date(2026, 6, 20)
+
+    # Paying ₹74,000 dated 1 May leaves ₹29,000 owed then, less than the ₹30,000
+    # held; but the interest since has grown what is owed past the ₹10,000 still held.
+    record(
+        client, draft(ramesh, {chain["id"]: (74_000 * RUPEE, 0, 1)}, on="2026-05-01")
+    )

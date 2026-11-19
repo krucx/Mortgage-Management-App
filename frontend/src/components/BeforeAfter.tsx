@@ -182,7 +182,7 @@ function LedgerChanges({ changes }: { changes: LedgerChange[] }) {
   )
 }
 
-/** The upcoming Advance Instalments the change would have reduce Principal, by
+/** The upcoming Advance Instalments that would reduce Principal after the change, by
  *  Mortgage. A warning only: Replay sends what exceeds a month's interest to Principal. */
 function AdvanceWarnings({ previews }: { previews: MortgagePreview[] }) {
   const warned = previews.flatMap((preview) =>
@@ -192,8 +192,8 @@ function AdvanceWarnings({ previews }: { previews: MortgagePreview[] }) {
   return (
     <div className="status warning" role="status">
       <p>
-        {warned.length === 1 ? 'An upcoming Advance part' : 'Upcoming Advance parts'} would now
-        reduce Principal. You can still save.
+        {warned.length === 1 ? 'An upcoming Advance Instalment' : 'Upcoming Advance Instalments'}{' '}
+        would now reduce Principal. You can still save.
       </p>
       <ul>
         {warned.map((warning) => (

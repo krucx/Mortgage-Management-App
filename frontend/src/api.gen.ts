@@ -1527,8 +1527,8 @@ export interface components {
         };
         /**
          * AdvanceWarning
-         * @description An upcoming Advance Instalment that a change would have reduce Principal (or
-         *     reduce it more): Replay sends what exceeds its month's interest to Principal.
+         * @description An upcoming Advance Instalment that would reduce Principal after a change, or
+         *     reduce it more: Replay sends what exceeds its month's interest to Principal.
          */
         AdvanceWarning: {
             /** Amount */

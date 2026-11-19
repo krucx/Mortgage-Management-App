@@ -55,7 +55,7 @@ test('a new rate is previewed, then saved as a Term Change from the chosen Accru
   expect(saved).toEqual([previewed.at(-1)])
 })
 
-test('the Preview warns of each upcoming Advance part the change would have reduce Principal', async () => {
+test('the Preview warns of each upcoming Advance Instalment that would now reduce Principal', async () => {
   const server = fakeServer({
     'GET /api/mortgages/7': mortgage,
     'POST /api/mortgages/7/term-changes/preview': changePreview([
@@ -76,7 +76,7 @@ test('the Preview warns of each upcoming Advance part the change would have redu
 
   expect(
     await screen.findByText(
-      /Upcoming Advance parts would now reduce Principal/,
+      /Upcoming Advance Instalments would now reduce Principal/,
       {},
       { timeout: 2000 },
     ),

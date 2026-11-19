@@ -92,8 +92,8 @@ class MortgagePreview(BaseModel):
     before: PreviewSide
     after: PreviewSide
     ledger_changes: list[LedgerChange]
-    # Upcoming Advance Instalments the change would have reduce Principal (ADR 0021):
-    # a warning; it can still be saved
+    # Upcoming Advance Instalments that would reduce Principal after the change, or
+    # reduce it more (ADR 0021): a warning; it can still be saved
     advance_warnings: list[AdvanceWarning] = []
     # Payment Preview only: room for a Discount after cash, and whether it is over
     # the confirmation threshold (a Discount larger than its room is capped, so the

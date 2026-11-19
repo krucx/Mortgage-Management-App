@@ -71,13 +71,7 @@ def record_payment(
                 )
         check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
         for allocation in ordinary:
-            refuse_overheld(
-                conn,
-                allocation.mortgage_id,
-                received_on if allocation.advance else payment.paid_on,
-                allocation.amount + allocation.discount,
-                allocation.advance,
-            )
+            refuse_overheld(conn, allocation, received_on, today)
         record_payment_history(conn, first, paid, now)
     for allocation, mortgage in redeemed:
         with refusal_names_mortgage(conn, allocation.mortgage_id):
