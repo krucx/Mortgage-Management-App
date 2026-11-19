@@ -12,7 +12,11 @@ from pydantic import BaseModel
 from sqlalchemy import insert, select
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.lending.ledger import Allocation, LedgerStep, accrual_date
+from mortgage_backend.lending.ledger import (
+    Allocation,
+    LedgerStep,
+    accrual_dates_after,
+)
 from mortgage_backend.lending.replay import MortgageReplay, replay
 from mortgage_backend.payments.writes import AllocationIn
 from mortgage_backend.platform.db import advance_instalment_table
@@ -25,14 +29,6 @@ def split(advance: int, months: int) -> list[int]:
     taking the remainder, so they add up to the Advance."""
     part = advance // months
     return [part] * (months - 1) + [advance - part * (months - 1)]
-
-
-def landing_dates(start: date, received_on: date, months: int) -> list[date]:
-    """A Mortgage's next `months` Accrual Dates strictly after the date received."""
-    n = 1
-    while accrual_date(start, n) <= received_on:
-        n += 1
-    return [accrual_date(start, n + i) for i in range(months)]
 
 
 def write_advance(
@@ -54,7 +50,8 @@ def write_advance(
                 "amount": amount,
             }
             for on, amount in zip(
-                landing_dates(mortgage["start_date"], received_on, months),
+                # The Mortgage's next Accrual Dates strictly after the date received
+                accrual_dates_after(mortgage["start_date"], received_on, months),
                 split(advance, months),
                 strict=True,
             )

@@ -24,7 +24,7 @@ from mortgage_backend.lending.ledger import (
     LedgerStep,
     Projected,
     TermChange,
-    accrual_date,
+    accrual_dates_after,
     compute_ledger,
     interest_to_date_days,
     project,
@@ -205,10 +205,8 @@ class MortgageReplay:
         Nothing once closed."""
         if self.row["status"] != MortgageStatus.ACTIVE:
             return 0
-        start, n = self.row["start_date"], 1
-        while accrual_date(start, n) <= on:
-            n += 1
-        return self.projection([accrual_date(start, n)]).snapshots[0].interest_charged
+        [next_on] = accrual_dates_after(self.row["start_date"], on, 1)
+        return self.projection([next_on]).snapshots[0].interest_charged
 
     def dormant(self, on: date) -> bool:
         """Active, yet owing nothing on `on`: its jewellery should already have gone

@@ -220,12 +220,13 @@ def mortgage_rows(
             start_date=row["start_date"],
             amount_lent=row["amount_lent"],
             status=row["status"],
-            outstanding_total=replayed[row["id"]].outstanding(as_of).total,
-            not_redeemable=replayed[row["id"]].not_closable(as_of),
-            unpaid_interest=replayed[row["id"]].unpaid_interest(as_of),
-            month_interest=replayed[row["id"]].month_interest(as_of),
+            outstanding_total=mortgage.outstanding(as_of).total,
+            not_redeemable=mortgage.not_closable(as_of),
+            unpaid_interest=mortgage.unpaid_interest(as_of),
+            month_interest=mortgage.month_interest(as_of),
         )
         for row in rows
+        for mortgage in [replayed[row["id"]]]
     ]
 
 

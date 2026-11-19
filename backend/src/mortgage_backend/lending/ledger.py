@@ -119,6 +119,14 @@ def accrual_date(start: date, n: int) -> date:
     return date(year, month, min(start.day, calendar.monthrange(year, month)[1]))
 
 
+def accrual_dates_after(start: date, on: date, count: int) -> list[date]:
+    """The next `count` Accrual Dates strictly after `on`."""
+    n = 1
+    while accrual_date(start, n) <= on:
+        n += 1
+    return [accrual_date(start, n + i) for i in range(count)]
+
+
 def is_accrual_date(start: date, day: date) -> bool:
     months = (day.year - start.year) * 12 + day.month - start.month
     return months >= 1 and accrual_date(start, months) == day

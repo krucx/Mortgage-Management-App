@@ -265,7 +265,7 @@ export function AllocationFieldset({
                             <button
                               type="button"
                               className="link shortcut"
-                              title="Months × the interest its next Accrual Date charges"
+                              title="Months × the month's interest, as projected before this Payment"
                               onClick={() =>
                                 onAdvance(m.id, paiseToRupees(months * m.month_interest))
                               }
