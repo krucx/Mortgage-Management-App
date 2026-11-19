@@ -232,6 +232,7 @@ def test_the_mortgages_listed_show_the_advance_held_on_the_date_listed(
 
     clock.today = date(2026, 5, 14)
 
+    assert held("2026-04-01") == 0  # not yet received
     assert held("2026-04-20") == 9_000 * RUPEE
     assert held("2026-05-14") == 6_000 * RUPEE  # the 14 May part applied
 

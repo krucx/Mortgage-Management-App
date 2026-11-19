@@ -16,7 +16,7 @@ from typing import Literal
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.ledger import (
@@ -283,13 +283,25 @@ class MortgageReplay:
             closed_on=on,
         )
         return outstanding_on_closure_of(
-            ledger, self.row["start_date"], on, self.advance_held(on)
+            ledger, self.row["start_date"], on, self._held(on)
+        )
+
+    def _held(self, on: date) -> int:
+        """What its Advance Instalments received by `on` and still upcoming then hold
+        (ADR 0021): a Closure that day applies them, before any final Payment."""
+        return sum(
+            a.amount
+            for a in self.instalments()
+            if a.on > on and not (a.received_on and a.received_on > on)
         )
 
     def advance_held(self, on: date) -> int:
-        """What its Advance Instalments still upcoming on `on` hold (ADR 0021): a
-        Closure that day applies them, before any final Payment."""
-        return sum(a.amount for a in self.instalments() if a.on > on)
+        """The Advance held on `on`: nothing once closed by then, its Closure having
+        applied every part still upcoming."""
+        closed_on = self.row["closed_on"]
+        if closed_on is not None and on >= closed_on:
+            return 0
+        return self._held(on)
 
     def closure(self) -> Closure | None:
         """How it was closed and what that came to; None while Active."""
@@ -401,7 +413,12 @@ def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageR
             )
         )
     for instalment in conn.execute(
-        select(advance_instalment_table)
+        select(
+            advance_instalment_table,
+            func.coalesce(payment_table.c.received_on, payment_table.c.paid_on).label(
+                "received_on"
+            ),
+        )
         .join(
             payment_table, payment_table.c.id == advance_instalment_table.c.payment_id
         )
@@ -418,6 +435,7 @@ def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageR
                 payment_id=instalment["payment_id"],
                 instalment_id=instalment["id"],
                 cancelled=instalment["cancelled_on"] is not None,
+                received_on=instalment["received_on"],
             )
         )
     changes: dict[int, list[TermChange]] = {id_: [] for id_ in ids}

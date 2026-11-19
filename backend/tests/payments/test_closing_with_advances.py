@@ -183,6 +183,19 @@ def test_a_part_the_closure_cancelled_has_a_receipt_on_the_closure_date(
     )
 
 
+def test_a_closed_mortgage_is_listed_holding_nothing(client, ramesh, chain, advance):
+    redeem(client, chain["id"])
+
+    listed = ok(
+        client.get(
+            "/api/mortgages",
+            params={"customer_id": ramesh["id"], "status": "redeemed", "as_of": ON},
+        )
+    )
+
+    assert [row["advance_held"] for row in listed["items"]] == [0]
+
+
 def test_waiving_applies_the_upcoming_parts_then_waives_what_is_left(
     client, chain, advance
 ):

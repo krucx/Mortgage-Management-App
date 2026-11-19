@@ -36,6 +36,8 @@ class Allocation:
     instalment_id: int | None = None
     # A cancelled Advance Instalment's: applied at once, as an ordinary Allocation
     cancelled: bool = False
+    # An Advance Instalment's: when its Payment was received, from which it is held
+    received_on: date | None = None
 
 
 @dataclass(frozen=True)
