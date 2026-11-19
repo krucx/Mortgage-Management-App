@@ -26,6 +26,7 @@ export function PaymentPage() {
   // A Grace Payment's: dated before it was received (ADR 0020).
   const grace = payment.received_on !== null
   const letOff = payment.allocations.reduce((sum, a) => sum + (a.let_off ?? 0), 0)
+  const advanced = payment.allocations.some((a) => a.advance > 0)
 
   return (
     <section className="card wide">
@@ -84,6 +85,7 @@ export function PaymentPage() {
               <th className="num">Discount to interest</th>
               <th className="num">Discount to Principal</th>
               {grace && <th className="num">Let off</th>}
+              {advanced && <th className="num">Advance</th>}
             </tr>
           </thead>
           <tbody>
@@ -113,6 +115,7 @@ export function PaymentPage() {
                     : formatINR(allocation.discount_principal_paid)}
                 </td>
                 {grace && <td className="num">{formatINR(allocation.let_off ?? 0)}</td>}
+                {advanced && <td className="num">{formatINR(allocation.advance)}</td>}
               </tr>
             ))}
           </tbody>

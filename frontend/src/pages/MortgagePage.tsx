@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
-import type { LedgerGrace, LedgerStep, Mortgage } from '../api'
+import type { AdvanceInstalment, LedgerGrace, LedgerStep, Mortgage } from '../api'
 import { CallNotes } from '../components/CallNotes'
 import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
 import { CollateralPanel } from '../components/CollateralPanel'
@@ -255,9 +255,13 @@ export function MortgagePage() {
   )
 }
 
-/** Ledger steps as a table, oldest first. */
+/** Ledger steps as a table, oldest first, then an Active Mortgage's upcoming Advance
+ *  Instalments, in grey: not yet applied, so not yet in the Ledger. */
 function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortgage }) {
   const graces = new Map(mortgage.graces.map((grace) => [grace.payment_id, grace]))
+  const instalments = new Map(mortgage.advance_instalments.map((i) => [i.id, i]))
+  const upcoming =
+    mortgage.status === 'active' ? mortgage.advance_instalments.filter((i) => i.upcoming) : []
   return (
     <div className="table-scroll">
       <table>
@@ -277,7 +281,9 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
               <td>{dateOf(step, graces)}</td>
               <td>
                 {step.payment_id ? (
-                  <Link to={`/payments/${step.payment_id}`}>{describe(step, mortgage)}</Link>
+                  <Link to={`/payments/${step.payment_id}`}>
+                    {describe(step, mortgage, instalments.get(step.instalment_id ?? 0))}
+                  </Link>
                 ) : (
                   describe(step, mortgage)
                 )}
@@ -286,6 +292,19 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
               <td className="num">{step.event === 'payment' ? formatINR(step.discount) : '—'}</td>
               <td className="num">{formatINR(step.principal)}</td>
               <td className="num">{formatINR(step.unpaid_interest)}</td>
+            </tr>
+          ))}
+          {upcoming.map((instalment) => (
+            <tr key={`upcoming-${instalment.id}`} className="ledger-upcoming">
+              <td>{formatDate(instalment.on)}</td>
+              <td>
+                <Link to={`/payments/${instalment.payment_id}`}>{instalmentName(instalment)}</Link>{' '}
+                <span className="badge">Upcoming</span>
+              </td>
+              <td className="num">{formatINR(instalment.amount)}</td>
+              <td className="num">—</td>
+              <td className="num">—</td>
+              <td className="num">—</td>
             </tr>
           ))}
         </tbody>
@@ -297,7 +316,9 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
 /** A Ledger step's date; a Grace Payment's with the date it was received and what it
  *  let off on this Mortgage. */
 function dateOf(step: LedgerStep, graces: Map<number, LedgerGrace>): string {
-  const grace = step.payment_id == null ? undefined : graces.get(step.payment_id)
+  // An Advance Instalment is dated its Accrual Date, never its Payment's (ADR 0021).
+  const grace =
+    step.payment_id == null || step.instalment_id ? undefined : graces.get(step.payment_id)
   return grace ? formatGraceDate(step.on, grace.received_on, grace.let_off) : formatDate(step.on)
 }
 
@@ -306,8 +327,12 @@ function paidAhead(step: LedgerStep): string {
   return step.paid_ahead ? `, ${formatINR(step.paid_ahead)} of it paid ahead` : ''
 }
 
-/** The calculation behind a Ledger step, in words. */
-function describe(step: LedgerStep, mortgage: Mortgage): string {
+const instalmentName = (instalment: AdvanceInstalment) =>
+  `Advance Instalment ${instalment.number} of ${instalment.of}`
+
+/** The calculation behind a Ledger step, in words; `instalment` when the step is an
+ *  Advance Instalment's. */
+function describe(step: LedgerStep, mortgage: Mortgage, instalment?: AdvanceInstalment): string {
   switch (step.event) {
     case 'started':
       return 'Mortgage started: Principal lent'
@@ -318,7 +343,8 @@ function describe(step: LedgerStep, mortgage: Mortgage): string {
       )
     case 'payment':
       return (
-        `Payment: ${formatINR(step.interest_paid)} cash to interest, ` +
+        `${instalment ? instalmentName(instalment) : 'Payment'}: ` +
+        `${formatINR(step.interest_paid)} cash to interest, ` +
         `${formatINR(step.principal_paid)} cash to Principal` +
         (step.discount
           ? `; ${formatINR(step.discount_interest_paid)} Discount to interest, ` +

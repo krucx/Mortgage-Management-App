@@ -201,6 +201,20 @@ allocation_table = Table(
     Column("let_off", Integer),  # paise: a Grace Payment's, as saved (ADR 0020)
 )
 
+# One part of an Advance: applied as an Allocation of its Payment to the Mortgage on
+# `on`, an Accrual Date after the Payment was received, and not before (ADR 0021).
+advance_instalment_table = Table(
+    "advance_instalment",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("payment_id", Integer, ForeignKey("payment.id"), nullable=False, index=True),
+    Column(
+        "mortgage_id", Integer, ForeignKey("mortgage.id"), nullable=False, index=True
+    ),
+    Column("on", Date, nullable=False),
+    Column("amount", Integer, nullable=False),  # paise
+)
+
 # A message to a Customer ahead of an Accrual Date (see Documentation/GLOSSARY.md: Reminder).
 reminder_table = Table(
     "reminder",

@@ -33,8 +33,20 @@ from mortgage_backend.safekeeping import audit
 
 class AllocationIn(BaseModel):
     mortgage_id: int
-    amount: int = Field(ge=0)  # cash in paise
+    amount: int = Field(ge=0)  # cash in paise, paid now
     discount: int = Field(default=0, ge=0)  # paise; applied after cash
+    # Cash in paise held for the Mortgage's interest, split over its next `months`
+    # Accrual Dates after the date received (ADR 0021)
+    advance: int = Field(default=0, ge=0)
+    months: int | None = Field(default=None, ge=1, le=12)
+
+    @model_validator(mode="after")
+    def advance_has_months(self) -> "AllocationIn":
+        if self.advance and self.months is None:
+            raise ValueError("An Advance needs the months it is over")
+        if not self.advance:
+            self.months = None
+        return self
 
 
 class PaymentIn(BaseModel):
@@ -43,16 +55,16 @@ class PaymentIn(BaseModel):
     # A Grace Payment's: when it was received, `paid_on` being the day before the
     # Accrual Date it is within the Grace Period of
     received_on: date | None = None
-    amount: int = Field(ge=0)  # cash in paise
+    amount: int = Field(ge=0)  # cash in paise, every Advance included
     method: PaymentMethod
     reference: str | None = None
     allocations: list[AllocationIn] = Field(min_length=1)
 
     @model_validator(mode="after")
     def allocations_add_up(self) -> "PaymentIn":
-        if sum(allocation.amount for allocation in self.allocations) != self.amount:
+        if sum(a.amount + a.advance for a in self.allocations) != self.amount:
             raise ValueError("Allocations must add up to the Payment amount")
-        if not any(a.amount + a.discount for a in self.allocations):
+        if not any(a.amount + a.discount + a.advance for a in self.allocations):
             raise ValueError("A Payment must include cash or a Discount")
         if len({a.mortgage_id for a in self.allocations}) != len(self.allocations):
             raise ValueError("Each Mortgage can appear only once in a Payment")
@@ -99,7 +111,7 @@ def write_payment(
         [
             {
                 "payment_id": payment_id,
-                **a.model_dump(),
+                **a.model_dump(exclude={"advance", "months"}),
                 "let_off": grace.let_off[a.mortgage_id] if grace else None,
             }
             for a in payment.allocations

@@ -98,7 +98,9 @@ test('a Discount can be recorded without cash', async () => {
   await screen.findByRole('dialog')
 
   expect(asked?.amount).toBe(0)
-  expect(asked?.allocations).toEqual([{ mortgage_id: 7, amount: 0, discount: 5_150_000 }])
+  expect(asked?.allocations).toEqual([
+    { mortgage_id: 7, amount: 0, discount: 5_150_000, advance: 0, months: null },
+  ])
 })
 
 /** A fake Preview that computes `discount_room`/`over_threshold` itself from the
@@ -198,7 +200,9 @@ test('an over-balance Discount is reduced to the room the Preview reports, not O
   expect(within(regular).getByRole('heading', { name: /Record a Payment of/ })).toBeTruthy()
   fireEvent.click(within(regular).getByRole('button', { name: 'Confirm and save' }))
   await vi.waitFor(() =>
-    expect(saved?.allocations).toEqual([{ mortgage_id: 7, amount: 5_000_000, discount: 30_000 }]),
+    expect(saved?.allocations).toEqual([
+      { mortgage_id: 7, amount: 5_000_000, discount: 30_000, advance: 0, months: null },
+    ]),
   )
 })
 
@@ -716,4 +720,77 @@ test('each Mortgage shows its last Accrual Date, marked by whether the date rece
   await vi.waitFor(async () => expect((await accrual()).className).toBe('accrual past-grace'))
   expect(screen.queryByRole('button', { name: /^Date it/ })).toBeNull()
   expect((await accrual()).title).toBe('13 Oct is past the 2-day Grace Period after 10 Oct')
+})
+
+// --- Advances (ADR 0021): held for a Mortgage's next months, adding to Amount received.
+
+test('equally, an Advance adds to Amount received and leaves what is paid now as it was', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
+
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '10000' } })
+  fireEvent.change(screen.getByLabelText(`Advance for ${row.name}`), { target: { value: '9000' } })
+
+  expect(received()).toBe('19000')
+  expect(allocated(row)).toBe('₹5,000')
+  expect(allocated(ring)).toBe('₹5,000')
+})
+
+test('by amount, Amount received is the Allocations and the Advances together', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
+  fireEvent.change(await screen.findByLabelText(`Amount for ${row.name}`), {
+    target: { value: '1500' },
+  })
+  fireEvent.change(screen.getByLabelText(`Advance for ${ring.name}`), {
+    target: { value: '4500' },
+  })
+
+  expect(received()).toBe('6000')
+})
+
+test('an Advance is recorded with its months, and its schedule is shown from the Preview', async () => {
+  // Each ₹3,000 part pays the month's ₹750 and ₹2,250 of Principal.
+  const parts = ['2026-11-10', '2026-12-10', '2027-01-10'].map((on) => ({
+    on,
+    amount: 300_000,
+    interest: 75_000,
+    interest_paid: 75_000,
+    principal_paid: 225_000,
+    principal_after: 4_775_000,
+    unpaid_interest_after: 0,
+  }))
+  let asked: PaymentIn | undefined
+  const backend = server({
+    'POST /api/payments/preview': async (request: Request) => {
+      asked = (await request.json()) as PaymentIn
+      return changePreview([
+        {
+          mortgage_id: 7,
+          mortgage_name: row.name,
+          before: { outstanding: 0, points: [], term_changes: [], closure: null },
+          after: { outstanding: 0, points: [], term_changes: [], closure: null },
+          ledger_changes: [],
+          advance: { parts, verdict: 'reduces_principal' },
+        },
+      ])
+    },
+  })
+  showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.change(await screen.findByLabelText(`Advance for ${row.name}`), {
+    target: { value: '9000' },
+  })
+  fireEvent.change(screen.getByLabelText(`Months for ${row.name}`), { target: { value: '3' } })
+
+  const schedule = await screen.findByRole('region', { name: `Advance on ${row.name}` })
+  expect(within(schedule).getByText('10 Nov 2026')).toBeTruthy()
+  expect(
+    within(schedule).getByText(
+      '3 parts would reduce Principal by ₹6,750 in all. You can still save.',
+    ),
+  ).toBeTruthy()
+  expect(asked?.amount).toBe(900_000)
+  expect(asked?.allocations).toEqual([
+    { mortgage_id: 7, amount: 0, discount: 0, advance: 900_000, months: 3 },
+  ])
 })

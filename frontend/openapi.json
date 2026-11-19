@@ -1,8 +1,131 @@
 {
   "components": {
     "schemas": {
+      "AdvanceInstalmentOut": {
+        "description": "One part of an Advance (ADR 0021): the `number`th of its Advance's `of`.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "of": {
+            "title": "Of",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "payment_id": {
+            "title": "Payment Id",
+            "type": "integer"
+          },
+          "upcoming": {
+            "title": "Upcoming",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "payment_id",
+          "on",
+          "amount",
+          "number",
+          "of",
+          "upcoming"
+        ],
+        "title": "AdvanceInstalmentOut",
+        "type": "object"
+      },
+      "AdvancePart": {
+        "description": "An Advance Instalment as Replay applies it on its date.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "interest": {
+            "title": "Interest",
+            "type": "integer"
+          },
+          "interest_paid": {
+            "title": "Interest Paid",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "principal_after": {
+            "title": "Principal After",
+            "type": "integer"
+          },
+          "principal_paid": {
+            "title": "Principal Paid",
+            "type": "integer"
+          },
+          "unpaid_interest_after": {
+            "title": "Unpaid Interest After",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "amount",
+          "interest",
+          "interest_paid",
+          "principal_paid",
+          "principal_after",
+          "unpaid_interest_after"
+        ],
+        "title": "AdvancePart",
+        "type": "object"
+      },
+      "AdvanceSchedule": {
+        "description": "A Mortgage's Advance in a Payment, part by part, with every part in place.\n`reduces_principal`: a part pays Principal (a warning; it can still be saved);\n`falls_short`: some interest is still unpaid after a part; `exact`: neither.",
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/AdvancePart"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "verdict": {
+            "enum": [
+              "exact",
+              "falls_short",
+              "reduces_principal"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "parts",
+          "verdict"
+        ],
+        "title": "AdvanceSchedule",
+        "type": "object"
+      },
       "AllocationIn": {
         "properties": {
+          "advance": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Advance",
+            "type": "integer"
+          },
           "amount": {
             "minimum": 0.0,
             "title": "Amount",
@@ -13,6 +136,19 @@
             "minimum": 0.0,
             "title": "Discount",
             "type": "integer"
+          },
+          "months": {
+            "anyOf": [
+              {
+                "maximum": 12.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Months"
           },
           "mortgage_id": {
             "title": "Mortgage Id",
@@ -28,6 +164,10 @@
       },
       "AllocationOut": {
         "properties": {
+          "advance": {
+            "title": "Advance",
+            "type": "integer"
+          },
           "amount": {
             "title": "Amount",
             "type": "integer"
@@ -105,6 +245,7 @@
           "mortgage_name",
           "amount",
           "discount",
+          "advance",
           "let_off",
           "interest_paid",
           "principal_paid",
@@ -1909,6 +2050,17 @@
             "title": "Event",
             "type": "string"
           },
+          "instalment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instalment Id"
+          },
           "interest_paid": {
             "default": 0,
             "title": "Interest Paid",
@@ -2070,6 +2222,13 @@
       "Mortgage": {
         "description": "A Mortgage's own page, with its Ledger computed up to `as_of`.",
         "properties": {
+          "advance_instalments": {
+            "items": {
+              "$ref": "#/components/schemas/AdvanceInstalmentOut"
+            },
+            "title": "Advance Instalments",
+            "type": "array"
+          },
           "amount_lent": {
             "title": "Amount Lent",
             "type": "integer"
@@ -2216,6 +2375,7 @@
           "photos",
           "as_of",
           "ledger",
+          "advance_instalments",
           "graces",
           "outstanding",
           "collateral",
@@ -2452,6 +2612,16 @@
       },
       "MortgagePreview": {
         "properties": {
+          "advance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdvanceSchedule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "after": {
             "$ref": "#/components/schemas/PreviewSide"
           },
@@ -7353,7 +7523,7 @@
     },
     "/api/payments/preview": {
       "post": {
-        "description": "Every Mortgage the Payment is allocated to, before and after recording it, with\neach Allocation's room for a Discount after its cash and whether it is over the\nconfirmation threshold.",
+        "description": "Every Mortgage the Payment is allocated to, before and after recording it, with\neach Allocation's room for a Discount after its cash and whether it is over the\nconfirmation threshold, and each Advance part by part.",
         "operationId": "preview_payment_api_payments_preview_post",
         "requestBody": {
           "content": {

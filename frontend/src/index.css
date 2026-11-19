@@ -403,6 +403,23 @@ legend {
   font-weight: 400;
 }
 
+.status.ok {
+  color: var(--ok);
+  font-weight: 400;
+}
+
+/* An Advance Instalment that would pay Principal: a warning the Lender may accept. */
+tr.warn td {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+/* An Advance Instalment not yet applied, after the Ledger's last step. */
+tr.ledger-upcoming td {
+  color: var(--muted);
+  font-style: italic;
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+}
+
 ul.plain {
   list-style: none;
   margin: 0;

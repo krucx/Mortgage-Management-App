@@ -17,6 +17,7 @@ from mortgage_backend.people.customers import PersonSummary
 from mortgage_backend.platform.clock import MonthQuery, month_span
 from mortgage_backend.platform.db import (
     EngineDep,
+    advance_instalment_table,
     allocation_table,
     customer_table,
     mortgage_table,
@@ -47,8 +48,9 @@ class PaymentMethodName(BaseModel):
 class AllocationOut(BaseModel):
     mortgage_id: int
     mortgage_name: str
-    amount: int
+    amount: int  # cash paid now
     discount: int
+    advance: int  # cash held as Advance Instalments (ADR 0021)
     let_off: int | None  # a Grace Payment's, as saved (ADR 0020)
     # How it was applied: interest first, then Principal (None once Voided)
     interest_paid: int | None
@@ -116,8 +118,16 @@ class PaymentPage(Page[PaymentRow]):
 
 
 def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
-    """The Mortgages a Payment is allocated to (with the amount, as `allocated`), in the
-    order the Allocations were made."""
+    """The Mortgages a Payment is allocated to (with the amount, as `allocated`, and
+    any Advance), in the order the Allocations were made."""
+    advance = (
+        select(func.coalesce(func.sum(advance_instalment_table.c.amount), 0))
+        .where(
+            advance_instalment_table.c.payment_id == payment_id,
+            advance_instalment_table.c.mortgage_id == mortgage_table.c.id,
+        )
+        .scalar_subquery()
+    )
     return (
         conn.execute(
             select(
@@ -125,6 +135,7 @@ def mortgages_of(conn: Connection, payment_id: int) -> Sequence[RowMapping]:
                 allocation_table.c.amount.label("allocated"),
                 allocation_table.c.discount,
                 allocation_table.c.let_off,
+                advance.label("advance"),
             )
             .join(
                 allocation_table, allocation_table.c.mortgage_id == mortgage_table.c.id
@@ -162,6 +173,7 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
                 mortgage_name=mortgage["name"],
                 amount=mortgage["allocated"],
                 discount=mortgage["discount"],
+                advance=mortgage["advance"],
                 let_off=mortgage["let_off"],
                 interest_paid=step.interest_paid if step else None,
                 principal_paid=step.principal_paid if step else None,

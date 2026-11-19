@@ -32,6 +32,8 @@ class Allocation:
     amount: int  # paise
     payment_id: int
     discount: int = 0  # paise, applied after cash
+    # An Advance Instalment's: dated its Accrual Date, not its Payment's (ADR 0021)
+    instalment_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,7 @@ class LedgerStep:
     discount_principal_paid: int = 0
     payment_id: int | None = None  # None for a hypothetical Payment in a Projection
     terms: Terms | None = None  # term_changed steps: the Terms from then on
+    instalment_id: int | None = None  # payment steps: an Advance Instalment's
 
 
 @dataclass(frozen=True)
@@ -193,7 +196,7 @@ class _Run:
         self.steps = [LedgerStep(start, "started", amount_lent, amount_lent, 0)]
         self.pending = sorted(
             (a for a in allocations if a.on <= until),
-            key=lambda a: (a.on, a.payment_id),
+            key=lambda a: (a.on, a.payment_id, a.instalment_id or 0),
         )
         self.month_start_principal = amount_lent
         self.paid_ahead = 0  # of the month under way's interest, by Payments in it
@@ -244,7 +247,12 @@ class _Run:
         return to_unpaid, ahead, to_principal
 
     def pay(
-        self, on: date, amount: int, payment_id: int | None, discount: int = 0
+        self,
+        on: date,
+        amount: int,
+        payment_id: int | None,
+        discount: int = 0,
+        instalment_id: int | None = None,
     ) -> None:
         """Apply the cash Allocation, then the Discount (ADR 0014)."""
         to_unpaid, ahead, to_principal = self.apply_amount(on, amount)
@@ -265,6 +273,7 @@ class _Run:
                 discount_interest_paid=discount_unpaid + discount_ahead,
                 discount_principal_paid=discount_principal,
                 payment_id=payment_id,
+                instalment_id=instalment_id,
             )
         )
         if not self.owed() and self.paid_off_on is None:
@@ -283,6 +292,7 @@ class _Run:
                 allocation.amount,
                 allocation.payment_id,
                 allocation.discount,
+                allocation.instalment_id,
             )
 
     def accrue_through(self, day: date) -> None:

@@ -3,14 +3,15 @@ import type { GraceOffer, MortgageRow } from '../../api'
 import { dayBefore, formatDate, formatDayMonth } from '../../format'
 import { formatINR } from '../../money'
 import { tickedFirst } from '../../sort'
-import type { AllocationMode } from './allocation'
+import { type AllocationMode, DEFAULT_ADVANCE_MONTHS, MAX_ADVANCE_MONTHS } from './allocation'
 import { accrualOf } from './accrual'
 import { AccrualDate } from './GraceTip'
 
 type Texts = Record<number, string>
 
 /** The Mortgages to pay and how the Payment is allocated across them: pick the ticked
- *  ones, the mode, and per Mortgage the amount, percentage and Discount. */
+ *  ones, the mode, and per Mortgage the amount, percentage, Discount, and any Advance
+ *  with the months it is over. */
 export function AllocationFieldset({
   mode,
   onSwitchMode,
@@ -34,6 +35,10 @@ export function AllocationFieldset({
   onPercentText,
   discountText,
   onDiscountText,
+  advanceText,
+  onAdvance,
+  monthsText,
+  onMonthsText,
 }: {
   mode: AllocationMode
   onSwitchMode: (mode: AllocationMode) => void
@@ -58,6 +63,10 @@ export function AllocationFieldset({
   onPercentText: (text: Texts) => void
   discountText: Texts
   onDiscountText: (text: Texts) => void
+  advanceText: Texts
+  onAdvance: (mortgageId: number, text: string) => void
+  monthsText: Texts
+  onMonthsText: (text: Texts) => void
 }) {
   return (
     <fieldset>
@@ -100,6 +109,8 @@ export function AllocationFieldset({
                 {mode === 'percent' && <th className="num">%</th>}
                 <th className="num">Allocation</th>
                 <th className="num">Discount</th>
+                <th className="num">Advance</th>
+                <th>Months</th>
               </tr>
             </thead>
             <tbody>
@@ -209,6 +220,40 @@ export function AllocationFieldset({
                         />
                       )}
                     </td>
+                    <td className="num">
+                      {index < 0 ? (
+                        '—'
+                      ) : (
+                        <input
+                          type="number"
+                          className="small-input"
+                          aria-label={`Advance for ${m.name}`}
+                          min="0"
+                          step="0.01"
+                          value={advanceText[m.id] ?? ''}
+                          onChange={(event) => onAdvance(m.id, event.target.value)}
+                        />
+                      )}
+                    </td>
+                    <td>
+                      {index < 0 ? (
+                        '—'
+                      ) : (
+                        <select
+                          aria-label={`Months for ${m.name}`}
+                          value={monthsText[m.id] ?? String(DEFAULT_ADVANCE_MONTHS)}
+                          onChange={(event) =>
+                            onMonthsText({ ...monthsText, [m.id]: event.target.value })
+                          }
+                        >
+                          {Array.from({ length: MAX_ADVANCE_MONTHS }, (_, i) => (
+                            <option key={i + 1} value={i + 1}>
+                              {i + 1}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
@@ -218,7 +263,9 @@ export function AllocationFieldset({
       )}
       <p className="hint">
         Within each Mortgage the Allocation pays unpaid interest first, then the Interest to Date,
-        then Principal. Its Discount applies after the cash Allocation in the same order.
+        then Principal. Its Discount applies after the cash Allocation in the same order. An Advance
+        is held for the Mortgage's interest: split equally over its next Accrual Dates after the
+        date received, each part is applied only once its date arrives.
         {graceDays !== null &&
           ` An Accrual Date in yellow has the date received within the ${graceDays}-day Grace Period after it, and its Mortgage, if ticked, a button to date the Payment the day before; in gray, past it.`}
       </p>
