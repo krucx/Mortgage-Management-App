@@ -117,6 +117,9 @@ class MortgageRow(BaseModel):
     amount_lent: int
     status: MortgageStatus
     outstanding_total: int
+    # Of that Outstanding, what upcoming Advance Instalments hold: a Redemption pays the
+    # rest (ADR 0021)
+    advance_held: int
     # Why it can't be Redeemed (paid in full) on the date it is listed as of, if not
     not_redeemable: str | None
     # On that date too, for New Payment's suggestions: its unpaid interest, never the
@@ -191,6 +194,7 @@ def mortgage_rows(
             amount_lent=row["amount_lent"],
             status=row["status"],
             outstanding_total=mortgage.outstanding(as_of).total,
+            advance_held=mortgage.advance_held(as_of),
             not_redeemable=mortgage.not_closable(as_of),
             unpaid_interest=mortgage.unpaid_interest(as_of),
             month_interest=mortgage.month_interest(as_of),

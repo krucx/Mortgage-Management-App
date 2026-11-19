@@ -248,10 +248,11 @@ class MortgageReplay:
     def covered_by_advance(self, on: date) -> bool:
         """Whether an Advance Instalment lands on `on` and leaves no month's interest
         unpaid then, the month ending that day included (ADR 0021): follow-up need not
-        chase that month. A part that falls short leaves it unpaid."""
-        return any(a.on == on for a in self.instalments()) and not months_unpaid(
-            self.ledger(on)
-        )
+        chase that month. A part that falls short leaves it unpaid; a cancelled one is
+        an ordinary Allocation and covers nothing."""
+        return any(
+            a.on == on and not a.cancelled for a in self.instalments()
+        ) and not months_unpaid(self.ledger(on))
 
     def not_closable(self, on: date) -> str | None:
         """Why it can't be closed on `on`, a date not in the future; None if it can."""
@@ -281,8 +282,14 @@ class MortgageReplay:
             [a for a in self.allocations if a.payment_id != final_payment],
             closed_on=on,
         )
-        held = sum(a.amount for a in self.instalments() if a.on > on)
-        return outstanding_on_closure_of(ledger, self.row["start_date"], on, held)
+        return outstanding_on_closure_of(
+            ledger, self.row["start_date"], on, self.advance_held(on)
+        )
+
+    def advance_held(self, on: date) -> int:
+        """What its Advance Instalments still upcoming on `on` hold (ADR 0021): a
+        Closure that day applies them, before any final Payment."""
+        return sum(a.amount for a in self.instalments() if a.on > on)
 
     def closure(self) -> Closure | None:
         """How it was closed and what that came to; None while Active."""
@@ -410,6 +417,7 @@ def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageR
                 amount=instalment["amount"],
                 payment_id=instalment["payment_id"],
                 instalment_id=instalment["id"],
+                cancelled=instalment["cancelled_on"] is not None,
             )
         )
     changes: dict[int, list[TermChange]] = {id_: [] for id_ in ids}

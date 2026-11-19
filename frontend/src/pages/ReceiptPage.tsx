@@ -114,7 +114,9 @@ export function ReceiptPage() {
           <tfoot>
             <tr>
               <th scope="row">Total</th>
-              <td className="num">{formatINR(receipt.amount)}</td>
+              <td className="num">
+                {formatINR(receipt.lines.reduce((total, line) => total + line.paid, 0))}
+              </td>
               <td />
               <td />
               <td className="num">

@@ -22,12 +22,14 @@ from mortgage_backend.follow_up.messages import (
     receipt_text,
 )
 from mortgage_backend.lending.replay import mortgage_row, replay, replays
+from mortgage_backend.payments.advances import when_cancelled
 from mortgage_backend.payments.payments import METHOD_NAMES, PaymentMethod, mortgages_of
 from mortgage_backend.people.customers import PersonSummary, phones_of
 from mortgage_backend.platform.db import (
     EngineDep,
     advance_instalment_table,
     customer_table,
+    mortgage_table,
     payment_table,
 )
 
@@ -193,22 +195,26 @@ def load_advance_receipt(
     payment = _payment(conn, payment_id)
     instalment = (
         conn.execute(
-            select(advance_instalment_table).where(
+            select(advance_instalment_table, mortgage_table.c.closed_on)
+            .join(
+                mortgage_table,
+                mortgage_table.c.id == advance_instalment_table.c.mortgage_id,
+            )
+            .where(
                 advance_instalment_table.c.id == instalment_id,
                 advance_instalment_table.c.payment_id == payment_id,
-                advance_instalment_table.c.cancelled_on.is_not(None),
             )
         )
         .mappings()
         .first()
     )
-    if instalment is None:
+    applied_on = None if instalment is None else when_cancelled(instalment)
+    if instalment is None or applied_on is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, "No cancelled Advance Instalment of this Payment"
         )
     row = mortgage_row(conn, instalment["mortgage_id"])
     mortgage = replay(conn, row["id"])
-    applied_on = instalment["cancelled_on"]
     [step] = [
         s for s in mortgage.ledger(applied_on) if s.instalment_id == instalment_id
     ]

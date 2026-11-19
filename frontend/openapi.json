@@ -2894,6 +2894,10 @@
       "MortgageRow": {
         "description": "A Mortgage as listed in tables.",
         "properties": {
+          "advance_held": {
+            "title": "Advance Held",
+            "type": "integer"
+          },
           "amount_lent": {
             "title": "Amount Lent",
             "type": "integer"
@@ -2949,6 +2953,7 @@
           "amount_lent",
           "status",
           "outstanding_total",
+          "advance_held",
           "not_redeemable",
           "unpaid_interest",
           "month_interest"

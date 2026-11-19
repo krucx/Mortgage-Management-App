@@ -77,7 +77,8 @@ export function PaymentForm({
   const payable = (mortgages ?? []).filter(owesSomething)
   const owingNothing = (mortgages ?? []).filter((m) => !owesSomething(m))
   const chosen = payable.filter((m) => selected.has(m.id))
-  const outstanding = chosen.map((m) => m.outstanding_total)
+  // What pays each in full: its Outstanding less the Advance held, as a Redemption counts it.
+  const outstanding = chosen.map((m) => m.outstanding_total - m.advance_held)
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
   const discounts = chosen.map((m) => rupeesToPaise(discountText[m.id]))
   const advances = chosen.map((m) => rupeesToPaise(advanceText[m.id]))

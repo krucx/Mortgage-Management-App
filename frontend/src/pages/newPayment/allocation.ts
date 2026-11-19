@@ -43,8 +43,9 @@ export function cashReceived(
 }
 
 /** What the form has entered: the cash to pay now (Amount received less the Advances),
- *  the Advance and Discount totals, and the chosen Mortgages with what each owes, its
- *  Discount and Advance, and the amounts or percentages typed against them. */
+ *  the Advance and Discount totals, and the chosen Mortgages with what pays each in full
+ *  (its Outstanding less the Advance held), its Discount and Advance, and the amounts or
+ *  percentages typed against them. */
 interface Draft {
   mode: AllocationMode
   total: number

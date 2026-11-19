@@ -72,6 +72,12 @@ def _upcoming(mortgage: MortgageReplay, on: date) -> list[Allocation]:
     return [i for i in mortgage.instalments() if i.on > on]
 
 
+def _over(mortgage: MortgageReplay, on: date) -> tuple[list[Allocation], int, int]:
+    """Its Advance Instalments upcoming on `on`, what they hold, and what it owes then."""
+    upcoming = _upcoming(mortgage, on)
+    return upcoming, sum(i.amount for i in upcoming), mortgage.outstanding(on).total
+
+
 def refuse_overheld(
     conn: Connection,
     mortgage_id: int,
@@ -82,24 +88,32 @@ def refuse_overheld(
 ) -> None:
     """Refuse a Payment, now written, that leaves an Allocation's Mortgage with
     upcoming Advance Instalments holding more than it owes: a Closure could then
-    overpay it. Its own Advance is checked on the date received; any other Payment or
-    Discount against the parts still upcoming today, which are the ones the Lender can
-    cancel. Names the most that fits, and the latest parts to cancel first. `advance`
-    is the Allocation's Advance; `taking` is its cash and Discount."""
-    on = received_on if advance else today
+    overpay it. Its own Advance is checked on the date received and, if received
+    earlier, today too, a later Payment having lowered what it owes; any other Payment
+    or Discount against the parts still upcoming today, which are the ones the Lender
+    can cancel. Names the most that fits, and the latest parts to cancel first.
+    `advance` is the Allocation's Advance; `taking` is its cash and Discount."""
     mortgage = replay(conn, mortgage_id)
-    owed = mortgage.outstanding(on).total
-    upcoming = _upcoming(mortgage, on)
-    held = sum(i.amount for i in upcoming)
+    name = mortgage.row["name"]
+    if advance:
+        _, held, owed = _over(mortgage, received_on)
+        excess = held - owed
+        if excess > 0:
+            raise unprocessable(
+                f"{name}: an Advance of {format_inr(advance)} would hold more "
+                f"than the {format_inr(owed)} it owes on {received_on:%d %b %Y}; at "
+                f"most {format_inr(max(0, advance - excess))} fits"
+            )
+    upcoming, held, owed = _over(mortgage, today)
     excess = held - owed
     if excess <= 0:
         return
-    name = mortgage.row["name"]
     if advance:
         raise unprocessable(
-            f"{name}: an Advance of {format_inr(advance)} would hold more "
-            f"than the {format_inr(owed)} it owes on {on:%d %b %Y}; at most "
-            f"{format_inr(max(0, advance - excess))} fits"
+            f"{name}: with an Advance of {format_inr(advance)}, its Advance "
+            f"Instalments still upcoming would hold {format_inr(held)}, more than the "
+            f"{format_inr(owed)} it owes today, {today:%d %b %Y}. Record a smaller "
+            f"Advance, or cancel upcoming parts first"
         )
     # Cancelling a part applies it at once, so the latest parts covering the excess
     # can pay that much of this Payment instead.
@@ -111,7 +125,7 @@ def refuse_overheld(
     raise unprocessable(
         f"{name}: this would leave its upcoming Advance Instalments holding "
         f"{format_inr(held)}, more than the {format_inr(owed)} it would owe on "
-        f"{on:%d %b %Y}. Take at most {format_inr(max(0, taking - excess))}, or "
+        f"{today:%d %b %Y}. Take at most {format_inr(max(0, taking - excess))}, or "
         f"cancel the Advance Instalments on "
         f"{', '.join(f'{i.on:%d %b %Y}' for i in cancel)} first, which pay "
         f"{format_inr(sum(i.amount for i in cancel))} of it at once, and take that "
@@ -268,7 +282,7 @@ def advance_instalments(
     for row in rows:
         advance = (row["payment_id"], row["mortgage_id"])
         numbered[advance] += 1
-        found.append((advance, numbered[advance], row, _cancelled_on(row)))
+        found.append((advance, numbered[advance], row, when_cancelled(row)))
     return [
         AdvanceInstalmentOut(
             id=row["id"],
@@ -285,9 +299,10 @@ def advance_instalments(
     ]
 
 
-def _cancelled_on(row: RowMapping) -> date | None:
-    """When it was cancelled: by the Lender, or by its Mortgage's Closure if it was
-    still upcoming then (as Replay applies it)."""
+def when_cancelled(row: RowMapping) -> date | None:
+    """When an Advance Instalment row, with its Mortgage's `closed_on`, was cancelled:
+    by the Lender, or by its Mortgage's Closure if it was still upcoming then (as
+    Replay applies it)."""
     closed_on: date | None = row["closed_on"]
     cancelled_on: date | None = row["cancelled_on"]
     if closed_on is not None and (cancelled_on or row["on"]) > closed_on:

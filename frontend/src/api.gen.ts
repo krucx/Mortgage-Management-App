@@ -2633,6 +2633,8 @@ export interface components {
          * @description A Mortgage as listed in tables.
          */
         MortgageRow: {
+            /** Advance Held */
+            advance_held: number;
             /** Amount Lent */
             amount_lent: number;
             customer: components["schemas"]["PersonSummary"];

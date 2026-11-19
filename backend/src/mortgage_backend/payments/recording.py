@@ -108,9 +108,12 @@ def _redeemed_by(
     """The Mortgage, if the Allocation is its whole Outstanding on `on`, after the
     Advance held then: paying all of it Redeems it, so it is refused if the Mortgage
     can't be Redeemed then, or if it also holds an Advance: a Mortgage being closed
-    has no interest to come."""
-    mortgage = replay(conn, allocation.mortgage_id)
+    has no interest to come. An Allocation of nothing Redeems nothing, even of a
+    Mortgage with nothing left to pay."""
     full_payment = allocation.amount + allocation.discount
+    if not (full_payment or allocation.advance):
+        return None
+    mortgage = replay(conn, allocation.mortgage_id)
     if full_payment != mortgage.outstanding_on_closure(on).to_pay:
         return None
     if allocation.advance:

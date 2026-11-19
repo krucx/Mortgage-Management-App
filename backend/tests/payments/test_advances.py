@@ -217,6 +217,25 @@ def test_upcoming_parts_never_stop_a_closure_today(client, ramesh, chain):
     assert "latest 20 Apr 2026" in before.json()["detail"]
 
 
+def test_the_mortgages_listed_show_the_advance_held_on_the_date_listed(
+    client, ramesh, chain, clock
+):
+    record(client, draft(ramesh, {chain["id"]: (9_000 * RUPEE, 9_000 * RUPEE, 3)}))
+
+    def held(as_of: str) -> int:
+        response = client.get(
+            "/api/mortgages", params={"customer_id": ramesh["id"], "as_of": as_of}
+        )
+        assert response.status_code == 200, response.text
+        [row] = response.json()["items"]
+        return row["advance_held"]
+
+    clock.today = date(2026, 5, 14)
+
+    assert held("2026-04-20") == 9_000 * RUPEE
+    assert held("2026-05-14") == 6_000 * RUPEE  # the 14 May part applied
+
+
 def test_the_payment_shows_how_today_s_part_was_applied(client, ramesh, chain, clock):
     payment = record(
         client, draft(ramesh, {chain["id"]: (9_000 * RUPEE, 9_000 * RUPEE, 3)})
@@ -328,6 +347,22 @@ def test_an_advance_holding_more_than_the_outstanding_is_refused(client, ramesh,
     fits = draft(ramesh, {chain["id"]: (9_000 * RUPEE, 1_02_000 * RUPEE, 3)})
     fits["allocations"][0]["discount"] = 1_000 * RUPEE
     record(client, fits)
+
+
+def test_a_back_dated_advance_is_held_to_what_is_owed_today_too(client, ramesh, chain):
+    # ₹90,000 is paid today. ₹45,000 received on 1 Apr fits what was owed then; its
+    # 14 Apr part leaves ₹7,000 owed today, but the 14 May and 14 Jun parts would hold
+    # ₹30,000.
+    record(client, draft(ramesh, {chain["id"]: (90_000 * RUPEE, 0, 1)}))
+
+    too_much = draft(ramesh, {chain["id"]: (0, 45_000 * RUPEE, 3)}, on="2026-04-01")
+    for path in ("/api/payments/preview", "/api/payments"):
+        response = client.post(path, json=too_much)
+        assert response.status_code == 422, response.text
+        detail = response.json()["detail"]
+        assert chain["name"] in detail
+        assert "₹30,000" in detail
+        assert "20 Apr 2026" in detail
 
 
 def test_a_grace_payment_schedules_its_advance_from_the_date_received(

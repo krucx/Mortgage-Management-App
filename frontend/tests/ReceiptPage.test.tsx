@@ -165,6 +165,37 @@ test("a Receipt with an Advance shows what was paid now and each part's date and
   expect(screen.getByText('₹3,000 on 14 Jul 2026')).not.toBeNull()
 })
 
+test("a Receipt's Paid now total leaves out what is held as an Advance", async () => {
+  const advanced: Receipt = {
+    ...receipt,
+    amount: 1_900_000,
+    lines: [
+      {
+        ...chainLine,
+        paid: 900_000,
+        interest_paid: 900_000,
+        owed_after: 10_300_000,
+        advance_parts: [{ on: '2026-05-14', amount: 900_000 }],
+      },
+      {
+        ...chainLine,
+        mortgage_id: 2,
+        description: 'Gold ring',
+        paid: 100_000,
+        interest_paid: 100_000,
+        owed_after: 5_000_000,
+        advance_parts: [],
+      },
+    ],
+    total_owed: 15_300_000,
+  }
+  const server = fakeServer({ 'GET /api/payments/9/receipt': advanced })
+  showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
+
+  const total = await screen.findByRole('rowheader', { name: 'Total' })
+  expect(total.nextElementSibling!.textContent).toBe('₹10,000')
+})
+
 test('a Receipt without an Advance has no Advance column', async () => {
   const server = fakeServer({ 'GET /api/payments/9/receipt': receipt })
   showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })

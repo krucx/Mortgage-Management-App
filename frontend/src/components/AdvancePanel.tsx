@@ -20,6 +20,8 @@ export function AdvancePanel({
   onChange: (updated: Mortgage) => void
 }) {
   const [error, setError] = useState<string | null>(null)
+  // The part being cancelled, until the write settles: no second cancel meanwhile.
+  const [cancelling, setCancelling] = useState<number | null>(null)
   // The cancelled part whose Receipt is shown: the one just cancelled, or one reopened.
   const [receiptOf, setReceiptOf] = useState<AdvanceInstalment | null>(null)
   const [confirm, confirmDialog] = useConfirm()
@@ -49,6 +51,7 @@ export function AdvancePanel({
       danger: true,
     })
     if (!confirmed) return
+    setCancelling(instalment.id)
     setError(null)
     try {
       onChange(
@@ -59,6 +62,8 @@ export function AdvancePanel({
       setReceiptOf(instalment)
     } catch (err) {
       setError((err as Error).message)
+    } finally {
+      setCancelling(null)
     }
   }
 
@@ -103,6 +108,7 @@ export function AdvancePanel({
                         <button
                           type="button"
                           className="secondary small"
+                          disabled={cancelling !== null}
                           onClick={() => cancel(part)}
                         >
                           Cancel…

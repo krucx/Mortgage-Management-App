@@ -34,6 +34,8 @@ class Allocation:
     discount: int = 0  # paise, applied after cash
     # An Advance Instalment's: dated its Accrual Date, not its Payment's (ADR 0021)
     instalment_id: int | None = None
+    # A cancelled Advance Instalment's: applied at once, as an ordinary Allocation
+    cancelled: bool = False
 
 
 @dataclass(frozen=True)

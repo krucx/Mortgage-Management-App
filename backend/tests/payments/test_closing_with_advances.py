@@ -160,6 +160,29 @@ def test_redeeming_applies_every_upcoming_part_on_the_closure_date(
     assert redeemed["ledger"][-1] == final
 
 
+def test_a_part_the_closure_cancelled_has_a_receipt_on_the_closure_date(
+    client, chain, advance
+):
+    redeem(client, chain["id"])
+    [june] = [
+        i
+        for i in mortgage(client, chain["id"])["advance_instalments"]
+        if i["on"] == "2026-06-14"
+    ]
+
+    shown = ok(
+        client.get(
+            f"/api/payments/{advance['id']}/advance-instalments/{june['id']}/receipt"
+        )
+    )
+
+    assert (shown["paid_on"], shown["amount"], shown["advance_due_on"]) == (
+        ON,
+        3_000 * RUPEE,
+        "2026-06-14",
+    )
+
+
 def test_waiving_applies_the_upcoming_parts_then_waives_what_is_left(
     client, chain, advance
 ):
@@ -264,6 +287,48 @@ def test_a_closure_owing_nothing_after_the_advance_needs_no_cash(
 
     assert redeemed["closure"]["payment_id"] is None
     assert redeemed["outstanding"]["total"] == 0
+
+
+def test_an_allocation_of_nothing_never_redeems_what_the_advance_covers(
+    client, ramesh, chain
+):
+    ring = lend(client, ramesh, description="Gold ring")
+    # The chain's ₹1,12,000 is all held on 20 Apr, so it has nothing left to pay.
+    held = client.post(
+        "/api/payments",
+        json={
+            "customer_id": ramesh["id"],
+            "paid_on": "2026-04-20",
+            "amount": 1_12_000 * RUPEE,
+            "method": "cash",
+            "allocations": [
+                {
+                    "mortgage_id": chain["id"],
+                    "amount": 0,
+                    "advance": 1_12_000 * RUPEE,
+                    "months": 2,
+                }
+            ],
+        },
+    )
+    assert held.status_code == 201, held.text
+
+    paid = client.post(
+        "/api/payments",
+        json={
+            "customer_id": ramesh["id"],
+            "paid_on": "2026-04-20",
+            "amount": 1_000 * RUPEE,
+            "method": "cash",
+            "allocations": [
+                {"mortgage_id": chain["id"], "amount": 0},
+                {"mortgage_id": ring["id"], "amount": 1_000 * RUPEE},
+            ],
+        },
+    )
+
+    assert paid.status_code == 201, paid.text
+    assert mortgage(client, chain["id"])["status"] == "active"
 
 
 def test_reopening_restores_exactly_the_parts_the_closure_cancelled(

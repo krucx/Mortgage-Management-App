@@ -195,6 +195,25 @@ test('keeping the part cancels nothing', async () => {
   expect(server.requests).not.toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
 })
 
+test('a part cannot be cancelled again while its cancel is being saved', async () => {
+  let answer: (mortgage: Mortgage) => void = () => {}
+  showAdvance(() => new Promise<Mortgage>((resolve) => (answer = resolve)))
+
+  fireEvent.click((await screen.findAllByRole('button', { name: 'Cancel…' }))[0])
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel this Advance Instalment' }))
+
+  await vi.waitFor(() =>
+    expect(
+      screen
+        .getAllByRole('button', { name: 'Cancel…' })
+        .every((button) => (button as HTMLButtonElement).disabled),
+    ).toBe(true),
+  )
+  answer(cancelled)
+  expect(await screen.findByText('Cancelled on 18 Oct 2026')).toBeTruthy()
+})
+
 test('a refused cancel says why', async () => {
   showAdvance(() =>
     Response.json({ detail: 'This Advance Instalment has been applied' }, { status: 409 }),

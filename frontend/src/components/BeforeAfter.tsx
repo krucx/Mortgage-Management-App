@@ -161,7 +161,7 @@ function LedgerChanges({ changes }: { changes: LedgerChange[] }) {
         <tbody>
           {changes.map((change) => (
             <tr
-              key={`${change.on}-${change.event}-${change.before?.payment_id ?? change.after?.payment_id ?? ''}`}
+              key={`${change.on}-${change.event}-${change.before?.payment_id ?? change.after?.payment_id ?? ''}-${change.before?.instalment_id ?? change.after?.instalment_id ?? ''}`}
             >
               <td>
                 {formatDate(change.on)} {STEP_LABELS[change.event]}

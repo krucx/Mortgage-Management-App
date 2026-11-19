@@ -32,6 +32,7 @@ const row = {
   amount_lent: mortgage.amount_lent,
   status: 'active',
   outstanding_total: 5_150_000,
+  advance_held: 0,
   not_redeemable: null as string | null,
   unpaid_interest: 0,
   month_interest: 75_000,
@@ -845,6 +846,26 @@ test('by percentage, the percentages split Amount received less the Advances', a
   expect(allocated(row)).toBe('₹11,200')
   expect(allocated(ring)).toBe('₹2,800')
   expect(screen.queryByText(/The Allocations add up to/)).toBeNull()
+})
+
+test('a Mortgage holding an Advance is paid in full by what the Advance leaves', async () => {
+  // The chain owes ₹51,500, ₹9,000 of it held by an Advance: ₹42,500 Redeems it.
+  const held = quoting({
+    'GET /api/mortgages': {
+      items: [{ ...row, advance_held: 900_000 }, ring],
+      total: 2,
+      page: 1,
+      page_size: 2,
+    },
+  })
+  showPage(held, '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+
+  const full = await screen.findByRole('button', { name: 'Pay the full Outstanding (₹62,500)' })
+  await vi.waitFor(() => expect((full as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(full)
+
+  expect((screen.getByLabelText(`Amount for ${row.name}`) as HTMLInputElement).value).toBe('42500')
+  expect((screen.getByLabelText(`Advance for ${row.name}`) as HTMLInputElement).disabled).toBe(true)
 })
 
 test('a Mortgage this Payment Redeems has its Advance disabled', async () => {
