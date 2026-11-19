@@ -154,6 +154,10 @@ _Avoid_: Pseudo-payment, prepayment, future payment, credit
 One part of an Advance, applied as an Allocation on its Accrual Date and not before; until then it is upcoming, and the Lender may cancel it, which applies its amount at once as an ordinary Allocation.
 _Avoid_: Scheduled payment, EMI
 
+**Advance held**:
+What a Mortgage's upcoming Advance Instalments (neither applied nor cancelled) will apply; for a Customer, the total across their Mortgages. Never more than the Mortgage's Outstanding.
+_Avoid_: Credit, balance, prepaid
+
 **Discount**:
 A non-cash reduction to what a Customer owes on one Mortgage, recorded alongside that Mortgage's cash Allocation in a Payment. Cash is applied first; the Discount then pays unpaid interest, the Interest to Date, and Principal, in that order. It can contribute to Redeeming the Mortgage. Voiding the Payment, including when Reopen undoes a Redemption, reverses both the cash and Discount.
 _Avoid_: Waiver (a Discount does not itself close a Mortgage)

@@ -125,7 +125,7 @@ test('cancelling an upcoming part shows its Preview first, then shows it Cancell
   })
   expect(within(dialog).getByText(/Its ₹750 is applied today/)).toBeTruthy()
   expect(await within(dialog).findByText('₹50,000')).toBeTruthy()
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel this part' }))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel this Advance Instalment' }))
 
   expect(await screen.findByText('Cancelled on 18 Oct 2026')).toBeTruthy()
   expect(screen.getByText('Advance held').nextElementSibling!.textContent).toBe('₹750')
@@ -152,7 +152,7 @@ test('a refused cancel says why', async () => {
 
   fireEvent.click((await screen.findAllByRole('button', { name: 'Cancel…' }))[0])
   const dialog = await screen.findByRole('dialog')
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel this part' }))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel this Advance Instalment' }))
 
   expect(await screen.findByText('This Advance Instalment has been applied')).toBeTruthy()
 })

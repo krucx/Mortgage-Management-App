@@ -34,13 +34,13 @@ export function AdvancePanel({
           <p>
             Its {formatINR(instalment.amount)} is applied today, {formatDate(mortgage.as_of)}, like
             any Payment: unpaid interest, then the Interest to Date, then Principal. Nothing is
-            refunded, and the part stays on record as Cancelled.
+            refunded, and it stays on record as Cancelled.
           </p>
           <ChangePreview request={previews.advanceInstalmentCancel(mortgage.id, instalment.id)} />
         </>
       ),
       wide: true,
-      confirmLabel: 'Cancel this part',
+      confirmLabel: 'Cancel this Advance Instalment',
       cancelLabel: 'Keep it',
       danger: true,
     })

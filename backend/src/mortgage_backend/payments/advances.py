@@ -271,7 +271,7 @@ def advance_instalments(
     ]
 
 
-def held(instalments: Sequence[AdvanceInstalmentOut]) -> int:
+def advance_held(instalments: Sequence[AdvanceInstalmentOut]) -> int:
     """The Advance held: what the upcoming ones of `instalments` will apply."""
     return sum(i.amount for i in instalments if i.upcoming)
 

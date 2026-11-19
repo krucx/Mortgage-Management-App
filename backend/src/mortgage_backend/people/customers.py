@@ -17,7 +17,7 @@ from sqlalchemy import exists as sql_exists
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.replay import MortgageStatus
-from mortgage_backend.payments.advances import advance_instalments, held
+from mortgage_backend.payments.advances import advance_held, advance_instalments
 from mortgage_backend.platform.clock import TodayDep
 from mortgage_backend.platform.db import (
     EngineDep,
@@ -341,7 +341,9 @@ def read_customer(
         instalments = advance_instalments(
             conn, today, advance_instalment_table.c.mortgage_id.in_(mortgages)
         )
-        return CustomerToday(**customer.model_dump(), advance_held=held(instalments))
+        return CustomerToday(
+            **customer.model_dump(), advance_held=advance_held(instalments)
+        )
 
 
 @router.get("/referrers/{referrer_id}")

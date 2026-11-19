@@ -38,8 +38,8 @@ from mortgage_backend.lending.replay import (
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.payments.advances import (
     AdvanceInstalmentOut,
+    advance_held,
     advance_instalments,
-    held,
 )
 from mortgage_backend.payments.grace_period import LedgerGrace, graces_of
 from mortgage_backend.payments.payments import PaymentMethod
@@ -266,7 +266,7 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         as_of=today,
         ledger=mortgage.ledger(today),
         advance_instalments=instalments,
-        advance_held=held(instalments),
+        advance_held=advance_held(instalments),
         graces=graces_of(conn, mortgage_id),
         outstanding=outstanding,
         collateral=collateral_of(row, gold_rates(conn), outstanding.total),
