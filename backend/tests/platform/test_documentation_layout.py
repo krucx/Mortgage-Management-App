@@ -21,7 +21,7 @@ def test_canonical_domain_docs_and_architecture_records_are_present():
     adr_dir = DOCUMENTATION / "adr"
     adrs = sorted(adr_dir.glob("*.md"))
     assert [path.stem[:4] for path in adrs] == [
-        f"{number:04d}" for number in range(1, 21)
+        f"{number:04d}" for number in range(1, 22)
     ]
     assert all(path.read_text().strip() for path in adrs)
     assert (
