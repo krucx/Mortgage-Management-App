@@ -147,11 +147,11 @@ The portion of a Payment applied to one Mortgage; within a Mortgage it pays unpa
 _Avoid_: Split, contribution
 
 **Advance**:
-The part of a Payment held for one Mortgage's interest for its next few months (a Payment may hold Advances for several Mortgages), split equally into Advance Instalments that are applied on the Accrual Dates after it is received, so it pays interest as it falls due rather than Principal at once.
+The part of a Payment held for one Mortgage's interest for its next few months (a Payment may hold Advances for several Mortgages), split as equally as possible into Advance Instalments that add up to it and are applied on the Accrual Dates after it is received, so it pays interest as it falls due rather than Principal at once. What a Mortgage's upcoming Advance Instalments hold never exceeds its Outstanding.
 _Avoid_: Pseudo-payment, prepayment, future payment, credit
 
 **Advance Instalment**:
-One equal part of an Advance, applied as an Allocation on its Accrual Date and not before; until then it is upcoming, and the Lender may cancel it, which applies its amount at once as an ordinary Allocation.
+One part of an Advance, applied as an Allocation on its Accrual Date and not before; until then it is upcoming, and the Lender may cancel it, which applies its amount at once as an ordinary Allocation.
 _Avoid_: Scheduled payment, EMI
 
 **Discount**:
