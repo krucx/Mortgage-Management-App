@@ -8,7 +8,7 @@ on the date cancelled."""
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
@@ -22,11 +22,14 @@ from mortgage_backend.lending.ledger import (
 )
 from mortgage_backend.lending.refusals import check_replays, refuse_unless_active
 from mortgage_backend.lending.replay import MortgageReplay, mortgage_row, replay
-from mortgage_backend.payments.writes import AllocationIn
 from mortgage_backend.platform.db import advance_instalment_table, payment_table
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.money import format_inr
 from mortgage_backend.safekeeping import audit
+
+if TYPE_CHECKING:
+    # Only a type here: writes reaches this module through payments.payments.
+    from mortgage_backend.payments.writes import AllocationIn
 
 
 def split(advance: int, months: int) -> list[int]:
@@ -70,7 +73,7 @@ def _upcoming(mortgage: MortgageReplay, on: date) -> list[Allocation]:
 
 
 def refuse_overheld(
-    conn: Connection, allocation: AllocationIn, received_on: date, today: date
+    conn: Connection, allocation: "AllocationIn", received_on: date, today: date
 ) -> None:
     """Refuse a Payment, now written, that leaves the Allocation's Mortgage with
     upcoming Advance Instalments holding more than it owes: a Closure could then

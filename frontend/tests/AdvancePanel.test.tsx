@@ -63,6 +63,7 @@ function showAdvance(cancel: (request: Request) => unknown = () => cancelled) {
         before: side(5_075_000),
         after: side(5_000_000),
         ledger_changes: [],
+        advance_warnings: [],
       },
     ]),
     'POST /api/mortgages/7/advance-instalments/22/cancel': (request: Request) => {
