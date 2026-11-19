@@ -90,12 +90,14 @@ def _coming_accrual_dates(start: date, after: date, until: date) -> list[date]:
 
 def is_eligible(mortgage: MortgageReplay, on: date) -> bool:
     """Whether `mortgage` is one a Reminder for `on` covers (ADR 0017): Active, an
-    Accrual Date for it, and not Dormant then (ADR 0012). The one rule behind both what
-    sync queues and prunes, and what an unsent Reminder currently has to say."""
+    Accrual Date for it, not Dormant then (ADR 0012), and its month not covered by an
+    Advance Instalment landing that day (ADR 0021). The one rule behind both what sync
+    queues and prunes, and what an unsent Reminder currently has to say."""
     return (
         mortgage.row["status"] == MortgageStatus.ACTIVE
         and is_accrual_date(mortgage.row["start_date"], on)
         and not mortgage.dormant(on)
+        and not mortgage.covered_by_advance(on)
     )
 
 

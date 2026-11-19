@@ -177,7 +177,7 @@ _Avoid_: Delete, reverse
 ## Follow-up
 
 **Reminder**:
-A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped. A Reminder that can still be sent includes only Mortgages that remain Active and accrue on that date; sent or skipped Reminders remain as history.
+A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped. A Reminder that can still be sent includes only Mortgages that remain Active and accrue on that date, leaving out any whose month an Advance Instalment landing that day fully covers; sent or skipped Reminders remain as history.
 _Avoid_: Notice, notification
 
 **Months Unpaid**:
@@ -185,7 +185,7 @@ How many of a Mortgage's latest monthly interest charges (never its Interest to 
 _Avoid_: Months overdue, arrears
 
 **Call List**:
-The day's Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today.
+The day's Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today (unless an Advance Instalment landing that day fully covers the month).
 _Avoid_: Due list, payments due
 
 **Call Note**:

@@ -26,6 +26,7 @@ from mortgage_backend.lending.ledger import (
     TermChange,
     compute_ledger,
     interest_to_date_days,
+    months_unpaid,
     project,
     terms_on,
 )
@@ -195,6 +196,14 @@ class MortgageReplay:
         return (
             self.row["status"] == MortgageStatus.ACTIVE
             and self.outstanding(on).total == 0
+        )
+
+    def covered_by_advance(self, on: date) -> bool:
+        """Whether an Advance Instalment lands on `on` and leaves no month's interest
+        unpaid then, the month ending that day included (ADR 0021): follow-up need not
+        chase that month. A part that falls short leaves it unpaid."""
+        return any(a.on == on for a in self.instalments()) and not months_unpaid(
+            self.ledger(on)
         )
 
     def not_closable(self, on: date) -> str | None:

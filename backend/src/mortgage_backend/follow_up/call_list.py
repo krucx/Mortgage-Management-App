@@ -128,10 +128,11 @@ def call_list(
 
     listed = []
     for row in rows:
-        if replayed[row["id"]].dormant(today):
+        mortgage = replayed[row["id"]]
+        if mortgage.dormant(today):
             continue  # owes nothing: listed on Closures instead (ADR 0012)
-        ledger = replayed[row["id"]].ledger(today)
-        outstanding = replayed[row["id"]].outstanding(today).total
+        ledger = mortgage.ledger(today)
+        outstanding = mortgage.outstanding(today).total
         months = months_unpaid(ledger)
         collateral = collateral_of(row, rates, outstanding)
         loan_to_value = collateral.loan_to_value if collateral else None
@@ -140,7 +141,9 @@ def call_list(
             reasons.append("months_unpaid")
         if loan_to_value_too_high(loan_to_value, settings):
             reasons.append("loan_to_value")
-        if any(step.event == "interest" and step.on == today for step in ledger):
+        if any(
+            step.event == "interest" and step.on == today for step in ledger
+        ) and not mortgage.covered_by_advance(today):
             reasons.append("accrues_today")
         if reasons:
             listed.append(

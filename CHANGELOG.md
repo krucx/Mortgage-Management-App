@@ -19,6 +19,10 @@ Every release of Mortgage Management, newest first. The format follows
   each part pays, warning if a part would reduce Principal. An Advance holding more than
   the Mortgage owes on the date received is refused. The Mortgage's Ledger lists upcoming
   parts last, in grey, and Voiding the Payment removes every part.
+- **Follow-up skips a month an Advance covers:** on an Accrual Date where an Advance
+  Instalment landing that day leaves no interest unpaid, the Mortgage is left out of that
+  date's Reminder and out of the Call List's "accruing today". A part that falls short
+  still gets both, and once the part is gone the Reminder is back and can be sent.
 
 ### Changed
 
