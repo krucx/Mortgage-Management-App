@@ -8,6 +8,7 @@ month's Interest to Date included.
 import re
 from collections.abc import Iterator
 from datetime import date, datetime
+from typing import Any
 
 import pytest
 from api_seed import lend, person
@@ -642,3 +643,85 @@ def test_a_receipt_template_with_a_malformed_placeholder_is_refused(app_client) 
     assert refused.json()["detail"].startswith(
         "The Receipt template can't fill {customer-name}."
     )
+
+
+def advance(client, owner, mortgage, now: int, held: int, months: int) -> Any:
+    """A Payment received on 20 Apr 2026 paying `now` on `mortgage` and holding an
+    Advance of `held` over its next `months` Accrual Dates."""
+    response = client.post(
+        "/api/payments",
+        json={
+            "customer_id": owner["id"],
+            "paid_on": "2026-04-20",
+            "amount": now + held,
+            "method": "cash",
+            "allocations": [
+                {
+                    "mortgage_id": mortgage["id"],
+                    "amount": now,
+                    "advance": held,
+                    "months": months,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_a_month_an_advance_part_covers_gets_no_reminder(app_client, clock) -> None:
+    ramesh = person(app_client)
+    chain = lend(app_client, ramesh)
+    # Feb to Apr paid; ₹3,000 lands on each of 14 May, 14 Jun and 14 Jul.
+    advance(app_client, ramesh, chain, 9_000 * RUPEE, 9_000 * RUPEE, 3)
+
+    clock.today = date(2026, 5, 12)
+
+    assert app_client.get("/api/reminders").json()["items"] == []
+
+
+def test_a_part_that_falls_short_still_gets_a_reminder(app_client, clock) -> None:
+    ramesh = person(app_client)
+    chain = lend(app_client, ramesh)
+    # ₹2,000 of the ₹3,000 added lands on 14 May.
+    advance(app_client, ramesh, chain, 9_000 * RUPEE, 6_000 * RUPEE, 3)
+
+    clock.today = date(2026, 5, 12)
+
+    [reminder] = app_client.get("/api/reminders").json()["items"]
+    assert reminder["accrues_on"] == "2026-05-14"
+    assert [m["id"] for m in reminder["mortgages"]] == [chain["id"]]
+
+
+def test_a_covered_month_gets_a_reminder_again_once_its_part_is_gone(
+    app_client, clock
+) -> None:
+    ramesh = person(app_client)
+    chain = lend(app_client, ramesh)
+    payment = advance(app_client, ramesh, chain, 9_000 * RUPEE, 9_000 * RUPEE, 3)
+    clock.today = date(2026, 5, 12)
+    assert app_client.get("/api/reminders").json()["items"] == []
+
+    app_client.post(
+        f"/api/payments/{payment['id']}/void", json={"reason": "Entered by mistake"}
+    )
+
+    [reminder] = app_client.get("/api/reminders").json()["items"]
+    assert (reminder["accrues_on"], reminder["status"]) == ("2026-05-14", "queued")
+    sent = app_client.post(f"/api/reminders/{reminder['id']}/sent")
+    assert sent.status_code == 200, sent.text
+
+
+def test_a_covered_mortgage_is_left_out_of_its_customers_reminder(
+    app_client, clock
+) -> None:
+    ramesh = person(app_client)
+    chain = lend(app_client, ramesh)
+    ring = lend(app_client, ramesh, description="Gold ring")
+    advance(app_client, ramesh, chain, 9_000 * RUPEE, 9_000 * RUPEE, 3)
+
+    clock.today = date(2026, 5, 12)
+
+    [reminder] = app_client.get("/api/reminders").json()["items"]
+    assert [m["id"] for m in reminder["mortgages"]] == [ring["id"]]
+    assert "Gold chain" not in reminder["message"]
