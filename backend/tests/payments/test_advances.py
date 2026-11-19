@@ -16,7 +16,9 @@ from api_seed import lend, person
 from fastapi.testclient import TestClient
 from seed import LAKH, RUPEE
 
+from mortgage_backend.lending.replay import replay
 from mortgage_backend.main import create_app
+from mortgage_backend.platform.db import make_engine
 
 
 class Clock:
@@ -158,6 +160,8 @@ def test_upcoming_parts_leave_today_untouched_and_land_on_their_dates(
     today = mortgage(client, chain["id"])
     assert today["outstanding"]["total"] == 1_03_000 * RUPEE
     assert not [s for s in today["ledger"] if s["instalment_id"]]
+    # Replay stops at today: no step after it, whatever the parts' dates.
+    assert max(s["on"] for s in today["ledger"]) == "2026-04-20"
 
     # Between them: the 14 May part has paid that month's interest.
     clock.today = date(2026, 5, 20)
@@ -193,6 +197,24 @@ def test_upcoming_parts_never_stop_a_closure_today(client, ramesh, chain):
     assert response.status_code == 200, response.text
     [row] = response.json()["items"]
     assert row["not_redeemable"] is None
+    # Its quote and Redemption's Preview today go ahead, though parts land up to 14 Jul.
+    quote = client.get(
+        f"/api/mortgages/{chain['id']}/outstanding-on-closure",
+        params={"on": "2026-04-20"},
+    )
+    assert quote.status_code == 200, quote.text
+    redeem = client.post(
+        f"/api/mortgages/{chain['id']}/redeem-preview",
+        json={"redeemed_on": "2026-04-20", "method": "cash"},
+    )
+    assert redeem.status_code == 200, redeem.text
+    # Only the Payment itself is a later Allocation: the latest it names is its date.
+    before = client.get(
+        f"/api/mortgages/{chain['id']}/outstanding-on-closure",
+        params={"on": "2026-04-19"},
+    )
+    assert before.status_code == 422, before.text
+    assert "latest 20 Apr 2026" in before.json()["detail"]
 
 
 def test_the_payment_shows_how_today_s_part_was_applied(client, ramesh, chain, clock):
@@ -208,6 +230,22 @@ def test_the_payment_shows_how_today_s_part_was_applied(client, ramesh, chain, c
         9_000 * RUPEE,
         0,
     )
+
+
+def test_how_a_payment_was_applied_never_replays_to_its_parts(
+    client, ramesh, chain, database_url
+):
+    payment = record(
+        client, draft(ramesh, {chain["id"]: (9_000 * RUPEE, 9_000 * RUPEE, 3)})
+    )
+
+    with make_engine(database_url).connect() as conn:
+        steps = replay(conn, chain["id"]).steps_by_payment()
+
+    # Its own step on the date received, and no Advance Instalment's after it.
+    assert [(step.payment_id, step.on) for step in steps.values()] == [
+        (payment["id"], date(2026, 4, 20))
+    ]
 
 
 def test_voiding_the_payment_removes_every_part(client, ramesh, chain, clock):
@@ -321,3 +359,43 @@ def test_an_advance_is_over_one_to_twelve_months(client, ramesh, chain, months):
     )
 
     assert response.status_code == 422, response.text
+
+
+def book(database_url: str, advance: int) -> dict[str, Any]:
+    """A book with one Mortgage, paid ₹3,000 now (₹6,000 still unpaid) and `advance`
+    over 3 months, at a Gold Rate that lists it for its Loan-to-Value: what the
+    Lender sees today."""
+    with TestClient(create_app(database_url, today=lambda: date(2026, 4, 20))) as app:
+        set_rates = app.put(
+            "/api/settings/gold-rates",
+            json=[{"purity_karat": 22, "rate_per_gram": 6_000 * RUPEE}],
+        )
+        assert set_rates.status_code == 200, set_rates.text
+        owner = person(app)
+        chain = lend(app, owner)
+        record(app, draft(owner, {chain["id"]: (3_000 * RUPEE, advance, 3)}))
+        page = mortgage(app, chain["id"])
+        page.pop("advance_instalments")
+        return {
+            "mortgage": page,
+            "call_list": app.get("/api/call-list").json(),
+            "dashboard": app.get("/api/dashboard").json(),
+        }
+
+
+def test_upcoming_parts_change_nothing_the_lender_sees_today(tmp_path):
+    without = book(f"sqlite:///{tmp_path / 'without.db'}", 0)
+    held = book(f"sqlite:///{tmp_path / 'held.db'}", 9_000 * RUPEE)
+
+    # The Outstanding, Interest to Date, Ledger and Loan-to-Value on the Mortgage page,
+    # Months Unpaid and Loan-to-Value on the Call List, and the Dashboard.
+    assert held["mortgage"] == without["mortgage"]
+    assert held["call_list"] == without["call_list"]
+    # The Dashboard too, the interest the months ahead charge included; only the cash
+    # received this month differs: all of the Payment is received today.
+    received = "payments_by_month"
+    assert held["dashboard"][received][-1]["amount"] == 12_000 * RUPEE
+    assert {**held["dashboard"], received: None} == {
+        **without["dashboard"],
+        received: None,
+    }

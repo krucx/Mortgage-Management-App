@@ -263,16 +263,24 @@ class MortgageReplay:
         dates: Sequence[date],
         hypothetical: HypotheticalPayments | None = None,
         paid_off_by: date | None = None,
+        upcoming_instalments: bool = True,
     ) -> Projected:
         """An Active Mortgage continued past its Payments in one replay: where it stands
         on each of `dates`, the Term Changes taking effect, and when the hypothetical
-        Payments would pay it off (looking as far as `paid_off_by`)."""
+        Payments would pay it off (looking as far as `paid_off_by`). Without
+        `upcoming_instalments`, the Advance Instalments after the first date are left
+        out, as further Payments."""
+        allocations = [
+            a
+            for a in self.allocations
+            if upcoming_instalments or a.instalment_id is None or a.on <= dates[0]
+        ]
         return project(
             self.row["start_date"],
             self.row["amount_lent"],
             self._terms,
             dates,
-            self.allocations,
+            allocations,
             self.term_changes,
             hypothetical,
             paid_off_by,
