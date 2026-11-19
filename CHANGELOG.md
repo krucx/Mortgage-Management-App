@@ -15,6 +15,9 @@ Every release of Mortgage Management, newest first. The format follows
 
 ### Changed
 
+- **Amount received and the Allocations stay in step on New Payment:** by amount, typing an
+  Allocation sets Amount received to their sum, and typing Amount received switches to
+  Equally and splits it. A Discount never counts toward Amount received.
 - **Call Notes and Favours Given come a page at a time:** a Mortgage's Call Notes and a
   Customer's Favours Given show 20 at a time, newest first, with Previous and Next, as the
   other lists do. The Favours Given total still counts every page.

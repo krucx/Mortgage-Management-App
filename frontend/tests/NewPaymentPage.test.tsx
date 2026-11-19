@@ -378,14 +378,8 @@ function recording() {
 
 async function record(amounts: Record<string, string>) {
   fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
-  let total = 0
-  for (const [name, amount] of Object.entries(amounts)) {
+  for (const [name, amount] of Object.entries(amounts))
     fireEvent.change(screen.getByLabelText(`Amount for ${name}`), { target: { value: amount } })
-    total += Number(amount)
-  }
-  fireEvent.change(screen.getByLabelText('Amount received (₹)'), {
-    target: { value: String(total) },
-  })
   await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
   const save = screen.getByRole('button', { name: /^Record Payment of/ }) as HTMLButtonElement
   await vi.waitFor(() => expect(save.disabled).toBe(false), { timeout: 2000 })
@@ -445,6 +439,92 @@ test('equal shares fill the smaller Mortgages up to their Outstanding, and the r
   const ringRow = screen.getByRole('link', { name: ring.name }).closest('tr')!
   expect(within(chain).getAllByText('₹51,500')).toHaveLength(2) // Outstanding, and allocated
   expect(within(ringRow).getAllByText('₹20,000')).toHaveLength(2)
+})
+
+// --- Amount received and the Allocations kept in step: the side typed last stays put.
+
+const received = () => (screen.getByLabelText('Amount received (₹)') as HTMLInputElement).value
+/** The Allocation shown for a Mortgage, equally or by percentage. */
+function allocated(m: { name: string }) {
+  const column = screen
+    .getAllByRole('columnheader')
+    .findIndex((th) => th.textContent === 'Allocation')
+  return screen.getByRole('link', { name: m.name }).closest('tr')!.querySelectorAll('td')[column]
+    .textContent
+}
+
+test('by amount, typing an Allocation sets Amount received to their sum, and a Discount never counts', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
+  await screen.findByLabelText(`Amount for ${ring.name}`)
+
+  fireEvent.change(screen.getByLabelText(`Amount for ${row.name}`), { target: { value: '30000' } })
+  expect(received()).toBe('30000')
+  fireEvent.change(screen.getByLabelText(`Amount for ${ring.name}`), {
+    target: { value: '5000.5' },
+  })
+  expect(received()).toBe('35000.5')
+  fireEvent.change(screen.getByLabelText(`Discount for ${ring.name}`), { target: { value: '500' } })
+  expect(received()).toBe('35000.5')
+  // Unticking one leaves the sum of the Allocations still ticked.
+  fireEvent.click(screen.getByLabelText(`Include ${ring.name}`))
+  expect(received()).toBe('30000')
+  expect(screen.queryByText(/The Allocations add up to/)).toBeNull()
+  expect(await screen.findByRole('button', { name: 'Record Payment of ₹30,000' })).toBeTruthy()
+})
+
+test('by amount, typing Amount received switches to Equally and splits it, each up to its Outstanding', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  const full = await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
+  await vi.waitFor(() => expect((full as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(full)
+
+  fireEvent.change(screen.getByLabelText(`Amount for ${row.name}`), { target: { value: '41500' } })
+  expect(received()).toBe('61500')
+
+  // ₹60,000 equally would be ₹30,000 each, but the ring owes only ₹20,000.
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '60000' } })
+  expect(
+    (screen.getByRole('radio', { name: 'Equally (suggested)' }) as HTMLInputElement).checked,
+  ).toBe(true)
+  expect(received()).toBe('60000')
+  expect(allocated(row)).toBe('₹40,000')
+  expect(allocated(ring)).toBe('₹20,000')
+  expect(screen.queryByText(/The Allocations add up to/)).toBeNull()
+})
+
+test('equally or by percentage, typing Amount received splits it again', async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  await screen.findByRole('button', { name: /^Pay the full Outstanding \(/ })
+
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '10000' } })
+  expect(allocated(row)).toBe('₹5,000')
+  expect(allocated(ring)).toBe('₹5,000')
+
+  fireEvent.click(screen.getByRole('radio', { name: 'By percentage' }))
+  fireEvent.change(screen.getByLabelText(`Percentage for ${row.name}`), { target: { value: '80' } })
+  fireEvent.change(screen.getByLabelText(`Percentage for ${ring.name}`), {
+    target: { value: '20' },
+  })
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '20000' } })
+  expect((screen.getByRole('radio', { name: 'By percentage' }) as HTMLInputElement).checked).toBe(
+    true,
+  )
+  expect(allocated(row)).toBe('₹16,000')
+  expect(allocated(ring)).toBe('₹4,000')
+})
+
+test("switching from by amount to another mode keeps Amount received at the Allocations' sum", async () => {
+  showPage(quoting(), '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
+  fireEvent.click(await screen.findByRole('radio', { name: 'By amount' }))
+  fireEvent.change(await screen.findByLabelText(`Amount for ${row.name}`), {
+    target: { value: '30000' },
+  })
+  fireEvent.change(screen.getByLabelText(`Amount for ${ring.name}`), { target: { value: '0' } })
+
+  fireEvent.click(screen.getByRole('radio', { name: 'Equally (suggested)' }))
+  expect(received()).toBe('30000')
+  expect(allocated(row)).toBe('₹15,000')
 })
 
 /** A Grace choice: dated `paidOn`, the day before `accrualOn`, letting off `letOff`

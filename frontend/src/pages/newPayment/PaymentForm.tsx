@@ -18,6 +18,7 @@ import {
   type AllocationMode,
   allocationAmounts,
   allocationProblems,
+  cashReceived,
   discountCaps,
   owesSomething,
   suggestEqually,
@@ -73,7 +74,9 @@ export function PaymentForm({
   const chosen = payable.filter((m) => selected.has(m.id))
   const outstanding = chosen.map((m) => m.outstanding_total)
   const totalOutstanding = outstanding.reduce((a, b) => a + b, 0)
-  const total = rupeesToPaise(totalText)
+  const total = cashReceived(mode, totalText, chosen, amountText)
+  // By amount, Amount received follows the Allocations (blank while there are none).
+  const shownTotalText = mode === 'amount' ? (total ? paiseToRupees(total) : '') : totalText
   const discounts = chosen.map((m) => rupeesToPaise(discountText[m.id]))
   const discountTotal = discounts.reduce((a, b) => a + b, 0)
 
@@ -125,8 +128,10 @@ export function PaymentForm({
   const names = new Map(chosen.map((m) => [m.id, m.name]))
   const dateRows = confirmationDateRows(paidOn, receivedOn, letOff)
 
-  /** Switching to a manual mode starts from the current equal Allocations. */
+  /** Switching to a manual mode starts from the current equal Allocations; switching from
+   *  by amount keeps Amount received at their sum. */
   function switchMode(next: AllocationMode) {
+    setTotalText(shownTotalText)
     const equal = suggestEqually(total, outstanding)
     if (next === 'amount' && equal)
       setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, paiseToRupees(equal[i])])))
@@ -142,7 +147,6 @@ export function PaymentForm({
   /** Each chosen Mortgage's whole Outstanding, by amount. */
   function fillOutstanding() {
     setAmountText(Object.fromEntries(chosen.map((m, i) => [m.id, paiseToRupees(outstanding[i])])))
-    setTotalText(paiseToRupees(totalOutstanding))
     setDiscountText(Object.fromEntries(chosen.map((m) => [m.id, ''])))
     setMode('amount')
   }
@@ -235,8 +239,12 @@ export function PaymentForm({
             names={names}
           />
           <AmountReceivedField
-            totalText={totalText}
-            onTotalText={setTotalText}
+            totalText={shownTotalText}
+            onTotalText={(text) => {
+              setTotalText(text)
+              // Typed by amount, the new total is split equally instead.
+              if (mode === 'amount') setMode('equal')
+            }}
             required={discountTotal === 0}
             fullOutstanding={chosen.length > 0 ? totalOutstanding : null}
             notRedeemable={notRedeemable}

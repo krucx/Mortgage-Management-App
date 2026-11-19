@@ -22,6 +22,21 @@ export function suggestEqually(total: number, caps: number[]): number[] | null {
   )
 }
 
+/**
+ * The cash received. By amount the Lender types the Allocations and this is their sum;
+ * otherwise it is typed and the Allocations split it. A Discount is never cash, so never
+ * counts.
+ */
+export function cashReceived(
+  mode: AllocationMode,
+  totalText: string,
+  chosen: MortgageRow[],
+  amountText: Record<number, string>,
+): number {
+  if (mode !== 'amount') return rupeesToPaise(totalText)
+  return chosen.reduce((sum, m) => sum + rupeesToPaise(amountText[m.id]), 0)
+}
+
 /** What the form has entered: the cash and Discount totals, and the chosen Mortgages with
  *  what each owes and the amounts or percentages typed against them. */
 interface Draft {
