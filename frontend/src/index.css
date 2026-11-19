@@ -910,6 +910,31 @@ dialog.modal {
   width: min(640px, calc(100vw - 2rem));
 }
 
+/* The title keeps clear of the × in the top corner. */
+dialog.modal h2 {
+  padding-right: 2rem;
+}
+
+button.modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+button.modal-close:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
 /* Form controls never overflow their column. */
 input,
 select,

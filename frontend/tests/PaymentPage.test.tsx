@@ -81,6 +81,37 @@ test('after a Void, the Payment shows as voided and its Receipt, which no longer
   expect(afterVoid).not.toContain('GET /api/payments/9/receipt')
 })
 
+test('a click outside the Void dialog closes it only until a reason is typed', async () => {
+  showPage(
+    fakeServer({
+      'GET /api/payments/9': payment,
+      'GET /api/payments/9/receipt': receipt,
+      'POST /api/payments/9/void-preview': changePreview([]),
+      'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
+    }),
+    '/payments/9',
+    { '/payments/:id': <PaymentPage /> },
+  )
+  const clickOutside = (dialog: HTMLElement) =>
+    fireEvent.click(dialog, { clientX: 5000, clientY: 5000 })
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Void…' }))
+  let dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Typo' } })
+  clickOutside(dialog)
+  expect(screen.getByRole('dialog')).toBe(dialog)
+
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: '' } })
+  clickOutside(dialog)
+  await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+  fireEvent.click(screen.getByRole('button', { name: 'Void…' }))
+  dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Typo' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+  await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+})
+
 test('from a recorded Payment, another Payment can be started for the same Customer', async () => {
   const server = fakeServer({
     'GET /api/payments/9': payment,

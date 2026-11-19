@@ -298,7 +298,7 @@ function ImportPreview({
     result.skipped_duplicates > 0 && `${result.skipped_duplicates} already there`,
   ].filter(Boolean)
   return (
-    <Modal onClose={onClose} className="scroll-popup" labelledBy={titleId} closeOnOutsideClick>
+    <Modal onClose={onClose} className="scroll-popup" labelledBy={titleId}>
       <h2 id={titleId}>Import Call Notes from {sheet.name}</h2>
       <div className="scroll-popup-body stack">
         {result.adding.length > 0 ? (

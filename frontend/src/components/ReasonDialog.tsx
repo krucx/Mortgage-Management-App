@@ -37,7 +37,12 @@ export function ReasonDialog({
   }
 
   return (
-    <Modal onClose={onClose} className={wide ? 'wide-dialog' : ''}>
+    <Modal
+      onClose={onClose}
+      className={wide ? 'wide-dialog' : ''}
+      // A stray click would lose a typed reason.
+      closeOnOutsideClick={!reason}
+    >
       <form onSubmit={submit} className="stack">
         <h2>{title}</h2>
         {body}

@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
+import { Modal } from './Modal'
 
 export interface ConfirmOptions {
   title: string
@@ -20,23 +21,15 @@ export function ConfirmDialog({
   wide = false,
   onClose,
 }: ConfirmOptions & { onClose: (confirmed: boolean) => void }) {
-  const dialog = useRef<HTMLDialogElement>(null)
-
-  useEffect(() => {
-    dialog.current?.showModal()
-  }, [])
+  const titleId = useId()
 
   return (
-    <dialog
-      ref={dialog}
-      className={`confirm${wide ? ' wide-dialog' : ''}`}
-      aria-labelledby="confirm-title"
-      onCancel={(event) => {
-        event.preventDefault() // Esc
-        onClose(false)
-      }}
+    <Modal
+      onClose={() => onClose(false)}
+      className={wide ? 'wide-dialog' : ''}
+      labelledBy={titleId}
     >
-      <h2 id="confirm-title">{title}</h2>
+      <h2 id={titleId}>{title}</h2>
       {body && <div className="confirm-body">{body}</div>}
       <div className="row end">
         {/* Focused first, so a second accidental Enter goes back to editing, not saving. */}
@@ -51,7 +44,7 @@ export function ConfirmDialog({
           {confirmLabel}
         </button>
       </div>
-    </dialog>
+    </Modal>
   )
 }
 
