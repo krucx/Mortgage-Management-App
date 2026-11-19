@@ -36,8 +36,8 @@ def record_payment(
     as a part of its own: the id is then the Payment's first part. A Grace Payment
     keeps its received date and what it let off on each Mortgage, its Final Payments
     too. Each Advance is split into Advance Instalments after the date received, even
-    under Grace (ADR 0021), and refused if it would hold more than its Mortgage owes
-    then."""
+    under Grace (ADR 0021). Refused if it leaves a Mortgage's upcoming Advance
+    Instalments holding more than it owes then."""
     rows = refuse_payment(conn, payment, today)
     grace = payment_grace(conn, payment, today)
     redeemed = []
@@ -69,10 +69,9 @@ def record_payment(
                     allocation.months,
                     received_on,
                 )
-                refuse_overheld(
-                    conn, allocation.mortgage_id, allocation.advance, received_on
-                )
         check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
+        for allocation in ordinary:
+            refuse_overheld(conn, allocation, received_on, today)
         record_payment_history(conn, first, paid, now)
     for allocation, mortgage in redeemed:
         with refusal_names_mortgage(conn, allocation.mortgage_id):

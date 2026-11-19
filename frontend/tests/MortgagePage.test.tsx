@@ -275,6 +275,7 @@ const closingPreview =
         before: side(null),
         after: side(made),
         ledger_changes: [],
+        advance_warnings: [],
       },
     ])
   }

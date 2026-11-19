@@ -4,7 +4,7 @@ Mortgage's next Accrual Dates after the date received, and applied by Replay onl
 its date arrives. What a Mortgage's upcoming Advance Instalments hold never exceeds its
 Outstanding."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date
 from typing import Literal
 
@@ -12,8 +12,9 @@ from pydantic import BaseModel
 from sqlalchemy import insert, select
 from sqlalchemy.engine import Connection, RowMapping
 
-from mortgage_backend.lending.ledger import accrual_date
-from mortgage_backend.lending.replay import replay
+from mortgage_backend.lending.ledger import Allocation, LedgerStep, accrual_date
+from mortgage_backend.lending.replay import MortgageReplay, replay
+from mortgage_backend.payments.writes import AllocationIn
 from mortgage_backend.platform.db import advance_instalment_table
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.money import format_inr
@@ -61,22 +62,88 @@ def write_advance(
     )
 
 
+def _upcoming(mortgage: MortgageReplay, on: date) -> list[Allocation]:
+    """Its Advance Instalments still upcoming on `on`, by date."""
+    return [i for i in mortgage.instalments() if i.on > on]
+
+
 def refuse_overheld(
-    conn: Connection, mortgage_id: int, advance: int, received_on: date
+    conn: Connection, allocation: AllocationIn, received_on: date, today: date
 ) -> None:
-    """Refuse an Advance of `advance`, now written, if the Mortgage's upcoming Advance
-    Instalments would hold more than its Outstanding on the date received, after the
-    Payment's other Allocations and Discounts: a Closure could then overpay it."""
-    mortgage = replay(conn, mortgage_id)
-    owed = mortgage.outstanding(received_on).total
-    held = sum(i.amount for i in mortgage.instalments() if i.on > received_on)
-    if held > owed:
-        fits = max(0, owed - (held - advance))
+    """Refuse a Payment, now written, that leaves the Allocation's Mortgage with
+    upcoming Advance Instalments holding more than it owes: a Closure could then
+    overpay it. Its own Advance is checked on the date received; any other Payment or
+    Discount against the parts still upcoming today, which are the ones the Lender can
+    cancel. Names the most that fits, and the latest parts to cancel first."""
+    on = received_on if allocation.advance else today
+    mortgage = replay(conn, allocation.mortgage_id)
+    owed = mortgage.outstanding(on).total
+    upcoming = _upcoming(mortgage, on)
+    held = sum(i.amount for i in upcoming)
+    excess = held - owed
+    if excess <= 0:
+        return
+    name = mortgage.row["name"]
+    if allocation.advance:
         raise unprocessable(
-            f"{mortgage.row['name']}: an Advance of {format_inr(advance)} would hold "
-            f"more than the {format_inr(owed)} it owes on {received_on:%d %b %Y}; "
-            f"at most {format_inr(fits)} fits"
+            f"{name}: an Advance of {format_inr(allocation.advance)} would hold more "
+            f"than the {format_inr(owed)} it owes on {on:%d %b %Y}; at most "
+            f"{format_inr(max(0, allocation.advance - excess))} fits"
         )
+    # Cancelling a part applies it at once, so the latest parts covering the excess
+    # can pay that much of this Payment instead.
+    cancel: list[Allocation] = []
+    for part in reversed(upcoming):
+        cancel.insert(0, part)
+        if sum(i.amount for i in cancel) >= excess:
+            break
+    taking = allocation.amount + allocation.discount
+    raise unprocessable(
+        f"{name}: this would leave its upcoming Advance Instalments holding "
+        f"{format_inr(held)}, more than the {format_inr(owed)} it would owe on "
+        f"{on:%d %b %Y}. Take at most {format_inr(max(0, taking - excess))}, or "
+        f"cancel the Advance Instalments on "
+        f"{', '.join(f'{i.on:%d %b %Y}' for i in cancel)} first, which pay "
+        f"{format_inr(sum(i.amount for i in cancel))} of it at once, and take that "
+        f"much less"
+    )
+
+
+class AdvanceWarning(BaseModel):
+    """An upcoming Advance Instalment that would reduce Principal after a change, or
+    reduce it more: Replay sends what exceeds its month's interest to Principal."""
+
+    on: date
+    amount: int
+    principal_paid: int  # after the change
+
+
+def upcoming_parts(mortgage: MortgageReplay, today: date) -> dict[int, LedgerStep]:
+    """Each Advance Instalment still upcoming on `today`, as Replay will apply it, by
+    its id, in date order."""
+    upcoming = _upcoming(mortgage, today)
+    if not upcoming:
+        return {}
+    ids = {i.instalment_id for i in upcoming}
+    return {
+        step.instalment_id: step
+        for step in mortgage.ledger(upcoming[-1].on)
+        if step.instalment_id is not None and step.instalment_id in ids
+    }
+
+
+def advance_warnings(
+    before: Mapping[int, LedgerStep], after: Mapping[int, LedgerStep]
+) -> list[AdvanceWarning]:
+    """The upcoming parts, there before a change, that would pay more Principal after
+    it. A part the change adds is in its own Advance's schedule instead."""
+    return [
+        AdvanceWarning(
+            on=step.on, amount=step.amount, principal_paid=step.principal_paid
+        )
+        for id_, step in after.items()
+        if id_ in before and step.principal_paid > before[id_].principal_paid
+    ]
 
 
 class AdvancePart(BaseModel):
