@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import type { AdvanceInstalment, LedgerGrace, LedgerStep, Mortgage } from '../api'
+import { AdvancePanel } from '../components/AdvancePanel'
 import { CallNotes } from '../components/CallNotes'
 import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
 import { CollateralPanel } from '../components/CollateralPanel'
@@ -93,6 +94,7 @@ export function MortgagePage() {
     return loaded.error ? <p className="status error">{loaded.error.message}</p> : <p>Loading…</p>
   }
   const { outstanding } = mortgage
+  const hasAdvance = mortgage.advance_instalments.length > 0
 
   return (
     <section className="card wide">
@@ -133,6 +135,12 @@ export function MortgagePage() {
           <span className="hint">Unpaid interest</span>
           <strong>{formatINR(outstanding.unpaid_interest)}</strong>
         </div>
+        {hasAdvance && (
+          <div className="tile">
+            <span className="hint">Advance held</span>
+            <strong>{formatINR(mortgage.advance_held)}</strong>
+          </div>
+        )}
       </div>
 
       <dl>
@@ -153,6 +161,13 @@ export function MortgagePage() {
 
       <h3>Terms</h3>
       <TermsPanel mortgage={mortgage} onChange={setMortgage} />
+
+      {hasAdvance && (
+        <>
+          <h3>Advances</h3>
+          <AdvancePanel mortgage={mortgage} onChange={setMortgage} />
+        </>
+      )}
 
       <h3>Collateral Value</h3>
       <CollateralPanel mortgage={mortgage} onChange={setMortgage} />
@@ -328,7 +343,8 @@ function paidAhead(step: LedgerStep): string {
 }
 
 const instalmentName = (instalment: AdvanceInstalment) =>
-  `Advance Instalment ${instalment.number} of ${instalment.of}`
+  `Advance Instalment ${instalment.number} of ${instalment.of}` +
+  (instalment.cancelled_on ? `, cancelled (due ${formatDate(instalment.on)})` : '')
 
 /** The calculation behind a Ledger step, in words; `instalment` when the step is an
  *  Advance Instalment's. */

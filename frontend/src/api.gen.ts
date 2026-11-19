@@ -554,6 +554,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Instalment Cancel
+         * @description Cancel an upcoming Advance Instalment, applying its amount today.
+         */
+        post: operations["post_instalment_cancel_api_mortgages__mortgage_id__advance_instalments__instalment_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Instalment Cancel
+         * @description The Mortgage before and after cancelling the Advance Instalment today.
+         */
+        post: operations["preview_instalment_cancel_api_mortgages__mortgage_id__advance_instalments__instalment_id__cancel_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mortgages/{mortgage_id}/call-notes": {
         parameters: {
             query?: never;
@@ -1051,6 +1091,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/payments/{payment_id}/advance-instalments/{instalment_id}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Advance Receipt */
+        get: operations["read_advance_receipt_api_payments__payment_id__advance_instalments__instalment_id__receipt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/payments/{payment_id}/receipt": {
         parameters: {
             query?: never;
@@ -1466,11 +1523,15 @@ export interface components {
     schemas: {
         /**
          * AdvanceInstalmentOut
-         * @description One part of an Advance (ADR 0021): the `number`th of its Advance's `of`.
+         * @description One part of an Advance (ADR 0021): the `number`th of its Advance's `of`, received
+         *     on `received_on`. Applied on `on`, or at once on `cancelled_on` if cancelled before
+         *     then; upcoming until it is applied.
          */
         AdvanceInstalmentOut: {
             /** Amount */
             amount: number;
+            /** Cancelled On */
+            cancelled_on: string | null;
             /** Id */
             id: number;
             /** Number */
@@ -1484,6 +1545,11 @@ export interface components {
             on: string;
             /** Payment Id */
             payment_id: number;
+            /**
+             * Received On
+             * Format: date
+             */
+            received_on: string;
             /** Upcoming */
             upcoming: boolean;
         };
@@ -1524,6 +1590,16 @@ export interface components {
              * @enum {string}
              */
             verdict: "exact" | "falls_short" | "reduces_principal";
+        };
+        /**
+         * AdvanceTag
+         * @description A Payment's Advances on the Payments page: `upcoming` of its `of` parts.
+         */
+        AdvanceTag: {
+            /** Of */
+            of: number;
+            /** Upcoming */
+            upcoming: number;
         };
         /**
          * AdvanceWarning
@@ -1589,7 +1665,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "created" | "edited" | "deleted" | "voided" | "redeemed" | "waived" | "forfeited" | "reopened" | "photo_added" | "photo_removed" | "term_change_added" | "term_change_removed";
+            action: "created" | "edited" | "deleted" | "voided" | "redeemed" | "waived" | "forfeited" | "reopened" | "photo_added" | "photo_removed" | "term_change_added" | "term_change_removed" | "advance_instalment_cancelled";
             /**
              * At
              * Format: date-time
@@ -1922,6 +1998,41 @@ export interface components {
             /** Photo Url */
             photo_url: string | null;
             referrer: components["schemas"]["PersonSummary"] | null;
+        };
+        /**
+         * CustomerToday
+         * @description A Customer's own page as it stands today.
+         */
+        CustomerToday: {
+            /** Aadhaar Last4 */
+            aadhaar_last4: string | null;
+            /** Aadhaar Photo Url */
+            aadhaar_photo_url: string | null;
+            /** Address */
+            address: string;
+            /** Advance Held */
+            advance_held: number;
+            /** Email */
+            email: string | null;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Pan */
+            pan: string | null;
+            /** Pan Photo Url */
+            pan_photo_url: string | null;
+            /** Phone 1 */
+            phone_1: string;
+            /** Phone 2 */
+            phone_2: string | null;
+            /** Photo Url */
+            photo_url: string | null;
+            /** Referred */
+            referred: components["schemas"]["PersonSummary"][];
+            referrer: components["schemas"]["PersonSummary"] | null;
+            /** Shares Phone With */
+            shares_phone_with: components["schemas"]["PersonSummary"][];
         };
         /** Dashboard */
         Dashboard: {
@@ -2358,6 +2469,8 @@ export interface components {
          * @description A Mortgage's own page, with its Ledger computed up to `as_of`.
          */
         Mortgage: {
+            /** Advance Held */
+            advance_held: number;
             /** Advance Instalments */
             advance_instalments: components["schemas"]["AdvanceInstalmentOut"][];
             /** Amount Lent */
@@ -2757,6 +2870,7 @@ export interface components {
          * @description A Payment as listed on the Payments page.
          */
         PaymentRow: {
+            advance: components["schemas"]["AdvanceTag"] | null;
             /** Amount */
             amount: number;
             customer: components["schemas"]["PersonSummary"];
@@ -2886,6 +3000,8 @@ export interface components {
         };
         /** Receipt */
         Receipt: {
+            /** Advance Due On */
+            advance_due_on: string | null;
             /** Amount */
             amount: number;
             customer: components["schemas"]["PersonSummary"];
@@ -2913,6 +3029,11 @@ export interface components {
         };
         /** ReceiptLineOut */
         ReceiptLineOut: {
+            /**
+             * Advance Parts
+             * @default []
+             */
+            advance_parts: components["schemas"]["ReceiptPart"][];
             /** Description */
             description: string;
             /**
@@ -2950,6 +3071,19 @@ export interface components {
              * @default false
              */
             redeemed: boolean;
+        };
+        /**
+         * ReceiptPart
+         * @description One part of an Advance: what it will apply, and on what date (ADR 0021).
+         */
+        ReceiptPart: {
+            /** Amount */
+            amount: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
         };
         /**
          * RedeemAllIn
@@ -3776,7 +3910,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Customer"];
+                    "application/json": components["schemas"]["CustomerToday"];
                 };
             };
             /** @description Validation Error */
@@ -4312,6 +4446,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Mortgage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_instalment_cancel_api_mortgages__mortgage_id__advance_instalments__instalment_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mortgage_id: number;
+                instalment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mortgage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_instalment_cancel_api_mortgages__mortgage_id__advance_instalments__instalment_id__cancel_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mortgage_id: number;
+                instalment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewOfChange"];
                 };
             };
             /** @description Validation Error */
@@ -5248,6 +5446,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Payment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_advance_receipt_api_payments__payment_id__advance_instalments__instalment_id__receipt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_id: number;
+                instalment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
                 };
             };
             /** @description Validation Error */

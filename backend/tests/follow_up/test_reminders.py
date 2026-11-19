@@ -725,3 +725,31 @@ def test_a_covered_mortgage_is_left_out_of_its_customers_reminder(
     [reminder] = app_client.get("/api/reminders").json()["items"]
     assert [m["id"] for m in reminder["mortgages"]] == [ring["id"]]
     assert "Gold chain" not in reminder["message"]
+
+
+def test_cancelling_a_part_before_its_date_brings_its_reminder_back(
+    app_client, clock
+) -> None:
+    ramesh = person(app_client)
+    chain = lend(app_client, ramesh)
+    advance(app_client, ramesh, chain, 9_000 * RUPEE, 9_000 * RUPEE, 3)
+    clock.today = date(2026, 5, 12)
+    assert app_client.get("/api/reminders").json()["items"] == []
+    [may] = [
+        part
+        for part in app_client.get(f"/api/mortgages/{chain['id']}").json()[
+            "advance_instalments"
+        ]
+        if part["on"] == "2026-05-14"
+    ]
+
+    cancelled = app_client.post(
+        f"/api/mortgages/{chain['id']}/advance-instalments/{may['id']}/cancel"
+    )
+
+    assert cancelled.status_code == 200, cancelled.text
+    [reminder] = app_client.get("/api/reminders").json()["items"]
+    assert (reminder["accrues_on"], reminder["status"]) == ("2026-05-14", "queued")
+    assert [m["id"] for m in reminder["mortgages"]] == [chain["id"]]
+    sent = app_client.post(f"/api/reminders/{reminder['id']}/sent")
+    assert sent.status_code == 200, sent.text

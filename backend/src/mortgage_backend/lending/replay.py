@@ -2,10 +2,10 @@
 
 Every Ledger and Outstanding is read through here, so the rules for what a replay
 includes live in one place: a Voided Payment is in no Ledger, a closed Mortgage accrues
-nothing after its Closure, an Advance Instalment is applied only once its date arrives,
-a Forfeited Mortgage's debt is settled by its jewellery and a
-Waived one's is let off by the Lender, and the Outstanding on a Closure date leaves out
-the Closure's own final Payment.
+nothing after its Closure, an Advance Instalment is applied only once its date arrives
+(or at once, on the date it is cancelled), a Forfeited Mortgage's debt is settled by
+its jewellery and a Waived one's is let off by the Lender, and the Outstanding on a
+Closure date leaves out the Closure's own final Payment.
 """
 
 from collections.abc import Sequence
@@ -169,12 +169,18 @@ class MortgageReplay:
             if step.payment_id is not None and step.instalment_id is None
         }
 
-    def owed_after(self, payment_id: int, on: date) -> int:
-        """What it owed just after its Payment `payment_id` on `on`: Outstanding at the
-        end of that day, as if none of that day's later Payments (or a write-off) had
-        been made."""
+    def owed_after(
+        self, payment_id: int, on: date, instalment_id: int | None = None
+    ) -> int:
+        """What it owed just after its Payment `payment_id` (or that Payment's Advance
+        Instalment `instalment_id`) on `on`: Outstanding at the end of that day, as if
+        none of that day's later Payments (or a write-off) had been made."""
         ledger = self.ledger(on)
-        at = next(i for i, s in enumerate(ledger) if s.payment_id == payment_id)
+        at = next(
+            i
+            for i, s in enumerate(ledger)
+            if s.payment_id == payment_id and s.instalment_id == instalment_id
+        )
         later = sum(
             s.amount + s.discount
             for s in ledger[at + 1 :]
@@ -373,7 +379,8 @@ def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageR
     ).mappings():
         allocations[instalment["mortgage_id"]].append(
             Allocation(
-                on=instalment["on"],
+                # A cancelled one is applied at once, on the date it was cancelled.
+                on=instalment["cancelled_on"] or instalment["on"],
                 amount=instalment["amount"],
                 payment_id=instalment["payment_id"],
                 instalment_id=instalment["id"],

@@ -2,11 +2,23 @@
   "components": {
     "schemas": {
       "AdvanceInstalmentOut": {
-        "description": "One part of an Advance (ADR 0021): the `number`th of its Advance's `of`.",
+        "description": "One part of an Advance (ADR 0021): the `number`th of its Advance's `of`, received\non `received_on`. Applied on `on`, or at once on `cancelled_on` if cancelled before\nthen; upcoming until it is applied.",
         "properties": {
           "amount": {
             "title": "Amount",
             "type": "integer"
+          },
+          "cancelled_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled On"
           },
           "id": {
             "title": "Id",
@@ -29,6 +41,11 @@
             "title": "Payment Id",
             "type": "integer"
           },
+          "received_on": {
+            "format": "date",
+            "title": "Received On",
+            "type": "string"
+          },
           "upcoming": {
             "title": "Upcoming",
             "type": "boolean"
@@ -37,11 +54,13 @@
         "required": [
           "id",
           "payment_id",
+          "received_on",
           "on",
           "amount",
           "number",
           "of",
-          "upcoming"
+          "upcoming",
+          "cancelled_on"
         ],
         "title": "AdvanceInstalmentOut",
         "type": "object"
@@ -116,6 +135,25 @@
           "verdict"
         ],
         "title": "AdvanceSchedule",
+        "type": "object"
+      },
+      "AdvanceTag": {
+        "description": "A Payment's Advances on the Payments page: `upcoming` of its `of` parts.",
+        "properties": {
+          "of": {
+            "title": "Of",
+            "type": "integer"
+          },
+          "upcoming": {
+            "title": "Upcoming",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "upcoming",
+          "of"
+        ],
+        "title": "AdvanceTag",
         "type": "object"
       },
       "AdvanceWarning": {
@@ -295,7 +333,8 @@
               "photo_added",
               "photo_removed",
               "term_change_added",
-              "term_change_removed"
+              "term_change_removed",
+              "advance_instalment_cancelled"
             ],
             "title": "Action",
             "type": "string"
@@ -1341,6 +1380,151 @@
         "title": "CustomerRow",
         "type": "object"
       },
+      "CustomerToday": {
+        "description": "A Customer's own page as it stands today.",
+        "properties": {
+          "aadhaar_last4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aadhaar Last4"
+          },
+          "aadhaar_photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aadhaar Photo Url"
+          },
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "advance_held": {
+            "title": "Advance Held",
+            "type": "integer"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pan"
+          },
+          "pan_photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pan Photo Url"
+          },
+          "phone_1": {
+            "title": "Phone 1",
+            "type": "string"
+          },
+          "phone_2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone 2"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          },
+          "referred": {
+            "items": {
+              "$ref": "#/components/schemas/PersonSummary"
+            },
+            "title": "Referred",
+            "type": "array"
+          },
+          "referrer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shares_phone_with": {
+            "items": {
+              "$ref": "#/components/schemas/PersonSummary"
+            },
+            "title": "Shares Phone With",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "phone_1",
+          "phone_2",
+          "photo_url",
+          "referrer",
+          "referred",
+          "shares_phone_with",
+          "email",
+          "aadhaar_last4",
+          "pan",
+          "aadhaar_photo_url",
+          "pan_photo_url",
+          "advance_held"
+        ],
+        "title": "CustomerToday",
+        "type": "object"
+      },
       "Dashboard": {
         "properties": {
           "active_mortgages": {
@@ -2247,6 +2431,10 @@
       "Mortgage": {
         "description": "A Mortgage's own page, with its Ledger computed up to `as_of`.",
         "properties": {
+          "advance_held": {
+            "title": "Advance Held",
+            "type": "integer"
+          },
           "advance_instalments": {
             "items": {
               "$ref": "#/components/schemas/AdvanceInstalmentOut"
@@ -2401,6 +2589,7 @@
           "as_of",
           "ledger",
           "advance_instalments",
+          "advance_held",
           "graces",
           "outstanding",
           "collateral",
@@ -3326,6 +3515,16 @@
       "PaymentRow": {
         "description": "A Payment as listed on the Payments page.",
         "properties": {
+          "advance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdvanceTag"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "amount": {
             "title": "Amount",
             "type": "integer"
@@ -3389,7 +3588,8 @@
           "method",
           "reference",
           "mortgages",
-          "voided"
+          "voided",
+          "advance"
         ],
         "title": "PaymentRow",
         "type": "object"
@@ -3700,6 +3900,18 @@
       },
       "Receipt": {
         "properties": {
+          "advance_due_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advance Due On"
+          },
           "amount": {
             "title": "Amount",
             "type": "integer"
@@ -3777,13 +3989,22 @@
           "reference",
           "lines",
           "total_owed",
-          "text"
+          "text",
+          "advance_due_on"
         ],
         "title": "Receipt",
         "type": "object"
       },
       "ReceiptLineOut": {
         "properties": {
+          "advance_parts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReceiptPart"
+            },
+            "title": "Advance Parts",
+            "type": "array"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -3843,6 +4064,26 @@
           "mortgage_id"
         ],
         "title": "ReceiptLineOut",
+        "type": "object"
+      },
+      "ReceiptPart": {
+        "description": "One part of an Advance: what it will apply, and on what date (ADR 0021).",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "amount"
+        ],
+        "title": "ReceiptPart",
         "type": "object"
       },
       "RedeemAllIn": {
@@ -5375,7 +5616,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Customer"
+                  "$ref": "#/components/schemas/CustomerToday"
                 }
               }
             },
@@ -6249,6 +6490,104 @@
           }
         },
         "summary": "Put Mortgage"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel": {
+      "post": {
+        "description": "Cancel an upcoming Advance Instalment, applying its amount today.",
+        "operationId": "post_instalment_cancel_api_mortgages__mortgage_id__advance_instalments__instalment_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "instalment_id",
+            "required": true,
+            "schema": {
+              "title": "Instalment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mortgage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Instalment Cancel"
+      }
+    },
+    "/api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel-preview": {
+      "post": {
+        "description": "The Mortgage before and after cancelling the Advance Instalment today.",
+        "operationId": "preview_instalment_cancel_api_mortgages__mortgage_id__advance_instalments__instalment_id__cancel_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mortgage_id",
+            "required": true,
+            "schema": {
+              "title": "Mortgage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "instalment_id",
+            "required": true,
+            "schema": {
+              "title": "Instalment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOfChange"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Instalment Cancel"
       }
     },
     "/api/mortgages/{mortgage_id}/call-notes": {
@@ -7642,6 +7981,54 @@
           }
         },
         "summary": "Read Payment"
+      }
+    },
+    "/api/payments/{payment_id}/advance-instalments/{instalment_id}/receipt": {
+      "get": {
+        "operationId": "read_advance_receipt_api_payments__payment_id__advance_instalments__instalment_id__receipt_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "title": "Payment Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "instalment_id",
+            "required": true,
+            "schema": {
+              "title": "Instalment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Advance Receipt"
       }
     },
     "/api/payments/{payment_id}/receipt": {

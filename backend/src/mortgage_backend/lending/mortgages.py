@@ -1,7 +1,6 @@
 """Mortgages: one loan against one pledged packet of jewellery (see Documentation/GLOSSARY.md)."""
 
 import re
-from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import Annotated, Any, Literal
@@ -37,12 +36,18 @@ from mortgage_backend.lending.replay import (
     replays,
 )
 from mortgage_backend.lending.terms import Terms
+from mortgage_backend.payments.advances import (
+    AdvanceInstalmentOut,
+    advance_held,
+    advance_instalments,
+)
 from mortgage_backend.payments.grace_period import LedgerGrace, graces_of
 from mortgage_backend.payments.payments import PaymentMethod
 from mortgage_backend.people.customers import PersonSummary, phone_fragment
 from mortgage_backend.platform.clock import MonthQuery, TodayDep, month_span
 from mortgage_backend.platform.db import (
     EngineDep,
+    advance_instalment_table,
     customer_table,
     mortgage_photo_table,
     mortgage_table,
@@ -135,42 +140,6 @@ def upcoming_accrual_dates(start: date, today: date, count: int = 12) -> list[da
     return [accrual_date(start, n + i) for i in range(count)]
 
 
-class AdvanceInstalmentOut(BaseModel):
-    """One part of an Advance (ADR 0021): the `number`th of its Advance's `of`."""
-
-    id: int
-    payment_id: int
-    on: date
-    amount: int
-    number: int
-    of: int
-    upcoming: bool  # not yet applied: after `as_of`
-
-
-def advance_instalments(
-    mortgage: MortgageReplay, as_of: date
-) -> list[AdvanceInstalmentOut]:
-    """Its Advance Instalments, applied or upcoming, by date."""
-    instalments = mortgage.instalments()
-    of = Counter(i.payment_id for i in instalments)
-    numbered: Counter[int] = Counter()
-    found = []
-    for i in instalments:
-        numbered[i.payment_id] += 1
-        found.append(
-            AdvanceInstalmentOut(
-                id=i.instalment_id or 0,
-                payment_id=i.payment_id,
-                on=i.on,
-                amount=i.amount,
-                number=numbered[i.payment_id],
-                of=of[i.payment_id],
-                upcoming=i.on > as_of,
-            )
-        )
-    return found
-
-
 class Mortgage(BaseModel):
     """A Mortgage's own page, with its Ledger computed up to `as_of`."""
 
@@ -194,6 +163,7 @@ class Mortgage(BaseModel):
     ledger: list[LedgerStep]
     # Applied ones are in the Ledger too; upcoming ones are after `as_of`
     advance_instalments: list[AdvanceInstalmentOut]
+    advance_held: int  # what the upcoming ones will apply
     graces: list[
         LedgerGrace
     ]  # its Grace Payments, by `payment_id` of the Ledger's steps
@@ -258,6 +228,9 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
     )
     mortgage = replays(conn, [row])[mortgage_id]
     outstanding = mortgage.outstanding(today)
+    instalments = advance_instalments(
+        conn, today, advance_instalment_table.c.mortgage_id == mortgage_id
+    )
     active = row["status"] == MortgageStatus.ACTIVE
     return Mortgage(
         id=row["id"],
@@ -292,7 +265,8 @@ def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
         photos=[MortgagePhoto(id=p.id, url=photo_url(p.file) or "") for p in photos],
         as_of=today,
         ledger=mortgage.ledger(today),
-        advance_instalments=advance_instalments(mortgage, today),
+        advance_instalments=instalments,
+        advance_held=advance_held(instalments),
         graces=graces_of(conn, mortgage_id),
         outstanding=outstanding,
         collateral=collateral_of(row, gold_rates(conn), outstanding.total),

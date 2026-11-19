@@ -2,14 +2,17 @@
 few months, split into Advance Instalments, each an Allocation dated one of that
 Mortgage's next Accrual Dates after the date received, and applied by Replay only once
 its date arrives. What a Mortgage's upcoming Advance Instalments hold never exceeds its
-Outstanding."""
+Outstanding. The Lender may cancel an upcoming one, which applies its amount at once,
+on the date cancelled."""
 
+from collections import Counter
 from collections.abc import Mapping, Sequence
-from datetime import date
-from typing import Literal
+from datetime import date, datetime
+from typing import TYPE_CHECKING, Literal
 
+from fastapi import HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import insert, select
+from sqlalchemy import ColumnElement, func, insert, select, update
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.ledger import (
@@ -17,11 +20,16 @@ from mortgage_backend.lending.ledger import (
     LedgerStep,
     accrual_dates_after,
 )
-from mortgage_backend.lending.replay import MortgageReplay, replay
-from mortgage_backend.payments.writes import AllocationIn
-from mortgage_backend.platform.db import advance_instalment_table
+from mortgage_backend.lending.refusals import check_replays, refuse_unless_active
+from mortgage_backend.lending.replay import MortgageReplay, mortgage_row, replay
+from mortgage_backend.platform.db import advance_instalment_table, payment_table
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.money import format_inr
+from mortgage_backend.safekeeping import audit
+
+if TYPE_CHECKING:
+    # Only a type here: writes reaches this module through payments.payments.
+    from mortgage_backend.payments.writes import AllocationIn
 
 
 def split(advance: int, months: int) -> list[int]:
@@ -65,7 +73,7 @@ def _upcoming(mortgage: MortgageReplay, on: date) -> list[Allocation]:
 
 
 def refuse_overheld(
-    conn: Connection, allocation: AllocationIn, received_on: date, today: date
+    conn: Connection, allocation: "AllocationIn", received_on: date, today: date
 ) -> None:
     """Refuse a Payment, now written, that leaves the Allocation's Mortgage with
     upcoming Advance Instalments holding more than it owes: a Closure could then
@@ -208,3 +216,108 @@ def _verdict(
     if any(part.unpaid_interest_after for part in parts):
         return "falls_short"
     return "exact"
+
+
+class AdvanceInstalmentOut(BaseModel):
+    """One part of an Advance (ADR 0021): the `number`th of its Advance's `of`, received
+    on `received_on`. Applied on `on`, or at once on `cancelled_on` if cancelled before
+    then; upcoming until it is applied."""
+
+    id: int
+    payment_id: int
+    received_on: date
+    on: date
+    amount: int
+    number: int
+    of: int
+    upcoming: bool  # not yet applied (after `as_of`) nor cancelled
+    cancelled_on: date | None
+
+
+def advance_instalments(
+    conn: Connection, as_of: date, *where: ColumnElement[bool]
+) -> list[AdvanceInstalmentOut]:
+    """The Advance Instalments `where` picks out, by date, each numbered within its
+    Advance (one Payment's on one Mortgage); none of a Voided Payment."""
+    rows = conn.execute(
+        select(
+            advance_instalment_table,
+            func.coalesce(payment_table.c.received_on, payment_table.c.paid_on).label(
+                "received_on"
+            ),
+        )
+        .join(
+            payment_table, payment_table.c.id == advance_instalment_table.c.payment_id
+        )
+        .where(payment_table.c.voided_at.is_(None), *where)
+        .order_by(advance_instalment_table.c.on, advance_instalment_table.c.id)
+    ).mappings()
+    found = []
+    numbered: Counter[tuple[int, int]] = Counter()
+    for row in rows:
+        advance = (row["payment_id"], row["mortgage_id"])
+        numbered[advance] += 1
+        found.append((advance, numbered[advance], row))
+    return [
+        AdvanceInstalmentOut(
+            id=row["id"],
+            payment_id=row["payment_id"],
+            received_on=row["received_on"],
+            on=row["on"],
+            amount=row["amount"],
+            number=number,
+            of=numbered[advance],
+            upcoming=row["cancelled_on"] is None and row["on"] > as_of,
+            cancelled_on=row["cancelled_on"],
+        )
+        for advance, number, row in found
+    ]
+
+
+def advance_held(instalments: Sequence[AdvanceInstalmentOut]) -> int:
+    """The Advance held: what the upcoming ones of `instalments` will apply."""
+    return sum(i.amount for i in instalments if i.upcoming)
+
+
+def cancel_instalment(
+    conn: Connection, mortgage_id: int, instalment_id: int, today: date, now: datetime
+) -> None:
+    """Cancel an upcoming Advance Instalment (or refuse): its amount is applied today
+    as an ordinary Allocation, and it stays on record with its own date."""
+    row = mortgage_row(conn, mortgage_id)
+    refuse_unless_active(row)
+    found = [
+        i
+        for i in advance_instalments(
+            conn, today, advance_instalment_table.c.mortgage_id == mortgage_id
+        )
+        if i.id == instalment_id
+    ]
+    if not found:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Advance Instalment not found")
+    [instalment] = found
+    if instalment.cancelled_on is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This Advance Instalment was cancelled on "
+            f"{instalment.cancelled_on:%d %b %Y}",
+        )
+    if not instalment.upcoming:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "This Advance Instalment has been applied"
+        )
+    conn.execute(
+        update(advance_instalment_table)
+        .where(advance_instalment_table.c.id == instalment_id)
+        .values(cancelled_on=today)
+    )
+    check_replays(conn, [row], today)
+    audit.record(
+        conn,
+        now,
+        "mortgage",
+        mortgage_id,
+        "advance_instalment_cancelled",
+        note=f"{instalment.number} of {instalment.of}, "
+        f"{format_inr(instalment.amount)} due {instalment.on:%d %b %Y}",
+    )

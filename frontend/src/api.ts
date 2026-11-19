@@ -112,7 +112,8 @@ export type MortgagePreview = Schemas['MortgagePreview']
 export type PreviewOfChange = Schemas['PreviewOfChange']
 /** A Mortgage's Advance in a Payment's Preview, part by part, with what it comes to. */
 export type AdvanceSchedule = Schemas['AdvanceSchedule']
-/** One part of an Advance on a Mortgage's page: applied (in the Ledger) or upcoming. */
+/** One part of an Advance on a Mortgage's page: applied (in the Ledger), upcoming, or
+ *  cancelled (in the Ledger on the date it was cancelled). */
 export type AdvanceInstalment = Schemas['AdvanceInstalmentOut']
 export type NewMortgagePreview = Schemas['NewMortgagePreview']
 export type CollateralPreview = Schemas['CollateralPreview']

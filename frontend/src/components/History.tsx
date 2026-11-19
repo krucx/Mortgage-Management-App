@@ -104,6 +104,7 @@ const ACTION_LABELS: Record<AuditEntry['action'], string> = {
   photo_removed: 'photo removed',
   term_change_added: 'Term Change added',
   term_change_removed: 'Term Change removed',
+  advance_instalment_cancelled: 'Advance Instalment cancelled',
 }
 
 /** One change: the audit log keeps a row per field, written together. */

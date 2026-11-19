@@ -213,6 +213,8 @@ advance_instalment_table = Table(
     ),
     Column("on", Date, nullable=False),
     Column("amount", Integer, nullable=False),  # paise
+    # Cancelled while upcoming: applied at once on this date instead of on `on`
+    Column("cancelled_on", Date),
 )
 
 # A message to a Customer ahead of an Accrual Date (see Documentation/GLOSSARY.md: Reminder).

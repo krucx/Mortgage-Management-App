@@ -2,18 +2,28 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
-import { receiptQuery } from '../requests'
+import { advanceReceiptQuery, receiptQuery } from '../requests'
 import { useServerState } from '../serverState'
 
-/** A Receipt to print or save as PDF: the same content as the WhatsApp message. */
+/** A Receipt to print or save as PDF: the same content as the WhatsApp message. With
+ *  an `instalment`, the Receipt for that cancelled Advance Instalment of the Payment. */
 export function ReceiptPage() {
-  const id = Number(useParams().id)
+  const params = useParams()
+  const id = Number(params.id)
+  const instalment = params.instalment ? Number(params.instalment) : null
   const { client } = useServerState()
-  const { data: receipt, error } = useQuery(receiptQuery(client, id))
+  // Spread: the two queries' keys differ in type.
+  const { data: receipt, error } = useQuery({
+    ...(instalment === null
+      ? receiptQuery(client, id)
+      : advanceReceiptQuery(client, id, instalment)),
+  })
 
   if (!receipt) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
   // A Grace Payment's: dated before it was received (ADR 0020).
   const grace = receipt.received_on !== null
+  // Any Mortgage with an Advance in it: its parts, each with its date (ADR 0021).
+  const advanced = receipt.lines.some((line) => line.advance_parts.length > 0)
 
   return (
     <section className="card wide receipt">
@@ -28,7 +38,7 @@ export function ReceiptPage() {
           </button>
         </div>
       </div>
-      <h2>Payment receipt</h2>
+      <h2>{receipt.advance_due_on ? 'Advance applied' : 'Payment receipt'}</h2>
       <dl className="summary">
         <div className="summary-row">
           <dt>Received from</dt>
@@ -37,9 +47,11 @@ export function ReceiptPage() {
         <div className="summary-row">
           <dt>Date</dt>
           <dd>
-            {receipt.received_on
-              ? `Received ${formatDate(receipt.received_on)}, counted as paid on ${formatDate(receipt.paid_on)} (Grace)`
-              : formatDate(receipt.paid_on)}
+            {receipt.advance_due_on
+              ? `Applied ${formatDate(receipt.paid_on)}, from the Advance part due ${formatDate(receipt.advance_due_on)}`
+              : receipt.received_on
+                ? `Received ${formatDate(receipt.received_on)}, counted as paid on ${formatDate(receipt.paid_on)} (Grace)`
+                : formatDate(receipt.paid_on)}
           </dd>
         </div>
         <div className="summary-row">
@@ -60,13 +72,14 @@ export function ReceiptPage() {
         <thead>
           <tr>
             <th>Jewellery</th>
-            <th className="num">Paid</th>
+            <th className="num">{advanced ? 'Paid now' : 'Paid'}</th>
             <th className="num">Interest</th>
             <th className="num">Principal</th>
             <th className="num">Discount</th>
             <th className="num">Discount to interest</th>
             <th className="num">Discount to Principal</th>
             {grace && <th className="num">Let off (Grace)</th>}
+            {advanced && <th>Advance</th>}
             <th className="num">Still owed</th>
           </tr>
         </thead>
@@ -84,6 +97,15 @@ export function ReceiptPage() {
               <td className="num">{formatINR(line.discount_interest_paid)}</td>
               <td className="num">{formatINR(line.discount_principal_paid)}</td>
               {grace && <td className="num">{formatINR(line.let_off)}</td>}
+              {advanced && (
+                <td>
+                  {line.advance_parts.map((part) => (
+                    <div key={part.on}>
+                      {formatINR(part.amount)} on {formatDate(part.on)}
+                    </div>
+                  ))}
+                </td>
+              )}
               <td className="num">{formatINR(line.owed_after)}</td>
             </tr>
           ))}
@@ -105,6 +127,7 @@ export function ReceiptPage() {
                   {formatINR(receipt.lines.reduce((total, line) => total + line.let_off, 0))}
                 </td>
               )}
+              {advanced && <td />}
               <td className="num">{formatINR(receipt.total_owed)}</td>
             </tr>
           </tfoot>
