@@ -7,6 +7,8 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.5.0] - 2026-11-19
+
 ### Added
 
 - **System architecture documentation:** `Documentation/ARCHITECTURE.md` documents the
