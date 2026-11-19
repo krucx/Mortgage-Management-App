@@ -16,3 +16,4 @@ frontend/public/ocr
 qa/scratch-data
 qa/scratch-backups
 qa/test-results
+qa/node_modules

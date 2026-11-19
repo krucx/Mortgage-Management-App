@@ -1,3 +1,5 @@
+import type { Page } from '@playwright/test';
+
 /** Shared selectors for the mortgage app's forms. Prefer labels/roles over CSS. */
 export const labels = {
   customerName: 'Name',
@@ -13,3 +15,8 @@ export const buttons = {
   confirmAndSave: 'Confirm and save',
   createMortgage: 'Create Mortgage',
 } as const;
+
+/** The figure in a Mortgage page tile, such as `tile(page, 'Advance held')`. */
+export function tile(page: Page, label: string) {
+  return page.locator('.tile', { has: page.getByText(label, { exact: true }) }).locator('strong');
+}
