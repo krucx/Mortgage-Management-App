@@ -370,6 +370,29 @@ def test_reopening_restores_exactly_the_parts_the_closure_cancelled(
     assert reopened["outstanding"]["total"] == 1_00_000 * RUPEE
 
 
+def test_a_backdated_closure_cannot_move_a_part_cancelled_today(
+    client, chain, advance, clock
+):
+    clock.today = date(2026, 5, 20)
+    instalment = mortgage(client, chain["id"])["advance_instalments"][1]
+    cancelled = client.post(
+        f"/api/mortgages/{chain['id']}/advance-instalments/{instalment['id']}/cancel"
+    )
+    assert cancelled.status_code == 200, cancelled.text
+
+    response = client.post(
+        f"/api/mortgages/{chain['id']}/redeem",
+        json={"redeemed_on": "2026-05-10", "method": "cash"},
+    )
+
+    assert response.status_code == 422, response.text
+    assert (
+        "There are Payments after that date (latest 20 May 2026)"
+        in response.json()["detail"]
+    )
+    assert parts(client, chain["id"])[1] == ("2026-06-14", False, ON)
+
+
 def test_a_payment_of_what_the_advance_leaves_redeems_it(
     client, ramesh, chain, advance
 ):
