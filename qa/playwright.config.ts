@@ -9,6 +9,11 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", use: { browserName: "chromium", viewport: { width: 1280, height: 720 } } },
-    { name: "mobile", use: { browserName: "chromium", viewport: { width: 375, height: 667 } } },
+    {
+      name: "mobile",
+      // Golden-book specs change the book, so they run once, at desktop width.
+      testMatch: ["blank-slate.spec.ts", "responsive.spec.ts"],
+      use: { browserName: "chromium", viewport: { width: 375, height: 667 } },
+    },
   ],
 });
