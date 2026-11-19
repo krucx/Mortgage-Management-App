@@ -117,6 +117,7 @@ function discountAwarePreview(rooms: Record<number, number> = {}, limit = 50_000
       before: { outstanding: row.outstanding_total, points: [], term_changes: [], closure: null },
       after: { outstanding: 0, points: [], term_changes: [], closure: null },
       ledger_changes: [],
+      advance_warnings: [],
       discount_room: rooms[allocation.mortgage_id] ?? row.outstanding_total,
       over_threshold: allocation.discount > limit,
     }))
@@ -288,6 +289,7 @@ function quoting(extra: Record<string, unknown> = {}) {
             : null,
         ),
         ledger_changes: [],
+        advance_warnings: [],
       }))
       return changePreview(mortgages)
     },
@@ -771,6 +773,7 @@ test('an Advance is recorded with its months, and its schedule is shown from the
           before: { outstanding: 0, points: [], term_changes: [], closure: null },
           after: { outstanding: 0, points: [], term_changes: [], closure: null },
           ledger_changes: [],
+          advance_warnings: [],
           advance: { parts, verdict: 'reduces_principal' },
         },
       ])

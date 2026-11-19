@@ -399,3 +399,131 @@ def test_upcoming_parts_change_nothing_the_lender_sees_today(tmp_path):
         **without["dashboard"],
         received: None,
     }
+
+
+def warnings(previewed, mortgage_id):
+    """The Preview's warnings for the Mortgage: (date, Principal paid) of each upcoming
+    part that would now reduce Principal."""
+    [shown] = [m for m in previewed["mortgages"] if m["mortgage_id"] == mortgage_id]
+    return [(w["on"], w["principal_paid"]) for w in shown["advance_warnings"]]
+
+
+def post_preview(client, path, body):
+    response = client.post(f"/api/{path}", json=body)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+@pytest.fixture
+def advanced(client, ramesh, chain):
+    """The chain's interest paid to date, and ₹9,000 held for its next three months."""
+    record(client, draft(ramesh, {chain["id"]: (9_000 * RUPEE, 9_000 * RUPEE, 3)}))
+    return chain
+
+
+def test_a_term_change_preview_warns_of_parts_that_would_now_reduce_principal(
+    client, advanced
+):
+    shown = post_preview(
+        client,
+        f"mortgages/{advanced['id']}/term-changes/preview",
+        {"monthly_rate_bps": 100},
+    )
+
+    # 14 May is still at 3%. On 14 Jun the ₹3,000 pays that month's ₹1,000 and the
+    # next month's ₹1,000 ahead, then Principal; on 14 Jul, ₹990 ahead on ₹99,000.
+    assert warnings(shown, advanced["id"]) == [
+        ("2026-06-14", 1_000 * RUPEE),
+        ("2026-07-14", 2_010 * RUPEE),
+    ]
+
+
+def test_correcting_the_starting_terms_warns_the_same_way(client, advanced):
+    current = mortgage(client, advanced["id"])
+    edit = {
+        key: current[key]
+        for key in (
+            "name",
+            "start_date",
+            "amount_lent",
+            "description",
+            "gross_weight_mg",
+            "net_weight_mg",
+            "purity_karat",
+            "lent_through",
+        )
+    }
+    edit["terms"] = {**current["terms"], "monthly_rate_bps": 200}
+
+    shown = post_preview(client, f"mortgages/{advanced['id']}/edit-preview", edit)
+
+    assert [on for on, _ in warnings(shown, advanced["id"])] == [
+        "2026-05-14",
+        "2026-06-14",
+        "2026-07-14",
+    ]
+
+
+def test_a_new_payment_preview_warns_of_parts_that_would_now_reduce_principal(
+    client, ramesh, advanced
+):
+    shown = preview(client, draft(ramesh, {advanced["id"]: (50_000 * RUPEE, 0, 1)}))
+
+    warned = warnings(shown, advanced["id"])
+    assert [on for on, _ in warned] == ["2026-05-14", "2026-06-14", "2026-07-14"]
+    assert all(principal > 0 for _, principal in warned)
+
+
+def test_no_warning_when_no_part_changes(client, ramesh, advanced):
+    raised = post_preview(
+        client,
+        f"mortgages/{advanced['id']}/term-changes/preview",
+        {"monthly_rate_bps": 400},
+    )
+    assert warnings(raised, advanced["id"]) == []
+
+
+def test_a_new_advance_s_own_parts_are_in_its_schedule_not_warned_of(
+    client, ramesh, chain
+):
+    shown = preview(
+        client, draft(ramesh, {chain["id"]: (9_000 * RUPEE, 30_000 * RUPEE, 3)})
+    )
+
+    assert shown["mortgages"][0]["advance"]["verdict"] == "reduces_principal"
+    assert warnings(shown, chain["id"]) == []
+
+
+def test_a_payment_leaving_the_parts_holding_more_than_the_outstanding_is_refused(
+    client, ramesh, chain
+):
+    # Owing ₹1,12,000: ₹9,000 paid now leaves ₹1,03,000, of which ₹1,00,000 is held.
+    record(client, draft(ramesh, {chain["id"]: (9_000 * RUPEE, 1_00_000 * RUPEE, 12)}))
+
+    too_much = draft(ramesh, {chain["id"]: (2_000 * RUPEE, 0, 1)})
+    too_much["allocations"][0]["discount"] = 1_000 * RUPEE + 1
+    for path in ("/api/payments/preview", "/api/payments"):
+        response = client.post(path, json=too_much)
+        assert response.status_code == 422, response.text
+        detail = response.json()["detail"]
+        assert chain["name"] in detail
+        assert "14 Apr 2027" in detail  # the last part, to cancel first
+        assert "₹3,000" in detail  # the most it can take
+
+    fits = draft(ramesh, {chain["id"]: (2_000 * RUPEE, 0, 1)})
+    fits["allocations"][0]["discount"] = 1_000 * RUPEE
+    record(client, fits)
+
+
+def test_a_back_dated_payment_is_held_to_the_parts_still_upcoming_today(
+    client, ramesh, chain, clock
+):
+    # ₹30,000 held from 14 May; by 20 Jun the 14 May and 14 Jun parts are applied.
+    record(client, draft(ramesh, {chain["id"]: (9_000 * RUPEE, 30_000 * RUPEE, 3)}))
+    clock.today = date(2026, 6, 20)
+
+    # Paying ₹74,000 dated 1 May leaves ₹29,000 owed then, less than the ₹30,000
+    # held; but the interest since has grown what is owed past the ₹10,000 still held.
+    record(
+        client, draft(ramesh, {chain["id"]: (74_000 * RUPEE, 0, 1)}, on="2026-05-01")
+    )
