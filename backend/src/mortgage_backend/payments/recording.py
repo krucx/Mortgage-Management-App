@@ -11,6 +11,7 @@ from sqlalchemy.engine import Connection
 from mortgage_backend.lending.closing import close_redeemed
 from mortgage_backend.lending.refusals import check_replays, refusal_names_mortgage
 from mortgage_backend.lending.replay import MortgageReplay, replay
+from mortgage_backend.payments.advances import refuse_overheld, write_advance
 from mortgage_backend.payments.payments import Payment, load_payment
 from mortgage_backend.payments.writes import (
     AllocationIn,
@@ -34,7 +35,9 @@ def record_payment(
     Outstanding on the Payment date is Redeemed (ADR 0011), with its Final Payment kept
     as a part of its own: the id is then the Payment's first part. A Grace Payment
     keeps its received date and what it let off on each Mortgage, its Final Payments
-    too."""
+    too. Each Advance is split into Advance Instalments after the date received, even
+    under Grace (ADR 0021), and refused if it would hold more than its Mortgage owes
+    then."""
     rows = refuse_payment(conn, payment, today)
     grace = payment_grace(conn, payment, today)
     redeemed = []
@@ -48,9 +51,27 @@ def record_payment(
     first = None
     if ordinary:
         paid = payment.model_copy(
-            update={"amount": sum(a.amount for a in ordinary), "allocations": ordinary}
+            update={
+                "amount": sum(a.amount + a.advance for a in ordinary),
+                "allocations": ordinary,
+            }
         )
         first = write_payment(conn, paid, grace=grace)
+        received_on = payment.received_on or payment.paid_on
+        rows_by_id = {r["id"]: r for r in rows}
+        for allocation in ordinary:
+            if allocation.advance and allocation.months:
+                write_advance(
+                    conn,
+                    first,
+                    rows_by_id[allocation.mortgage_id],
+                    allocation.advance,
+                    allocation.months,
+                    received_on,
+                )
+                refuse_overheld(
+                    conn, allocation.mortgage_id, allocation.advance, received_on
+                )
         check_replays(conn, [r for r in rows if r["id"] not in redeemed_ids], today)
         record_payment_history(conn, first, paid, now)
     for allocation, mortgage in redeemed:
@@ -79,7 +100,10 @@ def _redeemed_by(
     conn: Connection, allocation: AllocationIn, on: date, today: date
 ) -> MortgageReplay | None:
     """The Mortgage, if the Allocation is its whole Outstanding on `on`: paying all of
-    it Redeems it, so it is refused if the Mortgage can't be Redeemed then."""
+    it Redeems it, so it is refused if the Mortgage can't be Redeemed then. One with an Advance
+    never Redeems: the Advance would then hold more than it owes."""
+    if allocation.advance:
+        return None
     mortgage = replay(conn, allocation.mortgage_id)
     full_payment = allocation.amount + allocation.discount
     if full_payment != mortgage.outstanding_on_closure(on).total:

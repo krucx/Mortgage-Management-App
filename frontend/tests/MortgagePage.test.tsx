@@ -530,3 +530,52 @@ test("a Grace Payment's Ledger row shows both dates and what this Mortgage was l
   expect(within(ordinary).getByRole('link').getAttribute('href')).toBe('/payments/8')
   expect(within(ordinary).queryByText(/Grace|received|let off/)).toBeNull()
 })
+
+test('the Ledger shows applied Advance Instalments on their dates and upcoming ones last, in grey', async () => {
+  const step = {
+    on: '2026-10-10',
+    event: 'payment' as const,
+    amount: 75_000,
+    principal: 5_000_000,
+    unpaid_interest: 0,
+    charged_on: 0,
+    interest_to_date_days: 0,
+    paid_ahead: 0,
+    interest_paid: 75_000,
+    principal_paid: 0,
+    discount: 0,
+    discount_interest_paid: 0,
+    discount_principal_paid: 0,
+    payment_id: 4,
+    terms: null,
+    instalment_id: 21,
+  }
+  const instalment = (id: number, on: string, number: number, upcoming: boolean) => ({
+    id,
+    payment_id: 4,
+    on,
+    amount: 75_000,
+    number,
+    of: 2,
+    upcoming,
+  })
+  showMortgagePage(
+    fakeServer({
+      'GET /api/mortgages/7': {
+        ...mortgage,
+        ledger: [step],
+        advance_instalments: [
+          instalment(21, '2026-10-10', 1, false),
+          instalment(22, '2026-11-10', 2, true),
+        ],
+      },
+    }),
+  )
+
+  const applied = (await screen.findByText(/^Advance Instalment 1 of 2:/)).closest('tr')!
+  expect(applied.className).toBe('ledger-payment')
+  const upcoming = screen.getByText('Advance Instalment 2 of 2').closest('tr')!
+  expect(upcoming.className).toBe('ledger-upcoming')
+  expect(within(upcoming).getByText('Upcoming')).toBeTruthy()
+  expect(upcoming.previousElementSibling).toBe(applied)
+})

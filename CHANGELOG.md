@@ -12,6 +12,13 @@ Every release of Mortgage Management, newest first. The format follows
 - **System architecture documentation:** `Documentation/ARCHITECTURE.md` documents the
   system architecture, UI pages, API endpoints, custom protocol (`mortgage-management://`),
   and Docker vs host deployments, with Mermaid architecture and sequence diagrams.
+- **Advances on New Payment:** any Mortgage row can hold an Advance over 1 to 12 months,
+  split into Advance Instalments as equal as the paise allow on that Mortgage's next Accrual
+  Dates after the date received (ADR 0021). Each is applied only once its date arrives. The
+  Advance adds to Amount received, and before saving a schedule per Mortgage shows what
+  each part pays, warning if a part would reduce Principal. An Advance holding more than
+  the Mortgage owes on the date received is refused. The Mortgage's Ledger lists upcoming
+  parts last, in grey, and Voiding the Payment removes every part.
 
 ### Changed
 

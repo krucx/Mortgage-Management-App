@@ -2,7 +2,8 @@
 
 Every Ledger and Outstanding is read through here, so the rules for what a replay
 includes live in one place: a Voided Payment is in no Ledger, a closed Mortgage accrues
-nothing after its Closure, a Forfeited Mortgage's debt is settled by its jewellery and a
+nothing after its Closure, an Advance Instalment is applied only once its date arrives,
+a Forfeited Mortgage's debt is settled by its jewellery and a
 Waived one's is let off by the Lender, and the Outstanding on a Closure date leaves out
 the Closure's own final Payment.
 """
@@ -30,6 +31,7 @@ from mortgage_backend.lending.ledger import (
 )
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.platform.db import (
+    advance_instalment_table,
     allocation_table,
     mortgage_table,
     payment_table,
@@ -111,7 +113,8 @@ class MortgageReplay:
         term_changes: Sequence[TermChange],
     ) -> None:
         self.row = row
-        self.allocations = list(allocations)  # non-Voided, in no particular order
+        # Non-Voided, in no particular order; Advance Instalments too, each on its date
+        self.allocations = list(allocations)
         self.term_changes = list(term_changes)  # in date order
         self._terms = Terms(
             monthly_rate_bps=row["monthly_rate_bps"],
@@ -141,18 +144,27 @@ class MortgageReplay:
             )
         return list(self._ledgers[as_of])
 
+    def instalments(self) -> list[Allocation]:
+        """Its Advance Instalments, applied or upcoming, by date."""
+        return sorted(
+            (a for a in self.allocations if a.instalment_id is not None),
+            key=lambda a: (a.on, a.instalment_id or 0),
+        )
+
     def steps_by_payment(self, up_to: date | None = None) -> dict[int, LedgerStep]:
-        """How each of its Payments was applied: the Ledger step it made, by Payment id,
-        for those up to `up_to` (every one, without it). A Voided Payment is in no
-        Ledger, so it is not here."""
+        """How each of its Payments was applied on its own date: the Ledger step it
+        made, by Payment id, for those up to `up_to` (every one, without it); never an
+        Advance Instalment's, so never replaying past the last Payment for one. A
+        Voided Payment is in no Ledger, so it is not here."""
+        paid = [a for a in self.allocations if a.instalment_id is None]
         if up_to is None:
-            if not self.allocations:
+            if not paid:
                 return {}
-            up_to = max(allocation.on for allocation in self.allocations)
+            up_to = max(allocation.on for allocation in paid)
         return {
             step.payment_id: step
             for step in self.ledger(up_to)
-            if step.payment_id is not None
+            if step.payment_id is not None and step.instalment_id is None
         }
 
     def owed_after(self, payment_id: int, on: date) -> int:
@@ -192,7 +204,11 @@ class MortgageReplay:
             return f"{row['name']} is already {row['status']}"
         if on < row["start_date"]:
             return f"{row['name']} had not started on that date"
-        later = max((a.on for a in self.allocations if a.on > on), default=None)
+        # An upcoming Advance Instalment is no later Payment: a Closure deals with it.
+        later = max(
+            (a.on for a in self.allocations if a.on > on and a.instalment_id is None),
+            default=None,
+        )
         if later is not None:
             return (
                 f"There are Payments after that date (latest {later:%d %b %Y}); "
@@ -284,7 +300,7 @@ class MortgageReplay:
 
 
 def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageReplay]:
-    """A replay for each Mortgage row, loading all their facts in two queries."""
+    """A replay for each Mortgage row, loading all their facts in three queries."""
     ids = [row["id"] for row in rows]
     allocations: dict[int, list[Allocation]] = {id_: [] for id_ in ids}
     for allocation in conn.execute(
@@ -307,6 +323,24 @@ def replays(conn: Connection, rows: Sequence[RowMapping]) -> dict[int, MortgageR
                 amount=allocation.amount,
                 payment_id=allocation.payment_id,
                 discount=allocation.discount,
+            )
+        )
+    for instalment in conn.execute(
+        select(advance_instalment_table)
+        .join(
+            payment_table, payment_table.c.id == advance_instalment_table.c.payment_id
+        )
+        .where(
+            advance_instalment_table.c.mortgage_id.in_(ids),
+            payment_table.c.voided_at.is_(None),
+        )
+    ).mappings():
+        allocations[instalment["mortgage_id"]].append(
+            Allocation(
+                on=instalment["on"],
+                amount=instalment["amount"],
+                payment_id=instalment["payment_id"],
+                instalment_id=instalment["id"],
             )
         )
     changes: dict[int, list[TermChange]] = {id_: [] for id_ in ids}

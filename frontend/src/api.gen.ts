@@ -1025,7 +1025,7 @@ export interface paths {
          * Preview Payment
          * @description Every Mortgage the Payment is allocated to, before and after recording it, with
          *     each Allocation's room for a Discount after its cash and whether it is over the
-         *     confirmation threshold.
+         *     confirmation threshold, and each Advance part by part.
          */
         post: operations["preview_payment_api_payments_preview_post"];
         delete?: never;
@@ -1464,8 +1464,74 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdvanceInstalmentOut
+         * @description One part of an Advance (ADR 0021): the `number`th of its Advance's `of`.
+         */
+        AdvanceInstalmentOut: {
+            /** Amount */
+            amount: number;
+            /** Id */
+            id: number;
+            /** Number */
+            number: number;
+            /** Of */
+            of: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Payment Id */
+            payment_id: number;
+            /** Upcoming */
+            upcoming: boolean;
+        };
+        /**
+         * AdvancePart
+         * @description An Advance Instalment as Replay applies it on its date.
+         */
+        AdvancePart: {
+            /** Amount */
+            amount: number;
+            /** Interest */
+            interest: number;
+            /** Interest Paid */
+            interest_paid: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Principal After */
+            principal_after: number;
+            /** Principal Paid */
+            principal_paid: number;
+            /** Unpaid Interest After */
+            unpaid_interest_after: number;
+        };
+        /**
+         * AdvanceSchedule
+         * @description A Mortgage's Advance in a Payment, part by part, with every part in place.
+         *     `reduces_principal`: a part pays Principal (a warning; it can still be saved);
+         *     `falls_short`: some interest is still unpaid after a part; `exact`: neither.
+         */
+        AdvanceSchedule: {
+            /** Parts */
+            parts: components["schemas"]["AdvancePart"][];
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "exact" | "falls_short" | "reduces_principal";
+        };
         /** AllocationIn */
         AllocationIn: {
+            /**
+             * Advance
+             * @default 0
+             */
+            advance: number;
             /** Amount */
             amount: number;
             /**
@@ -1473,11 +1539,15 @@ export interface components {
              * @default 0
              */
             discount: number;
+            /** Months */
+            months?: number | null;
             /** Mortgage Id */
             mortgage_id: number;
         };
         /** AllocationOut */
         AllocationOut: {
+            /** Advance */
+            advance: number;
             /** Amount */
             amount: number;
             /** Discount */
@@ -2167,6 +2237,8 @@ export interface components {
              * @enum {string}
              */
             event: "started" | "interest" | "interest_to_date" | "payment" | "capitalised" | "forfeited" | "waived" | "term_changed";
+            /** Instalment Id */
+            instalment_id?: number | null;
             /**
              * Interest Paid
              * @default 0
@@ -2270,6 +2342,8 @@ export interface components {
          * @description A Mortgage's own page, with its Ledger computed up to `as_of`.
          */
         Mortgage: {
+            /** Advance Instalments */
+            advance_instalments: components["schemas"]["AdvanceInstalmentOut"][];
             /** Amount Lent */
             amount_lent: number;
             /**
@@ -2398,6 +2472,7 @@ export interface components {
         };
         /** MortgagePreview */
         MortgagePreview: {
+            advance?: components["schemas"]["AdvanceSchedule"] | null;
             after: components["schemas"]["PreviewSide"];
             before: components["schemas"]["PreviewSide"];
             /**

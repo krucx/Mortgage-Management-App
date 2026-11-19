@@ -28,6 +28,7 @@ const payment: Payment = {
       mortgage_name: mortgage.name,
       amount: 100_000,
       discount: 0,
+      advance: 0,
       let_off: null,
       interest_paid: 75_000,
       principal_paid: 25_000,
