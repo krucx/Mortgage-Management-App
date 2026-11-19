@@ -49,7 +49,13 @@ from mortgage_backend.lending.projections import (
 )
 from mortgage_backend.lending.replay import Closure, MortgageStatus, replay
 from mortgage_backend.lending.terms import Terms
-from mortgage_backend.payments.advances import AdvanceSchedule, advance_schedules
+from mortgage_backend.payments.advances import (
+    AdvanceSchedule,
+    AdvanceWarning,
+    advance_schedules,
+    advance_warnings,
+    upcoming_parts,
+)
 from mortgage_backend.payments.cash_limit import before_change, cash_sums
 from mortgage_backend.payments.discount_confirmation import (
     get_discount_confirmation_limit,
@@ -86,6 +92,9 @@ class MortgagePreview(BaseModel):
     before: PreviewSide
     after: PreviewSide
     ledger_changes: list[LedgerChange]
+    # Upcoming Advance Instalments the change would have reduce Principal (ADR 0021):
+    # a warning; it can still be saved
+    advance_warnings: list[AdvanceWarning] = []
     # Payment Preview only: room for a Discount after cash, and whether it is over
     # the confirmation threshold (a Discount larger than its room is capped, so the
     # Preview never refuses only for that).
@@ -134,6 +143,7 @@ class _Snapshot(NamedTuple):
     name: str
     ledger: list[LedgerStep]
     side: PreviewSide
+    upcoming_parts: dict[int, LedgerStep]
 
 
 def _snapshot(
@@ -155,6 +165,7 @@ def _snapshot(
                 term_changes=projection.term_changes if projection else [],
                 closure=mortgage.closure(),
             ),
+            upcoming_parts(mortgage, today),
         )
     return found
 
@@ -183,6 +194,9 @@ def _preview(
             after=after[mortgage_id].side,
             ledger_changes=_ledger_changes(
                 before[mortgage_id].ledger, after[mortgage_id].ledger
+            ),
+            advance_warnings=advance_warnings(
+                before[mortgage_id].upcoming_parts, after[mortgage_id].upcoming_parts
             ),
         )
         for mortgage_id in mortgage_ids

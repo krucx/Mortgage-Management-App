@@ -44,6 +44,7 @@ const preview = changePreview(
     before: side(null),
     after: side(forfeited(i === 0 ? 60_000 : -1_340_000)),
     ledger_changes: [],
+    advance_warnings: [],
   })),
 )
 

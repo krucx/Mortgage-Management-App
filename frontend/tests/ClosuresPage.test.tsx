@@ -65,6 +65,7 @@ async function waivePreview(request: Request) {
       before: side(null),
       after: side(closure(m.amount_paid)),
       ledger_changes: [],
+      advance_warnings: [],
     })),
   )
 }
@@ -202,6 +203,7 @@ function forfeitRoutes(extra: Record<string, unknown>) {
           before: side(null),
           after: side(forfeited(m.recovered_amount)),
           ledger_changes: [],
+          advance_warnings: [],
         })),
       )
     },

@@ -19,6 +19,7 @@ const preview: MortgagePreview = {
   before: side(5_075_000),
   after: side(5_075_000),
   ledger_changes: [],
+  advance_warnings: [],
   discount_room: 0,
   over_threshold: false,
 }
@@ -52,6 +53,37 @@ test('a new rate is previewed, then saved as a Term Change from the chosen Accru
 
   expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()
   expect(saved).toEqual([previewed.at(-1)])
+})
+
+test('the Preview warns of each upcoming Advance part the change would have reduce Principal', async () => {
+  const server = fakeServer({
+    'GET /api/mortgages/7': mortgage,
+    'POST /api/mortgages/7/term-changes/preview': changePreview([
+      {
+        ...preview,
+        advance_warnings: [
+          { on: '2099-12-10', amount: 300_000, principal_paid: 100_000 },
+          { on: '2100-01-10', amount: 300_000, principal_paid: 201_000 },
+        ],
+      },
+    ]),
+  })
+  showPage(server, '/mortgages/7/terms', { '/mortgages/:id/terms': <ChangeTermsPage /> })
+
+  fireEvent.change(await screen.findByLabelText('Monthly interest rate (%)'), {
+    target: { value: '1' },
+  })
+
+  expect(
+    await screen.findByText(
+      /Upcoming Advance parts would now reduce Principal/,
+      {},
+      { timeout: 2000 },
+    ),
+  )
+  expect(screen.getByText(`${mortgage.name} on 10 Dec 2099: ₹1,000 of its ₹3,000 to Principal`))
+  expect(screen.getByText(`${mortgage.name} on 10 Jan 2100: ₹2,010 of its ₹3,000 to Principal`))
+  expect(screen.getByRole('button', { name: 'Save Term Change' })).toBeTruthy()
 })
 
 test('back on the Mortgage page, the saved Term Change shows at once, before the Mortgage is asked for again', async () => {

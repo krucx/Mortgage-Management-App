@@ -182,12 +182,38 @@ function LedgerChanges({ changes }: { changes: LedgerChange[] }) {
   )
 }
 
+/** The upcoming Advance Instalments the change would have reduce Principal, by
+ *  Mortgage. A warning only: Replay sends what exceeds a month's interest to Principal. */
+function AdvanceWarnings({ previews }: { previews: MortgagePreview[] }) {
+  const warned = previews.flatMap((preview) =>
+    preview.advance_warnings.map((warning) => ({ name: preview.mortgage_name, ...warning })),
+  )
+  if (warned.length === 0) return null
+  return (
+    <div className="status warning" role="status">
+      <p>
+        {warned.length === 1 ? 'An upcoming Advance part' : 'Upcoming Advance parts'} would now
+        reduce Principal. You can still save.
+      </p>
+      <ul>
+        {warned.map((warning) => (
+          <li key={`${warning.name}-${warning.on}`}>
+            {warning.name} on {formatDate(warning.on)}: {formatINR(warning.principal_paid)} of its{' '}
+            {formatINR(warning.amount)} to Principal
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /** A preview as it loads: the last answer stays, dimmed, until the next arrives. */
 export function PreviewSection({ preview }: { preview: Preview }) {
   if (preview.error) return <p className="status error">{preview.error}</p>
   if (!preview.previews) return <p className="hint">Working out what changes…</p>
   return (
     <div className={preview.loading ? 'refreshing' : undefined}>
+      <AdvanceWarnings previews={preview.previews.mortgages} />
       <BeforeAfter previews={preview.previews.mortgages} />
     </div>
   )

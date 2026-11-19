@@ -1525,6 +1525,22 @@ export interface components {
              */
             verdict: "exact" | "falls_short" | "reduces_principal";
         };
+        /**
+         * AdvanceWarning
+         * @description An upcoming Advance Instalment that a change would have reduce Principal (or
+         *     reduce it more): Replay sends what exceeds its month's interest to Principal.
+         */
+        AdvanceWarning: {
+            /** Amount */
+            amount: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Principal Paid */
+            principal_paid: number;
+        };
         /** AllocationIn */
         AllocationIn: {
             /**
@@ -2473,6 +2489,11 @@ export interface components {
         /** MortgagePreview */
         MortgagePreview: {
             advance?: components["schemas"]["AdvanceSchedule"] | null;
+            /**
+             * Advance Warnings
+             * @default []
+             */
+            advance_warnings: components["schemas"]["AdvanceWarning"][];
             after: components["schemas"]["PreviewSide"];
             before: components["schemas"]["PreviewSide"];
             /**

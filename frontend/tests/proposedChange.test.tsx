@@ -21,6 +21,7 @@ const previewWith = (cash: number[]) => ({
       before: side(5_075_000),
       after: side(6_075_000),
       ledger_changes: [],
+      advance_warnings: [],
     },
   ],
   cash,
