@@ -3,7 +3,7 @@
 // cancelling an upcoming part; the Payments list's tag and the Customer's total.
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { AdvanceInstalment, Mortgage, PaymentRow } from '../src/api'
+import type { AdvanceInstalment, Mortgage, PaymentRow, Receipt } from '../src/api'
 import { CustomerPage } from '../src/pages/CustomerPage'
 import { MortgagePage } from '../src/pages/MortgagePage'
 import { PaymentsPage } from '../src/pages/PaymentsPage'
@@ -71,9 +71,25 @@ function showAdvance(cancel: (request: Request) => unknown = () => cancelled) {
       if (!(answer instanceof Response)) saved = answer
       return answer
     },
+    'GET /api/payments/4/advance-instalments/22/receipt': cancelReceipt,
   })
   showPage(server, '/mortgages/7', { '/mortgages/:id': <MortgagePage /> })
   return server
+}
+
+const cancelReceipt: Receipt = {
+  payment_id: 4,
+  customer: mortgage.customer,
+  phones: ['9000000001'],
+  paid_on: '2026-10-18',
+  received_on: null,
+  amount: 75_000,
+  method: 'Cash',
+  reference: null,
+  lines: [],
+  total_owed: 5_000_000,
+  text: '*Advance applied* ✅ ₹750 of your Advance was applied on 18 Oct 2026.',
+  advance_due_on: '2026-11-10',
 }
 
 const cancelled: Mortgage = {
@@ -132,6 +148,39 @@ test('cancelling an upcoming part shows its Preview first, then shows it Cancell
   expect(screen.getByText('Advance held').nextElementSibling!.textContent).toBe('₹750')
   expect(server.requests).toContain('POST /api/mortgages/7/advance-instalments/22/cancel-preview')
   expect(server.requests).toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
+})
+
+test('a cancelled part has a Receipt to send on WhatsApp or print, shown once cancelled', async () => {
+  const server = showAdvance()
+
+  fireEvent.click((await screen.findAllByRole('button', { name: 'Cancel…' }))[0])
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel this Advance Instalment' }))
+
+  expect(
+    await screen.findByRole('heading', { name: 'Receipt for the part due 10 Nov 2026' }),
+  ).toBeTruthy()
+  expect(screen.getByText(/of your Advance was applied on 18 Oct 2026/)).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Send on WhatsApp' })).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Print or save as PDF' }).getAttribute('href')).toBe(
+    '/payments/4/advance-instalments/22/receipt',
+  )
+  expect(server.requests).toContain('GET /api/payments/4/advance-instalments/22/receipt')
+})
+
+test("a cancelled part's Receipt can be reopened", async () => {
+  showPage(
+    fakeServer({
+      'GET /api/mortgages/7': cancelled,
+      'GET /api/payments/4/advance-instalments/22/receipt': cancelReceipt,
+    }),
+    '/mortgages/7',
+    { '/mortgages/:id': <MortgagePage /> },
+  )
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Receipt' }))
+
+  expect(await screen.findByRole('button', { name: 'Send on WhatsApp' })).toBeTruthy()
 })
 
 test('keeping the part cancels nothing', async () => {

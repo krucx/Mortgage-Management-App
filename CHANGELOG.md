@@ -37,6 +37,11 @@ Every release of Mortgage Management, newest first. The format follows
   record as Cancelled with its original date, and the cancel is in History. The Payments
   list tags a Payment with an Advance "Advance · k of N upcoming", and a Customer's page
   shows the Advance held across their Mortgages.
+- **Advances on the Receipt:** a Payment's Receipt, on WhatsApp and printed, shows for each
+  Mortgage what it was paid now, each part of its Advance with its date and amount, and what
+  it still owes today. Cancelling a part shows a fresh Receipt, to send on WhatsApp or
+  print, saying what that amount paid on the cancel date; the Advances panel can reopen it.
+  Receipts without an Advance are unchanged.
 
 ### Changed
 

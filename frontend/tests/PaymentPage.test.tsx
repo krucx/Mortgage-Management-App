@@ -47,6 +47,7 @@ const receipt: Receipt = {
   method: 'cash',
   reference: null,
   lines: [],
+  advance_due_on: null,
   total_owed: 0,
   phones: [],
   text: 'Received ₹1,000',

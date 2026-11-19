@@ -17,6 +17,7 @@ const receipt: Receipt = {
   method: 'cash',
   reference: null,
   lines: [],
+  advance_due_on: null,
   total_owed: 0,
   phones: [],
   text: 'Received ₹1,000',
@@ -38,6 +39,7 @@ test("a Grace Payment's Receipt shows when it was received and what each Mortgag
     discount_principal_paid: 0,
     redeemed: false,
     principal_paid: 0,
+    advance_parts: [],
   }
   const graced: Receipt = {
     ...receipt,
@@ -102,6 +104,7 @@ test('the printed Receipt tells two Mortgages described alike apart by start dat
     paid: 100_000,
     interest_paid: 100_000,
     owed_after: 9_000_000,
+    advance_parts: [],
   }
   const twins: Receipt = {
     ...receipt,
@@ -121,4 +124,79 @@ test('the printed Receipt tells two Mortgages described alike apart by start dat
   const printed = document.body.textContent ?? ''
   expect(printed).toContain(mortgage.customer.name)
   for (const id of ['4242', '4343', '9191']) expect(printed).not.toContain(id)
+})
+
+const chainLine = {
+  mortgage_id: 1,
+  description: 'Gold chain',
+  discount: 0,
+  discount_interest_paid: 0,
+  discount_principal_paid: 0,
+  redeemed: false,
+  let_off: 0,
+  principal_paid: 0,
+}
+
+test("a Receipt with an Advance shows what was paid now and each part's date and amount", async () => {
+  const advanced: Receipt = {
+    ...receipt,
+    amount: 1_800_000,
+    lines: [
+      {
+        ...chainLine,
+        paid: 900_000,
+        interest_paid: 900_000,
+        owed_after: 10_300_000,
+        advance_parts: [
+          { on: '2026-05-14', amount: 300_000 },
+          { on: '2026-06-14', amount: 300_000 },
+          { on: '2026-07-14', amount: 300_000 },
+        ],
+      },
+    ],
+    total_owed: 10_300_000,
+  }
+  const server = fakeServer({ 'GET /api/payments/9/receipt': advanced })
+  showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
+
+  expect(await screen.findByRole('columnheader', { name: 'Paid now' })).not.toBeNull()
+  expect(screen.getByText('₹3,000 on 14 May 2026')).not.toBeNull()
+  expect(screen.getByText('₹3,000 on 14 Jun 2026')).not.toBeNull()
+  expect(screen.getByText('₹3,000 on 14 Jul 2026')).not.toBeNull()
+})
+
+test('a Receipt without an Advance has no Advance column', async () => {
+  const server = fakeServer({ 'GET /api/payments/9/receipt': receipt })
+  showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
+
+  expect(await screen.findByRole('columnheader', { name: 'Paid' })).not.toBeNull()
+  expect(screen.queryByRole('columnheader', { name: 'Advance' })).toBeNull()
+})
+
+test("a cancelled part's Receipt says what it paid on the day it was applied", async () => {
+  const applied: Receipt = {
+    ...receipt,
+    paid_on: '2026-05-20',
+    amount: 300_000,
+    advance_due_on: '2026-06-14',
+    lines: [
+      {
+        ...chainLine,
+        paid: 300_000,
+        interest_paid: 300_000,
+        owed_after: 10_000_000,
+        advance_parts: [],
+      },
+    ],
+    total_owed: 10_000_000,
+  }
+  const server = fakeServer({ 'GET /api/payments/9/advance-instalments/22/receipt': applied })
+  showPage(server, '/payments/9/advance-instalments/22/receipt', {
+    '/payments/:id/advance-instalments/:instalment/receipt': <ReceiptPage />,
+  })
+
+  expect(await screen.findByRole('heading', { name: 'Advance applied' })).not.toBeNull()
+  expect(
+    screen.getByText('Applied 20 May 2026, from the Advance part due 14 Jun 2026'),
+  ).not.toBeNull()
 })

@@ -3900,6 +3900,18 @@
       },
       "Receipt": {
         "properties": {
+          "advance_due_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advance Due On"
+          },
           "amount": {
             "title": "Amount",
             "type": "integer"
@@ -3977,13 +3989,22 @@
           "reference",
           "lines",
           "total_owed",
-          "text"
+          "text",
+          "advance_due_on"
         ],
         "title": "Receipt",
         "type": "object"
       },
       "ReceiptLineOut": {
         "properties": {
+          "advance_parts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReceiptPart"
+            },
+            "title": "Advance Parts",
+            "type": "array"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -4043,6 +4064,26 @@
           "mortgage_id"
         ],
         "title": "ReceiptLineOut",
+        "type": "object"
+      },
+      "ReceiptPart": {
+        "description": "One part of an Advance: what it will apply, and on what date (ADR 0021).",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "amount"
+        ],
+        "title": "ReceiptPart",
         "type": "object"
       },
       "RedeemAllIn": {
@@ -7940,6 +7981,54 @@
           }
         },
         "summary": "Read Payment"
+      }
+    },
+    "/api/payments/{payment_id}/advance-instalments/{instalment_id}/receipt": {
+      "get": {
+        "operationId": "read_advance_receipt_api_payments__payment_id__advance_instalments__instalment_id__receipt_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "title": "Payment Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "instalment_id",
+            "required": true,
+            "schema": {
+              "title": "Instalment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Advance Receipt"
       }
     },
     "/api/payments/{payment_id}/receipt": {
