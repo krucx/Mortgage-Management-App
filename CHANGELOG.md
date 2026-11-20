@@ -7,6 +7,35 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.5.2] - 2026-11-20
+
+### Changed
+
+- **Changelog fragments:** non-release pull requests write Keep a Changelog notes as files under
+  `changelog/unreleased/`; the Prepare release candidate workflow collates them into the dated
+  `CHANGELOG.md` section and deletes the consumed files (ADR 0018).
+
+- **Documentation:** the GitHub Pages site, the walkthrough, The Gold Chain Story, the install
+  guide and the developer onboarding course now cover everything up to 3.5.0: Advances (how
+  one is recorded, its parts on later Accrual Dates, the Advances panel and Cancel, Receipts,
+  months left out of Reminders and the Call List, and Closures that apply the Advance held),
+  plus Grace Periods and Favours Given on the Pages home, History, Call Notes and Favours
+  Given a page at a time, closing any pop-up with its ×, and the localhost-only rule (with an
+  "Unknown host." entry in the install guide). The sample book gains an Advance on Arjun's
+  chain; its screenshots are retaken, with five new ones. The onboarding course gains a lesson
+  on Advances, and its daily-run lesson now teaches the per-job retry from 3.4.10.
+
+### Fixed
+
+- **A Mortgage's Advances fit a phone screen:** on a narrow screen the table of Advance parts
+  scrolls sideways inside its box instead of widening the whole page.
+
+- **QA stack:** the Playwright runner image matches the pinned Playwright 1.65.1, and the runner reaches the app as `qa-app`, so the end-to-end suite runs again on release candidates.
+
+- **The sample book and the course's run-through scripts work again:** since 3.4.10 the app
+  refused their test clients' default host, so the GitHub Pages screenshots couldn't be
+  retaken.
+
 ## [3.5.1] - 2026-11-20
 
 ### Added
