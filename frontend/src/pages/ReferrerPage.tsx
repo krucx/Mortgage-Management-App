@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router'
+import { NotLoaded } from '../components/NotLoaded'
 import { PersonList } from '../components/PersonLink'
 import { referrerQuery } from '../requests'
 import { useServerState } from '../serverState'
@@ -9,7 +10,7 @@ export function ReferrerPage() {
   const { client } = useServerState()
   const { data: referrer, error } = useQuery(referrerQuery(client, id))
 
-  if (!referrer) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
+  if (!referrer) return <NotLoaded error={error} missing={`Referrer ${id}`} />
 
   return (
     <section className="card">

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import type { Customer, CustomerIn, IdCard, PersonSummary } from '../api'
+import { NotLoaded } from '../components/NotLoaded'
 import { PeopleInline, PersonLink } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { PhotoPicker } from '../components/PhotoPicker'
@@ -68,7 +69,7 @@ export function CustomerFormPage() {
   const loaded = useQuery({ ...customerQuery(client, Number(id)), enabled: id !== undefined })
   if (id === undefined) return <CustomerForm existing={null} />
   if (!loaded.data) {
-    return loaded.error ? <p className="status error">{loaded.error.message}</p> : <p>Loading…</p>
+    return <NotLoaded error={loaded.error} missing={`Customer ${id}`} />
   }
   // Keyed so the form starts again from another Customer.
   return <CustomerForm key={id} existing={loaded.data} />

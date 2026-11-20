@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { NotLoaded } from '../components/NotLoaded'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
 import { advanceReceiptQuery, receiptQuery } from '../requests'
@@ -19,7 +20,12 @@ export function ReceiptPage() {
       : advanceReceiptQuery(client, id, instalment)),
   })
 
-  if (!receipt) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
+  if (!receipt) {
+    const payment = `Payment ${id}`
+    const missing =
+      instalment === null ? payment : `cancelled Advance Instalment ${instalment} of ${payment}`
+    return <NotLoaded error={error} missing={missing} />
+  }
   // A Grace Payment's: dated before it was received (ADR 0020).
   const grace = receipt.received_on !== null
   // Any Mortgage with an Advance in it: its parts, each with its date (ADR 0021).

@@ -5,6 +5,7 @@ import { MORTGAGE_SORTS, type MortgagePage, type MortgageSort } from '../api'
 import { FavoursGiven } from '../components/FavoursGiven'
 import { History } from '../components/History'
 import { MortgageTable } from '../components/MortgageTable'
+import { NotLoaded } from '../components/NotLoaded'
 import { PeopleInline, PersonLink, PersonList } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { maskedAadhaar } from '../format'
@@ -34,7 +35,7 @@ export function CustomerPage() {
   const closed = closedList.listed
   const listError = activeList.error ?? closedList.error
 
-  if (!customer) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
+  if (!customer) return <NotLoaded error={error} missing={`Customer ${id}`} />
 
   return (
     <section className="card">

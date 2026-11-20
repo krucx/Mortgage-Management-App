@@ -28,7 +28,7 @@ def served(database_url, screens):
         yield client
 
 
-@pytest.mark.parametrize("path", ["/", "/mortgages/7", "/payments/new"])
+@pytest.mark.parametrize("path", ["/", "/mortgages/7", "/payments/new", "/foo/bar"])
 def test_the_app_opens_at_any_of_its_paths_checked_for_a_new_version_each_time(
     served, path
 ):

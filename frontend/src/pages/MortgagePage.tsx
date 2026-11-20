@@ -8,6 +8,7 @@ import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
 import { CollateralPanel } from '../components/CollateralPanel'
 import { ChangePreview } from '../components/BeforeAfter'
 import { History } from '../components/History'
+import { NotLoaded } from '../components/NotLoaded'
 import { PersonLink } from '../components/PersonLink'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
@@ -91,7 +92,7 @@ export function MortgagePage() {
   }
 
   if (!mortgage) {
-    return loaded.error ? <p className="status error">{loaded.error.message}</p> : <p>Loading…</p>
+    return <NotLoaded error={loaded.error} missing={`Mortgage ${id}`} />
   }
   const { outstanding } = mortgage
   const hasAdvance = mortgage.advance_instalments.length > 0

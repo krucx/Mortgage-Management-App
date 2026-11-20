@@ -7,6 +7,13 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Added
+
+- **A "not found" screen:** an address the app has no page for shows "Page not found",
+  and a Customer, Mortgage, Payment or Referrer that doesn't exist (for example
+  `/mortgages/99999`) shows "No Mortgage 99999" instead of an error. Both show the address
+  asked for, with links back to the Dashboard and Customers, also after reloading the page.
+
 ### Changed
 
 - **Documentation:** the GitHub Pages site, the walkthrough, The Gold Chain Story, the install
