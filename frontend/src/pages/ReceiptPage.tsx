@@ -21,9 +21,11 @@ export function ReceiptPage() {
   })
 
   if (!receipt) {
-    const payment = `Payment ${id}`
+    // Either the Payment or its cancelled Advance Instalment may be missing.
     const missing =
-      instalment === null ? payment : `cancelled Advance Instalment ${instalment} of ${payment}`
+      instalment === null
+        ? `Payment ${id}`
+        : `Receipt for Advance Instalment ${instalment} of Payment ${id}`
     return <NotLoaded error={error} missing={missing} />
   }
   // A Grace Payment's: dated before it was received (ADR 0020).

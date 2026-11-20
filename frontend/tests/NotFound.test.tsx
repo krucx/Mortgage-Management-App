@@ -30,7 +30,7 @@ test.each([
   ['/payments/99999/receipt', 'No Payment 99999'],
   [
     '/payments/99999/advance-instalments/4/receipt',
-    'No cancelled Advance Instalment 4 of Payment 99999',
+    'No Receipt for Advance Instalment 4 of Payment 99999',
   ],
   ['/referrers/99999', 'No Referrer 99999'],
 ])('%s, unknown to the backend, shows %s', async (at, heading) => {
