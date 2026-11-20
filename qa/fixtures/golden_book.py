@@ -61,15 +61,12 @@ class Book:
 
     def send_reminders(self) -> None:
         # Mirror sample book: approve+send any queued reminders accruing by tomorrow.
-        try:
-            for status in ("awaiting_approval", "queued"):
-                for reminder in self.get("/api/reminders", status=status)["items"]:
-                    if reminder["accrues_on"] <= (self.clock.day + timedelta(days=1)).isoformat():
-                        if status == "awaiting_approval":
-                            self.post(f"/api/reminders/{reminder['id']}/approve")
-                        self.post(f"/api/reminders/{reminder['id']}/sent")
-        except Exception:
-            pass
+        for status in ("awaiting_approval", "queued"):
+            for reminder in self.get("/api/reminders", status=status)["items"]:
+                if reminder["accrues_on"] <= (self.clock.day + timedelta(days=1)).isoformat():
+                    if status == "awaiting_approval":
+                        self.post(f"/api/reminders/{reminder['id']}/approve")
+                    self.post(f"/api/reminders/{reminder['id']}/sent")
 
     def get(self, path: str, **params: Any) -> Any:
         r = self.api.get(path, params=params)
@@ -150,7 +147,7 @@ def events(book: Book) -> list[tuple[str, Any]]:
         # Ramesh: advance payment across 3 months on r1
         ("2025-09-10", lambda: book.pay(ramesh, {"r1": 15_000}, method="upi", advance_months=3,
                                          reference="UPI advance Ramesh")),
-        # Ramesh: advance payment across 2 months on r2 (multi-mortgage advance)
+        # Ramesh: advance payment across 2 months on r2, his second Mortgage (gold chain)
         ("2025-09-11", lambda: book.pay(ramesh, {"r2": 6_000}, method="cash", advance_months=2,
                                          reference="cash advance r2")),
         # Ramesh: cancel the first upcoming instalment of r1
