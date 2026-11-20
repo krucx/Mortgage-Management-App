@@ -13,7 +13,7 @@ export default defineConfig({
   grepInvert: specs === "golden" ? FRESH : undefined,
   use: {
     baseURL: process.env.BASE_URL ?? "http://app:8000",
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [
