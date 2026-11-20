@@ -7,6 +7,13 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- **A Mortgage's Advances fit a phone screen:** on a narrow screen the table of Advance parts
+  scrolls sideways inside its box instead of widening the whole page.
+
+## [3.5.0] - 2026-11-19
+
 ### Added
 
 - **System architecture documentation:** `Documentation/ARCHITECTURE.md` documents the
@@ -75,8 +82,6 @@ Every release of Mortgage Management, newest first. The format follows
   includes confirmations such as cancelling an Advance Instalment, which before closed only
   from the button at the bottom. A Void or other change that asks for a reason ignores a
   click outside once a reason is typed, so a stray click does not lose it.
-- **A Mortgage's Advances fit a phone screen:** on a narrow screen the table of Advance parts
-  scrolls sideways inside its box instead of widening the whole page.
 
 ## [3.4.10] - 2026-11-13
 
