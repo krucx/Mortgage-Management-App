@@ -70,7 +70,7 @@ flowchart TB
    - Starts with `QA_MODE=true`.
 
 2. **`qa-runner` Service (`mortgage-qa-runner:qa`):**
-   - Built from `qa/Dockerfile.runner`, inheriting from the official Microsoft Playwright image (`mcr.microsoft.com/playwright:v1.49.0-noble`).
+   - Built from `qa/Dockerfile.runner`, inheriting from the official Microsoft Playwright image (`mcr.microsoft.com/playwright:v1.65.1-noble`).
    - Contains pre-installed Chromium, Node.js, and Python dependencies.
    - Executes Playwright test suites targeting `http://qa-app:8000`.
    - Mounts a test-results scratch directory to export trace zips, failure screenshots, and execution logs back to the host.
