@@ -39,6 +39,9 @@ export class BackendError extends Error {
   }
 }
 
+/** The backend has no such record (or none at that path). */
+export const isNotFound = (error: Error) => error instanceof BackendError && error.status === 404
+
 /** What a request says when fetch itself fails. */
 const UNREACHABLE = "The app's server isn't running: start Mortgage Management, then try again."
 

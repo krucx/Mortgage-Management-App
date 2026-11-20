@@ -16,6 +16,7 @@ import { MortgagePage } from './pages/MortgagePage'
 import { MortgagesPage } from './pages/MortgagesPage'
 import { NewMortgagePage } from './pages/NewMortgagePage'
 import { NewPaymentPage } from './pages/NewPaymentPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 import { RemindersPage } from './pages/RemindersPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { PaymentsPage } from './pages/PaymentsPage'
@@ -42,36 +43,44 @@ export default function App() {
           </header>
           <UpdateBanner />
           <main>
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/payments" element={<PaymentsPage />} />
-              <Route path="/payments/new" element={<NewPaymentPage />} />
-              <Route path="/payments/:id" element={<PaymentPage />} />
-              <Route path="/payments/:id/receipt" element={<ReceiptPage />} />
-              <Route
-                path="/payments/:id/advance-instalments/:instalment/receipt"
-                element={<ReceiptPage />}
-              />
-              <Route path="/customers" element={<CustomersPage />} />
-              <Route path="/customers/new" element={<CustomerFormPage />} />
-              <Route path="/customers/:id" element={<CustomerPage />} />
-              <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
-              <Route path="/mortgages" element={<MortgagesPage />} />
-              <Route path="/mortgages/new" element={<NewMortgagePage />} />
-              <Route path="/mortgages/:id" element={<MortgagePage />} />
-              <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
-              <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
-              <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
-              <Route path="/calculator" element={<CalculatorPage />} />
-              <Route path="/call-list" element={<CallListPage />} />
-              <Route path="/reminders" element={<RemindersPage />} />
-              <Route path="/closures" element={<ClosuresPage />} />
-              <Route path="/referrers/:id" element={<ReferrerPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Routes>
+            <AppRoutes />
           </main>
         </div>
       </BrowserRouter>
     </StartGate>
+  )
+}
+
+/** Each page at its address; anywhere else, Page not found. */
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<DashboardPage />} />
+      <Route path="/payments" element={<PaymentsPage />} />
+      <Route path="/payments/new" element={<NewPaymentPage />} />
+      <Route path="/payments/:id" element={<PaymentPage />} />
+      <Route path="/payments/:id/receipt" element={<ReceiptPage />} />
+      <Route
+        path="/payments/:id/advance-instalments/:instalment/receipt"
+        element={<ReceiptPage />}
+      />
+      <Route path="/customers" element={<CustomersPage />} />
+      <Route path="/customers/new" element={<CustomerFormPage />} />
+      <Route path="/customers/:id" element={<CustomerPage />} />
+      <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
+      <Route path="/mortgages" element={<MortgagesPage />} />
+      <Route path="/mortgages/new" element={<NewMortgagePage />} />
+      <Route path="/mortgages/:id" element={<MortgagePage />} />
+      <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
+      <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
+      <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
+      <Route path="/calculator" element={<CalculatorPage />} />
+      <Route path="/call-list" element={<CallListPage />} />
+      <Route path="/reminders" element={<RemindersPage />} />
+      <Route path="/closures" element={<ClosuresPage />} />
+      <Route path="/referrers/:id" element={<ReferrerPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   )
 }

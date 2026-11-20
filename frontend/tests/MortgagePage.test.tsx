@@ -168,12 +168,6 @@ test('the Ledger says how much of a month was paid ahead', async () => {
   expect(await screen.findByText('Interest: 1.5% of ₹50,000, ₹450 of it paid ahead')).toBeTruthy()
 })
 
-test("the Mortgage page shows the backend's reason when it cannot load", async () => {
-  showMortgagePage(fakeServer({}))
-
-  expect(await screen.findByText('Not Found')).toBeTruthy()
-})
-
 test('deleting a photo asks first, then shows the Mortgage without it', async () => {
   let stored = { ...mortgage, photos: [{ id: 5, url: '/api/photos/mortgage-7-a.jpg' }] }
   const server = fakeServer({

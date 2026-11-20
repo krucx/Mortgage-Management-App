@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import type { Payment } from '../api'
+import { NotLoaded } from '../components/NotLoaded'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { PersonLink } from '../components/PersonLink'
 import { ChangePreview } from '../components/BeforeAfter'
@@ -22,7 +23,7 @@ export function PaymentPage() {
   const methods = usePaymentMethods()
   const changeLedger = useLedgerChange()
 
-  if (!payment) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
+  if (!payment) return <NotLoaded error={error} missing={`Payment ${id}`} />
   // A Grace Payment's: dated before it was received (ADR 0020).
   const grace = payment.received_on !== null
   const letOff = payment.allocations.reduce((sum, a) => sum + (a.let_off ?? 0), 0)
