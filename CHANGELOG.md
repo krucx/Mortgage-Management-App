@@ -7,6 +7,8 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.5.1] - 2026-11-20
+
 ### Added
 
 - **A "not found" screen:** an address the app has no page for shows "Page not found",
