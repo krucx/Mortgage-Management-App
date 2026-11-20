@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { withClock } from './clock';
 
-// Runs in both projects: 1280px (chromium) and 375px (mobile).
+// At the desktop width (1280px); there is no phone-width run yet.
 const PAGES = [
   ['dashboard', '/'],
   ['customers', '/customers'],

@@ -199,7 +199,11 @@ jobs:
 
   # The Lender's workflows end to end in a browser: the app built from source on scratch
   # volumes, fresh and seeded with the golden book, driven by Playwright in its own container.
+  # Runs only for release preparation: on the release/X.Y.Z pull request and the candidate
+  # preflight (workflow_dispatch), or when dispatched by hand. Feature pull requests skip it,
+  # and a skipped required check counts as passing; their authors run it locally instead.
   qa:
+    if: startsWith(github.head_ref, 'release/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
