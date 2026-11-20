@@ -24,6 +24,10 @@ Every release of Mortgage Management, newest first. The format follows
 - **The sample book and the course's run-through scripts work again:** since 3.4.10 the app
   refused their test clients' default host, so the GitHub Pages screenshots couldn't be
   retaken.
+### Fixed
+
+- **A Mortgage's Advances fit a phone screen:** on a narrow screen the table of Advance parts
+  scrolls sideways inside its box instead of widening the whole page.
 
 ## [3.5.0] - 2026-11-19
 

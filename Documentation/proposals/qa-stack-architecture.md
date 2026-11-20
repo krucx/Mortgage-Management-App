@@ -127,7 +127,7 @@ sequenceDiagram
   - First-run wizard and default terms configuration.
   - Adding a customer with Aadhaar/PAN photo uploads.
   - Setting gold rates and creating the first mortgage.
-  - Responsive layout validation on mobile (375px) and desktop (1280px).
+  - Responsive layout validation at desktop width (1280px); a phone-width run is deferred.
 
 #### Phase 2: Golden Lending Book Scenarios
 - Built by extending `docs/sample-book/book.py` into `qa/fixtures/golden_book.py`.

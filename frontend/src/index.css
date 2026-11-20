@@ -310,6 +310,8 @@ a {
 
 .stack {
   display: grid;
+  /* One column no wider than the box, so a wide table scrolls inside it, not the page. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
 }
 

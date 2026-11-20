@@ -2,10 +2,15 @@
 Lender visits can still aim a browser at it, so the backend answers only requests addressed
 to it as localhost / 127.0.0.1, and refuses a state-changing one made from another site."""
 
+import os
 from urllib.parse import urlsplit
 
 from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+# In QA mode the app is reached as `app:8000` inside the Docker network, so the
+# localhost-only host check is lifted (QA_MODE is fixed at process start).
+_QA_MODE = os.getenv("QA_MODE") == "true"
 
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]"}
 SAFE_METHODS = {"GET", "HEAD"}
@@ -27,6 +32,9 @@ class LocalOnly:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        if _QA_MODE:
             await self.app(scope, receive, send)
             return
         headers = dict(scope["headers"])

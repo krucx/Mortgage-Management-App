@@ -8,8 +8,10 @@ or merge a pull request.
 
 1. Start from an up-to-date `main` and create a focused branch, for example
    `fix/restore-backup-message` or `docs/release-checklist`.
-2. Make the change and run the checks that apply. The pull request CI runs the
-   repository checks described in [README.md](README.md#tests-and-type-checks).
+2. Make the change and run the checks that apply. Add or update the browser test in
+   `qa/e2e` that covers what the change does, and run `scripts/qa-stack.sh test` locally
+   before opening the pull request: CI runs that suite only for releases. The pull request
+   CI runs the repository checks described in [README.md](README.md#tests-and-type-checks).
 3. Open a pull request targeting `main`. Explain the user-visible change, verification,
    and any risk or migration impact. Link the issue and use a draft while work is
    unfinished.
@@ -82,11 +84,13 @@ is not enforced. Automated findings never count as approval.
 
 The importable [main ruleset](.github/rulesets/main.json) targets `main`, allows the
 `maintain` role to bypass its rules on pull requests, and requires a pull request, one
-human approval, and these status checks: `backend`, `frontend`, `image`, `windows`,
+human approval, and these status checks: `backend`, `frontend`, `image`, `qa`, `windows`,
 `version-bump`, `Analyze (actions)`, `Analyze (javascript-typescript)`, `Analyze (python)`, and
 `CodeRabbit`. `version-bump` fails a pull request that changes `VERSION` or the package versions synced from
 it, unless it is the `release/X.Y.Z` pull request from the Prepare release candidate workflow;
-add notes under `## Unreleased` in the changelog instead. These are the exact check names GitHub reports. The ruleset blocks force
+add notes under `## Unreleased` in the changelog instead. `qa` runs only on that `release/X.Y.Z`
+pull request and when Tests is dispatched by hand; elsewhere it is skipped, which GitHub counts as
+passing. These are the exact check names GitHub reports. The ruleset blocks force
 pushes and deletion. A repository administrator should import and activate it under
 Settings → Rules → Rulesets. GitHub Free supports branch protection and rulesets for public repositories;
 private repository availability depends on the repository plan. If rulesets are not

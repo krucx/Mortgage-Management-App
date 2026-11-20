@@ -1,0 +1,27 @@
+# QA runner: Playwright + Chromium on the official Microsoft image, plus the Python
+# backend (for seeding golden books) and the Node test deps.
+FROM mcr.microsoft.com/playwright:v1.49.0-noble
+
+COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /usr/local/bin/uv
+
+WORKDIR /qa
+
+# Backend (for qa/fixtures/golden_book.py seeding) — reuse the frozen lock. The dev group
+# brings httpx2, which the golden book's TestClient needs.
+COPY backend/pyproject.toml backend/uv.lock /qa/backend/
+RUN cd /qa/backend && uv sync --frozen --no-install-project
+COPY backend/src /qa/backend/src
+RUN cd /qa/backend && uv sync --frozen
+
+ENV PYTHONPATH=/qa/backend/src
+
+# Node/Playwright test deps.
+COPY qa/package.json qa/package-lock.json* /qa/
+RUN npm ci --ignore-scripts 2>/dev/null || npm install --no-audit --no-fund
+
+# Playwright browsers are pre-installed in the base image; keep them.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+COPY qa /qa
+
+CMD ["npx", "playwright", "test"]
