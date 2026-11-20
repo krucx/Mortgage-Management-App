@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 import { PURITIES, type Mortgage, type MortgageEdit, type Purity } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
+import { NotLoaded } from '../components/NotLoaded'
 import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { TermsFields } from '../components/TermsFields'
 import { lentThroughName, usePaymentMethods } from '../components/usePaymentMethods'
@@ -22,7 +23,7 @@ export function EditMortgagePage() {
   const { client } = useServerState()
   const loaded = useQuery(mortgageQuery(client, id))
   if (!loaded.data) {
-    return loaded.error ? <p className="status error">{loaded.error.message}</p> : <p>Loading…</p>
+    return <NotLoaded error={loaded.error} missing={`Mortgage ${id}`} />
   }
   // Keyed so the form starts again from another Mortgage's details.
   return <EditMortgageForm key={id} mortgage={loaded.data} />

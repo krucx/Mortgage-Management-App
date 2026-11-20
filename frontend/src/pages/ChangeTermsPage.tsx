@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 import type { Mortgage } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
+import { NotLoaded } from '../components/NotLoaded'
 import { TermsFields } from '../components/TermsFields'
 import { useProposedChange } from '../components/useProposedChange'
 import { formatDate, todayIso } from '../format'
@@ -17,7 +18,7 @@ export function ChangeTermsPage() {
   const { client } = useServerState()
   const loaded = useQuery(mortgageQuery(client, id))
   if (!loaded.data) {
-    return loaded.error ? <p className="status error">{loaded.error.message}</p> : <p>Loading…</p>
+    return <NotLoaded error={loaded.error} missing={`Mortgage ${id}`} />
   }
   // Keyed so the form starts again from another Mortgage's Terms.
   return <ChangeTermsForm key={id} mortgage={loaded.data} />

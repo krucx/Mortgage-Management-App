@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
 import { CloseMortgage } from '../components/CloseMortgage'
+import { NotLoaded } from '../components/NotLoaded'
 import { PersonLink } from '../components/PersonLink'
 import { mortgageQuery } from '../requests'
 import { useServerState } from '../serverState'
@@ -12,7 +13,7 @@ export function RedeemPage() {
   const { client } = useServerState()
   const { data: mortgage, error } = useQuery(mortgageQuery(client, id))
 
-  if (!mortgage) return error ? <p className="status error">{error.message}</p> : <p>Loading…</p>
+  if (!mortgage) return <NotLoaded error={error} missing={`Mortgage ${id}`} />
 
   return (
     <section className="card wide">

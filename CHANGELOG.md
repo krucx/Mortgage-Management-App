@@ -7,6 +7,37 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.5.1] - 2026-11-20
+
+### Added
+
+- **A "not found" screen:** an address the app has no page for shows "Page not found",
+  and a Customer, Mortgage, Payment or Referrer that doesn't exist (for example
+  `/mortgages/99999`) shows "No Mortgage 99999" instead of an error. Both show the address
+  asked for, with links back to the Dashboard and Customers, also after reloading the page.
+
+### Changed
+
+- **Documentation:** the GitHub Pages site, the walkthrough, The Gold Chain Story, the install
+  guide and the developer onboarding course now cover everything up to 3.5.0: Advances (how
+  one is recorded, its parts on later Accrual Dates, the Advances panel and Cancel, Receipts,
+  months left out of Reminders and the Call List, and Closures that apply the Advance held),
+  plus Grace Periods and Favours Given on the Pages home, History, Call Notes and Favours
+  Given a page at a time, closing any pop-up with its ×, and the localhost-only rule (with an
+  "Unknown host." entry in the install guide). The sample book gains an Advance on Arjun's
+  chain; its screenshots are retaken, with five new ones. The onboarding course gains a lesson
+  on Advances, and its daily-run lesson now teaches the per-job retry from 3.4.10.
+
+### Fixed
+
+- **The sample book and the course's run-through scripts work again:** since 3.4.10 the app
+  refused their test clients' default host, so the GitHub Pages screenshots couldn't be
+  retaken.
+### Fixed
+
+- **A Mortgage's Advances fit a phone screen:** on a narrow screen the table of Advance parts
+  scrolls sideways inside its box instead of widening the whole page.
+
 ## [3.5.0] - 2026-11-19
 
 ### Added
