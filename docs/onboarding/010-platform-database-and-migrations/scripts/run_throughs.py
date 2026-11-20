@@ -18,7 +18,11 @@ import tempfile
 from datetime import date, datetime, time
 from pathlib import Path
 
+from functools import partialmethod
 from fastapi.testclient import TestClient
+
+# The app answers only requests addressed to it as localhost (since 3.4.10).
+TestClient.__init__ = partialmethod(TestClient.__init__, base_url="http://localhost")  # type: ignore[method-assign]
 from sqlalchemy import Column, String, select
 from sqlalchemy.dialects import sqlite as sqlite_dialect
 
@@ -99,7 +103,7 @@ def report(built: Path) -> None:
     print("\n== L1. Starting the app as serve.py does")
     c = Copy(built, "l1")
     print("   the built book's config, before any start:")
-    print("    ", c.config("last_daily_run", *BACKUP_KEYS))
+    print("    ", c.config("daily_run_done_backup", "daily_run_done_reminders", *BACKUP_KEYS))
     c.backups.mkdir()
     (c.backups / ".mortgage-backup-2026-10-18-2200.zip.partial").write_bytes(b"PK")
     (c.db.parent / ".backup-work").mkdir()
@@ -113,7 +117,7 @@ def report(built: Path) -> None:
         print("     .backup-work exists:", (c.db.parent / ".backup-work").exists())
         print("     revision:", c.revision())
         print("     daily_run.count:", client.app.state.daily_run.count)
-        print("     config:", c.config("last_daily_run", "backup_last_at", "backup_last_file"))
+        print("     config:", c.config("daily_run_done_backup", "daily_run_done_reminders", "backup_last_at", "backup_last_file"))
         r = client.get("/api/backups")
         print("   GET /api/backups ->", r.status_code, r.json())
     print("   started without a backup_dir:")
@@ -145,7 +149,7 @@ def report(built: Path) -> None:
         client.get("/api/customers")
         finished(client)
         print("   after the first /api/ request: count", client.app.state.daily_run.count,
-              c.config("last_daily_run"), c.backup_files())
+              c.config("daily_run_done_backup", "daily_run_done_reminders"), c.backup_files())
     print("   the same copy served on 20 Oct:")
     with TestClient(c.app(day=date(2026, 10, 20))) as client:
         finished(client)
@@ -153,12 +157,12 @@ def report(built: Path) -> None:
         client.get("/docs")
         client.get("/openapi.json")
         print("     after GET /docs and /openapi.json: count", client.app.state.daily_run.count,
-              c.config("last_daily_run"))
+              c.config("daily_run_done_backup", "daily_run_done_reminders"))
         sql(c.db, "SELECT count(*) FROM reminder WHERE created_on = '2026-10-20'")
         client.get("/api/settings/default-terms")
         finished(client)
         print("     after the first /api/ request: count", client.app.state.daily_run.count,
-              c.config("last_daily_run"), "backups", c.backup_files())
+              c.config("daily_run_done_backup", "daily_run_done_reminders"), "backups", c.backup_files())
         sql(c.db, "SELECT id, customer_id, accrues_on, created_on, status FROM reminder WHERE status != 'sent'")
         client.get("/api/customers")
         print("     after a second request: count", client.app.state.daily_run.count)
@@ -178,17 +182,22 @@ def report(built: Path) -> None:
         client.get("/api/customers")
         finished(client)
         print("     26 Oct after a request: count", client.app.state.daily_run.count, c.backup_files())
-    print("   a failing job doesn't stop the next:")
+    print("   a failing job doesn't stop the next, and is retried on the next request:")
     c2 = Copy(built, "l2-fail")
     with TestClient(c2.app(day=date(2026, 10, 20), backups=False)) as client:
         ran = []
+        failures = [ValueError("boom")]  # the backup job fails once
 
-        def broken(day):
-            raise ValueError("boom")
+        def backup(day):
+            ran.append("backup")
+            if failures:
+                raise failures.pop()
 
-        client.app.state.daily_run.jobs = [broken, lambda day: ran.append(day)]
-        r = client.get("/api/customers")
-        print("     request ->", r.status_code, "second job ran on", ran)
+        client.app.state.daily_run.jobs = {"backup": backup, "reminders": lambda day: ran.append("reminders")}
+        for n in (1, 2, 3):
+            r = client.get("/api/customers")
+            print(f"     request {n} ->", r.status_code, "jobs run so far", ran,
+                  "count", client.app.state.daily_run.count, c2.config("daily_run_done_backup"))
 
     # ------------------------------------------------------------ lesson 3
     print("\n== L3. Settings in the config table")

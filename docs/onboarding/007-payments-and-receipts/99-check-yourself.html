@@ -10,7 +10,7 @@
 <body>
 <p class="kicker">Chapter 007 · Check yourself</p>
 <h1>Check yourself: Payments and Receipts</h1>
-<p class="lede">Questions from all six lessons, mixed up. Several are about one Payment: on 19 Oct, Arjun Patel hands over cash for ₹1,000 on his ruby ring and his gold chain's whole Outstanding, ₹46,830, listed ring first. Then one small break in the real code.</p>
+<p class="lede">Questions from all seven lessons, mixed up. Several are about one Payment: on 19 Oct, Arjun Patel hands over cash for ₹1,000 on his ruby ring and all that is left to pay on his gold chain, ₹44,130 (its ₹45,030 Outstanding less the ₹900 Advance held, lesson 7), listed ring first. Then one small break in the real code.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="1">
@@ -18,14 +18,14 @@
   <button class="opt">One row, with two Allocations</button>
   <button class="opt">Two rows, the chain's pointing back</button>
   <button class="opt">Three rows: one plus a part each</button>
-  <div class="why">The ring's ₹1,000 is ordinary, so it's the first part (row 34). The chain's ₹46,830 is its whole Outstanding, so it Redeems the chain and is kept as a part of its own (row 35, <code>received_with</code> 34). There's no extra row for "the Payment": the first part is it. (Lesson 2; from <code>scripts/run_throughs.py</code>, section 99.)</div>
+  <div class="why">The ring's ₹1,000 is ordinary, so it's the first part (row 36). The chain's ₹44,130 is what is left once its Advance held is applied, so it Redeems the chain and is kept as a part of its own (row 37, <code>received_with</code> 36). There's no extra row for "the Payment": the first part is it. (Lesson 2; from <code>scripts/run_throughs.py</code>, section 99.)</div>
 </div>
 <div class="quiz" data-answer="2">
   <p class="q">2. What does the Preview of Arjun's Payment give as <code>cash</code>?</p>
-  <button class="opt">[₹1,000, ₹46,830], one per part</button>
+  <button class="opt">[₹1,000, ₹44,130], one per part</button>
   <button class="opt">[ ], since a Redemption isn't cash</button>
-  <button class="opt">[₹47,830], one sum for both parts</button>
-  <div class="why"><code>cash_sums</code> adds each part to its first part's total (<code>received_with or id</code>), so the Final Payment is counted with the ₹1,000. ₹47,830 is above ₹20,000, so the Lender is asked "₹47,830 in cash" before saving. (Lesson 4.)</div>
+  <button class="opt">[₹45,130], one sum for both parts</button>
+  <div class="why"><code>cash_sums</code> adds each part to its first part's total (<code>received_with or id</code>), so the Final Payment is counted with the ₹1,000. ₹45,130 is above ₹20,000, so the Lender is asked "₹45,130 in cash" before saving. (The ₹900 Advance part isn't in it: that cash was received on 5 Sept.) (Lesson 4.)</div>
 </div>
 <div class="quiz" data-answer="0">
   <p class="q">3. Where is the interest/Principal split of Meera's Payment 23 stored?</p>
@@ -35,16 +35,16 @@
   <div class="why">Neither table has a column for it, and History records only <code>paid_on</code>, <code>amount</code>, <code>method</code> and <code>reference</code>. <code>load_payment</code> reads it from the replay's step for that Payment, so a Payment typed in later and dated earlier changes it, correctly. (Lesson 1, ADR 0001.)</div>
 </div>
 <div class="quiz" data-answer="2">
-  <p class="q">4. After saving Arjun's Payment, the Lender tries <code>POST /payments/35/void</code>. What answers?</p>
+  <p class="q">4. After saving Arjun's Payment, the Lender tries <code>POST /payments/37/void</code>. What answers?</p>
   <button class="opt">200: the chain's part is Voided</button>
   <button class="opt">200: both parts are Voided together</button>
   <button class="opt">409: reopen the Mortgage instead</button>
-  <div class="why">Payment 35 is the chain's <code>redemption_payment_id</code>, so <code>void_payment</code> refuses: "This is the final Payment of the closing of 2026-Arjun-GoldChain: reopen the Mortgage instead, which voids it". Voiding 34, the ring's ordinary part, would be allowed, and would leave 35 alone. (Lesson 3.)</div>
+  <div class="why">Payment 37 is the chain's <code>redemption_payment_id</code>, so <code>void_payment</code> refuses: "This is the final Payment of the closing of 2026-Arjun-GoldChain: reopen the Mortgage instead, which voids it". Voiding 36, the ring's ordinary part, would be allowed, and would leave 37 alone. (Lesson 3.)</div>
 </div>
 <div class="quiz" data-answer="1">
   <p class="q">5. What does <code>POST /api/payments</code> return as the saved Payment's <code>id</code>?</p>
-  <button class="opt">35, the chain's Final Payment</button>
-  <button class="opt">34, the first part: the ring's ₹1,000</button>
+  <button class="opt">37, the chain's Final Payment</button>
+  <button class="opt">36, the first part: the ring's ₹1,000</button>
   <button class="opt">Both ids, as a list of the parts</button>
   <div class="why"><code>record_payment</code> always returns the first part, and the route answers with <code>load_payment</code> of it: <code>amount</code> ₹1,000, one Allocation. The Receipt gathers both parts. (Lesson 2, trap #2.)</div>
 </div>
@@ -60,7 +60,7 @@
   <button class="opt">2026-Arjun-GoldChain, ₹0</button>
   <button class="opt">Gold chain, ₹45,000 Principal</button>
   <button class="opt">Gold chain (Redeemed), ₹0</button>
-  <div class="why">A Receipt names each item by its description, never its Mortgage Name (trap #16), and adds "(Redeemed)" when the Allocation was a Redemption's Final Payment. The chain's line: ₹46,830 paid, ₹1,830 interest, ₹45,000 Principal, ₹0 still owed. The ring's line still owes ₹84,184. (Lesson 5.)</div>
+  <div class="why">A Receipt names each item by its description, never its Mortgage Name (trap #16), and adds "(Redeemed)" when the Allocation was a Redemption's Final Payment. The chain's line: ₹44,130 paid, ₹0 interest, ₹44,130 Principal, ₹0 still owed: the Closure applied the ₹900 part first, which paid the day's ₹30 of interest and ₹870 of Principal. The ring's line still owes ₹84,184. (Lesson 5.)</div>
 </div>
 <div class="quiz" data-answer="1">
   <p class="q">8. The Lender Forfeits Meera's chain, recovering ₹90,000 in cash from selling it. What does the Forfeit Preview give as <code>cash</code>?</p>
@@ -75,6 +75,13 @@
   <button class="opt">₹8,000 cash; the Payment is refused</button>
   <button class="opt">₹2,000 cash; after confirmation the Discount is capped at the remaining Outstanding</button>
   <div class="why">Discount is non-cash and cash reports include only the Payment's cash amount. The Payment Preview reports each Allocation's room for a Discount and whether it is over the threshold; the screen asks before reducing an over-balance Discount to its room, and asks again above the threshold. (Chapters 007 lesson 1 and 012 lesson 3, ADR 0014.)</div>
+</div>
+<div class="quiz" data-answer="1">
+  <p class="q">10. Instead, Arjun brings ₹45,030 for the chain: its whole Outstanding, with no ring. What does the Preview say?</p>
+  <button class="opt">It Redeems the chain, and the ₹900 held is refunded</button>
+  <button class="opt">Refused: the upcoming part would hold ₹900, more than the ₹0 left owing; take at most ₹44,130, or cancel the 19 Nov part first</button>
+  <button class="opt">It is an ordinary Allocation, and the chain becomes Dormant</button>
+  <div class="why">What a Mortgage's upcoming Advance Instalments hold may never exceed its Outstanding, so nothing is ever refunded. <code>refuse_overheld</code> checks every Payment that touches a Mortgage with upcoming parts, and names the most that fits or the latest parts to cancel. A Closure applies the part first, so ₹44,130 Redeems it. (Lesson 7, ADR 0021; checked on a copy of the book at 3.5.0.)</div>
 </div>
 <p><span class="score"></span></p>
 
@@ -120,11 +127,13 @@
   <li>A Payment is never edited or deleted. A correction is a Void with a reason plus a new Payment. A Void is refused if already Voided, if it's a Closure's Final Payment (Reopen instead), or if the Mortgage is closed. A Voided Payment stays listed, has no Receipt and no split (<a href="03-voids.html">lesson 3</a>).</li>
   <li>The Cash Limit only warns. Each Preview lists what the change writes in cash: each new Payment as one sum with its Final Payments, and each Principal lent in cash that's new, newly in cash, or larger. The page asks at or above the limit; saving checks nothing. No stored value means ₹20,000; an empty one means never warn (<a href="04-the-cash-limit.html">lesson 4</a>).</li>
   <li>A Receipt gathers every non-Voided part, gives one line per Mortgage by its description, and shows what each owed just after the Payment, replayed each time, so a resent Receipt matches unless an earlier fact changed. A Waiver's line owes nothing; a Redemption is marked "(Redeemed)"; the Lender presses Send (<a href="05-receipts.html">lesson 5</a>, trap #16, ADR 0002).</li>
+  <li>A Grace Payment keeps two dates: the earlier one drives the Ledger, the date received and the amount let off are stored for the Receipt and Favours Given (<a href="06-grace-and-favours.html">lesson 6</a>, ADR 0020).</li>
+  <li>An Advance is cash received now and written as <code>advance_instalment</code> rows, one per coming Accrual Date. Replay applies each only on its date; until then it is the Advance held, never more than the Outstanding. Follow-up skips a month a part pays in full, Cancel applies a part today, and a Closure applies them all (<a href="07-advances.html">lesson 7</a>, ADR 0021).</li>
 </ul>
 <p>Keep the <a href="../reference/routes.html">routes sheet</a> open when you work on Payments: it lists each Payment, Void, Receipt and Cash Limit route with its refusals. The <a href="../reference/ledger.html#allocations">ledger sheet</a> now says what a Payment's Allocations pay and how a Payment's parts group, and the <a href="../reference/traps.html">traps sheet</a> marks #2 and #16 as this chapter's.</p>
 
 <nav class="lessons">
-  <a href="05-receipts.html">← Receipts</a>
+  <a href="07-advances.html">← Advances</a>
   <a href="index.html">Chapter overview</a>
   <a href="../index.html">Course home →</a>
 </nav>

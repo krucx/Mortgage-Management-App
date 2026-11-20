@@ -302,9 +302,27 @@ await shot('terms-preview', card(), {
 
 // Meera pays ------------------------------------------------------------------------------
 
+// Payments are found, not numbered: one added earlier in the story shifts every later id.
+const paymentPages = []
+for (let number = 1; ; number++) {
+  const listed = await (await page.request.get(`${base}/api/payments?page=${number}&show_voided=true`)).json()
+  paymentPages.push(...listed.items)
+  if (paymentPages.length >= listed.total) break
+}
+function payment(what, test) {
+  const found = paymentPages.find(test)
+  if (!found) throw new Error(`The sample book has no ${what}`)
+  return found.id
+}
+const splitPayment = payment('Payment split across Mortgages', (p) => p.mortgages.length > 1 && !p.voided)
+const gracePayment = payment('Grace Payment', (p) => p.received_on)
+const correctedPayment = payment('₹6,000 Payment of 10 Oct', (p) => p.paid_on === '2026-10-10' && p.amount === 600000 && !p.voided)
+const advancePayment = payment('Payment with an Advance', (p) => p.advance)
+
 await open('/payments/new?customer=1')
 await page.getByLabel('Amount received (₹)').fill('8000')
 await heading('What changes').waitFor()
+await card().getByText('Ledger steps that change').first().waitFor()
 await settle()
 await shot('payment-new', card(), {
   amount: page.getByLabel('Amount received (₹)'),
@@ -331,28 +349,20 @@ await dialog().getByText('Reduce Discount to the remaining balance?').waitFor()
 await settle()
 await shot('discount-cap', dialog(), { reduce: dialog().getByRole('button', { name: 'Reduce and continue' }) })
 await dialog().getByRole('button', { name: 'Keep editing' }).click()
-await open('/payments/23')
+await open(`/payments/${splitPayment}`)
 await shot('payment', card(), {
   alloc: await section('Allocations'),
   receipt: await section('Receipt'),
   another: page.getByRole('link', { name: 'Record another Payment for same customer' }),
   void: button('Void…'),
 })
-await open('/payments/23/receipt')
+await open(`/payments/${splitPayment}/receipt`)
 await shot('receipt', card())
-const paymentPages = []
-for (let number = 1; ; number++) {
-  const listed = await (await page.request.get(`${base}/api/payments?page=${number}`)).json()
-  paymentPages.push(...listed.items)
-  if (paymentPages.length >= listed.total) break
-}
-const gracePayment = paymentPages.find((payment) => payment.received_on)
-if (!gracePayment) throw new Error('The sample book has no Grace Payment')
-await open(`/payments/${gracePayment.id}`)
+await open(`/payments/${gracePayment}`)
 await shot('grace-payment', card())
-await open(`/payments/${gracePayment.id}/receipt`)
+await open(`/payments/${gracePayment}/receipt`)
 await shot('grace-receipt', card())
-await open('/payments/28')
+await open(`/payments/${correctedPayment}`)
 await button('Void…').click()
 await settle()
 await shot('payment-void', dialog())
@@ -360,23 +370,61 @@ await dialog().getByRole('button', { name: 'Cancel' }).click()
 await open('/payments')
 await page.getByLabel('Show Voided Payments').check()
 await settle()
-await shot('payments', card(), { voided: card().getByText('voided', { exact: true }) })
+await shot('payments', card(), {
+  voided: card().getByText('voided', { exact: true }),
+  advance: card().getByText(/^Advance · /),
+})
+
+// An Advance on New Payment: Meera's chain, three months ahead, not saved.
+await open('/payments/new?customer=1')
+await card().locator('tbody tr', { hasText: 'PairBangles' }).locator('input[type=checkbox]').uncheck()
+await field('Months for 2025-Meera-GoldChainPendant').selectOption('3')
+await card().getByRole('button', { name: /^Fill 3 × / }).click()
+await page.locator('.advance-schedules').waitFor()
+await settle()
+await shot('payment-advance', card(), {
+  advance: field('Advance for 2025-Meera-GoldChainPendant'),
+  months: field('Months for 2025-Meera-GoldChainPendant'),
+  amount: page.getByLabel('Amount received (₹)'),
+  schedule: page.locator('.advance-schedules table').first(),
+  verdict: page.locator('.advance-schedules .status').first(),
+})
 
 // Meanwhile, Arjun ------------------------------------------------------------------------
+
+// The Advance he paid on his chain before he went away: its parts, a part's Cancel…
+// (kept), and its Payment and Receipt.
+await open('/mortgages/8')
+await shot('mortgage-advance', await between(page.locator('main .tiles').first(), page.locator('main dl').first()), {
+  held: page.locator('main .tile', { hasText: 'Advance held' }),
+})
+await shot('mortgage-advances', await section('Advances'), {
+  received: card().getByRole('link', { name: /^Received / }),
+  applied: card().locator('.badge', { hasText: 'Applied' }).last(),
+  upcoming: card().locator('.badge', { hasText: 'Upcoming' }),
+  cancel: button('Cancel…'),
+})
+await button('Cancel…').click()
+await dialog().getByText('Owed today').first().waitFor()
+await settle()
+await shot('advance-cancel', dialog())
+await dialog().getByRole('button', { name: 'Keep it' }).click()
+await open(`/payments/${advancePayment}/receipt`)
+await shot('advance-receipt', card())
 
 await open('/call-list')
 await shot('call-list', card(), {
   customer: card().locator('td.call-customer'),
-  count: card().locator('.call-who a').filter({ hasText: /2 Mortgages/ }),
+  count: card().locator('.call-who a[href*="customer="]'),
   reach: card().locator('.call-who .reach'),
-  why: card().locator('.reasons').nth(1),
+  why: card().locator('.reasons').first(),
   legend: card().locator('.reason-legend'),
   called: card().locator('.called-cell'),
-  mark: button('Mark called…'),
+  again: button('Again…'),
   sheet: card().getByRole('link', { name: 'Export to Excel' }),
   chat: card().locator('.call-who .reach a, .call-who .reach button').last(),
 })
-await card().locator('.call-who a').filter({ hasText: /2 Mortgages/ }).click()
+await card().locator('.call-who a[href*="customer="]').click()
 await settle()
 await shot('mortgages-customer', card(), { note: card().getByText('Show every Customer').locator('..') })
 // The Call Sheet back from whoever made the calls: its Preview, not saved.
@@ -388,10 +436,11 @@ await dialog().getByRole('button', { name: 'Keep editing' }).click()
 
 // How pledges end -------------------------------------------------------------------------
 
-/** What Mortgage `id` would take to close on the day of the story, less `letOff`, in rupees. */
+/** What is left to pay to close Mortgage `id` on the day of the story (its Outstanding,
+ *  less any Advance held, which the Closure applies), less `letOff`, in rupees. */
 async function shortOf(id, letOff) {
   const response = await page.request.get(`${base}/api/mortgages/${id}/outstanding-on-closure?on=2026-10-19`)
-  return String((await response.json()).total / 100 - letOff)
+  return String((await response.json()).to_pay / 100 - letOff)
 }
 const shortBy300 = await shortOf(8, 300)
 

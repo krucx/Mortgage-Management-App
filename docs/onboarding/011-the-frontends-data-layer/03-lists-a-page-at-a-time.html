@@ -14,6 +14,8 @@
 
 <div class="callout win"><strong>By the end</strong> you can add a sortable, paged list.</div>
 
+<div class="callout"><strong>New in 3.5.0: three more lists come a page at a time.</strong> A Mortgage's Call Notes and a Customer's Favours Given come 20 at a time, newest first, with Previous and Next, as the other lists do; the Favours Given total still counts every page. The "Show complete history" popup of a Customer or Mortgage pages by <em>change</em>: 20 changes at a time, never splitting one change's fields across two pages, while the History panel still shows the latest 5. The same <code>Page</code> shape and pager are used.</div>
+
 <h2>The problem</h2>
 <p><a href="../010-platform-database-and-migrations/04-tables-engine-and-pages.html">Chapter 010, lesson 4</a> showed the backend's half: <code>query_page</code> sorts across <em>every</em> row in SQL and hands back one page of 20, with <code>total</code>. The screen can't sort what it has, because it only has 20 rows. So clicking a column heading has to become a new request.</p>
 <p>Around that request sit a handful of things that are easy to get wrong:</p>

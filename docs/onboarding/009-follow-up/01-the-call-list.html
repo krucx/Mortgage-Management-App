@@ -14,6 +14,8 @@
 
 <div class="callout win"><strong>By the end</strong> you can say why any Mortgage is or isn't on today's Call List, and where it sits.</div>
 
+<div class="callout warn"><strong>Changed in 3.5.0, and these figures predate 3.4.9.</strong> The run-through figures below were taken before the sample book gained Meera's Grace Payment (3.4.9) and Arjun's Advance (3.5.0). On today's book, Meera's chain owes no back interest, and the 19 Oct Call List has <strong>one</strong> row: Arjun's ring (15 Months Unpaid, 104.9%). His chain accrues on the 19th too, but an Advance part landing that day paid its month, so <code>covered_by_advance</code> leaves it out of "accruing today" (the snippet below shows the check; <a href="../007-payments-and-receipts/07-advances.html">chapter 007, lesson 7</a>). The code and the ordering rules are unchanged otherwise; rerun <code>scripts/run_throughs.py</code> for today's figures.</div>
+
 <h2>The problem</h2>
 <p>The Lender has a phone and a morning. They can't ring every Customer every day, and they shouldn't have to scan every Mortgage to decide who to ring. They want a short list, most urgent first, with the reason next to each name.</p>
 <p>Three things make a Mortgage worth a call:</p>
@@ -83,7 +85,7 @@ flowchart TD
 
 <h3>2. Checking each Mortgage</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/call_list.py">follow_up/call_list.py</a> · <code>call_list()</code> · lines 114–145, trimmed</figcaption>
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/call_list.py">follow_up/call_list.py</a> · <code>call_list()</code> · lines 114–148, trimmed</figcaption>
 <pre data-file="backend/src/mortgage_backend/follow_up/call_list.py"><code>114      settings = CALL_LIST_SETTINGS.get(conn)
 ⋮    … rows = every Active Mortgage, with its Customer's name and phones …
 119              .where(mortgage_table.c.status == MortgageStatus.ACTIVE)
@@ -93,27 +95,30 @@ flowchart TD
 127      called = _todays_notes(conn, today)
 ⋮
 130      for row in rows:
-131          if replayed[row["id"]].dormant(today):
-132              continue  # owes nothing: listed on Closures instead (ADR 0012)   ①
-133          ledger = replayed[row["id"]].ledger(today)
-134          outstanding = replayed[row["id"]].outstanding(today).total
-135          months = months_unpaid(ledger)                                       ②
-136          collateral = collateral_of(row, rates, outstanding)
-137          loan_to_value = collateral.loan_to_value if collateral else None
-138          reasons: list[Reason] = []
-139          if months &gt;= settings.months_unpaid:                                ◀
-140              reasons.append("months_unpaid")
-141          if loan_to_value_too_high(loan_to_value, settings):
-142              reasons.append("loan_to_value")
-143          if any(step.event == "interest" and step.on == today for step in ledger):   ③
-144              reasons.append("accrues_today")
-145          if reasons:
+131          mortgage = replayed[row["id"]]
+132          if mortgage.dormant(today):
+133              continue  # owes nothing: listed on Closures instead (ADR 0012)   ①
+134          ledger = mortgage.ledger(today)
+135          outstanding = mortgage.outstanding(today).total
+136          months = months_unpaid(ledger)                                       ②
+137          collateral = collateral_of(row, rates, outstanding)
+138          loan_to_value = collateral.loan_to_value if collateral else None
+139          reasons: list[Reason] = []
+140          if months &gt;= settings.months_unpaid:                                ◀
+141              reasons.append("months_unpaid")
+142          if loan_to_value_too_high(loan_to_value, settings):
+143              reasons.append("loan_to_value")
+144          if any(
+145              step.event == "interest" and step.on == today for step in ledger
+146          ) and not mortgage.covered_by_advance(today):                          ③
+147              reasons.append("accrues_today")
+148          if reasons:
 </code></pre>
 </figure>
 <ol class="marks">
   <li>A Dormant Mortgage is Active but owes nothing (chapter 005). Phoning about it makes no sense; what it needs is Redeeming, so it shows on the Closures page instead (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR 0012</a>).</li>
   <li><code>months_unpaid</code> lives in <code>lending/ledger.py</code> (line 462) and is chapter 004's. This module only compares its answer with the limit.</li>
-  <li>"Accrues today" means the Ledger has an <code>interest</code> step dated today. <code>any(…)</code> is true if at least one step matches.</li>
+  <li>"Accrues today" means the Ledger has an <code>interest</code> step dated today. <code>any(…)</code> is true if at least one step matches. Since 3.5.0 it also needs the month not to be paid already by an Advance: <code>covered_by_advance</code> (<code>lending/replay.py</code>) is true when an Advance Instalment lands today and leaves no month's interest unpaid (<a href="../007-payments-and-receipts/07-advances.html">chapter 007, lesson 7</a>, ADR 0021). Months Unpaid and Loan-to-Value don't change: they still list a Mortgage whatever its Advance.</li>
 </ol>
 
 <h3>3. Called today</h3>

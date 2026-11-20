@@ -14,6 +14,8 @@
 
 <div class="callout win"><strong>By the end</strong> you can say what one Payment does to one or more Mortgages: how it is split, what it pays first, what the Customer is sent, and how a mistake is put right.</div>
 
+<div class="callout"><strong>Paying ahead (new in 3.5.0).</strong> A Customer going away may pay a Mortgage's interest for its next few months today: an <em>Advance</em>. The Lender has the cash at once, but the app applies one equal part on each coming Accrual Date, so each pays that month's interest as it falls due, rather than reducing Principal now. A month already paid this way gets no Reminder and no "accruing today" call; a part can be cancelled, which applies it at once; and closing the Mortgage applies whatever is still held, so nothing is ever refunded. In the sample book, Arjun paid his chain's next three months, ₹2,700, on 5 September: ₹900 on each of 19 Sep, 19 Oct and 19 Nov. The code is in <a href="../007-payments-and-receipts/07-advances.html">chapter 007, lesson 7</a>.</div>
+
 <h2>The problem</h2>
 <p>Customers don't pay neatly. Meera owes interest on two Mortgages and hands over one sum for both. Someone else pays a little more than the month's interest, hoping to bring the Principal down. The Lender, busy at the counter, sometimes types the wrong figure. Each of these must end up in the book correctly, and the Customer needs a written acknowledgement they can trust.</p>
 <p>A naive book would note "Meera paid ₹12,000" and leave the rest to memory. Then nobody can say later how much of it was interest, which Mortgage it was for, or whether a crossed-out line was ever real money.</p>

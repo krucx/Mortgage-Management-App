@@ -49,31 +49,45 @@ sequenceDiagram
 <h2>The code</h2>
 <h3>1. The fixtures</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/conftest.py">backend/tests/conftest.py</a> · whole file but the imports · lines 11–30</figcaption>
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/tests/conftest.py">backend/tests/conftest.py</a> · whole file but the imports · lines 11–43</figcaption>
 <pre data-file="backend/tests/conftest.py"><code>11  TODAY = date(2026, 4, 20)                                     # ①  ◀
 12
 13
-14  @pytest.fixture
-15  def database_url(tmp_path):                                   # ②
-16      return f"sqlite:///{tmp_path / 'mortgage.db'}"
-17
-18
-19  @pytest.fixture
-20  def client(database_url):
-21      with TestClient(create_app(database_url, today=lambda: TODAY)) as client:   # ③  ◀
-22          yield client                                          # ④
-23
-24
-25  @pytest.fixture
-26  def conn(database_url: str) -&gt; Iterator[Connection]:         # ⑤ lesson 3
-27      """A connection to a fresh database (no app), in a transaction committed at the end."""
-28      migrate(database_url)
-29      with make_engine(database_url).begin() as conn:
-30          yield conn
+14  @pytest.fixture(autouse=True)
+15  def addressed_as_localhost(monkeypatch: pytest.MonkeyPatch) -&gt; None:   # ②
+16      """Clients reach the app as localhost, the only host it answers to."""
+17      init = TestClient.__init__
+18      monkeypatch.setattr(
+19          TestClient,
+20          "__init__",
+21          lambda self, *args, **kwargs: init(
+22              self, *args, **{"base_url": "http://localhost", **kwargs}
+23          ),
+24      )
+25
+26
+27  @pytest.fixture
+28  def database_url(tmp_path):                                   # ③
+29      return f"sqlite:///{tmp_path / 'mortgage.db'}"
+30
+31
+32  @pytest.fixture
+33  def client(database_url):
+34      with TestClient(create_app(database_url, today=lambda: TODAY)) as client:   # ④  ◀
+35          yield client                                          # ⑤
+36
+37
+38  @pytest.fixture
+39  def conn(database_url: str) -&gt; Iterator[Connection]:         # ⑥ lesson 3
+40      """A connection to a fresh database (no app), in a transaction committed at the end."""
+41      migrate(database_url)
+42      with make_engine(database_url).begin() as conn:
+43          yield conn
 </code></pre>
 </figure>
 <ol class="marks">
   <li>The tests' today: <strong>20 Apr 2026</strong>, for ever. The app never reads the computer's clock; <code>create_app</code> takes a function that says what day it is (<a href="../010-platform-database-and-migrations/02-today-now-and-the-daily-run.html">chapter 010, lesson 2</a>). A test that says "Ramesh's chain owes ₹1,09,000 today" stays true next year. Lesson 3 shows what moving it does.</li>
+  <li><code>autouse=True</code> runs this fixture for every test without being named. Since 3.4.10 the app answers only requests addressed to <code>localhost</code> or <code>127.0.0.1</code> (<code>LocalOnly</code>, <a href="../010-platform-database-and-migrations/01-the-composition-root.html">chapter 010, lesson 1</a>), and <code>TestClient</code>'s default host, <code>testserver</code>, would get 400 "Unknown host." on every request. The fixture makes every <code>TestClient</code> built during a test default to <code>http://localhost</code>. A script outside pytest (<code>docs/sample-book/book.py</code>, the course's run-throughs) passes <code>base_url="http://localhost"</code> itself.</li>
   <li>pytest gives <code>tmp_path</code> to any fixture or test that names it. The database is one SQLite file inside it.</li>
   <li><code>TestClient</code>, from FastAPI, sends requests straight into the app in the same process: no server, no port. Using it in a <code>with</code> block runs the app's start-up, which migrates the empty file (<a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">chapter 010, lesson 5</a>).</li>
   <li><code>yield</code> instead of <code>return</code> makes a fixture with a clean-up: the test runs at the <code>yield</code>, and when it's done pytest finishes the <code>with</code> block, which shuts the app down.</li>

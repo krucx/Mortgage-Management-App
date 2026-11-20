@@ -17,8 +17,8 @@
   <p class="q">1. You build a fresh sample book and serve it. Its first <code>/api/</code> request arrives. Do the daily jobs run?</p>
   <button class="opt">Yes: it's the first request since the server started</button>
   <button class="opt">Yes, but only the Reminder sync, as a Backup was taken</button>
-  <button class="opt">No: <code>last_daily_run</code> is already 19 Oct 2026</button>
-  <div class="why"><code>book.py</code> builds the book through the API up to 19 Oct, so the daily run already ran that day and wrote <code>last_daily_run</code>. The check reads the database, not anything about this server. The start-up Backup came from the lifespan, not the daily run. (Lesson 2; <code>scripts/run_throughs.py</code>, section L2.)</div>
+  <button class="opt">No: both <code>daily_run_done_…</code> rows already say 19 Oct 2026</button>
+  <div class="why"><code>book.py</code> builds the book through the API up to 19 Oct, so each daily job already succeeded that day and wrote its <code>daily_run_done_…</code> row. The check reads the database, not anything about this server. The start-up Backup came from the lifespan, not the daily run. (Lesson 2; <code>scripts/run_throughs.py</code>, section L2.)</div>
 </div>
 <div class="quiz" data-answer="0">
   <p class="q">2. A test builds its app with <code>conftest.py</code>'s <code>client</code> fixture and reads Meera's Outstanding. Which day is "today" in that test?</p>

@@ -48,6 +48,10 @@
   Why no tag is pushed by hand. Use for: 015.02.
 - [ADR 0019: Changes reach main only through reviewed pull requests](../adr/0019-changes-reach-main-through-reviewed-pull-requests.md)
   The pull request, review and approval rules. Use for: 013.01, chapter 016.
+- [ADR 0020: The amount a Grace Period let off is stored, not replayed](../adr/0020-grace-amount-let-off-is-stored.md)
+  Why a Grace Payment keeps its received date and let-off. Use for: 007.06.
+- [ADR 0021: An Advance is cash received today, applied on later Accrual Dates](../adr/0021-advances-are-scheduled-allocations.md)
+  Advance Instalments, the never-hold-more-than-owed rule, follow-up, Cancel and Closures. Use for: 007.07, 004.03, 005.02, 006.04, 009.01, 009.03.
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) and the [release checklist](../RELEASE_CHECKLIST.md)
   How a change and a release are made, step by step. Use for: 015.02, 016.05.
 - [Architecture reviews](../architecture-reviews/)

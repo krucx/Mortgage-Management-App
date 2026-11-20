@@ -14,6 +14,8 @@
 
 <div class="callout win"><strong>By the end</strong> you can quote what closing would take on a date, and say why a close is refused.</div>
 
+<div class="callout warn"><strong>Changed in 3.5.0: the Advance held.</strong> <code>outstanding_on_closure</code> also reports <code>advance_held</code>, what the Mortgage's upcoming Advance Instalments hold on the Closure date, and <code>to_pay</code>, the Outstanding less it. A Redemption, Waiver or Forfeiture applies every upcoming part on the Closure date, before any Final Payment, so on the sample book Arjun's chain (₹45,030 Outstanding, ₹900 held) Redeems for ₹44,130, and a Payment of the whole ₹45,030 is refused. <code>not_closable</code> ignores upcoming parts but treats a part cancelled on a later date as a later Payment. A Reopen puts the parts the Closure applied back as upcoming. See <a href="../007-payments-and-receipts/07-advances.html">chapter 007, lesson 7</a> and <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0021-advances-are-scheduled-allocations.md">ADR 0021</a>.</div>
+
 <h2>The problem</h2>
 <p>Farida Khan borrowed ₹30,000 against a gold nose ring on 12 May 2026, on the sample book's Default Terms: ₹600 of interest on each 12th. She paid ₹600 every month from June to September. On 16 Oct she came in to settle. The Lender opened the Mortgage page, chose <strong>Close this Mortgage</strong>, and picked a date. The form showed the Outstanding on that date before anything was saved.</p>
 <p>Two things make that quote harder than lesson 1's <code>outstanding(on)</code>:</p>

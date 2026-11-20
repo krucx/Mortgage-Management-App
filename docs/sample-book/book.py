@@ -88,7 +88,8 @@ class Book:
         self.app = create_app(
             f"sqlite:///{data / 'mortgage.db'}", today=self.clock.today, now=self.clock.now
         )
-        self.api = TestClient(self.app)
+        # The app answers only requests addressed to it as localhost.
+        self.api = TestClient(self.app, base_url="http://localhost")
         self.people: dict[str, Any] = {}
         self.mortgages: dict[str, Any] = {}
 
@@ -187,6 +188,24 @@ class Book:
                 "method": method,
                 "reference": reference,
                 "allocations": allocations,
+            },
+        )
+
+    def pay_ahead(self, who: str, key: str, amount: float, months: int, method: str = "upi",
+                  reference: str | None = None, on: str | None = None) -> Any:
+        """A Payment that is all Advance, received today (or on `on`, when entered late):
+        held for the Mortgage's next `months` of interest, a part applied on each of its next
+        Accrual Dates after it was received (ADR 0021)."""
+        return self.post(
+            "/api/payments",
+            {
+                "customer_id": self.people[who]["id"],
+                "paid_on": on or self.clock.day.isoformat(),
+                "amount": rupees(amount),
+                "method": method,
+                "reference": reference,
+                "allocations": [{"mortgage_id": self.mortgages[key]["id"], "amount": 0,
+                                 "advance": rupees(amount), "months": months}],
             },
         )
 
@@ -292,8 +311,14 @@ def events(book: Book) -> list[tuple[str, Any]]:
             book.pay("kavita", {"anklet": 300}, method="cash", on="2026-09-05"),
             book.pay("kavita", {"anklet": 15_000}, method="upi", on="2026-08-25"),
         )),
-        # The day of the story: today's Gold Rates, and Arjun called about his ring.
+        # The day of the story: today's Gold Rates, and Arjun called about his ring. He says
+        # he paid his chain's next three months by UPI on 5 Sep, before leaving for work in
+        # Dubai; the Lender finds it on the bank statement and enters it: an Advance of ₹900
+        # a month, applied on 19 Sep, 19 Oct and 19 Nov. (Entered last, so every other
+        # Payment keeps its number.)
         ("2026-10-19", lambda: (
+            book.pay_ahead(arjun, "arjunchain", 2_700, months=3, reference="UPI 5120 0905 3318",
+                           on="2026-09-05"),
             book.put("/api/settings/gold-rates", [
                 {"purity_karat": 24, "rate_per_gram": rupees(14_766)},
                 {"purity_karat": 22, "rate_per_gram": rupees(13_536)},
