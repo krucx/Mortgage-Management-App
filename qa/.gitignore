@@ -1,0 +1,5 @@
+node_modules/
+test-results/
+scratch-data/
+scratch-backups/
+pw.local.config.ts

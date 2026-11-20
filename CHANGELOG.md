@@ -7,6 +7,11 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- **A Mortgage's Advances fit a phone screen:** on a narrow screen the table of Advance parts
+  scrolls sideways inside its box instead of widening the whole page.
+
 ## [3.5.0] - 2026-11-19
 
 ### Added

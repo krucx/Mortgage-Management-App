@@ -4,9 +4,10 @@
 #
 #   scripts/qa-stack.sh up   --data DIR --backups DIR   # build from source, start, check
 #   scripts/qa-stack.sh down                            # remove the containers and the image
+#   scripts/qa-stack.sh test [--mode fresh|golden|all] [--ui]   # Playwright suite; 0 pass, 1 fail
 #
-# Optional: QA_PROJECT (default mortgage-qa; give each parallel run its own), QA_PORT (default:
-# a free port). `down` never removes folders.
+# Optional: QA_PROJECT (default mortgage-qa, mortgage-qa-test for `test`; give each parallel run
+# its own), QA_PORT (default: a free port). `down` never removes folders.
 set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
 cd "$ROOT"
@@ -32,6 +33,8 @@ env_dir() {
 
 dc() { docker compose -p "$PROJECT" "$@"; }
 
+free_port() { python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])'; }
+
 up() {
   DATA= BACKUPS=
   while [ $# -gt 0 ]; do
@@ -54,7 +57,7 @@ up() {
   fresh=yes
   [ ! -d "$DATA" ] || [ -z "$(ls -A "$DATA")" ] || fresh=no
   mkdir -p "$DATA" "$BACKUPS"
-  PORT=${QA_PORT:-$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')}
+  PORT=${QA_PORT:-$(free_port)}
 
   override=$(mktemp)
   trap 'rm -f "$override"' EXIT
@@ -84,8 +87,59 @@ down() {
   docker rmi "$IMAGE" 2>/dev/null || true
 }
 
+# The app, seeded on scratch volumes, and the Playwright runner (docker-compose.qa.yml). `fresh`
+# runs the specs that start from no data, `golden` the rest on the golden book, `all` both, each
+# on its own volumes. `--ui` serves Playwright's UI from the runner instead, until Ctrl-C.
+run_tests() {
+  MODE=all UI=
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --mode) MODE=${2:-}; shift 2 ;;
+      --ui) UI=yes; shift ;;
+      *) die "unknown option $1" ;;
+    esac
+  done
+  case $MODE in fresh|golden|all) ;; *) die "--mode is fresh, golden or all" ;; esac
+  PROJECT=${QA_PROJECT:-mortgage-qa-test}
+  IMAGE=mortgage-management-app:$PROJECT
+  PORT=${QA_PORT:-$(free_port)}
+  SPECS=
+
+  override=$(mktemp)
+  trap 'qa_compose down -v --remove-orphans || true; docker rmi "$IMAGE" >/dev/null 2>&1 || true; rm -f "$override"' EXIT
+  trap 'exit 1' INT TERM
+  printf 'services:\n  app:\n    image: %s\n' "$IMAGE" > "$override"
+
+  if [ -n "$UI" ]; then
+    [ "$MODE" = all ] || SPECS=$MODE
+    ui=$(free_port)
+    echo "qa-stack: Playwright UI at http://127.0.0.1:$ui once built; stop with Ctrl-C"
+    qa_compose run --rm --build -p "127.0.0.1:$ui:$ui" qa-runner npx playwright test --ui-host=0.0.0.0 --ui-port="$ui"
+    return
+  fi
+
+  failed=
+  [ "$MODE" = all ] && runs="fresh golden" || runs=$MODE
+  for SPECS in $runs; do
+    echo "qa-stack: $SPECS specs"
+    qa_compose up --build --exit-code-from qa-runner --attach qa-runner || failed=yes
+    qa_compose down -v --remove-orphans
+  done
+  [ -z "$failed" ] || die "tests failed; see qa/test-results"
+  echo "qa-stack: passed (--mode $MODE)"
+}
+
+# Compose with the QA overlay, for run_tests (it sets PORT, SPECS and override). The base file
+# requires DATA_DIR and BACKUP_DIR; the overlay mounts its own scratch volumes over them, so they
+# never reach the Lender's folders.
+qa_compose() {
+  DATA_DIR=qa-data BACKUP_DIR=qa-backups APP_PORT=$PORT BACKUP_PASSWORD= QA_SPECS=$SPECS \
+    dc -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.qa.yml -f "$override" "$@"
+}
+
 case ${1:-} in
   up) shift; up "$@" ;;
   down) down ;;
-  *) die "usage: scripts/qa-stack.sh up --data DIR --backups DIR | down" ;;
+  test) shift; run_tests "$@" ;;
+  *) die "usage: scripts/qa-stack.sh up --data DIR --backups DIR | down | test [--mode fresh|golden|all] [--ui]" ;;
 esac

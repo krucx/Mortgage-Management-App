@@ -218,6 +218,16 @@ from source under its own project and a free port, and checks the API is serving
 data. `scripts/qa-stack.sh down` removes its containers and image, never the folders. Set
 `QA_PROJECT` to run several at once.
 
+`scripts/qa-stack.sh test` runs the Playwright suite in `qa/e2e` against the app built from
+source, needing only Docker (and `python3`, as `up` does): `--mode fresh` runs the specs that start from no data, `--mode
+golden` the rest on the golden book (`qa/fixtures/golden_book.py`), and the default `all`
+runs both, each on its own scratch volumes. It exits 0 when every spec passes and 1
+otherwise, always removing its containers and volumes; failures leave screenshots in
+`qa/test-results`. `--ui` serves Playwright's UI on a local port instead, until Ctrl-C, with the golden book
+unless `--mode fresh`.
+The `qa` job in `.github/workflows/test.yml` runs it on the `release/X.Y.Z` pull request
+and on demand (workflow_dispatch), not on every pull request; run it locally before opening one.
+
 The Windows setup lives in `windows/`: `Setup.bat` → `setup.ps1` (gets the code) →
 `install.ps1` (Docker or local, `.env`, installs, shortcut, `mortgage-management://`
 link), `Run.bat` → `run.ps1`, `link.ps1` (opens the link: `mortgage-management://start`
@@ -230,7 +240,7 @@ the setup without Docker end to end on a Windows runner, then the uninstall. `se
 Pull requests targeting `main` run the `backend` and `frontend` test jobs in
 `.github/workflows/test.yml`. Their summaries show line coverage and their artifacts
 retain the detailed reports. The main ruleset requires the backend, frontend, image,
-Windows, and CodeQL checks, as well as CodeRabbit. The importable ruleset template
+qa (skipped, so passing, outside release pull requests), Windows, and CodeQL checks, as well as CodeRabbit. The importable ruleset template
 specifies one human approval and blocks direct pushes; see
 [CONTRIBUTING.md](CONTRIBUTING.md) for required check names, automated review setup,
 and plan limitations. A failed test,
