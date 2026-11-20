@@ -21,6 +21,11 @@ services:
         chown -R 1000:1000 /book
     restart: "no"
   app:
+    # Reached by the runner as `qa-app`, not the service name: `app` is a top-level domain on
+    # Chromium's HSTS preload list, so the browser forces `http://app` to HTTPS and fails.
+    networks:
+      default:
+        aliases: [qa-app]
     depends_on:
       qa-seed:
         condition: service_completed_successfully
@@ -45,7 +50,7 @@ services:
       app:
         condition: service_healthy
     environment:
-      BASE_URL: http://app:8000
+      BASE_URL: http://qa-app:8000
       QA_SPECS: ${QA_SPECS:-}
     volumes:
       - ./qa/test-results:/qa/test-results

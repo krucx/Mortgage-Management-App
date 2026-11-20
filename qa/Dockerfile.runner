@@ -1,6 +1,8 @@
 # QA runner: Playwright + Chromium on the official Microsoft image, plus the Python
 # backend (for seeding golden books) and the Node test deps.
-FROM mcr.microsoft.com/playwright:v1.49.0-noble
+# The image tag must match @playwright/test in qa/package.json: the image ships only the
+# browsers for its own version, so a mismatch fails every test at browser launch.
+FROM mcr.microsoft.com/playwright:v1.65.1-noble
 
 COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /usr/local/bin/uv
 

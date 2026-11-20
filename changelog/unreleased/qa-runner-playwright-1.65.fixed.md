@@ -1,0 +1,1 @@
+- **QA stack:** the Playwright runner image matches the pinned Playwright 1.65.1, and the runner reaches the app as `qa-app`, so the end-to-end suite runs again on release candidates.
