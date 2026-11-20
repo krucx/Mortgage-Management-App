@@ -18,6 +18,8 @@ simplifying, reusing, and eventually creating a cleaner, maintainable system.
   [release checklist](Documentation/RELEASE_CHECKLIST.md). A release owner must supply and
   verify the version, release PR, changelog, and required credentials before any version tag
   is pushed or the PR that starts the tag-driven publish workflow is merged.
+- Changelog notes for non-release PRs are fragments under `changelog/unreleased/`, not edits
+  to `CHANGELOG.md`. See [Documentation/agents/changelog.md](Documentation/agents/changelog.md).
 
 ## Pointers
 

@@ -88,13 +88,18 @@ human approval, and these status checks: `backend`, `frontend`, `image`, `qa`, `
 `version-bump`, `Analyze (actions)`, `Analyze (javascript-typescript)`, `Analyze (python)`, and
 `CodeRabbit`. `version-bump` fails a pull request that changes `VERSION` or the package versions synced from
 it, unless it is the `release/X.Y.Z` pull request from the Prepare release candidate workflow;
-add notes under `## Unreleased` in the changelog instead. `qa` runs only on that `release/X.Y.Z`
-pull request and when Tests is dispatched by hand; elsewhere it is skipped, which GitHub counts as
-passing. These are the exact check names GitHub reports. The ruleset blocks force
-pushes and deletion. A repository administrator should import and activate it under
+add a fragment under `changelog/unreleased/` instead of editing `CHANGELOG.md`. The same job
+refuses non-release edits to `CHANGELOG.md` and requires a fragment when the PR changes
+product or user-facing files (internal-only paths are allowlisted). `qa` runs only on that
+`release/X.Y.Z` pull request and when Tests is dispatched by hand; elsewhere it is skipped,
+which GitHub counts as passing. These are the exact check names GitHub reports. The ruleset
+blocks force pushes and deletion. A repository administrator should import and activate it under
 Settings → Rules → Rulesets. GitHub Free supports branch protection and rulesets for public repositories;
 private repository availability depends on the repository plan. If rulesets are not
 available, configure equivalent branch protection for `main` manually.
 
-See the [release checklist](Documentation/RELEASE_CHECKLIST.md) when preparing a
-release.
+Release notes for a feature PR: add a file under `changelog/unreleased/` named
+`<unique>.<added|changed|fixed|removed|deprecated|security>.md` with Keep a Changelog
+bullets. Do not edit `## Unreleased` in `CHANGELOG.md`. See
+[Documentation/agents/changelog.md](Documentation/agents/changelog.md) and the
+[release checklist](Documentation/RELEASE_CHECKLIST.md).

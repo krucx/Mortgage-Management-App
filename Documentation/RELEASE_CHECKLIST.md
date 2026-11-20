@@ -18,14 +18,15 @@ gh workflow run release-candidate.yml --ref main -f version=3.4.8
 ```
 
 The workflow refuses an invalid or non-increasing version and stops before opening a
-pull request when `CHANGELOG.md` has no authored notes under `Unreleased`. It promotes
-those notes, synchronizes the shared version references, then runs the `Tests` workflow
-on the candidate branch. That preflight includes tests, type checks, lint, build,
-coverage reports, Windows setup checks and an isolated Docker image smoke test. A
-passing run opens a pull request with its result and the pending release checklist.
-Failures report the candidate branch and preflight run so the owner can supply missing
-information or safely rerun the same version. A maintainer may need to approve the
-workflow run for the release pull request's checks in GitHub Actions before they start.
+pull request when `changelog/unreleased/` has no authored fragments. It collates those
+fragments into a dated `CHANGELOG.md` section, deletes the consumed files, synchronizes
+the shared version references, then runs the `Tests` workflow on the candidate branch.
+That preflight includes tests, type checks, lint, build, coverage reports, Windows setup
+checks and an isolated Docker image smoke test. A passing run opens a pull request with
+its result and the pending release checklist. Failures report the candidate branch and
+preflight run so the owner can supply missing information or safely rerun the same
+version. A maintainer may need to approve the workflow run for the release pull
+request's checks in GitHub Actions before they start.
 
 The workflow token can write repository contents and pull requests and dispatch the
 preflight workflow. It does not publish a release or Docker image; only the tag-driven
@@ -33,8 +34,9 @@ release flow in the Publish section does that.
 
 ## Prepare — change author
 
-- [ ] Review merged changes since the last release and update `CHANGELOG.md` under
-  `Unreleased`, preserving older entries and examples.
+- [ ] Review merged changes since the last release and confirm each has a fragment under
+  `changelog/unreleased/` (add any missing ones). Do not edit `CHANGELOG.md` by hand;
+  older dated entries stay as they are.
 - [ ] Review user documentation for changed behavior, setup, upgrade, migration,
   recovery, and screenshots; update applicable pages.
 - [ ] Review developer documentation and agent instructions for changed workflows,
@@ -44,9 +46,10 @@ release flow in the Publish section does that.
 - [ ] Leave root `VERSION` alone on `main`. The candidate workflow sets it on the
   `release/<version>` branch; a hand bump on `main` makes the workflow refuse that version
   as not higher than `main` (Documentation/adr/0018).
-- [ ] On the candidate pull request, confirm the workflow moved the notes from
-  `Unreleased` into a dated `## [<version>] - <date>` section of `CHANGELOG.md`; the
-  release extracts its GitHub Release notes from that section with
+- [ ] On the candidate pull request, confirm the workflow collated
+  `changelog/unreleased/` fragments into a dated `## [<version>] - <date>` section of
+  `CHANGELOG.md` and removed those fragment files; the release extracts its GitHub
+  Release notes from that section with
   `node .github/scripts/release.mjs release-notes`.
 - [ ] On the candidate pull request, confirm the workflow ran `sync-version.mjs`,
   `uv lock` and `check-version.mjs`: the root, backend and frontend package versions, lock
