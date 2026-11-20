@@ -149,17 +149,17 @@ flowchart LR
 | `/` | `DashboardPage` | Portfolio dashboard: active loans, total outstanding balance, overdue accounts, monthly cash-in chart, and reminder notifications. |
 | `/mortgages` | `MortgagesPage` | Paginated mortgage directory with status filtering (Active, Closed, Redeemed, Forfeited, Waived, Dormant) and search. |
 | `/mortgages/new` | `NewMortgagePage` | Loan origination: customer selection/creation, collateral items (weights, purity, gold rate valuation), terms configuration, and photos. |
-| `/mortgages/:id` | `MortgagePage` | Comprehensive mortgage view: dynamically computed accrued interest and outstanding balance, payment history, term changes, call notes, and actions. |
+| `/mortgages/:id` | `MortgagePage` | Comprehensive mortgage view: dynamically computed accrued interest and outstanding balance, payment history, term changes, call notes, and actions; with an Advance, the Advance held and an Advances panel to cancel an upcoming Advance Instalment ([ADR 0021](adr/0021-advances-are-scheduled-allocations.md)). |
 | `/mortgages/:id/edit` | `EditMortgagePage` | Correction of starting terms before payments or initial discrepancies ([ADR 0015](adr/0015-starting-terms-can-be-corrected.md)). |
 | `/mortgages/:id/terms` | `ChangeTermsPage` | Dated interest rate or tenure renegotiation with before/after comparison previews. |
-| `/mortgages/:id/redeem` | `RedeemPage` | Loan payoff interface: computes principal + accrued interest - discounts - grace period adjustments. |
+| `/mortgages/:id/redeem` | `RedeemPage` | Loan payoff interface: computes principal + accrued interest - discounts - grace period adjustments, less any Advance held, which the Closure applies first. |
 | `/closures` | `ClosuresPage` | Manages dormant mortgages (zero-balance unclosed loans) and bulk batch closures (redeem all, forfeit all, waive all) with previews. |
 | `/customers` | `CustomersPage` | Customer directory searchable by name and phone number. |
 | `/customers/new` | `CustomerFormPage` | New customer onboarding: primary phone, alternate numbers, address, photo capture, and KYC identity documents. |
 | `/customers/:id` | `CustomerPage` | Customer profile: contact details, ID cards (Aadhaar, PAN), linked mortgages, cumulative balance, and favours granted. |
 | `/customers/:id/edit` | `CustomerFormPage` | Customer profile and KYC documentation update. |
 | `/payments` | `PaymentsPage` | Chronological payment history ledger with date range and payment method filters. |
-| `/payments/new` | `NewPaymentPage` | Payment entry: auto-allocates cash between multiple mortgages, checks cash handling limits, discount confirmation thresholds, and grace periods. |
+| `/payments/new` | `NewPaymentPage` (form in `pages/newPayment/`) | Payment entry: auto-allocates cash between multiple mortgages, checks cash handling limits, discount confirmation thresholds, and grace periods; takes an Advance per mortgage over 1 to 12 months and previews what each Advance Instalment pays. |
 | `/payments/:id` | `PaymentPage` | Detailed view of payment allocations (principal vs. interest), applied discounts, and voiding with rollback preview. |
 | `/payments/:id/receipt` | `ReceiptPage` | Printable receipt and WhatsApp one-click sharing. |
 | `/call-list` | `CallListPage` | Overdue follow-up queue: records phone call notes, exports printable PDF call sheets and Excel workbooks, imports updated spreadsheets. |
@@ -225,6 +225,7 @@ flowchart TD
    - Statutory cash payment threshold detection and warnings.
    - Discount room checks and lender authorization gates for non-cash reductions ([ADR 0014](adr/0014-discounts-are-non-cash-payment-reductions.md)).
    - Grace period handling and stored grace concessions ([ADR 0020](adr/0020-grace-amount-let-off-is-stored.md)).
+   - Advances: cash received today, written as `advance_instalment` rows on a mortgage's next accrual dates and applied by replay only on each date; never holding more than the outstanding, cancellable, and applied by any closure ([ADR 0021](adr/0021-advances-are-scheduled-allocations.md)).
 
 5. **`follow_up`**:
    - Overdue prioritization engine generating daily calling lists.
@@ -258,6 +259,8 @@ All API routes are prefixed with `/api` and strictly enforce local-only access.
 | | `POST` | `/api/mortgages/{id}/term-changes` | Record a dated change to interest rate or terms. |
 | | `POST` | `/api/mortgages/{id}/term-changes/preview` | Preview financial impact of a term change. |
 | | `DELETE` | `/api/mortgages/{id}/term-changes/{change_id}` | Remove a term change record. |
+| | `POST` | `/api/mortgages/{id}/advance-instalments/{instalment_id}/cancel` | Cancel an upcoming Advance Instalment, applying its amount today. |
+| | `POST` | `/api/mortgages/{id}/advance-instalments/{instalment_id}/cancel-preview` | Preview cancelling an Advance Instalment. |
 | | `POST` | `/api/mortgages/{id}/redeem` | Redeem loan (full payoff). |
 | | `POST` | `/api/mortgages/{id}/redeem-preview` | Preview redemption payoff calculation. |
 | | `POST` | `/api/mortgages/{id}/forfeit` | Forfeit collateral to lender. |
@@ -294,6 +297,7 @@ All API routes are prefixed with `/api` and strictly enforce local-only access.
 | | `POST` | `/api/payments/{id}/void-preview` | Preview ledger rollback of voiding payment. |
 | | `GET` | `/api/payments/{id}/receipt` | Generate printable receipt data. |
 | | `POST` | `/api/payments/grace-offer` | Calculate grace amount concession. |
+| | `GET` | `/api/payments/{id}/advance-instalments/{instalment_id}/receipt` | Receipt for a cancelled Advance Instalment. |
 | | `GET` | `/api/payment-methods` | List accepted payment methods (Cash, UPI, NEFT). |
 | **Closures** | `GET` | `/api/closures/dormant` | List zero-balance dormant mortgages. |
 | | `POST` | `/api/closures/redeem` | Batch redeem multiple mortgages. |

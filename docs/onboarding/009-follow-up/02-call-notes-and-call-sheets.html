@@ -14,6 +14,8 @@
 
 <div class="callout win"><strong>By the end</strong> you can record a call one at a time or from a Call Sheet, and say why an imported row was left out.</div>
 
+<div class="callout warn"><strong>Changed in 3.4.10 and 3.5.0.</strong> A filled-in Call Sheet is read with XML-bomb protection: <code>defusedxml</code> is a backend dependency, which <code>openpyxl</code> uses when it is installed, so a crafted file is refused with the usual "not an Excel sheet" message. And on today's sample book the day's sheet has one row, Arjun's ring: his chain's month is paid by an Advance, so it isn't listed (lesson 1, <a href="../007-payments-and-receipts/07-advances.html">chapter 007, lesson 7</a>). The run-through below, on the chain's row, predates that.</div>
+
 <h2>The problem</h2>
 <p>A call is only useful if someone remembers what was said. Next week, when Arjun still hasn't paid, the Lender wants to see "19 Oct: Will pay after Diwali" next to his ring.</p>
 <p>Sometimes the Lender makes the calls from the app, one at a time. Sometimes someone else does: a family member with a printout and a pen, or a spreadsheet on another laptop. Their notes have to come back into the app without anyone retyping them, and without mistakes. A note for a Mortgage that was closed this morning, or a date typed as "next Tuesday", has to be caught. If the same sheet is imported twice by accident, no note should appear twice.</p>

@@ -10,7 +10,7 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 004 | [The Ledger engine](https://github.com/krucx/Mortgage-Management-App/issues/140) | `004-the-ledger-engine/` | hand-trace any Mortgage's interest, Capitalisation and Payment order | written (6f1775b) |
 | 005 | [Replay and Closures](https://github.com/krucx/Mortgage-Management-App/issues/146) | `005-replay-and-closures/` | explain Outstanding, Redeem/Waive/Forfeit/Reopen, Dormant, Discount reversals and the Calculator's Simulations | written (16b855c; lesson 6 at 756ae3a) |
 | 006 | [Changes and Previews](https://github.com/krucx/Mortgage-Management-App/issues/152) | `006-changes-and-previews/` | add a change route that refuses, writes, checks and records History | written (d6a92ab) |
-| 007 | [Payments and Receipts](https://github.com/krucx/Mortgage-Management-App/issues/158) | `007-payments-and-receipts/` | explain cash Allocations, non-cash Discounts, Final Payments, `received_with`, Voids, the Cash Limit, Receipts, Grace Payments and Favours Given | written (15df77d; Grace lesson added for #345) |
+| 007 | [Payments and Receipts](https://github.com/krucx/Mortgage-Management-App/issues/158) | `007-payments-and-receipts/` | explain cash Allocations, non-cash Discounts, Final Payments, `received_with`, Voids, the Cash Limit, Receipts, Grace Payments, Favours Given and Advances | written (15df77d; Grace lesson added for #345; Advances lesson added for 3.5.0) |
 | 008 | [People and Collateral](https://github.com/krucx/Mortgage-Management-App/issues/164) | `008-people-and-collateral/` | explain the Primary Number, Referrers, ID Photos, Gold Rates and Loan-to-Value | written (575437c) |
 | 009 | [Follow-up](https://github.com/krucx/Mortgage-Management-App/issues/170) | `009-follow-up/` | explain Reminders, the Call List, Call Notes and Call Sheets, and WhatsApp messages | written (6e6b030) |
 | 010 | [Platform, database and migrations](https://github.com/krucx/Mortgage-Management-App/issues/176) | `010-platform-database-and-migrations/` | add a migration safely; know the clock, the daily run and the composition root | written (b34526a) |
@@ -22,6 +22,8 @@ Each chapter assumes only the chapters before it. The order was agreed in [Decid
 | 016 | [Your first change](https://github.com/krucx/Mortgage-Management-App/issues/213) | `016-your-first-change/` | make one small change test-first through every layer, following the repo's workflow | written (93de7a7) |
 
 Every chapter was refreshed after [architecture review pass 7](../architecture-reviews/review-pass-7/) at 8323e01 (version 3.4.7), where pass 7 and the work after it changed what a lesson teaches: 005 · 6, 006 · 2, 007 · 1 and 4, 009 · 3 and 4, 010 · 3, 012 · 3 and 5, 013 · 1, 014 · 1, 015 · 2 (rewritten for the release candidate flow) and 016 (pull requests), plus the routes, Ledger, traps and commands sheets. See NOTES.md.
+
+Then brought up to 3.5.0 at b4f90cd: a new lesson 007 · 7 (Advances); 010 · 2 rewritten for the per-job daily run (3.4.10) and 010 · 1 re-anchored with the `LocalOnly` middleware; 013 · 2's `conftest.py`; 009 · 1 and 3's snippets; "Changed in 3.4.10 / 3.5.0" callouts in 001 · 3, 003 · 2, 004 · 3, 005 · 2 and 5, 006 · 4, 008 · 4, 009 · 1 and 2, 010 · 4, 011 · 3, 012 · 2 to 5, 013 · 1, 014 · 1 and 015 · 2; and the glossary, routes, Ledger, traps, commands, cast and frontend sheets. See NOTES.md for what is still to refresh.
 
 ## Planned lessons
 
@@ -75,6 +77,7 @@ Every chapter was refreshed after [architecture review pass 7](../architecture-r
 4. The Cash Limit ([#162](https://github.com/krucx/Mortgage-Management-App/issues/162))
 5. Receipts ([#163](https://github.com/krucx/Mortgage-Management-App/issues/163))
 6. Grace Periods and Favours Given (added for [#345](https://github.com/krucx/Mortgage-Management-App/issues/345))
+7. Advances: paid now, applied later (added for 3.5.0, ADR 0021)
 
 ### 008 People and Collateral (written)
 1. Who a person is: the Primary Number ([#165](https://github.com/krucx/Mortgage-Management-App/issues/165))
@@ -144,7 +147,7 @@ Seven shared sheets in `reference/`, decided in [#121](https://github.com/krucx/
 | `cast.html` | The sample book on 19 Oct 2026: people, Mortgages, items, Terms, key figures; later the tests' cast | 001 |
 | `commands.html` | Every command a developer runs | 002 |
 | `routes.html` | Every route: what it changes, its Preview twin, when it refuses, its History `Action` | 003 |
-| `traps.html` | The newcomer surprises met so far (of 20), each linked to the chapter that owns it | 003 |
+| `traps.html` | The newcomer surprises met so far (of 22), each linked to the chapter that owns it | 003 |
 | `ledger.html` | The order inside a day, one month's interest, Capitalisation, Outstanding, the Closure rules | 004 |
 | `frontend.html` | The data hooks, cache keys, what goes stale, each page and the routes it calls | 011 |
 

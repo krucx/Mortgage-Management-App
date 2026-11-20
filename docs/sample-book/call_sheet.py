@@ -1,7 +1,7 @@
 """The day's Call Sheet as it comes back from whoever made the calls, for shots.mjs to
-import: the served book's Excel export with a Call Note written against each row (the
-ring's the same as the Lender's own, so the import leaves it out quietly), and a row
-added by hand with its Mortgage Name mistyped, which the import names as not imported.
+import: the served book's Excel export with a Call Note written against each row (only
+the ring's, as an Advance has paid the chain's month), and a row added by hand with its
+Mortgage Name mistyped, which the import names as not imported.
 
     cd backend && uv run python ../docs/sample-book/call_sheet.py <file> [base url]
 """
@@ -13,8 +13,7 @@ from urllib.request import urlopen
 from openpyxl import load_workbook
 
 NOTES = {
-    "2025-Arjun-GoldRingRuby": "Will pay after Diwali",
-    "2026-Arjun-GoldChain": "Bringing the whole amount today",
+    "2025-Arjun-GoldRingRuby": "Called again: ₹10,000 next week, the rest after Diwali",
 }
 
 if __name__ == "__main__":

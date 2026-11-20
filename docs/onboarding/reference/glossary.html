@@ -185,7 +185,7 @@
   <span class="taught">Taught in <a href="../001-what-the-app-does/04-how-a-mortgage-ends.html">001 · Lesson 4</a></span>
   <span class="taught">In the code: <a href="../005-replay-and-closures/03-redeemed.html">005 · Lesson 3</a>, <a href="../007-payments-and-receipts/02-one-payment-several-parts.html">007 · Lesson 2</a></span></dd>
 <dt id="receipt">Receipt</dt>
-<dd>The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), sent on WhatsApp or printed; it names each Mortgage by its description, never its Mortgage Name.
+<dd>The acknowledgement of a Payment for the Customer: what each Mortgage was paid and still owes (or that it was Redeemed), for a Grace Payment the date it was received and what each Mortgage was let off, and each Advance part by part with its dates, sent on WhatsApp or printed (cancelling an Advance Instalment has a Receipt of its own, for what its amount paid that day); it names each Mortgage by its description, never its Mortgage Name.
   <span class="avoid">Avoid: Invoice, bill</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
   <span class="taught">In the code: <a href="../003-one-payment-end-to-end/05-back-to-the-customer.html">003 · Lesson 5</a>, <a href="../007-payments-and-receipts/05-receipts.html">007 · Lesson 5</a></span></dd>
@@ -194,6 +194,19 @@
   <span class="avoid">Avoid: Split, contribution</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
   <span class="taught">In the code: <a href="../003-one-payment-end-to-end/04-what-the-ledger-says.html">003 · Lesson 4</a>, <a href="../004-the-ledger-engine/03-the-order-inside-a-day.html">004 · Lesson 3</a>, <a href="../007-payments-and-receipts/01-a-payment-and-its-allocations.html">007 · Lesson 1</a></span></dd>
+<dt id="advance">Advance</dt>
+<dd>The part of a Payment held for one Mortgage&#x27;s interest for its next few months (a Payment may hold Advances for several Mortgages), split as equally as possible into Advance Instalments that add up to it and are applied on the Accrual Dates after it is received, so it pays interest as it falls due rather than Principal at once. What a Mortgage&#x27;s upcoming Advance Instalments hold never exceeds its Outstanding.
+  <span class="avoid">Avoid: Pseudo-payment, prepayment, future payment, credit</span>
+  <span class="taught">Taught in <a href="../001-what-the-app-does/03-paying-it-back.html">001 · Lesson 3</a></span>
+  <span class="taught">In the code: <a href="../007-payments-and-receipts/07-advances.html">007 · Lesson 7</a></span></dd>
+<dt id="advance-instalment">Advance Instalment</dt>
+<dd>One part of an Advance, applied as an Allocation on its Accrual Date and not before; until then it is upcoming, and the Lender may cancel it, which applies its amount at once as an ordinary Allocation.
+  <span class="avoid">Avoid: Scheduled payment, EMI</span>
+  <span class="taught">In the code: <a href="../007-payments-and-receipts/07-advances.html">007 · Lesson 7</a></span></dd>
+<dt id="advance-held">Advance held</dt>
+<dd>What a Mortgage&#x27;s upcoming Advance Instalments (neither applied nor cancelled) will apply; for a Customer, the total across their Mortgages. Never more than the Mortgage&#x27;s Outstanding.
+  <span class="avoid">Avoid: Credit, balance, prepaid</span>
+  <span class="taught">In the code: <a href="../007-payments-and-receipts/07-advances.html">007 · Lesson 7</a></span></dd>
 <dt id="discount">Discount</dt>
 <dd>A non-cash reduction to what a Customer owes on one Mortgage, recorded alongside that Mortgage&#x27;s cash Allocation in a Payment. Cash is applied first; the Discount then pays unpaid interest, the Interest to Date, and Principal, in that order. It can contribute to Redeeming the Mortgage. Voiding the Payment, including when Reopen undoes a Redemption, reverses both the cash and Discount.
   <span class="avoid">Avoid: Waiver (a Discount does not itself close a Mortgage)</span>
@@ -213,7 +226,7 @@
 <h2>Follow-up</h2>
 <dl class="terms">
 <dt id="reminder">Reminder</dt>
-<dd>A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped.
+<dd>A message to a Customer, sent ahead of Accrual Dates, covering every one of their Mortgages accruing on that day; queued by the daily run, then approved (if the Lender chose to), sent or skipped. A Reminder that can still be sent includes only Mortgages that remain Active and accrue on that date, leaving out any whose month an Advance Instalment landing that day fully covers; sent or skipped Reminders remain as history.
   <span class="avoid">Avoid: Reminder, notification</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span>
   <span class="taught">In the code: <a href="../009-follow-up/03-the-notice-queue.html">009 · Lesson 3</a>, <a href="../009-follow-up/04-a-notices-life.html">009 · Lesson 4</a>, <a href="../009-follow-up/05-messages-and-sending.html">009 · Lesson 5</a></span></dd>
@@ -223,7 +236,7 @@
   <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span>
   <span class="taught">In the code: <a href="../004-the-ledger-engine/03-the-order-inside-a-day.html">004 · Lesson 3</a>, <a href="../009-follow-up/01-the-call-list.html">009 · Lesson 1</a></span></dd>
 <dt id="call-list">Call List</dt>
-<dd>The day&#x27;s Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today.
+<dd>The day&#x27;s Mortgages the Lender should phone about: too many Months Unpaid, Loan-to-Value too high, or accruing today (unless an Advance Instalment landing that day fully covers the month).
   <span class="avoid">Avoid: Due list, payments due</span>
   <span class="taught">Taught in <a href="../001-what-the-app-does/05-the-lenders-day.html">001 · Lesson 5</a></span>
   <span class="taught">In the code: <a href="../009-follow-up/01-the-call-list.html">009 · Lesson 1</a></span></dd>
@@ -295,7 +308,7 @@
   <span class="taught">In the code: <a href="../005-replay-and-closures/04-waived-and-forfeited.html">005 · Lesson 4</a></span></dd>
 </dl>
 <footer>
-  Copied from <code>Documentation/GLOSSARY.md</code> at commit <code>40bdab2</code>. If the two ever differ, <code>Documentation/GLOSSARY.md</code> is right.
+  Copied from <code>Documentation/GLOSSARY.md</code> at commit <code>b4f90cd</code> (3.5.0). If the two ever differ, <code>Documentation/GLOSSARY.md</code> is right.
   · <a href="../index.html">Course home</a> · <a href="cast.html">The cast</a>
 </footer>
 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>

@@ -14,7 +14,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path.cwd() / "tests"))
 
 from api_seed import lend, person  # noqa: E402
+from functools import partialmethod  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+
+# The app answers only requests addressed to it as localhost (since 3.4.10).
+TestClient.__init__ = partialmethod(TestClient.__init__, base_url="http://localhost")  # type: ignore[method-assign]
 from seed import RUPEE  # noqa: E402
 
 from mortgage_backend.main import create_app  # noqa: E402

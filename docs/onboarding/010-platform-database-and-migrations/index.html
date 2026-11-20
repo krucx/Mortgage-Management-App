@@ -49,7 +49,7 @@ flowchart LR
   DEP -->|"into every route"| R["routes<br/>paging.py  L4"]
   R -->|"settings"| CG["ConfigGroup<br/>settings.py  L3"]
   CG -->|"config rows"| DB
-  DR -->|"last_daily_run"| CG
+  DR -->|"daily_run_done_…"| CG
 </pre>
 <figcaption><code>create_app</code> builds everything once and puts it on <code>app.state</code>. Routes get it back through dependencies. Each box is labelled with its lesson (L1–L6).</figcaption>
 </figure>

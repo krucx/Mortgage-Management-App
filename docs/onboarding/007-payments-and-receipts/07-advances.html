@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.7 · Advances: paid now, applied later</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body>
+<p class="kicker">Chapter 007 · Lesson 7</p>
+<h1>Advances: paid now, applied later</h1>
+<p class="lede">A Customer going away pays a Mortgage's interest for the next few months today. Applied as an ordinary Allocation, everything beyond the Interest to Date would pay Principal at once, which is not what either side wants. An Advance is the app's answer: cash in the Lender's hand today, applied month by month.</p>
+
+<div class="callout win"><strong>By the end</strong> you can record an Advance, say which rows it writes and when Replay applies each part, explain why follow-up skips a month it pays, and say what Cancel, a later Payment and a Closure do with what it holds.</div>
+
+<h2>The example: Arjun's chain</h2>
+<p>On the sample book, Arjun's gold chain (Mortgage 8, ₹45,000 at 2% a month, accruing on the 19th) has an Advance: <strong>₹2,700 received by UPI on 5 Sept 2026, over 3 months</strong>. The Lender entered it on 19 Oct from the bank statement, so it is Payment 35, the last one made (<code>pay_ahead</code> in <code>docs/sample-book/book.py</code>). Open <code>http://127.0.0.1:8765/mortgages/8</code> on the served book:</p>
+<table>
+<thead><tr><th>Part</th><th>Accrual Date</th><th>Amount</th><th>Status on 19 Oct</th></tr></thead>
+<tbody>
+<tr><td>1 of 3</td><td>19 Sept 2026</td><td>₹900</td><td>Applied: paid that month's ₹900 of interest</td></tr>
+<tr><td>2 of 3</td><td>19 Oct 2026</td><td>₹900</td><td>Applied today: pays October's month</td></tr>
+<tr><td>3 of 3</td><td>19 Nov 2026</td><td>₹900</td><td>Upcoming: the <strong>Advance held</strong></td></tr>
+</tbody>
+</table>
+<p>The chain owes ₹45,030 today (Principal plus one day's Interest to Date) and holds ₹900. The Advance held is not taken off the Outstanding: the Outstanding is still what would Redeem the chain, and a Closure applies the held part first (below). Read the <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/GLOSSARY.md">glossary</a>'s Advance, Advance Instalment and Advance held, then <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0021-advances-are-scheduled-allocations.md">ADR 0021</a>, before the code.</p>
+
+<h2>Recording one</h2>
+<p>An Advance is part of an ordinary Payment: one Receipt, one Cash Limit check, counted as received that day. <code>AllocationIn</code> in <code>payments/writes.py</code> gains <code>advance</code> (paise) and <code>months</code> (1 to 12, required with an Advance), and <code>PaymentIn</code>'s <code>amount</code> is the cash <em>including</em> every Advance. Try it on a copy:</p>
+<pre><code>{"customer_id": 2, "paid_on": "2026-09-05", "amount": 270000, "method": "upi",
+ "allocations": [{"mortgage_id": 8, "amount": 0, "advance": 270000, "months": 3}]}</code></pre>
+<p><code>record_payment</code> (<code>payments/recording.py</code>) writes the Payment as usual, then <code>write_advance</code> (<code>payments/advances.py</code>) writes one <code>advance_instalment</code> row per part: <code>payment_id</code>, <code>mortgage_id</code>, <code>on</code>, <code>amount</code>, and later <code>cancelled_on</code> (migrations 0019 and 0020). The dates come from <code>accrual_dates_after</code> in <code>lending/ledger.py</code>: the Mortgage's next Accrual Dates strictly after the date received. Under a Grace Payment that is the date received, never the earlier date (lesson 6), so Grace never moves an Advance. <code>split</code> makes the parts as equal as the paise allow: each is the Advance divided by the months, rounded down, and the last takes the remainder. ₹1,000 over 3 months is ₹333.33, ₹333.33, ₹333.34.</p>
+<p>New Payment shows the Advance and Months columns on every row, a <strong>Fill 3 × ₹…</strong> shortcut (months × <code>month_interest</code>, the interest the next Accrual Date charges), and before saving a schedule per Mortgage from the Payment Preview's <code>advance_schedules</code>: what each part pays of its month's interest, any Principal, and a verdict, <code>exact</code>, <code>falls_short</code> or <code>reduces_principal</code>. Chapter 012, lesson 3 has the page.</p>
+
+<h2>Replay applies a part on its date</h2>
+<p>Each part is an <code>Allocation</code> with an <code>instalment_id</code> and its own date, so Replay (<a href="../004-the-ledger-engine/03-the-order-inside-a-day.html">chapter 004, lesson 3</a>) takes it only once <code>on</code> arrives, sorted with the day's other Payments, and applies it like any Payment that day: unpaid interest oldest first, then the Interest to Date, then Principal. Payment dates still can't be in the future; only these Allocations can. On the Mortgage page the Ledger lists upcoming parts last, in grey, and the Dashboard's months ahead leave them out.</p>
+<div class="callout"><strong>Why not one Allocation today?</strong> Paid today, ₹2,700 would cover the Interest to Date and pay the rest as Principal. ADR 0021 also rejected a pseudo-payment that would exist only from its date (the cash is in hand today, so it would go unreceipted) and a held balance capped at each month's interest (a running balance in every Replay).</div>
+
+<h2>The one rule: never hold more than is owed</h2>
+<p>What a Mortgage's upcoming parts hold may never exceed its Outstanding, so the Lender never owes the Customer. Interest only adds to the Outstanding and each part lowers both sides equally, so only a Payment or Discount can break it. <code>refuse_overheld</code> runs after the Payment is written (inside the same transaction, so the Preview runs it too):</p>
+<ul>
+  <li>Its own Advance is checked on the date received: "an Advance of ₹… would hold more than the ₹… it owes on …; at most ₹… fits".</li>
+  <li>Any Payment against a Mortgage with parts still upcoming today is checked today, naming the most it can take or the latest parts to cancel first. Arjun bringing the chain's whole ₹45,030 is refused: "Take at most ₹44,130, or cancel the Advance Instalments on 19 Nov 2026 first".</li>
+  <li>A Mortgage the Payment pays in full, and so Redeems, can't take an Advance, and a Waiver refuses one: being closed, it has no interest to come (<code>lending/closing.py</code>).</li>
+</ul>
+<p>Within the rule, a part larger than its month's interest is a warning, not a refusal. The Payment Preview's schedule shows it before saving; later, <code>advance_warnings</code> compares <code>upcoming_parts</code> before and after any Payment, Term Change or corrected starting Terms, and the Preview names each part that would now reduce Principal (or reduce it more), with its Mortgage, date and amount.</p>
+
+<h2>Follow-up skips a month already paid</h2>
+<p><code>MortgageReplay.covered_by_advance(on)</code> in <code>lending/replay.py</code> is true when a part (not cancelled) lands on <code>on</code> and leaves no month's interest unpaid then. <code>is_eligible</code> in <code>follow_up/reminders.py</code> leaves such a Mortgage out of that date's Reminder, and <code>follow_up/call_list.py</code> leaves it out of "accruing today". That's why Arjun's chain, which accrues on the day of the story, is not on its Call List (<a href="../009-follow-up/01-the-call-list.html">chapter 009, lesson 1</a>). Parts pay the oldest unpaid interest first, so one that falls short, or lands while earlier months are unpaid, leaves the Mortgage in both. A Reminder is worked out whenever it is read, so cancelling or Voiding brings it back.</p>
+
+<h2>Cancel, Void and Closures</h2>
+<ul>
+  <li><strong>Cancel.</strong> <code>POST /mortgages/{id}/advance-instalments/{instalment_id}/cancel</code> (Preview twin <code>…/cancel-preview</code>) runs <code>cancel_instalment</code>: refuse unless Active and the part upcoming, set <code>cancelled_on</code> to today, <code>check_replays</code>, and History <code>advance_instalment_cancelled</code>. The part is then an ordinary Allocation on the cancel date and keeps its own date on record. Its Receipt is <code>GET /payments/{id}/advance-instalments/{instalment_id}/receipt</code>.</li>
+  <li><strong>Void.</strong> Voiding the Payment removes every part, applied or not.</li>
+  <li><strong>Closures.</strong> <code>outstanding_on_closure</code> reports <code>advance_held</code> and <code>to_pay</code> (Outstanding less held). A Redemption, Waiver or Forfeiture applies every upcoming part on the Closure date before any Final Payment, so Arjun's chain Redeems for ₹44,130. A Reopen puts those parts back as upcoming; parts cancelled before the Closure stay cancelled. A Closure can't be dated before a part cancelled on a later date (<code>not_closable</code>), as with any later Payment.</li>
+</ul>
+
+<h2>What the Customer and the Lender see</h2>
+<ul>
+  <li>The Receipt lists each Mortgage's Advance part by part with its dates (<code>advance_parts</code> on each line); Receipts without one are unchanged (lesson 5).</li>
+  <li>The Payments list tags it "Advance · 1 of 3 upcoming"; the Mortgage page has an Advances panel and an Advance held tile; the Customer page totals the Advance held across their Mortgages (chapter 012, lesson 4).</li>
+</ul>
+
+<div class="quiz" data-answer="2">
+  <p class="q">A ₹1,256 Advance over 3 months is recorded on Meera's chain on 19 Oct, with no other Allocation. On which dates are its parts, and how much is each?</p>
+  <button class="opt">19 Oct, 19 Nov and 19 Dec; ₹418.66 each and ₹418.68</button>
+  <button class="opt">10 Oct, 10 Nov and 10 Dec; ₹418.67 each</button>
+  <button class="opt">10 Nov, 10 Dec and 10 Jan; ₹418.66, ₹418.66 and ₹418.68</button>
+  <div class="why">The chain accrues on the 10th, and parts go on its next Accrual Dates strictly after the date received. <code>split</code> rounds each down to the paisa (₹418.66) and gives the last the remainder (₹1,256 − ₹837.32 = ₹418.68).</div>
+</div>
+
+<nav class="lessons">
+  <a href="06-grace-and-favours.html">← Grace Periods and Favours Given</a>
+  <a href="index.html">Chapter overview</a>
+  <a href="99-check-yourself.html">Next: Check yourself →</a>
+</nav>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/snippet.js"></script>
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/diagrams.js"></script>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme"></button>
+<script>
+(() => { const root=document.documentElement, button=document.getElementById("theme-toggle"); const update=()=>{const dark=root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; button.textContent=dark?"☀":"☾"; button.title=dark?"Switch to light mode":"Switch to dark mode"}; update(); button.addEventListener("click",()=>{const dark=(root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme=dark?"light":"dark"; try{localStorage.setItem("theme",root.dataset.theme)}catch{} update()}); })();
+</script>
+</body>
+</html>

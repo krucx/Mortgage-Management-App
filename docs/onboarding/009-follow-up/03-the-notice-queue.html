@@ -95,7 +95,7 @@ flowchart TD
 </figure>
 <p>Step 1 withdraws unsent Reminders that are now too far ahead. That only happens after the Lender <em>lowers</em> the days ahead. Deleting them loses nothing: an unsent Reminder is only a Customer and a date, so it will be made again when its date comes within range.</p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>is_eligible()</code> and <code>sync()</code> · lines 91–100 and 126–171, trimmed</figcaption>
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/follow_up/reminders.py">follow_up/reminders.py</a> · <code>is_eligible()</code> and <code>sync()</code> · lines 91–101 and 128–171, trimmed</figcaption>
 <pre data-file="backend/src/mortgage_backend/follow_up/reminders.py"><code>91   def is_eligible(mortgage: MortgageReplay, on: date) -&gt; bool:
 ⋮        """… The one rule behind both what sync queues and prunes, and what an unsent
 ⋮        Reminder currently has to say."""
@@ -103,20 +103,21 @@ flowchart TD
 97           mortgage.row["status"] == MortgageStatus.ACTIVE
 98           and is_accrual_date(mortgage.row["start_date"], on)
 99           and not mortgage.dormant(on)                              # ② ADR 0012
-100      )
+100          and not mortgage.covered_by_advance(on)                   #    ADR 0021, since 3.5.0
+101      )
 ⋮
-126      coming = [
-127          (row, _coming_accrual_dates(row["start_date"], today, until))  # step 2
+128      coming = [
+129          (row, _coming_accrual_dates(row["start_date"], today, until))  # step 2
 ⋮    … for each Active Mortgage …
-133      ]
+135      ]
 ⋮
-136      accruing = {
-137          (row["customer_id"], on)                                    # ① a Customer and a date
-138          for row, dates in coming
-139          for on in dates
-140          if is_eligible(replayed[row["id"]], on)                     # ② the one rule
-141      }
-⋮    … remove unsent Reminders whose Mortgages are no longer eligible (lines 142–154) …
+138      accruing = {
+139          (row["customer_id"], on)                                    # ① a Customer and a date
+140          for row, dates in coming
+141          for on in dates
+142          if is_eligible(replayed[row["id"]], on)                     # ② the one rule
+143      }
+⋮    … remove unsent Reminders whose Mortgages are no longer eligible (lines 144–154) …
 155      already = {
 156          (row.customer_id, row.accrues_on)
 ⋮    … every Reminder, of any status, dated after today …
@@ -134,7 +135,7 @@ flowchart TD
 </figure>
 <ol class="marks">
   <li>A set of <code>(customer_id, date)</code> tuples, so two Mortgages of one Customer on the same day collapse into one entry. The table backs this up with <code>UniqueConstraint("customer_id", "accrues_on")</code> in <code>platform/db.py</code>.</li>
-  <li>Who is reminded is decided by one function, <code>is_eligible</code>: Active, an Accrual Date for it, and not Dormant <em>on that date</em>, from the replay (ADR 0012, ADR 0017). Sync uses it to queue and to prune; reading an unsent Reminder (lesson 4) uses the same function, so the two can never disagree. Before architecture review pass 7 the rule was written twice in this module, and each read path filtered again (#277).</li>
+  <li>Who is reminded is decided by one function, <code>is_eligible</code>: Active, an Accrual Date for it, not Dormant <em>on that date</em>, from the replay (ADR 0012, ADR 0017), and, since 3.5.0, its month not already paid by an Advance Instalment landing that day (<code>covered_by_advance</code>, ADR 0021). On the sample book, Arjun's chain gets no Reminder for 19 Nov: its last Advance part pays that month (<a href="../007-payments-and-receipts/07-advances.html">chapter 007, lesson 7</a>). Cancel or Void the part and, as the rule is read afresh, the Reminder is back. Sync uses it to queue and to prune; reading an unsent Reminder (lesson 4) uses the same function, so the two can never disagree. Before architecture review pass 7 the rule was written twice in this module, and each read path filtered again (#277).</li>
 </ol>
 <p>Line 163 is the heart of it: <code>accruing - already</code> is set difference, "what should exist, minus what does". On a second run that difference is empty, which is why syncing twice changes nothing. <code>already</code> includes sent and skipped Reminders too, so a Reminder the Lender skipped is never made again.</p>
 <figure class="snippet">
@@ -161,14 +162,16 @@ flowchart TD
 
 <h3>4. Who calls <code>sync</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 68–74</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>68      def sync_reminders(day: date) -&gt; None:
-69          with engine.begin() as conn:
-70              reminders.sync(conn, day)
-71
-72      daily_run = DailyRun(
-73          engine, today, jobs=[backup.start_if_due, sync_reminders]      # ① the daily run
-74      )
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 79–87</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>79      def sync_reminders(day: date) -&gt; None:
+80          with engine.begin() as conn:
+81              reminders.sync(conn, day)
+82
+83      daily_run = DailyRun(
+84          engine,
+85          today,
+86          jobs={"backup": backup.start_if_due, "reminders": sync_reminders},   # ① the daily run
+87      )
 </code></pre>
 </figure>
 <figure class="snippet">

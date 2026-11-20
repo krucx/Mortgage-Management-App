@@ -14,6 +14,8 @@
 
 <div class="callout win"><strong>By the end</strong> you can add a change that writes a file, keeping the file and the database consistent.</div>
 
+<div class="callout warn"><strong>Changed in 3.4.10.</strong> A crafted image that would decompress to an enormous picture (a "decompression bomb") is refused like any other non-image: <code>platform/photos.py</code> now catches Pillow's <code>Image.DecompressionBombError</code> beside <code>UnidentifiedImageError</code> and <code>OSError</code>, and answers "Not an image file" instead of an error. <code>tests/platform/test_malformed_uploads.py</code> pins it.</div>
+
 <h2>The problem</h2>
 <p>The app keeps three kinds of photo: a picture of each Customer, the Customer's <a href="../reference/glossary.html#id-photos"><dfn class="term" title="Photos of a Customer's Aadhaar card (the masked front) and PAN card, kept on the Customer and shown only on their page and form.">ID Photos</dfn></a> (their masked Aadhaar card and their PAN card), and pictures of each Mortgage's jewellery. They're stored as JPEG files in a <code>photos</code> folder beside the database, and the database stores only each file's name. Backups zip up the database and the folder together (chapter 015).</p>
 <p>Replacing Meera's Aadhaar photo means three steps: write the new file, point her row at it, delete the old file. Now imagine any step going wrong:</p>

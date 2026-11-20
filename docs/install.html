@@ -567,6 +567,10 @@ docker compose up -d --remove-orphans</pre><button type="button" class="copy">Co
       <div><p>Set <code>APP_PORT</code> to another number (for example <code>8090</code>) in <span class="path" data-for="win">C:\Users\you\MortgageManagement\app\.env</span><span class="path" data-for="mac">.env</span>, start the app again, and open <span class="path">http://localhost:8090</span>.</p></div>
     </details>
     <details data-for="win-docker">
+      <summary>The page says “Unknown host.”</summary>
+      <div><p>From 3.4.10 the app answers only when it is opened as <span class="path">http://localhost:8080</span> or <span class="path">http://127.0.0.1:8080</span>, so that no other website can reach it through the browser. Open it at one of those, and replace any bookmark or installed app that used the laptop's name or network address instead.</p></div>
+    </details>
+    <details>
       <summary>The Backup password is lost</summary>
       <div><p>Backups made with it can't be opened, by anyone. The book itself is fine: set a new <code>BACKUP_PASSWORD</code> in <span class="path">app\.env</span>, start the app again, and take a Backup with <span class="ui">Back up now</span>, so there is one you can open.</p></div>
     </details>

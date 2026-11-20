@@ -21,7 +21,11 @@ from datetime import date, datetime, time, timedelta
 from io import BytesIO
 from pathlib import Path
 
+from functools import partialmethod
 from fastapi.testclient import TestClient
+
+# The app answers only requests addressed to it as localhost (since 3.4.10).
+TestClient.__init__ = partialmethod(TestClient.__init__, base_url="http://localhost")  # type: ignore[method-assign]
 from openpyxl import load_workbook
 from sqlalchemy import create_engine, select
 

@@ -86,7 +86,8 @@ class ServedBook:
                 database,
                 today=lambda: THE_DAY,
                 now=lambda: datetime.combine(THE_DAY, time(11, 0)),
-            )
+            ),
+            base_url="http://localhost",  # the app answers only requests addressed to it so
         )
 
     def get(self, path: str, **params: Any) -> Any:
@@ -222,6 +223,12 @@ def figures(book: ServedBook) -> dict[str, str]:
     chain = mortgage("2025-Meera-GoldChainPendant")
     bangles = mortgage("2026-Meera-PairBangles")
     sunita = mortgage("2026-Sunita-Mangalsutra")
+    arjun_chain = mortgage("2026-Arjun-GoldChain")
+    # Arjun's Advance on his chain: its Payment, its parts, and what is left to close it.
+    [advance] = [p for p in payments if p.get("advance") and not p["voided"]]
+    parts = [i for i in arjun_chain["advance_instalments"] if i["payment_id"] == advance["id"]]
+    quote = book.get(f"/api/mortgages/{arjun_chain['id']}/outstanding-on-closure", on=THE_DAY.isoformat())
+    [arjun_listed] = [group["rows"] for group in call_list["items"] if group["customer"]["name"] == "Arjun Patel"]
     [coming] = [c for c in bangles["term_changes"] if c["removable"]]
     split = [p for p in payments if len(p["mortgages"]) > 1 and not p["voided"]]
     kept = [p for p in payments if not p["voided"]]
@@ -286,9 +293,24 @@ def figures(book: ServedBook) -> dict[str, str]:
         "payments.split-path": f"/payments/{split[0]['id']}",
         "payments.split-ways": f"split {len(split[0]['mortgages'])} ways",
         "payments.day": day(THE_DAY),
+        "payments.advance": f"{plural(sum(1 for p in kept if p.get('advance')), 'Payment')} "
+        f"({advance['advance']['upcoming']} of {advance['advance']['of']} parts upcoming)",
+        "advance.received": f"{format_inr(advance['amount'])} on {day(advance['paid_on'])}",
+        "advance.story": f"on Mortgage {arjun_chain['id']}, {format_inr(advance['amount'])} received on "
+        f"{day(advance['paid_on'])} over {plural(len(parts), 'month')}, {format_inr(parts[0]['amount'])} a part",
+        "advance.held": format_inr(arjun_chain["advance_held"]),
+        "advance.mortgage-path": f"/mortgages/{arjun_chain['id']}",
+        "advance.redeem-path": f"/mortgages/{arjun_chain['id']}/redeem",
+        "advance.receipt-path": f"/payments/{advance['id']}/receipt",
+        "arjun.chain-owed": format_inr(quote["total"]),
+        "arjun.chain-to-pay": format_inr(quote["to_pay"]),
+        "arjun.chain-short": format_inr(quote["to_pay"] - 300 * 100),  # ₹300 let off
         "follow.to-send": str(by_status["queued"] + by_status["awaiting_approval"]),
         "follow.sent": str(by_status["sent"]),
         "follow.listed": f"{plural(len(rows), 'Mortgage')}, {plural(call_list['total'], 'Customer')}",
+        "follow.count": plural(len(arjun_listed), "Mortgage"),
+        "follow.count-owed": f"{plural(len(arjun_listed), 'Mortgage')} · "
+        f"{format_inr(sum(row['outstanding'] for row in arjun_listed))}",
         "follow.months-unpaid": str(len(months_unpaid)),
         "follow.ltv": str(len(too_high)),
         "follow.call-notes": str(book.call_notes()),

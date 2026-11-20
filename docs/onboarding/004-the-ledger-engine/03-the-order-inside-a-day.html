@@ -14,6 +14,8 @@
 
 <div class="callout win"><strong>By the end</strong> you can hand-trace a run of Payments in the engine's order, including one made on an Accrual Date and one made mid-month.</div>
 
+<div class="callout"><strong>New in 3.5.0: Advance Instalments.</strong> Each part of an Advance is an <code>Allocation</code> with an <code>instalment_id</code> and its own future date. <code>compute_ledger</code> leaves an Allocation out until its date (<code>a.on &lt;= until</code>) and sorts the day's ones by <code>(on, payment_id, instalment_id)</code>, so a part is applied on its Accrual Date exactly like a Payment that day: unpaid interest oldest first, then the Interest to Date, then Principal. Arjun's chain on the sample book shows it: ₹900 parts on 19 Sep and 19 Oct, each paying that month's ₹900 of interest. See <a href="../007-payments-and-receipts/07-advances.html">chapter 007, lesson 7</a>.</div>
+
 <h2>The problem</h2>
 <p>Take the obvious design: on each Accrual Date, charge the rate on whatever the Principal is that day. Then Meera could pay ₹50,000 of Principal on 9 Oct, and on 10 Oct be charged on ₹30,000 for a month in which she'd had ₹80,000 for 29 days. Pay it on the 9th, borrow it again on the 11th, and she has dodged almost a whole month's interest. The app's first design did exactly this (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0006-interest-on-start-of-month-principal.md">ADR 0006</a>).</p>
 <p>The order on one day matters just as much. If her Payment on the 10th came <em>before</em> the 10th's interest, it couldn't pay that interest. Under Compounded Monthly, the interest would then be capitalised that same day, even though she'd brought the money in.</p>

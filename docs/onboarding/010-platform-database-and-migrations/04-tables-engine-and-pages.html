@@ -14,6 +14,8 @@
 
 <div class="callout win"><strong>By the end</strong> you can write a query against <code>db.py</code>'s Tables in a transaction, and page and sort a list.</div>
 
+<div class="callout"><strong>New in 3.5.0: <code>advance_instalment</code>.</strong> Migration 0019 adds a table of Advance Instalments (<code>payment_id</code>, <code>mortgage_id</code>, <code>on</code>, <code>amount</code>, indexed by Payment and by Mortgage), and 0020 adds <code>cancelled_on</code>. Like <code>allocation</code>, its rows are facts about a Payment; Replay reads them as Allocations dated in the future (<a href="../007-payments-and-receipts/07-advances.html">chapter 007, lesson 7</a>). Migration 0018 (3.4.9) added the Grace Payment's received date and the amount let off per Allocation.</div>
+
 <h2>The problem</h2>
 <p>The code needs to talk to SQLite without hand-writing SQL strings everywhere. Strings can't be checked by the type checker, are easy to get subtly wrong, and invite SQL injection when a value is pasted in. It also needs a few rules to hold every time: a Payment can't point at a Customer who doesn't exist, and a change that is refused halfway must leave no rows behind.</p>
 <p>Lists bring their own problem. The Lender's Customers and Payments grow every month. Sending the whole list on every page load gets slower each year, so a list comes a page at a time. But paging only works if the order is <em>stable</em>: if two Customers sort equally and the database is free to return them either way round, one of them can appear on both page 1 and page 2, and another on neither.</p>

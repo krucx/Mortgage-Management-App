@@ -283,6 +283,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li>When a Mortgage goes on the Call List</li>
           <li>Cash Limit warning</li>
           <li>Discount confirmation threshold</li>
+          <li>Grace Period: the days after an Accrual Date a Payment may still count as on time</li>
           <li>WhatsApp templates with a live preview</li>
           <li>Backups: when, where, how many to keep</li>
         </ul>
@@ -291,7 +292,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </article>
 
     <article class="feature" style="--tone: var(--collateral)">
-      <img src="shots/customer.webp" width="828" height="1258" alt="A Customer's page: photo, numbers, who referred them, email, Aadhaar Number and PAN, ID Photos, their Mortgages, whom they referred, and History." loading="lazy">
+      <img src="shots/customer.webp" width="828" height="1291" alt="A Customer's page: photo, numbers, who referred them, email, Aadhaar Number and PAN, ID Photos, their Mortgages, whom they referred, and History." loading="lazy">
       <div class="feature-body">
         <h3>Customers and Referrers</h3>
         <p>Each person entered once, known by their mobile number, with who introduced them.</p>
@@ -299,6 +300,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li>Warns before saving a number someone already has</li>
           <li>Referrers who aren't Customers, by name and phone</li>
           <li>Photo, Mortgages, referrals and History on one page</li>
+          <li>Favours Given: every Grace, Discount and Waived Amount still standing, with their total</li>
+          <li>The Advance held across their Mortgages</li>
           <li>Optional email, Aadhaar Number (last 4 digits only), PAN and ID Photos, the numbers read from the photos for you to check</li>
         </ul>
         <div class="more"><a href="walkthrough.html#s3">Walkthrough §3</a><a href="story.html#meera">Story: Meera</a></div>
@@ -315,6 +318,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li>Simple, Compounded Yearly or Compounded Monthly</li>
           <li>The full Ledger, line by line, with its working</li>
           <li>Projections: "what if they pay ₹… a month"</li>
+          <li>Advances: each part with its date and status, the Advance held, and <span class="ui">Cancel…</span> for an upcoming part</li>
           <li>Photos from the camera or files</li>
           <li>Weights in grams, and how it was Lent Through: Cash, UPI or bank transfer</li>
         </ul>
@@ -354,7 +358,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     </article>
 
     <article class="feature" style="--tone: var(--money-in)">
-      <img src="shots/payment-new.webp" width="1068" height="1872" alt="Recording a Payment split equally across two Mortgages, beside each one's Outstanding, with a Preview for each." loading="lazy">
+      <img src="shots/payment-new.webp" width="1068" height="1991" alt="Recording a Payment split equally across two Mortgages, beside each one's Outstanding, with a Preview for each." loading="lazy">
       <div class="feature-body">
         <h3>Payments and Receipts</h3>
         <p>One sum entered once and split across a Customer's Mortgages, with a Receipt for WhatsApp or print.</p>
@@ -363,6 +367,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li>One figure per Mortgage: its Outstanding on the Payment date, what would Redeem it</li>
           <li>A whole Outstanding Redeems the Mortgage, with one Receipt</li>
           <li>A Discount beside each Mortgage's cash: a non-cash reduction, shown on the Receipt and kept out of every cash total</li>
+          <li>An Advance: a Mortgage's interest for its next 1 to 12 months, received now and applied part by part on each Accrual Date</li>
+          <li>A Grace Payment: received within the Grace Period after an Accrual Date, dated the day before when that saves the Customer money</li>
           <li>Void with a reason; never deleted</li>
           <li>A warning (never a refusal) before ₹20,000 or more in cash, the Cash Limit</li>
           <li><span class="ui">Record another Payment for same customer</span>, for several back-dated Payments in a row</li>
@@ -380,18 +386,19 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li>Queued daily, a set number of days ahead</li>
           <li>Approve first, or go straight to send</li>
           <li>Worded afresh until sent, so later Payments and edits show</li>
+          <li>A month an Advance has already paid is left out</li>
         </ul>
         <div class="more"><a href="walkthrough.html#s8">Walkthrough §8</a><a href="story.html#arjun">Story: Arjun</a></div>
       </div>
     </article>
 
     <article class="feature" style="--tone: var(--warning)">
-      <img src="shots/call-list.webp" width="1068" height="627" alt="Today's Call List: a Customer once beside their Mortgages, with a Call button, a WhatsApp chat button and coloured reasons." loading="lazy">
+      <img src="shots/call-list.webp" width="1068" height="589" alt="Today's Call List: a Customer once beside their Mortgages, with a Call button, a WhatsApp chat button and coloured reasons." loading="lazy">
       <div class="feature-body">
         <h3>Call List</h3>
         <p>The day's Mortgages worth a phone call, grouped by Customer, with why each is there.</p>
         <ul>
-          <li>Too many Months Unpaid, Loan-to-Value too high, or accruing today</li>
+          <li>Too many Months Unpaid, Loan-to-Value too high, or accruing today (unless an Advance has paid that month)</li>
           <li>Call or WhatsApp in one click</li>
           <li>Mark called with a Call Note, kept on the Mortgage</li>
           <li>A Call Sheet in Excel or PDF for whoever calls, imported back with their Call Notes</li>
@@ -410,6 +417,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li>Redeemed by the Payment that brings it in full</li>
           <li>The amount let off on a Waiver; profit or loss on a Forfeiture</li>
           <li>Several Mortgages closed together</li>
+          <li>An Advance held is applied on the Closure date, so less is left to pay</li>
           <li>Reopen a mistake, with a reason</li>
           <li>Dormant Mortgages, owing nothing yet still held, flagged by a red dot on Closures</li>
         </ul>
@@ -423,7 +431,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <h3>History and Backups</h3>
         <p>Nothing is silently changed or lost.</p>
         <ul>
-          <li>Every change with its old and new values</li>
+          <li>Every change with its old and new values, 20 at a time in the complete History</li>
           <li>Backups weekly and before every update, into a synced folder</li>
           <li>Password-protected zips in Docker, when a password is set; they hold Customers' ID Photos</li>
         </ul>
@@ -477,12 +485,28 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
           <li><span><span class="ui">Payments → New Payment</span>, and choose the Customer. Set the date the money came in; the figures shown are as of that date.</span></li>
           <li><span>Enter the amount and the method (Cash, UPI or bank transfer), or press <span class="ui">Pay the full Outstanding</span>.</span></li>
           <li><span>Tick the Mortgages it is for and split it <span class="ui">Equally</span>, <span class="ui">By amount</span> or <span class="ui">By percentage</span>. Each row shows the Mortgage's Outstanding on that date, which is what would Redeem it; the Preview shows what each will owe afterwards.</span></li>
+          <li><span>Received within the Grace Period after a Mortgage's Accrual Date? Its date shows in yellow, with a button to date the Payment the day before and what that lets off. One click changes only the date.</span></li>
           <li><span>Letting part of what is owed go without closing the Mortgage? Enter a <span class="ui">Discount</span> beside that Mortgage's cash. It is applied after the cash, in the same order; larger than the Mortgage still owes, the app offers to reduce it, and above the Discount confirmation threshold it asks once more.</span></li>
           <li><span>If an Allocation is its Mortgage's whole Outstanding (cash plus Discount), the app asks <span class="ui">Redeem and hand back the jewellery?</span>: the Payment Redeems it, alongside any other parts, all or none.</span></li>
           <li><span>Record it: the Receipt opens, covering everything handed over, any Discount, and marking what was Redeemed. <span class="ui">Send on WhatsApp</span> or <span class="ui">Print or save as PDF</span>.</span></li>
           <li><span>More to enter for the same Customer, such as back-dated Payments from the paper book? Press <span class="ui">Record another Payment for same customer</span> on the Receipt or the Payment.</span></li>
         </ol>
         <p class="tip">Entered the wrong amount? Open the Payment, press <span class="ui">Void…</span> with a reason, and record it again. A Void reverses the cash and any Discount together.</p>
+      </div>
+    </details>
+
+    <details class="flow">
+      <summary><b>Take interest in advance</b><span>A Customer pays the next few months before going away</span></summary>
+      <div class="flow-body">
+        <ol class="steps">
+          <li><span>On <span class="ui">New Payment</span>, in the Mortgage's row, choose the <span class="ui">Months</span> (1 to 12) and type the <span class="ui">Advance</span>, or press <span class="ui">Fill 3 × ₹…</span>: the months times the interest its next Accrual Date charges. It adds to Amount received.</span></li>
+          <li><span>Owes interest already? The row offers to pay its unpaid interest now, so the first part pays its own month.</span></li>
+          <li><span>Before saving, a schedule shows each part: its Accrual Date, what it pays of that month's interest, and any that would reduce Principal. "Each part pays exactly its month's interest" is what you want to see.</span></li>
+          <li><span>Record it. One Receipt lists each part with its date; the Payments list tags it "Advance · 3 of 3 upcoming".</span></li>
+          <li><span>The months it pays are left out of Reminders and the Call List. On the Mortgage, <span class="ui">Advances</span> shows each part as Applied, Upcoming or Cancelled, and the Advance held.</span></li>
+          <li><span>Plans changed? <span class="ui">Cancel…</span> on an upcoming part applies its amount today, like any Payment, with a Receipt of its own. Closing the Mortgage applies every upcoming part on the Closure date.</span></li>
+        </ol>
+        <p class="tip">An Advance never refunds and never holds more than the Mortgage owes on the date received; a Mortgage being Redeemed or Waived off takes none. Voiding the Payment removes every part.</p>
       </div>
     </details>
 
@@ -590,12 +614,15 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <h3>Payments and Closures</h3>
       <div class="nuances">
         <div class="nuance rule"><b>Interest first, then Principal</b><span>Within each Mortgage, an Allocation pays unpaid interest, then the Interest to Date, then Principal. What it pays of the Interest to Date counts against the month's interest when it is charged.</span></div>
+        <div class="nuance rule"><b>An Advance pays interest as it falls due</b><span>Cash received today for a Mortgage's next months is split into equal parts, the last taking the paise left over, each applied on one of its next Accrual Dates and not before. A part larger than its month's interest pays Principal with the rest: the app warns before saving, and again when a later Payment or Term Change makes it so. What the upcoming parts hold never exceeds the Outstanding, so a Closure never needs a refund.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0021-advances-are-scheduled-allocations.md">ADR-0021</a></div>
+        <div class="nuance"><b>Grace lets a late Payment count as on time</b><span>Received within the Grace Period after an Accrual Date, a Payment may be dated the day before it when that saves the Customer money. It keeps the date received and, for each Mortgage, what the earlier date let off, as worked out when saved; the Ledger uses only the earlier date.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0020-grace-amount-let-off-is-stored.md">ADR-0020</a></div>
         <div class="nuance"><b>No paying more than is owed</b><span>A Payment larger than a Mortgage owes on its date is refused, with the reason.</span></div>
         <div class="nuance rule"><b>A Discount is not cash</b><span>Recorded beside a Mortgage's cash in a Payment, it is applied after the cash and in the same order, can Redeem the Mortgage with it, and is reversed with the Payment's Void. It appears on the Receipt but in no cash total, warning or report. The Preview decides how much Discount each Mortgage can still take; a larger one is reduced to that, never refused.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0014-discounts-are-non-cash-payment-reductions.md">ADR-0014</a></div>
         <div class="nuance rule"><b>A whole Outstanding Redeems</b><span>Paying a Mortgage's whole Outstanding Redeems it with that Payment. If it can't be Redeemed that day (a later Payment), the Payment is refused with the reason. Equal shares fill each Mortgage up to its Outstanding, then share the rest.</span></div>
         <div class="nuance"><b>The final Payment includes the Interest to Date</b><span>Redeeming records the Outstanding on the Closure date as a Payment, so the Receipt and the Ledger agree. A Waived Amount and a Forfeiture's profit or loss are worked out from that Outstanding too.</span></div>
         <div class="nuance"><b>A Waiver is the Lender's choice</b><span>What the Customer pays is the final Payment; the rest is let off and counted on the Dashboard. Paying the full amount is a Redemption, not a Waiver.</span></div>
         <div class="nuance"><b>No closing before a later Payment</b><span>A Closure can't be dated before a Payment already recorded on that Mortgage.</span></div>
+        <div class="nuance"><b>A Closure applies the Advance held</b><span>Redeeming, Waiving off or Forfeiting applies every upcoming Advance Instalment on the Closure date, before any final Payment, so a Redemption needs that much less cash, or none. A Reopen puts those parts back as upcoming.</span></div>
         <div class="nuance rule"><b>Dormant is flagged, not Redeemed</b><span>An Active Mortgage owing nothing is Dormant: worked out, never stored, it gets no Reminders, stays off the Call List and waits on Closures until the Lender Redeems it or it owes again.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0012-dormant-mortgages-are-flagged-not-redeemed.md">ADR-0012</a></div>
         <div class="nuance"><b>Cash is warned about, not refused</b><span>Lending or receiving the Cash Limit or more in cash (₹20,000 unless changed) asks first, as Government of India rules ask for UPI or bank transfer. Nothing is refused.</span></div>
         <div class="nuance"><b>Closed means locked</b><span>A closed Mortgage takes no Payments, accrues nothing, and its start date, Principal and starting Terms can't be edited until it is Reopened, so a correction can never change what it owed when it closed.</span></div>
@@ -632,6 +659,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
       <div class="nuances">
         <div class="nuance rule"><b>The app never sends by itself</b><span>WhatsApp opens with the message ready and the Lender presses Send. No WhatsApp account setup or API is needed.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0002-whatsapp-click-to-send.md">ADR-0002</a></div>
         <div class="nuance"><b>Customers see their jewellery, not codes</b><span>Receipts and Reminders name each Mortgage by its description ("Gold chain"), never its Mortgage Name.</span></div>
+        <div class="nuance"><b>A month already paid isn't chased</b><span>When an Advance Instalment landing on an Accrual Date leaves no interest unpaid, that Mortgage is left out of the day's Reminder and the Call List's "accruing today". A part that falls short leaves it in both, and cancelling a part brings its Reminder back.</span></div>
         <div class="nuance"><b>Templates can't break</b><span>A template with a placeholder the app can't fill is refused on save, so a Customer never receives <code>{typo}</code>.</span></div>
         <div class="nuance"><b>Unsent Reminders stay eligible</b><span>Until sent, a Reminder's amounts and wording are worked out from current figures. One rule decides which Mortgages a Reminder covers: Active, accruing on its date, and not Dormant then. Queue sync removes an unsent Reminder with none left; sent and skipped Reminders remain as history.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0017-reminders-and-dashboard-timeframes.md">ADR-0017</a></div>
       </div>
@@ -640,7 +668,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <div class="group">
       <h3>Running it</h3>
       <div class="nuances">
-        <div class="nuance rule"><b>Only this laptop can reach it</b><span>The app listens on the laptop alone, and the data is a folder on its disk.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md">ADR-0004</a></div>
+        <div class="nuance rule"><b>Only this laptop can reach it</b><span>The app listens on the laptop alone, and the data is a folder on its disk. It answers only requests addressed to it as <code>localhost</code> or <code>127.0.0.1</code>, and refuses changes sent from another site, so no other website can reach it through the browser.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0004-docker-compose-on-lender-laptop.md">ADR-0004</a></div>
         <div class="nuance"><b>Backups leave the laptop</b><span>A zip of the database and photos, into a folder synced by Google Drive, iCloud or OneDrive.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0003-backup-to-synced-folder.md">ADR-0003</a></div>
         <div class="nuance"><b>Docker or not</b><span>With Docker Desktop, Backups can have a password. Without it, Setup installs uv and the release ready-built (no Node.js), the app's window must stay open, and Backups are plain zips. Backups hold Customers' ID Photos: without a password, keep the Backup folder private.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0010-backend-serves-screens-without-docker.md">ADR-0010</a></div>
         <div class="nuance"><b>Started from its icon</b><span>The installed app starts the app when it isn't running, through a link Setup registers (Windows asks once).</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0008-pwa-starts-the-app-through-a-link.md">ADR-0008</a></div>
@@ -675,9 +703,14 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <div><dt>Loan-to-Value</dt><dd>The Outstanding as a share of the Collateral Value.</dd></div>
     <div><dt>Allocation</dt><dd>The part of a Payment applied to one Mortgage: its cash, and any Discount beside it.</dd></div>
     <div><dt>Discount</dt><dd>A non-cash reduction of what one Mortgage owes, recorded beside its cash in a Payment and applied after it; on the Receipt, in no cash total.</dd></div>
+    <div><dt>Advance</dt><dd>The part of a Payment held for one Mortgage's interest for its next few months, split into Advance Instalments applied on the Accrual Dates after it is received.</dd></div>
+    <div><dt>Advance Instalment</dt><dd>One part of an Advance, applied as an Allocation on its Accrual Date and not before; until then it is upcoming and can be cancelled, which applies it at once.</dd></div>
+    <div><dt>Advance held</dt><dd>What a Mortgage's upcoming Advance Instalments will apply; for a Customer, the total across their Mortgages. Never more than the Outstanding.</dd></div>
+    <div><dt>Grace Period</dt><dd>The few days after an Accrual Date within which a Payment may be dated the day before it, as if paid on time; 3 days unless changed.</dd></div>
+    <div><dt>Favours Given</dt><dd>Every Grace, Discount and Waived Amount the Lender has given a Customer and still standing, each with its date and amount let off.</dd></div>
     <div><dt>Final Payment</dt><dd>What a Mortgage is paid as it is Redeemed or Waived off: a part of its own of the Payment it came in, so a Reopen Voids it alone.</dd></div>
-    <div><dt>Receipt</dt><dd>The Customer's acknowledgement of a Payment, covering every part of it and marking any jewellery it Redeemed.</dd></div>
-    <div><dt>Reminder</dt><dd>A message to a Customer ahead of an Accrual Date, covering every Active Mortgage accruing that day.</dd></div>
+    <div><dt>Receipt</dt><dd>The Customer's acknowledgement of a Payment, covering every part of it, each Advance part by part, and marking any jewellery it Redeemed.</dd></div>
+    <div><dt>Reminder</dt><dd>A message to a Customer ahead of an Accrual Date, covering every Active Mortgage accruing that day, except one whose month an Advance has paid.</dd></div>
     <div><dt>Months Unpaid</dt><dd>How many of the latest monthly interest charges are still unpaid.</dd></div>
     <div><dt>Lump Sum</dt><dd>A one-off planned Payment in a Simulation: an amount on a date, beside any monthly amount.</dd></div>
     <div><dt>Simulation</dt><dd>A made-up Mortgage on the Calculator, worked out as a real one's Ledger would be, to size up a loan; never kept.</dd></div>
@@ -712,6 +745,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <li><span class="no">0017</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0017-reminders-and-dashboard-timeframes.md">Reminders replace Notices; Dashboard totals use selected dates</a></li>
     <li><span class="no">0018</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0018-releases-are-published-by-merging-a-candidate.md">Releases are published by merging an approved candidate</a></li>
     <li><span class="no">0019</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0019-changes-reach-main-through-reviewed-pull-requests.md">Changes reach main only through reviewed pull requests</a></li>
+    <li><span class="no">0020</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0020-grace-amount-let-off-is-stored.md">The amount a Grace Period let off is stored, not replayed</a></li>
+    <li><span class="no">0021</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0021-advances-are-scheduled-allocations.md">An Advance is cash received today, applied on later Accrual Dates</a></li>
   </ul>
 </section>
 
