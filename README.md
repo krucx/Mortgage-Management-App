@@ -179,10 +179,12 @@ tag moves only when the published version is the highest so far, so a fix for an
 version doesn't take it back. The tag must match
 the root `VERSION` file. Backend and frontend package metadata and the current-version
 labels in the maintained docs are checked against it by `.github/scripts/check-version.mjs`.
-When preparing a release, add reviewed notes under `Unreleased` and run the
-**Prepare release candidate** workflow. It updates `VERSION`, package metadata, the
-generated API schema, current-version docs labels and lockfile on the candidate branch,
-then opens a PR after preflight passes. The frontend reads
+When preparing a release, confirm fragments under `changelog/unreleased/` cover the
+changes and run the **Prepare release candidate** workflow. It collates those fragments
+into a dated `CHANGELOG.md` section, updates `VERSION`, package metadata, the generated
+API schema, current-version docs labels and lockfile on the candidate branch, then opens
+a PR after preflight passes. Non-release PRs add fragments there and never edit
+`CHANGELOG.md` (see [Documentation/agents/changelog.md](Documentation/agents/changelog.md)). The frontend reads
 `VERSION` when building; Python package metadata is generated into `backend/pyproject.toml`
 because the app reports its installed package version. Coding agents should use the same
 steps and preserve historical changelog entries and examples. The publisher needs two

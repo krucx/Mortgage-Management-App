@@ -33,6 +33,7 @@ jobs:
         with:
           node-version: 24
       - run: node --test .github/scripts/test-check-version-unchanged.mjs
+      - run: node --test .github/scripts/test-check-changelog.mjs
       - name: Only the release candidate may change VERSION
         if: github.event_name == 'pull_request'
         env:
@@ -42,6 +43,15 @@ jobs:
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
         run: node .github/scripts/check-version-unchanged.mjs
+      - name: Changelog fragments for non-release PRs
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+        run: node .github/scripts/check-changelog.mjs
 
   release:
     runs-on: ubuntu-latest

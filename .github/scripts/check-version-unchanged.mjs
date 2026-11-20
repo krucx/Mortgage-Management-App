@@ -48,7 +48,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (changed.length) {
     console.error(`::error::This pull request changes the release version in: ${changed.join(', ')}.`)
     console.error('VERSION is bumped only by the Prepare release candidate workflow. Revert the version change')
-    console.error('and add your notes under "## Unreleased" in CHANGELOG.md. See Documentation/RELEASE_CHECKLIST.md.')
+    console.error('and add a fragment under changelog/unreleased/ instead. See Documentation/agents/changelog.md.')
     process.exit(1)
   }
   console.log('No release version files changed.')

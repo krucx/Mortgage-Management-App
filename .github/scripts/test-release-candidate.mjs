@@ -1,12 +1,30 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { compareVersions, prepareRelease, releaseNotes, validateVersionRequest } from './release-candidate.mjs'
+import {
+  assembleFragments,
+  compareVersions,
+  listFragments,
+  prepareRelease,
+  validateVersionRequest,
+} from './release-candidate.mjs'
 
-const changelog = '# Changelog\n\n## Unreleased\n\n### Changed\n\n- Prepare releases through GitHub Actions.\n\n## [3.4.4] - 2026-11-07\n\nOlder notes.\n'
+function writeFragment(root, name, body) {
+  const dir = join(root, 'changelog', 'unreleased')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, name), body)
+}
+
+function seedChangelog(root) {
+  writeFileSync(
+    join(root, 'CHANGELOG.md'),
+    '# Changelog\n\n## Unreleased\n\n## [3.4.4] - 2026-11-07\n\nOlder notes.\n',
+  )
+  writeFileSync(join(root, 'VERSION'), '3.4.5\n')
+}
 
 test('compares numeric semantic version components', () => {
   assert.equal(compareVersions('3.4.10', '3.4.6') > 0, true)
@@ -40,35 +58,70 @@ test('the CLI can recheck a version without changing candidate files', () => {
   }
 })
 
-test('requires authored notes under Unreleased', () => {
-  assert.throws(() => releaseNotes('# Changelog\n\n## Unreleased\n\n## [3.4.4] - 2026-11-07\n'), /no human-authored release notes/)
-  assert.throws(() => releaseNotes('# Changelog\n\n## Unreleased\n\n### Changed\n\n## [3.4.4] - 2026-11-07\n'), /no human-authored release notes/)
-})
-
-test('promotes Unreleased notes into a dated version section and preserves history', () => {
+test('lists authored fragments and ignores README', () => {
   const root = mkdtempSync(join(tmpdir(), 'release-candidate-'))
   try {
-    writeFileSync(join(root, 'CHANGELOG.md'), changelog)
-    writeFileSync(join(root, 'VERSION'), '3.4.5\n')
-    prepareRelease(root, '3.4.6', '2026-11-09')
-    assert.equal(readFileSync(join(root, 'VERSION'), 'utf8'), '3.4.6\n')
-    assert.equal(
-      readFileSync(join(root, 'CHANGELOG.md'), 'utf8'),
-      '# Changelog\n\n## Unreleased\n\n## [3.4.6] - 2026-11-09\n\n### Changed\n\n- Prepare releases through GitHub Actions.\n\n## [3.4.4] - 2026-11-07\n\nOlder notes.\n',
+    writeFragment(root, 'README.md', 'docs\n')
+    writeFragment(root, 'prepare.changed.md', '- Prepare releases through fragments.\n')
+    writeFragment(root, 'phone.fixed.md', '- Advances fit a phone screen.\n')
+    const fragments = listFragments(join(root, 'changelog', 'unreleased'))
+    assert.deepEqual(
+      fragments.map(({ name, type }) => ({ name, type })),
+      [
+        { name: 'phone.fixed.md', type: 'fixed' },
+        { name: 'prepare.changed.md', type: 'changed' },
+      ],
     )
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
 })
 
-test('leaves files untouched when release notes are missing', () => {
+test('assembles fragments into Keep a Changelog sections by type', () => {
+  const notes = assembleFragments([
+    { name: 'b.changed.md', type: 'changed', body: '- Second change.\n' },
+    { name: 'a.added.md', type: 'added', body: '- New thing.\n' },
+    { name: 'c.fixed.md', type: 'fixed', body: '- A fix.\n' },
+    { name: 'd.changed.md', type: 'changed', body: '- First change.\n' },
+  ])
+  assert.equal(
+    notes,
+    '### Added\n\n- New thing.\n\n### Changed\n\n- Second change.\n\n- First change.\n\n### Fixed\n\n- A fix.',
+  )
+})
+
+test('requires at least one authored fragment', () => {
   const root = mkdtempSync(join(tmpdir(), 'release-candidate-'))
   try {
-    writeFileSync(join(root, 'CHANGELOG.md'), '# Changelog\n\n## Unreleased\n\n')
-    writeFileSync(join(root, 'VERSION'), '3.4.5\n')
-    assert.throws(() => prepareRelease(root, '3.4.6', '2026-11-09'), /no human-authored release notes/)
+    seedChangelog(root)
+    mkdirSync(join(root, 'changelog', 'unreleased'), { recursive: true })
+    writeFileSync(join(root, 'changelog', 'unreleased', 'README.md'), 'docs\n')
+    assert.throws(() => prepareRelease(root, '3.4.6', '2026-11-09'), /no authored fragments/)
     assert.equal(readFileSync(join(root, 'VERSION'), 'utf8'), '3.4.5\n')
-    assert.equal(readFileSync(join(root, 'CHANGELOG.md'), 'utf8'), '# Changelog\n\n## Unreleased\n\n')
+    assert.equal(
+      readFileSync(join(root, 'CHANGELOG.md'), 'utf8'),
+      '# Changelog\n\n## Unreleased\n\n## [3.4.4] - 2026-11-07\n\nOlder notes.\n',
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('collates fragments into a dated version section, deletes them, and syncs VERSION', () => {
+  const root = mkdtempSync(join(tmpdir(), 'release-candidate-'))
+  try {
+    seedChangelog(root)
+    writeFragment(root, 'README.md', 'Fragment rules.\n')
+    writeFragment(root, 'prepare.changed.md', '- Prepare releases through GitHub Actions.\n')
+    writeFragment(root, 'phone.fixed.md', '- Advances fit a phone screen.\n')
+    prepareRelease(root, '3.4.6', '2026-11-09')
+    assert.equal(readFileSync(join(root, 'VERSION'), 'utf8'), '3.4.6\n')
+    assert.equal(
+      readFileSync(join(root, 'CHANGELOG.md'), 'utf8'),
+      '# Changelog\n\n## Unreleased\n\n## [3.4.6] - 2026-11-09\n\n### Changed\n\n- Prepare releases through GitHub Actions.\n\n### Fixed\n\n- Advances fit a phone screen.\n\n## [3.4.4] - 2026-11-07\n\nOlder notes.\n',
+    )
+    const remaining = readdirSync(join(root, 'changelog', 'unreleased')).sort()
+    assert.deepEqual(remaining, ['README.md'])
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

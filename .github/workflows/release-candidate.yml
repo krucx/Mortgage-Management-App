@@ -157,7 +157,7 @@ jobs:
           - Candidate preflight: [all required checks passed]($PREFLIGHT_URL)
           - Release checklist: [Documentation/RELEASE_CHECKLIST.md](Documentation/RELEASE_CHECKLIST.md)
           - Checklist status: preparation checks passed; release owner review and publish checklist remain pending.
-          - Human-authored notes were promoted from Unreleased; review the wording and applicable documentation before merging.
+          - Human-authored fragments under changelog/unreleased/ were collated into the dated CHANGELOG section; review the wording and applicable documentation before merging.
           EOF
             gh pr create --base main --head "$BRANCH" --title "Prepare release $REQUESTED_VERSION" \
               --body-file /tmp/release-pr-body.md

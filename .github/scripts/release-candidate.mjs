@@ -1,7 +1,18 @@
-import { readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
+
+const fragmentTypes = ['added', 'changed', 'deprecated', 'removed', 'fixed', 'security']
+const typeHeadings = {
+  added: 'Added',
+  changed: 'Changed',
+  deprecated: 'Deprecated',
+  removed: 'Removed',
+  fixed: 'Fixed',
+  security: 'Security',
+}
+const fragmentName = /^(.+)\.(added|changed|deprecated|removed|fixed|security)\.md$/
 
 export function validateVersionRequest(version, latestPublished, currentMain) {
   if (!versionPattern.test(version ?? '')) throw new Error('Requested version must be major.minor.patch without leading zeroes')
@@ -22,34 +33,55 @@ export function compareVersions(left, right) {
   return 0
 }
 
-export function releaseNotes(changelog) {
-  const heading = /^## Unreleased[ \t]*\r?\n/m.exec(changelog)
-  if (!heading) throw new Error('CHANGELOG.md is missing its Unreleased heading')
-  const bodyStart = heading.index + heading[0].length
-  const remainder = changelog.slice(bodyStart)
-  const nextSection = /^## \[/m.exec(remainder)
-  const notes = remainder.slice(0, nextSection?.index ?? remainder.length).trim()
-  if (!notes || !notes.replace(/^#{1,6}[^\n]*$/gm, '').trim()) {
-    throw new Error('CHANGELOG.md has no human-authored release notes under Unreleased')
+export function listFragments(dir) {
+  const entries = readdirSync(dir).filter((name) => name !== 'README.md' && name.endsWith('.md'))
+  const fragments = []
+  for (const name of entries) {
+    const match = fragmentName.exec(name)
+    if (!match) throw new Error(`Invalid changelog fragment name: ${name} (expected <unique>.<added|changed|deprecated|removed|fixed|security>.md)`)
+    const body = readFileSync(join(dir, name), 'utf8').trim()
+    if (!body) throw new Error(`Changelog fragment ${name} is empty`)
+    fragments.push({ name, type: match[2], body, path: join(dir, name) })
   }
-  return notes
+  fragments.sort((left, right) => left.name.localeCompare(right.name))
+  return fragments
+}
+
+export function assembleFragments(fragments) {
+  if (!fragments.length) throw new Error('changelog/unreleased has no authored fragments')
+  const byType = Object.fromEntries(fragmentTypes.map((type) => [type, []]))
+  for (const fragment of fragments) {
+    byType[fragment.type].push(fragment.body.trim())
+  }
+  const sections = []
+  for (const type of fragmentTypes) {
+    const bodies = byType[type]
+    if (!bodies.length) continue
+    sections.push(`### ${typeHeadings[type]}\n\n${bodies.join('\n\n')}`)
+  }
+  return sections.join('\n\n')
 }
 
 export function prepareRelease(root, version, date) {
   const changelogPath = resolve(root, 'CHANGELOG.md')
   const changelog = readFileSync(changelogPath, 'utf8')
-  const notes = releaseNotes(changelog)
+  const fragmentsDir = resolve(root, 'changelog', 'unreleased')
+  const fragments = listFragments(fragmentsDir)
+  const notes = assembleFragments(fragments)
   const parsedDate = new Date(`${date}T00:00:00Z`)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsedDate.valueOf()) || parsedDate.toISOString().slice(0, 10) !== date) {
     throw new Error(`Invalid release date: ${date}`)
   }
-  const updated = changelog.replace(
-    /^## Unreleased[ \t]*\r?\n(?:[ \t]*\r?\n)*/m,
-    `## Unreleased\n\n## [${version}] - ${date}\n\n`,
-  )
-  if (updated === changelog) throw new Error('CHANGELOG.md is missing its Unreleased heading')
+  const heading = /^## Unreleased[ \t]*\r?\n/m.exec(changelog)
+  if (!heading) throw new Error('CHANGELOG.md is missing its Unreleased heading')
+  const bodyStart = heading.index + heading[0].length
+  const remainder = changelog.slice(bodyStart)
+  const nextSection = /^## \[/m.exec(remainder)
+  const after = nextSection ? remainder.slice(nextSection.index) : ''
+  const updated = `${changelog.slice(0, heading.index)}## Unreleased\n\n## [${version}] - ${date}\n\n${notes}\n\n${after}`
   writeFileSync(resolve(root, 'VERSION'), `${version}\n`)
   writeFileSync(changelogPath, updated)
+  for (const fragment of fragments) unlinkSync(fragment.path)
 }
 
 function option(name) {
