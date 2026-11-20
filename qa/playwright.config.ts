@@ -12,7 +12,7 @@ export default defineConfig({
   grep: specs === "fresh" ? FRESH : undefined,
   grepInvert: specs === "golden" ? FRESH : undefined,
   use: {
-    baseURL: process.env.BASE_URL ?? "http://app:8000",
+    baseURL: process.env.BASE_URL ?? "http://qa-app:8000",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
