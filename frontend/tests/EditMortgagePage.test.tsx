@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { MortgageEdit } from '../src/api'
 import { EditMortgagePage } from '../src/pages/EditMortgagePage'
 import { changePreview, fakeServer } from './fakeServer'
+import { expectWholeRupeeSteps } from './rupeeField'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -112,4 +113,22 @@ test('a Mortgage closing mid-edit drops the stale Terms draft, keeping other edi
   await vi.waitFor(() => expect(rate.disabled).toBe(true))
   expect(rate.value).toBe('1.5') // the saved rate, not the stale 2.5 draft
   expect(description.value).toBe('Gold chain, re-weighed') // unrelated edits survive
+})
+
+test('Principal lent steps by whole rupees and is saved with the paise typed', async () => {
+  const sent: unknown[] = []
+  showEdit(mortgage, sent)
+
+  const amount = await screen.findByLabelText('Principal lent (₹)')
+  await vi.waitFor(() => expect((amount as HTMLInputElement).disabled).toBe(false))
+  expectWholeRupeeSteps(amount, '1', '50000.50')
+  await save()
+  fireEvent.click(
+    within(await screen.findByRole('dialog', { name: /Save changes/ })).getByRole('button', {
+      name: 'Confirm and save',
+    }),
+  )
+
+  await screen.findByText('Now at /mortgages/7')
+  expect(sent).toEqual([expect.objectContaining({ amount_lent: 5_000_050 })])
 })

@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { MortgageIn } from '../src/api'
 import { NewMortgagePage } from '../src/pages/NewMortgagePage'
 import { fakeServer, type FakeServer } from './fakeServer'
+import { expectWholeRupeeSteps } from './rupeeField'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -197,4 +198,19 @@ test("opened from the Calculator, it asks for a Customer, then shows the Simulat
   expect(amount.value).toBe('60000')
   fireEvent.change(screen.getByLabelText('Monthly interest rate (%)'), { target: { value: '3' } })
   expect((screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).value).toBe('3')
+})
+
+test('Principal lent steps by whole rupees and is saved with the paise typed; rate and weights keep their fine steps', async () => {
+  const created: MortgageIn[] = []
+  await fillMortgageForm(server(created), 'Gold pendant')
+  expectWholeRupeeSteps(screen.getByLabelText('Principal lent (₹)'), '1', '1500.50')
+  expect((screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).step).toBe('0.01')
+  expect((screen.getByLabelText('Gross weight (grams)') as HTMLInputElement).step).toBe('0.001')
+  expect((screen.getByLabelText('Net weight, gold only (grams)') as HTMLInputElement).step).toBe(
+    '0.001',
+  )
+
+  await confirmCreate()
+  expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()
+  expect(created.map((m) => m.amount_lent)).toEqual([150_050])
 })
