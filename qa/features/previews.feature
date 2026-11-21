@@ -22,5 +22,5 @@ Feature: Previews
     When the Lender opens a new Payment from "Two Pieces Customer"
     And enters ₹4,000 as the Amount received
     Then the Preview has a section for each of their Mortgages, the first open
-    And each section shows what that Mortgage owes today, before and after
+    And each section shows what that Mortgage owes today, before and after the ₹2,000 allocated to it
     And each section lists the Payment on 15 Nov 2025 as a Ledger step added
