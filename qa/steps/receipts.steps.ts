@@ -73,6 +73,46 @@ Given('{string} is a Customer with two contact numbers', async ({ lender }, name
   lender.customer = await addCustomer(lender, name, { phone_2: newPhone('7') });
 });
 
+Given(
+  '{string} was lent {money} on {day} at {int}% a month, simple, with nothing for a part month',
+  async ({ lender }, name: string, amount: Money, day: Day, percent: number) => {
+    const customer = await lender.addCustomer(name, day.iso);
+    lender.mortgage = await lender.post(
+      '/api/mortgages',
+      {
+        customer_id: customer.id,
+        start_date: day.iso,
+        amount_lent: amount.paise,
+        description: 'Gold chain',
+        gross_weight_mg: 20_000,
+        net_weight_mg: 19_000,
+        purity_karat: 22,
+        terms: { monthly_rate_bps: percent * 100, interest_mode: 'simple', part_month_rule: 'nothing' },
+        lent_through: 'upi',
+      },
+      day.iso,
+    );
+  },
+);
+
+/** Dormant Mortgages are only left by back-dated Payments: recorded on `entered`, dated `paid`. */
+Given(
+  'paid {money} on it on {day}, entered on {day}',
+  async ({ lender }, amount: Money, paid: Day, entered: Day) => {
+    lender.payment = await lender.post(
+      '/api/payments',
+      {
+        customer_id: lender.customer!.id,
+        paid_on: paid.iso,
+        amount: amount.paise,
+        method: 'cash',
+        allocations: [{ mortgage_id: lender.mortgage!.id, amount: amount.paise }],
+      },
+      entered.iso,
+    );
+  },
+);
+
 // The Payment page
 
 When('the Lender records another Payment for the same Customer', async ({ page }) => {
@@ -312,4 +352,23 @@ Then('voiding the Payment that Redeemed it is refused: {string}', async ({ lende
 Then('voiding the Payment of {money} is refused: {string}', async ({ lender }, amount: Money, reason: string) => {
   const { id } = await paymentOf(lender, (p) => p.amount === amount.paise);
   expect(await voidRefusal(lender, id)).toBe(reason);
+});
+
+// Dormant
+
+async function dormantNames(lender: Lender): Promise<string[]> {
+  const { items } = await lender.get('/api/closures/dormant');
+  return items.map((m: { name: string }) => m.name);
+}
+
+Then('it is Dormant, owing nothing', async ({ lender }) => {
+  const mortgage = await lender.get(`/api/mortgages/${lender.mortgage!.id}`);
+  expect([mortgage.status, mortgage.outstanding.total]).toEqual(['active', 0]);
+  expect(await dormantNames(lender)).toContain(lender.mortgage!.name);
+});
+
+Then('it owes again and is no longer Dormant', async ({ lender }) => {
+  const mortgage = await lender.get(`/api/mortgages/${lender.mortgage!.id}`);
+  expect(mortgage.outstanding.total).toBeGreaterThan(0);
+  expect(await dormantNames(lender)).not.toContain(lender.mortgage!.name);
 });

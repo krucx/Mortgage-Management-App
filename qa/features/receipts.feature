@@ -217,3 +217,19 @@ Feature: Receipts and Voids
       When the Lender changes the Receipt template in Settings to "Dhanyavad {customer_name}: {amount} received by {method}. {mortgages}"
       And the Lender opens that Payment
       Then the WhatsApp preview begins "Dhanyavad Template Customer: ₹1,000 received by Cash."
+
+  Rule: Voiding the Payment that made a Mortgage Dormant makes it owe again
+    Dormant is worked out afresh from the Payments (ADR 0012): it appears with back-dated Payments
+    and goes when one is voided. A Void never lowers what is owed, so none can leave a Mortgage Dormant.
+
+    @screen:/payments/:id
+    Scenario: Voiding a back-dated Payment ends the Dormant state
+      Given "Voidowing Customer" was lent ₹1,00,000 on 14 Jan 2026 at 3% a month, simple, with nothing for a part month
+      And paid ₹3,000 on it on 15 Apr 2026, entered on 20 Apr 2026
+      And paid ₹50,000 on it on 10 Apr 2026, entered on 20 Apr 2026
+      And paid ₹56,000 on it on 9 Apr 2026, entered on 20 Apr 2026
+      And today is 20 Apr 2026
+      Then it is Dormant, owing nothing
+      When the Lender opens that Payment
+      And the Lender voids it because "Bounced"
+      Then it owes again and is no longer Dormant
