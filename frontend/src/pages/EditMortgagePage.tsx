@@ -16,6 +16,7 @@ import { changes, mortgageQuery, previews } from '../requests'
 import { useMortgageChange, useServerState } from '../serverState'
 import { gramsToMg, mgToGrams } from '../weight'
 import { describeTerms, fromDraft, sameTerms, toDraft } from '../terms'
+import { RupeeInput } from '../components/RupeeInput'
 
 /** Correct a Mortgage's details; the Ledger is replayed from them. */
 export function EditMortgagePage() {
@@ -142,11 +143,9 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
           </label>
           <label>
             Principal lent (₹)
-            <input
-              type="number"
+            <RupeeInput
               required
               min="1"
-              step="0.01"
               disabled={closed}
               value={amountLent}
               onChange={(e) => set('amountLent')(e.target.value)}

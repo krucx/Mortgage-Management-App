@@ -12,6 +12,7 @@ import { Summary } from './ConfirmDialog'
 import { useClosing, type Closing } from './useClosing'
 import { PaymentMethodSelect } from './PaymentMethodSelect'
 import { usePaymentMethods } from './usePaymentMethods'
+import { RupeeInput } from './RupeeInput'
 
 type Action = 'redeem' | 'waive' | 'forfeit'
 
@@ -272,11 +273,9 @@ export function CloseMortgage({
         <>
           <label>
             Received now (₹): the final Payment; the rest of the Outstanding is let off
-            <input
-              type="number"
+            <RupeeInput
               required
               min="0"
-              step="0.01"
               value={received}
               onChange={(event) => setReceived(event.target.value)}
             />
@@ -309,11 +308,9 @@ export function CloseMortgage({
         <>
           <label>
             Recovered Amount (₹): sale price, or value if you keep the jewellery
-            <input
-              type="number"
+            <RupeeInput
               required
               min="0"
-              step="0.01"
               value={recovered}
               onChange={(event) => setRecovered(event.target.value)}
             />
