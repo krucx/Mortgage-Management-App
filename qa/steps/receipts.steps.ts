@@ -292,6 +292,9 @@ Then("the printable Receipt has a line for each of the Payment's Mortgages", asy
   const { lines } = await receiptOf(lender);
   expect(lines.length).toBeGreaterThan(1);
   await expect(printable(page).locator('tbody tr')).toHaveCount(lines.length);
+  for (const { description } of lines) {
+    await expect(printable(page).locator('tbody tr td:first-child', { hasText: new RegExp(`^${escaped(description)}$`) })).toHaveCount(1);
+  }
 });
 
 Then("the printable Receipt's Total is what the Payment paid and what is still owed", async ({ page, lender }) => {

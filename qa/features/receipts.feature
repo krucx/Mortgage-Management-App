@@ -125,8 +125,7 @@ Feature: Receipts and Voids
         | ₹5,000 on 5 Nov 2025 |
         | ₹5,000 on 5 Dec 2025 |
 
-    # Its route, /payments/:id/advance-instalments/:instalment/receipt, is tagged in advances.feature.
-    @golden
+    @golden @screen:/payments/:id/advance-instalments/:instalment/receipt
     Scenario: A cancelled Advance Instalment's Receipt says Advance applied
       Ramesh's ring: the 5 Oct part was cancelled on 20 Sept 2025.
 
