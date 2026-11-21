@@ -5,8 +5,6 @@
 /mortgages/:id/redeem  #460
 /mortgages/:id/edit  #452
 /calculator  #467
-/call-list  #462
 /closures  #461
 /referrers/:id  #451
-/settings  #466
 *  #468
