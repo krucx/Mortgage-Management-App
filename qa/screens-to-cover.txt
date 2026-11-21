@@ -1,4 +1,3 @@
-/payments  #455
 /payments/:id/advance-instalments/:instalment/receipt  #458
 /customers/:id  #451
 /customers/:id/edit  #451
