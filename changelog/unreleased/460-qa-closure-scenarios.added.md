@@ -1,0 +1,1 @@
+- **QA stack:** Gherkin scenarios for the Closure quote, Redeem (and its page), Waive off, Forfeit, Reopen and the refusals of a Closure, in `qa/features/closures.feature`.
