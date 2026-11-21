@@ -69,8 +69,10 @@ Feature: Mortgages
   Rule: The list says when there are none, and comes a page at a time
 
     @fresh @screen:/mortgages
-    Scenario: An empty book has no Mortgages yet
-      # No @fresh scenario waives a Mortgage off, so none is listed whatever else they lend.
+    Scenario: A status no Mortgage has yet reads "No Mortgages yet."
+      # The fresh book holds no Waived off Mortgage (no @fresh scenario waives one), though
+      # other @fresh scenarios may lend; with no text, month or Customer filter, an empty
+      # list reads "No Mortgages yet.", not "No Mortgages match."
       When the Lender lists the Waived off Mortgages
       Then the list reads "No Mortgages yet."
 
