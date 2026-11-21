@@ -1,0 +1,1 @@
+- **Rupee amounts step by whole rupees:** the arrows and scrolling on Principal lent, Collateral Value, Received now and Recovered Amount move by ₹1 instead of ₹0.01, and an amount with paise can still be typed.

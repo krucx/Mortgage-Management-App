@@ -15,6 +15,7 @@ import { formatDate, todayIso } from '../format'
 import { tickedFirst } from '../sort'
 import { formatINR, rupeesToPaise } from '../money'
 import { lists } from '../requests'
+import { RupeeInput } from '../components/RupeeInput'
 
 /**
  * Closures in one place: Dormant Mortgages, owing nothing, to be Redeemed (ADR 0012),
@@ -292,13 +293,11 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
                   <Owed quote={quoteOf(m.id)} />
                 </td>
                 <td className="num">
-                  <input
-                    type="number"
+                  <RupeeInput
                     className="small-input"
                     aria-label={`Recovered Amount for ${m.name}`}
                     required
                     min="0"
-                    step="0.01"
                     value={recovered[m.id] ?? ''}
                     onChange={(event) => setRecovered({ ...recovered, [m.id]: event.target.value })}
                   />
@@ -430,13 +429,11 @@ function WaiveChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void 
                   <Owed quote={quoteOf(m.id)} />
                 </td>
                 <td className="num">
-                  <input
-                    type="number"
+                  <RupeeInput
                     className="small-input"
                     aria-label={`Received now for ${m.name}`}
                     required
                     min="0"
-                    step="0.01"
                     value={received[m.id] ?? ''}
                     onChange={(event) => setReceived({ ...received, [m.id]: event.target.value })}
                   />

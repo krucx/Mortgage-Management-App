@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { MortgagePage } from '../src/pages/MortgagePage'
 import { customerHistoryQuery } from '../src/requests'
 import { changePreview, fakeServer, type FakeServer } from './fakeServer'
+import { expectWholeRupeeSteps } from './rupeeField'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -627,4 +628,25 @@ test('the Ledger shows applied Advance Instalments on their dates and upcoming o
   expect(upcoming.className).toBe('ledger-upcoming')
   expect(within(upcoming).getByText('Upcoming')).toBeTruthy()
   expect(upcoming.previousElementSibling).toBe(applied)
+})
+
+test('Collateral Value, Received now and Recovered Amount step by whole rupees', async () => {
+  showMortgagePage(
+    fakeServer({
+      'GET /api/mortgages/7': mortgage,
+      'GET /api/mortgages/7/outstanding-on-closure': quote,
+    }),
+  )
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Set by hand…' }))
+  expectWholeRupeeSteps(screen.getByLabelText('Collateral Value (₹)'), '0.01')
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Waive off…' }))
+  const received = await screen.findByLabelText(/Received now/)
+  expectWholeRupeeSteps(received, '0')
+  fireEvent.click(
+    within(received.closest('form') as HTMLElement).getAllByRole('button', { name: 'Cancel' })[0],
+  )
+  fireEvent.click(await screen.findByRole('button', { name: 'Forfeit…' }))
+  expectWholeRupeeSteps(await screen.findByLabelText(/Recovered Amount/), '0')
 })

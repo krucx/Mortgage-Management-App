@@ -41,6 +41,7 @@ import {
 import { STALE_AFTER, useLedgerChange, useServerState } from '../serverState'
 import { formatRate, fromDraft, INTEREST_MODES, toDraft } from '../terms'
 import { gramsToMg } from '../weight'
+import { RupeeInput } from '../components/RupeeInput'
 
 /**
  * Create a Mortgage: pick (or create) the Customer, see their Active Mortgages,
@@ -278,11 +279,9 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
         </label>
         <label>
           Principal lent (₹)
-          <input
-            type="number"
+          <RupeeInput
             required
             min="1"
-            step="0.01"
             disabled={locked}
             value={fields.amountLent}
             onChange={(event) => set('amountLent')(event.target.value)}

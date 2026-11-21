@@ -9,11 +9,20 @@ import { defineBddConfig } from 'playwright-bdd';
 // (QA_SPECS) keeps one of the projects.
 const testDir = defineBddConfig({ features: 'features/*.feature', steps: 'steps/*.ts' });
 const FRESH = /@fresh/;
+// Needs the fresh app before any other @fresh scenario adds to it: it runs first.
+const EMPTY = /@empty/;
 const GOLDEN = /@golden/;
 const specs = process.env.QA_SPECS;
 
 const projects = [
-  { name: 'fresh', grep: FRESH, use: { baseURL: process.env.FRESH_URL ?? 'http://qa-fresh:8000' } },
+  { name: 'empty', grep: EMPTY, use: { baseURL: process.env.FRESH_URL ?? 'http://qa-fresh:8000' } },
+  {
+    name: 'fresh',
+    grep: FRESH,
+    grepInvert: EMPTY,
+    dependencies: ['empty'],
+    use: { baseURL: process.env.FRESH_URL ?? 'http://qa-fresh:8000' },
+  },
   { name: 'golden', grep: GOLDEN, use: { baseURL: process.env.GOLDEN_URL ?? 'http://qa-golden:8000' } },
   { name: 'work', grepInvert: [FRESH, GOLDEN], use: { baseURL: process.env.WORK_URL ?? 'http://qa-work:8000' } },
 ];
@@ -29,5 +38,5 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: projects.filter((project) => !specs || project.name === specs),
+  projects: projects.filter((project) => !specs || project.name === specs || (specs === 'fresh' && project.name === 'empty')),
 });
