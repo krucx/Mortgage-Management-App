@@ -20,3 +20,10 @@ Feature: Closures
       | due        | amount | status   |
       | 5 Dec 2025 | ₹1,000 | Upcoming |
       | 5 Jan 2026 | ₹1,000 | Upcoming |
+
+  @screen:/mortgages/:id
+  Scenario: A Waiver can't carry an Advance
+    Given "Waive Customer" was lent ₹60,000 on 5 Sept 2025 against a Gold necklace
+    And paid an Advance of ₹2,000 over 2 months on it on 15 Nov 2025
+    When the Lender opens the Mortgage on 15 Nov 2025
+    Then waiving it with an Advance is refused
