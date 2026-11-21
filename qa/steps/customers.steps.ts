@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import { Given, Then, When, type Day, type Money } from './fixtures';
+import { newPhone } from './lender';
 import { buttons, labels } from './selectors';
 
 // 1x1 PNG used for the Customer photo upload.
@@ -16,8 +17,7 @@ When('the Lender adds a Customer {string} with a photo', async ({ page }, name: 
   await page.goto('/customers/new?next=mortgage');
   await page.getByLabel(labels.customerName).fill(name);
   await page.getByLabel(labels.customerAddress).fill('1 Test Street');
-  const phone = '9' + String(Math.floor(Math.random() * 1_000_000_000)).padStart(9, '0');
-  await page.getByLabel(labels.customerPhone1).fill(phone);
+  await page.getByLabel(labels.customerPhone1).fill(newPhone('9'));
   await page.locator('input[type="file"]').first().setInputFiles(PHOTO);
 
   await expect(page.getByRole('button', { name: buttons.saveCustomer })).toBeEnabled({ timeout: 15_000 });

@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import type { DataTable } from 'playwright-bdd';
 import { Given, Then, When, type Day, type Money } from './fixtures';
-import { tile } from './selectors';
+import { buttons, tile } from './selectors';
 
 // The payment form's Advance fields, and the Advances panel on a Mortgage page.
 
@@ -10,6 +10,15 @@ import { tile } from './selectors';
 function partRow(page: Page, due: string, amount: string, status: string) {
   const action = status === 'Upcoming' ? ' Cancel…' : status.startsWith('Cancelled') ? ' Receipt' : '';
   return page.getByRole('row', { name: `${due} ${amount} ${status}${action}` });
+}
+
+/** Opens the Cancel dialog of the Upcoming part due on `due`. */
+async function startCancelling(page: Page, due: Day) {
+  await page
+    .getByRole('row', { name: new RegExp(`^${due.shown} `) })
+    .getByRole('button', { name: 'Cancel…' })
+    .click();
+  await expect(page.getByRole('dialog')).toBeVisible();
 }
 
 function received(page: Page) {
@@ -67,7 +76,7 @@ Then(
 
 When('the Lender records the Payment', async ({ page }) => {
   await page.getByRole('button', { name: 'Record Payment' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Confirm and save' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: buttons.confirmAndSave }).click();
   await expect(page).toHaveURL(/\/payments\/\d+/);
 });
 
@@ -107,18 +116,11 @@ Then('its Ledger shows Advance Instalment {int} of {int} on {day}', async ({ pag
 });
 
 When('the Lender starts to cancel the part on {day}', async ({ page }, due: Day) => {
-  await page
-    .getByRole('row', { name: new RegExp(`^${due.shown} `) })
-    .getByRole('button', { name: 'Cancel…' })
-    .click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await startCancelling(page, due);
 });
 
 When('the Lender cancels the part on {day}', async ({ page }, due: Day) => {
-  await page
-    .getByRole('row', { name: new RegExp(`^${due.shown} `) })
-    .getByRole('button', { name: 'Cancel…' })
-    .click();
+  await startCancelling(page, due);
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel this Advance Instalment' }).click();
 });
 

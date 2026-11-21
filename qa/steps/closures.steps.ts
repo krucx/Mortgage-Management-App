@@ -17,7 +17,7 @@ When('the Lender redeems it with a final Payment by UPI', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm Redemption' }).click();
 });
 
-Then('its closure reads {string}', async ({ page }, text: string) => {
+Then('its Closure reads {string}', async ({ page }, text: string) => {
   await expect(page.locator('.close-panel')).toContainText(text);
 });
 

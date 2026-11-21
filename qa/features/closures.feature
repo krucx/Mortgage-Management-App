@@ -13,8 +13,8 @@ Feature: Closures
     Then the Redemption takes off the ₹2,000 Advance held
     # UPI: the final Payment is over the cash limit.
     When the Lender redeems it with a final Payment by UPI
-    Then its closure reads "Redeemed on 15 Nov 2025"
-    And its closure reads "₹2,000 of it from the Advance held"
+    Then its Closure reads "Redeemed on 15 Nov 2025"
+    And its Closure reads "₹2,000 of it from the Advance held"
     When the Lender reopens it because "Redeemed by mistake"
     Then it is Active
     And it holds an Advance of ₹2,000

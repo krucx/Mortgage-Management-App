@@ -1,9 +1,14 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 
 /** Header that pins the backend's request-scoped QA clock (QA_MODE=true). */
-export const QA_CLOCK_HEADER = 'X-QA-Clock';
+const QA_CLOCK_HEADER = 'X-QA-Clock';
 
 export type Named = { id: number; name: string };
+
+/** A Primary Number no other scenario uses, starting with `first`. */
+export function newPhone(first = '8') {
+  return first + String(Math.floor(Math.random() * 1_000_000_000)).padStart(9, '0');
+}
 
 /**
  * The Lender in one scenario: the browser and the API on the scenario's QA clock, and the
@@ -56,8 +61,7 @@ export class Lender {
 
   /** A new Customer, with a Primary Number no other scenario uses. */
   async addCustomer(name: string, day?: string): Promise<Named> {
-    const phone_1 = '8' + String(Math.floor(Math.random() * 1_000_000_000)).padStart(9, '0');
-    this.customer = await this.post('/api/customers', { name, address: '1 Test Street', phone_1 }, day);
+    this.customer = await this.post('/api/customers', { name, address: '1 Test Street', phone_1: newPhone() }, day);
     return this.customer!;
   }
 
