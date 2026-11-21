@@ -239,7 +239,7 @@ Feature: Settings
       And the Lender confirms
       Then Backups are kept to the last 4
 
-    @screen:/settings
+    @screen:/
     Scenario: A Backup is taken when the last one is a week old by the QA clock
       Given the Backups taken so far are noted
       And today is 1 Jan 2031

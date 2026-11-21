@@ -54,7 +54,7 @@ Then('the new Mortgage form offers the Terms {float}% a month', async ({ page },
 
 Then('its Terms are {float}% a month', async ({ page }, percent: number) => {
   await expect(page.getByRole('heading', { name: /^2025-/ }).first()).toBeVisible();
-  await expect(page.getByText(new RegExp(`^${percent}% a month`)).first()).toBeVisible();
+  await expect(page.getByText(new RegExp(`^${String(percent).replace('.', '\\.')}% a month`)).first()).toBeVisible();
 });
 
 // The Cash Limit, the Discount confirmation limit and the Grace Period
@@ -199,7 +199,9 @@ When('the Lender cancels the Backup', async ({ page }) => {
 });
 
 When('the Lender confirms the Backup', async ({ page }) => {
+  const asked = page.waitForResponse((r) => r.url().endsWith('/api/backups') && r.request().method() === 'POST');
   await page.getByRole('dialog').getByRole('button', { name: 'Back up', exact: true }).click();
+  expect((await asked).status()).toBe(202);
 });
 
 Then('no new Backup is taken', async ({ lender }) => {
