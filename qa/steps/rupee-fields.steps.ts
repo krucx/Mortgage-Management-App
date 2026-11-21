@@ -52,9 +52,20 @@ When('the Lender presses its up arrow', async ({ page }) => {
 
 When('the Lender scrolls down over it twice', async ({ page }) => {
   const input = fieldOf.get(page)!;
-  await input.hover();
   await input.focus();
-  for (let i = 0; i < 2; i++) await page.mouse.wheel(0, 100);
+  // One notch at a time, over the field where it is now: a Preview arriving below it can
+  // move the page under the mouse and lose a notch, so a notch that left the value as it
+  // was is scrolled again.
+  for (let i = 0; i < 2; i++) {
+    const before = await input.inputValue();
+    await expect(async () => {
+      if ((await input.inputValue()) === before) {
+        await input.hover();
+        await page.mouse.wheel(0, 100);
+      }
+      await expect(input).not.toHaveValue(before, { timeout: 1000 });
+    }).toPass();
+  }
 });
 
 Then('the rupee field holds {float} and is valid', async ({ page }, rupees: number) => {
