@@ -220,7 +220,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Image layers in the GitHub Actions cache (QA_BUILD_CACHE=gha): buildx can write it,
+      # and the runtime step hands the cache token to the shell step that builds.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
       - run: scripts/qa-stack.sh test
+        env:
+          QA_BUILD_CACHE: gha
       - name: Upload Playwright results
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

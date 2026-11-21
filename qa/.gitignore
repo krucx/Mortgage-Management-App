@@ -1,5 +1,6 @@
 node_modules/
 test-results/
+.features-gen/
 scratch-data/
 scratch-backups/
 pw.local.config.ts

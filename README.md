@@ -220,12 +220,13 @@ from source under its own project and a free port, and checks the API is serving
 data. `scripts/qa-stack.sh down` removes its containers and image, never the folders. Set
 `QA_PROJECT` to run several at once.
 
-`scripts/qa-stack.sh test` runs the Playwright suite in `qa/e2e` against the app built from
-source, needing only Docker (and `python3`, as `up` does): `--mode fresh` runs the specs that start from no data, `--mode
-golden` the rest on the golden book (`qa/fixtures/golden_book.py`), and the default `all`
-runs both, each on its own scratch volumes. It exits 0 when every spec passes and 1
-otherwise, always removing its containers and volumes; failures leave screenshots in
-`qa/test-results`. `--ui` serves Playwright's UI on a local port instead, until Ctrl-C, with the golden book
+`scripts/qa-stack.sh test` runs the Gherkin scenarios in `qa/features` (playwright-bdd, steps
+in `qa/steps`) against the app built from source, needing only Docker (and `python3`, as `up`
+does). Two apps run at once on their own scratch volumes, one with no data for the scenarios
+tagged `@fresh` and one on the golden book (`qa/fixtures/golden_book.py`) for the rest, and
+the scenarios run in parallel. `--mode fresh` or `--mode golden` runs only one of the two
+sets; the default `all` runs both. It exits 0 when every scenario passes and 1 otherwise,
+always removing its containers and volumes; failures leave screenshots in `qa/test-results`. `--ui` serves Playwright's UI on a local port instead, until Ctrl-C, with the golden book
 unless `--mode fresh`.
 The `qa` job in `.github/workflows/test.yml` runs it on the `release/X.Y.Z` pull request
 and on demand (workflow_dispatch), not on every pull request; run it locally before opening one.

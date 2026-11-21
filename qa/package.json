@@ -3,9 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "test": "playwright test"
+    "test": "bddgen && playwright test",
+    "typecheck": "tsc -p ."
   },
   "devDependencies": {
-    "@playwright/test": "1.65.1"
+    "@playwright/test": "1.65.1",
+    "@types/node": "24.19.2",
+    "playwright-bdd": "9.2.1",
+    "typescript": "6.0.3"
   }
 }
