@@ -105,9 +105,25 @@ Then('the Dormant section lists it, to Redeem', async ({ page, lender }) => {
   await expect(row.getByRole('link', { name: 'Redeem…' })).toHaveAttribute('href', `/mortgages/${lender.mortgage!.id}/redeem`);
 });
 
+/** The Mortgage's row on the Dormant list, paging from page 1 until it shows; null if absent. */
+async function dormantRow(page: Page, name: string) {
+  const pager = dormantPager(page);
+  const row = rowsOf(dormant(page)).filter({ has: page.getByRole('link', { name, exact: true }) });
+  for (;;) {
+    if ((await row.count()) > 0) return row;
+    const next = pager.getByRole('button', { name: 'Next' });
+    if (!(await next.isVisible()) || (await next.isDisabled())) return null;
+    const at = await pager.getByText(/^Page \d+ of \d+$/).textContent();
+    await next.click();
+    await expect(pager.getByText(/^Page \d+ of \d+$/)).not.toHaveText(at!);
+  }
+}
+
 When('the Lender redeems it from the Closures page for ₹0', async ({ page, lender }) => {
-  const row = rowsOf(dormant(page)).filter({ has: page.getByRole('link', { name: lender.mortgage!.name, exact: true }) });
-  await row.getByRole('link', { name: 'Redeem…' }).click();
+  await page.goto('/closures');
+  const row = await dormantRow(page, lender.mortgage!.name);
+  expect(row, `${lender.mortgage!.name} on the Dormant list`).not.toBeNull();
+  await row!.getByRole('link', { name: 'Redeem…' }).click();
   await panel(page).getByRole('button', { name: 'Redeem for ₹0' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Confirm Redemption' }).click();
@@ -119,8 +135,7 @@ Then('it is Redeemed', async ({ lender }) => {
 });
 
 Then('it is no longer listed as Dormant', async ({ page, lender }) => {
-  await expect(page.getByRole('link', { name: lender.mortgage!.name, exact: true })).toHaveCount(0);
-  await expect(page.getByText('None: every Active Mortgage owes something.')).toBeVisible();
+  expect(await dormantRow(page, lender.mortgage!.name)).toBeNull();
 });
 
 Then('the Dormant section says {string}', async ({ page }, hint: string) => {

@@ -21,22 +21,33 @@ Feature: Closures page
       When the Lender opens a new Payment from "Sunil Mehta"
       Then their Mortgage that owes nothing reads "owes nothing: Redeem it" and can't be ticked
 
-    # The fresh book has no other Dormant Mortgage: no other @fresh scenario leaves one.
+    # The fresh book has no other Dormant Mortgage: no other @fresh scenario leaves one, so the
+    # count is exact. Twenty-one others make the list a second page, and sort.
     @fresh @screen:/ @screen:/closures @screen:/mortgages/:id/redeem
-    Scenario: A Dormant Mortgage is Redeemed for ₹0 from the Closures page
-      Given "Slip Customer" was lent ₹1,00,000 on 14 Jan 2026 at 3% a month, simple, with nothing for a part month
+    Scenario: The Dormant list sorts and comes twenty a page; one is Redeemed for ₹0 from it
+      Given 21 Customers were each left owing nothing by back-dated Payments
+      And "Slip Customer" was lent ₹1,00,000 on 14 Jan 2026 at 3% a month, simple, with nothing for a part month
       And paid ₹3,000 on it on 15 Apr 2026, entered on 20 Apr 2026
       And paid ₹50,000 on it on 10 Apr 2026, entered on 20 Apr 2026
       And paid ₹56,000 on it on 9 Apr 2026, entered on 20 Apr 2026
       And today is 20 Apr 2026
       When the Lender opens the Dashboard
-      Then the Closures tab shows a red dot, with the tooltip "1 Dormant: owing nothing, to Redeem"
+      Then the Closures tab shows a red dot, with the tooltip "22 Dormant: owing nothing, to Redeem"
       When the Lender opens the Closures page
-      And the Lender redeems it from the Closures page for ₹0
+      Then the Dormant list shows its first twenty
+      When the Lender goes to the next page of Dormant
+      Then the Dormant list shows the rest
+      When the Lender sorts the Dormant Mortgages by "Mortgage"
+      Then the Dormant Mortgages are listed by Mortgage, A to Z
+      When the Lender sorts the Dormant Mortgages by "Mortgage"
+      Then the Dormant Mortgages are listed by Mortgage, Z to A
+      When the Lender sorts the Dormant Mortgages by "Customer"
+      Then the Dormant Mortgages are listed by Customer, A to Z
+      When the Lender redeems it from the Closures page for ₹0
       Then it is Redeemed
       When the Lender opens the Closures page
       Then it is no longer listed as Dormant
-      And the Closures tab has no red dot
+      And the Closures tab shows a red dot, with the tooltip "21 Dormant: owing nothing, to Redeem"
 
   Rule: Closing several Mortgages at once
     The Mortgages are chosen from the page's list, so each scenario's Customers are named to come
@@ -105,21 +116,6 @@ Feature: Closures page
   Rule: Both lists sort and come twenty a page, and the chosen come first
 
     @screen:/closures
-    Scenario: The Dormant list sorts by Mortgage and Customer and comes twenty a page
-      Given 21 Customers were each left owing nothing by back-dated Payments
-      And today is 20 Apr 2026
-      When the Lender opens the Closures page
-      Then the Dormant list shows its first twenty
-      When the Lender goes to the next page of Dormant
-      Then the Dormant list shows the rest
-      When the Lender sorts the Dormant Mortgages by "Mortgage"
-      Then the Dormant Mortgages are listed by Mortgage, A to Z
-      When the Lender sorts the Dormant Mortgages by "Mortgage"
-      Then the Dormant Mortgages are listed by Mortgage, Z to A
-      When the Lender sorts the Dormant Mortgages by "Customer"
-      Then the Dormant Mortgages are listed by Customer, A to Z
-
-    @screen:/closures
     Scenario: The Mortgages to close sort by Started and Outstanding
       Given "Sortone Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold ring
       And "Sorttwo Customer" was lent ₹50,000 on 5 Oct 2025 against a Gold ring
@@ -134,7 +130,7 @@ Feature: Closures page
 
     @screen:/closures
     Scenario: The Mortgages to close come twenty a page
-      Given "Zzpager Customer" was lent ₹30,000 on 5 Sept 2025 against 21 Gold rings
+      Given "Zzbulk Customer" was lent ₹30,000 on 5 Sept 2025 against 21 Gold rings
       And today is 15 Nov 2025
       When the Lender opens the Closures page
       Then the Mortgages to close show their first twenty
@@ -155,7 +151,7 @@ Feature: Closures page
   Rule: An empty book has nothing to close
 
     # @empty: before any other @fresh scenario adds a Mortgage (qa/playwright.config.ts).
-    @empty @screen:/closures
+    @fresh @empty @screen:/closures
     Scenario: The Closures page of an empty book
       When the Lender opens the Closures page
       Then the Dormant section says "None: every Active Mortgage owes something."
