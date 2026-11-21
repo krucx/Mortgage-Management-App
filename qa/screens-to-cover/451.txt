@@ -1,0 +1,3 @@
+/customers/:id
+/customers/:id/edit
+/referrers/:id

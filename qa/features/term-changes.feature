@@ -18,7 +18,7 @@ Feature: Term Changes
       | From   | 5 Dec 2025   |
       | Before | 3% a month   |
       | After  | 2.5% a month |
-    When the Lender confirms it
+    When the Lender confirms
     Then its Terms panel lists the Term Change from 5 Dec 2025 to 2.5% a month as coming
 
   @screen:/mortgages/:id
@@ -28,7 +28,7 @@ Feature: Term Changes
     When the Lender opens the Mortgage on 15 Nov 2025
     And the Lender starts to remove the Term Change from 5 Dec 2025
     Then the dialog shows what changes
-    When the Lender confirms it
+    When the Lender confirms
     Then its Terms panel lists no Term Change
 
   @screen:/mortgages/:id
@@ -79,7 +79,7 @@ Feature: Term Changes
     And the Lender sets the rate to 2% a month
     Then the Preview warns that its Advance Instalment on 5 Nov 2025 would now reduce Principal
     When the Lender saves the Term Change
-    And the Lender confirms it
+    And the Lender confirms
     Then its Terms panel lists the Term Change from 5 Oct 2025 to 2% a month as coming
 
   @golden @screen:/mortgages/:id

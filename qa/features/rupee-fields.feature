@@ -18,7 +18,6 @@ Feature: Rupee amount fields
       | field          | screen           | customer     |
       | Principal lent | the New Mortgage | Anvita Rupee |
 
-    @screen:/mortgages/:id/edit
     Examples: Edit Mortgage
       | field          | screen            | customer     |
       | Principal lent | the Edit Mortgage | Bhavik Rupee |
@@ -30,7 +29,6 @@ Feature: Rupee amount fields
       | Received now     | the Mortgage | Daksh Rupee  |
       | Recovered Amount | the Mortgage | Eshan Rupee  |
 
-    @screen:/closures
     Examples: Closures
       | field            | screen            | customer      |
       | Received now     | the Closures page | Falguni Rupee |
