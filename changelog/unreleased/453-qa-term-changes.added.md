@@ -1,0 +1,1 @@
+- **QA stack:** scenarios for Term Changes (changing, removing, every refusal and the Advance Instalment warning), the Projection and its what-if, and the Preview change forms share, one section per Mortgage.
