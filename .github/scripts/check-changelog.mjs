@@ -27,10 +27,11 @@ export function isAllowlistedPath(path) {
 }
 
 export function checkChangelog({ read, pathsChanged, base, head, ...pullRequest }) {
-  if (isReleaseCandidate(pullRequest)) return []
-  if (!read(base, 'changelog/unreleased/README.md')) return []
-
   const errors = []
+  const warnings = []
+  if (isReleaseCandidate(pullRequest)) return { errors, warnings }
+  if (!read(base, 'changelog/unreleased/README.md')) return { errors, warnings }
+
   if ((read(base, 'CHANGELOG.md') ?? '') !== (read(head, 'CHANGELOG.md') ?? '')) {
     errors.push(
       'This pull request changes CHANGELOG.md. Non-release PRs must not edit it; add a fragment under changelog/unreleased/ instead. See Documentation/agents/changelog.md.',
@@ -40,11 +41,11 @@ export function checkChangelog({ read, pathsChanged, base, head, ...pullRequest 
   const needsNotes = pathsChanged.some((path) => !isAllowlistedPath(path))
   const addedFragment = pathsChanged.some((path) => fragmentPath.test(path))
   if (needsNotes && !addedFragment) {
-    errors.push(
-      'This pull request changes product or user-facing files but adds no changelog fragment. Add a file under changelog/unreleased/ named <unique>.<added|changed|fixed|removed|deprecated|security>.md. See Documentation/agents/changelog.md.',
+    warnings.push(
+      'This pull request changes product or user-facing files but adds no changelog fragment. If it needs a release note, add a file under changelog/unreleased/ named <unique>.<added|changed|fixed|removed|deprecated|security>.md. See Documentation/agents/changelog.md.',
     )
   }
-  return errors
+  return { errors, warnings }
 }
 
 function gitRead(ref, path) {
@@ -63,7 +64,7 @@ function gitPathsChanged(base, head) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { BASE_SHA, HEAD_SHA, HEAD_BRANCH, HEAD_REPO, BASE_REPO } = process.env
   if (!BASE_SHA || !HEAD_SHA) throw new Error('BASE_SHA and HEAD_SHA are required')
-  const errors = checkChangelog({
+  const { errors, warnings } = checkChangelog({
     read: gitRead,
     pathsChanged: gitPathsChanged(BASE_SHA, HEAD_SHA),
     base: BASE_SHA,
@@ -72,6 +73,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     headRepo: HEAD_REPO,
     baseRepo: BASE_REPO,
   })
+  for (const warning of warnings) console.log(`::warning::${warning}`)
   if (errors.length) {
     for (const error of errors) console.error(`::error::${error}`)
     process.exit(1)
