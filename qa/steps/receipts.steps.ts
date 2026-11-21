@@ -137,8 +137,9 @@ Then('its Allocations table has no {string} column', async ({ page }, heading: s
 
 /** The cell of the Mortgage's row under `heading`. */
 async function allocationCell(page: Page, mortgage: string, heading: string) {
-  const headings = await page.locator('thead th').allTextContents();
-  const row = page.getByRole('row', { name: new RegExp(`^${escaped(mortgage)} `) });
+  const table = page.getByRole('table').filter({ has: columnHeading(page, 'Allocation') });
+  const headings = await table.locator('thead th').allTextContents();
+  const row = table.getByRole('row', { name: new RegExp(`^${escaped(mortgage)} `) });
   return row.locator('td').nth(headings.indexOf(heading));
 }
 
@@ -176,6 +177,7 @@ Then('the preview has a card for each jewellery paid', async ({ page, lender }) 
 
 Then('the preview names no Mortgage Name', async ({ page, lender }) => {
   const { allocations } = await lender.get(`/api/payments/${lender.payment!.id}`);
+  expect(allocations.length).toBeGreaterThan(0);
   await expect(bubble(page)).toBeVisible();
   for (const { mortgage_name } of allocations) {
     await expect(bubble(page)).not.toContainText(mortgage_name);
