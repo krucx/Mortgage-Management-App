@@ -70,6 +70,14 @@ export class Lender {
     return res.json();
   }
 
+  /** Why the app refuses a POST or DELETE asked on the scenario's day; fails if it is carried out. */
+  async refusal(method: 'post' | 'delete', path: string, body?: unknown): Promise<string> {
+    if (this.golden) throw new Error(`the golden book is read-only: ${method.toUpperCase()} ${path} belongs in a scenario that seeds its own data`);
+    const res = await this.request[method](path, { data: body, headers: this.headers(this.day) });
+    if (res.ok()) throw new Error(`${method.toUpperCase()} ${path} was carried out, not refused`);
+    return (await res.json()).detail;
+  }
+
   async customerNamed(name: string): Promise<Named> {
     return only(await this.get('/api/customers', { q: name }), (c) => c.name === name, name);
   }
