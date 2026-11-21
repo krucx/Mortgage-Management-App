@@ -2,11 +2,11 @@ Feature: Customers
   The Lender adds the people who pledge jewellery, then lends to them. A Customer's Contact
   number 1 is their Primary Number: no two people share one.
 
-  # In order, on the one empty book: the list is empty until the first Customer is added.
-  @fresh @mode:serial
+  @fresh
   Rule: An empty book
 
-    @screen:/customers
+    # @empty: before any other @fresh scenario adds a Customer (qa/playwright.config.ts).
+    @empty @screen:/customers
     Scenario: The Customers list of an empty book
       When the Lender opens the Customers list
       Then the list says "No Customers yet."
