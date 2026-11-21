@@ -35,7 +35,10 @@ function discountField(page: Page, mortgage: string) {
   return page.getByRole('spinbutton', { name: `Discount for ${mortgage}` });
 }
 
-async function pay(lender: Lender, day: Day, cash: number, discount: number) {
+/** Records a Payment of `cash` and `discount`. A sum at the Cash Limit or over goes by UPI:
+ * recorded in cash it would raise the Cash Limit's warning in every Payment Preview another
+ * scenario takes meanwhile, as the Preview counts the cash written since it began. */
+async function pay(lender: Lender, day: Day, cash: number, discount: number, method: 'cash' | 'upi' = 'cash') {
   owedBefore.set(lender, (await listed(lender, day.iso)).outstanding_total);
   lender.payment = await lender.post(
     '/api/payments',
@@ -43,7 +46,7 @@ async function pay(lender: Lender, day: Day, cash: number, discount: number) {
       customer_id: lender.customer!.id,
       paid_on: day.iso,
       amount: cash,
-      method: 'cash',
+      method,
       allocations: [{ mortgage_id: lender.mortgage!.id, amount: cash, discount }],
     },
     day.iso,
@@ -56,7 +59,7 @@ Given('paid {money} and a Discount of {money} on it on {day}', async ({ lender }
 
 Given('paid its full Outstanding less a Discount of {money} on it on {day}', async ({ lender }, discount: Money, day: Day) => {
   const owed = toPay(await listed(lender, day.iso));
-  await pay(lender, day, owed - discount.paise, discount.paise);
+  await pay(lender, day, owed - discount.paise, discount.paise, 'upi');
 });
 
 Given('the Discount confirmation limit is cleared', async ({ page }) => {
@@ -157,6 +160,8 @@ Then('their Favours Given lists a Discount of {money} on the {string}', async ({
 
 Then('their page lists no Favours Given', async ({ page, lender }) => {
   await expect(page.getByRole('heading', { name: lender.customer!.name, level: 2 })).toBeVisible();
+  // Favours Given is a separate query: nothing shows while it loads, as when there are none.
+  await page.waitForLoadState('networkidle');
   await expect(page.getByRole('heading', { name: 'Favours Given' })).toHaveCount(0);
 });
 
