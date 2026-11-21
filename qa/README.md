@@ -11,7 +11,8 @@ This file covers how to add to them without colliding with other work in flight.
   the page width. Use one before writing a new one.
 - Each area adds its own steps only in its own `steps/<area>.steps.ts`.
 - Shared helper classes, such as `Lender` in `steps/lender.ts`, get new methods only at the
-  end of the class, so two branches adding methods merge cleanly.
+  end of the class. Two branches doing so can still conflict there, but only by adding
+  methods side by side: keep both.
 - Step text is unique across all features: two definitions that match the same step fail
   `bddgen`. After merging `main`, and before reporting a branch ready, run
   `npm run check-steps` here (`npm ci` first); it reports each duplicate it finds and the
