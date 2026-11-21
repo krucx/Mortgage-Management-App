@@ -93,8 +93,8 @@ human approval, and these status checks: `backend`, `frontend`, `image`, `qa`, `
 `CodeRabbit`. `version-bump` fails a pull request that changes `VERSION` or the package versions synced from
 it, unless it is the `release/X.Y.Z` pull request from the Prepare release candidate workflow;
 add a fragment under `changelog/unreleased/` instead of editing `CHANGELOG.md`. The same job
-refuses non-release edits to `CHANGELOG.md` and requires a fragment when the PR changes
-product or user-facing files (internal-only paths are allowlisted). `qa` runs only on that
+refuses non-release edits to `CHANGELOG.md`. A PR that changes product or user-facing files
+without a fragment still passes, with a warning (internal-only paths are allowlisted). `qa` runs only on that
 `release/X.Y.Z` pull request and when Tests is dispatched by hand; elsewhere it is skipped,
 which GitHub counts as passing. These are the exact check names GitHub reports. The ruleset
 blocks force pushes and deletion. A repository administrator should import and activate it under
