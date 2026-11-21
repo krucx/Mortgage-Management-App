@@ -38,7 +38,7 @@ flowchart LR
 
 <h2>The code</h2>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/book.py">docs/sample-book/book.py</a> · module docstring, <code>THE_DAY</code>, <code>Clock</code> · lines 1–43, trimmed</figcaption>
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/book.py">docs/sample-book/book.py</a> · module docstring, the shared <code>Book</code>, <code>THE_DAY</code> · lines 1–25 and 197–198, trimmed</figcaption>
 <pre data-file="docs/sample-book/book.py"><code>1   """The Gold Chain Story's sample book: every person and figure the GitHub Pages screenshots
 2   show, made through the app's own API, day by day, as the Lender would have made it. Each
 3   change is made on its own date (the clock moves forward through the year), so the app
@@ -48,19 +48,29 @@ flowchart LR
 ⋮
 10  writes &lt;folder&gt;/data (the database and photos); serve.py serves it. Amounts in paise.
 ⋮
-24  THE_DAY = date(2026, 10, 19)  ◀
+20  # The Book helper the QA golden book shares (qa/fixtures/lending_book.py).
+21  sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "qa" / "fixtures"))
+22  from lending_book import RUPEE, Book, Share, rupees  # noqa: E402
 ⋮
-33  class Clock:
-34      """The app's today, moved forward as the book is written; changes at 10:30."""  ②
-36      def __init__(self) -&gt; None:
-37          self.day = date(2025, 6, 1)
-39      def today(self) -&gt; date:
-40          return self.day
+25  THE_DAY = date(2026, 10, 19)  ◀
+⋮
+197 def write(folder: Path) -&gt; None:
+198     book = Book(folder, start=date(2025, 6, 1), story_day=THE_DAY)  ②
+</code></pre>
+</figure>
+<figure class="snippet">
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/qa/fixtures/lending_book.py">qa/fixtures/lending_book.py</a> · <code>Clock</code> · lines 26–35</figcaption>
+<pre data-file="qa/fixtures/lending_book.py"><code>26  class Clock:
+27      """The app's today, moved forward as the book is written; changes at 10:30."""
+29      def __init__(self, day: date) -&gt; None:
+30          self.day = day
+32      def today(self) -&gt; date:
+33          return self.day
 </code></pre>
 </figure>
 <ol class="marks">
   <li>The book is made the way the Lender would make it: by HTTP requests, each on its date. If a rule in the app would refuse a step, <code>book.py</code> fails at once. So the sample book is also a test that the whole year is still possible.</li>
-  <li><code>Clock</code> is the "today" handed to <code>create_app</code> (lesson 2's <code>today</code> parameter). The book moves it forward day by day until <code>THE_DAY</code>.</li>
+  <li>The <code>Book</code> helper, shared with the QA golden book, starts its <code>Clock</code> on 1 Jun 2025. <code>Clock</code> is the "today" handed to <code>create_app</code> (lesson 2's <code>today</code> parameter). The book moves it forward day by day until <code>THE_DAY</code>, approving and sending each Reminder as it comes due.</li>
 </ol>
 <figure class="snippet">
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/docs/sample-book/serve.py">docs/sample-book/serve.py</a> · the whole script · lines 19–31</figcaption>

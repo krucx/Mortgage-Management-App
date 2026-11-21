@@ -1,11 +1,11 @@
 import { expect } from '@playwright/test';
 import type { DataTable } from 'playwright-bdd';
-import { Given, Then, When, type Money } from './fixtures';
+import { Given, Then, When, type Day, type Money } from './fixtures';
 
 // Payments, their Receipts and Voids.
 
-Given('{string} has paid {money} on {mortgage}', async ({ lender }, name: string, amount: Money, mortgage: string) => {
-  await lender.pay(await lender.customerNamed(name), await lender.mortgageNamed(mortgage), { amount: amount.paise });
+Given('paid {money} on it on {day}', async ({ lender }, amount: Money, day: Day) => {
+  await lender.pay(lender.customer!, [{ mortgage: lender.mortgage!, cash: amount.paise }], { day: day.iso });
 });
 
 Then('it has a Receipt', async ({ page }) => {

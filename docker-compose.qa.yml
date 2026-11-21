@@ -1,7 +1,8 @@
-# QA overlay: two apps in QA mode, one on the golden book and one with no data, and the
-# Playwright runner that tests both at once (@fresh scenarios against the empty one). Run it
-# through `scripts/qa-stack.sh test`, which picks the scenarios (QA_SPECS) and always tears it
-# down, volumes included.
+# QA overlay: three apps in QA mode, and the Playwright runner that tests them at once: the
+# golden book, read by @golden scenarios; no data, for @fresh ones; and the work app, empty at
+# first, where every other scenario seeds the data it changes. Run it through
+# `scripts/qa-stack.sh test`, which picks the scenarios (QA_SPECS) and always tears it down,
+# volumes included.
 x-qa-app: &qa-app
   environment:
     TZ: ${TZ:-Asia/Kolkata}
@@ -16,8 +17,8 @@ x-qa-app: &qa-app
     start_period: 10s
 
 services:
-  # One-shot: the golden book on the golden app's volumes (none for `--mode fresh`). Root, so
-  # the volumes it hands over belong to the app's user (1000), as on a Linux host.
+  # One-shot: the golden book on the golden app's volumes (only for `--mode golden` or all).
+  # Root, so the volumes it hands over belong to the app's user (1000), as on a Linux host.
   qa-seed:
     image: mortgage-qa-runner:qa
     pull_policy: never  # built by qa-runner
@@ -29,11 +30,13 @@ services:
       - qa-golden-backups:/book/golden/backups
       - qa-fresh-data:/book/fresh/data
       - qa-fresh-backups:/book/fresh/backups
+      - qa-work-data:/book/work/data
+      - qa-work-backups:/book/work/backups
     command:
       - sh
       - -euc
       - |
-        if [ "$$QA_SPECS" != fresh ]; then /qa/backend/.venv/bin/python fixtures/golden_book.py /book/golden; fi
+        if [ -z "$$QA_SPECS" ] || [ "$$QA_SPECS" = golden ]; then /qa/backend/.venv/bin/python fixtures/golden_book.py /book/golden; fi
         chown -R 1000:1000 /book
     restart: "no"
   # The golden book. Reached by the runner as `qa-golden`, not the service name: `app` is a
@@ -64,6 +67,20 @@ services:
     volumes:
       - qa-fresh-data:/data
       - qa-fresh-backups:/backups
+  # Starts empty; the scenarios that change data seed their own Customers on it.
+  app-work:
+    <<: *qa-app
+    image: ${QA_APP_IMAGE:?set by scripts/qa-stack.sh}
+    pull_policy: never
+    networks:
+      default:
+        aliases: [qa-work]
+    depends_on:
+      qa-seed:
+        condition: service_completed_successfully
+    volumes:
+      - qa-work-data:/data
+      - qa-work-backups:/backups
   qa-runner:
     build:
       context: .
@@ -74,9 +91,12 @@ services:
         condition: service_healthy
       app-fresh:
         condition: service_healthy
+      app-work:
+        condition: service_healthy
     environment:
       GOLDEN_URL: http://qa-golden:8000
       FRESH_URL: http://qa-fresh:8000
+      WORK_URL: http://qa-work:8000
       QA_SPECS: ${QA_SPECS:-}
     volumes:
       - ./qa/test-results:/qa/test-results
@@ -87,3 +107,5 @@ volumes:
   qa-golden-backups:
   qa-fresh-data:
   qa-fresh-backups:
+  qa-work-data:
+  qa-work-backups:

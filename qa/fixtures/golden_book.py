@@ -1,198 +1,156 @@
-"""Golden Lending Book: deep-lifecycle fixture for QA.
+"""The golden book: the lending book QA's browse scenarios read, made through the app's own
+API with the sample book's helper (`lending_book.py`). It ends on 15 Nov 2025, the day
+every golden scenario is set on, and it is read-only for scenarios: one that changes data
+seeds its own Customer and Mortgages on the work app instead (qa/steps/lender.ts).
 
-Extends the shape of `docs/sample-book/book.py` into a richer book covering Advance
-payments, instalment cancellation, closure/reopen, Grace periods, and call notes, for
-the three customers named in the QA plan. Amounts in paise.
+What it holds, for the screens to show: Payments split across Mortgages, a Discount, a
+Grace Payment, Advances (upcoming, applied, cancelled), Redeemed, Waived, Forfeited and
+Reopened Mortgages, a Dormant one, a Term Change, Gold Rates and a Collateral Value set by
+hand, a Standalone Referrer, Call Notes, and Reminders awaiting approval, queued, sent and
+skipped. Invented throughout. Amounts in paise.
 
     cd backend && uv run python ../qa/fixtures/golden_book.py <folder>
 
-writes <folder>/data (database + photos). Importable as `from qa.fixtures.golden_book import build`.
+writes <folder>/data (the database and photos).
 """
 
-import io
 import sys
-from datetime import date, datetime, time, timedelta
+from datetime import date
 from pathlib import Path
 from typing import Any
 
-from fastapi.testclient import TestClient
-from PIL import Image, ImageDraw
+from lending_book import Book, Share, rupees
 
-from mortgage_backend.main import create_app
-
-RUPEE = 100
-G = 1000
+THE_DAY = date(2025, 11, 15)
 
 
-def rupees(amount: float) -> int:
-    return round(amount * RUPEE)
-
-
-class Clock:
-    def __init__(self, day: date) -> None:
-        self.day = day
-
-    def today(self) -> date:
-        return self.day
-
-    def now(self) -> datetime:
-        return datetime.combine(self.day, time(10, 30))
-
-
-class Book:
-    def __init__(self, folder: Path) -> None:
-        self.clock = Clock(date(2025, 9, 1))
-        data = folder / "data"
-        data.mkdir(parents=True, exist_ok=True)
-        self.app = create_app(
-            f"sqlite:///{data / 'mortgage.db'}", today=self.clock.today, now=self.clock.now
-        )
-        self.api = TestClient(self.app, base_url="http://localhost")
-        self.people: dict[str, Any] = {}
-        self.mortgages: dict[str, Any] = {}
-
-    def on(self, day: str) -> "Book":
-        target = date.fromisoformat(day)
-        assert target >= self.clock.day
-        while self.clock.day < target:
-            self.clock.day += timedelta(days=1)
-            self.send_reminders()
-        return self
-
-    def send_reminders(self) -> None:
-        # Mirror sample book: approve+send any queued reminders accruing by tomorrow.
-        for status in ("awaiting_approval", "queued"):
-            for reminder in self.get("/api/reminders", status=status)["items"]:
-                if reminder["accrues_on"] <= (self.clock.day + timedelta(days=1)).isoformat():
-                    if status == "awaiting_approval":
-                        self.post(f"/api/reminders/{reminder['id']}/approve")
-                    self.post(f"/api/reminders/{reminder['id']}/sent")
-
-    def get(self, path: str, **params: Any) -> Any:
-        r = self.api.get(path, params=params)
-        assert r.status_code == 200, f"GET {path}: {r.text}"
-        return r.json()
-
-    def post(self, path: str, body: Any = None) -> Any:
-        r = self.api.post(path, json=body) if body is not None else self.api.post(path)
-        assert r.status_code in (200, 201), f"POST {path}: {r.text}"
-        return r.json()
-
-    def put(self, path: str, body: Any) -> Any:
-        r = self.api.put(path, json=body)
-        assert r.status_code == 200, f"PUT {path}: {r.text}"
-        return r.json()
-
-    def upload(self, path: str, content: bytes, method: str = "post") -> Any:
-        files = {"photo": ("photo.jpg", content, "image/jpeg")}
-        r = getattr(self.api, method)(path, files=files)
-        assert r.status_code in (200, 201), f"{path}: {r.text}"
-        return r.json()
-
-    def customer(self, key: str, name: str, phone: str, address: str, **fields: Any) -> None:
-        self.people[key] = self.post("/api/customers", {"name": name, "address": address, "phone_1": phone, **fields})
-
-    def lend(self, key: str, who: str, amount: float, description: str, net_g: float, gross_g: float,
-             karat: int = 22, terms: Any = None, lent_through: str = "upi", started: str | None = None) -> None:
-        body = {
-            "customer_id": self.people[who]["id"],
-            "start_date": started or self.clock.day.isoformat(),
-            "amount_lent": rupees(amount),
-            "description": description,
-            "gross_weight_mg": round(gross_g * G),
-            "net_weight_mg": round(net_g * G),
-            "purity_karat": karat,
-            "lent_through": lent_through,
-            "terms": terms,
-        }
-        self.mortgages[key] = self.post("/api/mortgages", body)
-
-    def pay(self, who: str, split: dict[str, float], method: str = "cash", reference: str | None = None,
-            on: str | None = None, received_on: str | None = None, advance_months: int | None = None) -> Any:
-        allocations = []
-        for k, amount in split.items():
-            a = {"mortgage_id": self.mortgages[k]["id"], "amount": rupees(amount)}
-            if advance_months:
-                a["advance"] = rupees(amount)
-                a["months"] = advance_months
-                a["amount"] = 0
-            allocations.append(a)
-        total = sum(a["amount"] + a.get("advance", 0) for a in allocations)
-        return self.post("/api/payments", {
-            "customer_id": self.people[who]["id"],
-            "paid_on": on or self.clock.day.isoformat(),
-            "received_on": received_on,
-            "amount": total,
-            "method": method,
-            "reference": reference,
-            "allocations": allocations,
-        })
-
-    def mortgage_id(self, key: str) -> int:
-        return int(self.mortgages[key]["id"])
+def reminder_to(book: Book, name: str) -> int:
+    """The id of today's Reminder to the Customer called `name`, awaiting approval."""
+    found = [r["id"] for r in book.get("/api/reminders", status="awaiting_approval")["items"]
+             if r["customer"]["name"] == name]
+    assert len(found) == 1, f"expected one Reminder to {name} awaiting approval, found {found}"
+    return found[0]
 
 
 def events(book: Book) -> list[tuple[str, Any]]:
-    ramesh, priya, meera = "ramesh", "priya", "meera"
+    """What happened, by date: (day, what the Lender did). Replayed in date order."""
+    def mortgage(key: str) -> str:
+        return f"/api/mortgages/{book.mortgage_id(key)}"
+
     happened: list[tuple[str, Any]] = [
         ("2025-09-01", lambda: (
-            book.customer(ramesh, "Ramesh Kumar", "9811122233", "12 MG Road, Bengaluru"),
-            book.customer(priya, "Priya Sharma", "9822233344", "5 Park Street, Kolkata"),
-            book.customer(meera, "Meera Sharma", "9833344455", "14 Lajpat Nagar, New Delhi"),
+            book.customer("ramesh", "Ramesh Kumar", "9811122233", "12 MG Road, Bengaluru"),
+            book.customer("priya", "Priya Sharma", "9822233344", "5 Park Street, Kolkata"),
+            book.customer("meera", "Meera Sharma", "9833344455", "14 Lajpat Nagar, New Delhi"),
+            book.customer("rohit", "Rohit Verma", "9844455566", "3 Civil Lines, Jaipur"),
+            book.customer("vikram", "Vikram Singh", "9855566677", "21 Sector 17, Chandigarh"),
+            book.customer("anita", "Anita Desai", "9866677788", "8 Koregaon Park, Pune"),
         )),
-        ("2025-09-05", lambda: book.lend("r1", ramesh, 50_000, "Gold ring", net_g=5, gross_g=5.5)),
-        ("2025-09-05", lambda: book.lend("r2", ramesh, 30_000, "Gold chain", net_g=3, gross_g=3.3)),
-        ("2025-09-05", lambda: book.lend("p1", priya, 40_000, "Gold bangles", net_g=8, gross_g=8.8)),
-        ("2025-09-05", lambda: book.lend("m1", meera, 60_000, "Gold necklace", net_g=12, gross_g=13.2)),
-        # Ramesh: advance payment across 3 months on r1
-        ("2025-09-10", lambda: book.pay(ramesh, {"r1": 15_000}, method="upi", advance_months=3,
-                                         reference="UPI advance Ramesh")),
-        # Ramesh: advance payment across 2 months on r2, his second Mortgage (gold chain)
-        ("2025-09-11", lambda: book.pay(ramesh, {"r2": 6_000}, method="cash", advance_months=2,
-                                         reference="cash advance r2")),
-        # Ramesh: cancel the first upcoming instalment of r1
+        # Rohit defaulted: his earrings are sold.
+        ("2025-09-03", lambda: book.lend("rohit", "rohit", 40_000, "Gold earrings", net_g=6, gross_g=6.6)),
+        ("2025-09-05", lambda: (
+            book.lend("r1", "ramesh", 50_000, "Gold ring", net_g=5, gross_g=5.5),
+            book.lend("r2", "ramesh", 30_000, "Gold chain", net_g=3, gross_g=3.3),
+            book.lend("p1", "priya", 40_000, "Gold bangles", net_g=8, gross_g=8.8),
+            book.lend("m1", "meera", 60_000, "Gold necklace", net_g=12, gross_g=13.2),
+        )),
+        ("2025-09-08", lambda: book.lend("coin", "vikram", 50_000, "Gold coin", net_g=10, gross_g=10, karat=24)),
+        ("2025-09-12", lambda: book.lend("bracelet", "anita", 25_000, "Gold bracelet", net_g=4, gross_g=4.4)),
+        # Advances: Ramesh's ring over 3 months (its 5 Oct part cancelled, 5 Nov applied,
+        # 5 Dec upcoming), his chain over 2 (both applied), Priya's bangles over 2.
+        ("2025-09-10", lambda: book.pay("ramesh", {"r1": Share(advance=15_000, months=3)}, method="upi",
+                                        reference="UPI advance Ramesh")),
+        ("2025-09-11", lambda: book.pay("ramesh", {"r2": Share(advance=6_000, months=2)},
+                                        reference="cash advance r2")),
+        ("2025-09-12", lambda: book.pay("priya", {"p1": Share(advance=12_000, months=2)},
+                                        reference="cash advance Priya")),
         ("2025-09-20", lambda: book.post(
-            f"/api/mortgages/{book.mortgage_id('r1')}/advance-instalments/"
-            f"{book.get(f'/api/mortgages/{book.mortgage_id('r1')}')['advance_instalments'][0]['id']}/cancel")),
-        # Priya: advance payment then closure
-        ("2025-09-12", lambda: book.pay(priya, {"p1": 12_000}, method="cash", advance_months=2,
-                                         reference="cash advance Priya")),
-        ("2025-10-01", lambda: book.on("2025-10-01")),
-        ("2025-10-15", lambda: book.post(f"/api/mortgages/{book.mortgage_id('p1')}/redeem",
-                                         {"redeemed_on": "2025-10-15", "method": "cash", "reference": "closure Priya"})),
-        ("2025-10-20", lambda: book.post(f"/api/mortgages/{book.mortgage_id('p1')}/reopen",
-                                         {"reason": "reopen for QA"})),
-        # Meera: grace period payment (received late)
-        ("2025-10-07", lambda: book.pay(meera, {"m1": 2_000}, method="upi", on="2025-10-04",
-                                         received_on="2025-10-07", reference="grace Meera")),
-        ("2025-11-01", lambda: book.post(f"/api/mortgages/{book.mortgage_id('m1')}/call-notes",
-                                         {"note": "Will pay after festival"})),
+            f"{mortgage('r1')}/advance-instalments/{book.get(mortgage('r1'))['advance_instalments'][0]['id']}/cancel")),
+        # Meera's Grace Payment: received 7 Oct, within three days of the 5 Oct Accrual Date,
+        # dated 4 Oct.
+        ("2025-10-07", lambda: book.pay("meera", {"m1": 2_000}, method="upi", on="2025-10-04",
+                                        received_on="2025-10-07", reference="grace Meera")),
+        ("2025-10-08", lambda: book.lend("m2", "meera", 20_000, "Gold earrings", net_g=3, gross_g=3.2)),
+        # Ramesh pays across both his Mortgages, with ₹100 off the chain.
+        ("2025-10-10", lambda: book.pay("ramesh", {"r1": 1_000, "r2": Share(cash=500, discount=100)},
+                                        reference="split Ramesh")),
+        # Priya's bangles Redeemed, then Reopened: Redeemed by mistake.
+        ("2025-10-15", lambda: book.post(f"{mortgage('p1')}/redeem", {
+            "redeemed_on": "2025-10-15", "method": "cash", "reference": "closure Priya"})),
+        ("2025-10-20", lambda: book.post(f"{mortgage('p1')}/reopen", {"reason": "reopen for QA"})),
+        # Farhan's pendant goes to 1.5% a month from 16 Nov; Kiran's kada is valued by hand;
+        # Deepa was introduced by Gopal Rao, who isn't a Customer himself.
+        ("2025-10-16", lambda: (
+            book.customer("farhan", "Farhan Ali", "9877788899", "4 Hazratganj, Lucknow"),
+            book.lend("pendant", "farhan", 35_000, "Gold pendant", net_g=5, gross_g=5.4),
+        )),
+        ("2025-10-17", lambda: (
+            book.customer("deepa", "Deepa Nair", "9888899900", "17 MG Road, Kochi",
+                          referrer={"kind": "new", "name": "Gopal Rao", "address": "", "phone": "9899900011"}),
+            book.lend("anklet", "deepa", 20_000, "Gold anklet", net_g=4, gross_g=4.5),
+            book.customer("kiran", "Kiran Rao", "9800011122", "6 Jubilee Hills, Hyderabad"),
+            book.lend("kada", "kiran", 45_000, "Gold kada", net_g=7, gross_g=7.5),
+        )),
+        ("2025-11-01", lambda: (
+            book.post(f"{mortgage('pendant')}/term-changes", {"effective_on": "2025-11-16", "monthly_rate_bps": 150}),
+            book.put(f"{mortgage('kada')}/collateral", {"value": rupees(60_000)}),
+            book.post(f"{mortgage('m1')}/call-notes", {"note": "Will pay after festival"}),
+        )),
+        ("2025-11-03", lambda: book.post(f"{mortgage('rohit')}/forfeit", {
+            "forfeited_on": "2025-11-03", "recovered_amount": rupees(38_000), "note": "Sold to Mehta Jewellers"})),
+        ("2025-11-08", lambda: book.post(f"{mortgage('coin')}/redeem", {
+            "redeemed_on": "2025-11-08", "method": "upi", "reference": "UPI closure Vikram"})),
+        # Sunil's anklet, lent in cash on 1 Jul and entered late from the paper book with
+        # its three Payments: together they leave it owing nothing, Dormant. (None of them is
+        # its whole Outstanding on its date: that would Redeem it.)
+        ("2025-11-10", lambda: (
+            book.customer("sunil", "Sunil Mehta", "9811100022", "2 Ashram Road, Ahmedabad"),
+            book.lend("sunil", "sunil", 15_000, "Silver-gold anklet", net_g=4, gross_g=5,
+                      terms={"monthly_rate_bps": 200, "interest_mode": "simple", "part_month_rule": "nothing"},
+                      lent_through="cash", started="2025-07-01"),
+            book.pay("sunil", {"sunil": 300}, on="2025-08-26"),
+            book.pay("sunil", {"sunil": 300}, on="2025-09-05"),
+            book.pay("sunil", {"sunil": 15_000}, method="upi", on="2025-08-25"),
+            # Meera pays her necklace and puts an Advance on her earrings, in one Payment.
+            book.pay("meera", {"m1": 1_200, "m2": Share(advance=800, months=2)}, method="upi",
+                     reference="split advance Meera"),
+        )),
+        # Anita comes in ₹200 short and it is let off.
+        ("2025-11-12", lambda: book.post(f"{mortgage('bracelet')}/waive", {
+            "waived_on": "2025-11-12", "amount_paid": book.owed("bracelet") - rupees(200),
+            "method": "cash", "note": "₹200 let off"})),
+        ("2025-11-14", lambda: book.post(f"{mortgage('pendant')}/call-notes", {"note": "Asked for a week"})),
+        # The golden day: today's Gold Rates, and the Reminders for 16 and 17 Nov: Farhan's
+        # approved (queued), Kiran's skipped, Deepa's still awaiting approval. Every earlier
+        # one was sent.
+        ("2025-11-15", lambda: (
+            book.put("/api/settings/gold-rates", [
+                {"purity_karat": karat, "rate_per_gram": rupees(rate)}
+                for karat, rate in ((24, 12_600), (22, 11_550), (20, 10_500), (18, 9_450), (14, 7_350))
+            ]),
+            book.post(f"/api/reminders/{reminder_to(book, 'Farhan Ali')}/approve"),
+            book.post(f"/api/reminders/{reminder_to(book, 'Kiran Rao')}/skip"),
+        )),
     ]
     return happened
 
 
-def build(folder: Path | None = None) -> "Book":
-    if folder is None:
-        import tempfile
-        folder = Path(tempfile.mkdtemp()) / "golden"
-    book = Book(folder)
+def write(folder: Path) -> None:
+    book = Book(folder, start=date(2025, 9, 1), story_day=THE_DAY)
     with book.api:
         book.put("/api/settings/default-terms", {
             "monthly_rate_bps": 200, "interest_mode": "compounded_yearly", "part_month_rule": "pro_rata"})
         book.put("/api/settings/grace-period", {"grace_period_days": 3})
-        for day, action in sorted(events(book), key=lambda e: e[0]):
-            book.on(day)
-            action()
-        book.on("2025-11-15")
-    return book
-
-
-def write(folder: Path) -> None:
-    build(folder)
+        messages = book.get("/api/settings/messages")
+        book.put("/api/settings/messages", {**messages, "reminder_days_before": 2, "reminder_approve_first": True})
+        book.put("/api/settings/gold-rates", [
+            {"purity_karat": karat, "rate_per_gram": rupees(rate)}
+            for karat, rate in ((24, 11_900), (22, 10_900), (20, 9_900), (18, 8_900), (14, 6_950))
+        ])
+        book.replay(events(book))
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print(__doc__)
-        sys.exit(1)
+        sys.exit(__doc__)
     write(Path(sys.argv[1]))
