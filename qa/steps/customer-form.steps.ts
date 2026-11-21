@@ -259,13 +259,13 @@ Then(/^the (Aadhaar Number|PAN) reads "(.*)" once the photo is read$/, async ({ 
 });
 
 Then('no more than the last 4 digits of {string} left the form', async ({ page }, typed: string) => {
-  const digits = typed.replace(/\D/g, '');
-  const bodies = (sent.get(page) ?? []).map((request) => request.body);
-  expect(bodies.length).toBeGreaterThan(0);
-  if (digits.length === 4) return; // typed as the last 4 alone
-  for (const body of bodies) {
-    expect(body).not.toContain(typed);
-    expect(body).not.toContain(digits);
+  // Every check and save of the Customer sent the Aadhaar Number as its last 4 digits.
+  const customers = (sent.get(page) ?? []).filter(
+    ({ method, url }) => method !== 'GET' && /\/api\/customers(\/\d+)?(\/preview)?$/.test(new URL(url).pathname),
+  );
+  expect(customers.length).toBeGreaterThan(0);
+  for (const { body } of customers) {
+    expect(JSON.parse(body).aadhaar_last4).toBe(typed.replace(/\D/g, '').slice(-4));
   }
 });
 

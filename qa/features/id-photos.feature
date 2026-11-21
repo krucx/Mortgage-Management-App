@@ -12,6 +12,12 @@ Feature: ID Photos
     Then the Aadhaar Number is no longer marked as read from the photo
 
   @screen:/customers/new
+  Scenario: The PAN on a PAN card photo fills an empty PAN field
+    When the Lender starts a new Customer "Read PAN Customer"
+    And adds a PAN card photo that reads "PQRST6789Z"
+    Then the PAN reads "PQRST6789Z", read from the photo
+
+  @screen:/customers/new
   Scenario: The number on an ID Photo never replaces what was typed
     When the Lender starts a new Customer "Typed PAN Customer"
     And types "ABCDE1234F" as the PAN
