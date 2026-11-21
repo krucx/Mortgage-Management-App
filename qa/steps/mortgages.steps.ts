@@ -310,10 +310,6 @@ Then('the Lender is warned of the cash', async ({ page, lender }) => {
   );
 });
 
-When('the Lender goes back', async ({ page }) => {
-  await page.getByRole('dialog').getByRole('button', { name: 'Go back' }).click();
-});
-
 Then('the new Mortgage is not created', async ({ page }) => {
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page).toHaveURL(/\/mortgages\/new/);
