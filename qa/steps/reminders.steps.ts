@@ -5,12 +5,17 @@ function reminderRows(page: Page, customer: string) {
   return page.getByRole('row').filter({ has: page.getByRole('link', { name: customer, exact: true }) });
 }
 
-/** The Customer's Reminder rows, paging through the list (twenty a page, and every work
+/** The Customer's Reminder rows, paging from page 1 through the list (twenty a page, and every work
  * scenario queues one) until they show or the last page is reached. */
 async function findReminder(page: Page, customer: string) {
   const rows = reminderRows(page, customer);
   const next = page.getByRole('button', { name: 'Next' });
   const at = page.getByText(/^Page \d+ of \d+$/);
+  // From page 1, whatever an earlier lookup left: the page held is not in the URL.
+  if (await at.isVisible() && !(await at.textContent())!.startsWith('Page 1 ')) {
+    await page.reload();
+    await expect(page.getByRole('table')).toBeVisible();
+  }
   while ((await rows.count()) === 0 && (await next.isVisible()) && (await next.isEnabled())) {
     const shown = await at.textContent();
     await next.click();
