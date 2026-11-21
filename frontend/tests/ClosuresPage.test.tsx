@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { ClosuresPage } from '../src/pages/ClosuresPage'
 import { formatDate, todayIso } from '../src/format'
 import { changePreview, fakeServer } from './fakeServer'
+import { expectWholeRupeeSteps } from './rupeeField'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -359,4 +360,18 @@ test('with nothing Dormant, the page says so', async () => {
   )
 
   expect(await screen.findByText('None: every Active Mortgage owes something.')).toBeTruthy()
+})
+
+test('Recovered Amount and Received now step by whole rupees', async () => {
+  showPage(fakeServer(forfeitRoutes({})), '/closures', {
+    '/closures': <ClosuresPage />,
+  })
+
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Choose 2025-Arjun-GoldRing' }))
+  expectWholeRupeeSteps(
+    await screen.findByLabelText('Recovered Amount for 2025-Arjun-GoldRing'),
+    '0',
+  )
+  fireEvent.click(screen.getByRole('radio', { name: 'Waive off' }))
+  expectWholeRupeeSteps(await screen.findByLabelText('Received now for 2025-Arjun-GoldRing'), '0')
 })

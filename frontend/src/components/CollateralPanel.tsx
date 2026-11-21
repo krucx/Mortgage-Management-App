@@ -7,6 +7,7 @@ import { changes } from '../requests'
 import { STALE_AFTER, useChange } from '../serverState'
 import { CollateralForecast } from './ChangeForecasts'
 import { useConfirm } from './useConfirm'
+import { RupeeInput } from './RupeeInput'
 
 /** Collateral Value and Loan-to-Value, with a Collateral Value set by hand if needed. */
 export function CollateralPanel({
@@ -96,11 +97,9 @@ export function CollateralPanel({
         <form onSubmit={submit} className="row">
           <label>
             Collateral Value (₹)
-            <input
-              type="number"
+            <RupeeInput
               required
               min="0.01"
-              step="0.01"
               value={value}
               onChange={(event) => setValue(event.target.value)}
             />
