@@ -8,7 +8,7 @@ Feature: Referrers
     When the Lender starts a new Customer "Picked Referral Customer"
     And picks "Picked Referrer Customer" as their Referrer
     And the Lender saves the Customer
-    Then the confirm lists:
+    Then the confirmation reads:
       | Referrer | Picked Referrer Customer |
     When the Lender confirms
     Then they were referred by "Picked Referrer Customer"
@@ -21,7 +21,7 @@ Feature: Referrers
     When the Lender starts a new Customer "New Referral Customer"
     And adds a New Referrer "Brand New Referrer" with the phone "7045100010"
     And the Lender saves the Customer
-    Then the confirm lists:
+    Then the confirmation reads:
       | Referrer | Brand New Referrer (new Referrer, 7045100010) |
     When the Lender confirms
     Then they were referred by the Standalone Referrer "Brand New Referrer"

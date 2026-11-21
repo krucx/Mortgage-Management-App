@@ -129,10 +129,6 @@ Then('{int} Customer(s) is/are listed', async ({ page }, count: number) => {
   await expect(listedNames(page)).toHaveCount(count);
 });
 
-Then('the dialog says {string}', async ({ page }, text: string) => {
-  await expect(page.getByRole('dialog')).toContainText(text);
-});
-
 // A Customer's page, and a Referrer's
 
 When('the Lender opens the Customer {string}', async ({ page, lender }, name: string) => {

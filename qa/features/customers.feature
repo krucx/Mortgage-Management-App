@@ -91,7 +91,7 @@ Feature: Customers
     Scenario: Deleting a Customer clears the Referrer of the people they referred
       Given "Delete Me Customer" is a Customer who referred "Delete Me Friend"
       When the Lender starts to delete "Delete Me Customer" from the Customers list
-      Then the dialog says "Delete Me Customer referred Delete Me Friend. Their Referrer will be cleared."
+      Then the confirmation says "Delete Me Customer referred Delete Me Friend. Their Referrer will be cleared."
       When the Lender confirms the delete
       Then the list says "No Customers match."
       When the Lender opens the Customer "Delete Me Friend"
@@ -111,7 +111,7 @@ Feature: Customers
         | PAN              | abcde1234f       |
       And adds their photo, Aadhaar card photo and PAN card photo
       And the Lender saves the Customer
-      Then the confirm lists:
+      Then the confirmation reads:
         | Name            | Full Details Customer  |
         | Address         | 4 Summary Street       |
         | Contact numbers | 7045100001, 7045100002 |

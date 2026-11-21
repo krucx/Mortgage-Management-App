@@ -1,18 +1,14 @@
 import { expect, type Page } from '@playwright/test';
 import { Given, Then, When, type Day, type Money } from './fixtures';
 import type { Lender } from './lender';
-import { buttons } from './selectors';
+import { confirm } from './selectors';
+import { shownINR as rupees, shownPercent as percent } from './shown';
 
 // Gold Rates in Settings, the Collateral Value panel on a Mortgage page, and the Call List
 // rows listed for their Loan-to-Value. Figures are checked against what the API says of the
 // same Mortgage on the same day, never worked out here.
 
 type Collateral = { value: number; source: 'gold_rate' | 'manual'; loan_to_value: number };
-
-// The app's spellings (frontend/src/money.ts formatINR, frontend/src/format.ts formatPercent).
-const rupees = (paise: number) =>
-  `${paise < 0 ? '-' : ''}₹${new Intl.NumberFormat('en-IN', paise % 100 === 0 ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(paise) / 100)}`;
-const percent = (ratio: number) => `${(ratio * 100).toLocaleString('en-IN', { maximumFractionDigits: 1 })}%`;
 
 /** Collateral Value · Loan-to-Value, as the confirmation's Now and After rows show them. */
 const shown = (c: Collateral) => `${rupees(c.value)} · ${percent(c.loan_to_value)}`;
@@ -49,11 +45,6 @@ async function clearGoldRates(page: Page) {
 async function saveGoldRates(page: Page) {
   await goldRates(page).getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-}
-
-async function confirm(page: Page) {
-  await page.getByRole('dialog').getByRole('button', { name: buttons.confirmAndSave }).click();
-  await expect(page.getByRole('dialog')).toBeHidden();
 }
 
 /** The Mortgage's row on the Call List, looked for page by page; null if it is not listed. */
@@ -118,19 +109,6 @@ When(
     await expect(goldRates(page).getByText('Saved. Collateral Values now use these rates.')).toBeVisible();
   },
 );
-
-Then('the confirmation lists {string} at {string}', async ({ page }, label: string, value: string) => {
-  const row = page.getByRole('dialog').locator('.summary-row', { has: page.getByRole('term').getByText(label, { exact: true }) });
-  await expect(row.getByRole('definition')).toHaveText(value);
-});
-
-Then('the confirmation says {string}', async ({ page }, text: string) => {
-  await expect(page.getByRole('dialog')).toContainText(text);
-});
-
-When('the Lender confirms', async ({ page }) => {
-  await confirm(page);
-});
 
 Then('it is valued at the {int}K Gold Rate of {day}', async ({ page, lender }, karat: number, day: Day) => {
   // Just after a change is confirmed, the API may answer before it is saved: wait for it.

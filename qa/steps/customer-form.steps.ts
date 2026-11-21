@@ -197,15 +197,6 @@ When(
 
 // What the form says
 
-Then('the confirm lists:', async ({ page }, rows: DataTable) => {
-  const summary = page.getByRole('dialog').locator('.summary');
-  for (const [label, value] of rows.raw()) {
-    await expect(summary.locator('.summary-row', { has: page.locator(`dt:text-is("${label}")`) }).locator('dd')).toHaveText(
-      value,
-    );
-  }
-});
-
 Then('the New Mortgage form is for {string}', async ({ page }, name: string) => {
   await expect(page).toHaveURL(/\/mortgages\/new\?customer=\d+/);
   await expect(page.getByRole('heading', { name: 'New Mortgage' })).toBeVisible();
