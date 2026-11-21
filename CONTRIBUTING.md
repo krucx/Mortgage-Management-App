@@ -9,8 +9,9 @@ or merge a pull request.
 1. Start from an up-to-date `main` and create a focused branch, for example
    `fix/restore-backup-message` or `docs/release-checklist`.
 2. Make the change and run the checks that apply. Add or update the scenario in
-   `qa/features` that covers what the change does, and run `scripts/qa-stack.sh test` locally
-   before opening the pull request: CI runs that suite only for releases. On every pull
+   `qa/features` that covers what the change does. Run the local QA stack
+   (`scripts/qa-stack.sh test`) only with the owner's approval; without it, skip it and say
+   so in the pull request. CI runs that suite only for releases. On every pull
    request the `frontend` job checks that each route in `frontend/src/App.tsx` has a scenario
    tagged `@screen:<route>`, or is listed in `qa/screens-to-cover/<issue>.txt` by the ticket
    that will cover it; it fails naming any route that is neither, or the ticket's file to
