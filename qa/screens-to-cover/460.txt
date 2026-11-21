@@ -1,1 +1,0 @@
-/mortgages/:id/redeem
