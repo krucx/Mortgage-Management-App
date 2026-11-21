@@ -135,10 +135,6 @@ When('the Lender saves the Customer', async ({ page }) => {
   await save(page);
 });
 
-When('the Lender confirms', async ({ page }) => {
-  await confirm(page);
-});
-
 When('the Lender saves the Customer and confirms', async ({ page }) => {
   await save(page);
   await confirm(page);
@@ -259,14 +255,14 @@ Then(/^the (Aadhaar Number|PAN) reads "(.*)" once the photo is read$/, async ({ 
 });
 
 Then('no more than the last 4 digits of {string} left the form', async ({ page }, typed: string) => {
-  // Every check and save of the Customer sent the Aadhaar Number as its last 4 digits.
-  const customers = (sent.get(page) ?? []).filter(
-    ({ method, url }) => method !== 'GET' && /\/api\/customers(\/\d+)?(\/preview)?$/.test(new URL(url).pathname),
-  );
-  expect(customers.length).toBeGreaterThan(0);
-  for (const { body } of customers) {
-    expect(JSON.parse(body).aadhaar_last4).toBe(typed.replace(/\D/g, '').slice(-4));
-  }
+  // Every check and save of the Customer sent the Aadhaar Number as its last 4 digits
+  // (those sent before it was typed carry none).
+  const aadhaars = (sent.get(page) ?? [])
+    .filter(({ method, url }) => method !== 'GET' && /\/api\/customers(\/\d+)?(\/preview)?$/.test(new URL(url).pathname))
+    .map(({ body }) => JSON.parse(body).aadhaar_last4)
+    .filter((aadhaar) => aadhaar !== null);
+  expect(aadhaars.length).toBeGreaterThan(0);
+  for (const aadhaar of aadhaars) expect(aadhaar).toBe(typed.replace(/\D/g, '').slice(-4));
 });
 
 // Photo uploads
