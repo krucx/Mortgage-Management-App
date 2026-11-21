@@ -9,8 +9,9 @@ export const GOLDEN_DAY = '2025-11-15';
 
 export type Named = { id: number; name: string };
 
-/** One Mortgage's part of a Payment, in paise, as the payment form sends it. */
-export type Share = { mortgage: Named; cash?: number; discount?: number; advance?: number; months?: number };
+/** A Payment's Allocation to one Mortgage, in paise: cash paid now, and an Advance held
+ * for its next `months` of interest. */
+export type Allocation = { mortgage: Named; cash?: number; advance?: number; months?: number };
 
 /** A Primary Number no other scenario uses, starting with `first`. */
 export function newPhone(first = '8') {
@@ -103,18 +104,12 @@ export class Lender {
     return this.mortgage!;
   }
 
-  /** A Payment from `customer` on `day`, split across their Mortgages as the payment form
-   * sends it. Dated the day before an Accrual Date and `receivedOn` within its Grace
-   * Period, it is a Grace Payment. */
-  async pay(
-    customer: Named,
-    shares: Share[],
-    { day = this.day, receivedOn, method = 'cash', reference }: { day?: string; receivedOn?: string; method?: string; reference?: string } = {},
-  ) {
-    const allocations = shares.map(({ mortgage, cash = 0, discount = 0, advance = 0, months }) => ({
+  /** A cash Payment from `customer` on `day`, allocated across their Mortgages as the
+   * payment form sends it. */
+  async pay(customer: Named, allocations: Allocation[], { day = this.day }: { day?: string } = {}) {
+    const sent = allocations.map(({ mortgage, cash = 0, advance = 0, months }) => ({
       mortgage_id: mortgage.id,
       amount: cash,
-      discount,
       ...(advance ? { advance, months } : {}),
     }));
     this.payment = await this.post(
@@ -122,11 +117,9 @@ export class Lender {
       {
         customer_id: customer.id,
         paid_on: day,
-        received_on: receivedOn,
-        amount: allocations.reduce((sum, a) => sum + a.amount + (a.advance ?? 0), 0),
-        method,
-        reference,
-        allocations,
+        amount: sent.reduce((sum, a) => sum + a.amount + (a.advance ?? 0), 0),
+        method: 'cash',
+        allocations: sent,
       },
       day,
     );

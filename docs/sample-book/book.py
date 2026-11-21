@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 # The Book helper the QA golden book shares (qa/fixtures/lending_book.py).
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "qa" / "fixtures"))
-from lending_book import RUPEE, Book, Share, rupees  # noqa: E402
+from lending_book import RUPEE, Allocation, Book, rupees  # noqa: E402
 
 THE_DAY = date(2026, 10, 19)
 
@@ -160,7 +160,7 @@ def events(book: Book) -> list[tuple[str, Any]]:
         # a month, applied on 19 Sep, 19 Oct and 19 Nov. (Entered last, so every other
         # Payment keeps its number.)
         ("2026-10-19", lambda: (
-            book.pay(arjun, {"arjunchain": Share(advance=2_700, months=3)}, method="upi",
+            book.pay(arjun, {"arjunchain": Allocation(advance=2_700, months=3)}, method="upi",
                      reference="UPI 5120 0905 3318", on="2026-09-05"),
             book.put("/api/settings/gold-rates", [
                 {"purity_karat": 24, "rate_per_gram": rupees(14_766)},

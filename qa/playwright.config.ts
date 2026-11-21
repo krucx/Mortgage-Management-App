@@ -15,7 +15,7 @@ const specs = process.env.QA_SPECS;
 const projects = [
   { name: 'fresh', grep: FRESH, use: { baseURL: process.env.FRESH_URL ?? 'http://qa-fresh:8000' } },
   { name: 'golden', grep: GOLDEN, use: { baseURL: process.env.GOLDEN_URL ?? 'http://qa-golden:8000' } },
-  { name: 'work', grepInvert: /@fresh|@golden/, use: { baseURL: process.env.WORK_URL ?? 'http://qa-work:8000' } },
+  { name: 'work', grepInvert: [FRESH, GOLDEN], use: { baseURL: process.env.WORK_URL ?? 'http://qa-work:8000' } },
 ];
 
 export default defineConfig({

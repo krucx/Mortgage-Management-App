@@ -7,12 +7,17 @@ import { join } from 'node:path'
 // shrinks: a listed route that is covered now, or is no longer a route, fails too.
 
 const GAPS = 'qa/screens-to-cover.txt'
-const routePath = /<Route\b[^>]*?\bpath="([^"]+)"/g
+const routePath = /\bpath="([^"]+)"/
 const screenTag = /@screen:(\S+)/g
 const gapLine = /^\S+\s+#\d+$/
 
 export function checkScreenCoverage({ appTsx, features, gaps }) {
-  const routes = [...appTsx.matchAll(routePath)].map((match) => match[1])
+  // Each <Route>'s own path, wherever it sits among the element's attributes.
+  const routes = appTsx
+    .split(/<Route\s/)
+    .slice(1)
+    .map((element) => element.match(routePath)?.[1])
+    .filter(Boolean)
   const screens = new Set(
     Object.values(features).flatMap((text) => [...text.matchAll(screenTag)].map((match) => match[1])),
   )

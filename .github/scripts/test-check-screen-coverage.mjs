@@ -56,3 +56,10 @@ test('a listed route must name the ticket that covers it', () => {
     'qa/screens-to-cover.txt: "/payments/:id/advance-instalments/:instalment/receipt" needs the ticket that covers it, as "<route>  #<issue>".',
   ])
 })
+
+test('a route is read whatever order its attributes are in', () => {
+  const app = `<Route element={<CalculatorPage />} path="/calculator" />`
+  assert.deepEqual(checkScreenCoverage({ appTsx: app, features: {}, gaps: '' }), [
+    'No scenario covers /calculator: tag one @screen:/calculator in qa/features.',
+  ])
+})

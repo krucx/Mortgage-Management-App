@@ -3,7 +3,7 @@ API with the sample book's helper (`lending_book.py`). It ends on 15 Nov 2025, t
 every golden scenario is set on, and it is read-only for scenarios: one that changes data
 seeds its own Customer and Mortgages on the work app instead (qa/steps/lender.ts).
 
-What it holds, for the screens to show: Payments split across Mortgages, a Discount, a
+What it holds, for the screens to show: Payments allocated across Mortgages, a Discount, a
 Grace Payment, Advances (upcoming, applied, cancelled), Redeemed, Waived, Forfeited and
 Reopened Mortgages, a Dormant one, a Term Change, Gold Rates and a Collateral Value set by
 hand, a Standalone Referrer, Call Notes, and Reminders awaiting approval, queued, sent and
@@ -19,7 +19,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from lending_book import Book, Share, rupees
+from lending_book import Allocation, Book, rupees
 
 THE_DAY = date(2025, 11, 15)
 
@@ -58,11 +58,11 @@ def events(book: Book) -> list[tuple[str, Any]]:
         ("2025-09-12", lambda: book.lend("bracelet", "anita", 25_000, "Gold bracelet", net_g=4, gross_g=4.4)),
         # Advances: Ramesh's ring over 3 months (its 5 Oct part cancelled, 5 Nov applied,
         # 5 Dec upcoming), his chain over 2 (both applied), Priya's bangles over 2.
-        ("2025-09-10", lambda: book.pay("ramesh", {"r1": Share(advance=15_000, months=3)}, method="upi",
+        ("2025-09-10", lambda: book.pay("ramesh", {"r1": Allocation(advance=15_000, months=3)}, method="upi",
                                         reference="UPI advance Ramesh")),
-        ("2025-09-11", lambda: book.pay("ramesh", {"r2": Share(advance=6_000, months=2)},
+        ("2025-09-11", lambda: book.pay("ramesh", {"r2": Allocation(advance=6_000, months=2)},
                                         reference="cash advance r2")),
-        ("2025-09-12", lambda: book.pay("priya", {"p1": Share(advance=12_000, months=2)},
+        ("2025-09-12", lambda: book.pay("priya", {"p1": Allocation(advance=12_000, months=2)},
                                         reference="cash advance Priya")),
         ("2025-09-20", lambda: book.post(
             f"{mortgage('r1')}/advance-instalments/{book.get(mortgage('r1'))['advance_instalments'][0]['id']}/cancel")),
@@ -72,7 +72,7 @@ def events(book: Book) -> list[tuple[str, Any]]:
                                         received_on="2025-10-07", reference="grace Meera")),
         ("2025-10-08", lambda: book.lend("m2", "meera", 20_000, "Gold earrings", net_g=3, gross_g=3.2)),
         # Ramesh pays across both his Mortgages, with ₹100 off the chain.
-        ("2025-10-10", lambda: book.pay("ramesh", {"r1": 1_000, "r2": Share(cash=500, discount=100)},
+        ("2025-10-10", lambda: book.pay("ramesh", {"r1": 1_000, "r2": Allocation(cash=500, discount=100)},
                                         reference="split Ramesh")),
         # Priya's bangles Redeemed, then Reopened: Redeemed by mistake.
         ("2025-10-15", lambda: book.post(f"{mortgage('p1')}/redeem", {
@@ -112,7 +112,7 @@ def events(book: Book) -> list[tuple[str, Any]]:
             book.pay("sunil", {"sunil": 300}, on="2025-09-05"),
             book.pay("sunil", {"sunil": 15_000}, method="upi", on="2025-08-25"),
             # Meera pays her necklace and puts an Advance on her earrings, in one Payment.
-            book.pay("meera", {"m1": 1_200, "m2": Share(advance=800, months=2)}, method="upi",
+            book.pay("meera", {"m1": 1_200, "m2": Allocation(advance=800, months=2)}, method="upi",
                      reference="split advance Meera"),
         )),
         # Anita comes in ₹200 short and it is let off.

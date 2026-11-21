@@ -37,9 +37,9 @@ class Clock:
 
 
 @dataclass(frozen=True)
-class Share:
-    """One Mortgage's part of a Payment, in rupees: cash paid now, a Discount applied after
-    it, and an Advance held for its next `months` of interest (ADR 0021)."""
+class Allocation:
+    """A Payment's Allocation to one Mortgage, in rupees: cash paid now, a Discount applied
+    after it, and an Advance held for its next `months` of interest (ADR 0021)."""
 
     cash: float = 0
     discount: float = 0
@@ -152,36 +152,36 @@ class Book:
     def pay(
         self,
         who: str,
-        split: dict[str, float | Share],
+        allocations: dict[str, float | Allocation],
         method: str = "cash",
         reference: str | None = None,
         on: str | None = None,
         received_on: str | None = None,
     ) -> Any:
-        """A Payment received today (or dated `on`, when entered late), split across the
-        Customer's Mortgages: rupees in cash for each, or a Share. Dated `on` the day before
-        an Accrual Date and `received_on` within its Grace Period, it is a Grace Payment. An
-        Allocation of a Mortgage's whole Outstanding Redeems it."""
-        allocations = []
-        for key, part in split.items():
-            share = part if isinstance(part, Share) else Share(cash=part)
-            allocation: dict[str, Any] = {
-                "mortgage_id": self.mortgages[key]["id"], "amount": rupees(share.cash)}
-            if share.discount:
-                allocation["discount"] = rupees(share.discount)
-            if share.advance:
-                allocation |= {"advance": rupees(share.advance), "months": share.months}
-            allocations.append(allocation)
+        """A Payment received today (or dated `on`, when entered late), allocated across the
+        Customer's Mortgages: rupees in cash for each, or an Allocation. Dated `on` the day
+        before an Accrual Date and `received_on` within its Grace Period, it is a Grace
+        Payment. An Allocation of a Mortgage's whole Outstanding Redeems it."""
+        sent = []
+        for key, part in allocations.items():
+            allocation = part if isinstance(part, Allocation) else Allocation(cash=part)
+            body: dict[str, Any] = {
+                "mortgage_id": self.mortgages[key]["id"], "amount": rupees(allocation.cash)}
+            if allocation.discount:
+                body["discount"] = rupees(allocation.discount)
+            if allocation.advance:
+                body |= {"advance": rupees(allocation.advance), "months": allocation.months}
+            sent.append(body)
         return self.post(
             "/api/payments",
             {
                 "customer_id": self.people[who]["id"],
                 "paid_on": on or self.clock.day.isoformat(),
                 "received_on": received_on,
-                "amount": sum(a["amount"] + a.get("advance", 0) for a in allocations),
+                "amount": sum(a["amount"] + a.get("advance", 0) for a in sent),
                 "method": method,
                 "reference": reference,
-                "allocations": allocations,
+                "allocations": sent,
             },
         )
 
