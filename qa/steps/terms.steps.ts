@@ -1,5 +1,4 @@
 import { expect, type Page } from '@playwright/test';
-import type { DataTable } from 'playwright-bdd';
 import { Given, Then, When, type Day } from './fixtures';
 
 // The Change Terms form and the Terms panel on a Mortgage page.
@@ -79,19 +78,6 @@ Then('the Preview shows what changes', async ({ page }) => {
 When('the Lender saves the Term Change', async ({ page }) => {
   await save(page).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-});
-
-Then('the confirmation reads:', async ({ page }, rows: DataTable) => {
-  const dialog = page.getByRole('dialog');
-  for (const [label, value] of rows.raw()) {
-    await expect(dialog.locator('.summary-row', { has: page.getByRole('term').getByText(label, { exact: true }) })).toContainText(value);
-  }
-});
-
-When('the Lender confirms it', async ({ page }) => {
-  await page.getByRole('dialog').getByRole('button', { name: /^(Confirm and save|Remove)$/ }).click();
-  await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(page).toHaveURL(/\/mortgages\/\d+$/);
 });
 
 Then(

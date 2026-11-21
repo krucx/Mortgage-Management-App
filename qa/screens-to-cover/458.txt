@@ -1,0 +1,1 @@
+/payments/:id/advance-instalments/:instalment/receipt

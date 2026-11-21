@@ -221,7 +221,7 @@ data. `scripts/qa-stack.sh down` removes its containers and image, never the fol
 `QA_PROJECT` to run several at once.
 
 `scripts/qa-stack.sh test` runs the Gherkin scenarios in `qa/features` (playwright-bdd, steps
-in `qa/steps`) against the app built from source, needing only Docker (and `python3`, as `up`
+in `qa/steps`, added as [qa/README.md](qa/README.md) says) against the app built from source, needing only Docker (and `python3`, as `up`
 does). Three apps run at once on their own scratch volumes: one with no data for the
 scenarios tagged `@fresh`, one on the golden book (`qa/fixtures/golden_book.py`, made with
 the sample book's helper `qa/fixtures/lending_book.py`) that the scenarios tagged `@golden`
