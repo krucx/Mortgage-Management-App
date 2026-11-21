@@ -1,0 +1,1 @@
+- **QA scenarios for the Grace Period:** the Last Accrual Date colours, the "Date it" choices and tooltip, the Grace Payment on every screen, no Grace, Advance with Grace and the refusals are covered by `qa/features/grace.feature`.
