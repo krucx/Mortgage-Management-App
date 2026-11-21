@@ -78,3 +78,9 @@ def test_no_header_falls_back_to_process_clock(qa_app):
     with TestClient(qa_app, base_url="http://localhost") as c:
         r = c.get("/_clock")
         assert r.json()["today"] == TODAY.isoformat()
+
+
+def test_a_bad_header_on_the_api_returns_400_before_the_daily_run(qa_app):
+    with TestClient(qa_app, base_url="http://localhost") as c:
+        r = c.get("/api/customers", headers={"X-QA-Clock": "not-a-date"})
+        assert (r.status_code, r.json()) == (400, {"detail": "bad X-QA-Clock"})

@@ -143,6 +143,21 @@ def test_the_daily_run_backs_up_only_when_the_last_backup_is_a_week_old(
     assert len(backups_in(backup_dir)) == 2
 
 
+def test_in_qa_mode_the_backup_due_check_sees_the_requests_date(
+    client, backup_dir, monkeypatch
+):
+    monkeypatch.setattr("mortgage_backend.platform.clock._QA_MODE", True)
+    finished(client)  # the first Backup, on 20 Apr
+    client.get("/api/backups", headers={"X-QA-Clock": "2026-04-26"})
+    client.app.state.backups.wait()
+    assert len(backups_in(backup_dir)) == 1
+
+    client.get("/api/backups", headers={"X-QA-Clock": "2026-04-27"})  # a week later
+    client.app.state.backups.wait()
+
+    assert len(backups_in(backup_dir)) == 2
+
+
 def test_the_daily_run_happens_once_a_day(client, clock):
     finished(client)
     first = client.app.state.daily_run.count

@@ -4,6 +4,10 @@ The app may run for weeks without restarting and has no scheduler, so the first
 request on a new calendar day (in TZ) runs the jobs. A job is marked done, in the
 database, only once it has succeeded: one that failed is tried again on a later request
 the same day, and one that succeeded is not run again, even after a restart.
+
+The day is the request's (see `platform/clock.py`): in QA mode `X-QA-Clock` sets it, and
+the clock may move backwards, so each day that has been run is remembered, not only the
+latest. The database keeps the latest day each job succeeded on.
 """
 
 import logging
@@ -25,23 +29,19 @@ def _done_key(name: str) -> str:
 
 
 class DailyRun:
-    def __init__(
-        self, engine: Engine, today: Callable[[], date], jobs: Mapping[str, DailyJob]
-    ) -> None:
+    def __init__(self, engine: Engine, jobs: Mapping[str, DailyJob]) -> None:
         self.engine = engine
-        self.today = today
         self.jobs = dict(jobs)
         self.count = 0  # runs since the app started
-        self._complete_on: date | None = None  # the day every job has succeeded
+        self._complete: set[date] = set()  # the days every job has succeeded on
         self._lock = threading.Lock()
 
-    def run_if_due(self) -> None:
-        """Run each job that has not succeeded today. Jobs must return quickly."""
-        today = self.today()
-        if self._complete_on == today:
+    def run_if_due(self, today: date) -> None:
+        """Run each job that has not succeeded on `today`. Jobs must return quickly."""
+        if today in self._complete:
             return
         with self._lock:
-            if self._complete_on == today:
+            if today in self._complete:
                 return
             with self.engine.begin() as conn:
                 done = get_config(conn, [_done_key(name) for name in self.jobs])
@@ -63,4 +63,4 @@ class DailyRun:
                 with self.engine.begin() as conn:
                     set_config(conn, _done_key(name), today.isoformat())
             if not failed:
-                self._complete_on = today
+                self._complete.add(today)
