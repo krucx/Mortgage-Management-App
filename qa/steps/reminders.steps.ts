@@ -337,7 +337,7 @@ Then('Settings refuses it, saying {string}', async ({ page }, reason: string) =>
 });
 
 Then('the Reminder template is not saved', async ({ lender }) => {
-  expect((await lender.get('/api/settings/messages')).reminder_template).not.toContain('Dear {name}');
+  expect((await lender.get('/api/settings/messages')).reminder_template).toBe(originalTemplate.get(lender));
 });
 
 Then('the Reminder template lists the placeholders the app can fill', async ({ page, lender }) => {
