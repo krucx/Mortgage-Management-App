@@ -3,8 +3,6 @@
 /customers/:id  #451
 /customers/:id/edit  #451
 /mortgages/:id/redeem  #460
-/call-list  #462
 /closures  #461
 /referrers/:id  #451
-/settings  #466
 *  #468

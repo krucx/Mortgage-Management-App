@@ -342,10 +342,6 @@ Then("the confirmation's Owed today is more than {money}", async ({ page }, prin
   confirmedOwed.set(page, shown);
 });
 
-When('the Lender confirms', async ({ page }) => {
-  await page.getByRole('dialog').getByRole('button', { name: buttons.confirmAndSave }).click();
-});
-
 Then('the Mortgage\'s Outstanding is the Owed today it was confirmed with', async ({ page }) => {
   await expect(page).toHaveURL(/\/mortgages\/\d+$/);
   await expect(page.locator('.tile', { hasText: 'Outstanding on' }).locator('strong')).toHaveText(

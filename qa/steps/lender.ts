@@ -62,6 +62,14 @@ export class Lender {
     return res.json();
   }
 
+  /** PUT on the scenario's day. */
+  async put(path: string, body: unknown) {
+    if (this.golden) throw new Error(`the golden book is read-only: PUT ${path} belongs in a scenario that seeds its own data`);
+    const res = await this.request.put(path, { data: body, headers: this.headers(this.day) });
+    if (!res.ok()) throw new Error(`PUT ${path} failed: ${res.status()} ${await res.text()}`);
+    return res.json();
+  }
+
   /** Why the app refuses a POST or DELETE asked on the scenario's day; fails if it is carried out. */
   async refusal(method: 'post' | 'delete', path: string, body?: unknown): Promise<string> {
     if (this.golden) throw new Error(`the golden book is read-only: ${method.toUpperCase()} ${path} belongs in a scenario that seeds its own data`);
@@ -92,9 +100,12 @@ export class Lender {
     return this.customer!;
   }
 
-  /** A Mortgage lent to `customer` on `day` against a piece of 6 grams (5.5 of 22 karat
-   * gold); its Mortgage Name is the one the app suggests. Amount in paise. */
-  async lend(customer: Named, { amount, description, day = this.day }: { amount: number; description: string; day?: string }) {
+  /** A Mortgage lent to `customer` on `day` against a piece of 6 grams (5.5 of `karat`
+   * gold, 22 unless given); its Mortgage Name is the one the app suggests. Amount in paise. */
+  async lend(
+    customer: Named,
+    { amount, description, day = this.day, karat = 22 }: { amount: number; description: string; day?: string; karat?: number },
+  ) {
     this.mortgage = await this.post(
       '/api/mortgages',
       {
@@ -104,7 +115,7 @@ export class Lender {
         description,
         gross_weight_mg: 6_000,
         net_weight_mg: 5_500,
-        purity_karat: 22,
+        purity_karat: karat,
         lent_through: 'upi',
       },
       day,
