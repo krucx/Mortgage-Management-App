@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import type { DataTable } from 'playwright-bdd';
 import { Given, Then, When, type Day, type Money } from './fixtures';
 import { buttons, labels, tile } from './selectors';
+import { shownINR } from './shown';
 
 // The Mortgages list, New Mortgage (and the Calculator's Lend this), a Mortgage's page and
 // Edit Mortgage.
@@ -16,10 +17,6 @@ const PHOTO = {
 const photos = (count: number) =>
   Array.from({ length: count }, (_, i) => ({ ...PHOTO, name: `photo-${i + 1}.png` }));
 
-/** As the app shows paise: "₹1,00,000", "₹1,234.50". */
-const shownINR = (paise: number) =>
-  `₹${new Intl.NumberFormat('en-IN', paise % 100 ? { minimumFractionDigits: 2 } : { maximumFractionDigits: 0 }).format(paise / 100)}`;
-
 const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'June', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
@@ -33,13 +30,6 @@ const confirmedOwed = new WeakMap<Page, string>();
 Given('{string} is a Customer', async ({ lender }, name: string) => {
   await lender.addCustomer(name);
 });
-
-Given(
-  'was also lent {money} on {day} against a {jewellery}',
-  async ({ lender }, amount: Money, day: Day, description: string) => {
-    await lender.lend(lender.customer!, { amount: amount.paise, description, day: day.iso });
-  },
-);
 
 Given(
   '{string} was lent {money} on {day} against {int} Gold rings',

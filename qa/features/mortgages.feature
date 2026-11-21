@@ -211,7 +211,7 @@ Feature: Mortgages
     Scenario: The Ledger shows its latest 8 steps, and the complete Ledger every step of each kind
       Given "Paprika Ledger Customer" was lent ₹30,000 on 5 Sept 2024 against a Gold chain
       And paid ₹1,000 on it on 10 Oct 2024
-      And its Terms change to 2% a month from 5 Oct 2025
+      And on 5 Oct 2025 its Terms were changed to 2% a month from 5 Oct 2025
       When the Lender opens the Mortgage on 15 Nov 2025
       Then its Ledger shows its latest 8 steps
       When the Lender opens the complete Ledger
@@ -288,7 +288,7 @@ Feature: Mortgages
     @screen:/mortgages/:id/edit
     Scenario: A start date that moves a Term Change off an Accrual Date is refused
       Given "Fenugreek Term Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
-      And its Terms change to 2% a month from 5 Dec 2025
+      And on 15 Nov 2025 its Terms were changed to 2% a month from 5 Dec 2025
       When the Lender edits the Mortgage on 15 Nov 2025
       And changes its start date to 6 Sept 2025
       Then the edit is refused: "would no longer be on an Accrual Date"
