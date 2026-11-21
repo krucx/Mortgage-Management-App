@@ -20,6 +20,9 @@ const shown = (c: Collateral) => `${rupees(c.value)} · ${percent(c.loan_to_valu
 /** What each page last showed of its Mortgage's Collateral, to tell whether it changed. */
 const lastSeen = new WeakMap<Page, { text: string; collateral: Collateral }>();
 
+/** The After row of the last confirmation of a value set by hand, checked once it is saved. */
+const previewed = new WeakMap<Page, string>();
+
 async function collateralOf(lender: Lender): Promise<Collateral | null> {
   return (await lender.get(`/api/mortgages/${lender.mortgage!.id}`)).collateral;
 }
@@ -147,8 +150,11 @@ Then('no Loan-to-Value is shown', async ({ page }) => {
   await expect(panel(page)).not.toContainText('Loan-to-Value');
 });
 
-Then('its Collateral Value and Loan-to-Value have changed', async ({ page }) => {
+Then('its Collateral Value and Loan-to-Value have changed', async ({ page, lender }) => {
   const before = lastSeen.get(page)!;
+  const now = (await collateralOf(lender))!;
+  expect(now.value).not.toBe(before.collateral.value);
+  expect(now.loan_to_value).not.toBe(before.collateral.loan_to_value);
   await expect(panel(page).locator('p').first()).toContainText('Loan-to-Value');
   await expect(panel(page).locator('p').first()).not.toHaveText(before.text);
 });
@@ -166,7 +172,8 @@ Then(
     const dialog = page.getByRole('dialog');
     const row = (label: string) => dialog.locator('.summary-row', { has: page.getByText(label, { exact: true }) }).getByRole('definition');
     await expect(row('Now (value · Loan-to-Value)')).toHaveText(shown(lastSeen.get(page)!.collateral));
-    await expect(row('After')).toHaveText(new RegExp(`^${value.shown} · [\\d.,]+%$`));
+    await expect(row('After')).toContainText(`${value.shown} · `);
+    previewed.set(page, (await row('After').textContent())!);
   },
 );
 
@@ -174,6 +181,8 @@ Then('its Collateral Value is {money} set by hand on {day}', async ({ page, lend
   await expect.poll(async () => (await collateralOf(lender))?.value).toBe(value.paise);
   const collateral = await collateralOf(lender);
   expect(collateral?.source).toBe('manual');
+  // The confirmation's After is what was saved, Loan-to-Value included.
+  if (previewed.has(page)) expect(previewed.get(page)).toBe(shown(collateral!));
   await expect(panel(page)).toContainText(
     `${value.shown} set by hand on ${day.shown} · Loan-to-Value ${percent(collateral!.loan_to_value)}`,
   );
