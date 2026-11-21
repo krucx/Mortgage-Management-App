@@ -91,7 +91,7 @@ Feature: Closures
       When the Lender opens the Customer "Waiveall Customer"
       Then their Favours Given lists the Waived Amount on the "Gold chain"
 
-    @screen:/mortgages/:id @screen:/customers/:id
+    @screen:/mortgages/:id @screen:/payments/:id @screen:/customers/:id
     Scenario: Waive off with part received links the final Payment's receipt
       Given "Waivepart Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
       When the Lender opens the Mortgage on 15 Nov 2025
