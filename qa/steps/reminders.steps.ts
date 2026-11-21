@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { Given, Then, When, type Day } from './fixtures';
+import { Then, When, type Day } from './fixtures';
 import type { Lender } from './lender';
 
 // The Reminders page: who is listed under which tab, sending on WhatsApp, skipping, and the
