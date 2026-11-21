@@ -76,7 +76,11 @@ When('the Lender lists the Payments received at any time', async ({ page }) => {
 });
 
 When('the Lender hides Voided Payments', async ({ page }) => {
-  await page.getByLabel('Show Voided Payments').uncheck();
+  // Held in the URL, the box changes once the URL does: uncheck() would look too soon.
+  const voided = page.getByLabel('Show Voided Payments');
+  await voided.click();
+  await expect(page).toHaveURL(/[?&]include_voided=false/);
+  await expect(voided).not.toBeChecked();
 });
 
 When('the Lender sorts the Payments by {word}', async ({ page }, heading: string) => {
