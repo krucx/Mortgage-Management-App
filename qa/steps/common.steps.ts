@@ -29,6 +29,11 @@ When('the Lender opens the Mortgage on {day}', async ({ page, lender }, day: Day
   await page.goto(`/mortgages/${lender.mortgage!.id}`);
 });
 
+When('the Lender opens the Payments list', async ({ page }) => {
+  await page.goto('/payments');
+  await expect(page.getByRole('heading', { name: 'Payments' })).toBeVisible();
+});
+
 When('the Lender opens the Payment {string}', async ({ page, lender }, reference: string) => {
   lender.payment = await lender.paymentWithReference(reference);
   await page.goto(`/payments/${lender.payment.id}`);
@@ -41,6 +46,10 @@ When('the Lender opens that Payment', async ({ page, lender }) => {
 When('the Lender opens a new Payment from {string}', async ({ page, lender }, name: string) => {
   lender.customer = await lender.customerNamed(name);
   await page.goto(`/payments/new?customer=${lender.customer.id}`);
+});
+
+When('the Lender goes to the next page', async ({ page }) => {
+  await page.getByRole('button', { name: 'Next' }).click();
 });
 
 When('presses Esc', async ({ page }) => {
@@ -73,6 +82,10 @@ Then('the confirmation says {string}', async ({ page }, text: string) => {
 
 When('the Lender confirms', async ({ page }) => {
   await confirm(page);
+});
+
+When('the Lender goes back', async ({ page }) => {
+  await page.getByRole('dialog').getByRole('button', { name: 'Go back' }).click();
 });
 
 Then('the dialog is closed', async ({ page }) => {

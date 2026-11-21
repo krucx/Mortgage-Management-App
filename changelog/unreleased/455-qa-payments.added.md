@@ -1,0 +1,1 @@
+- **QA stack:** scenarios for recording Payments: the Payments list (filters, periods, Voided Payments, summary, sorting, pager, badges), starting one from the list, a Customer or a Mortgage, splitting it equally, by amount or by percentage, back-dating, paying the full Outstanding, Dormant Mortgages, the form's problems, the Cash Limit's warning and the app's refusals.
