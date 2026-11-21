@@ -1,0 +1,8 @@
+/payments  #455
+/payments/:id/advance-instalments/:instalment/receipt  #458
+/mortgages  #452
+/mortgages/:id/redeem  #460
+/mortgages/:id/edit  #452
+/calculator  #467
+/closures  #461
+*  #468
