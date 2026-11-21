@@ -148,6 +148,22 @@ export class Lender {
   private headers(day?: string): Record<string, string> {
     return day ? { [QA_CLOCK_HEADER]: day } : {};
   }
+
+  /** DELETE on the scenario's day. */
+  async delete(path: string) {
+    if (this.golden) throw new Error(`the golden book is read-only: DELETE ${path} belongs in a scenario that seeds its own data`);
+    const res = await this.request.delete(path, { headers: this.headers(this.day) });
+    if (!res.ok()) throw new Error(`DELETE ${path} failed: ${res.status()} ${await res.text()}`);
+    return res.json();
+  }
+
+  /** Upload a file as the multipart field `field`, on `day` (default: the scenario's day). */
+  async upload(path: string, field: string, file: { name: string; mimeType: string; buffer: Buffer }, day = this.day) {
+    if (this.golden) throw new Error(`the golden book is read-only: POST ${path} belongs in a scenario that seeds its own data`);
+    const res = await this.request.post(path, { multipart: { [field]: file }, headers: this.headers(day) });
+    if (!res.ok()) throw new Error(`POST ${path} failed: ${res.status()} ${await res.text()}`);
+    return res.json();
+  }
 }
 
 function only<T extends { id: number }>(page: { items: T[] }, matches: (item: any) => boolean, what: string): T {
