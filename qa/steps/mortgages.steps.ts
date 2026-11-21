@@ -27,10 +27,6 @@ const confirmedOwed = new WeakMap<Page, string>();
 
 // Given
 
-Given('{string} is a Customer', async ({ lender }, name: string) => {
-  await lender.addCustomer(name);
-});
-
 Given(
   '{string} was lent {money} on {day} against {int} Gold rings',
   async ({ lender }, name: string, amount: Money, day: Day, count: number) => {
