@@ -214,17 +214,17 @@ Feature: Payments
       Then the Payment can't be recorded
       When enters ₹4,000 as the Amount received
       And enters a Discount of minus ₹100 for 2025-Checks-GoldChain
-      Then the form says "Amounts cannot be negative."
+      Then the form lists the problem "Amounts cannot be negative."
       And the Payment can't be recorded
       When enters a Discount of ₹0 for 2025-Checks-GoldChain
       And the Lender allocates by percentage
       And the Lender sets the Percentage for 2025-Checks-GoldChain to 60
       And the Lender sets the Percentage for 2025-Checks-GoldRing to 30
-      Then the form says "The percentages must add up to 100."
+      Then the form lists the problem "The percentages must add up to 100."
       And the Payment can't be recorded
       When the Lender unticks 2025-Checks-GoldChain
       And the Lender unticks 2025-Checks-GoldRing
-      Then the form says "Choose at least one Mortgage."
+      Then the form lists the problem "Choose at least one Mortgage."
       And the Payment can't be recorded
 
     @screen:/payments/new
@@ -235,7 +235,7 @@ Feature: Payments
       When the Lender opens a new Payment from "Shortfall Customer"
       And enters ₹1,00,000 as the Amount received
       And the Lender allocates by percentage
-      Then the form says the Allocations add up to what the Mortgages owe, not ₹1,00,000
+      Then the form lists the problem that the Allocations add up to what the Mortgages owe, not ₹1,00,000
       And the Payment can't be recorded
 
   Rule: Cash at or above the Cash Limit is warned of, never refused

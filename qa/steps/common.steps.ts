@@ -48,6 +48,10 @@ When('the Lender opens a new Payment from {string}', async ({ page, lender }, na
   await page.goto(`/payments/new?customer=${lender.customer.id}`);
 });
 
+When('the Lender goes to the next page', async ({ page }) => {
+  await page.getByRole('button', { name: 'Next' }).click();
+});
+
 When('presses Esc', async ({ page }) => {
   await page.keyboard.press('Escape');
 });
@@ -78,6 +82,10 @@ Then('the confirmation says {string}', async ({ page }, text: string) => {
 
 When('the Lender confirms', async ({ page }) => {
   await confirm(page);
+});
+
+When('the Lender goes back', async ({ page }) => {
+  await page.getByRole('dialog').getByRole('button', { name: 'Go back' }).click();
 });
 
 Then('the dialog is closed', async ({ page }) => {

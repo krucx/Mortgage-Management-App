@@ -83,25 +83,21 @@ When('the Lender sorts the Payments by {word}', async ({ page }, heading: string
   await page.getByRole('columnheader', { name: heading }).getByRole('button').click();
 });
 
-When('the Lender goes to the next page', async ({ page }) => {
-  await page.getByRole('button', { name: 'Next' }).click();
-});
-
 // The list follows the filter after a pause, so these wait for every row to agree.
 
 Then('every Payment listed is from {string}', async ({ page }, customer: string) => {
   await expect(rows(page).first()).toBeVisible();
-  await expect.poll(async () => new Set(await column(page, 2).allTextContents())).toEqual(new Set([customer]));
+  await expect.poll(async () => allAre(await column(page, 2).allTextContents(), (name) => name === customer)).toBe(true);
 });
 
 Then('every Payment listed pays {mortgage}', async ({ page }, mortgage: string) => {
   await expect(rows(page).first()).toBeVisible();
-  await expect.poll(async () => (await column(page, 3).allTextContents()).every((names) => names.split(', ').includes(mortgage))).toBe(true);
+  await expect.poll(async () => allAre(await column(page, 3).allTextContents(), (names) => names.split(', ').includes(mortgage))).toBe(true);
 });
 
 Then('every Payment listed was received in {word} {int}', async ({ page }, month: string, year: number) => {
   await expect(rows(page).first()).toBeVisible();
-  await expect.poll(async () => (await column(page, 1).allTextContents()).every((day) => day.endsWith(` ${month} ${year}`))).toBe(true);
+  await expect.poll(async () => allAre(await column(page, 1).allTextContents(), (day) => day.endsWith(` ${month} ${year}`))).toBe(true);
 });
 
 Then('the Payment {string} is listed', async ({ page }, reference: string) => {
@@ -170,6 +166,12 @@ Then('the list shows {string} on {string}', async ({ page }, showing: string, of
   await expect(page.getByText(showing, { exact: true })).toBeVisible();
   await expect(page.getByText(of, { exact: true })).toBeVisible();
 });
+
+/** Whether there are cells, read in one go, and each is `wanted`: a list emptied by the filter
+ * is no match. */
+function allAre(cells: string[], wanted: (cell: string) => boolean) {
+  return cells.length > 0 && cells.every(wanted);
+}
 
 /** Whether `values` are in `order`, and more than one, so the order says something. */
 function isSorted<T>(values: T[], order: (a: T, b: T) => number) {

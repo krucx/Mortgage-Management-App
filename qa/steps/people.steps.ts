@@ -83,10 +83,6 @@ When('sorts it the other way', async ({ page }) => {
   await page.locator('th[aria-sort] button').click();
 });
 
-When('the Lender goes to the next page', async ({ page }) => {
-  await page.getByRole('button', { name: 'Next' }).click();
-});
-
 When('the Lender starts to delete {string} from the Customers list', async ({ page }, name: string) => {
   await openCustomers(page);
   await page.getByRole('searchbox', { name: 'Filter Customers' }).fill(name);

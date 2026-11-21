@@ -127,10 +127,6 @@ When('the Lender redeems them', async ({ page }) => {
   await dialog(page).getByRole('button', { name: 'Redeem', exact: true }).click();
 });
 
-When('the Lender goes back', async ({ page }) => {
-  await dialog(page).getByRole('button', { name: 'Go back' }).click();
-});
-
 When('the Lender records it in cash anyway', async ({ page }) => {
   await dialog(page).getByRole('button', { name: 'Record in cash anyway' }).click();
 });
@@ -195,11 +191,11 @@ Then('their Mortgage that owes nothing reads {string} and can\'t be ticked', asy
   await expect(include(page, name)).toHaveCount(0);
 });
 
-Then('the form says {string}', async ({ page }, problem: string) => {
+Then('the form lists the problem {string}', async ({ page }, problem: string) => {
   await expect(page.locator('.problems').getByText(problem, { exact: true })).toBeVisible();
 });
 
-Then('the form says the Allocations add up to what the Mortgages owe, not {money}', async ({ page, lender }, received: Money) => {
+Then('the form lists the problem that the Allocations add up to what the Mortgages owe, not {money}', async ({ page, lender }, received: Money) => {
   const owed = (await activeOn(lender)).reduce((sum, m) => sum + toPay(m), 0);
   await expect(page.locator('.problems').getByText(`The Allocations add up to ${shownINR(owed)}, not ${received.shown}.`, { exact: true })).toBeVisible();
 });
@@ -214,10 +210,13 @@ Then('the Lender is warned {string}', async ({ page }, warning: string) => {
   await expect(dialog(page).getByRole('button', { name: 'Record in cash anyway' })).toBeVisible();
 });
 
-Then('the Payment is not recorded', async ({ page }) => {
+Then('the Payment is not recorded', async ({ page, lender }) => {
   await expect(dialog(page)).toBeHidden();
   await expect(page).toHaveURL(/\/payments\/new\?/);
   await expect(recordPayment(page)).toBeEnabled();
+  // The scenario's own Customer, so no other scenario's Payments count.
+  const { total } = await lender.get('/api/payments', { q: lender.customer!.name });
+  expect(total).toBe(0);
 });
 
 Then('the Receipt page opens', async ({ page }) => {
