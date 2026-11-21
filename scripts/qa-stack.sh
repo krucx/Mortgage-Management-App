@@ -6,8 +6,9 @@
 #   scripts/qa-stack.sh down                            # remove the containers and the image
 #   scripts/qa-stack.sh test [--mode fresh|golden|work|all] [--ui]   # qa/features; 0 pass, 1 fail
 #
-# Optional: QA_PROJECT (default mortgage-qa, mortgage-qa-test for `test`; give each parallel run
-# its own), QA_PORT (default: a free port). `down` never removes folders.
+# Optional: QA_PROJECT (default mortgage-qa, and mortgage-qa-test-<this folder> for `test`, so
+# each worktree tests with its own images; give each parallel `up` its own), QA_PORT (default: a
+# free port). `down` never removes folders.
 set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
 cd "$ROOT"
@@ -103,13 +104,14 @@ run_tests() {
     esac
   done
   case $MODE in fresh|golden|work|all) ;; *) die "--mode is fresh, golden, work or all" ;; esac
-  PROJECT=${QA_PROJECT:-mortgage-qa-test}
+  PROJECT=${QA_PROJECT:-mortgage-qa-test-$(basename "$ROOT" | tr -c 'a-zA-Z0-9_\n-' - | tr A-Z a-z)}
   IMAGE=mortgage-management-app:$PROJECT
+  RUNNER_IMAGE=mortgage-qa-runner:$PROJECT
   PORT=${QA_PORT:-$(free_port)}
   [ "$MODE" = all ] && SPECS= || SPECS=$MODE
 
   override=$(mktemp)
-  trap 'qa_compose down -v --remove-orphans || true; docker rmi "$IMAGE" >/dev/null 2>&1 || true; rm -f "$override"' EXIT
+  trap 'qa_compose down -v --remove-orphans || true; docker rmi "$IMAGE" "$RUNNER_IMAGE" >/dev/null 2>&1 || true; rm -f "$override"' EXIT
   trap 'exit 1' INT TERM
   {
     printf 'services:\n  app:\n    image: %s\n' "$IMAGE"
@@ -131,11 +133,11 @@ run_tests() {
   echo "qa-stack: passed (--mode $MODE)"
 }
 
-# Compose with the QA overlay, for run_tests (it sets PORT, SPECS, IMAGE and override). The base
+# Compose with the QA overlay, for run_tests (it sets PORT, SPECS, IMAGE, RUNNER_IMAGE and override). The base
 # file requires DATA_DIR and BACKUP_DIR; the overlay mounts its own scratch volumes over them, so
 # they never reach the Lender's folders.
 qa_compose() {
-  DATA_DIR=qa-data BACKUP_DIR=qa-backups APP_PORT=$PORT BACKUP_PASSWORD= QA_SPECS=$SPECS QA_APP_IMAGE=$IMAGE \
+  DATA_DIR=qa-data BACKUP_DIR=qa-backups APP_PORT=$PORT BACKUP_PASSWORD= QA_SPECS=$SPECS QA_APP_IMAGE=$IMAGE QA_RUNNER_IMAGE=$RUNNER_IMAGE \
     dc -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.qa.yml -f "$override" "$@"
 }
 

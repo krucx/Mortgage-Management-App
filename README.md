@@ -218,10 +218,11 @@ trying unreleased code, so it never runs a migration on real data. Plain
 --backups DIR` refuses unless both are scratch folders (not the ones in `.env`), builds
 from source under its own project and a free port, and checks the API is serving the scratch
 data. `scripts/qa-stack.sh down` removes its containers and image, never the folders. Set
-`QA_PROJECT` to run several at once.
+`QA_PROJECT` to run several at once; `test` defaults to `mortgage-qa-test-<folder>`, so each
+worktree builds and tests its own app and runner images.
 
 `scripts/qa-stack.sh test` runs the Gherkin scenarios in `qa/features` (playwright-bdd, steps
-in `qa/steps`) against the app built from source, needing only Docker (and `python3`, as `up`
+in `qa/steps`, added as [qa/README.md](qa/README.md) says) against the app built from source, needing only Docker (and `python3`, as `up`
 does). Three apps run at once on their own scratch volumes: one with no data for the
 scenarios tagged `@fresh`, one on the golden book (`qa/fixtures/golden_book.py`, made with
 the sample book's helper `qa/fixtures/lending_book.py`) that the scenarios tagged `@golden`
@@ -231,7 +232,7 @@ runs only one of the sets; the default `all` runs every one. It exits 0 when eve
 passes and 1 otherwise, always removing its containers and volumes; failures leave screenshots in `qa/test-results`. `--ui` serves Playwright's UI on a local port instead, until Ctrl-C, with the golden book
 for `all` or `--mode golden`.
 The `qa` job in `.github/workflows/test.yml` runs it on the `release/X.Y.Z` pull request
-and on demand (workflow_dispatch), not on every pull request; run it locally before opening one.
+and on demand (workflow_dispatch), not on every pull request; run it locally only with the owner's approval (see CONTRIBUTING.md).
 
 The Windows setup lives in `windows/`: `Setup.bat` → `setup.ps1` (gets the code) →
 `install.ps1` (Docker or local, `.env`, installs, shortcut, `mortgage-management://`

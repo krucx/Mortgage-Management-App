@@ -37,9 +37,14 @@ simplifying, reusing, and eventually creating a cleaner, maintainable system.
   `scripts/qa-stack.sh test [--mode fresh|golden|work|all]` runs the Gherkin scenarios in `qa/features`.
   Every change adds or updates the scenario covering it (`@fresh` if it needs an empty book,
   `@golden` if it only reads the golden book on its last day, untagged if it changes data and
-  seeds its own Customer; `@screen:<route>` for each screen it covers) and passes
-  `scripts/qa-stack.sh test` locally before its PR is opened; CI runs the suite only on the
-  release PR. A screen with no scenario yet is listed in `qa/screens-to-cover.txt` with its ticket.
+  seeds its own Customer; `@screen:<route>` for each screen it covers). Ask the owner before
+  running the local QA stack (`scripts/qa-stack.sh`, the Playwright runs) and run it only on
+  their approval; otherwise skip it, rely on the typecheck, unit tests, `npm run check-steps`
+  and the coverage check, and say in the PR that local QA was skipped. CI runs the suite only
+  on the release PR. A screen with no scenario yet is listed in `qa/screens-to-cover/<issue>.txt` by the
+  ticket that will cover it; that ticket's PR deletes its own file. Steps follow
+  [qa/README.md](qa/README.md): generic ones only in `qa/steps/common.steps.ts`, unique step text,
+  and `npm run check-steps` in `qa/` after merging main and before reporting ready.
 - Agent skills live in `.claude/skills`; `.agents/skills` is a symlink to it. Edit skills
   only under `.claude/skills` so Claude Code and other agents read the same copy.
 - Two documentation folders, not interchangeable: `docs/` is the published GitHub Pages site
