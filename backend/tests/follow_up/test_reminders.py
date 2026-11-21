@@ -248,6 +248,58 @@ def test_the_daily_run_queues_reminders_the_lender_sends(app_client, clock) -> N
     assert app_client.post(f"/api/reminders/{reminder['id']}/skip").status_code == 409
 
 
+def dated(day: str) -> dict[str, str]:
+    """Headers that set a request's date in QA mode."""
+    return {"X-QA-Clock": day}
+
+
+def reminders_on(client: TestClient, day: str) -> list[Any]:
+    return client.get("/api/reminders", headers=dated(day)).json()["items"]
+
+
+@pytest.fixture
+def qa_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("mortgage_backend.platform.clock._QA_MODE", True)
+
+
+@pytest.mark.usefixtures("qa_mode")
+def test_in_qa_mode_the_daily_run_queues_the_reminders_of_the_requests_date(
+    app_client,
+) -> None:
+    lend(app_client, person(app_client))  # on 11 May: 14 May is 3 days away
+
+    app_client.get("/api/customers", headers=dated("2026-05-12"))
+
+    # Read a day later: the Reminder was queued by 12 May's daily run.
+    [reminder] = reminders_on(app_client, "2026-05-13")
+    assert (reminder["accrues_on"], reminder["created_on"]) == (
+        "2026-05-14",
+        "2026-05-12",
+    )
+
+
+@pytest.mark.usefixtures("qa_mode")
+def test_in_qa_mode_a_date_earlier_than_one_already_run_still_runs(app_client) -> None:
+    lend(app_client, person(app_client))
+    app_client.get("/api/customers", headers=dated("2026-06-12"))
+
+    app_client.get("/api/customers", headers=dated("2026-05-12"))
+
+    [reminder] = reminders_on(app_client, "2026-05-13")
+    assert (reminder["accrues_on"], reminder["created_on"]) == (
+        "2026-05-14",
+        "2026-05-12",
+    )
+
+
+def test_outside_qa_mode_the_date_header_changes_nothing(app_client) -> None:
+    lend(app_client, person(app_client))
+
+    app_client.get("/api/customers", headers=dated("2026-05-12"))
+
+    assert reminders_on(app_client, "2026-05-12") == []
+
+
 def test_an_awaiting_reminder_is_approved_or_skipped(app_client, clock) -> None:
     settings_now = app_client.get("/api/settings/messages").json()
     app_client.put(

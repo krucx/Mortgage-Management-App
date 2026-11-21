@@ -1,9 +1,23 @@
-# QA overlay: seeds scratch volumes, flips the app into QA mode and runs the Playwright suite
-# against it. Run it through `scripts/qa-stack.sh test`, which picks the specs (QA_SPECS) and
-# always tears it down, volumes included.
+# QA overlay: two apps in QA mode, one on the golden book and one with no data, and the
+# Playwright runner that tests both at once (@fresh scenarios against the empty one). Run it
+# through `scripts/qa-stack.sh test`, which picks the scenarios (QA_SPECS) and always tears it
+# down, volumes included.
+x-qa-app: &qa-app
+  environment:
+    TZ: ${TZ:-Asia/Kolkata}
+    BACKUP_PASSWORD: ""
+    QA_MODE: "true"
+    CHECK_FOR_UPDATES: "false"
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/customers')"]
+    interval: 2s
+    timeout: 5s
+    retries: 30
+    start_period: 10s
+
 services:
-  # One-shot: the golden book for golden specs, no data for `fresh` ones. Root, so the volumes
-  # it hands over belong to the app's user (1000), as on a Linux host.
+  # One-shot: the golden book on the golden app's volumes (none for `--mode fresh`). Root, so
+  # the volumes it hands over belong to the app's user (1000), as on a Linux host.
   qa-seed:
     image: mortgage-qa-runner:qa
     pull_policy: never  # built by qa-runner
@@ -11,36 +25,45 @@ services:
     environment:
       QA_SPECS: ${QA_SPECS:-}
     volumes:
-      - qa-data:/book/data
-      - qa-backups:/book/backups
+      - qa-golden-data:/book/golden/data
+      - qa-golden-backups:/book/golden/backups
+      - qa-fresh-data:/book/fresh/data
+      - qa-fresh-backups:/book/fresh/backups
     command:
       - sh
       - -euc
       - |
-        if [ "$$QA_SPECS" != fresh ]; then /qa/backend/.venv/bin/python fixtures/golden_book.py /book; fi
+        if [ "$$QA_SPECS" != fresh ]; then /qa/backend/.venv/bin/python fixtures/golden_book.py /book/golden; fi
         chown -R 1000:1000 /book
     restart: "no"
+  # The golden book. Reached by the runner as `qa-golden`, not the service name: `app` is a
+  # top-level domain on Chromium's HSTS preload list, so the browser forces `http://app` to
+  # HTTPS and fails.
   app:
-    # Reached by the runner as `qa-app`, not the service name: `app` is a top-level domain on
-    # Chromium's HSTS preload list, so the browser forces `http://app` to HTTPS and fails.
+    <<: *qa-app
     networks:
       default:
-        aliases: [qa-app]
+        aliases: [qa-golden]
     depends_on:
       qa-seed:
         condition: service_completed_successfully
-    environment:
-      QA_MODE: "true"
-      CHECK_FOR_UPDATES: "false"
     volumes:
-      - qa-data:/data
-      - qa-backups:/backups
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/customers')"]
-      interval: 2s
-      timeout: 5s
-      retries: 30
-      start_period: 10s
+      - qa-golden-data:/data
+      - qa-golden-backups:/backups
+  # No data, for @fresh scenarios: the same image as `app`, which builds it.
+  app-fresh:
+    <<: *qa-app
+    image: ${QA_APP_IMAGE:?set by scripts/qa-stack.sh}
+    pull_policy: never
+    networks:
+      default:
+        aliases: [qa-fresh]
+    depends_on:
+      qa-seed:
+        condition: service_completed_successfully
+    volumes:
+      - qa-fresh-data:/data
+      - qa-fresh-backups:/backups
   qa-runner:
     build:
       context: .
@@ -49,13 +72,18 @@ services:
     depends_on:
       app:
         condition: service_healthy
+      app-fresh:
+        condition: service_healthy
     environment:
-      BASE_URL: http://qa-app:8000
+      GOLDEN_URL: http://qa-golden:8000
+      FRESH_URL: http://qa-fresh:8000
       QA_SPECS: ${QA_SPECS:-}
     volumes:
       - ./qa/test-results:/qa/test-results
     restart: "no"
 
 volumes:
-  qa-data:
-  qa-backups:
+  qa-golden-data:
+  qa-golden-backups:
+  qa-fresh-data:
+  qa-fresh-backups:

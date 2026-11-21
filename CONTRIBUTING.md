@@ -8,8 +8,8 @@ or merge a pull request.
 
 1. Start from an up-to-date `main` and create a focused branch, for example
    `fix/restore-backup-message` or `docs/release-checklist`.
-2. Make the change and run the checks that apply. Add or update the browser test in
-   `qa/e2e` that covers what the change does, and run `scripts/qa-stack.sh test` locally
+2. Make the change and run the checks that apply. Add or update the scenario in
+   `qa/features` that covers what the change does, and run `scripts/qa-stack.sh test` locally
    before opening the pull request: CI runs that suite only for releases. The pull request
    CI runs the repository checks described in [README.md](README.md#tests-and-type-checks).
 3. Open a pull request targeting `main`. Explain the user-visible change, verification,

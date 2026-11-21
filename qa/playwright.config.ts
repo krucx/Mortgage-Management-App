@@ -1,22 +1,30 @@
-import { defineConfig } from "@playwright/test";
+import { cpus } from 'node:os';
+import { defineConfig } from '@playwright/test';
+import { defineBddConfig } from 'playwright-bdd';
 
-// `scripts/qa-stack.sh test --mode` runs each subset on its own data: `fresh` specs (tagged
-// @fresh) on none, `golden` ones on a newly seeded golden book, each with its own results
-// folder. Unset runs them all.
+// The coverage list: each scenario in features/*.feature is a Playwright test (bddgen writes
+// them to .features-gen). Scenarios tagged @fresh run against an app with no data, the rest
+// against the golden book; `scripts/qa-stack.sh test` runs both apps at once, and `--mode`
+// (QA_SPECS) keeps one of the two projects.
+const testDir = defineBddConfig({ features: 'features/*.feature', steps: 'steps/*.ts' });
 const FRESH = /@fresh/;
 const specs = process.env.QA_SPECS;
 
+const projects = [
+  { name: 'fresh', grep: FRESH, use: { baseURL: process.env.FRESH_URL ?? 'http://qa-fresh:8000' } },
+  { name: 'golden', grepInvert: FRESH, use: { baseURL: process.env.GOLDEN_URL ?? 'http://qa-golden:8000' } },
+];
+
 export default defineConfig({
-  testDir: "./e2e",
-  outputDir: specs ? `test-results/${specs}` : "test-results",
-  grep: specs === "fresh" ? FRESH : undefined,
-  grepInvert: specs === "golden" ? FRESH : undefined,
+  testDir,
+  fullyParallel: true,
+  workers: cpus().length,
+  outputDir: 'test-results',
   use: {
-    baseURL: process.env.BASE_URL ?? "http://qa-app:8000",
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
+    browserName: 'chromium',
+    viewport: { width: 1280, height: 720 },
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
-  projects: [
-    { name: "chromium", use: { browserName: "chromium", viewport: { width: 1280, height: 720 } } },
-  ],
+  projects: projects.filter((project) => !specs || project.name === specs),
 });

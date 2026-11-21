@@ -1,0 +1,1 @@
+- **QA stack:** in QA mode the request's `X-QA-Clock` date also runs that day's Reminder queueing and weekly Backup-due check, earlier dates included, so browser scenarios can test Reminders by moving the date. Outside QA mode nothing changes.

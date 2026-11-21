@@ -2,7 +2,9 @@
 
 In QA mode (`QA_MODE=true`, fixed at process start) the request headers
 `X-QA-Clock` (`YYYY-MM-DD`) and optional `X-QA-Clock-Now` (`YYYY-MM-DDTHH:MM:SS`)
-override the process clock for that request only: stateless and race-free. Outside
+override the process clock for that request only: stateless and race-free. The
+request's date also drives the daily run (Reminder queueing, the Backup-due check),
+which runs each new date's jobs, earlier dates included. Outside
 QA mode, or when the headers are absent, the injectable `app.state.today` /
 `.now` callables are used, so unit tests that pin `create_app(today=…)` are
 unaffected.

@@ -6,8 +6,9 @@ from datetime import date, datetime
 from importlib.metadata import version
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
 
 from mortgage_backend.collateral import collateral, manual_value, mortgage_photos
 from mortgage_backend.follow_up import (
@@ -38,6 +39,7 @@ from mortgage_backend.payments import (
 )
 from mortgage_backend.people import customer_changes, customers
 from mortgage_backend.platform import photos, updates
+from mortgage_backend.platform.clock import get_today
 from mortgage_backend.platform.daily_run import DailyRun
 from mortgage_backend.platform.db import (
     database_url_from_env,
@@ -81,9 +83,7 @@ def create_app(
             reminders.sync(conn, day)
 
     daily_run = DailyRun(
-        engine,
-        today,
-        jobs={"backup": backup.start_if_due, "reminders": sync_reminders},
+        engine, jobs={"backup": backup.start_if_due, "reminders": sync_reminders}
     )
 
     @asynccontextmanager
@@ -124,7 +124,12 @@ def create_app(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         if request.url.path.startswith("/api/"):
-            await run_in_threadpool(daily_run.run_if_due)
+            # The request's date, so in QA mode `X-QA-Clock` runs that day's jobs too.
+            try:
+                day = get_today(request)
+            except HTTPException as error:
+                return JSONResponse({"detail": error.detail}, error.status_code)
+            await run_in_threadpool(daily_run.run_if_due, day)
         return await call_next(request)
 
     app.include_router(default_terms.router)

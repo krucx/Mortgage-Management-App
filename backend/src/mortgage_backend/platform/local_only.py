@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-# In QA mode the app is reached as `qa-app:8000` inside the Docker network, so the
+# In QA mode the apps are reached as `qa-golden:8000` and `qa-fresh:8000` inside the Docker network, so the
 # localhost-only host check is lifted (QA_MODE is fixed at process start).
 _QA_MODE = os.getenv("QA_MODE") == "true"
 

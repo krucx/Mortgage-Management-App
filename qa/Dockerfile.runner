@@ -1,5 +1,5 @@
 # QA runner: Playwright + Chromium on the official Microsoft image, plus the Python
-# backend (for seeding golden books) and the Node test deps.
+# backend (for seeding golden books) and the Node test deps (playwright-bdd: qa/features).
 # The image tag must match @playwright/test in qa/package.json: the image ships only the
 # browsers for its own version, so a mismatch fails every test at browser launch.
 FROM mcr.microsoft.com/playwright:v1.65.1-noble
@@ -25,5 +25,8 @@ RUN npm ci --ignore-scripts 2>/dev/null || npm install --no-audit --no-fund
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 COPY qa /qa
+
+# The feature files become Playwright tests here, so a step with no definition fails the build.
+RUN npx bddgen
 
 CMD ["npx", "playwright", "test"]

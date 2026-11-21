@@ -1,0 +1,1 @@
+- **QA stack:** the browser tests are Gherkin scenarios in `qa/features` (playwright-bdd), written in glossary terms and tagged `@fresh` and `@screen:<route>`; they replace `qa/e2e`. The empty and golden-book apps run at once and the scenarios run in parallel, and the CI `qa` job caches image layers in the GitHub Actions cache.

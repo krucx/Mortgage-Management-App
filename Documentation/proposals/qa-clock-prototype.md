@@ -76,6 +76,13 @@ await page.setExtraHTTPHeaders({ "X-QA-Clock": "2026-12-05" });
 | Unit tests unchanged | No header → still `app.state.today` / `.now` |
 | Replay, Interest to Date, Accrual Dates, Advance landings | All go through `TodayDep` → see the header |
 
+> **Decided (#447, map #444):** option 1, one clock. In QA mode the `run_daily_jobs`
+> middleware resolves the request's date with `get_today` and passes it to
+> `DailyRun.run_if_due(day)`, so `X-QA-Clock` drives Reminder queueing and the weekly
+> Backup-due check too. The clock may move backwards: DailyRun remembers every date it has
+> run, not only the latest. A bad header is a 400 on any `/api/` request. Outside QA mode
+> the header is ignored, so nothing changes. This replaces the #426 decision.
+
 ## The gap the sketch does **not** close: DailyRun
 
 Reminders (and the weekly Backup check) are **not** driven by `TodayDep`. They use the process callable passed into `DailyRun` / `Backups` at startup:
