@@ -141,12 +141,12 @@ Feature: Payments
       And enters ₹4,000 as the Amount received
       Then the Preview has a section for each of their Mortgages, the first open
       When the Lender saves the Payment
-      Then the confirmation asks "Record a Payment of ₹4,000?"
+      Then the confirmation says "Record a Payment of ₹4,000?"
       And the confirmation reads:
         | From                   | Confirm Customer |
         | 2025-Confirm-GoldChain | ₹2,000 cash      |
         | 2025-Confirm-GoldRing  | ₹2,000 cash      |
-      When the Lender confirms the Payment
+      When the Lender confirms
       Then the Receipt page opens
 
     @screen:/payments/new
@@ -178,7 +178,7 @@ Feature: Payments
       Then each Mortgage's Amount is its whole Outstanding
       And no Discount or Advance is entered
       When the Lender saves the Payment
-      Then the confirmation asks "Redeem and hand back the jewellery?"
+      Then the confirmation says "Redeem and hand back the jewellery?"
       And the confirmation reads:
         | 2025-Fullpay-GoldChain | Redeems it |
         | 2025-Fullpay-GoldRing  | Redeems it |
@@ -252,8 +252,8 @@ Feature: Payments
       Then the Payment is not recorded
       When the Lender saves the Payment
       And the Lender records it in cash anyway
-      Then the confirmation asks "Record a Payment of ₹20,000?"
-      When the Lender confirms the Payment
+      Then the confirmation says "Record a Payment of ₹20,000?"
+      When the Lender confirms
       Then the Receipt page opens
 
     @screen:/payments/new
@@ -264,7 +264,7 @@ Feature: Payments
       When the Lender opens a new Payment from "Nolimit Customer"
       And enters ₹20,000 as the Amount received
       And the Lender saves the Payment
-      Then the confirmation asks "Record a Payment of ₹20,000?"
+      Then the confirmation says "Record a Payment of ₹20,000?"
 
   Rule: The app refuses a Payment it can't take
     The form never offers these; they are asked of the app directly, as any client could.

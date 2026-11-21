@@ -39,23 +39,24 @@ test('a product change with a new fragment passes', () => {
       head: 'head',
       ...pr,
     }),
-    [],
+    { errors: [], warnings: [] },
   )
 })
 
-test('a product change without a fragment fails', () => {
-  const errors = checkChangelog({
+test('a product change without a fragment passes with a warning', () => {
+  const { errors, warnings } = checkChangelog({
     read: reader(withStore),
     pathsChanged: ['backend/src/app.py'],
     base: 'base',
     head: 'head',
     ...pr,
   })
-  assert.equal(errors.length, 1)
-  assert.match(errors[0], /changelog\/unreleased\//)
+  assert.deepEqual(errors, [])
+  assert.equal(warnings.length, 1)
+  assert.match(warnings[0], /changelog\/unreleased\//)
 })
 
-test('an allowlisted-only change does not require a fragment', () => {
+test('an allowlisted-only change passes without a warning', () => {
   assert.deepEqual(
     checkChangelog({
       read: reader(withStore),
@@ -64,7 +65,7 @@ test('an allowlisted-only change does not require a fragment', () => {
       head: 'head',
       ...pr,
     }),
-    [],
+    { errors: [], warnings: [] },
   )
 })
 
@@ -73,7 +74,7 @@ test('editing CHANGELOG.md on a non-release PR fails', () => {
     base: withStore.base,
     head: { ...withStore.head, 'CHANGELOG.md': '# Changelog\n\n## Unreleased\n\n### Added\n\n- Nope.\n' },
   }
-  const errors = checkChangelog({
+  const { errors } = checkChangelog({
     read: reader(refs),
     pathsChanged: ['CHANGELOG.md', 'changelog/unreleased/feature.added.md'],
     base: 'base',
@@ -100,7 +101,7 @@ test('the release candidate may rewrite CHANGELOG.md without adding fragments', 
       head: 'head',
       ...candidate,
     }),
-    [],
+    { errors: [], warnings: [] },
   )
 })
 
@@ -117,6 +118,6 @@ test('skips enforcement until the fragment store exists on the base branch', () 
       head: 'head',
       ...pr,
     }),
-    [],
+    { errors: [], warnings: [] },
   )
 })

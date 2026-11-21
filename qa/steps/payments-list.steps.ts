@@ -57,11 +57,6 @@ Given(
   },
 );
 
-When('the Lender opens the Payments list', async ({ page }) => {
-  await page.goto('/payments');
-  await expect(page.getByRole('heading', { name: 'Payments' })).toBeVisible();
-});
-
 When('the Lender filters the Payments by {string}', async ({ page }, query: string) => {
   await page.getByRole('searchbox', { name: 'Filter Payments' }).fill(query);
 });

@@ -123,10 +123,6 @@ When('the Lender saves the Payment', async ({ page }) => {
   await expect(dialog(page)).toBeVisible();
 });
 
-When('the Lender confirms the Payment', async ({ page }) => {
-  await dialog(page).getByRole('button', { name: 'Confirm and save' }).click();
-});
-
 When('the Lender redeems them', async ({ page }) => {
   await dialog(page).getByRole('button', { name: 'Redeem', exact: true }).click();
 });
@@ -210,10 +206,6 @@ Then('the form says the Allocations add up to what the Mortgages owe, not {money
 
 Then("the Payment can't be recorded", async ({ page }) => {
   await expect(recordPayment(page)).toBeDisabled();
-});
-
-Then('the confirmation asks {string}', async ({ page }, question: string) => {
-  await expect(dialog(page).getByRole('heading', { level: 2 })).toHaveText(question);
 });
 
 Then('the Lender is warned {string}', async ({ page }, warning: string) => {
