@@ -218,7 +218,8 @@ trying unreleased code, so it never runs a migration on real data. Plain
 --backups DIR` refuses unless both are scratch folders (not the ones in `.env`), builds
 from source under its own project and a free port, and checks the API is serving the scratch
 data. `scripts/qa-stack.sh down` removes its containers and image, never the folders. Set
-`QA_PROJECT` to run several at once.
+`QA_PROJECT` to run several at once; `test` defaults to `mortgage-qa-test-<folder>`, so each
+worktree builds and tests its own app and runner images.
 
 `scripts/qa-stack.sh test` runs the Gherkin scenarios in `qa/features` (playwright-bdd, steps
 in `qa/steps`, added as [qa/README.md](qa/README.md) says) against the app built from source, needing only Docker (and `python3`, as `up`
