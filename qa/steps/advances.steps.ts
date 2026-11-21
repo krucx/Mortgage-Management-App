@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import type { DataTable } from 'playwright-bdd';
 import { Given, Then, When, type Day, type Money } from './fixtures';
+import type { Lender } from './lender';
 import { buttons, tile } from './selectors';
 
 // The payment form's Advance fields, and the Advances panel on a Mortgage page.
@@ -65,8 +66,8 @@ Then('the Amount received is {money}', async ({ page }, amount: Money) => {
 
 Then(
   'the preview shows {string} in parts of {money} on:',
-  async ({ page, lender }, heading: string, part: Money, days: DataTable) => {
-    const preview = page.getByRole('region', { name: `Advance on ${lender.mortgage!.name}` });
+  async ({ page }, heading: string, part: Money, days: DataTable) => {
+    const preview = page.getByRole('region', { name: heading.split(':')[0] });
     await expect(preview.getByRole('heading')).toHaveText(heading);
     for (const [day] of days.raw()) {
       await expect(preview.getByRole('row', { name: new RegExp(`^${day} ${part.shown} `) })).toBeVisible();
@@ -116,4 +117,171 @@ When('the Lender cancels the part on {day}', async ({ page }, due: Day) => {
 
 Then('the page shows the Receipt for the part due {day}', async ({ page }, due: Day) => {
   await expect(page.getByRole('heading', { name: `Receipt for the part due ${due.shown}` })).toBeVisible();
+});
+
+// Filling, judging and refusing Advances on the payment form
+
+/** The scenario's Customer's Active Mortgage of that name as the form lists it, on the scenario's day. */
+async function listed(lender: Lender, name: string) {
+  const { items } = await lender.get('/api/mortgages', {
+    customer_id: String(lender.customer!.id),
+    status: 'active',
+    as_of: lender.day!,
+    paged: 'false',
+  });
+  return items.find((m: { name: string }) => m.name === name);
+}
+
+function advanceField(page: Page, mortgage: string) {
+  return page.getByRole('spinbutton', { name: `Advance for ${mortgage}` });
+}
+
+/** What pays the Mortgage in full on the scenario's day: its Outstanding less the Advance held. */
+async function toPayInFull(lender: Lender) {
+  const mortgage = await lender.get(`/api/mortgages/${lender.mortgage!.id}`);
+  return mortgage.outstanding.total - mortgage.advance_held;
+}
+
+When('picks {int} months for {mortgage}', async ({ page }, months: number, mortgage: string) => {
+  await allocationRow(page, mortgage).getByRole('combobox', { name: `Months for ${mortgage}` }).selectOption(String(months));
+});
+
+When('fills the Advance for {mortgage}', async ({ page }, mortgage: string) => {
+  await allocationRow(page, mortgage).getByRole('button', { name: /^Fill \d+ ×/ }).click();
+});
+
+Then("the Advance for {mortgage} is {int} months' interest", async ({ page, lender }, mortgage: string, months: number) => {
+  const { month_interest } = await listed(lender, mortgage);
+  await expect(advanceField(page, mortgage)).toHaveValue(String((months * month_interest) / 100));
+});
+
+Then('the Amount received is the Advance for {mortgage}', async ({ page }, mortgage: string) => {
+  await expect(received(page)).toHaveValue(await advanceField(page, mortgage).inputValue());
+});
+
+Then('the schedule for {mortgage} reads {string}', async ({ page }, mortgage: string, verdict: string) => {
+  await expect(page.getByRole('region', { name: `Advance on ${mortgage}` })).toContainText(verdict);
+});
+
+When('the Lender pays the unpaid interest of {mortgage}', async ({ page }, mortgage: string) => {
+  await allocationRow(page, mortgage).getByRole('button', { name: /^Pay the unpaid interest/ }).click();
+});
+
+Then('the Amount for {mortgage} is its unpaid interest', async ({ page, lender }, mortgage: string) => {
+  const { unpaid_interest } = await listed(lender, mortgage);
+  expect(unpaid_interest).toBeGreaterThan(0);
+  await expect(page.getByRole('spinbutton', { name: `Amount for ${mortgage}` })).toHaveValue(String(unpaid_interest / 100));
+});
+
+Then('the Amount received is its unpaid interest and the Advance of {money}', async ({ page, lender }, advance: Money) => {
+  const { unpaid_interest } = await listed(lender, lender.mortgage!.name);
+  await expect(received(page)).toHaveValue(String((unpaid_interest + advance.paise) / 100));
+});
+
+Then("the Advance for {mortgage} can't be entered: {string}", async ({ page }, mortgage: string, why: string) => {
+  await expect(advanceField(page, mortgage)).toBeDisabled();
+  await expect(advanceField(page, mortgage)).toHaveAttribute('title', why);
+});
+
+Then(
+  'a Payment paying the whole of it with an Advance of {money} is refused: {string}',
+  async ({ lender }, advance: Money, reason: string) => {
+    const whole = await toPayInFull(lender);
+    const refusal = await lender.refusal('post', '/api/payments', {
+      customer_id: lender.customer!.id,
+      paid_on: lender.day,
+      amount: whole + advance.paise,
+      method: 'upi',
+      allocations: [{ mortgage_id: lender.mortgage!.id, amount: whole, advance: advance.paise, months: 2 }],
+    });
+    expect(refusal).toBe(`${lender.mortgage!.name}: ${reason}`);
+  },
+);
+
+When('the Lender sets the Amount for {mortgage} to what pays it in full', async ({ page, lender }, mortgage: string) => {
+  await page.getByRole('spinbutton', { name: `Amount for ${mortgage}` }).fill(String((await toPayInFull(lender)) / 100));
+});
+
+Then('the Preview refuses it, saying {string}', async ({ page }, reason: string) => {
+  await expect(page.locator('.status.error')).toContainText(reason);
+});
+
+Then('a Payment of {money} on it on {day} is refused, saying {string}', async ({ lender }, amount: Money, day: Day, reason: string) => {
+  const refusal = await lender.refusal('post', '/api/payments', {
+    customer_id: lender.customer!.id,
+    paid_on: day.iso,
+    amount: amount.paise,
+    method: 'upi',
+    allocations: [{ mortgage_id: lender.mortgage!.id, amount: amount.paise }],
+  });
+  expect(refusal).toContain(reason);
+});
+
+// The Advances panel and the Ledger
+
+Then(
+  'its Advance received {day} is {money} over {int} months',
+  async ({ page }, received: Day, amount: Money, months: number) => {
+    await expect(page.getByText(`Received ${received.shown} · ${amount.shown} over ${months} months`)).toBeVisible();
+  },
+);
+
+Then('its Ledger lists Advance Instalment {int} of {int} due {day} as Upcoming', async ({ page }, n: number, of: number, day: Day) => {
+  await expect(page.getByRole('row', { name: new RegExp(`^${day.shown} Advance Instalment ${n} of ${of} Upcoming`) })).toBeVisible();
+});
+
+Then('it holds no Advance', async ({ page }) => {
+  await expect(page.getByRole('heading', { name: 'Terms' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Advances' })).toBeHidden();
+  await expect(tile(page, 'Advance held')).toBeHidden();
+});
+
+Then('its Ledger shows no Advance Instalment', async ({ page }) => {
+  await expect(page.getByRole('heading', { name: 'Terms' })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Advance Instalment/ })).toHaveCount(0);
+});
+
+// Cancelling parts
+
+When('the Lender keeps it', async ({ page }) => {
+  await page.getByRole('dialog').getByRole('button', { name: 'Keep it' }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+});
+
+When('the Lender opens the Receipt for the part due {day}', async ({ page }, due: Day) => {
+  await page.getByRole('row', { name: new RegExp(`^${due.shown} `) }).getByRole('button', { name: 'Receipt' }).click();
+});
+
+When('the Lender prints the Receipt for the part', async ({ page }) => {
+  await page.getByRole('link', { name: 'Print or save as PDF' }).click();
+  await expect(page).toHaveURL(/\/payments\/\d+\/advance-instalments\/\d+\/receipt$/);
+});
+
+Then('the printable Receipt says {string}', async ({ page }, heading: string) => {
+  await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+});
+
+/** The id of the Advance Instalment of the scenario's Mortgage due on `due`. */
+async function partDue(lender: Lender, due: Day): Promise<number> {
+  const { advance_instalments } = await lender.get(`/api/mortgages/${lender.mortgage!.id}`);
+  return advance_instalments.find((part: { on: string }) => part.on === due.iso).id;
+}
+
+Given('its part due {day} was cancelled on {day}', async ({ lender }, due: Day, on: Day) => {
+  await lender.post(`/api/mortgages/${lender.mortgage!.id}/advance-instalments/${await partDue(lender, due)}/cancel`, {}, on.iso);
+});
+
+Then('cancelling the part due {day} is refused: {string}', async ({ lender }, due: Day, reason: string) => {
+  const refusal = await lender.refusal('post', `/api/mortgages/${lender.mortgage!.id}/advance-instalments/${await partDue(lender, due)}/cancel`);
+  expect(refusal).toBe(reason);
+});
+
+Then('waiving it with an Advance is refused', async ({ lender }) => {
+  const refusal = await lender.refusal('post', `/api/mortgages/${lender.mortgage!.id}/waive`, {
+    waived_on: lender.day,
+    amount_paid: 0,
+    method: 'cash',
+    advance: 100,
+  });
+  expect(JSON.stringify(refusal)).toContain('advance');
 });
