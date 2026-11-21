@@ -42,7 +42,8 @@ Feature: Call List and Call Notes
       Then it is not on the Call List
       When the Lender opens that Payment
       And the Lender voids it because "Entered in error"
-      And the Lender opens the Call List
+      Then it shows "Payment of ₹6,000 voided" with the reason "Entered in error"
+      When the Lender opens the Call List
       Then it is on the Call List as accruing today
 
     @screen:/call-list

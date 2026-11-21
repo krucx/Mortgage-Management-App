@@ -314,9 +314,17 @@ When('presses Called', async ({ page }) => {
   await expect(page.getByRole('dialog')).toBeVisible();
 });
 
-When('the Lender saves the Call Note', async ({ page }) => {
+/** Saves the Call Note the open dialog confirms, and waits for the app to have stored it: the
+ * dialog closes before the request is made. */
+async function saveCallNote(page: Page) {
+  const stored = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('/call-notes'));
   await page.getByRole('dialog').getByRole('button', { name: 'Save Call Note' }).click();
+  expect((await stored).ok()).toBe(true);
   await expect(page.getByRole('dialog')).toBeHidden();
+}
+
+When('the Lender saves the Call Note', async ({ page }) => {
+  await saveCallNote(page);
 });
 
 When('the Lender marks {mortgage} called with {string}', async ({ page }, mortgage: string, note: string) => {
@@ -324,8 +332,7 @@ When('the Lender marks {mortgage} called with {string}', async ({ page }, mortga
   await page.getByLabel(`Call Note for ${mortgage}`).fill(note);
   await page.getByRole('button', { name: 'Called', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText(note);
-  await page.getByRole('dialog').getByRole('button', { name: 'Save Call Note' }).click();
-  await expect(page.getByRole('dialog')).toBeHidden();
+  await saveCallNote(page);
 });
 
 Then('its row shows Called with {string}, and offers Again', async ({ page, lender }, note: string) => {
