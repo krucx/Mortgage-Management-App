@@ -108,6 +108,7 @@ Then('the Dormant section lists it, to Redeem', async ({ page, lender }) => {
 /** The Mortgage's row on the Dormant list, paging from page 1 until it shows; null if absent. */
 async function dormantRow(page: Page, name: string) {
   const pager = dormantPager(page);
+  await expect(rowsOf(dormant(page)).first()).toBeVisible();
   const row = rowsOf(dormant(page)).filter({ has: page.getByRole('link', { name, exact: true }) });
   for (;;) {
     if ((await row.count()) > 0) return row;
