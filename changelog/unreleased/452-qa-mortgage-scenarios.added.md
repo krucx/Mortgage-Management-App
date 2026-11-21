@@ -1,0 +1,1 @@
+- **QA stack:** Gherkin scenarios for the Mortgages list, New Mortgage (with the Calculator's Lend this), a Mortgage's page and Edit Mortgage, in `qa/features/mortgages.feature`.
