@@ -31,7 +31,7 @@ function withAmount(page: Page, amount: Money) {
 }
 
 function period(page: Page) {
-  return page.getByLabel('Received', { exact: true });
+  return page.getByRole('combobox', { name: /^Received/ });
 }
 
 function summary(page: Page) {

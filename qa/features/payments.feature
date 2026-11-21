@@ -47,29 +47,31 @@ Feature: Payments
       When the Lender sorts the Payments by Customer
       Then the Payments are listed by Customer, A to Z
 
-  @screen:/payments
-  Scenario: Voided Payments are listed, marked voided, unless the Lender hides them
-    Given "Voidlist Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
-    And paid ₹1,000 on it on 5 Oct 2025
-    And paid ₹2,000 on it on 5 Nov 2025, voided because "Entered twice"
-    And today is 15 Nov 2025
-    When the Lender opens the Payments list
-    And the Lender filters the Payments by "Voidlist Customer"
-    Then 2 Payments are listed
-    And the Payment of ₹2,000 is marked "voided"
-    When the Lender hides Voided Payments
-    Then only the Payment of ₹1,000 is listed
+  Rule: The Payments list marks Voided Payments, and comes twenty a page
 
-  @screen:/payments
-  Scenario: The list comes twenty Payments a page
-    Given "Pager Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
-    And paid ₹100 on it 21 times on 15 Nov 2025
-    And today is 15 Nov 2025
-    When the Lender opens the Payments list
-    And the Lender filters the Payments by "Pager Customer"
-    Then the list shows "Showing 1–20 of 21" on "Page 1 of 2"
-    When the Lender goes to the next page
-    Then the list shows "Showing 21–21 of 21" on "Page 2 of 2"
+    @screen:/payments
+    Scenario: Voided Payments are listed, marked voided, unless the Lender hides them
+      Given "Voidlist Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
+      And paid ₹1,000 on it on 5 Oct 2025
+      And paid ₹2,000 on it on 5 Nov 2025, voided because "Entered twice"
+      And today is 15 Nov 2025
+      When the Lender opens the Payments list
+      And the Lender filters the Payments by "Voidlist Customer"
+      Then 2 Payments are listed
+      And the Payment of ₹2,000 is marked "voided"
+      When the Lender hides Voided Payments
+      Then only the Payment of ₹1,000 is listed
+
+    @screen:/payments
+    Scenario: The list comes twenty Payments a page
+      Given "Pager Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
+      And paid ₹100 on it 21 times on 15 Nov 2025
+      And today is 15 Nov 2025
+      When the Lender opens the Payments list
+      And the Lender filters the Payments by "Pager Customer"
+      Then the list shows "Showing 1–20 of 21" on "Page 1 of 2"
+      When the Lender goes to the next page
+      Then the list shows "Showing 21–21 of 21" on "Page 2 of 2"
 
   Rule: A Payment is started from the Payments list, a Customer or a Mortgage
 
