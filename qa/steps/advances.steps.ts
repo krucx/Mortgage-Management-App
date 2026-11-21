@@ -83,17 +83,7 @@ When('the Lender records the Payment', async ({ page }) => {
 Given(
   'paid an Advance of {money} over {int} months on it on {day}',
   async ({ lender }, advance: Money, months: number, day: Day) => {
-    await lender.pay(lender.customer!, lender.mortgage!, { advance: advance.paise, months, day: day.iso });
-  },
-);
-
-Given(
-  '{string} has paid an Advance of {money} over {int} months on {mortgage}',
-  async ({ lender }, name: string, advance: Money, months: number, mortgage: string) => {
-    await lender.pay(await lender.customerNamed(name), await lender.mortgageNamed(mortgage), {
-      advance: advance.paise,
-      months,
-    });
+    await lender.pay(lender.customer!, [{ mortgage: lender.mortgage!, advance: advance.paise, months }], { day: day.iso });
   },
 );
 

@@ -3,11 +3,9 @@ Feature: Closures
 
   @screen:/mortgages/:id
   Scenario: A Redemption uses the upcoming Advance, and Reopen restores it
-    Meera's 2025-Meera-GoldNecklace has no Advance in the golden book; this gives it one.
-
-    Given today is 15 Nov 2025
-    And "Meera Sharma" has paid an Advance of ₹2,000 over 2 months on 2025-Meera-GoldNecklace
-    When the Lender opens 2025-Meera-GoldNecklace
+    Given "Redeem Customer" was lent ₹60,000 on 5 Sept 2025 against a Gold necklace
+    And paid an Advance of ₹2,000 over 2 months on it on 15 Nov 2025
+    When the Lender opens the Mortgage on 15 Nov 2025
     Then it holds an Advance of ₹2,000
     When the Lender starts to redeem it
     Then the Redemption takes off the ₹2,000 Advance held

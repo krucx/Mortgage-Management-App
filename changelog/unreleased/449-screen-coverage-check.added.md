@@ -1,0 +1,1 @@
+- **CI:** the `frontend` job fails when a route in the router has no QA scenario tagged `@screen:<route>` and isn't listed with its ticket in `qa/screens-to-cover.txt`.

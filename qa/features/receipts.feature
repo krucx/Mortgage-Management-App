@@ -4,7 +4,7 @@ Feature: Receipts and Voids
   Background:
     Given today is 15 Nov 2025
 
-  @screen:/payments/:id @screen:/payments/:id/receipt
+  @golden @screen:/payments/:id @screen:/payments/:id/receipt
   Scenario: A Payment's Receipt names the jewellery, not the Mortgage
     Ramesh's ₹15,000 UPI Advance on his gold ring, received 10 Sept 2025.
 
@@ -19,9 +19,8 @@ Feature: Receipts and Voids
 
   @screen:/payments/:id
   Scenario: A voided Payment stays on record with its reason and no Receipt
-    Priya's 2025-Priya-GoldBangles is Active again after its Reopen.
-
-    Given "Priya Sharma" has paid ₹1,000 on 2025-Priya-GoldBangles
+    Given "Void Customer" was lent ₹40,000 on 5 Sept 2025 against a Gold bangle
+    And paid ₹1,000 on it on 15 Nov 2025
     When the Lender opens that Payment
     Then it has a Receipt
     When the Lender voids it because "Entered twice"

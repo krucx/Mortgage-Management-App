@@ -10,8 +10,12 @@ or merge a pull request.
    `fix/restore-backup-message` or `docs/release-checklist`.
 2. Make the change and run the checks that apply. Add or update the scenario in
    `qa/features` that covers what the change does, and run `scripts/qa-stack.sh test` locally
-   before opening the pull request: CI runs that suite only for releases. The pull request
-   CI runs the repository checks described in [README.md](README.md#tests-and-type-checks).
+   before opening the pull request: CI runs that suite only for releases. On every pull
+   request the `frontend` job checks that each route in `frontend/src/App.tsx` has a scenario
+   tagged `@screen:<route>`, or is listed in `qa/screens-to-cover.txt` with the ticket that
+   will cover it; it fails naming any route that is neither, or a listed one that is covered
+   now. The pull request CI runs the repository checks described in
+   [README.md](README.md#tests-and-type-checks).
 3. Open a pull request targeting `main`. Explain the user-visible change, verification,
    and any risk or migration impact. Link the issue and use a draft while work is
    unfinished.

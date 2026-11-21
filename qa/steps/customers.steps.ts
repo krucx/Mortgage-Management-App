@@ -51,19 +51,6 @@ Given(
   '{string} was lent {money} on {day} against a {jewellery}',
   async ({ lender }, name: string, amount: Money, day: Day, description: string) => {
     const customer = await lender.addCustomer(name, day.iso);
-    lender.mortgage = await lender.post(
-      '/api/mortgages',
-      {
-        customer_id: customer.id,
-        start_date: day.iso,
-        amount_lent: amount.paise,
-        description,
-        gross_weight_mg: 6_000,
-        net_weight_mg: 5_500,
-        purity_karat: 22,
-        lent_through: 'upi',
-      },
-      day.iso,
-    );
+    await lender.lend(customer, { amount: amount.paise, description, day: day.iso });
   },
 );

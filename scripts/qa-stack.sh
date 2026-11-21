@@ -4,7 +4,7 @@
 #
 #   scripts/qa-stack.sh up   --data DIR --backups DIR   # build from source, start, check
 #   scripts/qa-stack.sh down                            # remove the containers and the image
-#   scripts/qa-stack.sh test [--mode fresh|golden|all] [--ui]   # qa/features; 0 pass, 1 fail
+#   scripts/qa-stack.sh test [--mode fresh|golden|work|all] [--ui]   # qa/features; 0 pass, 1 fail
 #
 # Optional: QA_PROJECT (default mortgage-qa, mortgage-qa-test for `test`; give each parallel run
 # its own), QA_PORT (default: a free port). `down` never removes folders.
@@ -87,10 +87,12 @@ down() {
   docker rmi "$IMAGE" 2>/dev/null || true
 }
 
-# Two apps on scratch volumes, the golden book and no data, and the Playwright runner that tests
-# both at once (docker-compose.qa.yml). `--mode fresh` runs only the @fresh scenarios (no data),
-# `golden` only the rest, `all` both. `--ui` serves Playwright's UI from the runner instead, until
-# Ctrl-C. With QA_BUILD_CACHE=gha (CI), image layers are cached in the GitHub Actions cache.
+# Three apps on scratch volumes, the golden book, no data and the work app, and the Playwright
+# runner that tests them at once (docker-compose.qa.yml). `--mode fresh` runs only the @fresh
+# scenarios (no data), `golden` only the @golden ones (read the golden book), `work` only the
+# rest (seed their own data), `all` every one. `--ui` serves Playwright's UI from the runner
+# instead, until Ctrl-C. With QA_BUILD_CACHE=gha (CI), image layers are cached in the GitHub
+# Actions cache.
 run_tests() {
   MODE=all UI=
   while [ $# -gt 0 ]; do
@@ -100,7 +102,7 @@ run_tests() {
       *) die "unknown option $1" ;;
     esac
   done
-  case $MODE in fresh|golden|all) ;; *) die "--mode is fresh, golden or all" ;; esac
+  case $MODE in fresh|golden|work|all) ;; *) die "--mode is fresh, golden, work or all" ;; esac
   PROJECT=${QA_PROJECT:-mortgage-qa-test}
   IMAGE=mortgage-management-app:$PROJECT
   PORT=${QA_PORT:-$(free_port)}
@@ -141,5 +143,5 @@ case ${1:-} in
   up) shift; up "$@" ;;
   down) down ;;
   test) shift; run_tests "$@" ;;
-  *) die "usage: scripts/qa-stack.sh up --data DIR --backups DIR | down | test [--mode fresh|golden|all] [--ui]" ;;
+  *) die "usage: scripts/qa-stack.sh up --data DIR --backups DIR | down | test [--mode fresh|golden|work|all] [--ui]" ;;
 esac

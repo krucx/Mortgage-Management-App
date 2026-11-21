@@ -1,3 +1,4 @@
+@golden
 Feature: Page width
   Screens fit the desktop width (1280px) without scrolling sideways. There is no
   phone-width run yet.

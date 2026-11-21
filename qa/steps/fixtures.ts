@@ -1,9 +1,13 @@
 import { createBdd, defineParameterType, test as base } from 'playwright-bdd';
-import { Lender } from './lender';
+import { GOLDEN_DAY, Lender } from './lender';
 
 export const test = base.extend<{ lender: Lender }>({
-  lender: async ({ page, request }, use) => {
-    await use(new Lender(page, request));
+  // On the golden book, every scenario is on its last day.
+  lender: async ({ page, request }, use, testInfo) => {
+    const golden = testInfo.project.name === 'golden';
+    const lender = new Lender(page, request, golden);
+    if (golden) await lender.on(GOLDEN_DAY);
+    await use(lender);
   },
 });
 

@@ -147,6 +147,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
+      - run: node --test ../.github/scripts/test-check-screen-coverage.mjs
+      - name: Every screen in the router is covered by a QA scenario
+        working-directory: .
+        run: node .github/scripts/check-screen-coverage.mjs
       - name: Run frontend tests and collect line coverage
         run: npm test -- --coverage --coverage.reporter=lcov --coverage.reporter=html --coverage.reporter=text
       - name: Add frontend coverage to the job summary

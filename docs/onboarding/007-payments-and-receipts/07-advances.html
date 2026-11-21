@@ -15,7 +15,7 @@
 <div class="callout win"><strong>By the end</strong> you can record an Advance, say which rows it writes and when Replay applies each part, explain why follow-up skips a month it pays, and say what Cancel, a later Payment and a Closure do with what it holds.</div>
 
 <h2>The example: Arjun's chain</h2>
-<p>On the sample book, Arjun's gold chain (Mortgage 8, ₹45,000 at 2% a month, accruing on the 19th) has an Advance: <strong>₹2,700 received by UPI on 5 Sept 2026, over 3 months</strong>. The Lender entered it on 19 Oct from the bank statement, so it is Payment 35, the last one made (<code>pay_ahead</code> in <code>docs/sample-book/book.py</code>). Open <code>http://127.0.0.1:8765/mortgages/8</code> on the served book:</p>
+<p>On the sample book, Arjun's gold chain (Mortgage 8, ₹45,000 at 2% a month, accruing on the 19th) has an Advance: <strong>₹2,700 received by UPI on 5 Sept 2026, over 3 months</strong>. The Lender entered it on 19 Oct from the bank statement, so it is Payment 35, the last one made (the <code>Allocation(advance=2_700, months=3)</code> Payment in <code>docs/sample-book/book.py</code>). Open <code>http://127.0.0.1:8765/mortgages/8</code> on the served book:</p>
 <table>
 <thead><tr><th>Part</th><th>Accrual Date</th><th>Amount</th><th>Status on 19 Oct</th></tr></thead>
 <tbody>
