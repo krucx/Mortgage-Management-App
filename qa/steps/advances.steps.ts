@@ -267,12 +267,17 @@ async function partDue(lender: Lender, due: Day): Promise<number> {
   return advance_instalments.find((part: { on: string }) => part.on === due.iso).id;
 }
 
+/** The API path that cancels the part of the scenario's Mortgage due on `due`. */
+async function cancelPath(lender: Lender, due: Day) {
+  return `/api/mortgages/${lender.mortgage!.id}/advance-instalments/${await partDue(lender, due)}/cancel`;
+}
+
 Given('its part due {day} was cancelled on {day}', async ({ lender }, due: Day, on: Day) => {
-  await lender.post(`/api/mortgages/${lender.mortgage!.id}/advance-instalments/${await partDue(lender, due)}/cancel`, {}, on.iso);
+  await lender.post(await cancelPath(lender, due), {}, on.iso);
 });
 
 Then('cancelling the part due {day} is refused: {string}', async ({ lender }, due: Day, reason: string) => {
-  const refusal = await lender.refusal('post', `/api/mortgages/${lender.mortgage!.id}/advance-instalments/${await partDue(lender, due)}/cancel`);
+  const refusal = await lender.refusal('post', await cancelPath(lender, due));
   expect(refusal).toBe(reason);
 });
 
@@ -283,5 +288,6 @@ Then('waiving it with an Advance is refused', async ({ lender }) => {
     method: 'cash',
     advance: 100,
   });
-  expect(JSON.stringify(refusal)).toContain('advance');
+  // The Waiver takes no fields beyond its own: the backend names the extra one.
+  expect(refusal).toEqual([expect.objectContaining({ type: 'extra_forbidden', loc: ['body', 'advance'] })]);
 });
