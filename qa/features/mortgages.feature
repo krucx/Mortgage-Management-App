@@ -132,7 +132,7 @@ Feature: Mortgages
       And lends it through UPI
       And uploads 2 photos of it
       And creates the Mortgage
-      Then the confirmation lists "Photos" as "2"
+      Then the confirmation lists "Photos" at "2"
       When the Lender confirms
       Then the Mortgage has 2 photos
 

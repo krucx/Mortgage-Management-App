@@ -326,10 +326,6 @@ function confirmationRow(page: Page, label: string) {
   return page.getByRole('dialog').locator('.summary-row', { has: page.locator('dt', { hasText: label }) });
 }
 
-Then('the confirmation lists {string} as {string}', async ({ page }, label: string, value: string) => {
-  await expect(confirmationRow(page, label).locator('dd')).toHaveText(value);
-});
-
 Then('the confirmation forecasts it with no Payments', async ({ page }) => {
   await expect(page.getByRole('dialog').getByText(/^Owed on .* with no Payments$/)).toBeVisible();
 });

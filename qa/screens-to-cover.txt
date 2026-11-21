@@ -1,8 +1,0 @@
-/payments  #455
-/payments/:id/advance-instalments/:instalment/receipt  #458
-/customers/:id  #451
-/customers/:id/edit  #451
-/mortgages/:id/redeem  #460
-/closures  #461
-/referrers/:id  #451
-*  #468
