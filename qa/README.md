@@ -19,6 +19,13 @@ This file covers how to add to them without colliding with other work in flight.
   files that define it. The runner image runs the same check when `scripts/qa-stack.sh test`
   builds it.
 
+## Settings are one value for the whole book
+
+A scenario that changes a setting (Default Terms, Cash Limit, Discount confirmation limit,
+Grace Period, WhatsApp templates, Backups kept) would change what every scenario running
+alongside is asked or offered. Tag it `@settings` (the feature, as in `settings.feature`): the
+`settings` project runs those scenarios last, one after another, on the fresh app.
+
 ## Screens still to cover
 
 Each route in `frontend/src/App.tsx` is tagged `@screen:<route>` on a scenario, or listed in

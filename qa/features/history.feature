@@ -8,15 +8,15 @@ Feature: History
     @screen:/customers/:id
     Scenario: A Customer's History pages through every change
       Given "Histpage Customer" is a Customer
-      And their address was changed 22 times
+      And their address was changed 21 times
       When the Lender opens the Customer "Histpage Customer"
-      Then the History shows the latest 5 of 23 changes
+      Then the History shows the latest 5 of 22 changes
       When the Lender shows the complete History
-      Then the pager reads "Showing 1–20 of 23"
+      Then the pager reads "Showing 1–20 of 22"
       And the complete History lists 20 changes
       When the Lender goes to the next page
-      Then the pager reads "Showing 21–23 of 23"
-      And the complete History lists 3 changes
+      Then the pager reads "Showing 21–22 of 22"
+      And the complete History lists 2 changes
       And the complete History ends with "Customer created"
 
   Rule: Each kind of change reads the way the Lender would say it

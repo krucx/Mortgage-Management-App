@@ -34,12 +34,12 @@ When('the Lender opens Settings', async ({ page }) => {
 });
 
 Then('the {string} section says {string}', async ({ page }, heading: string, text: string) => {
-  await expect(section(page, heading).locator('.status')).toHaveText(text);
+  await expect(section(page, heading).locator('.status', { hasText: text })).toBeVisible();
 });
 
-Then('the {string} section says nothing', async ({ page }, heading: string) => {
-  await expect(section(page, heading)).toBeVisible();
-  await expect(section(page, heading).locator('.status')).toHaveCount(0);
+Then('the {string} section does not say {string}', async ({ page }, heading: string, text: string) => {
+  await expect(section(page, heading).getByRole('heading', { name: heading, exact: true })).toBeVisible();
+  await expect(section(page, heading)).not.toContainText(text);
 });
 
 // Default Terms

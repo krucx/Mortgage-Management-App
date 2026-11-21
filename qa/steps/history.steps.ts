@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import { Given, Then, When, type Day } from './fixtures';
 import type { Lender } from './lender';
+import { customerNamed } from './people';
 
 // The History of a Customer and a Mortgage: what the page lists, and what it takes to make
 // each kind of entry (done through the app's API, on the day given).
@@ -18,11 +19,11 @@ const PHOTO = {
 const photoAdded = new WeakMap<Lender, number>();
 
 Given('their address was changed {int} times', async ({ lender }, times: number) => {
-  const { id, name, phone_1 } = await lender.customerNamed(lender.customer!.name);
+  const { id, name, phone } = await customerNamed(lender, lender.customer!.name);
   for (let i = 1; i <= times; i++) {
     // One day each: changes made at the same time would read as one change.
     await lender.on(new Date(Date.UTC(2025, 0, i)).toISOString().slice(0, 10));
-    await lender.put(`/api/customers/${id}`, { name, phone_1, address: `${i} Test Street` });
+    await lender.put(`/api/customers/${id}`, { name, phone_1: phone, address: `${i + 1} Test Street` });
   }
 });
 

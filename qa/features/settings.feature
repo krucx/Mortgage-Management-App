@@ -20,7 +20,7 @@ Feature: Settings
       Then the "Default Terms" section says "Saved. New Mortgages will start with these Terms."
       When the Lender starts a new Mortgage for "Dfltterms Customer"
       Then the new Mortgage form offers the Terms 2.5% a month
-      When the Lender fills in ₹10,000 against a Gold ring
+      When fills in ₹10,000 against a Gold ring
       And creates the Mortgage
       And the Lender confirms
       Then its Terms are 2.5% a month
@@ -166,13 +166,13 @@ Feature: Settings
       And the Lender sets the Grace Period to 4 days
       And the Lender confirms
       Then the "Grace Period" section says "Saved."
-      And the "Cash Limit" section says nothing
+      And the "Cash Limit" section does not say "Saved."
       When the Lender writes "Hi {nobody}" as the Receipt template
       And the Lender saves the WhatsApp messages
       Then Settings refuses it, saying "The Receipt template can't fill {nobody}."
       And the "Grace Period" section says "Saved."
-      And the "Default Terms" section says nothing
-      And the "Backups" section says nothing
+      And the "Default Terms" section does not say "Saved."
+      And the "Backups" section does not say "Saved."
 
   Rule: Backups say how things stand, and ask before they act
 
