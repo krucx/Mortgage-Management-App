@@ -168,7 +168,12 @@ Then(
       .poll(async () => {
         const amounts = await lent();
         const sorted = [...amounts].sort((a, b) => (first === 'largest' ? b - a : a - b));
-        return amounts.length > 1 && amounts.join() === sorted.join() && amounts[0] !== amounts.at(-1);
+        return (
+          amounts.length > 1 &&
+          amounts.every(Number.isFinite) &&
+          amounts.join() === sorted.join() &&
+          amounts[0] !== amounts.at(-1)
+        );
       })
       .toBe(true);
   },
