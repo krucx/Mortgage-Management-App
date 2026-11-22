@@ -12,6 +12,10 @@ const FRESH = /@fresh/;
 // Needs the fresh app before any other @fresh scenario adds to it: it runs first.
 const EMPTY = /@empty/;
 const GOLDEN = /@golden/;
+// Settings are one value for the whole book: these scenarios run after every @fresh one (as
+// its teardown, so an unrelated @fresh failure does not skip them), one after another, on the
+// fresh app, so none reads a setting while another changes it.
+const SETTINGS = /@settings/;
 const specs = process.env.QA_SPECS;
 
 const projects = [
@@ -21,10 +25,17 @@ const projects = [
     grep: FRESH,
     grepInvert: EMPTY,
     dependencies: ['empty'],
+    teardown: 'settings',
+    use: { baseURL: process.env.FRESH_URL ?? 'http://qa-fresh:8000' },
+  },
+  {
+    name: 'settings',
+    grep: SETTINGS,
+    fullyParallel: false,
     use: { baseURL: process.env.FRESH_URL ?? 'http://qa-fresh:8000' },
   },
   { name: 'golden', grep: GOLDEN, use: { baseURL: process.env.GOLDEN_URL ?? 'http://qa-golden:8000' } },
-  { name: 'work', grepInvert: [FRESH, GOLDEN], use: { baseURL: process.env.WORK_URL ?? 'http://qa-work:8000' } },
+  { name: 'work', grepInvert: [FRESH, GOLDEN, SETTINGS], use: { baseURL: process.env.WORK_URL ?? 'http://qa-work:8000' } },
 ];
 
 export default defineConfig({
@@ -38,5 +49,5 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: projects.filter((project) => !specs || project.name === specs || (specs === 'fresh' && project.name === 'empty')),
+  projects: projects.filter((project) => !specs || project.name === specs || (specs === 'fresh' && (project.name === 'empty' || project.name === 'settings'))),
 });
