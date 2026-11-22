@@ -9,7 +9,8 @@ Feature: Dialogs
     Scenario Outline: <way> closes the Delete dialog and the Customer stays
       Given "<customer>" is a Customer
       When the Lender starts to delete "<customer>" from the Customers list
-      And <way>
+      Then the dialog is open
+      When <way>
       Then the dialog is closed
       And the Customers listed are:
         | <customer> |

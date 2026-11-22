@@ -3,7 +3,7 @@ Feature: Update banner
   for that version on this laptop; a still newer release shows it again. The scenarios
   stub the app's answer to /api/update, so no release has to exist.
 
-  @golden @screen:/
+  @golden @screen:/ @screen:/customers
   Scenario: A newer release is offered with its notes, and Later puts it off for that version
     Given today is 15 Nov 2025
     And version "99.0.0" is released with the notes "- A quicker Dashboard"

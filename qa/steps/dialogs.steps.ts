@@ -34,6 +34,10 @@ Then('Void Payment can be pressed', async ({ page }) => {
   await expect(voidPayment(page)).toBeEnabled();
 });
 
+Then('the dialog is open', async ({ page }) => {
+  await expect(page.getByRole('dialog')).toBeVisible();
+});
+
 Then('the dialog is still open', async ({ page }) => {
   await expect(page.getByRole('dialog')).toBeVisible();
 });
