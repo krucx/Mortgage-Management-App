@@ -145,6 +145,7 @@ export function PaymentsPage() {
         <p>
           {result.total} Payment{result.total === 1 ? '' : 's'}, paying{' '}
           <strong>{formatINR(result.interest_paid)}</strong> of interest
+          {period.kind === 'year' && ` for ${period.year} (incl. future-dated Payments)`}
           {includeVoided && ' (Voided ones paid none)'}
         </p>
       )}

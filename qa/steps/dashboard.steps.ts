@@ -126,7 +126,7 @@ Then('the Interest collected tiles agree with the book', async ({ page, lender }
   const b = await book(lender);
   const [year, month] = [b.as_of.slice(0, 4), monthName(b.as_of.slice(0, 7))];
   await readsIn(figure(page, `In ${month}`), shownINR(b.interest_collected_this_month));
-  await readsIn(figure(page, `In ${year}`), shownINR(b.interest_collected_this_year));
+  await readsIn(figure(page, `Interest collected so far in ${year}`), shownINR(b.interest_collected_this_year));
 });
 
 Then('the Payments listed paid the interest that figure shows', async ({ page, lender }) => {

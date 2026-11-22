@@ -74,6 +74,12 @@ test('activity timeframe defaults to this month and refreshes totals when dates 
   expect(await screen.findByText('₹500')).toBeTruthy()
 })
 
+test('the year tile says it counts the year so far', async () => {
+  showPage(fakeServer({ 'GET /api/dashboard': figures }), '/', { '/': <DashboardPage /> })
+
+  expect(await screen.findByText('Interest collected so far in 2026')).toBeTruthy()
+})
+
 test('activity timeframe explains an end date before the start date', async () => {
   showPage(fakeServer({ 'GET /api/dashboard': figures }), '/', { '/': <DashboardPage /> })
 

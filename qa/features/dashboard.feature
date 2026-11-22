@@ -54,8 +54,8 @@ Feature: Dashboard
       And the Dashboard has no date error
 
   Rule: Interest collected this month and this year open the Payments they were counted from
-    The year's tile counts to the QA date, and the Payments list's summary for a year counts to
-    the end of it, so only the month's figure is held to the list's.
+    The year's tile counts to the QA date ("so far"), and the Payments list's summary for a year
+    counts to the end of it (including future-dated Payments), so only the month's figure is held to the list's.
 
     @golden @screen:/ @screen:/payments
     Scenario: Interest collected in the month opens the Payments received then
@@ -68,7 +68,7 @@ Feature: Dashboard
     @golden @screen:/ @screen:/payments
     Scenario: Interest collected in the year opens the Payments received then
       When the Lender opens the Dashboard
-      And the Lender follows the Dashboard's "In 2025" figure
+      And the Lender follows the Dashboard's "Interest collected so far in 2025" figure
       Then the Lender is on "/payments?year=2025&include_voided=false"
       And the Payments listed paid the interest the app counts for 2025
 
