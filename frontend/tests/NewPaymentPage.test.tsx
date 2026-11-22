@@ -62,6 +62,15 @@ function server(extra: Record<string, unknown> = {}) {
   })
 }
 
+test('a form with no cash received and no Discount asks for one of them', async () => {
+  showPage(server(), '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
+
+  expect(await screen.findByText('Enter cash received or a Discount.')).toBeTruthy()
+
+  fireEvent.change(screen.getByLabelText('Amount received (₹)'), { target: { value: '500' } })
+  expect(screen.queryByText('Enter cash received or a Discount.')).toBeNull()
+})
+
 test('a Payment that leaves something Outstanding goes to its Receipt, offering no Redemption', async () => {
   const backend = server()
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
