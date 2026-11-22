@@ -1,0 +1,1 @@
+- **Payment form:** leaving both cash received and Discount empty now shows "Enter cash received or a Discount."; it was never displayed.
