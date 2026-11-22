@@ -26,7 +26,7 @@ from sqlalchemy.engine import Connection
 
 from mortgage_backend.lending.ledger import HypotheticalPayments
 from mortgage_backend.lending.replay import Closure, replay, replays
-from mortgage_backend.lending.terms import Terms
+from mortgage_backend.lending.terms import PartMonthRule, Terms
 from mortgage_backend.platform.db import allocation_table, payment_table
 
 
@@ -188,6 +188,27 @@ def test_term_changes_apply_from_their_accrual_date(conn: Connection) -> None:
     assert mortgage.outstanding(TODAY).total == 1_10_000 * RUPEE
     assert mortgage.terms_on(TODAY).monthly_rate_bps == 200
     assert mortgage.terms_on(date(2026, 3, 13)).monthly_rate_bps == 300
+
+
+def test_a_outstanding_on_closure_names_the_rule_of_the_month_it_charges(
+    conn: Connection,
+) -> None:
+    chain = add_mortgage(conn, add_customer(conn))
+    add_term_change(
+        conn, chain, date(2026, 4, 14), part_month_rule=PartMonthRule.NOTHING
+    )
+
+    mortgage = replay(conn, chain)
+
+    # Full-month until 14 Apr, then Nothing: no interest yet for the month under way.
+    assert (
+        mortgage.outstanding_on_closure(TODAY).part_month_rule == PartMonthRule.NOTHING
+    )
+    assert mortgage.outstanding_on_closure(TODAY).interest_to_date == 0
+    assert (
+        mortgage.outstanding_on_closure(date(2026, 4, 10)).part_month_rule
+        == PartMonthRule.FULL_MONTH
+    )
 
 
 def test_mortgages_are_replayed_together_each_with_only_its_own_facts(

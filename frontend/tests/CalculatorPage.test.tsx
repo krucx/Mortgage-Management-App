@@ -32,6 +32,7 @@ const simulation: Simulation = {
     unpaid_interest: 0,
     last_accrual_on: '2027-04-20',
     interest_to_date_days: 1,
+    part_month_rule: 'full_month',
     interest_to_date: 253_600,
     total: 12_936_000,
     advance_held: 0,

@@ -2300,6 +2300,16 @@
             "title": "Paid Ahead",
             "type": "integer"
           },
+          "part_month_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartMonthRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "payment_id": {
             "anyOf": [
               {
@@ -3120,6 +3130,9 @@
             "title": "On",
             "type": "string"
           },
+          "part_month_rule": {
+            "$ref": "#/components/schemas/PartMonthRule"
+          },
           "principal": {
             "title": "Principal",
             "type": "integer"
@@ -3143,6 +3156,7 @@
           "unpaid_interest",
           "last_accrual_on",
           "interest_to_date_days",
+          "part_month_rule",
           "interest_to_date",
           "total",
           "advance_held",
