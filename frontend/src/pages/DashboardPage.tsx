@@ -221,7 +221,7 @@ export function DashboardPage() {
           />
           <Figure
             to={`/payments?year=${year}&include_voided=false`}
-            label={`In ${year}`}
+            label={`Interest collected so far in ${year}`}
             value={formatINR(figures.interest_collected_this_year)}
           />
         </div>
