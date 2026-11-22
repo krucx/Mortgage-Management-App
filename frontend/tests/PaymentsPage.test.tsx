@@ -21,7 +21,7 @@ test('the Payments filter has a name', async () => {
   expect(await screen.findByRole('searchbox', { name: 'Filter Payments' })).toBeTruthy()
 })
 
-test('the year summary says it includes future-dated Payments; a month or all time does not', async () => {
+test('the year summary says it includes future-dated Payments; a month does not', async () => {
   const server = () =>
     fakeServer({
       'GET /api/payments': { items: [], total: 2, page: 1, page_size: 20, interest_paid: 500_000 },
