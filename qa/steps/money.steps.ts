@@ -46,10 +46,15 @@ async function lendOn(
 /** "₹2,600" → paise. */
 const paiseOf = (shown: string) => Number(shown.replace(/[₹,]/g, '')) * 100;
 
-/** A text as a pattern that matches it whatever the whitespace between its words: an
- * empty table cell adds a space to a row's name. */
-const spaced = (text: string) =>
-  new RegExp(text.split(/\s+/).map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'));
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** The whole of a text, whatever the whitespace between its words: an empty table cell
+ * adds a space to a row's name. */
+const spaced = (text: string) => new RegExp(`^\\s*${text.split(/\s+/).map(escaped).join('\\s+')}\\s*$`);
+
+/** A figure at the start of a text, and the whole figure: "₹900" but not "₹900.50", though
+ * words may follow it, as "(Full month)" follows an Interest to Date. */
+const figure = (value: string) => new RegExp(`^\\s*${escaped(value)}(?![\\d.,])`);
 
 // Given
 
@@ -94,7 +99,7 @@ Then('the Closure quote reads:', async ({ page }, rows: DataTable) => {
   const panel = page.locator('.close-panel');
   for (const [label, value] of rows.raw()) {
     const row = panel.locator('.summary-row', { has: page.getByRole('term').getByText(label, { exact: true }) });
-    await expect(row.getByRole('definition'), label).toContainText(value);
+    await expect(row.getByRole('definition'), label).toHaveText(figure(value));
   }
 });
 
