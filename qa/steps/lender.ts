@@ -164,6 +164,13 @@ export class Lender {
     if (!res.ok()) throw new Error(`POST ${path} failed: ${res.status()} ${await res.text()}`);
     return res.json();
   }
+
+  /** The Simulation of `body`: it stores nothing, so the golden book may be asked too. */
+  async simulation(body: unknown) {
+    const res = await this.request.post('/api/simulation', { data: body, headers: this.headers(this.day) });
+    if (!res.ok()) throw new Error(`POST /api/simulation failed: ${res.status()} ${await res.text()}`);
+    return res.json();
+  }
 }
 
 function only<T extends { id: number }>(page: { items: T[] }, matches: (item: any) => boolean, what: string): T {

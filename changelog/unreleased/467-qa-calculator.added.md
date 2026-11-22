@@ -1,0 +1,1 @@
+- **QA stack:** scenarios for the Calculator and its Simulation in `qa/features/calculator.feature`: inputs kept in the address, results tiles and compared Terms, planned Payments and Lump Sums, jewellery value and Loan-to-Value, the Graph and Month by month, validation, and Lend this.
