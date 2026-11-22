@@ -24,6 +24,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import delete, false, insert, not_, select, update
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.follow_up.message_settings import MESSAGE_SETTINGS
@@ -49,6 +50,7 @@ from mortgage_backend.platform.db import (
     mortgage_table,
     reminder_mortgage_table,
     reminder_table,
+    write_transaction,
 )
 from mortgage_backend.platform.paging import Page, PageNumber, rows_page
 
@@ -117,12 +119,17 @@ def sync(
     `replayed` (covering every Active Mortgage) when the caller has replayed them.
     Every unsent Reminder then awaits approval if "approve first" is on and the Lender
     has not approved it, and is queued otherwise; while it is off, approvals are forgotten, so turning it
-    on again holds every unsent Reminder. Syncing twice changes nothing."""
+    on again holds every unsent Reminder. Syncing twice changes nothing. Callers sync
+    in a `write_transaction`, so a sync never acts on what another has just changed."""
     settings = MESSAGE_SETTINGS.get(conn)
     until = today + timedelta(days=settings.reminder_days_before)
+    # Only those queued by today: in QA mode a read may carry an earlier date than
+    # one that has just queued a Reminder, and must not take it from under it.
     conn.execute(
         delete(reminder_table).where(
-            reminder_table.c.status.in_(_UNSENT), reminder_table.c.accrues_on > until
+            reminder_table.c.status.in_(_UNSENT),
+            reminder_table.c.accrues_on > until,
+            reminder_table.c.created_on <= today,
         )
     )
     coming = [
@@ -152,22 +159,21 @@ def sync(
     ineligible = [row["id"] for row in unsent_rows if not still_eligible[row["id"]]]
     if ineligible:
         conn.execute(delete(reminder_table).where(reminder_table.c.id.in_(ineligible)))
-    already = {
-        (row.customer_id, row.accrues_on)
-        for row in conn.execute(
-            select(reminder_table.c.customer_id, reminder_table.c.accrues_on).where(
-                reminder_table.c.accrues_on > today
-            )
-        )
-    }
-    for customer_id, on in sorted(accruing - already, key=lambda due: due[1]):
+    # One a Customer has for that date already, in any status, is kept as it is.
+    if accruing:
         conn.execute(
-            insert(reminder_table).values(
-                customer_id=customer_id,
-                accrues_on=on,
-                created_on=today,
-                status=ReminderStatus.QUEUED,
-            )
+            sqlite_insert(reminder_table).on_conflict_do_nothing(
+                index_elements=["customer_id", "accrues_on"]
+            ),
+            [
+                {
+                    "customer_id": customer_id,
+                    "accrues_on": on,
+                    "created_on": today,
+                    "status": ReminderStatus.QUEUED,
+                }
+                for customer_id, on in sorted(accruing, key=lambda due: due[1])
+            ],
         )
     unsent = reminder_table.c.status.in_(_UNSENT)
     if settings.reminder_approve_first:
@@ -419,21 +425,27 @@ def act(
     if becomes not in _UNSENT:
         # Sent or skipped: keep it as it was, for the log.
         values["message"] = reminder.message
-        if reminder.mortgages:
-            conn.execute(
-                insert(reminder_mortgage_table),
-                [
-                    {"reminder_id": reminder_id, "mortgage_id": m.id}
-                    for m in reminder.mortgages
-                ],
-            )
     if becomes == ReminderStatus.SENT:
         values["sent_at"] = now
-    conn.execute(
+    # Only while it is still as it was read: one withdrawn since is not found.
+    changed = conn.execute(
         update(reminder_table)
-        .where(reminder_table.c.id == reminder_id)
+        .where(
+            reminder_table.c.id == reminder_id,
+            reminder_table.c.status == reminder.status,
+        )
         .values(**values)
     )
+    if changed.rowcount == 0:
+        raise ReminderNotFound(reminder_id)
+    if becomes not in _UNSENT and reminder.mortgages:
+        conn.execute(
+            insert(reminder_mortgage_table),
+            [
+                {"reminder_id": reminder_id, "mortgage_id": m.id}
+                for m in reminder.mortgages
+            ],
+        )
     return list_reminders(conn, reminder_id=reminder_id)[0]
 
 
@@ -452,7 +464,7 @@ def read_reminders(
     """Reminders by Accrual Date, then Customer (or by `sort`, reversed when
     `descending`), synced first: a Mortgage added today or a reopened Mortgage shows at
     once, not after the next daily run."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         replayed = active_replays(conn)
         sync(conn, today, replayed)
         reminders = list_reminders(conn, status, replayed=replayed)
@@ -463,7 +475,7 @@ def _answer(
     engine: EngineDep, reminder_id: int, action: ReminderAction, now: datetime
 ) -> Reminder:
     try:
-        with engine.begin() as conn:
+        with write_transaction(engine) as conn:
             return act(conn, reminder_id, action, now)
     except ReminderNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reminder not found") from None

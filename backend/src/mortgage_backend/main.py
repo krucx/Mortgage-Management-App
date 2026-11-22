@@ -46,6 +46,7 @@ from mortgage_backend.platform.db import (
     make_engine,
     migrate,
     photos_dir,
+    write_transaction,
 )
 from mortgage_backend.platform.local_only import LocalOnly
 from mortgage_backend.platform.screens import screens_dir_from_env, serve_screens
@@ -79,7 +80,7 @@ def create_app(
     backup = Backups(engine, database_url, backup_dir, backup_password, now)
 
     def sync_reminders(day: date) -> None:
-        with engine.begin() as conn:
+        with write_transaction(engine) as conn:
             reminders.sync(conn, day)
 
     daily_run = DailyRun(

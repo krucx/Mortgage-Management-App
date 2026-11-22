@@ -1,18 +1,17 @@
-@mode:serial
 Feature: Reminders
   A Reminder is queued for each Customer days before their Mortgages' Accrual Dates (two,
   unless the Lender changes it), covering every one of their Mortgages accruing that day. In QA
   mode the request's date is the day the daily run queues them for.
 
   Every API request on a new date runs that date's daily jobs, which withdraw the unsent Reminders
-  queued further ahead than two days from it, and each read of the Reminders does the same. So
-  the scenarios here keep to January 2020, before every date any other scenario uses (Mortgages
-  lent in October 2019, read on 2 and 3 Jan 2020, and 6 Jan for the pager's), so no other
-  scenario's date can take a Reminder from under them; and they run one after another (the
-  feature is tagged "mode:serial"), since two reads at once race in the app. The days before,
-  the wording and approving first are settings for the whole book that only Reminders read, so
-  the scenarios that change them run here too, and put back what they change. They keep off the
-  fresh app, where a Mortgage that owes for years would join the Call List scenarios' lists.
+  queued by then further ahead than two days from it, and each read of the Reminders does the
+  same. So the scenarios here keep to January 2020, before every date any other scenario uses
+  (Mortgages lent in October 2019, read on 2 and 3 Jan 2020, and 6 Jan for the pager's), so no
+  other scenario's date can take a Reminder from under them, and they run in parallel: a read on
+  an earlier date leaves alone the Reminders queued on a later one. The days before, the wording
+  and approving first are settings for the whole book that only Reminders read, so the
+  scenarios that change them are tagged "settings": they run one after another, once every
+  "fresh" scenario is done, and put back what they change.
 
   Rule: A Reminder is queued days before the Accrual Date, for every Mortgage accruing then
 
@@ -55,8 +54,8 @@ Feature: Reminders
       Then a Reminder to "Remtabsent Customer" for 4 Jan 2020 is sent
       And a Reminder to "Remtabskipped Customer" for 4 Jan 2020 is skipped
       And a Reminder to "Remtabqueued Customer" for 4 Jan 2020 is to send
-      # Nothing is held for approval unless a scenario below turns approve-first on, and each
-      # of them puts it back.
+      # Nothing is held for approval: only the "settings" scenarios below turn approve-first
+      # on, one at a time, and each of them puts it back.
       When the Lender opens the Reminders tab "To approve"
       Then the list says "No Reminders here."
 
@@ -157,6 +156,7 @@ Feature: Reminders
       And opens the Reminders from that figure
       Then the Reminders to send are that many
 
+  @settings
   Rule: The Lender's settings shape the queue and its wording
 
     @screen:/settings @screen:/reminders
