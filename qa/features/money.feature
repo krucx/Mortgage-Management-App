@@ -11,6 +11,7 @@ Feature: Money worked out by hand
   - Outstanding is Principal + unpaid interest + the Interest to Date (ADR 0011).
   - A Payment pays unpaid interest, then the Interest to Date (paid ahead of that month's
     interest), then Principal; a Discount does the same after the cash (ADR 0014).
+  - The Mortgage page's Unpaid interest tile includes the Interest to Date still owed.
 
   @screen:/mortgages/:id
   Scenario: Simple interest over several months, a Payment paying interest and then Principal
@@ -64,18 +65,19 @@ Feature: Money worked out by hand
     When the Lender opens the Mortgage on <day>
     # Interest to Date: <arithmetic>
     # Outstanding: 30,000 + 900 + <to date> = <outstanding>
+    # Unpaid interest tile, the Interest to Date included: 900 + <to date> = <unpaid>
     Then its tiles read:
       | Outstanding     | <outstanding> |
       | Principal       | ₹30,000       |
-      | Unpaid interest | ₹900          |
+      | Unpaid interest | <unpaid>      |
     And its Ledger has a step "<day> Interest to Date: <days> of this month, today included (<rule shown>) on ₹30,000, to date: <until> <to date>"
 
     Examples:
-      | customer                | rule         | day         | days    | arithmetic                         | to date | outstanding | rule shown      | until                                      |
-      | Pro Rata Ten Customer   | pro-rata     | 14 Oct 2025 | 10 days | 5 to 14 Oct is 10 days: 900 × 10/30 | ₹300    | ₹31,200     | Pro-rata by day | grows each day until the next Accrual Date |
-      | Full Month Ten Customer | a full month | 14 Oct 2025 | 10 days | the whole month: 3% of 30,000      | ₹900    | ₹31,800     | Full month      | until the next Accrual Date                |
-      | Pro Rata One Customer   | pro-rata     | 5 Oct 2025  | 1 day   | 5 Oct alone is 1 day: 900 × 1/30   | ₹30     | ₹30,930     | Pro-rata by day | grows each day until the next Accrual Date |
-      | Full Month One Customer | a full month | 5 Oct 2025  | 1 day   | the whole month from its first day | ₹900    | ₹31,800     | Full month      | until the next Accrual Date                |
+      | customer                | rule         | day         | days    | arithmetic                          | to date | outstanding | unpaid | rule shown      | until                                      |
+      | Pro Rata Ten Customer   | pro-rata     | 14 Oct 2025 | 10 days | 5 to 14 Oct is 10 days: 900 × 10/30 | ₹300    | ₹31,200     | ₹1,200 | Pro-rata by day | grows each day until the next Accrual Date |
+      | Full Month Ten Customer | a full month | 14 Oct 2025 | 10 days | the whole month: 3% of 30,000       | ₹900    | ₹31,800     | ₹1,800 | Full month      | until the next Accrual Date                |
+      | Pro Rata One Customer   | pro-rata     | 5 Oct 2025  | 1 day   | 5 Oct alone is 1 day: 900 × 1/30    | ₹30     | ₹30,930     | ₹930   | Pro-rata by day | grows each day until the next Accrual Date |
+      | Full Month One Customer | a full month | 5 Oct 2025  | 1 day   | the whole month from its first day  | ₹900    | ₹31,800     | ₹1,800 | Full month      | until the next Accrual Date                |
 
   @screen:/mortgages/:id
   Scenario: A Term Change mid-life charges the new rate only on the months from its date
@@ -112,11 +114,12 @@ Feature: Money worked out by hand
     #   Principal 51,000; the Interest to Date is 2% of 51,000 = 1,020, the 1,000 pays
     #   1,000 of it ahead; Outstanding 51,000 + 20 = 51,020.
     # Let off: 51,020 − 51,000 = 20
+    # Unpaid interest tile, the Interest to Date included: 0 + 1,000 = 1,000
     When the Lender opens the Mortgage on 7 Sept 2025
     Then its tiles read:
       | Outstanding     | ₹51,000 |
       | Principal       | ₹50,000 |
-      | Unpaid interest | ₹0      |
+      | Unpaid interest | ₹1,000  |
     And its Ledger has a step "4 Sept 2025 · received 7 Sept 2025 · Grace, ₹20 let off Payment: ₹1,000 cash to interest, ₹0 cash to Principal ₹1,000 ₹0 ₹50,000 ₹0"
     And its Ledger has a step "5 Sept 2025 Interest: 2% of ₹50,000, ₹1,000 of it paid ahead ₹1,000 — ₹50,000 ₹0"
 
@@ -137,10 +140,11 @@ Feature: Money worked out by hand
     # 5 Nov: the month from 5 Oct began on 20,000: 3% of 20,000 = 600, all paid ahead; unpaid 0
     # 10 Nov: Interest to Date, the full month from 5 Nov: 3% of 19,800 = 594
     #   Outstanding 19,800 + 0 + 594 = 20,394
+    # Unpaid interest tile, the Interest to Date included: 0 + 594 = 594
     Then its tiles read:
       | Outstanding     | ₹20,394 |
       | Principal       | ₹19,800 |
-      | Unpaid interest | ₹0      |
+      | Unpaid interest | ₹594    |
     And its Ledger has a step "20 Oct 2025 Payment: ₹400 cash to interest, ₹0 cash to Principal; ₹800 Discount to interest, ₹200 Discount to Principal ₹400 ₹1,000 ₹19,800 ₹0"
     And its Ledger has a step "5 Nov 2025 Interest: 3% of ₹20,000, ₹600 of it paid ahead ₹600 — ₹19,800 ₹0"
 
