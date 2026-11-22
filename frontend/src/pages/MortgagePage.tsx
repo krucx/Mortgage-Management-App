@@ -355,7 +355,7 @@ function describe(step: LedgerStep, mortgage: Mortgage, instalment?: AdvanceInst
       return 'Mortgage started: Principal lent'
     case 'interest':
       return (
-        `Interest: ${formatRate(mortgage.terms.monthly_rate_bps)} of ${formatINR(step.charged_on)}` +
+        `Interest: ${formatRate(step.monthly_rate_bps)} of ${formatINR(step.charged_on)}` +
         paidAhead(step)
       )
     case 'payment':

@@ -49,6 +49,8 @@ class LedgerStep:
     unpaid_interest: int  # running unpaid interest after the step, in paise
     # interest / interest_to_date steps: the Principal at the start of that month
     charged_on: int = 0
+    # interest steps: the monthly rate charged, in basis points (the Terms then, not now)
+    monthly_rate_bps: int = 0
     # interest_to_date steps: days of the month charged, from its first day through `on`
     interest_to_date_days: int = 0
     # interest / interest_to_date steps: the part of it Payments had already paid ahead;
@@ -322,6 +324,7 @@ class _Run:
                     self.principal,
                     self.unpaid,
                     charged_on=self.month_start_principal,
+                    monthly_rate_bps=month_terms.monthly_rate_bps,
                     paid_ahead=self.paid_ahead,
                 )
             )

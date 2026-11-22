@@ -2285,6 +2285,11 @@
             "title": "Interest To Date Days",
             "type": "integer"
           },
+          "monthly_rate_bps": {
+            "default": 0,
+            "title": "Monthly Rate Bps",
+            "type": "integer"
+          },
           "on": {
             "format": "date",
             "title": "On",

@@ -22,6 +22,14 @@ Feature: Term Changes
     Then its Terms panel lists the Term Change from 5 Dec 2025 to 2.5% a month as coming
 
   @screen:/mortgages/:id
+  Scenario: The Ledger keeps the old rate on the months before a Term Change
+    Given "Old Rate Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
+    And on 1 Oct 2025 its Terms were changed to 2% a month from 5 Oct 2025
+    When the Lender opens the Mortgage on 15 Nov 2025
+    Then its Ledger has a step "5 Oct 2025 Interest: 3% of ₹30,000"
+    And its Ledger has a step "5 Nov 2025 Interest: 2% of ₹30,000"
+
+  @screen:/mortgages/:id
   Scenario: Removing a coming Term Change after seeing its Preview
     Given "Remove Terms Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold ring
     And on 1 Nov 2025 its Terms were changed to 2% a month from 5 Dec 2025
