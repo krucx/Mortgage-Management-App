@@ -33,6 +33,8 @@ reviews:
     enabled: true
     auto_incremental_review: true
     drafts: false
+    # Also review PRs into integration branches, not only the default branch.
+    base_branches: ['.*']
 chat:
   auto_reply: true
 knowledge_base:
