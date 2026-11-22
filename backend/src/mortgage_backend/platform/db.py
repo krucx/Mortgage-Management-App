@@ -1,5 +1,6 @@
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -286,13 +287,27 @@ def photos_dir(database_url: str) -> Path:
 
 
 def make_engine(database_url: str) -> Engine:
-    engine = create_engine(database_url)
+    # A writer waits this many seconds for another to finish before giving up: syncing
+    # the Reminders waits its turn behind every other writer (#515).
+    engine = create_engine(database_url, connect_args={"timeout": 30})
 
     @event.listens_for(engine, "connect")
     def enforce_foreign_keys(dbapi_connection: Any, _record: Any) -> None:
         dbapi_connection.execute("PRAGMA foreign_keys = ON")
 
     return engine
+
+
+@contextmanager
+def write_transaction(engine: Engine) -> Iterator[Connection]:
+    """A transaction that holds the database's write lock from its first statement,
+    waiting its turn behind any other writer, so what it reads stays true until it
+    commits. For one that reads and then writes on what it read, such as syncing the
+    Reminders: in an ordinary transaction a write committed between the two is missed
+    (#515)."""
+    with engine.begin() as conn:
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
+        yield conn
 
 
 def get_engine(request: Request) -> Engine:

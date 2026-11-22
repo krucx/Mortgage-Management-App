@@ -13,7 +13,7 @@ from mortgage_backend.follow_up.messages import (
     unknown_placeholders,
 )
 from mortgage_backend.platform.clock import TodayDep
-from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.db import EngineDep, write_transaction
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.settings import ConfigGroup
 
@@ -105,7 +105,7 @@ def update_message_settings(
 ) -> MessageSettings:
     if reason := template_refusal(settings):
         raise unprocessable(reason)
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:  # saving syncs the Reminders
         MESSAGE_SETTINGS.set(conn, settings, today)
         return MESSAGE_SETTINGS.get(conn)
 

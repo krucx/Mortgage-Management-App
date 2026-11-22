@@ -26,7 +26,12 @@ from mortgage_backend.lending.activity import (
 from mortgage_backend.lending.ledger import accrual_date
 from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus
 from mortgage_backend.platform.clock import TodayDep, month_span
-from mortgage_backend.platform.db import EngineDep, mortgage_table, payment_table
+from mortgage_backend.platform.db import (
+    EngineDep,
+    mortgage_table,
+    payment_table,
+    write_transaction,
+)
 from mortgage_backend.platform.money import RUPEE
 
 MONTHS_OF_PAYMENTS = 12
@@ -298,7 +303,7 @@ def read_dashboard(
     end = end_date or default_end
     if end < start:
         raise HTTPException(422, "End date must be on or after start date")
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         replayed = all_replays(conn)
         # As the Reminders page does, so the two always agree.
         reminders.sync(conn, today, replayed)
