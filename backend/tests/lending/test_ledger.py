@@ -867,9 +867,10 @@ def test_each_interest_step_carries_the_rate_that_was_charged():
         date(2026, 11, 14), 3_000_00, terms(), date(2027, 1, 14), term_changes=[change]
     )
 
-    assert [
-        (s.on, s.monthly_rate_bps) for s in ledger if s.event == "interest"
-    ] == [(date(2026, 12, 14), 300), (date(2027, 1, 14), 200)]
+    assert [(s.on, s.monthly_rate_bps) for s in ledger if s.event == "interest"] == [
+        (date(2026, 12, 14), 300),
+        (date(2027, 1, 14), 200),
+    ]
 
 
 def test_months_unpaid_never_counts_the_interest_to_date():
