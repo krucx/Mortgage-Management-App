@@ -211,7 +211,8 @@ Feature: Payments
       And today is 15 Nov 2025
       When the Lender opens a new Payment from "Checks Customer"
       # Neither cash nor a Discount yet.
-      Then the Payment can't be recorded
+      Then the form lists the problem "Enter cash received or a Discount."
+      And the Payment can't be recorded
       When enters ₹4,000 as the Amount received
       And enters a Discount of minus ₹100 for 2025-Checks-GoldChain
       Then the form lists the problem "Amounts cannot be negative."

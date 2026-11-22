@@ -350,7 +350,7 @@ export function PaymentForm({
           />
         </label>
 
-        {(total > 0 || discountTotal > 0) && problems.length > 0 && (
+        {problems.length > 0 && (
           <ul className="problems">
             {problems.map((problem) => (
               <li key={problem}>{problem}</li>
