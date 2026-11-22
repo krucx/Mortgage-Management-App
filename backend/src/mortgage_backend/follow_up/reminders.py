@@ -425,21 +425,27 @@ def act(
     if becomes not in _UNSENT:
         # Sent or skipped: keep it as it was, for the log.
         values["message"] = reminder.message
-        if reminder.mortgages:
-            conn.execute(
-                insert(reminder_mortgage_table),
-                [
-                    {"reminder_id": reminder_id, "mortgage_id": m.id}
-                    for m in reminder.mortgages
-                ],
-            )
     if becomes == ReminderStatus.SENT:
         values["sent_at"] = now
-    conn.execute(
+    # Only while it is still as it was read: one withdrawn since is not found.
+    changed = conn.execute(
         update(reminder_table)
-        .where(reminder_table.c.id == reminder_id)
+        .where(
+            reminder_table.c.id == reminder_id,
+            reminder_table.c.status == reminder.status,
+        )
         .values(**values)
     )
+    if changed.rowcount == 0:
+        raise ReminderNotFound(reminder_id)
+    if becomes not in _UNSENT and reminder.mortgages:
+        conn.execute(
+            insert(reminder_mortgage_table),
+            [
+                {"reminder_id": reminder_id, "mortgage_id": m.id}
+                for m in reminder.mortgages
+            ],
+        )
     return list_reminders(conn, reminder_id=reminder_id)[0]
 
 

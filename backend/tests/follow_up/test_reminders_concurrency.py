@@ -65,22 +65,6 @@ def to_send(client: TestClient) -> list[Any]:
     return response.json()["items"]
 
 
-def test_a_read_on_an_earlier_date_keeps_the_reminders_a_later_date_queued(
-    app_client: TestClient, clock: Clock
-) -> None:
-    lend(app_client, person(app_client))
-    [reminder] = to_send(app_client)  # for 14 May
-
-    # In QA mode each request carries its own date: a scenario on 11 May reads while
-    # another, on 12 May, is about to send the Reminder it was just shown.
-    clock.today = date(2026, 5, 11)
-    assert [r["id"] for r in to_send(app_client)] == [reminder["id"]]
-
-    clock.today = date(2026, 5, 12)
-    sent = app_client.post(f"/api/reminders/{reminder['id']}/sent")
-    assert sent.status_code == 200, sent.text
-
-
 def test_a_read_overlapping_a_new_mortgage_still_answers(
     app_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -103,7 +87,7 @@ def test_a_read_overlapping_a_new_mortgage_still_answers(
     ]
 
 
-def test_a_read_overlapping_sending_a_reminder_neither_fails(
+def test_a_reminder_withdrawn_while_it_is_sent_is_sent_first(
     app_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     chain = lend(app_client, person(app_client))
@@ -123,6 +107,33 @@ def test_a_read_overlapping_sending_a_reminder_neither_fails(
         pause.resume()
         sent = sending.result()
 
-    # One of them went first: the Reminder was sent before the Mortgage closed.
+    # The send went first, so the Reminder was sent before the Mortgage closed.
     assert sent.status_code == 200, sent.text
     assert sent.json()["status"] == "sent"
+
+
+@pytest.fixture
+def qa_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("mortgage_backend.platform.clock._QA_MODE", True)
+
+
+@pytest.mark.usefixtures("qa_mode")
+def test_overlapping_reads_on_different_dates_keep_each_others_reminders(
+    app_client: TestClient,
+) -> None:
+    lend(app_client, person(app_client))
+    first = app_client.get("/api/reminders", headers={"X-QA-Clock": "2026-05-12"})
+    [reminder] = first.json()["items"]  # for 14 May
+
+    def read(day: str) -> int:
+        return app_client.get("/api/reminders", headers={"X-QA-Clock": day}).status_code
+
+    # Scenarios on 11 and 12 May read at once, as QA's parallel workers do.
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        answers = list(pool.map(read, ["2026-05-11", "2026-05-12"] * 8))
+
+    assert set(answers) == {200}
+    sent = app_client.post(
+        f"/api/reminders/{reminder['id']}/sent", headers={"X-QA-Clock": "2026-05-12"}
+    )
+    assert sent.status_code == 200, sent.text
