@@ -35,6 +35,17 @@ Given(
   },
 );
 
+Given(
+  'on {day} its Part-Month Rule was changed to nothing from {day}',
+  async ({ lender }, on: Day, from: Day) => {
+    await lender.post(
+      `/api/mortgages/${lender.mortgage!.id}/term-changes`,
+      { effective_on: from.iso, part_month_rule: 'nothing' },
+      on.iso,
+    );
+  },
+);
+
 When('the Lender starts to change its Terms', async ({ page }) => {
   await page.getByRole('link', { name: 'Change Terms…' }).click();
   await expect(page).toHaveURL(/\/mortgages\/\d+\/terms$/);

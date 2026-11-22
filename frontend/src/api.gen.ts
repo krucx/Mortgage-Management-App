@@ -2393,6 +2393,7 @@ export interface components {
              * @default 0
              */
             paid_ahead: number;
+            part_month_rule?: components["schemas"]["PartMonthRule"] | null;
             /** Payment Id */
             payment_id?: number | null;
             /** Principal */
@@ -2742,6 +2743,7 @@ export interface components {
              * Format: date
              */
             on: string;
+            part_month_rule: components["schemas"]["PartMonthRule"];
             /** Principal */
             principal: number;
             /** To Pay */

@@ -238,7 +238,7 @@ export function CloseMortgage({
             [
               'Interest to Date',
               `${formatINR(quote.interest_to_date)} (${formatDays(quote.interest_to_date_days)} of ` +
-                `the month, that day included; ${PART_MONTH_RULES[mortgage.terms.part_month_rule]})`,
+                `the month, that day included; ${PART_MONTH_RULES[quote.part_month_rule]})`,
             ],
             [
               `Outstanding on ${formatDate(on)}`,

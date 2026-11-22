@@ -51,6 +51,8 @@ class LedgerStep:
     charged_on: int = 0
     # interest steps: the monthly rate charged, in basis points (the Terms then, not now)
     monthly_rate_bps: int = 0
+    # interest_to_date steps: the Part-Month Rule of the Terms then, not now
+    part_month_rule: PartMonthRule | None = None
     # interest_to_date steps: days of the month charged, from its first day through `on`
     interest_to_date_days: int = 0
     # interest / interest_to_date steps: the part of it Payments had already paid ahead;
@@ -361,9 +363,14 @@ class _Run:
     def interest_to_date(self, on: date) -> tuple[int, int]:
         """The Interest to Date (and days charged) on `on`, once accrued through it."""
         days = interest_to_date_days(self.start, on)
-        month_terms = self.terms_from(accrual_date(self.start, self.n - 1))
-        charge = interest_to_date_charge(self.month_start_principal, month_terms, days)
+        charge = interest_to_date_charge(
+            self.month_start_principal, self.month_terms(), days
+        )
         return charge, days
+
+    def month_terms(self) -> Terms:
+        """The Terms in force for the month under way."""
+        return self.terms_from(accrual_date(self.start, self.n - 1))
 
     def charge_interest_to_date(self, on: date, cap: int | None = None) -> None:
         """Add the Interest to Date on `on` as the Ledger's step, less what was paid
@@ -382,6 +389,7 @@ class _Run:
                     self.principal,
                     self.unpaid,
                     charged_on=self.month_start_principal,
+                    part_month_rule=self.month_terms().part_month_rule,
                     interest_to_date_days=days,
                     paid_ahead=self.paid_ahead,
                 )

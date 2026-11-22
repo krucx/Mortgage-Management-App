@@ -1,0 +1,1 @@
+- **Part-Month Rule shown:** the Ledger's Interest to Date line and the Closure quote name the Part-Month Rule in force for the month they charge, not the Mortgage's current one, so a quote for a day before a Term Change no longer shows the new rule.

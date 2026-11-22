@@ -369,7 +369,7 @@ function describe(step: LedgerStep, mortgage: Mortgage, instalment?: AdvanceInst
           : '')
       )
     case 'interest_to_date': {
-      const rule = mortgage.terms.part_month_rule
+      const rule = step.part_month_rule ?? mortgage.terms.part_month_rule
       // Only while Active is it to date: a Closure fixes it.
       const toDate =
         mortgage.status !== 'active'

@@ -51,6 +51,7 @@ def test_a_outstanding_on_closure_includes_the_interest_to_date(
         "unpaid_interest": 9_000_00,
         "last_accrual_on": "2026-04-14",
         "interest_to_date_days": 7,
+        "part_month_rule": rule,
         "interest_to_date": charge,
         "total": LAKH + 9_000_00 + charge,
         "advance_held": 0,

@@ -30,6 +30,18 @@ Feature: Term Changes
     And its Ledger has a step "5 Nov 2025 Interest: 2% of ₹30,000"
 
   @screen:/mortgages/:id
+  Scenario: The Closure quote names the Part-Month Rule of the month it charges
+    Full month until 5 Nov 2025, then Nothing: a quote for a day in October still
+    charges the whole month under Full month, though the Terms now say Nothing.
+
+    Given "Rule Then Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
+    And on 1 Oct 2025 its Part-Month Rule was changed to nothing from 5 Nov 2025
+    When the Lender opens the Mortgage on 15 Nov 2025
+    And the Lender starts to redeem it
+    And the Lender chooses 20 Oct 2025 as the Closure date
+    Then the quote says its Interest to Date was charged under "Full month"
+
+  @screen:/mortgages/:id
   Scenario: Removing a coming Term Change after seeing its Preview
     Given "Remove Terms Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold ring
     And on 1 Nov 2025 its Terms were changed to 2% a month from 5 Dec 2025

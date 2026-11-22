@@ -134,6 +134,7 @@ test("an Active pro-rata Mortgage's Ledger ends with its Interest to Date, growi
     unpaid_interest: 75_000,
     charged_on: 5_000_000,
     interest_to_date_days: 9,
+    part_month_rule: 'pro_rata' as const,
     interest_paid: 0,
     principal_paid: 0,
     payment_id: null,
@@ -145,6 +146,34 @@ test("an Active pro-rata Mortgage's Ledger ends with its Interest to Date, growi
     await screen.findByText(
       'Interest to Date: 9 days of this month, today included (Pro-rata by day) on ₹50,000, ' +
         'to date: grows each day until the next Accrual Date',
+    ),
+  ).toBeTruthy()
+})
+
+test("the Interest to Date shows the Part-Month Rule of its month, not the Mortgage's current one", async () => {
+  const toDate = {
+    on: '2026-10-18',
+    event: 'interest_to_date' as const,
+    amount: 50_000,
+    principal: 5_000_000,
+    unpaid_interest: 0,
+    charged_on: 5_000_000,
+    interest_to_date_days: 9,
+    part_month_rule: 'full_month' as const, // the Mortgage is now Pro-rata
+    interest_paid: 0,
+    principal_paid: 0,
+    payment_id: null,
+    terms: null,
+  }
+  const now = { ...mortgage.terms, part_month_rule: 'pro_rata' as const }
+  showMortgagePage(
+    fakeServer({ 'GET /api/mortgages/7': { ...mortgage, terms: now, ledger: [toDate] } }),
+  )
+
+  expect(
+    await screen.findByText(
+      'Interest to Date: 9 days of this month, today included (Full month) on ₹50,000, ' +
+        'to date: until the next Accrual Date',
     ),
   ).toBeTruthy()
 })
@@ -263,6 +292,7 @@ const quote = {
   principal: 5_000_000,
   unpaid_interest: 75_000,
   interest_to_date_days: 6,
+  part_month_rule: 'full_month' as const,
   interest_to_date: 0,
   total: 5_075_000,
   advance_held: 0,
@@ -496,6 +526,25 @@ test('forfeiting shows the profit or loss from the Preview, then Forfeits it alo
 
   expect(await screen.findByText(/Forfeited on/)).toBeTruthy()
   expect(body).toMatchObject({ mortgages: [{ mortgage_id: 7, recovered_amount: 4_000_000 }] })
+})
+
+test("the quote names the Part-Month Rule of the month it charges, not the Mortgage's current one", async () => {
+  showMortgagePage(
+    fakeServer({
+      // The Mortgage is now Pro-rata; the month charged was under Full month.
+      'GET /api/mortgages/7': {
+        ...mortgage,
+        terms: { ...mortgage.terms, part_month_rule: 'pro_rata' },
+      },
+      'GET /api/mortgages/7/outstanding-on-closure': { ...quote, part_month_rule: 'full_month' },
+    }),
+  )
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Redeem…' }))
+
+  expect(
+    await screen.findByText('₹0 (6 days of the month, that day included; Full month)'),
+  ).toBeTruthy()
 })
 
 test('the quote takes the Advance held off the Outstanding, and Redeems for the rest', async () => {

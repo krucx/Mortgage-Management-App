@@ -873,6 +873,23 @@ def test_each_interest_step_carries_the_rate_that_was_charged():
     ]
 
 
+def test_the_interest_to_date_carries_the_rule_of_the_month_it_charges():
+    # Full month to 14 Dec, then Pro-rata: the Interest to Date on 20 Dec is of the
+    # month starting 14 Dec, so Pro-rata; on 10 Dec it is of the month before, Full month.
+    change = TermChange(on=date(2026, 12, 14), part_month_rule=PartMonthRule.PRO_RATA)
+
+    def rule_on(as_of):
+        ledger = compute_ledger(
+            date(2026, 11, 14), 3_000_00, terms(), as_of, term_changes=[change]
+        )
+        return next(s for s in ledger if s.event == "interest_to_date").part_month_rule
+
+    assert (rule_on(date(2026, 12, 10)), rule_on(date(2026, 12, 20))) == (
+        PartMonthRule.FULL_MONTH,
+        PartMonthRule.PRO_RATA,
+    )
+
+
 def test_months_unpaid_never_counts_the_interest_to_date():
     for as_of in (date(2026, 11, 1), date(2026, 11, 30)):
         assert months_unpaid(open_ledger(PartMonthRule.FULL_MONTH, as_of)) == 0
