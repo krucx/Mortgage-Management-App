@@ -111,7 +111,7 @@ Feature: Calculator and Simulation
     When the Lender opens the Calculator
     And the Lender enters ₹50,000 as the amount lent
     And the Lender starts it on 1 Sept 2025
-    And the Lender closes it on 1 Sept 2026
+    And the Lender closes it on 1 Dec 2025
     And the Lender enters a Monthly interest rate of 2%
     And the Lender picks "Simple" as its Interest Mode
     And the Lender opens the Graph

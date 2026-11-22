@@ -100,3 +100,7 @@ Then('the page fits its width', async ({ page }) => {
   );
   expect(overflow).toBe(0);
 });
+
+Then('the {string} field says {string}', async ({ page }, label: string, problem: string) => {
+  await expect(page.locator('label', { hasText: label }).first()).toContainText(problem);
+});

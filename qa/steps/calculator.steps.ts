@@ -319,10 +319,6 @@ Then('the Calculator asks for the marked inputs to be fixed', async ({ page }) =
   await expect(page.getByText('Fix the inputs marked below to see what it would come to.')).toBeVisible();
 });
 
-Then('the {string} field says {string}', async ({ page }, label: string, problem: string) => {
-  await expect(page.locator('label', { hasText: label }).first()).toContainText(problem);
-});
-
 Then('Lump Sum {int} says {string}', async ({ page }, row: number, problem: string) => {
   await expect(page.locator('.lump-sum').nth(row - 1)).toContainText(problem);
 });
