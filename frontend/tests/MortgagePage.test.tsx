@@ -157,6 +157,7 @@ test('the Ledger says how much of a month was paid ahead', async () => {
     principal: 5_000_000,
     unpaid_interest: 30_000,
     charged_on: 5_000_000,
+    monthly_rate_bps: 150,
     interest_to_date_days: 0,
     paid_ahead: 45_000,
     interest_paid: 0,
@@ -167,6 +168,27 @@ test('the Ledger says how much of a month was paid ahead', async () => {
   showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger: [step] } }))
 
   expect(await screen.findByText('Interest: 1.5% of ₹50,000, ₹450 of it paid ahead')).toBeTruthy()
+})
+
+test('an Interest step shows the rate charged then, not the Mortgage current rate', async () => {
+  const step = {
+    on: '2026-10-18',
+    event: 'interest' as const,
+    amount: 100_000,
+    principal: 5_000_000,
+    unpaid_interest: 100_000,
+    charged_on: 5_000_000,
+    monthly_rate_bps: 200, // the Mortgage's rate is now 1.5%
+    interest_to_date_days: 0,
+    paid_ahead: 0,
+    interest_paid: 0,
+    principal_paid: 0,
+    payment_id: null,
+    terms: null,
+  }
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger: [step] } }))
+
+  expect(await screen.findByText('Interest: 2% of ₹50,000')).toBeTruthy()
 })
 
 test('deleting a photo asks first, then shows the Mortgage without it', async () => {

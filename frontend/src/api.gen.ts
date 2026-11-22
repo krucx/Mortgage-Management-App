@@ -2379,6 +2379,11 @@ export interface components {
              */
             interest_to_date_days: number;
             /**
+             * Monthly Rate Bps
+             * @default 0
+             */
+            monthly_rate_bps: number;
+            /**
              * On
              * Format: date
              */
