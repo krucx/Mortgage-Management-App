@@ -18,7 +18,7 @@ from mortgage_backend.lending.changes import TermChangeIn
 from mortgage_backend.lending.closing import ForfeitIn, RedeemIn, WaiveIn
 from mortgage_backend.lending.mortgages import MortgageIn
 from mortgage_backend.lending.replay import mortgage_row
-from mortgage_backend.lending.terms import Terms
+from mortgage_backend.lending.terms import PartMonthRule, Terms
 from mortgage_backend.payments import recording, writes
 from mortgage_backend.payments.payments import PaymentMethod
 from mortgage_backend.payments.writes import AllocationIn, PaymentIn
@@ -115,13 +115,21 @@ def add_payment(
 
 
 def add_term_change(
-    conn: Connection, mortgage_id: int, on: date, monthly_rate_bps: int
+    conn: Connection,
+    mortgage_id: int,
+    on: date,
+    monthly_rate_bps: int | None = None,
+    part_month_rule: PartMonthRule | None = None,
 ) -> None:
-    """A new rate from the Accrual Date `on`."""
+    """A new rate and/or Part-Month Rule from the Accrual Date `on`."""
     changes.add_term_change(
         conn,
         mortgage_id,
-        TermChangeIn(effective_on=on, monthly_rate_bps=monthly_rate_bps),
+        TermChangeIn(
+            effective_on=on,
+            monthly_rate_bps=monthly_rate_bps,
+            part_month_rule=part_month_rule,
+        ),
         on,
         _at(on),
     )

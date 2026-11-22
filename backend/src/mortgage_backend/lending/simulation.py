@@ -323,7 +323,9 @@ def simulate(simulation: SimulationIn, engine: EngineDep) -> Simulation:
             },
         ) from over
     ledger = plan.closed()
-    closure = outstanding_on_closure_of(ledger, start, plan.ends_on())
+    closure = outstanding_on_closure_of(
+        ledger, start, plan.ends_on(), simulation.terms.part_month_rule
+    )
     dates = _graph_dates(simulation, plan.paid, plan.paid_off_on)
     projected = project(
         start,

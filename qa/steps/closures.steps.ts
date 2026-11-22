@@ -80,6 +80,10 @@ Then('the quote is what the app works out for {day}', async ({ page, lender }, d
   await expect(row(page, `Outstanding on ${day.shown}`).getByRole('definition')).toHaveText(shownINR(quote.total));
 });
 
+Then('the quote says its Interest to Date was charged under {string}', async ({ page }, rule: string) => {
+  await expect(row(page, 'Interest to Date').getByRole('definition')).toContainText(`; ${rule})`);
+});
+
 Then('the quote shows an Advance held to take off, and what is left "To pay"', async ({ page, lender }) => {
   const quote = await quoted(page, lender);
   expect(quote.advance_held).toBeGreaterThan(0);

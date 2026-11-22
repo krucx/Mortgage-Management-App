@@ -32,6 +32,7 @@ const projects = [
     name: 'settings',
     grep: SETTINGS,
     fullyParallel: false,
+    workers: 1,
     use: { baseURL: process.env.FRESH_URL ?? 'http://qa-fresh:8000' },
   },
   { name: 'golden', grep: GOLDEN, use: { baseURL: process.env.GOLDEN_URL ?? 'http://qa-golden:8000' } },

@@ -32,7 +32,7 @@ from mortgage_backend.lending.ledger import (
     project,
     terms_on,
 )
-from mortgage_backend.lending.terms import Terms
+from mortgage_backend.lending.terms import PartMonthRule, Terms
 from mortgage_backend.platform.db import (
     advance_instalment_table,
     allocation_table,
@@ -66,6 +66,7 @@ class OutstandingOnClosure(BaseModel):
     unpaid_interest: int
     last_accrual_on: date  # the last Accrual Date by `on` (the start, before any)
     interest_to_date_days: int  # of the month under way charged, `on` included
+    part_month_rule: PartMonthRule  # that month's, from the Terms then
     interest_to_date: int  # per the Part-Month Rule, less what was paid ahead
     total: int  # the Outstanding on that Closure date
     advance_held: int  # applied by the Closure, before any final Payment (ADR 0021)
@@ -73,7 +74,11 @@ class OutstandingOnClosure(BaseModel):
 
 
 def outstanding_on_closure_of(
-    ledger: Sequence[LedgerStep], start: date, on: date, advance_held: int = 0
+    ledger: Sequence[LedgerStep],
+    start: date,
+    on: date,
+    part_month_rule: PartMonthRule,
+    advance_held: int = 0,
 ) -> OutstandingOnClosure:
     """The Outstanding on `on` of a Ledger replayed as if closed then, with no final
     Payment, and the Advance held then."""
@@ -87,6 +92,7 @@ def outstanding_on_closure_of(
         unpaid_interest=last.unpaid_interest - charge,
         last_accrual_on=on - timedelta(days=days - 1),
         interest_to_date_days=days,
+        part_month_rule=part_month_rule,
         interest_to_date=charge,
         total=last.principal + last.unpaid_interest,
         advance_held=advance_held,
@@ -288,8 +294,14 @@ class MortgageReplay:
             [a for a in self.allocations if a.payment_id != final_payment],
             closed_on=on,
         )
+        start = self.row["start_date"]
+        month_start = on - timedelta(days=interest_to_date_days(start, on) - 1)
         return outstanding_on_closure_of(
-            ledger, self.row["start_date"], on, self._held(on)
+            ledger,
+            start,
+            on,
+            self.terms_on(month_start).part_month_rule,
+            self._held(on),
         )
 
     def _held(self, on: date) -> int:

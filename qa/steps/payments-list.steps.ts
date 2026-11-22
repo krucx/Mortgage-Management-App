@@ -133,8 +133,9 @@ Then('the Payment of {money} is marked {string}', async ({ page }, amount: Money
 /** The summary says what the app has for the period: how many, and the interest paid. */
 async function expectSummary(page: Page, lender: Lender, params: Record<string, string>) {
   const { total, interest_paid } = await lender.get('/api/payments', params);
+  const forYear = params.year ? ` for ${params.year} (incl. future-dated Payments)` : '';
   await expect(summary(page)).toHaveText(
-    `${total} Payment${total === 1 ? '' : 's'}, paying ${shownINR(interest_paid)} of interest (Voided ones paid none)`,
+    `${total} Payment${total === 1 ? '' : 's'}, paying ${shownINR(interest_paid)} of interest${forYear} (Voided ones paid none)`,
   );
 }
 

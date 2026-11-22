@@ -285,11 +285,12 @@ def test_in_qa_mode_a_date_earlier_than_one_already_run_still_runs(app_client) -
 
     app_client.get("/api/customers", headers=dated("2026-05-12"))
 
-    [reminder] = reminders_on(app_client, "2026-05-13")
-    assert (reminder["accrues_on"], reminder["created_on"]) == (
-        "2026-05-14",
-        "2026-05-12",
-    )
+    # 12 June's Reminder for 14 June stays: an earlier date never withdraws one
+    # queued on a later one (#515).
+    assert [
+        (reminder["accrues_on"], reminder["created_on"])
+        for reminder in reminders_on(app_client, "2026-05-13")
+    ] == [("2026-05-14", "2026-05-12"), ("2026-06-14", "2026-06-12")]
 
 
 def test_outside_qa_mode_the_date_header_changes_nothing(app_client) -> None:
