@@ -9,6 +9,13 @@ export const GOLDEN_DAY = '2025-11-15';
 
 export type Named = { id: number; name: string };
 
+/** A Mortgage's Terms as the API takes them. */
+export type Terms = {
+  monthly_rate_bps: number;
+  interest_mode: 'simple' | 'compounded_yearly' | 'compounded_monthly';
+  part_month_rule: 'pro_rata' | 'full_month' | 'nothing';
+};
+
 /** A Payment's Allocation to one Mortgage, in paise: cash paid now, and an Advance held
  * for its next `months` of interest. */
 export type Allocation = { mortgage: Named; cash?: number; advance?: number; months?: number };
@@ -101,10 +108,17 @@ export class Lender {
   }
 
   /** A Mortgage lent to `customer` on `day` against a piece of 6 grams (5.5 of `karat`
-   * gold, 22 unless given); its Mortgage Name is the one the app suggests. Amount in paise. */
+   * gold, 22 unless given), on `terms` or else the Default Terms; its Mortgage Name is the
+   * one the app suggests. Amount in paise. */
   async lend(
     customer: Named,
-    { amount, description, day = this.day, karat = 22 }: { amount: number; description: string; day?: string; karat?: number },
+    {
+      amount,
+      description,
+      day = this.day,
+      karat = 22,
+      terms,
+    }: { amount: number; description: string; day?: string; karat?: number; terms?: Terms },
   ) {
     this.mortgage = await this.post(
       '/api/mortgages',
@@ -117,6 +131,7 @@ export class Lender {
         net_weight_mg: 5_500,
         purity_karat: karat,
         lent_through: 'upi',
+        ...(terms ? { terms } : {}),
       },
       day,
     );
