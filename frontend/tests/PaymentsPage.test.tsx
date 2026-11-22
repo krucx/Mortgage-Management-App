@@ -21,6 +21,23 @@ test('the Payments filter has a name', async () => {
   expect(await screen.findByRole('searchbox', { name: 'Filter Payments' })).toBeTruthy()
 })
 
+test('the year summary says it includes future-dated Payments; a month does not', async () => {
+  const server = () =>
+    fakeServer({
+      'GET /api/payments': { items: [], total: 2, page: 1, page_size: 20, interest_paid: 500_000 },
+    })
+  showPage(server(), '/payments?year=2025', { '/payments': <PaymentsPage /> })
+  const summaryOf = (re: RegExp) =>
+    screen.findByText((_, el) => el?.tagName === 'P' && re.test(el.textContent ?? ''))
+  expect(
+    await summaryOf(/paying .* of interest for 2025 \(incl\. future-dated Payments\)/),
+  ).toBeTruthy()
+  cleanup()
+  showPage(server(), '/payments?month=2025-11', { '/payments': <PaymentsPage /> })
+  const summary = await summaryOf(/paying .* of interest/)
+  expect(summary.textContent).not.toMatch(/future-dated/)
+})
+
 test('Grace Payments are marked; a Voided one shows as Voided instead', async () => {
   const row = (id: number, receivedOn: string | null, voided: boolean): PaymentRow => ({
     id,
