@@ -9,5 +9,9 @@ export interface Weights {
 /** What the Lender types in grams (e.g. "25.4") → milligrams; blank or invalid text is 0. */
 export const gramsToMg = (grams: string) => Math.round(Number(grams) * 1000) || 0
 
+/** Whether both weights are typed and the net is more than the gross. */
+export const netAboveGross = ({ gross, net }: Weights) =>
+  gramsToMg(net) > 0 && gramsToMg(gross) > 0 && gramsToMg(net) > gramsToMg(gross)
+
 /** Milligrams → grams as a form field holds them, e.g. 25400 → "25.4". */
 export const mgToGrams = (mg: number) => String(mg / 1000)

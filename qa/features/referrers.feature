@@ -34,9 +34,8 @@ Feature: Referrers
   Scenario: An Existing person with nobody picked cannot be saved; None can
     When the Lender starts a new Customer "Unpicked Referrer Customer"
     And chooses an Existing person as their Referrer but picks nobody
-    And the Lender saves the Customer
     Then the form says "Pick the Referrer from the search results"
-    And the dialog is closed
+    And the Customer cannot be saved
     When chooses None as their Referrer
     And the Lender saves the Customer and confirms
     Then they were referred by nobody

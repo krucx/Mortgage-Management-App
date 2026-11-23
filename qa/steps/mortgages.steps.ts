@@ -284,12 +284,11 @@ Then(
   'the new Mortgage cannot be created: its {string} is refused',
   async ({ page }, field: string) => {
     expect(await page.getByLabel(field).evaluate((input: HTMLInputElement) => input.validity.valid)).toBe(false);
-    await createMortgage(page);
+    await expect(page.getByRole('button', { name: buttons.createMortgage })).toBeDisabled();
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page).toHaveURL(/\/mortgages\/new/);
   },
 );
-
 async function cashLimit(lender: { get: (path: string) => Promise<{ cash_limit: number }> }) {
   return (await lender.get('/api/settings/cash-limit')).cash_limit;
 }

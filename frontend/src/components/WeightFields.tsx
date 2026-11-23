@@ -1,4 +1,5 @@
-import type { Weights } from '../weight'
+import { netAboveGross, type Weights } from '../weight'
+import { FieldProblem } from './FieldProblem'
 
 /** The gross and net weight fields of a Mortgage; net can't be more than gross. */
 export function WeightFields({
@@ -35,6 +36,9 @@ export function WeightFields({
           disabled={disabled}
           value={value.net}
           onChange={(event) => onChange({ ...value, net: event.target.value })}
+        />
+        <FieldProblem
+          problem={netAboveGross(value) && "Net weight can't be more than the gross weight"}
         />
       </label>
     </>

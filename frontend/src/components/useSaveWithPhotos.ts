@@ -13,7 +13,7 @@ export interface PhotoUpload {
  * and sent is remembered, so a retry after a failed photo sends only what is left and
  * never saves the record again. `id` is a record already there (photos added to it);
  * each photo sent makes `stale` stale. Resolves to the record's id once all of it is
- * sent, or undefined with `error` set.
+ * sent; rejects with why it stopped ("Mortgage saved, but a photo failed: …" once saved).
  */
 export function useSaveWithPhotos<Saved extends { id: number }>({
   noun,
@@ -31,14 +31,9 @@ export function useSaveWithPhotos<Saved extends { id: number }>({
   const sent = useRef(new Set<unknown>())
   const [saved, setSaved] = useState<number>()
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  async function run(
-    save: (() => Promise<Saved>) | null,
-    uploads: PhotoUpload[],
-  ): Promise<number | undefined> {
+  async function run(save: (() => Promise<Saved>) | null, uploads: PhotoUpload[]): Promise<number> {
     setSaving(true)
-    setError(null)
     try {
       let recordId = id ?? savedId.current
       if (recordId === undefined) {
@@ -56,12 +51,11 @@ export function useSaveWithPhotos<Saved extends { id: number }>({
     } catch (err) {
       const message = (err as Error).message
       // Saved by this form (not a record that was already there): say so.
-      setError(
+      throw new Error(
         id === undefined && savedId.current !== undefined
           ? `${noun} saved, but a photo failed: ${message}`
           : message,
       )
-      return undefined
     } finally {
       setSaving(false)
     }
@@ -72,9 +66,6 @@ export function useSaveWithPhotos<Saved extends { id: number }>({
     /** The record's id once saved (or the one already there). */
     savedId: id ?? saved,
     saving,
-    /** Why the last attempt stopped. */
-    error,
-    clearError: () => setError(null),
     /** Whether the photo change with `key` has been sent. */
     isSent: (key: unknown) => sent.current.has(key),
   }
