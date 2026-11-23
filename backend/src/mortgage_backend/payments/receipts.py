@@ -8,7 +8,6 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import or_, select
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.follow_up.message_settings import MESSAGE_SETTINGS
@@ -24,14 +23,14 @@ from mortgage_backend.follow_up.messages import (
 from mortgage_backend.lending.replay import mortgage_row, replay, replays
 from mortgage_backend.payments.advances import when_cancelled
 from mortgage_backend.payments.payments import METHOD_NAMES, PaymentMethod, mortgages_of
-from mortgage_backend.people.customers import PersonSummary, phones_of
-from mortgage_backend.platform.db import (
-    EngineDep,
-    advance_instalment_table,
-    customer_table,
-    mortgage_table,
-    payment_table,
+from mortgage_backend.payments.queries import (
+    advance_parts_of,
+    instalment_with_closed_on,
+    payment_with_customer,
+    receipt_parts,
 )
+from mortgage_backend.people.customers import PersonSummary, phones_of
+from mortgage_backend.platform.db import EngineDep
 
 
 class ReceiptLineOut(ReceiptLine):
@@ -57,20 +56,7 @@ class Receipt(BaseModel):
 
 def _payment(conn: Connection, payment_id: int) -> RowMapping:
     """The Payment, with its Customer's name and numbers; refused once Voided."""
-    payment = (
-        conn.execute(
-            select(
-                payment_table,
-                customer_table.c.name,
-                customer_table.c.phone_1,
-                customer_table.c.phone_2,
-            )
-            .join(customer_table, customer_table.c.id == payment_table.c.customer_id)
-            .where(payment_table.c.id == payment_id)
-        )
-        .mappings()
-        .first()
-    )
+    payment = payment_with_customer(conn, payment_id)
     if payment is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
     if payment["voided_at"] is not None:
@@ -85,20 +71,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
     # The parts of the Payment this one is part of (its Final Payments kept apart), which
     # share one Receipt.
     first = payment["received_with"] or payment_id
-    together = (
-        conn.execute(
-            select(payment_table.c.id, payment_table.c.amount)
-            .where(
-                or_(
-                    payment_table.c.id == first, payment_table.c.received_with == first
-                ),
-                payment_table.c.voided_at.is_(None),
-            )
-            .order_by(payment_table.c.id)
-        )
-        .mappings()
-        .all()
-    )
+    together = receipt_parts(conn, first)
     allocated = [(p["id"], m) for p in together for m in mortgages_of(conn, p["id"])]
     mortgages = [mortgage for _, mortgage in allocated]
     replayed = replays(conn, mortgages)
@@ -107,11 +80,7 @@ def load_receipt(conn: Connection, payment_id: int) -> Receipt:
     amount = sum(p["amount"] for p in together)
     # Each Advance as it was received, cancelled parts too.
     advance_parts: dict[int, list[ReceiptPart]] = {}
-    for part in conn.execute(
-        select(advance_instalment_table)
-        .where(advance_instalment_table.c.payment_id.in_([p["id"] for p in together]))
-        .order_by(advance_instalment_table.c.on, advance_instalment_table.c.id)
-    ).mappings():
+    for part in advance_parts_of(conn, [p["id"] for p in together]):
         advance_parts.setdefault(part["mortgage_id"], []).append(
             ReceiptPart(on=part["on"], amount=part["amount"])
         )
@@ -193,21 +162,7 @@ def load_advance_receipt(
     """The Receipt for the Payment's Advance Instalment `instalment_id`, once cancelled:
     what its amount paid on the date cancelled."""
     payment = _payment(conn, payment_id)
-    instalment = (
-        conn.execute(
-            select(advance_instalment_table, mortgage_table.c.closed_on)
-            .join(
-                mortgage_table,
-                mortgage_table.c.id == advance_instalment_table.c.mortgage_id,
-            )
-            .where(
-                advance_instalment_table.c.id == instalment_id,
-                advance_instalment_table.c.payment_id == payment_id,
-            )
-        )
-        .mappings()
-        .first()
-    )
+    instalment = instalment_with_closed_on(conn, payment_id, instalment_id)
     applied_on = None if instalment is None else when_cancelled(instalment)
     if instalment is None or applied_on is None:
         raise HTTPException(

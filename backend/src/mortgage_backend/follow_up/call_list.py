@@ -12,7 +12,7 @@ from sqlalchemy.engine import Connection
 from mortgage_backend.collateral.collateral import collateral_of, gold_rates
 from mortgage_backend.follow_up.call_notes import CallNote
 from mortgage_backend.lending.ledger import months_unpaid
-from mortgage_backend.lending.mortgages import select_with_customer
+from mortgage_backend.lending.queries import select_with_customer
 from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus, replays
 from mortgage_backend.people.customers import PersonSummary
 from mortgage_backend.platform.clock import TodayDep
