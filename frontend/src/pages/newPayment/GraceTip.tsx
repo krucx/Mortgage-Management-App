@@ -4,6 +4,7 @@ import { Tip } from '../../components/ReasonTip'
 import { formatDayMonth } from '../../format'
 import { formatINR } from '../../money'
 import type { Accrual } from './accrual'
+import styles from './GraceTip.module.css'
 
 /** Which of the Payment's Mortgages a Grace choice graces: all of them, or some only. */
 function gracedOf(offer: GraceOffer, names: Map<number, string>): string {
@@ -45,7 +46,7 @@ export function GraceTip({
         <>
           Received {formatDayMonth(receivedOn)}, with a {days}-day Grace Period after each Accrual
           Date.
-          <span className="grace-calc">
+          <span className={styles.calc}>
             {mortgages.map((m) => (
               <Fragment key={m.mortgage_id}>
                 <span>{names.get(m.mortgage_id)}</span>
@@ -58,7 +59,7 @@ export function GraceTip({
             ))}
           </span>
           {offers.map((offer, index) => (
-            <span key={offer.paid_on} className="grace-choice-line">
+            <span key={offer.paid_on} className={styles.choice}>
               {index === 0 && offers.length > 1 ? 'To grace the most: ' : ''}
               {describeChoice(offer, names)}
             </span>
@@ -83,10 +84,10 @@ export function AccrualDate({
   graceDays: number | null
 }) {
   const { on, within } = accrual
-  if (within === null) return <span className="accrual">{formatDayMonth(on)}</span>
+  if (within === null) return <span className={styles.accrual}>{formatDayMonth(on)}</span>
   return (
     <span
-      className={`accrual ${within ? 'in-grace' : 'past-grace'}`}
+      className={`${styles.accrual} ${within ? styles.inGrace : styles.pastGrace}`}
       title={`${formatDayMonth(receivedOn)} is ${within ? 'within' : 'past'} the ${graceDays}-day Grace Period after ${formatDayMonth(on)}`}
     >
       {formatDayMonth(on)}

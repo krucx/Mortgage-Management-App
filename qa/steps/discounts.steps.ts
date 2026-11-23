@@ -139,13 +139,14 @@ Then("its Ledger shows the Payment's Discount of {money}, split between interest
   expect(step.discount).toBe(discount.paise);
   expect(step.discount_interest_paid + step.discount_principal_paid).toBe(step.discount);
   const split = `${shownINR(step.discount_interest_paid)} Discount to interest, ${shownINR(step.discount_principal_paid)} Discount to Principal`;
-  const row = page.locator('tr.ledger-payment', { hasText: split });
+  const row = page.getByRole('table', { name: 'Ledger' }).getByRole('row').filter({ hasText: split });
   await expect(row.getByRole('cell').nth(3)).toHaveText(discount.shown);
 });
 
 Then('its Ledger has no Payment', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 2 }).first()).toBeVisible();
-  await expect(page.locator('tr.ledger-payment')).toHaveCount(0);
+  // A Payment's step (an Advance Instalment's too) reads what its cash paid.
+  await expect(page.getByRole('table', { name: 'Ledger' }).getByRole('link', { name: /cash to interest/ })).toHaveCount(0);
 });
 
 Then('it owes what it did before that Payment', async ({ lender }) => {

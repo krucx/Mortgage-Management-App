@@ -4,6 +4,7 @@ import { FieldProblem } from '../../components/FieldProblem'
 import { PersonLink, ReferrerBadge } from '../../components/PersonLink'
 import { useNumberOwner } from '../../components/useNumberOwner'
 import { useSearch } from '../../components/useSearch'
+import styles from './ReferrerPicker.module.css'
 
 type Mode = 'none' | 'existing' | 'new'
 
@@ -96,7 +97,7 @@ export function ReferrerPicker({
             onChange={(event) => setQuery(event.target.value)}
           />
           {hits.length > 0 && (
-            <ul className="plain picker">
+            <ul className={`plain ${styles.picker}`}>
               {hits.map((hit) => (
                 <li key={`${hit.kind}-${hit.id}`}>
                   <button type="button" className="link" onClick={() => pick(hit)}>

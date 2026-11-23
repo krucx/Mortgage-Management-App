@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { sender } from '../messaging'
+import styles from './WhatsApp.module.css'
 
 const INLINE = /(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~)/
 
@@ -17,8 +18,8 @@ function inline(text: string): ReactNode[] {
 /** A message as the Customer will see it in WhatsApp, ```monospace``` cards included. */
 export function WhatsAppPreview({ text }: { text: string }) {
   return (
-    <div className="whatsapp" aria-label="How the message will look in WhatsApp">
-      <div className="bubble">
+    <div className={styles.preview} aria-label="How the message will look in WhatsApp">
+      <div className={styles.bubble}>
         {text.split('```').map((part, i) =>
           i % 2 ? (
             <pre key={i}>{part.replace(/^\n/, '').replace(/\n$/, '')}</pre>
@@ -80,7 +81,7 @@ export function SendOnWhatsApp({
       )}
       <button
         type="button"
-        className="whatsapp-send"
+        className={styles.send}
         disabled={disabled || !phone}
         onClick={() => {
           sender.send(phone, text)

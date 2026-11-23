@@ -15,6 +15,7 @@ import type { Sorting } from '../components/useUrlSort'
 import { customerHistoryQuery, customerQuery, lists } from '../requests'
 import { useServerState } from '../serverState'
 import { useNumericId } from '../useNumericId'
+import idPhotos from './customerForm/IdPhotos.module.css'
 
 export function CustomerPage() {
   const id = useNumericId()
@@ -83,7 +84,7 @@ export function CustomerPage() {
       {(customer.aadhaar_photo_url || customer.pan_photo_url) && (
         <>
           <h3>ID Photos</h3>
-          <div className="row id-photos">
+          <div className="row">
             {(
               [
                 ['Aadhaar card', customer.aadhaar_photo_url],
@@ -93,7 +94,7 @@ export function CustomerPage() {
               ([name, url]) =>
                 url && (
                   <a key={name} href={url} target="_blank" rel="noreferrer" aria-label={name}>
-                    <img src={url} alt={name} className="photo" />
+                    <img src={url} alt={name} className={`photo ${idPhotos.card}`} />
                   </a>
                 ),
             )}

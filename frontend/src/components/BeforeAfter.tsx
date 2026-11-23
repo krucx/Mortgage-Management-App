@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { usePreview, type Preview } from './usePreview'
 import { formatDate } from '../format'
 import { formatChange, formatINR } from '../money'
+import styles from './BeforeAfter.module.css'
 import { ProjectionChart } from './ProjectionChart'
 
 const HORIZONS = [3, 6, 12]
@@ -62,8 +63,8 @@ function MortgageBeforeAfter({ preview }: { preview: MortgagePreview }) {
   const interestAfter = yearsInterest(after)
 
   return (
-    <div className="stack before-after">
-      <div className="change-summary">
+    <div className={`stack ${styles.beforeAfter}`} role="group" aria-label="Before and after">
+      <div className={styles.summary}>
         <Headline label="Owed today" before={before.outstanding} after={after.outstanding} />
         {interestBefore !== undefined && interestAfter !== undefined && (
           <Headline
@@ -98,7 +99,7 @@ function MortgageBeforeAfter({ preview }: { preview: MortgagePreview }) {
                     </td>
                     <td className="num">{formatINR(was.outstanding)}</td>
                     <td className="num">{formatINR(will.outstanding)}</td>
-                    <td className={`num ${difference ? 'changed' : 'hint'}`}>
+                    <td className={`num ${difference ? styles.changed : 'hint'}`}>
                       {formatChange(difference)}
                     </td>
                   </tr>
@@ -125,12 +126,12 @@ function MortgageBeforeAfter({ preview }: { preview: MortgagePreview }) {
 function Headline({ label, before, after }: { label: string; before: number; after: number }) {
   const difference = after - before
   return (
-    <div className={`tile ${difference ? 'changed' : ''}`}>
+    <div className={difference ? `tile ${styles.changed}` : 'tile'}>
       <span className="hint">{label}</span>
       <span>
         {formatINR(before)} → <strong>{formatINR(after)}</strong>
       </span>
-      <span className={difference ? 'changed' : 'hint'}>{formatChange(difference)}</span>
+      <span className={difference ? styles.changed : 'hint'}>{formatChange(difference)}</span>
     </div>
   )
 }
@@ -169,11 +170,11 @@ function LedgerChanges({ changes }: { changes: LedgerChange[] }) {
                 {!change.before && <span className="hint"> (added)</span>}
               </td>
               <td className="num">{amount(change.before)}</td>
-              <td className="num changed">{amount(change.after)}</td>
+              <td className={`num ${styles.changed}`}>{amount(change.after)}</td>
               <td className="num">{discount(change.before)}</td>
-              <td className="num changed">{discount(change.after)}</td>
+              <td className={`num ${styles.changed}`}>{discount(change.after)}</td>
               <td className="num">{owed(change.before)}</td>
-              <td className="num changed">{owed(change.after)}</td>
+              <td className={`num ${styles.changed}`}>{owed(change.after)}</td>
             </tr>
           ))}
         </tbody>

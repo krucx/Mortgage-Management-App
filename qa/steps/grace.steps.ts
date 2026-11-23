@@ -3,6 +3,7 @@ import type { DataTable } from 'playwright-bdd';
 import { Given, Then, When, type Day, type Money } from './fixtures';
 import type { Lender } from './lender';
 import { shownINR } from './shown';
+import { printableReceipt } from './selectors';
 
 // The Grace Period on the payment form (the Last Accrual Date's colour, its "Date it"
 // choices and tooltip), a Grace Payment where it shows afterwards, and what the app refuses.
@@ -42,8 +43,15 @@ function allocationRow(page: Page, mortgage: string) {
   return page.getByRole('row', { name: new RegExp(`Include ${mortgage}`) });
 }
 
+/** The Grace marker: its tooltip works out the Grace Period. */
 function graceTip(page: Page) {
-  return page.locator('.reason-tip.grace');
+  return page.locator('[aria-describedby]').filter({ has: page.locator('[role="tooltip"]', { hasText: 'Grace Period' }) });
+}
+
+/** The Last Accrual Date shown in a Mortgage's row; its title says whether the date received
+ *  is within the Grace Period after it (in yellow) or past it (in gray). */
+function accrualOf(page: Page, mortgage: string) {
+  return allocationRow(page, mortgage).locator('td[data-label="Last Accrual Date"] > span').first();
 }
 
 /** What a Grace Payment's date reads like on its page, Ledger and the like. */
@@ -95,25 +103,25 @@ When('the Lender chooses to date it {day} for {mortgage}', async ({ page }, day:
 Then(
   'the Last Accrual Date of {mortgage} reads {string}, within the Grace Period',
   async ({ page }, mortgage: string, date: string) => {
-    const accrual = allocationRow(page, mortgage).locator('.accrual');
+    const accrual = accrualOf(page, mortgage);
     await expect(accrual).toHaveText(date);
-    await expect(accrual).toHaveClass(/\bin-grace\b/);
+    await expect(accrual).toHaveAttribute('title', / is within the \d+-day Grace Period after /);
   },
 );
 
 Then(
   'the Last Accrual Date of {mortgage} reads {string}, past the Grace Period',
   async ({ page }, mortgage: string, date: string) => {
-    const accrual = allocationRow(page, mortgage).locator('.accrual');
+    const accrual = accrualOf(page, mortgage);
     await expect(accrual).toHaveText(date);
-    await expect(accrual).toHaveClass(/\bpast-grace\b/);
+    await expect(accrual).toHaveAttribute('title', / is past the \d+-day Grace Period after /);
   },
 );
 
 Then('the Last Accrual Date of {mortgage} reads {string}, in no colour', async ({ page }, mortgage: string, date: string) => {
-  const accrual = allocationRow(page, mortgage).locator('.accrual');
+  const accrual = accrualOf(page, mortgage);
   await expect(accrual).toHaveText(date);
-  await expect(accrual).toHaveAttribute('class', 'accrual');
+  await expect(accrual).not.toHaveAttribute('title');
 });
 
 Then('no Grace is offered', async ({ page }) => {
@@ -156,7 +164,8 @@ When('the Lender looks at the Grace tip', async ({ page }) => {
 });
 
 Then("the Grace tip shows each Mortgage's Accrual Date:", async ({ page }, accruals: DataTable) => {
-  const calc = graceTip(page).getByRole('tooltip').locator('.grace-calc > span');
+  // The working comes first: each Mortgage, then its Accrual Date beside it.
+  const calc = graceTip(page).getByRole('tooltip').locator(':scope > span').first().locator(':scope > span');
   const rows = accruals.raw();
   await expect(calc).toHaveCount(rows.length * 2);
   for (const [mortgage, accrual] of rows) {
@@ -170,7 +179,7 @@ Then(
   'the Grace tip offers, letting off what the app works out for {money}:',
   async ({ page, lender }, total: Money, choices: DataTable) => {
     const offers = await offersFor(lender, total.paise);
-    const lines = graceTip(page).getByRole('tooltip').locator('.grace-choice-line');
+    const lines = graceTip(page).getByRole('tooltip').locator(':scope > span').filter({ hasText: /Date it / });
     const rows = choices.raw();
     expect(offers).toHaveLength(rows.length);
     await expect(lines).toHaveCount(rows.length);
@@ -234,7 +243,7 @@ Then(
 Then(
   'the Receipt says it was received on {day}, counted as paid on {day}',
   async ({ page }, received: Day, paid: Day) => {
-    await expect(page.locator('section.receipt')).toContainText(`Received ${received.shown}, counted as paid on ${paid.shown} (Grace)`);
+    await expect(printableReceipt(page)).toContainText(`Received ${received.shown}, counted as paid on ${paid.shown} (Grace)`);
   },
 );
 
@@ -242,7 +251,7 @@ Then('the Receipt lets off what the Payment did, Mortgage by Mortgage', async ({
   const payment = await lender.get(`/api/payments/${lender.payment!.id}`);
   await expect(page.getByRole('columnheader', { name: 'Let off (Grace)' })).toBeVisible();
   for (const allocation of payment.allocations) {
-    await expect(page.locator('section.receipt td.num', { hasText: new RegExp(`^${escaped(shownINR(allocation.let_off))}$`) }).first()).toBeVisible();
+    await expect(printableReceipt(page).locator('td.num', { hasText: new RegExp(`^${escaped(shownINR(allocation.let_off))}$`) }).first()).toBeVisible();
   }
 });
 

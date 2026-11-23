@@ -7,6 +7,7 @@ import { formatDate, formatPercent, monthName } from '../format'
 import { formatINR } from '../money'
 import { dashboardQuery } from '../requests'
 import { useServerState } from '../serverState'
+import styles from './DashboardPage.module.css'
 
 /** One figure, opening the list it was counted from. */
 function Figure({
@@ -21,7 +22,7 @@ function Figure({
   note?: ReactNode
 }) {
   return (
-    <Link to={to} className="tile figure">
+    <Link to={to} className={`tile ${styles.figure}`}>
       <span className="hint">{label}</span>
       <strong>{value}</strong>
       {note && <span className="hint">{note}</span>}
@@ -50,7 +51,7 @@ function Projections({ figures }: { figures: Dashboard }) {
   return (
     <>
       <div className="table-scroll">
-        <table className="projections">
+        <table className={styles.projections} aria-label="Looking ahead">
           <thead>
             <tr>
               <th>Over the next</th>
@@ -66,7 +67,7 @@ function Projections({ figures }: { figures: Dashboard }) {
               <tr key={label}>
                 <th scope="row">
                   {label}{' '}
-                  <span className={`flag ${exact ? 'exact' : 'estimate'}`}>
+                  <span className={`${styles.flag} ${exact ? styles.exact : styles.estimate}`}>
                     {exact ? 'exact' : 'estimate'}
                   </span>
                 </th>
@@ -111,12 +112,12 @@ export function DashboardPage() {
   const invalidTimeframe = selectedEnd < selectedStart
 
   return (
-    <section className={`card wide dashboard${isFetching ? ' refreshing' : ''}`}>
+    <section className={`card wide ${styles.dashboard}${isFetching ? ' refreshing' : ''}`}>
       <h2>Dashboard</h2>
-      <p className="hint as-of">As of {formatDate(figures.as_of)}</p>
+      <p className={`hint ${styles.asOf}`}>As of {formatDate(figures.as_of)}</p>
 
-      <div className="group owed">
-        <Link to="/mortgages" className="headline">
+      <div className={`${styles.group} ${styles.owed}`}>
+        <Link to="/mortgages" className={styles.headline}>
           <span className="hint">Owed on Active Mortgages</span>
           <strong>{formatINR(owed)}</strong>
           <span className="hint">
@@ -145,9 +146,9 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="group activity">
-        <div className="activity-controls">
-          <label className={timeframeMode === 'custom' ? 'inactive' : undefined}>
+      <div className={`${styles.group} ${styles.activity}`}>
+        <div className={styles.activityControls}>
+          <label className={timeframeMode === 'custom' ? styles.inactive : undefined}>
             Month
             <input
               aria-label="Activity month"
@@ -163,7 +164,7 @@ export function DashboardPage() {
               }}
             />
           </label>
-          <label className={timeframeMode === 'month' ? 'inactive' : undefined}>
+          <label className={timeframeMode === 'month' ? styles.inactive : undefined}>
             From
             <input
               aria-label="Activity start date"
@@ -176,7 +177,7 @@ export function DashboardPage() {
               }}
             />
           </label>
-          <label className={timeframeMode === 'month' ? 'inactive' : undefined}>
+          <label className={timeframeMode === 'month' ? styles.inactive : undefined}>
             To
             <input
               aria-label="Activity end date"
@@ -196,22 +197,22 @@ export function DashboardPage() {
           )}
         </div>
         <div className="tiles">
-          <div className="tile activity-kpi">
+          <div className={`tile ${styles.activityKpi}`}>
             <span className="hint">Mortgage principal lent</span>
             <strong>{formatINR(figures.principal_lent_in_period)}</strong>
           </div>
-          <div className="tile activity-kpi">
+          <div className={`tile ${styles.activityKpi}`}>
             <span className="hint">Mortgage principal redeemed</span>
             <strong>{formatINR(figures.principal_redeemed_in_period)}</strong>
           </div>
-          <div className="tile activity-kpi">
+          <div className={`tile ${styles.activityKpi}`}>
             <span className="hint">Interest collected</span>
             <strong>{formatINR(figures.interest_collected_in_period)}</strong>
           </div>
         </div>
       </div>
 
-      <div className="group money-in">
+      <div className={`${styles.group} ${styles.moneyIn}`}>
         <h3>Interest collected</h3>
         <div className="tiles">
           <Figure
@@ -227,7 +228,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="group collateral">
+      <div className={`${styles.group} ${styles.collateral}`}>
         <h3>Collateral</h3>
         <div className="tiles">
           <Figure
@@ -245,14 +246,20 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="group collateral">
+      <div className={`${styles.group} ${styles.collateral}`}>
         <h3>Follow-up</h3>
         <div className="tiles">
           <Figure
             to="/call-list"
             label="On today's Call List"
             value={toCall}
-            note={toCall > 0 ? <span className="flag warn">To phone today</span> : 'Nobody to call'}
+            note={
+              toCall > 0 ? (
+                <span className={`${styles.flag} ${styles.warn}`}>To phone today</span>
+              ) : (
+                'Nobody to call'
+              )
+            }
           />
           <Figure
             to={
@@ -265,7 +272,7 @@ export function DashboardPage() {
             note={
               <>
                 {figures.reminders_to_send > 0 ? (
-                  <span className="flag warn">To send on WhatsApp</span>
+                  <span className={`${styles.flag} ${styles.warn}`}>To send on WhatsApp</span>
                 ) : (
                   'Nothing to send'
                 )}
@@ -277,7 +284,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="group closed">
+      <div className={`${styles.group} ${styles.closed}`}>
         <h3>Closed in {thisMonth}</h3>
         <div className="tiles">
           <Figure
@@ -301,7 +308,7 @@ export function DashboardPage() {
             value={figures.forfeited_this_month}
             note={
               figures.forfeited_this_month ? (
-                <span className={`flag ${profitLoss >= 0 ? 'good' : 'bad'}`}>
+                <span className={`${styles.flag} ${profitLoss >= 0 ? styles.good : styles.bad}`}>
                   {profitLoss >= 0 ? 'Profit' : 'Loss'} {formatINR(Math.abs(profitLoss))}
                 </span>
               ) : undefined
@@ -310,12 +317,12 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="group ahead">
+      <div className={`${styles.group} ${styles.ahead}`}>
         <h3>Looking ahead</h3>
         <Projections figures={figures} />
       </div>
 
-      <div className="group money-in">
+      <div className={`${styles.group} ${styles.moneyIn}`}>
         <h3>Payments received each month, and the year ahead</h3>
         <PaymentsByMonthChart months={figures.payments_by_month} coming={figures.coming_months} />
       </div>

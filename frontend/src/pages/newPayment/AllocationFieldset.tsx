@@ -5,6 +5,7 @@ import { formatINR, paiseToRupees, rupeesToPaise } from '../../money'
 import { tickedFirst } from '../../sort'
 import { type AllocationMode, DEFAULT_ADVANCE_MONTHS, MAX_ADVANCE_MONTHS } from './allocation'
 import { accrualOf } from './accrual'
+import styles from './AllocationFieldset.module.css'
 import { AccrualDate } from './GraceTip'
 
 type Texts = Record<number, string>
@@ -104,7 +105,7 @@ export function AllocationFieldset({
         <p className="hint">Nothing Outstanding on {formatDate(paidOn)}.</p>
       ) : (
         <div className="table-scroll">
-          <table className="allocations">
+          <table className={styles.allocations}>
             <thead>
               <tr>
                 <th aria-label="Include" />
@@ -132,7 +133,7 @@ export function AllocationFieldset({
                 const closing = index >= 0 && redeemed[index]
                 return (
                   <tr key={m.id}>
-                    <td className="include">
+                    <td className={styles.include}>
                       <input
                         type="checkbox"
                         aria-label={`Include ${m.name}`}
@@ -140,7 +141,7 @@ export function AllocationFieldset({
                         onChange={() => onToggle(m.id)}
                       />
                     </td>
-                    <td className="mortgage">
+                    <td className={styles.mortgage}>
                       <Link to={`/mortgages/${m.id}`}>{m.name}</Link>
                     </td>
                     <td data-label="Last Accrual Date">
@@ -156,7 +157,7 @@ export function AllocationFieldset({
                       {graceOn && (
                         <button
                           type="button"
-                          className="grace-choice"
+                          className={styles.graceChoice}
                           aria-pressed={receivedOn !== null && paidOn === graceOn}
                           disabled={offersKnown && !offer}
                           title={
@@ -217,7 +218,7 @@ export function AllocationFieldset({
                       {advance > 0 && m.unpaid_interest > 0 && amount !== m.unpaid_interest && (
                         <button
                           type="button"
-                          className="link shortcut"
+                          className={`link ${styles.shortcut}`}
                           onClick={() => onPayUnpaidInterest(m.id)}
                         >
                           Pay the unpaid interest ({formatINR(m.unpaid_interest)})
@@ -264,7 +265,7 @@ export function AllocationFieldset({
                           {!closing && m.month_interest > 0 && (
                             <button
                               type="button"
-                              className="link shortcut"
+                              className={`link ${styles.shortcut}`}
                               title="Months × the month's interest, as projected before this Payment"
                               onClick={() =>
                                 onAdvance(m.id, paiseToRupees(months * m.month_interest))

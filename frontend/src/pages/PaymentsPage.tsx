@@ -10,6 +10,7 @@ import { useUrlFilters } from '../components/useUrlFilters'
 import { formatDate, isMonth, todayIso } from '../format'
 import { formatINR } from '../money'
 import { lists } from '../requests'
+import styles from './PaymentsPage.module.css'
 
 const YEAR = /^\d{4}$/
 
@@ -183,7 +184,7 @@ export function PaymentsPage() {
                 {result.items.map((payment) => (
                   <tr
                     key={payment.id}
-                    className={`clickable${payment.voided ? ' voided' : ''}`}
+                    className={`${styles.clickable}${payment.voided ? ' voided' : ''}`}
                     title="Open this Payment"
                     onClick={(event) => openRow(event, payment.id)}
                   >

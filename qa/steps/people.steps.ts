@@ -28,7 +28,7 @@ async function expectPeople(people: Locator, names: string[]) {
 }
 
 function activeMortgages(page: Page) {
-  return page.locator('table:not(.favours):not(details table) tbody tr td:first-child');
+  return page.locator('table:not([aria-label="Favours Given"]):not(details table) tbody tr td:first-child');
 }
 
 async function openCustomers(page: Page) {
@@ -177,7 +177,7 @@ Then('the page warns {string}', async ({ page }, text: string) => {
 });
 
 Then('their latest History entry is {string}, with:', async ({ page }, what: string, changes: DataTable) => {
-  const latest = page.locator('ul.history li').first();
+  const latest = page.getByRole('list', { name: 'History' }).getByRole('listitem').first();
   await expect(latest).toContainText(`${what}: `);
   for (const [change] of changes.raw()) await expect(latest).toContainText(change);
 });

@@ -1,0 +1,7 @@
+/* The Mortgage's Term Changes, one a line. */
+ul.changes {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.3rem;
+}

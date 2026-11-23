@@ -1,0 +1,68 @@
+/* The Payments received each month, then the coming months' estimates and interest. */
+figure:global(.chart).byMonth .mark {
+  fill: var(--tone-money-in);
+}
+
+/* A coming month's estimate: the same hue, hatched and outlined, so it never reads as
+   money already received. */
+figure:global(.chart).byMonth .coming .mark {
+  fill: url(#estimate-hatch);
+  stroke: var(--tone-money-in);
+  stroke-width: 1;
+}
+
+figure:global(.chart).byMonth .hatch {
+  stroke: var(--tone-money-in);
+  stroke-width: 2;
+}
+
+figure:global(.chart).byMonth .charged {
+  fill: var(--tone-owed);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+figure:global(.chart).byMonth .today line {
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+}
+
+:global(.key).received::before {
+  background: var(--tone-money-in);
+  height: 0.7rem;
+}
+
+:global(.key).estimate::before {
+  background: repeating-linear-gradient(45deg, var(--tone-money-in) 0 2px, transparent 2px 4px);
+  outline: 1px solid var(--tone-money-in);
+  height: 0.7rem;
+}
+
+:global(.key).charged::before {
+  background: var(--tone-owed);
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+}
+
+figure:global(.chart).byMonth .hit {
+  fill: transparent;
+}
+
+figure:global(.chart).byMonth .bar:focus {
+  outline: none;
+}
+
+figure:global(.chart).byMonth .bar.hovered .hit {
+  fill: color-mix(in srgb, var(--tone-money-in) 10%, var(--surface));
+}
+
+figure:global(.chart).byMonth .tooltip {
+  fill: var(--text);
+  font-weight: 600;
+}
+
+/* The same figures as a table, under Show as a table. */
+.table table {
+  margin-top: 0.5rem;
+}

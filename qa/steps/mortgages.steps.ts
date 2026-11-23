@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import type { DataTable } from 'playwright-bdd';
 import { Given, Then, When, type Day, type Money } from './fixtures';
-import { buttons, labels, tile } from './selectors';
+import { beforeAfter, buttons, labels, tile } from './selectors';
 import { shownINR } from './shown';
 
 // The Mortgages list, New Mortgage (and the Calculator's Lend this), a Mortgage's page and
@@ -398,7 +398,7 @@ Then('its Ledger shows its latest 8 steps', async ({ page, lender }) => {
   const { ledger } = await lender.get(`/api/mortgages/${lender.mortgage!.id}`);
   expect(ledger.length).toBeGreaterThan(8);
   await expect(page.getByText(`Showing the latest 8 of ${ledger.length} steps.`)).toBeVisible();
-  await expect(page.locator('tr[class^="ledger-"]')).toHaveCount(8);
+  await expect(page.getByRole('table', { name: 'Ledger' }).locator('tbody tr')).toHaveCount(8);
 });
 
 When('the Lender opens the complete Ledger', async ({ page }) => {
@@ -408,7 +408,7 @@ When('the Lender opens the complete Ledger', async ({ page }) => {
 Then('the complete Ledger shows every step', async ({ page, lender }) => {
   const { ledger, name } = await lender.get(`/api/mortgages/${lender.mortgage!.id}`);
   const popup = page.getByRole('dialog', { name: `Ledger of ${name}` });
-  await expect(popup.locator('tr[class^="ledger-"]')).toHaveCount(ledger.length);
+  await expect(popup.getByRole('table', { name: 'Ledger' }).locator('tbody tr')).toHaveCount(ledger.length);
 });
 
 When('records a Payment on it', async ({ page }) => {
@@ -491,7 +491,7 @@ When('renames it {string}', async ({ page }, name: string) => {
 
 Then('the edit shows what changes', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'What changes' })).toBeVisible();
-  await expect(page.locator('.before-after .tile', { hasText: 'Owed today' })).toBeVisible();
+  await expect(beforeAfter(page).locator('.tile', { hasText: 'Owed today' })).toBeVisible();
 });
 
 When('the Lender saves the changes', async ({ page }) => {

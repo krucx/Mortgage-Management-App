@@ -1,0 +1,5 @@
+/* A planned lump sum on the Calculator: its date, amount and what became of it */
+.lumpSum {
+  align-items: end;
+  flex-wrap: wrap;
+}

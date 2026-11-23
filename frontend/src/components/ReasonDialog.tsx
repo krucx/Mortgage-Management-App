@@ -39,7 +39,7 @@ export function ReasonDialog({
   return (
     <Modal
       onClose={onClose}
-      className={wide ? 'wide-dialog' : ''}
+      wide={wide}
       // A stray click would lose a typed reason.
       closeOnOutsideClick={!reason}
     >

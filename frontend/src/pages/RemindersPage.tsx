@@ -7,6 +7,7 @@ import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
 import { useUrlFilters } from '../components/useUrlFilters'
 import { ChatIcon, SendOnWhatsApp, WhatsAppPreview } from '../components/WhatsApp'
+import whatsApp from '../components/WhatsApp.module.css'
 import { formatDate, formatDateTime } from '../format'
 import { lists, reminderActions } from '../requests'
 import { STALE_AFTER, useChange, type ApiClient } from '../serverState'
@@ -138,7 +139,7 @@ export function RemindersPage() {
                       ) : reminder.status === 'queued' ? (
                         <button
                           type="button"
-                          className="small whatsapp-send with-icon"
+                          className={`small ${whatsApp.send} ${whatsApp.withIcon}`}
                           aria-label="Send on WhatsApp"
                           title="Send on WhatsApp"
                           onClick={() => setReviewing(reminder)}

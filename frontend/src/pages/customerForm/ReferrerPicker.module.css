@@ -1,0 +1,8 @@
+/* The people a search found, to pick the Referrer from: a short list that scrolls. */
+ul:global(.plain).picker {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.25rem 0.75rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}

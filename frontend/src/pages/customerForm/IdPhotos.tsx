@@ -3,6 +3,7 @@ import type { Customer, IdCard } from '../../api'
 import { Photo } from '../../components/Photo'
 import { PhotoSource } from '../../components/PhotoSource'
 import { ID_CARDS, type IdPhotoChange } from './idCards'
+import styles from './IdPhotos.module.css'
 
 /** One ID Photo on the form: the current or newly chosen photo, a way to choose one,
  *  and Remove. Nothing is uploaded or removed until Save. */
@@ -21,7 +22,7 @@ function IdPhotoPicker({
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview])
   const shown = change.kind === 'remove' ? null : change.kind === 'new' ? preview : currentUrl
   return (
-    <fieldset className="stack id-photo-picker">
+    <fieldset className={`stack ${styles.picker}`}>
       <legend>{label}</legend>
       <Photo url={shown} alt={label} />
       <PhotoSource

@@ -1,0 +1,5 @@
+/* The heading row of a Projection's group of figures. */
+tr.group th {
+  text-align: left;
+  padding-top: 0.9rem;
+}

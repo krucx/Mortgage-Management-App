@@ -4,6 +4,7 @@
 // loads it as soon as it answers.
 import { useEffect, useState, type ReactNode } from 'react'
 import { useServerState, type ApiClient } from '../serverState'
+import styles from './StartGate.module.css'
 
 /** Whether the backend answers: not when fetch itself fails, nor when what passes /api on
  *  says the backend behind it is down (5xx). */
@@ -85,7 +86,7 @@ export function StartGate({
   if (state === 'running') return children
   if (state === 'checking') return null
   return (
-    <main className="start-gate card">
+    <main className={`${styles.gate} card`}>
       <h1>Mortgage Management</h1>
       {state === 'stopped' &&
         (onWindows ? (

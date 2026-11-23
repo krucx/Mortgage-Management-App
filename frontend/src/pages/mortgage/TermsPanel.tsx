@@ -7,6 +7,7 @@ import { useMortgageChange } from '../../serverState'
 import { describeTerms } from '../../terms'
 import { ChangePreview } from '../../components/BeforeAfter'
 import { useConfirm } from '../../components/useConfirm'
+import styles from './TermsPanel.module.css'
 
 /** The Terms in force, and Term Changes past and coming. */
 export function TermsPanel({
@@ -45,7 +46,7 @@ export function TermsPanel({
         {mortgage.term_changes.length > 0 && <span className="hint"> (in force today)</span>}
       </p>
       {mortgage.term_changes.length > 0 && (
-        <ul className="term-changes">
+        <ul className={styles.changes} aria-label="Term Changes">
           {mortgage.term_changes.map((change) => (
             <li key={change.id}>
               <strong>From {formatDate(change.effective_on)}:</strong> {describeTerms(change.terms)}

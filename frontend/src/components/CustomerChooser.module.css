@@ -1,0 +1,24 @@
+/* The Customers a search found, each a button with their photo, name and phone. */
+ul.results {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+button.result {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font-weight: 400;
+  text-align: left;
+}
+
+button.result:hover {
+  background: var(--bg);
+}

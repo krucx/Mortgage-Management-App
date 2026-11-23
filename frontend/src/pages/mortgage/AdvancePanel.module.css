@@ -1,0 +1,8 @@
+/* A cancelled Advance Instalment: kept on record, applied on the day it was cancelled. */
+tr.cancelled td {
+  color: var(--muted);
+}
+
+tr.cancelled td:first-child {
+  text-decoration: line-through;
+}

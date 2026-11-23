@@ -1,0 +1,11 @@
+/* Favours Given: four short columns that fit a phone without scrolling sideways. */
+@media (max-width: 640px) {
+  .favours th,
+  .favours td {
+    padding: 0.5rem 0.35rem;
+  }
+
+  .favours th:global(.num) {
+    white-space: normal; /* "Amount let off" may take two lines */
+  }
+}

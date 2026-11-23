@@ -1,0 +1,48 @@
+/* An in-app modal window over the dimmed page, with its × in the top corner. */
+.dialog {
+  width: min(640px, calc(100vw - 2rem));
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.25);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+/* The title keeps clear of the × in the top corner. */
+.dialog h2 {
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+  padding-right: 2rem;
+}
+
+/* Room for a larger body, e.g. a before/after preview; the body scrolls. */
+dialog.wide {
+  width: min(900px, calc(100vw - 2rem));
+  max-height: 90vh;
+  overflow: auto;
+}
+
+button.close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+button.close:hover {
+  background: var(--border);
+  color: var(--text);
+}
