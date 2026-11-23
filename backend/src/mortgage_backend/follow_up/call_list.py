@@ -187,7 +187,7 @@ def call_list(
     return list(groups.values())
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/call-list")

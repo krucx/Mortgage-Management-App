@@ -285,7 +285,7 @@ def _months(
     return months
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 def _collateral_value(simulation: SimulationIn, engine: EngineDep) -> int | None:

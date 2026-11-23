@@ -288,7 +288,7 @@ def dashboard(
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/dashboard")

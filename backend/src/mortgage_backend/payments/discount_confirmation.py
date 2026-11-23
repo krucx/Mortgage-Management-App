@@ -27,7 +27,7 @@ def get_discount_confirmation_limit(conn: Connection) -> DiscountConfirmationLim
     return _DISCOUNT_CONFIRMATION_LIMIT.get(conn)
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/settings/discount-confirmation-limit")

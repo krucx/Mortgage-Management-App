@@ -90,7 +90,7 @@ def cash_sums(conn: Connection, before: CashBefore) -> list[int]:
     return [*paid.values(), *lent]
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/settings/cash-limit")

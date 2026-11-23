@@ -109,7 +109,7 @@ def collateral_of(
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/settings/gold-rates")
