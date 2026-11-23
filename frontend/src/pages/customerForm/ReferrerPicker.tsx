@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import type { PersonSummary, ReferrerChoice } from '../api'
-import { PersonLink, ReferrerBadge } from './PersonLink'
-import { useNumberOwner } from './useNumberOwner'
-import { useSearch } from './useSearch'
+import type { PersonSummary, ReferrerChoice } from '../../api'
+import { PersonLink, ReferrerBadge } from '../../components/PersonLink'
+import { useNumberOwner } from '../../components/useNumberOwner'
+import { useSearch } from '../../components/useSearch'
 
 type Mode = 'none' | 'existing' | 'new'
 
