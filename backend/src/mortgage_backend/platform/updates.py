@@ -113,7 +113,7 @@ def get_update_check(request: Request) -> UpdateCheck:
 
 UpdateCheckDep = Annotated[UpdateCheck, Depends(get_update_check)]
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/update")

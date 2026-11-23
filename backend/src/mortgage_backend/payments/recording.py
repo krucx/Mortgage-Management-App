@@ -125,7 +125,7 @@ def _redeemed_by(
     return mortgage
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.post("/payments", status_code=status.HTTP_201_CREATED)

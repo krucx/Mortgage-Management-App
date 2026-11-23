@@ -14,7 +14,7 @@ from mortgage_backend.platform.db import EngineDep, mortgage_photo_table
 from mortgage_backend.platform.photos import PhotosDirDep
 from mortgage_backend.safekeeping import audit
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 def add_photo(conn: Connection, mortgage_id: int, file_name: str, now: datetime) -> int:

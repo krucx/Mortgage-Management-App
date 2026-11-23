@@ -204,7 +204,7 @@ def customer_history(
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/mortgages/{mortgage_id}/history")

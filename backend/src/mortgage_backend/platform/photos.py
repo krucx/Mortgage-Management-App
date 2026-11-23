@@ -106,7 +106,7 @@ def photo_change(
         _delete_photo(photos_dir, old)
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/photos/{file_name}")
