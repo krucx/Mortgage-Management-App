@@ -3,19 +3,11 @@
 import re
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import (
-    Select,
-    case,
-    false,
-    func,
-    or_,
-    select,
-    true,
-)
+from sqlalchemy import case, func
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.collateral.collateral import (
@@ -27,6 +19,15 @@ from mortgage_backend.collateral.collateral import (
 from mortgage_backend.lending.ledger import (
     LedgerStep,
     accrual_date,
+)
+from mortgage_backend.lending.queries import (
+    customer_name_of,
+    fetch_matching_mortgages,
+    matching_mortgages,
+    mortgage_filter,
+    mortgage_with_customer,
+    names_like,
+    photos_of,
 )
 from mortgage_backend.lending.replay import (
     Closure,
@@ -43,13 +44,12 @@ from mortgage_backend.payments.advances import (
 )
 from mortgage_backend.payments.grace_period import LedgerGrace, graces_of
 from mortgage_backend.payments.payments import PaymentMethod
-from mortgage_backend.people.customers import PersonSummary, phone_fragment
-from mortgage_backend.platform.clock import MonthQuery, TodayDep, month_span
+from mortgage_backend.people.customers import PersonSummary
+from mortgage_backend.platform.clock import MonthQuery, TodayDep
 from mortgage_backend.platform.db import (
     EngineDep,
     advance_instalment_table,
     customer_table,
-    mortgage_photo_table,
     mortgage_table,
 )
 from mortgage_backend.platform.errors import unprocessable
@@ -204,13 +204,6 @@ def mortgage_rows(
     ]
 
 
-def select_with_customer() -> Select[Any]:
-    """Mortgages joined to their Customer's name."""
-    return select(mortgage_table, customer_table.c.name.label("customer_name")).join(
-        customer_table, customer_table.c.id == mortgage_table.c.customer_id
-    )
-
-
 def _customer_of(row: RowMapping) -> PersonSummary:
     return PersonSummary(
         kind="customer", id=row["customer_id"], name=row["customer_name"]
@@ -218,18 +211,10 @@ def _customer_of(row: RowMapping) -> PersonSummary:
 
 
 def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
-    row = (
-        conn.execute(select_with_customer().where(mortgage_table.c.id == mortgage_id))
-        .mappings()
-        .first()
-    )
+    row = mortgage_with_customer(conn, mortgage_id)
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
-    photos = conn.execute(
-        select(mortgage_photo_table)
-        .where(mortgage_photo_table.c.mortgage_id == mortgage_id)
-        .order_by(mortgage_photo_table.c.id)
-    )
+    photos = photos_of(conn, mortgage_id)
     mortgage = replays(conn, [row])[mortgage_id]
     outstanding = mortgage.outstanding(today)
     instalments = advance_instalments(
@@ -291,17 +276,7 @@ def _camel_words(text: str, limit: int) -> str:
 
 def _unique_name(conn: Connection, name: str) -> str:
     """The name itself if free, else the first free `name-2`, `name-3`, …"""
-    taken = {
-        taken_name.lower()
-        for taken_name in conn.execute(
-            select(mortgage_table.c.name).where(
-                or_(
-                    func.lower(mortgage_table.c.name) == name.lower(),
-                    mortgage_table.c.name.ilike(f"{name}-%"),
-                )
-            )
-        ).scalars()
-    }
+    taken = names_like(conn, name)
     candidate, n = name, 2
     while candidate.lower() in taken:
         candidate, n = f"{name}-{n}", n + 1
@@ -320,9 +295,7 @@ def _suggest_name(
 
 
 def _customer_name(conn: Connection, customer_id: int) -> str:
-    name: str | None = conn.execute(
-        select(customer_table.c.name).where(customer_table.c.id == customer_id)
-    ).scalar()
+    name = customer_name_of(conn, customer_id)
     if name is None:
         raise unprocessable("Customer not found")
     return name
@@ -429,37 +402,22 @@ def list_mortgages(
     if as_of is not None and as_of > today:
         raise unprocessable("The date cannot be in the future")
     query = q.strip()
-    # Digits may be part of a Mortgage Name (its year) as well as of a phone number.
-    phone = phone_fragment(query)
-    match = (
-        or_(
-            mortgage_table.c.name.icontains(query),
-            customer_table.c.name.icontains(query),
-            customer_table.c.phone_1.contains(phone) if phone else false(),
-        )
-        if query
-        else true()
+    match = mortgage_filter(
+        query=query,
+        customer_id=customer_id,
+        as_of=as_of,
+        status=mortgage_status,
+        closed=closed,
+        closed_in=closed_in,
     )
-    if customer_id is not None:
-        match = match & (mortgage_table.c.customer_id == customer_id)
-    if as_of is not None:
-        match = match & (mortgage_table.c.start_date <= as_of)
-    if mortgage_status is not None:
-        match = match & (mortgage_table.c.status == mortgage_status)
-    if closed:
-        match = match & (mortgage_table.c.status != MortgageStatus.ACTIVE)
-    if closed_in is not None:
-        match = match & mortgage_table.c.closed_on.between(*month_span(closed_in))
     after_replay = sort if sort in _SORT_AFTER_REPLAY else None
     by_column = None if after_replay else sort
-    matching = select_with_customer().where(match)
+    matching = matching_mortgages(match)
     with engine.connect() as conn:
         if owing or not paged or after_replay:
             # Outstanding is computed, so these are listed after the replay.
-            rows = (
-                conn.execute(matching.order_by(*_SORTING.order(by_column, descending)))
-                .mappings()
-                .all()
+            rows = fetch_matching_mortgages(
+                conn, match, _SORTING.order(by_column, descending)
             )
             listed = [
                 row

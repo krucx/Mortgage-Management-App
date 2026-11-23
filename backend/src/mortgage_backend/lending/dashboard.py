@@ -12,7 +12,6 @@ from itertools import pairwise
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.collateral.collateral import collateral_of, gold_rates
@@ -24,14 +23,11 @@ from mortgage_backend.lending.activity import (
     default_activity_range,
 )
 from mortgage_backend.lending.ledger import accrual_date
+from mortgage_backend.lending.queries import principal_lent_between, redemptions_between
 from mortgage_backend.lending.replay import MortgageReplay, MortgageStatus
+from mortgage_backend.payments.queries import received_between, received_total
 from mortgage_backend.platform.clock import TodayDep, month_span
-from mortgage_backend.platform.db import (
-    EngineDep,
-    mortgage_table,
-    payment_table,
-    write_transaction,
-)
+from mortgage_backend.platform.db import EngineDep, write_transaction
 from mortgage_backend.platform.money import RUPEE
 
 MONTHS_OF_PAYMENTS = 12
@@ -110,23 +106,9 @@ class _Trend:
         self.months = _months_back(today, TREND_MONTHS + 1)[:-1]
         first = date(*self.months[0], 1)
         _, last = month_span(_month(*self.months[-1]))
-        self.payments = conn.execute(
-            select(func.coalesce(func.sum(payment_table.c.amount), 0)).where(
-                payment_table.c.voided_at.is_(None),
-                payment_table.c.paid_on.between(first, last),
-            )
-        ).scalar_one()
-        self.principal_lent = conn.execute(
-            select(func.coalesce(func.sum(mortgage_table.c.amount_lent), 0)).where(
-                mortgage_table.c.start_date.between(first, last)
-            )
-        ).scalar_one()
-        self.redemptions = conn.execute(
-            select(func.count()).where(
-                mortgage_table.c.status == MortgageStatus.REDEEMED,
-                mortgage_table.c.closed_on.between(first, last),
-            )
-        ).scalar_one()
+        self.payments = received_total(conn, first, last)
+        self.principal_lent = principal_lent_between(conn, first, last)
+        self.redemptions = redemptions_between(conn, first, last)
 
     def over(self, total: int, months: int) -> int:
         """`total` spread over `months` at the trend's rate, to the whole rupee (paise:
@@ -188,12 +170,8 @@ def _payments_by_month(conn: Connection, today: date) -> list[MonthlyPayments]:
     months = _months_back(today, MONTHS_OF_PAYMENTS)
     first_year, first_month = months[0]
     totals = dict.fromkeys(months, 0)
-    for paid_on, amount in conn.execute(
-        select(payment_table.c.paid_on, payment_table.c.amount).where(
-            payment_table.c.voided_at.is_(None),
-            payment_table.c.paid_on >= date(first_year, first_month, 1),
-            payment_table.c.paid_on <= today,
-        )
+    for paid_on, amount in received_between(
+        conn, date(first_year, first_month, 1), today
     ):
         totals[(paid_on.year, paid_on.month)] += amount
     return [
