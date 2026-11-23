@@ -1,12 +1,12 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import type { Mortgage, ProjectedPoint } from '../api'
-import { formatDate, formatPercent } from '../format'
-import { formatINR, rupeesToPaise } from '../money'
-import { projectionQuery } from '../requests'
-import { useServerState } from '../serverState'
-import { ProjectionChart } from './ProjectionChart'
-import { useDebounced } from './useDebounced'
+import type { Mortgage, ProjectedPoint } from '../../api'
+import { formatDate, formatPercent } from '../../format'
+import { formatINR, rupeesToPaise } from '../../money'
+import { projectionQuery } from '../../requests'
+import { useServerState } from '../../serverState'
+import { ProjectionChart } from '../../components/ProjectionChart'
+import { useDebounced } from '../../components/useDebounced'
 
 const HORIZONS = [3, 6, 12]
 

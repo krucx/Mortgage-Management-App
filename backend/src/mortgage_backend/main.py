@@ -6,7 +6,7 @@ from datetime import date, datetime
 from importlib.metadata import version
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import APIRouter, FastAPI, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
@@ -38,7 +38,7 @@ from mortgage_backend.payments import (
     recording,
 )
 from mortgage_backend.people import customer_changes, customers
-from mortgage_backend.platform import photos, updates
+from mortgage_backend.platform import health, photos, updates
 from mortgage_backend.platform.clock import get_today
 from mortgage_backend.platform.daily_run import DailyRun
 from mortgage_backend.platform.db import (
@@ -49,6 +49,7 @@ from mortgage_backend.platform.db import (
     write_transaction,
 )
 from mortgage_backend.platform.local_only import LocalOnly
+from mortgage_backend.platform.request_log import RequestLog
 from mortgage_backend.platform.screens import screens_dir_from_env, serve_screens
 from mortgage_backend.platform.updates import (
     LatestRelease,
@@ -118,13 +119,15 @@ def create_app(
     # Inside the daily jobs' middleware, which would turn its refusal of a body sent
     # without its length into a 400; neither reads a body before it.
     app.add_middleware(UploadLimit)
-    app.add_middleware(LocalOnly)  # outermost: refuses before anything is read or run
+    app.add_middleware(LocalOnly)  # refuses before anything is read or run
+    app.add_middleware(RequestLog)  # outermost: logs every request, refused ones too
 
     @app.middleware("http")
     async def run_daily_jobs(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if request.url.path.startswith("/api/"):
+        # The health probe reads no Customer data, so it runs no job that would.
+        if request.url.path.startswith("/api/") and request.url.path != "/api/health":
             # The request's date, so in QA mode `X-QA-Clock` runs that day's jobs too.
             try:
                 day = get_today(request)
@@ -133,35 +136,38 @@ def create_app(
             await run_in_threadpool(daily_run.run_if_due, day)
         return await call_next(request)
 
-    app.include_router(default_terms.router)
-    app.include_router(customers.router)
-    app.include_router(customer_changes.router)
-    app.include_router(mortgages.router)
-    app.include_router(payments.router)
-    app.include_router(cash_limit.router)
-    app.include_router(discount_confirmation.router)
-    app.include_router(grace_period.router)
-    app.include_router(recording.router)
-    app.include_router(changes.router)
-    app.include_router(closing.router)
-    app.include_router(favours.router)
-    app.include_router(photos.router)
-    app.include_router(manual_value.router)
-    app.include_router(mortgage_photos.router)
-    app.include_router(collateral.router)
-    app.include_router(call_list.router)
-    app.include_router(call_notes.router)
-    app.include_router(call_sheets.router)
-    app.include_router(dashboard.router)
-    app.include_router(backups.router)
-    app.include_router(audit.router)
-    app.include_router(projections.router)
-    app.include_router(simulation.router)
-    app.include_router(previews.router)
-    app.include_router(receipts.router)
-    app.include_router(message_settings.router)
-    app.include_router(reminders.router)
-    app.include_router(updates.router)
+    api_router = APIRouter(prefix="/api")
+    api_router.include_router(default_terms.router)
+    api_router.include_router(customers.router)
+    api_router.include_router(customer_changes.router)
+    api_router.include_router(mortgages.router)
+    api_router.include_router(payments.router)
+    api_router.include_router(cash_limit.router)
+    api_router.include_router(discount_confirmation.router)
+    api_router.include_router(grace_period.router)
+    api_router.include_router(recording.router)
+    api_router.include_router(changes.router)
+    api_router.include_router(closing.router)
+    api_router.include_router(favours.router)
+    api_router.include_router(photos.router)
+    api_router.include_router(manual_value.router)
+    api_router.include_router(mortgage_photos.router)
+    api_router.include_router(collateral.router)
+    api_router.include_router(call_list.router)
+    api_router.include_router(call_notes.router)
+    api_router.include_router(call_sheets.router)
+    api_router.include_router(dashboard.router)
+    api_router.include_router(backups.router)
+    api_router.include_router(audit.router)
+    api_router.include_router(projections.router)
+    api_router.include_router(simulation.router)
+    api_router.include_router(previews.router)
+    api_router.include_router(receipts.router)
+    api_router.include_router(message_settings.router)
+    api_router.include_router(reminders.router)
+    api_router.include_router(updates.router)
+    api_router.include_router(health.router)
+    app.include_router(api_router)
     if screens_dir is not None:
         serve_screens(app, screens_dir)  # last, so it never answers for the API
     return app

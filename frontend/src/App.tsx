@@ -1,8 +1,7 @@
-import { BrowserRouter, Link, Route, Routes } from 'react-router'
+import { BrowserRouter, Route, Routes } from 'react-router'
 import { UnknownIdBoundary } from './components/UnknownIdBoundary'
-import { Nav } from './components/Nav'
 import { StartGate } from './components/StartGate'
-import { ThemeToggle } from './components/ThemeToggle'
+import { TopBar } from './components/TopBar'
 import { UpdateBanner } from './components/UpdateBanner'
 import { CalculatorPage } from './pages/CalculatorPage'
 import { CallListPage } from './pages/CallListPage'
@@ -25,23 +24,13 @@ import { RedeemPage } from './pages/RedeemPage'
 import { ReceiptPage } from './pages/ReceiptPage'
 import { ReferrerPage } from './pages/ReferrerPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { APP_VERSION } from './version'
 
 export default function App() {
   return (
     <StartGate>
       <BrowserRouter>
         <div className="layout">
-          <header>
-            <h1>
-              <Link to="/">Mortgage Management</Link>
-              <sup className="version" title={`Version ${APP_VERSION}`}>
-                v{APP_VERSION}
-              </sup>
-            </h1>
-            <Nav />
-            <ThemeToggle />
-          </header>
+          <TopBar />
           <UpdateBanner />
           <main>
             <AppRoutes />

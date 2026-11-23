@@ -251,7 +251,7 @@ def get_backups(request: Request) -> Backups:
 
 BackupsDep = Annotated[Backups, Depends(get_backups)]
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/backups")

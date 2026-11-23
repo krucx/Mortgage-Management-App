@@ -90,7 +90,7 @@ def template_refusal(settings: MessageSettings) -> str | None:
     return None
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/settings/messages")

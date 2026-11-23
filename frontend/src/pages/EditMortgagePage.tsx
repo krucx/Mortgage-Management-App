@@ -14,7 +14,7 @@ import { formatDate, formatGrams, todayIso } from '../format'
 import { formatINR, paiseToRupees, rupeesToPaise } from '../money'
 import { changes, mortgageQuery, previews } from '../requests'
 import { useMortgageChange, useServerState } from '../serverState'
-import { gramsToMg, mgToGrams } from '../weight'
+import { gramsToMg, mgToGrams, netAboveGross } from '../weight'
 import { describeTerms, fromDraft, sameTerms, toDraft } from '../terms'
 import { RupeeInput } from '../components/RupeeInput'
 import { useNumericId } from '../useNumericId'
@@ -99,7 +99,7 @@ function EditMortgageForm({ mortgage }: { mortgage: Mortgage }) {
     setFields({ ...fields, [field]: value })
 
   const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
-    change: edits.length > 0 ? edited : null,
+    change: edits.length > 0 && !netAboveGross(fields) ? edited : null,
     preview: (edit) => (worthPreviewing ? previews.edit(id, edit) : null),
     confirm: () => ({
       title: `Save changes to ${was.name}?`,

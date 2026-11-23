@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import type { PersonSummary, ReferrerChoice } from '../api'
-import { PersonLink, ReferrerBadge } from './PersonLink'
-import { useNumberOwner } from './useNumberOwner'
-import { useSearch } from './useSearch'
+import type { PersonSummary, ReferrerChoice } from '../../api'
+import { FieldProblem } from '../../components/FieldProblem'
+import { PersonLink, ReferrerBadge } from '../../components/PersonLink'
+import { useNumberOwner } from '../../components/useNumberOwner'
+import { useSearch } from '../../components/useSearch'
 
 type Mode = 'none' | 'existing' | 'new'
 
@@ -84,6 +85,9 @@ export function ReferrerPicker({
               <ReferrerBadge person={picked} />
             </p>
           )}
+          <FieldProblem
+            problem={!picked && 'Pick the Referrer from the search results, or choose "None".'}
+          />
           <input
             type="search"
             aria-label="Search for the Referrer"

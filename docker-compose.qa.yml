@@ -10,7 +10,7 @@ x-qa-app: &qa-app
     QA_MODE: "true"
     CHECK_FOR_UPDATES: "false"
   healthcheck:
-    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/customers')"]
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
     interval: 2s
     timeout: 5s
     retries: 30

@@ -310,7 +310,7 @@ def remove_customer(conn: Connection, customer_id: int, now: datetime) -> list[s
     return [file for file in files if file]
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.post("/customers", status_code=status.HTTP_201_CREATED)

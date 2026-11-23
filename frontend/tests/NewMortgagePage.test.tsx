@@ -200,6 +200,78 @@ test("opened from the Calculator, it asks for a Customer, then shows the Simulat
   expect((screen.getByLabelText('Monthly interest rate (%)') as HTMLInputElement).value).toBe('3')
 })
 
+test("while its Preview says the Mortgage would be refused, it can't be created, and says why", async () => {
+  const created: unknown[] = []
+  await fillMortgageForm(
+    server(created, {
+      'POST /api/mortgages/preview': () =>
+        Response.json({ detail: 'The start date cannot be before 2000' }, { status: 422 }),
+    }),
+    'Gold pendant',
+  )
+
+  expect(
+    await screen.findByText('The start date cannot be before 2000', {}, { timeout: 2000 }),
+  ).toBeTruthy()
+  expect(createButton().disabled).toBe(true)
+  fireEvent.submit(createButton().closest('form')!)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(created).toEqual([])
+})
+
+test("a net weight above the gross weight says so beside it, and can't be created", async () => {
+  await fillMortgageForm(server([]), 'Gold pendant')
+  fireEvent.change(screen.getByLabelText('Net weight, gold only (grams)'), {
+    target: { value: '6' },
+  })
+
+  expect(screen.getByText("Net weight can't be more than the gross weight")).toBeTruthy()
+  await new Promise((resolve) => setTimeout(resolve, 700)) // past the Preview's debounce
+  expect(createButton().disabled).toBe(true)
+})
+
+test("a refused create shows the backend's reason, and can be tried again", async () => {
+  const created: unknown[] = []
+  let refuse = true
+  await fillMortgageForm(
+    server(created, {
+      'POST /api/mortgages': async (request: Request) => {
+        if (refuse) {
+          refuse = false
+          return Response.json({ detail: 'The Customer is archived' }, { status: 409 })
+        }
+        created.push(await request.json())
+        return mortgage
+      },
+    }),
+    'Gold pendant',
+  )
+
+  await confirmCreate()
+  expect(await screen.findByText('The Customer is archived')).toBeTruthy()
+  expect(created).toEqual([])
+  await confirmCreate()
+
+  expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()
+  expect(created).toHaveLength(1)
+})
+
+test('Create is disabled while the Mortgage is being saved', async () => {
+  let answer: (response: Response) => void = () => {}
+  await fillMortgageForm(
+    server([], {
+      'POST /api/mortgages': () => new Promise<Response>((resolve) => (answer = resolve)),
+    }),
+    'Gold pendant',
+  )
+
+  await confirmCreate()
+  const saving = (await screen.findByRole('button', { name: 'Saving…' })) as HTMLButtonElement
+  expect(saving.disabled).toBe(true)
+  answer(Response.json(mortgage))
+  expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()
+})
+
 test('Principal lent steps by whole rupees and is saved with the paise typed; rate and weights keep their fine steps', async () => {
   const created: MortgageIn[] = []
   await fillMortgageForm(server(created), 'Gold pendant')

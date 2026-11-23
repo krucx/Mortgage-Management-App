@@ -284,12 +284,11 @@ Then(
   'the new Mortgage cannot be created: its {string} is refused',
   async ({ page }, field: string) => {
     expect(await page.getByLabel(field).evaluate((input: HTMLInputElement) => input.validity.valid)).toBe(false);
-    await createMortgage(page);
+    await expect(page.getByRole('button', { name: buttons.createMortgage })).toBeDisabled();
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page).toHaveURL(/\/mortgages\/new/);
   },
 );
-
 async function cashLimit(lender: { get: (path: string) => Promise<{ cash_limit: number }> }) {
   return (await lender.get('/api/settings/cash-limit')).cash_limit;
 }
@@ -427,6 +426,20 @@ Then(
 
 When('the Lender adds a photo to it', async ({ page }) => {
   await page.locator('input[type="file"]').setInputFiles(photos(1));
+});
+
+When('the Lender adds a photo over 20 MB to it', async ({ page }) => {
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'too-large.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.alloc(20 * 1024 * 1024 + 1),
+  });
+});
+
+Then('the Photos section says {string}', async ({ page }, refusal: string) => {
+  // The refusal sits under the Photos heading, not at the top of the page.
+  const photos = page.getByRole('heading', { name: 'Photos', exact: true });
+  await expect(photos.locator('xpath=following-sibling::p[contains(@class, "error")][1]')).toHaveText(refusal);
 });
 
 When('the Lender deletes its photo', async ({ page }) => {

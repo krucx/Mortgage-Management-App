@@ -344,7 +344,7 @@ def name_for(conn: Connection, mortgage: MortgageIn) -> str:
     return mortgage.name
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/mortgages/suggested-name")

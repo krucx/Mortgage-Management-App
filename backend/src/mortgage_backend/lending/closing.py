@@ -413,7 +413,7 @@ def reopen(
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/mortgages/{mortgage_id}/outstanding-on-closure")

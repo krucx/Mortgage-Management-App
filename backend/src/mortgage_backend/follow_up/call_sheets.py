@@ -387,7 +387,7 @@ def read_import(conn: Connection, data: bytes, today: date) -> CallNoteImport:
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 _XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
