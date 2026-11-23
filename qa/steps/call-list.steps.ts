@@ -199,12 +199,13 @@ async function mortgagesOf(page: Page, customer: string): Promise<Shown[]> {
     const rows: { name: string; outstanding: string }[] = [];
     let tr: Element | null = td.closest('tr');
     do {
-      if (!tr!.classList.contains('call-noting')) {
-        const cells = [...tr!.children].filter((c) => !c.classList.contains('call-customer'));
+      // The row marking a Mortgage called holds a form; the Customer's cell spans all their rows.
+      if (!tr!.querySelector('form')) {
+        const cells = [...tr!.children].filter((c) => !c.hasAttribute('rowspan'));
         rows.push({ name: cells[0].textContent!.trim(), outstanding: cells[2].textContent!.trim() });
       }
       tr = tr!.nextElementSibling;
-    } while (tr && !tr.classList.contains('group-start'));
+    } while (tr && !tr.querySelector('td[rowspan]'));
     return rows;
   });
 }
