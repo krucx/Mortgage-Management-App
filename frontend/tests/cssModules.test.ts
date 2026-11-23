@@ -1,14 +1,17 @@
 // Every scoped stylesheet (src/**/*.module.css) has a declaration beside it naming its
 // classes, so a misspelt class is a type error; and it styles with the global design
 // tokens from index.css rather than its own colours.
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
-import { classNames, declarationFor } from '../scripts/css-module-types.ts'
+import {
+  classNames,
+  cssModules,
+  declarationFor,
+  declarationPath,
+  src,
+} from '../scripts/css-module-types.ts'
 
-const src = new URL('../src/', import.meta.url)
-const modules = readdirSync(src, { recursive: true, encoding: 'utf8' })
-  .filter((path) => path.endsWith('.module.css'))
-  .sort()
+const modules = cssModules()
 const read = (path: string) => readFileSync(new URL(path, src), 'utf8')
 
 test('the app has CSS modules to check', () => {
@@ -16,10 +19,9 @@ test('the app has CSS modules to check', () => {
 })
 
 test.each(modules)('%s has an up-to-date declaration', (path) => {
-  const beside = path.replace(/\.module\.css$/, '.module.d.css.ts')
   let written = ''
   try {
-    written = read(beside)
+    written = read(declarationPath(path))
   } catch {
     // Missing: the comparison below fails with the expected text.
   }

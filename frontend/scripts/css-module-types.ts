@@ -5,6 +5,17 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
+export const src = new URL('../src/', import.meta.url)
+
+/** Every CSS module under src/, as a path relative to it, sorted. */
+export const cssModules = (): string[] =>
+  readdirSync(src, { recursive: true, encoding: 'utf8' })
+    .filter((path) => path.endsWith('.module.css'))
+    .sort()
+
+/** Where a CSS module's declaration goes: beside it, as X.module.d.css.ts. */
+export const declarationPath = (path: string) => path.replace(/\.module\.css$/, '.module.d.css.ts')
+
 /** The classes a stylesheet's selectors name, sorted. */
 export function classNames(css: string): string[] {
   const selectors = css
@@ -31,13 +42,8 @@ export function declarationFor(css: string): string {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const src = new URL('../src/', import.meta.url)
-  for (const path of readdirSync(src, { recursive: true, encoding: 'utf8' })) {
-    if (!path.endsWith('.module.css')) continue
+  for (const path of cssModules()) {
     const css = readFileSync(new URL(path, src), 'utf8')
-    writeFileSync(
-      new URL(path.replace(/\.module\.css$/, '.module.d.css.ts'), src),
-      declarationFor(css),
-    )
+    writeFileSync(new URL(declarationPath(path), src), declarationFor(css))
   }
 }
