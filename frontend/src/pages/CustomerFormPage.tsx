@@ -109,7 +109,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
       ? null
       : (customer) => ({
           title:
-            customerId === undefined ? 'Add this Customer?' : `Save changes to ${fields.name}?`,
+            customerId === undefined ? 'Add this Customer?' : `Save changes to ${customer.name}?`,
           body: (
             <Summary
               rows={[

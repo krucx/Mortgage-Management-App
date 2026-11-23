@@ -289,13 +289,6 @@ Then(
     await expect(page).toHaveURL(/\/mortgages\/new/);
   },
 );
-
-Then('the net weight says {string}', async ({ page }, problem: string) => {
-  await expect(
-    page.locator('label', { hasText: /^Net weight, gold only/ }).locator('.status.error'),
-  ).toHaveText(problem);
-});
-
 async function cashLimit(lender: { get: (path: string) => Promise<{ cash_limit: number }> }) {
   return (await lender.get('/api/settings/cash-limit')).cash_limit;
 }

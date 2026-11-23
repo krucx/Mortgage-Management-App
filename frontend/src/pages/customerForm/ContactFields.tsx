@@ -29,6 +29,14 @@ export function ContactFields({
   // Contact number 1 is the Primary Number: it identifies the person.
   const numberOwner = useNumberOwner(phone1)
   const ownerIsSelf = numberOwner?.kind === 'customer' && numberOwner.id === customerId
+  const phone1Problem =
+    phone1.trim() && !normalisePhone(phone1) ? (
+      'Enter a 10-digit mobile number'
+    ) : numberOwner?.kind === 'customer' && !ownerIsSelf ? (
+      <>
+        Already belongs to Customer <PersonLink person={numberOwner} />
+      </>
+    ) : null
 
   /** Contact number 2 may be shared (e.g. a family phone): warn, never block. */
   async function checkPhone2() {
@@ -52,17 +60,7 @@ export function ContactFields({
           value={phone1}
           onChange={(event) => onChange('phone_1', event.target.value)}
         />
-        <FieldProblem
-          problem={
-            phone1.trim() && !normalisePhone(phone1) ? (
-              'Enter a 10-digit mobile number'
-            ) : numberOwner?.kind === 'customer' && !ownerIsSelf ? (
-              <>
-                Already belongs to Customer <PersonLink person={numberOwner} />
-              </>
-            ) : null
-          }
-        />
+        <FieldProblem problem={phone1Problem} />
         {numberOwner?.kind === 'referrer' && customerId === undefined && (
           <span className="status warning">
             Belongs to <PersonLink person={numberOwner} />. Saving makes them this Customer, and the

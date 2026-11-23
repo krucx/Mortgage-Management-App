@@ -173,7 +173,8 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
       startDate: fields.start_date,
       description,
     }),
-    enabled: !nameEdited && fields.start_date !== '',
+    // Not once created: the name it was created with stays shown for a photo retry.
+    enabled: !nameEdited && !locked && fields.start_date !== '',
     placeholderData: (previous) => previous,
   })
   const name = nameEdited ? typedName : (suggested.data?.name ?? '')
@@ -186,19 +187,18 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
   const set = (field: keyof typeof fields) => (value: string) =>
     setFields({ ...fields, [field]: value })
 
-  // What saving would send, once every field it needs is filled in (the rest the backend
-  // checks through its Preview).
-  const chosenTerms = terms !== null && Number(terms.ratePercent) > 0 ? fromDraft(terms) : null
+  // What saving would send, once every field it needs is filled in: whether what is typed
+  // can stand, the backend says through its Preview.
+  const chosenTerms = terms !== null && terms.ratePercent !== '' ? fromDraft(terms) : null
   const asked: (MortgageIn & { terms: Terms }) | null =
     chosenTerms !== null &&
     nameReady &&
     name.trim() !== '' &&
     fields.start_date !== '' &&
-    fields.start_date <= todayIso() &&
-    rupeesToPaise(fields.amountLent) > 0 &&
+    fields.amountLent !== '' &&
     fields.description.trim() !== '' &&
-    gramsToMg(fields.gross) > 0 &&
-    gramsToMg(fields.net) > 0 &&
+    fields.gross !== '' &&
+    fields.net !== '' &&
     !netAboveGross(fields)
       ? {
           customer_id: customer.id,
