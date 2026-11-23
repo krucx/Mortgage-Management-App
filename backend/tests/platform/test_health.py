@@ -11,7 +11,7 @@ def test_a_healthy_app_reports_every_subsystem(client):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["database"] == {"connected": True}
+    assert body["database"] == {"connected": True, "error": None}
     assert body["migrations"]["up_to_date"] is True
     assert body["migrations"]["current"] == body["migrations"]["head"]
     assert body["backups"] == {"enabled": False, "running": False}

@@ -511,6 +511,24 @@
         "title": "BackupStatus",
         "type": "object"
       },
+      "BackupsHealth": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "running"
+        ],
+        "title": "BackupsHealth",
+        "type": "object"
+      },
       "Body_import_call_notes_api_call_list_import_post": {
         "properties": {
           "file": {
@@ -1690,6 +1708,30 @@
         "title": "Dashboard",
         "type": "object"
       },
+      "DatabaseHealth": {
+        "properties": {
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "required": [
+          "connected"
+        ],
+        "title": "DatabaseHealth",
+        "type": "object"
+      },
       "DiscountConfirmationLimit": {
         "properties": {
           "discount_confirmation_limit": {
@@ -2064,6 +2106,42 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "Health": {
+        "properties": {
+          "backups": {
+            "$ref": "#/components/schemas/BackupsHealth"
+          },
+          "database": {
+            "$ref": "#/components/schemas/DatabaseHealth"
+          },
+          "migrations": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MigrationsHealth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "database",
+          "migrations",
+          "backups"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
       "ImportedCallNote": {
         "description": "A Call Note an import adds.",
         "properties": {
@@ -2428,6 +2506,43 @@
           }
         },
         "title": "MessageSettings",
+        "type": "object"
+      },
+      "MigrationsHealth": {
+        "properties": {
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          },
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head"
+          },
+          "up_to_date": {
+            "title": "Up To Date",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "current",
+          "head",
+          "up_to_date"
+        ],
+        "title": "MigrationsHealth",
         "type": "object"
       },
       "MonthlyPayments": {
@@ -6134,13 +6249,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Read Health Api Health Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Health"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Service Unavailable"
           }
         },
         "summary": "Read Health"
