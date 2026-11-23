@@ -1,0 +1,1 @@
+- **Health check:** `GET /api/health` reports whether the database, its schema version and the Backup engine are working, answering 503 when the database can't be reached or the schema is behind. It reads no Customer or Mortgage data.

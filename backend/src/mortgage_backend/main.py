@@ -38,7 +38,7 @@ from mortgage_backend.payments import (
     recording,
 )
 from mortgage_backend.people import customer_changes, customers
-from mortgage_backend.platform import photos, updates
+from mortgage_backend.platform import health, photos, updates
 from mortgage_backend.platform.clock import get_today
 from mortgage_backend.platform.daily_run import DailyRun
 from mortgage_backend.platform.db import (
@@ -124,7 +124,8 @@ def create_app(
     async def run_daily_jobs(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if request.url.path.startswith("/api/"):
+        # The health probe reads no Customer data, so it runs no job that would.
+        if request.url.path.startswith("/api/") and request.url.path != "/api/health":
             # The request's date, so in QA mode `X-QA-Clock` runs that day's jobs too.
             try:
                 day = get_today(request)
@@ -163,6 +164,7 @@ def create_app(
     api_router.include_router(message_settings.router)
     api_router.include_router(reminders.router)
     api_router.include_router(updates.router)
+    api_router.include_router(health.router)
     app.include_router(api_router)
     if screens_dir is not None:
         serve_screens(app, screens_dir)  # last, so it never answers for the API
