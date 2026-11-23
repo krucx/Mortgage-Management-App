@@ -8,12 +8,21 @@ interface Failure {
   componentStack: string
 }
 
-/** Catches an error thrown while its children render, and shows what happened in their place. */
-class Boundary extends Component<{ children: ReactNode }, { failure: Failure | null }> {
-  state = { failure: null as Failure | null }
+/** Catches an error thrown while its children render, and shows what happened in their place.
+ *  The failure clears when `location` changes; a page that is not failing is never remounted
+ *  (the Calculator rewrites the address as it is used, and must keep what is on screen). */
+class Boundary extends Component<
+  { children: ReactNode; location: string },
+  { failure: Failure | null; location: string }
+> {
+  state = { failure: null as Failure | null, location: this.props.location }
 
   static getDerivedStateFromError(error: Error) {
     return { failure: { error, componentStack: '' } }
+  }
+
+  static getDerivedStateFromProps({ location }: { location: string }, state: { location: string }) {
+    return location === state.location ? null : { failure: null, location }
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -53,8 +62,8 @@ function PageFailed({ error, componentStack }: Failure) {
 
 /** Shows `children` (the pages), or the failure of one, which clears on the next navigation. */
 export function PageErrorBoundary({ children }: { children: ReactNode }) {
-  // Keyed on the location, not the address: going to the address already shown (Return to
-  // Dashboard, from a Dashboard that failed) must clear the failure too.
+  // The location, not the address: going to the address already shown (Return to Dashboard,
+  // from a Dashboard that failed) must clear the failure too.
   const { key } = useLocation()
-  return <Boundary key={key}>{children}</Boundary>
+  return <Boundary location={key}>{children}</Boundary>
 }
