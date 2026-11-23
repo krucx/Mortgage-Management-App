@@ -21,13 +21,17 @@ export function MortgagePhotos({ mortgage }: { mortgage: Mortgage }) {
 
   async function add(blobs: Blob[]) {
     setError(null)
-    await photos.run(
-      null,
-      blobs.map((blob) => ({
-        key: blob,
-        send: (client, id) => addMortgagePhoto(client, id, blob),
-      })),
-    )
+    try {
+      await photos.run(
+        null,
+        blobs.map((blob) => ({
+          key: blob,
+          send: (client, id) => addMortgagePhoto(client, id, blob),
+        })),
+      )
+    } catch (err) {
+      setError((err as Error).message)
+    }
   }
 
   async function remove(photoId: number) {
@@ -39,7 +43,6 @@ export function MortgagePhotos({ mortgage }: { mortgage: Mortgage }) {
     })
     if (!confirmed) return
     setError(null)
-    photos.clearError()
     try {
       await changePhotos((client) => removeMortgagePhoto(client, id, photoId))
     } catch (err) {
@@ -47,7 +50,6 @@ export function MortgagePhotos({ mortgage }: { mortgage: Mortgage }) {
     }
   }
 
-  const refusal = error ?? photos.error
   return (
     <>
       {mortgage.photos.length > 0 ? (
@@ -66,7 +68,7 @@ export function MortgagePhotos({ mortgage }: { mortgage: Mortgage }) {
       ) : (
         <p className="hint">No photos yet.</p>
       )}
-      {refusal && <p className="status error">{refusal}</p>}
+      {error && <p className="status error">{error}</p>}
       <PhotoSource multiple onPhotos={add} />
       {confirmDialog}
     </>

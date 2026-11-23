@@ -97,6 +97,73 @@ test("an existing Customer can't be moved onto a Referrer's number, and nothing 
   expect(saveButton().disabled).toBe(true)
 })
 
+test("an Existing person with nobody picked says so beside the Referrer, and can't be saved", async () => {
+  const server = customerForm(null, allowed)
+  await typeNumber()
+  fireEvent.click(screen.getByLabelText('Existing person'))
+
+  expect(
+    screen.getByText('Pick the Referrer from the search results, or choose "None".'),
+  ).toBeTruthy()
+  expect(saveButton().disabled).toBe(true)
+  fireEvent.submit(saveButton().closest('form')!)
+  expect(screen.queryByRole('dialog')).toBeNull()
+
+  fireEvent.click(screen.getByLabelText('None'))
+  expect(screen.queryByText(/Pick the Referrer/)).toBeNull()
+  await vi.waitFor(() => expect(saveButton().disabled).toBe(false), { timeout: 2000 })
+  expect(server.requests).not.toContain('POST /api/customers')
+})
+
+test("a Contact number 1 that isn't a mobile number says so beside it, and can't be saved", async () => {
+  customerForm(null, allowed)
+  fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Suresh Kumar' } })
+  const phone = screen.getByLabelText('Contact number 1')
+  fireEvent.change(phone, { target: { value: '98290' } })
+
+  expect(screen.getByText('Enter a 10-digit mobile number')).toBeTruthy()
+  expect(saveButton().disabled).toBe(true)
+
+  fireEvent.change(phone, { target: { value: '9829012345' } })
+  expect(screen.queryByText('Enter a 10-digit mobile number')).toBeNull()
+  await vi.waitFor(() => expect(saveButton().disabled).toBe(false), { timeout: 2000 })
+})
+
+test('a photo failing after the Customer is saved can be retried, sending only the photo, unasked', async () => {
+  let photoFails = true
+  const server = fakeServer({
+    'GET /api/people/by-phone': null,
+    'GET /api/search': [],
+    'POST /api/customers/preview': allowed,
+    'POST /api/customers': { id: 5, name: 'Suresh Kumar' },
+    'PUT /api/customers/5/photo': () => {
+      if (!photoFails) return { id: 5 }
+      photoFails = false
+      return Response.json({ detail: 'The photo is too large' }, { status: 413 })
+    },
+    'GET /api/customers/5': { id: 5, name: 'Suresh Kumar' },
+  })
+  showPage(server, '/customers/new', { '/customers/new': <CustomerFormPage /> })
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:photo' }))
+  await typeNumber()
+  const picker = document.querySelector('input[type="file"]') as HTMLInputElement
+  fireEvent.change(picker, {
+    target: { files: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })] },
+  })
+
+  await vi.waitFor(() => expect(saveButton().disabled).toBe(false), { timeout: 2000 })
+  fireEvent.click(saveButton())
+  fireEvent.click(await screen.findByRole('button', { name: 'Confirm and save' }))
+  expect(
+    await screen.findByText('Customer saved, but a photo failed: The photo is too large'),
+  ).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Retry photo upload' }))
+
+  expect(await screen.findByText('Now at /customers/5')).toBeTruthy()
+  expect(server.requests.filter((r) => r === 'POST /api/customers')).toHaveLength(1)
+  expect(server.requests.filter((r) => r === 'PUT /api/customers/5/photo')).toHaveLength(2)
+})
+
 test('the Referrer search has a name', async () => {
   customerForm(null, allowed)
   fireEvent.click(await screen.findByLabelText('Existing person'))
