@@ -43,7 +43,8 @@ Then('the header links to every page', async ({ page }) => {
 });
 
 Then('the header names the version the app is running', async ({ page, lender }) => {
-  const version = page.getByRole('banner').locator('sup.version');
+  // By its title: its class is scoped to the top bar's CSS module, so it is no hook.
+  const version = page.getByRole('banner').getByRole('heading', { level: 1 }).getByTitle(/^Version /);
   await expect(version).toHaveText(/^v\d+\.\d+\.\d+/);
   const number = (await version.innerText()).slice(1);
   await expect(version).toHaveAttribute('title', `Version ${number}`);

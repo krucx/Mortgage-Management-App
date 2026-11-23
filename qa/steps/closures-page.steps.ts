@@ -9,6 +9,8 @@ import { shownINR } from './shown';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'June', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 
 const closuresTab = (page: Page) => page.getByRole('link', { name: /^Closures/ });
+// By its label: its class is scoped to the Nav's CSS module, so it is no hook.
+const dormantDot = (page: Page) => closuresTab(page).getByLabel(/ Dormant, to Redeem$/);
 const panel = (page: Page) => page.locator('.close-panel');
 
 /** The Mortgages-to-close table is the one with a Started column; the Dormant one has none. */
@@ -83,12 +85,12 @@ When('the Lender opens the Closures page', async ({ page }) => {
 
 Then('the Closures tab shows a red dot, with the tooltip {string}', async ({ page }, tooltip: string) => {
   await expect(closuresTab(page)).toHaveAttribute('title', tooltip);
-  await expect(closuresTab(page).locator('.dot')).toBeVisible();
+  await expect(dormantDot(page)).toBeVisible();
 });
 
 Then('the Closures tab has no red dot', async ({ page }) => {
   await expect(closuresTab(page)).toBeVisible();
-  await expect(closuresTab(page).locator('.dot')).toHaveCount(0);
+  await expect(dormantDot(page)).toHaveCount(0);
 });
 
 // The Dormant list
