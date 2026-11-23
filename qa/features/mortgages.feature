@@ -233,6 +233,14 @@ Feature: Mortgages
       When the Lender deletes its photo
       Then the Mortgage has no photos
 
+    @screen:/mortgages/:id
+    Scenario: A photo over 20 MB is refused beside the photos, and not added
+      Given "Sesame Large Photo Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
+      When the Lender opens the Mortgage on 15 Nov 2025
+      And the Lender adds a photo over 20 MB to it
+      Then the Photos section says "The photo is too large (over 20 MB)."
+      And the Mortgage has no photos
+
   Rule: Editing a Mortgage previews what a correction changes and replays its Ledger
 
     @screen:/mortgages/:id/edit @screen:/mortgages/:id

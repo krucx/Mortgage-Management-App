@@ -16,7 +16,7 @@ from mortgage_backend.platform.db import EngineDep, mortgage_table
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.safekeeping import audit
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 class CollateralIn(BaseModel):

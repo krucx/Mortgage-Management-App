@@ -326,7 +326,7 @@ def _customer_row(conn: Connection, row: RowMapping) -> CustomerRow:
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/customers/{customer_id}")

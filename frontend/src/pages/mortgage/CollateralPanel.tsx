@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import type { Mortgage } from '../api'
-import { formatDate, formatPercent } from '../format'
-import { formatINR, rupeesToPaise } from '../money'
-import { changes } from '../requests'
-import { STALE_AFTER, useChange } from '../serverState'
-import { CollateralForecast } from './ChangeForecasts'
-import { useConfirm } from './useConfirm'
-import { RupeeInput } from './RupeeInput'
+import type { Mortgage } from '../../api'
+import { formatDate, formatPercent } from '../../format'
+import { formatINR, rupeesToPaise } from '../../money'
+import { changes } from '../../requests'
+import { STALE_AFTER, useChange } from '../../serverState'
+import { CollateralForecast } from '../../components/ChangeForecasts'
+import { useConfirm } from '../../components/useConfirm'
+import { RupeeInput } from '../../components/RupeeInput'
 
 /** Collateral Value and Loan-to-Value, with a Collateral Value set by hand if needed. */
 export function CollateralPanel({

@@ -265,7 +265,7 @@ def remove_term_change(
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.post(

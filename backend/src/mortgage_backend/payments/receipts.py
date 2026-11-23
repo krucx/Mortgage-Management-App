@@ -252,7 +252,7 @@ def load_advance_receipt(
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/payments/{payment_id}/receipt")

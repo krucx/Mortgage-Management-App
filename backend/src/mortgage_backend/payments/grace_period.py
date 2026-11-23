@@ -182,7 +182,7 @@ def grace_offers(
     return offers
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/settings/grace-period")

@@ -10,7 +10,7 @@ from mortgage_backend.platform.settings import ConfigGroup
 # Stored when the database is created (migration 0001), so never missing.
 DEFAULT_TERMS = ConfigGroup.prefixed("default_", Terms)
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/settings/default-terms")

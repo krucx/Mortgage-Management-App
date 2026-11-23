@@ -211,7 +211,7 @@ def _interest_paid(conn: Connection, start: date, end: date) -> int:
     return activity(all_replays(conn), start, end).interest_collected
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/payment-methods")

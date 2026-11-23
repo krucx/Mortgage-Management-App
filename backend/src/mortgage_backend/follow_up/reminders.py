@@ -449,7 +449,7 @@ def act(
     return list_reminders(conn, reminder_id=reminder_id)[0]
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/reminders")

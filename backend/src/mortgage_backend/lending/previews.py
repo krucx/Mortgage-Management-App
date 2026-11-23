@@ -211,7 +211,7 @@ def _preview(
     return PreviewOfChange(mortgages=mortgages, cash=cash)
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.post("/mortgages/{mortgage_id}/edit-preview")
