@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { NavLink } from 'react-router'
 import { dormantCountQuery } from '../requests'
 import { useServerState } from '../serverState'
+import styles from './Nav.module.css'
 
 /** The app's pages; a red dot on Closures while any Mortgage is Dormant (ADR 0012). */
 export function Nav() {
@@ -10,7 +11,7 @@ export function Nav() {
   // while it can't be had.
   const dormant = useQuery(dormantCountQuery(client)).data ?? 0
   return (
-    <nav>
+    <nav className={styles.nav}>
       <NavLink to="/" end>
         Dashboard
       </NavLink>
@@ -25,7 +26,9 @@ export function Nav() {
         title={dormant ? `${dormant} Dormant: owing nothing, to Redeem` : undefined}
       >
         Closures
-        {dormant > 0 && <span className="dot" aria-label={`${dormant} Dormant, to Redeem`} />}
+        {dormant > 0 && (
+          <span className={styles.dot} aria-label={`${dormant} Dormant, to Redeem`} />
+        )}
       </NavLink>
       <NavLink to="/settings">Settings</NavLink>
     </nav>
