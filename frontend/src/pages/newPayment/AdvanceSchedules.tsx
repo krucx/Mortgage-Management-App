@@ -1,6 +1,7 @@
 import type { AdvanceSchedule, MortgagePreview } from '../../api'
 import { formatDate } from '../../format'
 import { formatINR } from '../../money'
+import styles from './AdvanceSchedules.module.css'
 
 /** Each Mortgage's Advance in the draft, part by part as the Preview replays it (with
  *  every part in place), and what that comes to. A refused Advance has no schedule: the
@@ -17,7 +18,7 @@ export function AdvanceSchedules({
   )
   if (schedules.length === 0) return null
   return (
-    <div className="stack advance-schedules">
+    <div className={`stack ${styles.schedules}`}>
       {schedules.map(({ mortgageId, schedule }) => (
         <section key={mortgageId} aria-label={`Advance on ${names.get(mortgageId) ?? ''}`}>
           <h3>
@@ -40,7 +41,10 @@ export function AdvanceSchedules({
               </thead>
               <tbody>
                 {schedule.parts.map((part) => (
-                  <tr key={part.on} className={part.principal_paid ? 'warn' : undefined}>
+                  <tr
+                    key={part.on}
+                    className={part.principal_paid ? styles.paysPrincipal : undefined}
+                  >
                     <td>{formatDate(part.on)}</td>
                     <td className="num">{formatINR(part.amount)}</td>
                     <td className="num">{formatINR(part.interest)}</td>

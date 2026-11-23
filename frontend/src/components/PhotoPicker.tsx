@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Photo } from './Photo'
 import { PhotoSource } from './PhotoSource'
+import styles from './PhotoPicker.module.css'
 
 /** Choose one photo (e.g. a Customer's), showing the current or newly chosen one. */
 export function PhotoPicker({
@@ -14,7 +15,7 @@ export function PhotoPicker({
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview])
 
   return (
-    <div className="photo-picker">
+    <div className={styles.picker} role="group" aria-label="Photo">
       <Photo url={preview ?? currentUrl} alt="Customer" />
       <PhotoSource
         onPhotos={([photo]) => {

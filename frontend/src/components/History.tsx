@@ -18,6 +18,7 @@ import { formatRate, INTEREST_MODES, PART_MONTH_RULES } from '../terms'
 import { formatDate, formatDateTime, formatGrams, maskedAadhaar } from '../format'
 import { formatINR } from '../money'
 import { Pager } from './Pager'
+import styles from './History.module.css'
 import { ScrollPopup } from './ScrollPopup'
 
 const FIELD_LABELS: Record<string, string> = {
@@ -190,7 +191,7 @@ export function History<Key extends QueryKey>({
 
   if (!latest) return error ? <p className="status error">{error.message}</p> : null
   const list = (shown: Change[]) => (
-    <ul className="history">
+    <ul className={styles.changes} aria-label="History">
       {shown.map((change) => (
         <li key={change[0].id}>
           <span className="hint">{formatDateTime(change[0].at)}</span>{' '}

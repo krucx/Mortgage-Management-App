@@ -42,10 +42,13 @@ async function termsOf(where: Page | Locator): Promise<Terms> {
   };
 }
 
+/** Each planned Lump Sum's row: its date, amount and anything said about it. */
+const lumpSums = (page: Page) => page.getByRole('group', { name: /^Lump Sum \d+$/ });
+
 /** The Simulation the screen is asking for (the second, when other Terms are compared). */
 async function asked(page: Page, second = false, span = 12) {
   const lumps = [];
-  for (const row of await page.locator('.lump-sum').all()) {
+  for (const row of await lumpSums(page).all()) {
     const on = await row.locator('input[type=date]').inputValue();
     const amount = await row.locator('input[type=number]').inputValue();
     if (on && amount) lumps.push({ on, amount: paise(amount) });
@@ -201,14 +204,14 @@ When('the Lender plans {money} a month', async ({ page }, monthly: Money) => {
 When('the Lender plans a Lump Sum of {money} on {day}', async ({ page }, amount: Money, day: Day) => {
   await unfold(page, /^Planned Payments$/);
   await page.getByRole('button', { name: 'Add a Lump Sum' }).click();
-  const row = page.locator('.lump-sum').last();
+  const row = lumpSums(page).last();
   await row.locator('input[type=date]').fill(day.iso);
   await row.locator('input[type=number]').fill(amount.typed);
 });
 
 /** The planned Lump Sum's row dated `day`. */
 async function lumpSumOn(page: Page, day: Day) {
-  for (const row of await page.locator('.lump-sum').all()) {
+  for (const row of await lumpSums(page).all()) {
     if ((await row.locator('input[type=date]').inputValue()) === day.iso) return row;
   }
   throw new Error(`no Lump Sum is planned on ${day.shown}`);
@@ -320,7 +323,7 @@ Then('the Calculator asks for the marked inputs to be fixed', async ({ page }) =
 });
 
 Then('Lump Sum {int} says {string}', async ({ page }, row: number, problem: string) => {
-  await expect(page.locator('.lump-sum').nth(row - 1)).toContainText(problem);
+  await expect(page.getByRole('group', { name: `Lump Sum ${row}`, exact: true })).toContainText(problem);
 });
 
 Then('Lend this is not offered', async ({ page }) => {

@@ -1,0 +1,30 @@
+/* A heading that sorts its list: reads as the heading, with an arrow for the sort. */
+.heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-weight: inherit;
+  text-align: inherit;
+}
+
+.heading:hover,
+.sorted {
+  color: var(--text);
+}
+
+:global(th.num) .heading {
+  flex-direction: row-reverse;
+}
+
+.arrow {
+  font-size: 0.75em;
+  opacity: 0.45;
+}
+
+.sorted .arrow {
+  opacity: 1;
+  color: var(--accent);
+}

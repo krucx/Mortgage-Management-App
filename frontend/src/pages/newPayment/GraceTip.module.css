@@ -1,0 +1,26 @@
+/* The Grace tip's working: each Mortgage beside its Accrual Date, then a line per choice. */
+.calc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  margin: 6px 0;
+}
+
+.calc > span {
+  overflow-wrap: anywhere;
+}
+
+.choice {
+  display: block;
+}
+
+/* An Accrual Date on New Payment: the date received within the Grace Period after it,
+   or past it. */
+.accrual.inGrace {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.accrual.pastGrace {
+  color: var(--muted);
+}

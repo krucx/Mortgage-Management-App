@@ -31,7 +31,9 @@ test.each(modules)('%s has an up-to-date declaration', (path) => {
 })
 
 test.each(modules)('%s uses only design tokens the global stylesheet defines', (path) => {
-  const tokens = new Set(read('index.css').match(/--[\w-]+(?=\s*:)/g))
+  const defined = (css: string) => css.match(/--[\w-]+(?=\s*:)/g) ?? []
+  // Or one of its own, such as the Dashboard's --tone, set per group from the tokens.
+  const tokens = new Set([...defined(read('index.css')), ...defined(read(path))])
   const used = [...read(path).matchAll(/var\((--[\w-]+)/g)].map((match) => match[1])
   expect(used.filter((token) => !tokens.has(token))).toEqual([])
 })
@@ -44,6 +46,85 @@ test('class names are read from selectors, not from numbers, comments, strings o
     @media (max-width: 640px) { .bar .nav_link[aria-current='page'] { gap: .75rem; } }
   `
   expect(classNames(css)).toEqual(['bar', 'dot', 'nav_link', 'title-link'])
+})
+
+test("a class named inside :global(…) is the global one, not the module's own", () => {
+  const css = `
+    .calculator :global(details.tucked) { margin: 0; }
+    :global(.layout:has(.card.wide)) .banner { max-width: 1100px; }
+  `
+  expect(classNames(css)).toEqual(['banner', 'calculator'])
+})
+
+// The global stylesheet styles plain elements and the classes many screens share; a class
+// that only one component uses belongs in that component's CSS module.
+const SHARED_CLASSES = [
+  'align-end',
+  'badge',
+  'baseline',
+  'button',
+  'card',
+  'chart',
+  'close-panel',
+  'count',
+  'danger',
+  'danger-solid',
+  'end',
+  'error',
+  'field',
+  'gallery',
+  'gallery-item',
+  'grace',
+  'grid',
+  'grid-2',
+  'grid-3',
+  'hint',
+  'inline',
+  'key',
+  'link',
+  'marker',
+  'no-print',
+  'nowrap',
+  'num',
+  'ok',
+  'photo',
+  'placeholder',
+  'plain',
+  'problems',
+  'receipt-panel',
+  'refreshing',
+  'result',
+  'results',
+  'row',
+  'saved',
+  'secondary',
+  'series',
+  'small',
+  'small-input',
+  'spread',
+  'stack',
+  'status',
+  'status-active',
+  'status-forfeited',
+  'status-redeemed',
+  'status-waived',
+  'summary',
+  'summary-row',
+  'table-scroll',
+  'thumb',
+  'tile',
+  'tiles',
+  'tucked',
+  'voided',
+  'warning',
+  'what-if',
+  'wide',
+  'with-photo',
+]
+
+test('the global stylesheet styles only classes many screens share', () => {
+  const own = classNames(read('index.css')).filter((name) => !SHARED_CLASSES.includes(name))
+  expect(own, 'move these to the CSS module of the component using them').toEqual([])
 })
 
 test('the declaration types each class as a string, and nothing else', () => {

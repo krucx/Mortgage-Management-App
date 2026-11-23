@@ -1,0 +1,5 @@
+/* One photo, and the buttons to choose another, under it. */
+.picker {
+  display: grid;
+  gap: 0.75rem;
+}

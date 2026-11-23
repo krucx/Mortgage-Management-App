@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /** Shared selectors for the mortgage app's forms. Prefer labels/roles over CSS. */
 export const labels = {
@@ -25,4 +25,26 @@ export function tile(page: Page, label: string) {
 export async function confirm(page: Page) {
   await page.getByRole('dialog').getByRole('button', { name: /^(Confirm and save|Remove)$/ }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
+}
+
+/** A WhatsApp message's preview, as the Customer will see it, within `scope`. */
+export function whatsAppPreview(scope: Page | Locator) {
+  return scope.locator('[aria-label="How the message will look in WhatsApp"]');
+}
+
+/** The chat bubble holding the message, within `scope`. */
+export function whatsAppBubble(scope: Page | Locator) {
+  return whatsAppPreview(scope).locator(':scope > div');
+}
+
+/** A Mortgage before and after an unsaved change (a Preview), within `scope`. */
+export function beforeAfter(scope: Page | Locator) {
+  return scope.getByRole('group', { name: 'Before and after' });
+}
+
+/** The printable Receipt's own section. */
+export function printableReceipt(page: Page) {
+  return page.locator('section', {
+    has: page.getByRole('heading', { level: 2, name: /^(Payment receipt|Advance applied)$/ }),
+  });
 }

@@ -38,7 +38,7 @@ const rowOf = (page: Page, mortgage: string) => () =>
   page.getByRole('row').filter({ has: page.getByRole('link', { name: mortgage, exact: true }) });
 
 const customerCell = (page: Page, customer: string) => () =>
-  page.locator('.call-customer', { has: page.getByRole('link', { name: customer, exact: true }) });
+  page.getByRole('cell').filter({ has: page.getByRole('link', { name: customer, exact: true }) });
 
 async function listedRow(page: Page, mortgage: string) {
   const row = await lookFor(page, rowOf(page, mortgage));
@@ -49,7 +49,8 @@ async function listedRow(page: Page, mortgage: string) {
 /** The Mortgage is listed for this reason alone (a marker's label is its full wording). */
 async function expectListedFor(page: Page, mortgage: string, reason: string) {
   const row = await listedRow(page, mortgage);
-  await expect(row.locator('.reason')).toHaveCount(1);
+  // Each marker is titled with its full wording.
+  await expect(row.locator('span[title]')).toHaveCount(1);
   await expect(row.getByLabel(reason, { exact: true })).toBeVisible();
 }
 
@@ -250,7 +251,8 @@ const pagesSeen = new WeakMap<Page, Map<number, string[]>>();
 
 Then('the Call List shows its first twenty Customers', async ({ page }) => {
   await listLoaded(page);
-  await expect(page.locator('.call-customer')).toHaveCount(20);
+  // Each Customer once, with a link to all their Mortgages.
+  await expect(page.getByRole('link', { name: /^\d+ Mortgages?$/ })).toHaveCount(20);
   await expect(page.getByText(/^Showing 1–20 of \d+$/)).toBeVisible();
 });
 
@@ -263,17 +265,20 @@ Then('every Customer on it has all their Mortgages on the same page', async ({ p
     .poll(async () => Number((await pagerText(page).textContent())!.match(/^Page (\d+)/)![1]))
     .toBeGreaterThan(last);
   const current = Number((await pagerText(page).textContent())!.match(/^Page (\d+)/)![1]);
-  const groups = await page.locator('table.call-table tbody').evaluate((body) => {
+  const groups = await page.getByRole('table').locator('tbody').evaluate((body) => {
     const found: { customer: string; says: number; shown: number }[] = [];
     for (const tr of body.children) {
-      if (tr.classList.contains('group-start')) {
-        const says = tr.querySelector('.call-customer a[href^="/mortgages?customer="]')!.textContent!.match(/^(\d+)/)![1];
+      // A Customer's first row holds their cell, which spans all their rows.
+      const customerCell = tr.querySelector('td[rowspan]');
+      if (customerCell) {
+        const says = customerCell.querySelector('a[href^="/mortgages?customer="]')!.textContent!.match(/^(\d+)/)![1];
         found.push({
-          customer: tr.querySelector('.call-customer strong')!.textContent!.trim(),
+          customer: customerCell.querySelector('strong')!.textContent!.trim(),
           says: Number(says),
           shown: 1,
         });
-      } else if (!tr.classList.contains('call-noting')) {
+      } else if (!tr.querySelector('form')) {
+        // Not the row marking one of them called.
         found[found.length - 1].shown++;
       }
     }
@@ -336,18 +341,21 @@ When('the Lender marks {mortgage} called with {string}', async ({ page }, mortga
 });
 
 Then('its row shows Called with {string}, and offers Again', async ({ page, lender }, note: string) => {
-  const cell = (await listedRow(page, lender.mortgage!.name)).locator('.called-cell');
+  const cell = (await listedRow(page, lender.mortgage!.name)).getByRole('cell').filter({ hasText: '✓ Called' });
   await expect(cell).toContainText('Called');
   await expect(cell).toContainText(note);
   await expect(cell.getByRole('button', { name: 'Again…' })).toBeVisible();
 });
 
+/** A Mortgage's Call Notes, one an item. */
+const callNotes = (page: Page) => page.getByRole('list', { name: 'Call Notes' }).getByRole('listitem');
+
 Then('its Call Notes list {string} on {day}', async ({ page }, note: string, day: Day) => {
-  await expect(page.locator('.call-notes li').filter({ hasText: day.shown }).filter({ hasText: note })).toBeVisible();
+  await expect(callNotes(page).filter({ hasText: day.shown }).filter({ hasText: note })).toBeVisible();
 });
 
 Then('its Call Notes list {int} Call Note', async ({ page }, count: number) => {
-  await expect(page.locator('.call-notes li')).toHaveCount(count);
+  await expect(callNotes(page)).toHaveCount(count);
 });
 
 // The thresholds in Settings
@@ -373,7 +381,7 @@ Then('the Call List thresholds are saved', async ({ page }) => {
 const noted = new WeakMap<Page, number>();
 
 const figure = (page: Page, label: string) =>
-  page.locator('.tile.figure', { has: page.getByText(label, { exact: true }) });
+  page.getByRole('link').filter({ has: page.getByText(label, { exact: true }) });
 
 When("notes the Dashboard's {string} figure", async ({ page }, label: string) => {
   const value = figure(page, label).locator('strong');

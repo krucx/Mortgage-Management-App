@@ -65,7 +65,9 @@ Given('it was reopened on {day} because {string}', async ({ lender }, day: Day, 
 
 // The History
 
-const entries = (page: import('@playwright/test').Page) => page.locator('ul.history li');
+const history = (scope: import('@playwright/test').Page | import('@playwright/test').Locator) =>
+  scope.getByRole('list', { name: 'History' });
+const entries = (page: import('@playwright/test').Page) => history(page).getByRole('listitem');
 
 Then('the History shows the latest {int} of {int} changes', async ({ page }, shown: number, total: number) => {
   await expect(entries(page)).toHaveCount(shown);
@@ -79,15 +81,15 @@ Then('the History shows only its latest {int} changes', async ({ page }, shown: 
 
 When('the Lender shows the complete History', async ({ page }) => {
   await page.getByRole('button', { name: 'Show complete history' }).click();
-  await expect(page.getByRole('dialog').locator('ul.history')).toBeVisible();
+  await expect(history(page.getByRole('dialog'))).toBeVisible();
 });
 
 Then('the complete History lists {int} changes', async ({ page }, count: number) => {
-  await expect(page.getByRole('dialog').locator('ul.history li')).toHaveCount(count);
+  await expect(history(page.getByRole('dialog')).getByRole('listitem')).toHaveCount(count);
 });
 
 Then('the complete History ends with {string}', async ({ page }, text: string) => {
-  await expect(page.getByRole('dialog').locator('ul.history li').last()).toContainText(text);
+  await expect(history(page.getByRole('dialog')).getByRole('listitem').last()).toContainText(text);
 });
 
 Then('its History lists {string}', async ({ page }, text: string) => {

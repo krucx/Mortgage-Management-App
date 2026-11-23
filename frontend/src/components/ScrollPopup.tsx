@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { Modal } from './Modal'
+import styles from './ScrollPopup.module.css'
 
 /** A popup with a long list that scrolls inside it; opens scrolled to `start`, and closes
  *  on Close, Esc or a click outside it. */
@@ -24,9 +25,9 @@ export function ScrollPopup({
   }, [start])
 
   return (
-    <Modal onClose={onClose} className="scroll-popup" labelledBy={titleId}>
+    <Modal onClose={onClose} className={styles.popup} labelledBy={titleId}>
       <h2 id={titleId}>{title}</h2>
-      <div ref={scroller} className="scroll-popup-body">
+      <div ref={scroller} className={styles.body}>
         {children}
       </div>
     </Modal>

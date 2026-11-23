@@ -1,0 +1,96 @@
+/* A one-tap fill under a New Payment field: an Advance of Months × the month's interest,
+   or the unpaid interest paid now. */
+button:global(.link).shortcut {
+  display: block;
+  margin-left: auto;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+/* A Grace choice under a Mortgage's Accrual Date: yellow, solid once taken (ticked);
+   gray when it would let off nothing. */
+button.graceChoice {
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--accent-edge);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+button.graceChoice[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+button.graceChoice[aria-pressed='true']::before {
+  content: '✓ ';
+}
+
+button.graceChoice:disabled {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* On a phone: each Mortgage is a card of labelled fields, never scrolling sideways; the
+   include box and Mortgage Name share its first line. */
+@media (max-width: 640px) {
+  table.allocations thead {
+    display: none;
+  }
+
+  table.allocations,
+  table.allocations tbody {
+    display: block;
+  }
+
+  table.allocations tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  table.allocations td {
+    flex: 1 1 40%;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    text-align: left;
+    white-space: normal;
+  }
+
+  table.allocations td.include {
+    flex: 0 0 auto;
+  }
+
+  table.allocations td.mortgage {
+    flex-basis: 70%;
+    font-weight: 600;
+  }
+
+  table.allocations td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  table.allocations input:global(.small-input) {
+    width: 100%;
+  }
+
+  table.allocations button:global(.link).shortcut,
+  table.allocations button.graceChoice {
+    margin-left: 0;
+    white-space: normal;
+  }
+}

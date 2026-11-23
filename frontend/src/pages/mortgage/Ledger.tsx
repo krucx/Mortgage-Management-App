@@ -4,7 +4,15 @@ import type { LedgerStep, Mortgage } from '../../api'
 import { ScrollPopup } from '../../components/ScrollPopup'
 import { formatDate } from '../../format'
 import { formatINR } from '../../money'
+import styles from './Ledger.module.css'
 import { describeStep, instalmentName, stepDate } from './ledgerSteps'
+
+/** How a step's row stands out, by its kind; the rest read plain. */
+const STEP_ROWS: Partial<Record<LedgerStep['event'], string>> = {
+  payment: styles.payment,
+  capitalised: styles.capitalised,
+  interest_to_date: styles.interestToDate,
+}
 
 /** Ledger steps shown on the page; the rest are in the complete Ledger popup. */
 const LEDGER_SHOWN = 8
@@ -51,7 +59,7 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
     mortgage.status === 'active' ? mortgage.advance_instalments.filter((i) => i.upcoming) : []
   return (
     <div className="table-scroll">
-      <table>
+      <table aria-label="Ledger">
         <thead>
           <tr>
             <th>Date</th>
@@ -64,7 +72,7 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
         </thead>
         <tbody>
           {steps.map((step, index) => (
-            <tr key={index} className={`ledger-${step.event}`}>
+            <tr key={index} className={STEP_ROWS[step.event]}>
               <td>{stepDate(step, graces)}</td>
               <td>
                 {step.payment_id ? (
@@ -82,7 +90,7 @@ function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortg
             </tr>
           ))}
           {upcoming.map((instalment) => (
-            <tr key={`upcoming-${instalment.id}`} className="ledger-upcoming">
+            <tr key={`upcoming-${instalment.id}`} className={styles.upcoming}>
               <td>{formatDate(instalment.on)}</td>
               <td>
                 <Link to={`/payments/${instalment.payment_id}`}>{instalmentName(instalment)}</Link>{' '}

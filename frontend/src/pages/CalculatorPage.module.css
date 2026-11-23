@@ -1,0 +1,4 @@
+/* The Calculator's sections sit in its grid, spaced by its gap alone. */
+.calculator :global(details.tucked) {
+  margin: 0;
+}

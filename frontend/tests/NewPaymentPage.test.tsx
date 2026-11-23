@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { NewPaymentPage } from '../src/pages/NewPaymentPage'
+import grace from '../src/pages/newPayment/GraceTip.module.css'
 import { formatDate, todayIso } from '../src/format'
 import { changePreview, fakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
@@ -703,13 +704,10 @@ test('with two Mortgages, each one ticked within the Grace Period has its date t
 
   fireEvent.mouseEnter(screen.getByText('Grace'))
   const tip = screen.getByRole('tooltip')
-  expect([...tip.querySelectorAll('.grace-calc > span')].map((cell) => cell.textContent)).toEqual([
-    row.name,
-    'Accrual Date 10 Oct',
-    ring.name,
-    'Accrual Date 9 Oct',
-  ])
-  expect([...tip.querySelectorAll('.grace-choice-line')].map((line) => line.textContent)).toEqual([
+  expect(
+    [...tip.querySelectorAll(`.${grace.calc} > span`)].map((cell) => cell.textContent),
+  ).toEqual([row.name, 'Accrual Date 10 Oct', ring.name, 'Accrual Date 9 Oct'])
+  expect([...tip.querySelectorAll(`.${grace.choice}`)].map((line) => line.textContent)).toEqual([
     'To grace the most: Date it 8 Oct · graces both · ₹720 let off',
     `Date it 9 Oct · graces ${row.name} only · ₹420 let off`,
   ])
@@ -726,12 +724,16 @@ test('each Mortgage shows its last Accrual Date, marked by whether the date rece
 
   // It started on 10 Jan: 12 Oct is within 2 days of 10 Oct, 13 Oct is not.
   await draftReceivedOn('2026-10-12')
-  await vi.waitFor(async () => expect((await accrual()).className).toBe('accrual in-grace'))
+  await vi.waitFor(async () =>
+    expect((await accrual()).className).toBe(`${grace.accrual} ${grace.inGrace}`),
+  )
   expect(screen.getByRole('button', { name: 'Date it 9 Oct' })).toBeTruthy()
   expect((await accrual()).title).toBe('12 Oct is within the 2-day Grace Period after 10 Oct')
 
   await draftReceivedOn('2026-10-13')
-  await vi.waitFor(async () => expect((await accrual()).className).toBe('accrual past-grace'))
+  await vi.waitFor(async () =>
+    expect((await accrual()).className).toBe(`${grace.accrual} ${grace.pastGrace}`),
+  )
   expect(screen.queryByRole('button', { name: /^Date it/ })).toBeNull()
   expect((await accrual()).title).toBe('13 Oct is past the 2-day Grace Period after 10 Oct')
 })

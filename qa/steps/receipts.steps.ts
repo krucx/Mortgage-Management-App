@@ -4,6 +4,7 @@ import type { Lender } from './lender';
 import { newPhone } from './lender';
 import { addCustomer, customerNamed } from './people';
 import { shownINR } from './shown';
+import { printableReceipt, whatsAppBubble } from './selectors';
 
 // What a Payment's page, Receipt and Void show: its Allocations, the Receipt panel and its
 // WhatsApp link, the printable Receipt, the Void dialog and what the app refuses to void.
@@ -23,13 +24,10 @@ function receiptOf(lender: Lender): Promise<Receipt> {
 }
 
 function bubble(page: Page) {
-  return page.locator('.receipt-panel .bubble');
+  return whatsAppBubble(page.locator('.receipt-panel'));
 }
 
-/** The printable Receipt's own section. */
-function printable(page: Page) {
-  return page.locator('section.receipt');
-}
+const printable = printableReceipt;
 
 /** The Customer's numbers, primary first. */
 async function numbersOf(lender: Lender): Promise<string[]> {

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
 import { updateStatusQuery } from '../requests'
 import { useServerState } from '../serverState'
+import styles from './UpdateBanner.module.css'
 
 const PUT_OFF = 'mortgage-management.update-put-off'
 
@@ -85,7 +86,7 @@ function ReleaseNotes({ markdown }: { markdown: string }) {
       blocks.push(<p key={start}>{inline(block.map((line) => line.trim()).join(' '))}</p>)
     }
   }
-  return <div className="notes">{blocks}</div>
+  return <div className={styles.notes}>{blocks}</div>
 }
 
 const openInWindows = (link: string) => window.location.assign(link)
@@ -158,7 +159,7 @@ export function UpdateBanner({
 
   if (!available || (putOff && !newer(available.version, putOff))) return null
   return (
-    <section className="update-banner" aria-label="Update">
+    <section className={styles.banner} aria-label="Update">
       <strong>Version {available.version} is available</strong>
       {installing && (
         <p role="status">

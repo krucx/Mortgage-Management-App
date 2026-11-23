@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MortgagePage } from '../src/pages/MortgagePage'
+import ledger from '../src/pages/mortgage/Ledger.module.css'
 import type { LedgerStep } from '../src/api'
 import { customerHistoryQuery, mortgageHistoryQuery } from '../src/requests'
 import { changePreview, fakeServer, type FakeServer } from './fakeServer'
@@ -695,9 +696,9 @@ test('the Ledger shows applied Advance Instalments on their dates and upcoming o
   )
 
   const applied = (await screen.findByText(/^Advance Instalment 1 of 2:/)).closest('tr')!
-  expect(applied.className).toBe('ledger-payment')
+  expect(applied.className).toBe(ledger.payment)
   const upcoming = screen.getByText('Advance Instalment 2 of 2').closest('tr')!
-  expect(upcoming.className).toBe('ledger-upcoming')
+  expect(upcoming.className).toBe(ledger.upcoming)
   expect(within(upcoming).getByText('Upcoming')).toBeTruthy()
   expect(upcoming.previousElementSibling).toBe(applied)
 })

@@ -5,6 +5,7 @@ import { formatDate } from '../format'
 import { formatINR } from '../money'
 import { advanceReceiptQuery, receiptQuery } from '../requests'
 import { useServerState } from '../serverState'
+import styles from './ReceiptPage.module.css'
 
 /** A Receipt to print or save as PDF: the same content as the WhatsApp message. With
  *  an `instalment`, the Receipt for that cancelled Advance Instalment of the Payment. */
@@ -34,7 +35,7 @@ export function ReceiptPage() {
   const advanced = receipt.lines.some((line) => line.advance_parts.length > 0)
 
   return (
-    <section className="card wide receipt">
+    <section className={`card wide ${styles.receipt}`}>
       <div className="row spread no-print">
         <Link to={`/payments/${receipt.payment_id}`}>← Back to the Payment</Link>
         <div className="row">

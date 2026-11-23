@@ -1,0 +1,40 @@
+/* A WhatsApp message as the Customer will see it */
+.preview {
+  background: var(--wa-chat);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.bubble {
+  background: var(--wa-bubble);
+  color: var(--wa-text);
+  border-radius: 0.5rem 0 0.5rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-left: auto;
+  max-width: 22rem;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.12);
+}
+
+.preview pre {
+  font-size: 0.8rem;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* Sending on WhatsApp: in WhatsApp's green. */
+button.send {
+  background: var(--wa-green);
+  border-color: var(--wa-green);
+  color: #fff;
+}
+
+/* A send button with WhatsApp's chat bubble beside its word. */
+button.withIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}

@@ -3,6 +3,7 @@ import type { ComingMonth, MonthlyPayments } from '../api'
 import { monthName } from '../format'
 import { formatINR } from '../money'
 import { Gridlines } from './ChartFrame'
+import styles from './PaymentsByMonthChart.module.css'
 
 const WIDTH = 640
 const HEIGHT = 220
@@ -76,7 +77,7 @@ export function PaymentsByMonthChart({
   const shown = hovered === null ? null : columns[hovered]
 
   return (
-    <figure className="chart payments-by-month">
+    <figure className={`chart ${styles.byMonth}`}>
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
@@ -94,7 +95,7 @@ export function PaymentsByMonthChart({
             patternUnits="userSpaceOnUse"
             patternTransform="rotate(45)"
           >
-            <line x1="0" y1="0" x2="0" y2="6" className="hatch" />
+            <line x1="0" y1="0" x2="0" y2="6" className={styles.hatch} />
           </pattern>
         </defs>
         <Gridlines max={max} y={y} left={PAD.left} right={WIDTH - PAD.right} />
@@ -104,7 +105,9 @@ export function PaymentsByMonthChart({
           return (
             <g
               key={column.month}
-              className={`bar ${column.kind}${hovered === i ? ' hovered' : ''}`}
+              className={[styles.bar, styles[column.kind], hovered === i && styles.hovered]
+                .filter(Boolean)
+                .join(' ')}
               tabIndex={0}
               aria-label={describe(column)}
               onMouseEnter={() => setHovered(i)}
@@ -112,15 +115,20 @@ export function PaymentsByMonthChart({
               onBlur={() => setHovered(null)}
             >
               {/* The whole column is the hover target, not just the bar. */}
-              <rect x={x} y={PAD.top} width={slot} height={base - PAD.top} className="hit" />
+              <rect x={x} y={PAD.top} width={slot} height={base - PAD.top} className={styles.hit} />
               {column.amount > 0 && (
                 <path
                   d={barPath(x + GAP / 2, slot - GAP, y(column.amount), base)}
-                  className="mark"
+                  className={styles.mark}
                 />
               )}
               {column.kind === 'coming' && column.interest > 0 && (
-                <circle cx={x + slot / 2} cy={y(column.interest)} r={DOT} className="charged" />
+                <circle
+                  cx={x + slot / 2}
+                  cy={y(column.interest)}
+                  r={DOT}
+                  className={styles.charged}
+                />
               )}
               {named(i) && (
                 <text x={x + slot / 2} y={HEIGHT - 8} textAnchor="middle">
@@ -133,7 +141,7 @@ export function PaymentsByMonthChart({
           )
         })}
         {coming.length > 0 && (
-          <g className="today">
+          <g className={styles.today}>
             <line x1={todayX} x2={todayX} y1={PAD.top - 6} y2={base} />
             {/* Out of the way of a tooltip, which uses the same line. */}
             {hovered === null && (
@@ -145,7 +153,7 @@ export function PaymentsByMonthChart({
         )}
         {shown && hovered !== null && (
           <text
-            className="tooltip"
+            className={styles.tooltip}
             x={Math.min(Math.max(PAD.left + (hovered + 0.5) * slot, PAD.left + 150), WIDTH - 150)}
             y={12}
             textAnchor="middle"
@@ -156,12 +164,14 @@ export function PaymentsByMonthChart({
       </svg>
       {coming.length > 0 && (
         <figcaption className="row">
-          <span className="key received">Received</span>
-          <span className="key estimate">Payments, estimate (3-month average)</span>
-          <span className="key charged">Interest charged on Active Mortgages (exact)</span>
+          <span className={`key ${styles.received}`}>Received</span>
+          <span className={`key ${styles.estimate}`}>Payments, estimate (3-month average)</span>
+          <span className={`key ${styles.charged}`}>
+            Interest charged on Active Mortgages (exact)
+          </span>
         </figcaption>
       )}
-      <details className="chart-table">
+      <details className={styles.table}>
         <summary className="hint">Show as a table</summary>
         <table>
           <thead>

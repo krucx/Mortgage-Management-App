@@ -26,6 +26,7 @@ import { IdNumberFields } from './customerForm/IdNumberFields'
 import { IdPhotos } from './customerForm/IdPhotos'
 import { PersonalDetailsFields } from './customerForm/PersonalDetailsFields'
 import { useIdNumberReading } from './customerForm/useIdNumberReading'
+import styles from './CustomerFormPage.module.css'
 
 const EMPTY = {
   name: '',
@@ -173,7 +174,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
       <form onSubmit={submit}>
         <div className="with-photo">
           <PhotoPicker currentUrl={existing?.photo_url ?? null} onChange={setPhoto} />
-          <fieldset className="unframed" disabled={locked}>
+          <fieldset className={styles.unframed} disabled={locked}>
             <div className="stack">
               <PersonalDetailsFields
                 name={fields.name}
@@ -191,7 +192,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
           </fieldset>
         </div>
 
-        <fieldset className="unframed" disabled={locked}>
+        <fieldset className={styles.unframed} disabled={locked}>
           <IdNumberFields
             aadhaar={fields.aadhaar_last4}
             pan={fields.pan}
@@ -212,7 +213,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
           }}
         />
 
-        <fieldset className="unframed" disabled={locked}>
+        <fieldset className={styles.unframed} disabled={locked}>
           <ReferrerPicker
             initial={existing?.referrer ?? null}
             excludeCustomerId={customerId}

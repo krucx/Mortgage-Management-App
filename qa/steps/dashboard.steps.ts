@@ -23,11 +23,15 @@ const book = (lender: Lender, range: { start?: string; end?: string } = {}): Pro
 /** The Dashboard once its figures are up. */
 async function loaded(page: Page) {
   await expect(page.getByRole('heading', { name: 'Dashboard', level: 2 })).toBeVisible();
-  await expect(page.locator('.as-of')).toBeVisible();
+  await expect(asOf(page)).toBeVisible();
 }
 
+/** The line saying which day the figures are for. */
+const asOf = (page: Page) => page.getByText(/^As of /);
+/** A figure, which opens the list it was counted from. */
 const figure = (page: Page, label: string) =>
-  page.locator('.tile.figure', { has: page.getByText(label, { exact: true }) });
+  page.getByRole('link').filter({ has: page.getByText(label, { exact: true }) });
+const headline = (page: Page) => page.getByRole('link').filter({ hasText: 'Owed on Active Mortgages' });
 const readsIn = (tile: Locator, text: string) => expect(tile.locator('strong')).toHaveText(text);
 
 const startInput = (page: Page) => page.getByLabel('Activity start date');
@@ -42,7 +46,7 @@ const address = (page: Page) => {
 
 When("the Lender follows the Dashboard's Owed headline", async ({ page }) => {
   await loaded(page);
-  await page.locator('a.headline').click();
+  await headline(page).click();
 });
 
 When("the Lender follows the Dashboard's {string} figure", async ({ page }, label: string) => {
@@ -61,16 +65,16 @@ Then('only Customers with an Active Mortgage are listed', async ({ page }) => {
 // The headline
 
 Then('the Dashboard is as of {day}', async ({ page }, day: Day) => {
-  await expect(page.locator('.as-of')).toHaveText(`As of ${day.shown}`);
+  await expect(asOf(page)).toHaveText(`As of ${day.shown}`);
 });
 
 Then('the Owed headline is the Principal Outstanding and the unpaid interest of the Active Mortgages', async ({ page, lender }) => {
   const b = await book(lender);
-  const headline = page.locator('a.headline');
-  await expect(headline).toContainText('Owed on Active Mortgages');
-  await expect(headline.locator('strong')).toHaveText(shownINR(b.principal_outstanding + b.unpaid_interest));
+  const owed = headline(page);
+  await expect(owed).toContainText('Owed on Active Mortgages');
+  await expect(owed.locator('strong')).toHaveText(shownINR(b.principal_outstanding + b.unpaid_interest));
   const [mortgages, customers] = [b.active_mortgages, b.customers_with_active_mortgages];
-  await expect(headline).toContainText(
+  await expect(owed).toContainText(
     `across ${mortgages} Mortgage${mortgages === 1 ? '' : 's'} and ${customers} Customer${customers === 1 ? '' : 's'}`,
   );
 });
@@ -106,7 +110,7 @@ Then('the activity covers {day} to {day}', async ({ page }, start: Day, end: Day
 Then('the activity figures agree with the book', async ({ page, lender }) => {
   const range = { start: await startInput(page).inputValue(), end: await endInput(page).inputValue() };
   const b = await book(lender, range);
-  const kpi = (label: string) => page.locator('.activity-kpi', { has: page.getByText(label, { exact: true }) }).locator('strong');
+  const kpi = (label: string) => page.locator('.tile', { has: page.getByText(label, { exact: true }) }).locator('strong');
   await expect(kpi('Mortgage principal lent')).toHaveText(shownINR(b.principal_lent_in_period));
   await expect(kpi('Mortgage principal redeemed')).toHaveText(shownINR(b.principal_redeemed_in_period));
   await expect(kpi('Interest collected')).toHaveText(shownINR(b.interest_collected_in_period));
@@ -203,7 +207,7 @@ Then('as many Mortgages are listed as the book closed this month that way', asyn
 
 Then('the Looking ahead table gives each of its figures for 3, 6 and 12 months, exact or estimate', async ({ page, lender }) => {
   const b = await book(lender);
-  const table = page.locator('table.projections');
+  const table = page.getByRole('table', { name: 'Looking ahead' });
   const about = (n: number) => `about ${n.toLocaleString('en-IN', { maximumFractionDigits: 1 })}`;
   const rows: [string, 'exact' | 'estimate', (h: Dashboard) => string][] = [
     ['Interest the Active Mortgages will be charged', 'exact', (h) => shownINR(h.interest_accrued)],
@@ -217,20 +221,22 @@ Then('the Looking ahead table gives each of its figures for 3, 6 and 12 months, 
   }
   for (const [label, kind, value] of rows) {
     const row = table.locator('tbody tr').filter({ has: page.getByRole('rowheader', { name: new RegExp(`^${label}`) }) });
-    await expect(row.locator('.flag')).toHaveText(kind);
+    // The row's heading: its figure's name, then whether it is exact or an estimate.
+    await expect(row.getByRole('rowheader').locator('span')).toHaveText(kind);
     for (const [i, h] of b.projections.entries()) await expect(row.locator('td').nth(i)).toHaveText(value(h));
   }
 });
 
 Then('the Payments chart shows each month received and each coming month', async ({ page, lender }) => {
   const b = await book(lender);
-  const chart = page.locator('figure.payments-by-month');
+  const chart = page.locator('figure', { has: page.getByRole('img', { name: /^Payments received in each of the last/ }) });
   await expect(chart.getByRole('img')).toHaveAttribute(
     'aria-label',
     `Payments received in each of the last ${b.payments_by_month.length} months, then estimates for the next ${b.coming_months.length}`,
   );
-  const received = chart.locator('g.bar.received');
-  const coming = chart.locator('g.bar.coming');
+  // Each month's bar is named for what it shows: received, or an estimate to come.
+  const received = chart.locator('g[aria-label$=" received"]');
+  const coming = chart.locator('g[aria-label*="(estimate)"]');
   await expect(received).toHaveCount(b.payments_by_month.length);
   await expect(coming).toHaveCount(b.coming_months.length);
   for (const [i, m] of b.payments_by_month.entries()) {

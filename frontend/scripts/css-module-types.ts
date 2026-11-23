@@ -22,6 +22,8 @@ export function classNames(css: string): string[] {
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/'[^']*'|"[^"]*"/g, '')
     .replace(/url\([^)]*\)/g, '')
+    // A shared class styled in context, e.g. .calculator :global(.tucked): not the module's.
+    .replace(/:global\([^)]*\)/g, '')
     // Declaration blocks (the innermost braces): their values are not selectors.
     .replace(/\{[^{}]*\}/g, '{}')
   const names = new Set([...selectors.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map((match) => match[1]))

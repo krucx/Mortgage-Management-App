@@ -1,19 +1,22 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import styles from './Modal.module.css'
 
 /** An in-app modal window (never a browser popup); its × button and Esc close it, and so
  *  does a click on the dimmed page around it unless `closeOnOutsideClick` is off (for one
  *  holding typed input, which a stray click would lose). Named by the element with id
- *  `labelledBy`. */
+ *  `labelledBy`; `wide` gives a larger body (such as a before/after preview) room. */
 export function Modal({
   onClose,
   children,
   className = '',
+  wide = false,
   labelledBy,
   closeOnOutsideClick = true,
 }: {
   onClose: () => void
   children: ReactNode
   className?: string
+  wide?: boolean
   labelledBy?: string
   closeOnOutsideClick?: boolean
 }) {
@@ -26,7 +29,7 @@ export function Modal({
   return (
     <dialog
       ref={dialog}
-      className={`confirm modal ${className}`}
+      className={[styles.dialog, wide && styles.wide, className].filter(Boolean).join(' ')}
       aria-labelledby={labelledBy}
       onCancel={(event) => {
         event.preventDefault()
@@ -46,7 +49,7 @@ export function Modal({
     >
       {children}
       {/* Last in the tab order; it sits in the top corner. */}
-      <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+      <button type="button" className={styles.close} aria-label="Close" onClick={onClose}>
         ×
       </button>
     </dialog>

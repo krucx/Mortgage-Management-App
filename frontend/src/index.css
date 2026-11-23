@@ -1,7 +1,9 @@
 /* The global stylesheet: design tokens (custom properties), the light and dark themes,
-   the reset, and the base look of plain elements and shared classes. A component's own
-   styles live in a CSS module beside it (X.module.css, imported as `styles`), where its
-   class names are scoped to it; those modules style with the tokens below. After
+   the reset, and the base look of plain elements and of the classes many screens share
+   (cards, rows and grids, buttons, badges, tables, tiles, charts' frame and keys). A
+   class only one component uses is in that component's CSS module beside it
+   (X.module.css, imported as `styles`), where its name is scoped to it; those modules
+   style with the tokens below. tests/cssModules.test.ts lists the shared classes. After
    changing a module, run `npm run gen:css-types` to update its declaration. */
 
 /* Design tokens: the light theme, and what every theme shares */
@@ -115,58 +117,6 @@ main {
   max-width: 720px;
   margin: 2rem auto;
   padding: 0 1rem;
-}
-
-.start-gate {
-  display: grid;
-  gap: 1rem;
-  margin-top: 4rem;
-}
-
-.start-gate h1 {
-  margin: 0;
-}
-
-.update-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
-  box-sizing: border-box;
-  width: calc(100% - 2rem);
-  max-width: calc(860px - 2rem); /* as wide as main */
-  margin: 1rem auto 0;
-  padding: 0.75rem 1rem;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-edge);
-  border-radius: 8px;
-}
-
-.layout:has(.card.wide) .update-banner {
-  max-width: calc(1100px - 2rem);
-}
-
-.update-banner details,
-.update-banner p {
-  flex-basis: 100%;
-  margin: 0;
-}
-
-.update-banner .notes {
-  margin-top: 0.5rem;
-}
-
-.update-banner .notes h4 {
-  margin: 0.75rem 0 0.25rem;
-}
-
-.update-banner .notes p,
-.update-banner .notes ul {
-  margin: 0 0 0.5rem;
-}
-
-.update-banner .notes pre {
-  white-space: pre-wrap;
 }
 
 .card {
@@ -355,132 +305,16 @@ legend {
   font-weight: 400;
 }
 
-/* An Advance Instalment that would pay Principal: a warning the Lender may accept. */
-tr.warn td {
-  background: color-mix(in srgb, var(--warning) 12%, transparent);
-}
-
-/* A one-tap fill under a New Payment field: an Advance of Months × the month's interest,
-   or the unpaid interest paid now. */
-button.link.shortcut {
-  display: block;
-  margin-left: auto;
-  font-size: 0.8125rem;
-  white-space: nowrap;
-}
-
-/* New Payment on a phone: each Mortgage is a card of labelled fields, never scrolling
-   sideways; the include box and Mortgage Name share its first line. */
-@media (max-width: 640px) {
-  table.allocations thead {
-    display: none;
-  }
-
-  table.allocations,
-  table.allocations tbody {
-    display: block;
-  }
-
-  table.allocations tr {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 1rem;
-    padding: 0.75rem;
-    margin-bottom: 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-  }
-
-  table.allocations td {
-    flex: 1 1 40%;
-    min-width: 0;
-    padding: 0;
-    border: none;
-    text-align: left;
-    white-space: normal;
-  }
-
-  table.allocations td.include {
-    flex: 0 0 auto;
-  }
-
-  table.allocations td.mortgage {
-    flex-basis: 70%;
-    font-weight: 600;
-  }
-
-  table.allocations td[data-label]::before {
-    content: attr(data-label);
-    display: block;
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
-
-  table.allocations input.small-input {
-    width: 100%;
-  }
-
-  table.allocations button.link.shortcut,
-  table.allocations button.grace-choice {
-    margin-left: 0;
-    white-space: normal;
-  }
-}
-
-/* The schedules under New Payment: a wide one scrolls within itself, never the page. */
-.advance-schedules {
-  grid-template-columns: minmax(0, 1fr);
-  min-width: 0;
-}
-
-/* A cancelled Advance Instalment: kept on record, applied on the day it was cancelled. */
-tr.cancelled td {
-  color: var(--muted);
-}
-
-tr.cancelled td:first-child {
-  text-decoration: line-through;
-}
-
-/* An Advance Instalment not yet applied, after the Ledger's last step. */
-tr.ledger-upcoming td {
-  color: var(--muted);
-  font-style: italic;
-  background: color-mix(in srgb, var(--muted) 8%, transparent);
-}
-
 ul.plain {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-ul.plain.picker {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.25rem 0.75rem;
-  max-height: 14rem;
-  overflow-y: auto;
-}
-
 ul.results {
   margin-top: 1rem;
   display: grid;
   gap: 0.25rem;
-}
-
-a.result {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem;
-  border-radius: 6px;
-  color: var(--text);
-  text-decoration: none;
-}
-
-a.result:hover {
-  background: var(--bg);
 }
 
 .with-photo {
@@ -496,30 +330,12 @@ a.result:hover {
   }
 }
 
-.photo-picker {
-  display: grid;
-  gap: 0.75rem;
-}
-
 .photo {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid var(--border);
-}
-
-/* ID Photos: card-shaped thumbnails, side by side; open full size on click. */
-.id-photos {
-  flex-wrap: wrap;
-}
-
-.id-photo-picker .photo,
-.id-photos img.photo {
-  width: 220px;
-  aspect-ratio: 1.6;
-  object-fit: contain;
-  background: var(--surface);
 }
 
 .thumb {
@@ -636,37 +452,6 @@ h3 {
   }
 }
 
-/* A heading that sorts its list: reads as the heading, with an arrow for the sort. */
-button.sort-heading {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0;
-  background: none;
-  color: inherit;
-  font-weight: inherit;
-  text-align: inherit;
-}
-
-button.sort-heading:hover,
-button.sort-heading.sorted {
-  color: var(--text);
-}
-
-th.num button.sort-heading {
-  flex-direction: row-reverse;
-}
-
-.sort-arrow {
-  font-size: 0.75em;
-  opacity: 0.45;
-}
-
-button.sort-heading.sorted .sort-arrow {
-  opacity: 1;
-  color: var(--accent);
-}
-
 th.num,
 td.num {
   text-align: right;
@@ -710,10 +495,6 @@ td.num {
   gap: 0.4rem;
 }
 
-tr.ledger-capitalised td {
-  font-weight: 600;
-}
-
 button.result {
   display: flex;
   align-items: center;
@@ -736,15 +517,6 @@ fieldset:disabled {
   opacity: 0.7;
 }
 
-/* A fieldset only to disable what is in it, laid out as if it weren't there. */
-fieldset.unframed {
-  display: contents;
-}
-
-tr.ledger-payment td {
-  color: var(--ok);
-}
-
 input.small-input {
   width: 8rem;
   text-align: right;
@@ -754,29 +526,6 @@ ul.problems {
   margin: 0;
   padding-left: 1.25rem;
   color: var(--error);
-}
-
-dialog.confirm {
-  width: min(520px, calc(100vw - 2rem));
-  padding: 1.5rem;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 20px 50px rgb(0 0 0 / 0.25);
-}
-
-dialog.confirm::backdrop {
-  background: rgb(0 0 0 / 0.45);
-}
-
-dialog.confirm h2 {
-  margin: 0 0 1rem;
-  font-size: 1.2rem;
-}
-
-.confirm-body {
-  margin-bottom: 1.25rem;
 }
 
 /* Label / value rows (Summary): one row per line, wherever they appear. */
@@ -828,43 +577,10 @@ button.danger-solid {
   background: var(--bg);
 }
 
-tr.ledger-interest_to_date td {
-  font-style: italic;
-}
-
 .badge.count {
   background: var(--error);
   border-color: var(--error);
   color: #fff;
-}
-
-dialog.modal {
-  width: min(640px, calc(100vw - 2rem));
-}
-
-/* The title keeps clear of the × in the top corner. */
-dialog.modal h2 {
-  padding-right: 2rem;
-}
-
-button.modal-close {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 1.5rem;
-  line-height: 1;
-}
-
-button.modal-close:hover {
-  background: var(--border);
-  color: var(--text);
 }
 
 /* Form controls never overflow their column. */
@@ -880,128 +596,8 @@ textarea {
   min-width: 0;
 }
 
-/* The Call List: a row per Mortgage, grouped by Customer, who appears once beside them. */
-.call-table td {
-  vertical-align: middle;
-}
-
-.call-table tr.group-start td {
-  border-top: 2px solid var(--border);
-}
-
-.call-table td.call-customer {
-  vertical-align: top;
-  border-right: 1px solid var(--border);
-  width: 16rem;
-}
-
-.call-who {
-  display: grid;
-  gap: 0.4rem;
-}
-
-.reach {
-  display: flex;
-  gap: 0.3rem;
-}
-
-.reach .icon-only {
-  display: inline-grid;
-  place-items: center;
-  padding-inline: 0.5rem;
-}
-
-.reach a.button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.reasons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
-/* A reason a Mortgage is on the Call List, as an enclosed status marker in its colour. */
-.reason {
-  display: inline-block;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--reason);
-  color: var(--reason);
-  background: color-mix(in srgb, var(--reason) 10%, var(--surface));
-  font-size: 0.78rem;
-  font-weight: 600;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.reason.months_unpaid {
-  --reason: var(--warning);
-}
-
-.reason.loan_to_value {
-  --reason: var(--error);
-}
-
-.reason.accrues_today {
-  --reason: var(--tone-money-in);
-}
-
-.reason-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.called-cell {
-  display: grid;
-  gap: 0.1rem;
-  justify-items: start;
-}
-
-.called-mark {
-  color: var(--ok);
-  font-weight: 600;
-}
-
-.call-table tr.call-noting td {
-  padding-top: 0;
-  border-top: none;
-}
-
-tr.called td {
-  color: var(--muted);
-}
-
-ul.call-notes {
-  margin: 0;
-  padding-left: 1.2rem;
-}
-
 .card + .card {
   margin-top: 1rem;
-}
-
-form.call-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-form.call-form input {
-  flex: 1 1 14rem;
-}
-
-.contact {
-  display: inline-flex;
-  gap: 0.6rem;
-  white-space: nowrap;
 }
 
 .card.wide > * {
@@ -1022,65 +618,12 @@ tr.voided td .badge {
   display: inline-block;
 }
 
-ul.history {
-  margin: 0;
-  padding-left: 1.2rem;
-  display: grid;
-  gap: 0.3rem;
-}
-
-/* Rows an import left out: a warning, listed under it. */
-h3.not-imported {
-  color: var(--warning);
-}
-
-h3.not-imported::before {
-  content: '⚠ ';
-}
-
-/* A long list in a popup: the popup stays on screen and the list scrolls. */
-dialog.scroll-popup {
-  width: min(960px, calc(100vw - 2rem));
-}
-
-dialog.scroll-popup h2 {
-  margin: 0;
-}
-
-.scroll-popup-body {
-  max-height: 70vh;
-  overflow: auto;
-  margin-top: 1rem;
-}
-
-.scroll-popup-body thead th {
-  position: sticky;
-  top: 0;
-  background: var(--surface);
-}
-
-.scroll-popup-body .table-scroll {
-  overflow: visible;
-}
-
-ul.term-changes {
-  margin: 0;
-  padding-left: 1.2rem;
-  display: grid;
-  gap: 0.3rem;
-}
-
 label.what-if input,
 label.what-if select {
   max-width: 14rem;
 }
 
-tr.projection-group th {
-  text-align: left;
-  padding-top: 0.9rem;
-}
-
-/* Projection chart */
+/* Charts (Projection, Simulation, Payments by month): the frame, its lines and keys */
 figure.chart {
   margin: 0;
 }
@@ -1113,39 +656,6 @@ figure.chart .series {
   background: var(--accent);
 }
 
-/* A Simulation's Outstanding, on the Calculator, and the one it is compared with */
-.series.outstanding,
-.key.outstanding::before {
-  stroke: var(--accent);
-  background: var(--accent);
-}
-
-.series.compared,
-.key.compared::before {
-  stroke: var(--error);
-  background: var(--error);
-}
-
-/* A planned Payment on a Simulation's line */
-figure.chart circle.payment {
-  fill: var(--surface);
-  stroke-width: 2;
-}
-
-figure.chart circle.payment.outstanding {
-  stroke: var(--accent);
-}
-
-figure.chart circle.payment.compared {
-  stroke: var(--error);
-}
-
-/* A planned lump sum on the Calculator: its date, amount and what became of it */
-.lump-sum {
-  align-items: end;
-  flex-wrap: wrap;
-}
-
 .key::before {
   content: '';
   display: inline-block;
@@ -1153,44 +663,6 @@ figure.chart circle.payment.compared {
   height: 3px;
   margin-right: 0.4rem;
   vertical-align: middle;
-}
-
-/* A table row that opens something when clicked anywhere. */
-tr.clickable {
-  cursor: pointer;
-}
-
-tr.clickable:hover td {
-  background: var(--accent-soft);
-}
-
-/* A dialog with a larger body, e.g. a before/after preview; the body scrolls. */
-dialog.wide-dialog {
-  width: min(900px, calc(100vw - 2rem));
-  max-height: 90vh;
-  overflow: auto;
-}
-
-/* Before/after previews */
-.change-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 0.75rem;
-}
-
-.change-summary .tile {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.change-summary .tile.changed {
-  border-color: var(--accent-edge);
-  background: var(--accent-soft);
-}
-
-.before-after .changed {
-  color: var(--accent);
-  font-weight: 600;
 }
 
 .refreshing {
@@ -1207,287 +679,6 @@ figure.chart .marker line {
 figure.chart .marker text {
   fill: var(--accent);
   font-weight: 600;
-}
-
-/* Dashboard */
-.dashboard .as-of {
-  margin: -0.75rem 0 0;
-}
-
-.dashboard .group.owed {
-  --tone: var(--tone-owed);
-}
-.dashboard .group.money-in {
-  --tone: var(--tone-money-in);
-}
-.dashboard .group.collateral {
-  --tone: var(--tone-collateral);
-}
-.dashboard .group.closed {
-  --tone: var(--tone-closed);
-}
-.dashboard .group.ahead {
-  --tone: var(--tone-owed);
-}
-.dashboard .group.activity {
-  --tone: var(--tone-owed);
-}
-
-.dashboard .group {
-  display: grid;
-  gap: 0.6rem;
-}
-
-.dashboard .activity-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 0.6rem 0.9rem;
-}
-
-.dashboard .activity-controls label {
-  display: grid;
-  gap: 0.2rem;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.dashboard .activity-controls label.inactive {
-  opacity: 0.5;
-}
-
-.dashboard .activity-controls label.inactive:focus-within {
-  opacity: 1;
-}
-
-.dashboard .activity-controls input {
-  min-height: 2.2rem;
-  padding: 0.3rem 0.45rem;
-}
-
-.dashboard .activity-kpi {
-  display: grid;
-  gap: 0.2rem;
-  align-content: start;
-  border-left: 4px solid var(--tone);
-  background: color-mix(in srgb, var(--tone) 7%, var(--surface));
-}
-
-.dashboard .group.activity .tiles {
-  margin-top: 0.25rem;
-}
-
-.dashboard .activity-kpi strong {
-  font-variant-numeric: tabular-nums;
-}
-
-.dashboard h3 {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.5rem 0 0;
-  font-size: 0.95rem;
-  color: var(--text);
-  font-weight: 600;
-}
-
-.dashboard h3::before {
-  content: '';
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 50%;
-  background: var(--tone);
-}
-
-/* The headline: everything the Active Mortgages owe, in one number. */
-.dashboard .headline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 1rem;
-  padding: 1.1rem 1.25rem;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--tone) 35%, var(--surface));
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--tone) 16%, var(--surface)),
-    color-mix(in srgb, var(--tone) 4%, var(--surface))
-  );
-  color: var(--text);
-  text-decoration: none;
-}
-
-.dashboard .headline strong {
-  font-size: 2.2rem;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-
-a.tile.figure {
-  color: var(--text);
-  text-decoration: none;
-  border-left: 4px solid var(--tone, var(--border));
-  background: color-mix(in srgb, var(--tone, var(--border)) 7%, var(--surface));
-  align-content: start;
-  transition:
-    background 120ms,
-    border-color 120ms;
-}
-
-a.tile.figure:hover,
-a.tile.figure:focus-visible,
-.dashboard a.headline:hover,
-.dashboard a.headline:focus-visible {
-  border-color: var(--tone);
-  background: color-mix(in srgb, var(--tone) 15%, var(--surface));
-}
-
-/* A figure's note asking for action or showing a result: status colour plus words. */
-.dashboard .flag {
-  font-weight: 600;
-}
-
-.dashboard .flag.good {
-  color: var(--ok);
-}
-
-.dashboard .flag.bad {
-  color: var(--error);
-}
-
-/* Exact versus estimate: a word, never colour alone. */
-.dashboard .flag.exact,
-.dashboard .flag.estimate {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0 0.35rem;
-  border-radius: 0.25rem;
-  border: 1px solid currentColor;
-}
-
-.dashboard .flag.exact {
-  color: var(--exact);
-}
-
-.dashboard .flag.estimate {
-  color: var(--estimate);
-  border-style: dashed;
-}
-
-.dashboard table.projections th[scope='row'] {
-  font-weight: normal;
-}
-
-.dashboard .flag.warn {
-  color: var(--warning);
-}
-
-figure.chart.payments-by-month .mark {
-  fill: var(--tone-money-in);
-}
-
-/* A coming month's estimate: the same hue, hatched and outlined, so it never reads as
-   money already received. */
-figure.chart.payments-by-month .coming .mark {
-  fill: url(#estimate-hatch);
-  stroke: var(--tone-money-in);
-  stroke-width: 1;
-}
-
-figure.chart.payments-by-month .hatch {
-  stroke: var(--tone-money-in);
-  stroke-width: 2;
-}
-
-figure.chart.payments-by-month .charged {
-  fill: var(--tone-owed);
-  stroke: var(--surface);
-  stroke-width: 2;
-}
-
-figure.chart.payments-by-month .today line {
-  stroke: var(--muted);
-  stroke-dasharray: 3 3;
-}
-
-.key.received::before {
-  background: var(--tone-money-in);
-  height: 0.7rem;
-}
-
-.key.estimate::before {
-  background: repeating-linear-gradient(45deg, var(--tone-money-in) 0 2px, transparent 2px 4px);
-  outline: 1px solid var(--tone-money-in);
-  height: 0.7rem;
-}
-
-.key.charged::before {
-  background: var(--tone-owed);
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-}
-
-figure.chart.payments-by-month .hit {
-  fill: transparent;
-}
-
-figure.chart.payments-by-month .bar:focus {
-  outline: none;
-}
-
-figure.chart.payments-by-month .bar.hovered .hit {
-  fill: color-mix(in srgb, var(--tone-money-in) 10%, var(--surface));
-}
-
-figure.chart.payments-by-month .tooltip {
-  fill: var(--text);
-  font-weight: 600;
-}
-
-.chart-table table {
-  margin-top: 0.5rem;
-}
-
-/* A WhatsApp message as the Customer will see it */
-.whatsapp {
-  background: var(--wa-chat);
-  border-radius: 0.5rem;
-  padding: 1rem;
-}
-
-.whatsapp .bubble {
-  background: var(--wa-bubble);
-  color: var(--wa-text);
-  border-radius: 0.5rem 0 0.5rem 0.5rem;
-  padding: 0.5rem 0.75rem;
-  margin-left: auto;
-  max-width: 22rem;
-  white-space: pre-wrap;
-  font-size: 0.9rem;
-  line-height: 1.35;
-  box-shadow: 0 1px 1px rgb(0 0 0 / 0.12);
-}
-
-.whatsapp pre {
-  font-size: 0.8rem;
-  margin: 0;
-  white-space: pre;
-  overflow-x: auto;
-}
-
-button.with-icon {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-button.whatsapp-send {
-  background: var(--wa-green);
-  border-color: var(--wa-green);
-  color: #fff;
 }
 
 /* Printing a Receipt: only the receipt, in black on white */
@@ -1510,13 +701,6 @@ button.whatsapp-send {
   body {
     background: #fff;
     color: #000;
-  }
-
-  .card.receipt {
-    border: none;
-    box-shadow: none;
-    margin: 0;
-    max-width: none;
   }
 }
 
@@ -1554,158 +738,8 @@ details.tucked[open] > summary {
   margin-bottom: 0.75rem;
 }
 
-/* The Calculator's sections sit in its grid, spaced by its gap alone. */
-.calculator details.tucked {
-  margin: 0;
-}
-
 /* A template's text and help read as text, not as part of its bold label */
 label textarea,
 label .hint {
   font-weight: normal;
-}
-
-/* A compact red marker whose reason shows in a bubble on hover, focus or tap
-   (ReasonTip). The bubble is darker than --error so white text reads in both themes;
-   its arrow points up at the marker (down when it opens above). */
-.reason-tip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--error);
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: help;
-  border-radius: 4px;
-}
-.reason-tip:focus-visible {
-  outline: 2px solid var(--error);
-  outline-offset: 2px;
-}
-.reason-tip-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  font-size: 10px;
-  font-style: italic;
-  font-weight: 700;
-  line-height: 1;
-}
-.reason-bubble {
-  --bubble: color-mix(in srgb, var(--error) 78%, #000);
-  position: fixed;
-  z-index: 50;
-  width: max-content;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--bubble);
-  color: #fff;
-  font-size: 0.8125rem;
-  font-weight: normal;
-  line-height: 1.4;
-  text-align: left;
-  white-space: normal;
-  box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
-  pointer-events: none;
-  animation: reason-bubble-in 120ms ease-out;
-}
-.reason-bubble::before {
-  content: '';
-  position: absolute;
-  right: 12px;
-  bottom: 100%;
-  border: 6px solid transparent;
-  border-bottom-color: var(--bubble);
-}
-.reason-bubble.above::before {
-  top: 100%;
-  bottom: auto;
-  border-bottom-color: transparent;
-  border-top-color: var(--bubble);
-}
-/* A Grace marker: yellow, its bubble working out the Grace choices. */
-.reason-tip.grace {
-  color: var(--accent);
-}
-.reason-tip.grace:focus-visible {
-  outline-color: var(--accent);
-}
-.reason-tip.grace .reason-bubble {
-  --bubble: color-mix(in srgb, var(--accent) 60%, #000);
-}
-.grace-calc {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 10px;
-  margin: 6px 0;
-}
-.grace-calc > span {
-  overflow-wrap: anywhere;
-}
-.grace-choice-line {
-  display: block;
-}
-
-/* A Grace choice under a Mortgage's Accrual Date: yellow, solid once taken (ticked);
-   gray when it would let off nothing. */
-button.grace-choice {
-  display: block;
-  margin-top: 0.25rem;
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--accent-edge);
-  background: var(--accent-soft);
-  color: var(--text);
-  font-size: 0.8125rem;
-  white-space: nowrap;
-}
-button.grace-choice[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-text);
-}
-button.grace-choice[aria-pressed='true']::before {
-  content: '✓ ';
-}
-button.grace-choice:disabled {
-  border-color: var(--border);
-  background: transparent;
-  color: var(--muted);
-  cursor: not-allowed;
-}
-
-/* An Accrual Date on New Payment: the date received within the Grace Period after it,
-   or past it. */
-.accrual.in-grace {
-  color: var(--accent);
-  font-weight: 600;
-}
-.accrual.past-grace {
-  color: var(--muted);
-}
-
-@keyframes reason-bubble-in {
-  from {
-    opacity: 0;
-    transform: translateY(-2px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .reason-bubble {
-    animation: none;
-  }
-}
-
-/* Favours Given: four short columns that fit a phone without scrolling sideways. */
-@media (max-width: 640px) {
-  table.favours th,
-  table.favours td {
-    padding: 0.5rem 0.35rem;
-  }
-
-  table.favours th.num {
-    white-space: normal; /* "Amount let off" may take two lines */
-  }
 }

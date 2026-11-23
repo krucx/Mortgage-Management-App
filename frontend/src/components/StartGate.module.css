@@ -1,0 +1,10 @@
+/* The page shown until the app's server answers, before the top bar and its pages. */
+.gate {
+  display: grid;
+  gap: 1rem;
+  margin-top: 4rem;
+}
+
+.gate h1 {
+  margin: 0;
+}

@@ -7,6 +7,7 @@ import { projectionQuery } from '../../requests'
 import { useServerState } from '../../serverState'
 import { ProjectionChart } from '../../components/ProjectionChart'
 import { useDebounced } from '../../components/useDebounced'
+import styles from './ProjectionPanel.module.css'
 
 const HORIZONS = [3, 6, 12]
 
@@ -100,7 +101,7 @@ function Rows({ label, points }: { label: string; points: ProjectedPoint[] }) {
     })
   return (
     <>
-      <tr className="projection-group">
+      <tr className={styles.group}>
         <th colSpan={HORIZONS.length + 1}>{label}</th>
       </tr>
       <tr>
