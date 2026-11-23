@@ -1,0 +1,1 @@
+- **Server log:** the backend now writes one JSON line per request (method, path, status, time taken) and logs the details of any unexpected error before answering 500.
