@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { IdCard } from '../../api'
-import type { Customer } from '../../api'
+import type { Customer, IdCard } from '../../api'
 import { Photo } from '../../components/Photo'
 import { PhotoSource } from '../../components/PhotoSource'
 import { ID_CARDS, type IdPhotoChange } from './idCards'

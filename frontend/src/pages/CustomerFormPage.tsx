@@ -18,12 +18,13 @@ import {
   idPhotoChangeNotes,
   idPhotoUploads,
   NO_ID_PHOTO_CHANGES,
+  READ_FROM,
   sentAadhaar,
   typedLast4,
   type IdPhotoChange,
 } from './customerForm/idCards'
 import { IdNumberFields } from './customerForm/IdNumberFields'
-import { IdPhotos } from './customerForm/IdPhotoPicker'
+import { IdPhotos } from './customerForm/IdPhotos'
 import { PersonalDetailsFields } from './customerForm/PersonalDetailsFields'
 import { useIdNumberReading } from './customerForm/useIdNumberReading'
 
@@ -200,7 +201,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
             pan={fields.pan}
             read={read}
             onChange={(card, value) => {
-              setField(card === 'aadhaar' ? 'aadhaar_last4' : 'pan', value)
+              setField(READ_FROM[card].field, value)
               typedOver(card)
             }}
           />

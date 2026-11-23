@@ -1,6 +1,5 @@
 import type { IdCard } from '../../api'
-
-type Reading = 'reading' | 'read' | null
+import type { Reading } from './idCards'
 
 function ReadHint({ state }: { state: Reading }) {
   if (state === 'reading') return <span className="hint">Reading the photo…</span>

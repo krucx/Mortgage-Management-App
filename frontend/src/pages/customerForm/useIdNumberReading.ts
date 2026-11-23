@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { IdCard } from '../../api'
 import { readText } from '../../ocr'
-import { READ_FROM } from './idCards'
-
-type Reading = 'reading' | 'read' | null
+import { READ_FROM, type IdNumberField, type Reading } from './idCards'
 
 /** Reading each ID Photo's number into its field (OCR). `current` gives a field's value as it
  *  now stands, `fill` puts a number in its field. */
 export function useIdNumberReading(
-  current: (field: 'aadhaar_last4' | 'pan') => string,
-  fill: (field: 'aadhaar_last4' | 'pan', value: string) => void,
+  current: (field: IdNumberField) => string,
+  fill: (field: IdNumberField, value: string) => void,
 ) {
   // Each card's number: being read from its new ID Photo, or filled in from it (until
   // edited); and the photo each card's reading is for, so a superseded one is dropped.
@@ -35,9 +33,9 @@ export function useIdNumberReading(
     }
     if (readingFor.current[card] !== photo) return // replaced or removed meanwhile
     readingFor.current[card] = null
-    const filling = found !== null && !latest.current.current(field).trim()
-    if (found !== null && filling) latest.current.fill(field, found)
-    setRead((now) => ({ ...now, [card]: filling ? 'read' : null }))
+    const value = found !== null && !latest.current.current(field).trim() ? found : null
+    if (value !== null) latest.current.fill(field, value)
+    setRead((now) => ({ ...now, [card]: value !== null ? 'read' : null }))
   }
 
   /** Typing in a card's number field: it is the Lender's own from then on. */

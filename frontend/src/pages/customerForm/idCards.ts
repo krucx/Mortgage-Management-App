@@ -16,10 +16,13 @@ export const ID_CARDS: { card: IdCard; label: string; urlOf: (c: Customer) => st
   { card: 'pan', label: 'PAN card photo', urlOf: (c) => c.pan_photo_url },
 ]
 
+export type IdNumberField = 'aadhaar_last4' | 'pan'
+export type Reading = 'reading' | 'read' | null
+
 /** The field each card's number goes in, and how it is found in the card's text. */
 export const READ_FROM: Record<
   IdCard,
-  { field: 'aadhaar_last4' | 'pan'; find: (text: string) => string | null }
+  { field: IdNumberField; find: (text: string) => string | null }
 > = {
   aadhaar: { field: 'aadhaar_last4', find: findAadhaarLast4 },
   pan: { field: 'pan', find: findPan },
