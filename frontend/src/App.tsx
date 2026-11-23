@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router'
+import { PageErrorBoundary } from './components/PageErrorBoundary'
 import { StartGate } from './components/StartGate'
 import { TopBar } from './components/TopBar'
 import { UpdateBanner } from './components/UpdateBanner'
@@ -40,36 +41,39 @@ export default function App() {
   )
 }
 
-/** Each page at its address; anywhere else, Page not found. */
+/** Each page at its address; anywhere else, Page not found. A page that fails to display
+ *  shows a failure notice in its place. */
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<DashboardPage />} />
-      <Route path="/payments" element={<PaymentsPage />} />
-      <Route path="/payments/new" element={<NewPaymentPage />} />
-      <Route path="/payments/:id" element={<PaymentPage />} />
-      <Route path="/payments/:id/receipt" element={<ReceiptPage />} />
-      <Route
-        path="/payments/:id/advance-instalments/:instalment/receipt"
-        element={<ReceiptPage />}
-      />
-      <Route path="/customers" element={<CustomersPage />} />
-      <Route path="/customers/new" element={<CustomerFormPage />} />
-      <Route path="/customers/:id" element={<CustomerPage />} />
-      <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
-      <Route path="/mortgages" element={<MortgagesPage />} />
-      <Route path="/mortgages/new" element={<NewMortgagePage />} />
-      <Route path="/mortgages/:id" element={<MortgagePage />} />
-      <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
-      <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
-      <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
-      <Route path="/calculator" element={<CalculatorPage />} />
-      <Route path="/call-list" element={<CallListPage />} />
-      <Route path="/reminders" element={<RemindersPage />} />
-      <Route path="/closures" element={<ClosuresPage />} />
-      <Route path="/referrers/:id" element={<ReferrerPage />} />
-      <Route path="/settings" element={<SettingsPage />} />
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+    <PageErrorBoundary>
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/payments" element={<PaymentsPage />} />
+        <Route path="/payments/new" element={<NewPaymentPage />} />
+        <Route path="/payments/:id" element={<PaymentPage />} />
+        <Route path="/payments/:id/receipt" element={<ReceiptPage />} />
+        <Route
+          path="/payments/:id/advance-instalments/:instalment/receipt"
+          element={<ReceiptPage />}
+        />
+        <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/customers/new" element={<CustomerFormPage />} />
+        <Route path="/customers/:id" element={<CustomerPage />} />
+        <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
+        <Route path="/mortgages" element={<MortgagesPage />} />
+        <Route path="/mortgages/new" element={<NewMortgagePage />} />
+        <Route path="/mortgages/:id" element={<MortgagePage />} />
+        <Route path="/mortgages/:id/redeem" element={<RedeemPage />} />
+        <Route path="/mortgages/:id/edit" element={<EditMortgagePage />} />
+        <Route path="/mortgages/:id/terms" element={<ChangeTermsPage />} />
+        <Route path="/calculator" element={<CalculatorPage />} />
+        <Route path="/call-list" element={<CallListPage />} />
+        <Route path="/reminders" element={<RemindersPage />} />
+        <Route path="/closures" element={<ClosuresPage />} />
+        <Route path="/referrers/:id" element={<ReferrerPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </PageErrorBoundary>
   )
 }
