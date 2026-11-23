@@ -319,6 +319,13 @@ def get_engine(request: Request) -> Engine:
 EngineDep = Annotated[Engine, Depends(get_engine)]
 
 
+def schema_head() -> str | None:
+    """The newest schema revision this version of the app knows."""
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS_DIR))
+    return ScriptDirectory.from_config(config).get_current_head()
+
+
 def migrate(
     database_url: str, before_update: Callable[[], object] | None = None
 ) -> None:

@@ -469,6 +469,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Health */
+        get: operations["read_health_api_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mortgages": {
         parameters: {
             query?: never;
@@ -1713,6 +1730,13 @@ export interface components {
             /** Running */
             running: boolean;
         };
+        /** BackupsHealth */
+        BackupsHealth: {
+            /** Enabled */
+            enabled: boolean;
+            /** Running */
+            running: boolean;
+        };
         /** Body_import_call_notes_api_call_list_import_post */
         Body_import_call_notes_api_call_list_import_post: {
             /** File */
@@ -2100,6 +2124,13 @@ export interface components {
             /** Waived This Month */
             waived_this_month: number;
         };
+        /** DatabaseHealth */
+        DatabaseHealth: {
+            /** Connected */
+            connected: boolean;
+            /** Error */
+            error?: string | null;
+        };
         /** DiscountConfirmationLimit */
         DiscountConfirmationLimit: {
             /** Discount Confirmation Limit */
@@ -2263,6 +2294,17 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** Health */
+        Health: {
+            backups: components["schemas"]["BackupsHealth"];
+            database: components["schemas"]["DatabaseHealth"];
+            migrations: components["schemas"]["MigrationsHealth"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "unavailable";
         };
         /**
          * ImportedCallNote
@@ -2464,6 +2506,15 @@ export interface components {
              *     Please get in touch with any questions. 🙏
              */
             reminder_template: string;
+        };
+        /** MigrationsHealth */
+        MigrationsHealth: {
+            /** Current */
+            current: string | null;
+            /** Head */
+            head: string | null;
+            /** Up To Date */
+            up_to_date: boolean;
         };
         /** MonthlyPayments */
         MonthlyPayments: {
@@ -4262,6 +4313,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_health_api_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Health"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Health"];
                 };
             };
         };
