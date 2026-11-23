@@ -7,9 +7,9 @@ import { NotLoaded } from '../components/NotLoaded'
 import { mortgageHistoryQuery, mortgageQuery } from '../requests'
 import { keys, useServerState } from '../serverState'
 import { AdvancePanel } from './mortgage/AdvancePanel'
-import { Closure } from './mortgage/Closure'
 import { CollateralPanel } from './mortgage/CollateralPanel'
 import { Ledger } from './mortgage/Ledger'
+import { MortgageClosure } from './mortgage/MortgageClosure'
 import { MortgageOverview } from './mortgage/MortgageOverview'
 import { MortgagePhotos } from './mortgage/MortgagePhotos'
 import { ProjectionPanel } from './mortgage/ProjectionPanel'
@@ -57,8 +57,7 @@ export function MortgagePage() {
       <h3>Photos</h3>
       <MortgagePhotos mortgage={mortgage} />
 
-      <h3>{active ? 'Close this Mortgage' : 'Closure'}</h3>
-      <Closure mortgage={mortgage} onChange={setMortgage} />
+      <MortgageClosure mortgage={mortgage} onChange={setMortgage} />
 
       <h3>Ledger</h3>
       <Ledger mortgage={mortgage} />
