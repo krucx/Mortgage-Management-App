@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import type { AdvanceInstalment, Mortgage } from '../api'
-import { formatDate } from '../format'
-import { formatINR } from '../money'
-import { advanceReceiptQuery, changes, previews } from '../requests'
-import { useMortgageChange, useServerState } from '../serverState'
-import { ChangePreview } from './BeforeAfter'
-import { ReceiptPanel } from './ReceiptPanel'
-import { useConfirm } from './useConfirm'
+import type { AdvanceInstalment, Mortgage } from '../../api'
+import { formatDate } from '../../format'
+import { formatINR } from '../../money'
+import { advanceReceiptQuery, changes, previews } from '../../requests'
+import { useMortgageChange, useServerState } from '../../serverState'
+import { ChangePreview } from '../../components/BeforeAfter'
+import { ReceiptPanel } from '../../components/ReceiptPanel'
+import { useConfirm } from '../../components/useConfirm'
 
 /** Each Advance on the Mortgage, part by part (ADR 0021); an upcoming part can be
  *  cancelled, which applies its amount today and has a Receipt of its own. */

@@ -2,7 +2,8 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MortgagePage } from '../src/pages/MortgagePage'
-import { customerHistoryQuery } from '../src/requests'
+import type { LedgerStep } from '../src/api'
+import { customerHistoryQuery, mortgageHistoryQuery } from '../src/requests'
 import { changePreview, fakeServer, type FakeServer } from './fakeServer'
 import { expectWholeRupeeSteps } from './rupeeField'
 import { mortgage, showPage } from './showPage'
@@ -720,4 +721,200 @@ test('Collateral Value, Received now and Recovered Amount step by whole rupees',
   )
   fireEvent.click(await screen.findByRole('button', { name: 'Forfeit…' }))
   expectWholeRupeeSteps(await screen.findByLabelText(/Recovered Amount/), '0')
+})
+
+// A Ledger step as the backend sends it: nothing but what `fields` sets.
+const ledgerStep = (
+  fields: Partial<LedgerStep> & Pick<LedgerStep, 'on' | 'event'>,
+): LedgerStep => ({
+  amount: 0,
+  principal: 5_000_000,
+  unpaid_interest: 0,
+  charged_on: 0,
+  interest_to_date_days: 0,
+  monthly_rate_bps: 0,
+  paid_ahead: 0,
+  interest_paid: 0,
+  principal_paid: 0,
+  discount: 0,
+  discount_interest_paid: 0,
+  discount_principal_paid: 0,
+  payment_id: null,
+  terms: null,
+  ...fields,
+})
+
+test('the Ledger shows its latest 8 steps, and the complete Ledger in a popup', async () => {
+  const interest = (n: number) =>
+    ledgerStep({
+      on: `2026-${String(n + 1).padStart(2, '0')}-10`,
+      event: 'interest',
+      amount: 75_000,
+      charged_on: 5_000_000,
+      monthly_rate_bps: 150,
+    })
+  const ledger = [
+    ledgerStep({ on: '2026-01-10', event: 'started', amount: 5_000_000 }),
+    ...[1, 2, 3, 4, 5, 6, 7].map(interest),
+    ledgerStep({
+      on: '2026-08-12',
+      event: 'payment',
+      amount: 100_000,
+      interest_paid: 75_000,
+      principal_paid: 25_000,
+      payment_id: 8,
+    }),
+    ledgerStep({ on: '2026-09-10', event: 'capitalised', amount: 75_000, principal: 5_050_000 }),
+  ]
+  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger } }))
+
+  expect(await screen.findByText('Showing the latest 8 of 10 steps.')).toBeTruthy()
+  expect(screen.queryByText('Mortgage started: Principal lent')).toBeNull()
+  expect(
+    screen.getByRole('link', { name: 'Payment: ₹750 cash to interest, ₹250 cash to Principal' }),
+  ).toBeTruthy()
+  expect(screen.getByText('Unpaid interest capitalised into Principal')).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show complete Ledger' }))
+  const popup = within(await screen.findByRole('dialog'))
+  expect(popup.getByText('Ledger of 2026GoldChain')).toBeTruthy()
+  expect(popup.getByText('Mortgage started: Principal lent')).toBeTruthy()
+  expect(popup.getAllByText('Interest: 1.5% of ₹50,000')).toHaveLength(7)
+  expect(popup.getByText('Unpaid interest capitalised into Principal')).toBeTruthy()
+})
+
+test("removing a coming Term Change asks first, then shows the Terms without it and makes the Mortgage's History stale", async () => {
+  const coming = {
+    id: 3,
+    effective_on: '2099-11-10',
+    terms: { ...mortgage.terms, monthly_rate_bps: 200 },
+    removable: true,
+  }
+  let stored: typeof mortgage = { ...mortgage, term_changes: [coming] }
+  const server = fakeServer({
+    'GET /api/mortgages/7': () => stored,
+    'DELETE /api/mortgages/7/term-changes/3': () => (stored = mortgage),
+  })
+  const state = showMortgagePage(server)
+  const history = mortgageHistoryQuery(state.client, 7, 1).queryKey
+  state.queryClient.setQueryData(history, { items: [], total: 0, page: 1, page_size: 20 })
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove' }))
+
+  await vi.waitFor(() => expect(screen.queryByText(/From 10 Nov 2099/)).toBeNull())
+  expect(server.requests).toContain('DELETE /api/mortgages/7/term-changes/3')
+  expect(state.queryClient.getQueryState(history)?.isInvalidated).toBe(true)
+})
+
+test("a Collateral Value set by hand shows on the page, and makes the Mortgage's History stale", async () => {
+  const revalued: typeof mortgage = {
+    ...mortgage,
+    collateral: { value: 9_000_000, source: 'manual', set_on: '2026-10-18', loan_to_value: 0.56 },
+  }
+  let stored = mortgage
+  const server = fakeServer({
+    'GET /api/mortgages/7': () => stored,
+    'PUT /api/mortgages/7/collateral': () => (stored = revalued),
+  })
+  const state = showMortgagePage(server)
+  const history = mortgageHistoryQuery(state.client, 7, 1).queryKey
+  state.queryClient.setQueryData(history, { items: [], total: 0, page: 1, page_size: 20 })
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Set by hand…' }))
+  fireEvent.change(screen.getByLabelText('Collateral Value (₹)'), { target: { value: '90000' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirm and save' }),
+  )
+
+  expect(await screen.findByText('set by hand on 18 Oct 2026')).toBeTruthy()
+  expect(screen.getByText('₹90,000')).toBeTruthy()
+  expect(state.queryClient.getQueryState(history)?.isInvalidated).toBe(true)
+})
+
+test('a Call Note recorded on the Mortgage page shows in its Call Notes', async () => {
+  const saved = {
+    id: 1,
+    called_on: '2026-10-18',
+    note: 'Will pay Friday',
+    created_at: '2026-10-18T10:00:00',
+  }
+  let notes: unknown[] = []
+  showMortgagePage(
+    fakeServer({
+      'GET /api/mortgages/7': mortgage,
+      'GET /api/mortgages/7/call-notes': () => ({
+        items: notes,
+        total: notes.length,
+        page: 1,
+        page_size: 20,
+      }),
+      'POST /api/mortgages/7/call-notes': () => {
+        notes = [saved]
+        return saved
+      },
+    }),
+  )
+
+  expect(await screen.findByText('Not called yet.')).toBeTruthy()
+  fireEvent.change(screen.getByLabelText('Call Note for 2026GoldChain'), {
+    target: { value: 'Will pay Friday' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Called' }))
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', { name: 'Save Call Note' }),
+  )
+
+  expect(await screen.findByText('Will pay Friday')).toBeTruthy()
+})
+
+test('a refused photo deletion is shown with the photos', async () => {
+  const server = fakeServer({
+    'GET /api/mortgages/7': {
+      ...mortgage,
+      photos: [{ id: 5, url: '/api/photos/mortgage-7-a.jpg' }],
+    },
+    'DELETE /api/mortgages/7/photos/5': Response.json(
+      { detail: 'Photo is in use' },
+      { status: 409 },
+    ),
+  })
+  showMortgagePage(server)
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }))
+
+  const refusal = await screen.findByText('Photo is in use')
+  const photos = screen.getByRole('heading', { name: 'Photos' })
+  expect(photos.compareDocumentPosition(refusal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Photo 1' })).toBeTruthy()
+})
+
+test('reopening a Closed Mortgage needs a reason, then shows it Active again', async () => {
+  const redeemed = {
+    ...mortgage,
+    status: 'redeemed' as const,
+    closure: closure({ kind: 'redeemed' as const, payment_id: 12, payment_amount: 5_075_000 }),
+  }
+  let stored: unknown = redeemed
+  const server = fakeServer({
+    'GET /api/mortgages/7': () => stored,
+    'POST /api/mortgages/7/reopen': async (request: Request) => {
+      expect(await request.json()).toEqual({ reason: 'Paid by mistake' })
+      return (stored = mortgage)
+    },
+  })
+  showMortgagePage(server)
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Reopen…' }))
+  const dialog = within(await screen.findByRole('dialog'))
+  expect(dialog.getByText(/Its final Payment is voided/)).toBeTruthy()
+  fireEvent.change(dialog.getByLabelText('Reason (kept on record)'), {
+    target: { value: 'Paid by mistake' },
+  })
+  fireEvent.click(dialog.getByRole('button', { name: 'Reopen' }))
+
+  expect(await screen.findByRole('heading', { name: 'Close this Mortgage' })).toBeTruthy()
+  expect(server.requests).toContain('POST /api/mortgages/7/reopen')
 })
