@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { useNumericId } from '../useNumericId'
 import { NotLoaded } from '../components/NotLoaded'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
@@ -9,9 +10,9 @@ import { useServerState } from '../serverState'
 /** A Receipt to print or save as PDF: the same content as the WhatsApp message. With
  *  an `instalment`, the Receipt for that cancelled Advance Instalment of the Payment. */
 export function ReceiptPage() {
-  const params = useParams()
-  const id = Number(params.id)
-  const instalment = params.instalment ? Number(params.instalment) : null
+  const id = useNumericId()
+  const { instalment: instalmentParam } = useParams()
+  const instalment = instalmentParam ? Number(instalmentParam) : null
   const { client } = useServerState()
   // Spread: the two queries' keys differ in type.
   const { data: receipt, error } = useQuery({

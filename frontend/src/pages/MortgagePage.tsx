@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link } from 'react-router'
 import type { AdvanceInstalment, LedgerGrace, LedgerStep, Mortgage } from '../api'
 import { AdvancePanel } from '../components/AdvancePanel'
 import { CallNotes } from '../components/CallNotes'
@@ -31,12 +31,13 @@ import {
 } from '../requests'
 import { keys, STALE_AFTER, useChange, useMortgageChange, useServerState } from '../serverState'
 import { describeTerms, formatRate, PART_MONTH_RULES } from '../terms'
+import { useNumericId } from '../useNumericId'
 
 /** Ledger steps shown on the page; the rest are in the complete Ledger popup. */
 const LEDGER_SHOWN = 8
 
 export function MortgagePage() {
-  const id = Number(useParams().id)
+  const id = useNumericId()
   const { client, queryClient } = useServerState()
   const changeMortgage = useMortgageChange()
   const loaded = useQuery(mortgageQuery(client, id))

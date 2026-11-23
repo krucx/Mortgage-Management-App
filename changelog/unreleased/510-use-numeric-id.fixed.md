@@ -1,0 +1,1 @@
+- A Customer, Mortgage, Payment, Receipt or Referrer address with a bad number (such as `/mortgages/abc`) now shows Page not found instead of asking the backend for a record that cannot exist.
