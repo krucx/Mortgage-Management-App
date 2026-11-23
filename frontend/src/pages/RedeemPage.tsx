@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate } from 'react-router'
 import { CloseMortgage } from '../components/CloseMortgage'
 import { NotLoaded } from '../components/NotLoaded'
 import { PersonLink } from '../components/PersonLink'
 import { mortgageQuery } from '../requests'
 import { useServerState } from '../serverState'
+import { useNumericId } from '../useNumericId'
 
 /** Redeem one Mortgage on its own page; Cancel goes back to wherever the Lender came from. */
 export function RedeemPage() {
-  const id = Number(useParams().id)
+  const id = useNumericId()
   const navigate = useNavigate()
   const { client } = useServerState()
   const { data: mortgage, error } = useQuery(mortgageQuery(client, id))
