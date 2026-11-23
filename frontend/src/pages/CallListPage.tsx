@@ -1,4 +1,4 @@
-import { Fragment, useId, useState, type ChangeEvent } from 'react'
+import { Fragment, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router'
 import {
   CALL_LIST_SORTS,
@@ -10,9 +10,7 @@ import {
 import { MarkCalled } from '../components/CallNotes'
 import { Summary } from '../components/ConfirmDialog'
 import { PersonLink } from '../components/PersonLink'
-import { Modal } from '../components/Modal'
 import { ScrollPopup } from '../components/ScrollPopup'
-import popup from '../components/ScrollPopup.module.css'
 import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
 import { ChatIcon } from '../components/WhatsApp'
@@ -292,7 +290,6 @@ function ImportPreview({
   onAdd: () => void
   onClose: () => void
 }) {
-  const titleId = useId()
   const adding = plural(result.adding.length, 'Call Note', 'Call Notes')
   const quiet = [
     result.skipped_empty > 0 &&
@@ -300,9 +297,23 @@ function ImportPreview({
     result.skipped_duplicates > 0 && `${result.skipped_duplicates} already there`,
   ].filter(Boolean)
   return (
-    <Modal onClose={onClose} className={popup.popup} labelledBy={titleId}>
-      <h2 id={titleId}>Import Call Notes from {sheet.name}</h2>
-      <div className={`${popup.body} stack`}>
+    <ScrollPopup
+      title={`Import Call Notes from ${sheet.name}`}
+      onClose={onClose}
+      footer={
+        <div className="row end">
+          <button type="button" className="secondary" autoFocus onClick={onClose}>
+            Keep editing
+          </button>
+          {result.adding.length > 0 && (
+            <button type="button" onClick={onAdd}>
+              Add {adding}
+            </button>
+          )}
+        </div>
+      }
+    >
+      <div className="stack">
         {result.adding.length > 0 ? (
           <>
             <h3>Adding {adding}</h3>
@@ -324,17 +335,7 @@ function ImportPreview({
         )}
         {quiet.length > 0 && <p className="hint">Left out quietly: {quiet.join(' · ')}</p>}
       </div>
-      <div className="row end">
-        <button type="button" className="secondary" autoFocus onClick={onClose}>
-          Keep editing
-        </button>
-        {result.adding.length > 0 && (
-          <button type="button" onClick={onAdd}>
-            Add {adding}
-          </button>
-        )}
-      </div>
-    </Modal>
+    </ScrollPopup>
   )
 }
 

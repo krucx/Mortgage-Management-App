@@ -3,6 +3,7 @@ import type { DataTable } from 'playwright-bdd';
 import { Given, Then, When, type Day, type Money } from './fixtures';
 import { newPhone, type Lender } from './lender';
 import { shownINR, shownPercent } from './shown';
+import { dashboardFigure } from './selectors';
 
 // The Call List, marking a Mortgage called, a Mortgage's Call Notes and the Call List
 // thresholds in Settings. Figures are checked against what the API says of the same
@@ -380,17 +381,15 @@ Then('the Call List thresholds are saved', async ({ page }) => {
 
 const noted = new WeakMap<Page, number>();
 
-const figure = (page: Page, label: string) =>
-  page.getByRole('link').filter({ has: page.getByText(label, { exact: true }) });
 
 When("notes the Dashboard's {string} figure", async ({ page }, label: string) => {
-  const value = figure(page, label).locator('strong');
+  const value = dashboardFigure(page, label).locator('strong');
   await expect(value).toHaveText(/^\d+$/);
   noted.set(page, Number(await value.textContent()));
 });
 
 When('opens the Call List from that figure', async ({ page }) => {
-  await figure(page, "On today's Call List").click();
+  await dashboardFigure(page, "On today's Call List").click();
   await expect(page.getByRole('heading', { name: 'Call List', level: 2 })).toBeVisible();
 });
 

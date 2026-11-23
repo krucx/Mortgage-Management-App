@@ -1,5 +1,5 @@
 /* A heading that sorts its list: reads as the heading, with an arrow for the sort. */
-.heading {
+button.heading {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -10,8 +10,8 @@
   text-align: inherit;
 }
 
-.heading:hover,
-.sorted {
+button.heading:hover,
+button.sorted {
   color: var(--text);
 }
 

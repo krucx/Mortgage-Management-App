@@ -27,7 +27,7 @@ dialog.wide {
   overflow: auto;
 }
 
-.close {
+button.close {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
@@ -42,7 +42,7 @@ dialog.wide {
   line-height: 1;
 }
 
-.close:hover {
+button.close:hover {
   background: var(--border);
   color: var(--text);
 }

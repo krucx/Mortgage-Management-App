@@ -1,0 +1,6 @@
+/* What stops the Payment from being saved, in red, one a line. */
+ul.problems {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--error);
+}

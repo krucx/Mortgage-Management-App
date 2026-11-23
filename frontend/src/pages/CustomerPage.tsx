@@ -94,7 +94,7 @@ export function CustomerPage() {
               ([name, url]) =>
                 url && (
                   <a key={name} href={url} target="_blank" rel="noreferrer" aria-label={name}>
-                    <img src={url} alt={name} className={`photo ${idPhotos.shown}`} />
+                    <img src={url} alt={name} className={`photo ${idPhotos.card}`} />
                   </a>
                 ),
             )}

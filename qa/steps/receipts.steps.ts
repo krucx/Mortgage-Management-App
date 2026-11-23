@@ -27,7 +27,6 @@ function bubble(page: Page) {
   return whatsAppBubble(page.locator('.receipt-panel'));
 }
 
-const printable = printableReceipt;
 
 /** The Customer's numbers, primary first. */
 async function numbersOf(lender: Lender): Promise<string[]> {
@@ -257,47 +256,47 @@ Then(
   'the printable Receipt is from {string} for what the Payment received',
   async ({ page, lender }, customer: string) => {
     const { amount } = await lender.get(`/api/payments/${lender.payment!.id}`);
-    await expect(printable(page).locator('.summary-row', { hasText: 'Received from' })).toContainText(customer);
-    await expect(printable(page).locator('.summary-row', { hasText: 'Amount' })).toContainText(shownINR(amount));
+    await expect(printableReceipt(page).locator('.summary-row', { hasText: 'Received from' })).toContainText(customer);
+    await expect(printableReceipt(page).locator('.summary-row', { hasText: 'Amount' })).toContainText(shownINR(amount));
   },
 );
 
 Then('the printable Receipt lists the {string}', async ({ page }, jewellery: string) => {
-  await expect(printable(page).locator('tbody tr td:first-child', { hasText: new RegExp(`^${escaped(jewellery)}$`) })).toHaveCount(1);
+  await expect(printableReceipt(page).locator('tbody tr td:first-child', { hasText: new RegExp(`^${escaped(jewellery)}$`) })).toHaveCount(1);
 });
 
 Then('the printable Receipt does not name {mortgage}', async ({ page }, mortgage: string) => {
-  await expect(printable(page)).toBeVisible();
-  await expect(printable(page)).not.toContainText(mortgage);
+  await expect(printableReceipt(page)).toBeVisible();
+  await expect(printableReceipt(page)).not.toContainText(mortgage);
 });
 
 Then('the printable Receipt has the column {string}', async ({ page }, heading: string) => {
-  await expect(printable(page).getByRole('columnheader', { name: heading, exact: true })).toBeVisible();
+  await expect(printableReceipt(page).getByRole('columnheader', { name: heading, exact: true })).toBeVisible();
 });
 
 Then('the Receipt page is headed {string}', async ({ page }, heading: string) => {
-  await expect(printable(page).getByRole('heading', { level: 2 })).toHaveText(heading);
+  await expect(printableReceipt(page).getByRole('heading', { level: 2 })).toHaveText(heading);
 });
 
 Then(
   'the printable Receipt says it was applied on {day}, from the Advance part due {day}',
   async ({ page }, applied: Day, due: Day) => {
-    await expect(printable(page)).toContainText(`Applied ${applied.shown}, from the Advance part due ${due.shown}`);
+    await expect(printableReceipt(page)).toContainText(`Applied ${applied.shown}, from the Advance part due ${due.shown}`);
   },
 );
 
 Then("the printable Receipt has a line for each of the Payment's Mortgages", async ({ page, lender }) => {
   const { lines } = await receiptOf(lender);
   expect(lines.length).toBeGreaterThan(1);
-  await expect(printable(page).locator('tbody tr')).toHaveCount(lines.length);
+  await expect(printableReceipt(page).locator('tbody tr')).toHaveCount(lines.length);
   for (const { description } of lines) {
-    await expect(printable(page).locator('tbody tr td:first-child', { hasText: new RegExp(`^${escaped(description)}$`) })).toHaveCount(1);
+    await expect(printableReceipt(page).locator('tbody tr td:first-child', { hasText: new RegExp(`^${escaped(description)}$`) })).toHaveCount(1);
   }
 });
 
 Then("the printable Receipt's Total is what the Payment paid and what is still owed", async ({ page, lender }) => {
   const { lines, total_owed } = await receiptOf(lender);
-  const total = printable(page).locator('tfoot tr');
+  const total = printableReceipt(page).locator('tfoot tr');
   await expect(total.getByRole('rowheader')).toHaveText('Total');
   await expect(total.locator('td.num').first()).toHaveText(shownINR(lines.reduce((sum, line) => sum + line.paid, 0)));
   await expect(total.locator('td.num').last()).toHaveText(shownINR(total_owed));

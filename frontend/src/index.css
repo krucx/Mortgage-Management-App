@@ -311,12 +311,6 @@ ul.plain {
   padding: 0;
 }
 
-ul.results {
-  margin-top: 1rem;
-  display: grid;
-  gap: 0.25rem;
-}
-
 .with-photo {
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -495,24 +489,6 @@ td.num {
   gap: 0.4rem;
 }
 
-button.result {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.5rem;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--text);
-  font-weight: 400;
-  text-align: left;
-}
-
-button.result:hover {
-  background: var(--bg);
-}
-
 fieldset:disabled {
   opacity: 0.7;
 }
@@ -520,12 +496,6 @@ fieldset:disabled {
 input.small-input {
   width: 8rem;
   text-align: right;
-}
-
-ul.problems {
-  margin: 0;
-  padding-left: 1.25rem;
-  color: var(--error);
 }
 
 /* Label / value rows (Summary): one row per line, wherever they appear. */

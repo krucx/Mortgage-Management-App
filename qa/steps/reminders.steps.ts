@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { Then, When, type Day } from './fixtures';
 import type { Lender } from './lender';
-import { whatsAppBubble } from './selectors';
+import { dashboardFigure, whatsAppBubble } from './selectors';
 
 // The Reminders page: who is listed under which tab, sending on WhatsApp, skipping, and the
 // Reminder settings and Dashboard figure that shape the queue. What a Reminder says is checked
@@ -352,8 +352,7 @@ Then('the Reminder template lists the placeholders the app can fill', async ({ p
 
 const noted = new WeakMap<Page, { toSend: number; tab: string }>();
 
-const figure = (page: Page) =>
-  page.getByRole('link').filter({ has: page.getByText('Reminders to send', { exact: true }) });
+const figure = (page: Page) => dashboardFigure(page, 'Reminders to send');
 
 When('notes the Reminders to send on the Dashboard', async ({ page }) => {
   const value = figure(page).locator('strong');

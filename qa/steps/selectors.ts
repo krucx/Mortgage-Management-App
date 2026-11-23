@@ -48,3 +48,8 @@ export function printableReceipt(page: Page) {
     has: page.getByRole('heading', { level: 2, name: /^(Payment receipt|Advance applied)$/ }),
   });
 }
+
+/** A Dashboard figure, which opens the list it was counted from. */
+export function dashboardFigure(page: Page, label: string) {
+  return page.getByRole('link').filter({ has: page.getByText(label, { exact: true }) });
+}
