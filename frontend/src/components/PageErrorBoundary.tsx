@@ -10,7 +10,7 @@ interface Failure {
 
 /** Catches an error thrown while its children render, and shows what happened in their place. */
 class Boundary extends Component<{ children: ReactNode }, { failure: Failure | null }> {
-  state: { failure: Failure | null } = { failure: null }
+  state = { failure: null as Failure | null }
 
   static getDerivedStateFromError(error: Error) {
     return { failure: { error, componentStack: '' } }
@@ -51,8 +51,10 @@ function PageFailed({ error, componentStack }: Failure) {
   )
 }
 
-/** Shows `children` (the pages), or the failure of one, which clears when the address changes. */
+/** Shows `children` (the pages), or the failure of one, which clears on the next navigation. */
 export function PageErrorBoundary({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation()
-  return <Boundary key={pathname}>{children}</Boundary>
+  // Keyed on the location, not the address: going to the address already shown (Return to
+  // Dashboard, from a Dashboard that failed) must clear the failure too.
+  const { key } = useLocation()
+  return <Boundary key={key}>{children}</Boundary>
 }

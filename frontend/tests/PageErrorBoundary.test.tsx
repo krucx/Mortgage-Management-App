@@ -6,14 +6,17 @@ import { TopBar } from '../src/components/TopBar'
 import { fakeServer } from './fakeServer'
 import { showPage } from './showPage'
 
-// Rendering the Dashboard fails; every other page is untouched.
+// Rendering the Dashboard fails while `broken.dashboard` is set; every other page is untouched.
+const broken = vi.hoisted(() => ({ dashboard: true }))
 vi.mock('../src/pages/DashboardPage', () => ({
   DashboardPage: () => {
-    throw new Error('Cannot read properties of undefined')
+    if (broken.dashboard) throw new Error('Cannot read properties of undefined')
+    return <h2>Dashboard is back</h2>
   },
 }))
 
 beforeEach(() => {
+  broken.dashboard = true
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener: () => {},
@@ -74,13 +77,15 @@ test('Reload page reloads the app', () => {
   expect(reload).toHaveBeenCalledOnce()
 })
 
-test('Return to Dashboard goes home, and a page that works shows again from another address', async () => {
+test('Return to Dashboard shows the Dashboard again once it can be displayed', () => {
   showApp('/')
+  broken.dashboard = false
 
-  expect(screen.getByRole('link', { name: 'Return to Dashboard' }).getAttribute('href')).toBe('/')
-  fireEvent.click(screen.getByRole('link', { name: 'Return to Dashboard' }))
-  // Still the Dashboard, which still fails: the boundary shows it again rather than a stale view.
-  expect(screen.getByRole('heading', { name: 'This page could not be displayed' })).toBeTruthy()
+  const back = screen.getByRole('link', { name: 'Return to Dashboard' })
+  expect(back.getAttribute('href')).toBe('/')
+  fireEvent.click(back)
+
+  expect(screen.getByRole('heading', { name: 'Dashboard is back' })).toBeTruthy()
 })
 
 test('leaving a failed page by the navigation shows the next page, not the failure', async () => {
