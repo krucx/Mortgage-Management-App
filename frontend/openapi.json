@@ -6126,6 +6126,26 @@
         "summary": "Read Dashboard"
       }
     },
+    "/api/health": {
+      "get": {
+        "operationId": "read_health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Read Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Health"
+      }
+    },
     "/api/mortgages": {
       "get": {
         "description": "Mortgages, newest first (or by `sort`, reversed when `descending`), filtered by\nMortgage Name, Customer name or (part of) the Customer's Primary Number.\n\nWith `as_of`, only Mortgages started by then, with what they owed on that date\n(used when recording a back-dated Payment). With `owing`, only those with something\nOutstanding (Outstanding is computed, so that filter is applied after the replay).\nWith `closed_in` (YYYY-MM), only those closed that month; with `closed`, only those\nclosed (Redeemed, Waived or Forfeited). With `paged` false, every match on one\npage: for pickers, such as a Payment's Allocations, which must never leave a\nMortgage out.",
