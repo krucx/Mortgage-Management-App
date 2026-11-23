@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { PersonSummary } from '../../api'
+import { FieldProblem } from '../../components/FieldProblem'
 import { PeopleInline, PersonLink } from '../../components/PersonLink'
 import { useNumberOwner } from '../../components/useNumberOwner'
 import { normalisePhone } from '../../phone'
@@ -51,11 +52,17 @@ export function ContactFields({
           value={phone1}
           onChange={(event) => onChange('phone_1', event.target.value)}
         />
-        {numberOwner?.kind === 'customer' && !ownerIsSelf && (
-          <span className="status error">
-            Already belongs to Customer <PersonLink person={numberOwner} />
-          </span>
-        )}
+        <FieldProblem
+          problem={
+            phone1.trim() && !normalisePhone(phone1) ? (
+              'Enter a 10-digit mobile number'
+            ) : numberOwner?.kind === 'customer' && !ownerIsSelf ? (
+              <>
+                Already belongs to Customer <PersonLink person={numberOwner} />
+              </>
+            ) : null
+          }
+        />
         {numberOwner?.kind === 'referrer' && customerId === undefined && (
           <span className="status warning">
             Belongs to <PersonLink person={numberOwner} />. Saving makes them this Customer, and the

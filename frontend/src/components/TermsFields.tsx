@@ -1,4 +1,5 @@
 import type { InterestMode, PartMonthRule } from '../api'
+import { FieldProblem } from './FieldProblem'
 import { INTEREST_MODES, PART_MONTH_RULES, type TermsDraft } from '../terms'
 
 export function TermsFields({
@@ -27,7 +28,7 @@ export function TermsFields({
           value={value.ratePercent}
           onChange={(event) => onChange({ ...value, ratePercent: event.target.value })}
         />
-        {rateProblem && <span className="status error">{rateProblem}</span>}
+        <FieldProblem problem={rateProblem} />
       </label>
       <label>
         Interest Mode

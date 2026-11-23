@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Saving a record, then uploading its photos: what a retry sends again, and what it says.
+// Saving a record, then uploading its photos: what a retry sends again, and why it stopped.
 import { act, cleanup, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
@@ -40,7 +40,7 @@ test('a retry uploads only the photos that failed, and does not save the record 
   const uploads = [upload('front', sent), upload('back', sent, 1), upload('clasp', sent)]
   const { result } = saving()
 
-  await act(() => result.current.run(save, uploads))
+  await act(() => expect(result.current.run(save, uploads)).rejects.toThrow('Network error'))
   expect(sent).toEqual(['front for 7', 'back for 7'])
   sent.length = 0
   const saved = await act(() => result.current.run(save, uploads))
@@ -48,16 +48,17 @@ test('a retry uploads only the photos that failed, and does not save the record 
   expect(sent).toEqual(['back for 7', 'clasp for 7'])
   expect(save).toHaveBeenCalledTimes(1)
   expect(saved).toBe(7)
-  expect(result.current.error).toBeNull()
 })
 
 test('a photo failing on the first save says the record was saved', async () => {
   const { result } = saving()
 
-  const saved = await act(() => result.current.run(async () => record, [upload('front', [], 1)]))
+  await act(() =>
+    expect(result.current.run(async () => record, [upload('front', [], 1)])).rejects.toThrow(
+      'Mortgage saved, but a photo failed: Network error',
+    ),
+  )
 
-  expect(saved).toBeUndefined()
-  expect(result.current.error).toBe('Mortgage saved, but a photo failed: Network error')
   expect(result.current.savedId).toBe(7)
 })
 
@@ -69,8 +70,11 @@ test('a refused save shows its reason, and is tried again on a retry', async () 
   const sent: string[] = []
   const { result } = saving()
 
-  await act(() => result.current.run(save, [upload('front', sent)]))
-  expect(result.current.error).toBe('Start date cannot be in the future')
+  await act(() =>
+    expect(result.current.run(save, [upload('front', sent)])).rejects.toThrow(
+      'Start date cannot be in the future',
+    ),
+  )
   expect(sent).toEqual([])
   await act(() => result.current.run(save, [upload('front', sent)]))
 
@@ -81,7 +85,7 @@ test('a refused save shows its reason, and is tried again on a retry', async () 
 test('adding photos to a record that is already there names no save in the error', async () => {
   const { result } = saving(7)
 
-  await act(() => result.current.run(null, [upload('front', [], 1)]))
-
-  expect(result.current.error).toBe('Network error')
+  await act(() =>
+    expect(result.current.run(null, [upload('front', [], 1)])).rejects.toThrow(/^Network error$/),
+  )
 })

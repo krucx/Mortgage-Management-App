@@ -1,14 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import type { Customer, CustomerIn, IdCard } from '../api'
 import { NotLoaded } from '../components/NotLoaded'
 import { PhotoPicker } from '../components/PhotoPicker'
 import { ReferrerPicker, type ReferrerSelection } from './customerForm/ReferrerPicker'
-import { usePreview } from '../components/usePreview'
 import { useSaveWithPhotos, type PhotoUpload } from '../components/useSaveWithPhotos'
 import { Summary } from '../components/ConfirmDialog'
-import { useConfirm } from '../components/useConfirm'
+import { useProposedChange } from '../components/useProposedChange'
 import { maskedAadhaar } from '../format'
 import { normalisePhone } from '../phone'
 import { customerChanges, customerQuery } from '../requests'
@@ -79,14 +78,12 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
     existing?.referrer ? { kind: existing.referrer.kind, id: existing.referrer.id } : null,
   )
   const [referrerName, setReferrerName] = useState(existing?.referrer?.name)
-  const [confirm, confirmDialog] = useConfirm()
   const [photo, setPhoto] = useState<Blob | null>(null)
   const [idPhotos, setIdPhotos] = useState<Record<IdCard, IdPhotoChange>>(NO_ID_PHOTO_CHANGES)
   const { read, readNumber, typedOver, dropReading } = useIdNumberReading(
     (field) => fields[field],
     (field, value) => setFields((now) => ({ ...now, [field]: value })),
   )
-  const [error, setError] = useState<string | null>(null)
   const changeCustomer = useChange(STALE_AFTER.customer)
 
   // What saving would send, checked by the backend as it is typed: a save it would refuse
@@ -103,68 +100,67 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
       ? null
       : { ...details, referrer }
   const idPhotoChanges = idPhotoChangeNotes(idPhotos)
-  const check = usePreview(asked && customerChanges.preview(asked, customerId))
-  const unchecked = asked !== null && (check.loading || check.error !== null)
 
-  async function save(event: FormEvent) {
-    event.preventDefault()
-    if (unchecked) return
-    if (referrer === 'unpicked') {
-      setError('Pick the Referrer from the search results, or choose "None".')
-      return
-    }
-    // Once saved, a retry only sends the photos left: nothing more to confirm.
-    if (!locked) {
-      const confirmed = await confirm({
-        title: customerId === undefined ? 'Add this Customer?' : `Save changes to ${fields.name}?`,
-        body: (
-          <Summary
-            rows={[
-              ['Name', fields.name],
-              ['Address', fields.address || '—'],
-              ['Contact numbers', [fields.phone_1, fields.phone_2].filter(Boolean).join(', ')],
-              [
-                'Referrer',
-                referrer === null
-                  ? '—'
-                  : referrer.kind === 'new'
-                    ? `${referrerName} (new Referrer, ${referrer.phone})`
-                    : referrerName,
-              ],
-              ['Photo', photo ? 'New photo' : existing?.photo_url ? 'Unchanged' : '—'],
-              ['Email', details.email ?? '—'],
-              [
-                'Aadhaar Number',
-                details.aadhaar_last4 ? maskedAadhaar(typedLast4(details.aadhaar_last4)) : '—',
-              ],
-              ['PAN', details.pan?.toUpperCase() ?? '—'],
-              ['ID Photos', idPhotoChanges.length ? idPhotoChanges.join(' · ') : 'Unchanged'],
-            ]}
-          />
-        ),
-      })
-      if (!confirmed) return
-    }
-    setError(null)
-    const customer = { ...details, referrer }
-    const uploads: PhotoUpload[] = [
-      ...(photo
-        ? [
-            {
-              key: photo,
-              send: (c: ApiClient, id: number) => customerChanges.replacePhoto(c, id, photo),
-            },
-          ]
-        : []),
-      ...idPhotoUploads(idPhotos),
-    ]
-    const savedId = await saved.run(
-      () => changeCustomer((client) => customerChanges.save(client, customer, customerId)),
-      uploads,
-    )
-    if (savedId === undefined) return
-    navigate(next === 'mortgage' ? `/mortgages/new?customer=${savedId}` : `/customers/${savedId}`)
-  }
+  const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
+    change: asked,
+    // Once saved, a retry only sends the photos left: nothing more to check or confirm.
+    preview: (customer) => (locked ? null : customerChanges.preview(customer, customerId)),
+    confirm: locked
+      ? null
+      : (customer) => ({
+          title:
+            customerId === undefined ? 'Add this Customer?' : `Save changes to ${fields.name}?`,
+          body: (
+            <Summary
+              rows={[
+                ['Name', customer.name],
+                ['Address', customer.address || '—'],
+                [
+                  'Contact numbers',
+                  [customer.phone_1, customer.phone_2].filter(Boolean).join(', '),
+                ],
+                [
+                  'Referrer',
+                  !customer.referrer
+                    ? '—'
+                    : customer.referrer.kind === 'new'
+                      ? `${referrerName} (new Referrer, ${customer.referrer.phone})`
+                      : referrerName,
+                ],
+                ['Photo', photo ? 'New photo' : existing?.photo_url ? 'Unchanged' : '—'],
+                ['Email', customer.email ?? '—'],
+                [
+                  'Aadhaar Number',
+                  customer.aadhaar_last4 ? maskedAadhaar(typedLast4(customer.aadhaar_last4)) : '—',
+                ],
+                ['PAN', customer.pan?.toUpperCase() ?? '—'],
+                ['ID Photos', idPhotoChanges.length ? idPhotoChanges.join(' · ') : 'Unchanged'],
+              ]}
+            />
+          ),
+        }),
+    save: (customer) => {
+      const uploads: PhotoUpload[] = [
+        ...(photo
+          ? [
+              {
+                key: photo,
+                send: (c: ApiClient, id: number) => customerChanges.replacePhoto(c, id, photo),
+              },
+            ]
+          : []),
+        ...idPhotoUploads(idPhotos),
+      ]
+      return saved.run(
+        () => changeCustomer((client) => customerChanges.save(client, customer, customerId)),
+        uploads,
+      )
+    },
+    saved: (savedId) =>
+      navigate(
+        next === 'mortgage' ? `/mortgages/new?customer=${savedId}` : `/customers/${savedId}`,
+      ),
+  })
 
   const editing = id !== undefined
 
@@ -174,7 +170,7 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
   return (
     <section className="card">
       <h2>{editing ? `Edit ${existing?.name ?? 'Customer'}` : 'New Customer'}</h2>
-      <form onSubmit={save}>
+      <form onSubmit={submit}>
         <div className="with-photo">
           <PhotoPicker currentUrl={existing?.photo_url ?? null} onChange={setPhoto} />
           <fieldset className="unframed" disabled={locked}>
@@ -228,15 +224,14 @@ function CustomerForm({ existing }: { existing: Customer | null }) {
         </fieldset>
 
         <div className="row">
-          <button type="submit" disabled={saved.saving || unchecked}>
-            {saved.saving ? 'Saving…' : locked ? 'Retry photo upload' : 'Save'}
+          <button type="submit" disabled={!canSave}>
+            {saving ? 'Saving…' : locked ? 'Retry photo upload' : 'Save'}
           </button>
           <button type="button" className="secondary" onClick={() => navigate(-1)}>
             Cancel
           </button>
         </div>
-        {check.error && <p className="status error">{check.error}</p>}
-        {(error ?? saved.error) && <p className="status error">{error ?? saved.error}</p>}
+        {(error ?? preview.error) && <p className="status error">{error ?? preview.error}</p>}
       </form>
       {confirmDialog}
     </section>

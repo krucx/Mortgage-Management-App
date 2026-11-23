@@ -155,6 +155,14 @@ Feature: Customers
       Then Contact number 1 says "Already belongs to Customer Number Owner Customer"
       And the Customer cannot be saved
 
+    @screen:/customers/new
+    Scenario: A Contact number 1 that is not a mobile number says so before saving
+      When the Lender starts a new Customer "Short Number Customer"
+      And enters their details:
+        | Contact number 1 | 98290 |
+      Then Contact number 1 says "Enter a 10-digit mobile number"
+      And the Customer cannot be saved
+
     @screen:/customers/new @screen:/customers/:id
     Scenario: A Contact number 2 another Customer uses is only a warning
       Given "Family Phone Customer" is a Customer

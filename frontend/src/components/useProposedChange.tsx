@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import type { PreviewOfChange } from '../api'
 import type { PreviewRequest } from '../requests'
 import type { ConfirmOptions } from './ConfirmDialog'
 import { useCashWarning } from './useCashWarning'
@@ -14,8 +15,14 @@ import { usePreview, type Preview } from './usePreview'
  * already), then saves (through useLedgerChange or useMortgageChange, which make stale
  * what it changes) and hands what was saved to `saved`. A refused save shows the
  * backend's reason and can be tried again; after a save, Save stays disabled.
+ * `Previewed` is what the Preview answers: a change's effect by default, or anything
+ * else (e.g. a new Mortgage's) that names the sums it would write in cash, or nothing.
  */
-export function useProposedChange<Change, Saved>({
+export function useProposedChange<
+  Change,
+  Saved,
+  Previewed extends { cash: number[] } | null = PreviewOfChange,
+>({
   change,
   preview: previewOf,
   confirm: confirmationOf,
@@ -25,17 +32,17 @@ export function useProposedChange<Change, Saved>({
 }: {
   change: Change | null
   /** The Preview of `change`; null for a change that changes nothing to preview. */
-  preview: (change: Change) => PreviewRequest | null
+  preview: (change: Change) => PreviewRequest<Previewed> | null
   /** The confirmation asked for when Save is pressed, from `change` and its Preview;
    *  null to save straight away. */
-  confirm: ((change: Change, preview: Preview) => ConfirmOptions) | null
+  confirm: ((change: Change, preview: Preview<Previewed>) => ConfirmOptions) | null
   /** An additional confirmation step before the change's usual confirmation. */
-  beforeConfirm?: (change: Change, preview: Preview) => Promise<boolean>
+  beforeConfirm?: (change: Change, preview: Preview<Previewed>) => Promise<boolean>
   save: (change: Change) => Promise<Saved>
   /** What happens once it is saved: usually going to what changed. */
   saved: (result: Saved) => void
 }): {
-  preview: Preview
+  preview: Preview<Previewed>
   /** The form's onSubmit. */
   submit: (event: FormEvent) => Promise<void>
   saving: boolean

@@ -123,6 +123,14 @@ Feature: Mortgages
         | no Principal                    | Mace Amount Customer  | a Principal lent of ₹0                                | Principal lent (₹)            |
         | more gold than the piece weighs | Sumac Weight Customer | a gross weight of 5 grams and a net weight of 6 grams | Net weight, gold only (grams) |
 
+    @screen:/mortgages/new
+    Scenario: More gold than the piece weighs says so beside the net weight
+      Given "Anise Weight Customer" is a Customer
+      When the Lender starts a new Mortgage for "Anise Weight Customer"
+      And fills in ₹10,000 against a Gold ring
+      And enters a gross weight of 5 grams and a net weight of 6 grams
+      Then the net weight says "Net weight can't be more than the gross weight"
+
     @screen:/mortgages/new @screen:/mortgages/:id
     Scenario: Photos uploaded with a new Mortgage are on its page
       Given "Fennel Photo Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
