@@ -429,6 +429,20 @@ When('the Lender adds a photo to it', async ({ page }) => {
   await page.locator('input[type="file"]').setInputFiles(photos(1));
 });
 
+When('the Lender adds a photo over 20 MB to it', async ({ page }) => {
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'too-large.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.alloc(20 * 1024 * 1024 + 1),
+  });
+});
+
+Then('the Photos section says {string}', async ({ page }, refusal: string) => {
+  // The refusal sits under the Photos heading, not at the top of the page.
+  const photos = page.getByRole('heading', { name: 'Photos', exact: true });
+  await expect(photos.locator('xpath=following-sibling::p[contains(@class, "error")][1]')).toHaveText(refusal);
+});
+
 When('the Lender deletes its photo', async ({ page }) => {
   await page.locator('.gallery-item').getByRole('button', { name: 'Delete' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
