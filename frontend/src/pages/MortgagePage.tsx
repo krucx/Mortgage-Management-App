@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'react-router'
+import { useNumericId } from '../useNumericId'
 import type { Mortgage } from '../api'
 import { CallNotes } from '../components/CallNotes'
 import { History } from '../components/History'
@@ -18,7 +18,7 @@ import { TermsPanel } from './mortgage/TermsPanel'
 /** One Mortgage: what it owes, its Terms, Collateral, Call Notes, photos, Closure,
  *  Ledger, Projection and History. Each section is its own component in ./mortgage. */
 export function MortgagePage() {
-  const id = Number(useParams().id)
+  const id = useNumericId()
   const { client, queryClient } = useServerState()
   const loaded = useQuery(mortgageQuery(client, id))
   const mortgage = loaded.data

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate } from 'react-router'
 import { PURITIES, type Mortgage, type MortgageEdit, type Purity } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
@@ -17,10 +17,11 @@ import { useMortgageChange, useServerState } from '../serverState'
 import { gramsToMg, mgToGrams, netAboveGross } from '../weight'
 import { describeTerms, fromDraft, sameTerms, toDraft } from '../terms'
 import { RupeeInput } from '../components/RupeeInput'
+import { useNumericId } from '../useNumericId'
 
 /** Correct a Mortgage's details; the Ledger is replayed from them. */
 export function EditMortgagePage() {
-  const id = Number(useParams().id)
+  const id = useNumericId()
   const { client } = useServerState()
   const loaded = useQuery(mortgageQuery(client, id))
   if (!loaded.data) {
