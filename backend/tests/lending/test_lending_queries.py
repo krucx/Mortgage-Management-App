@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from seed import add_customer, add_mortgage, add_payment, redeem
+from seed import LAKH, add_customer, add_mortgage, redeem
 from sqlalchemy import insert
 from sqlalchemy.engine import Connection
 
@@ -81,20 +81,17 @@ def test_the_listing_filter_narrows_by_customer_status_and_closing(conn: Connect
     assert ids(query="ramesh-ring") == {redeemed}
 
 
-def test_the_dashboard_totals_over_a_period(conn: Connection):
+def test_the_trend_totals_over_a_period(conn: Connection) -> None:
     customer = add_customer(conn)
-    first = add_mortgage(conn, customer, suffix="Chain", start_date=date(2026, 1, 14))
-    second = add_mortgage(conn, customer, suffix="Ring", start_date=date(2026, 2, 3))
-    redeem(conn, second, date(2026, 3, 5))
-    add_payment(conn, customer, date(2026, 2, 14), {first: 3_000_00})
+    add_mortgage(conn, customer, suffix="Chain", start_date=date(2026, 1, 14))
+    ring = add_mortgage(
+        conn, customer, suffix="Ring", start_date=date(2026, 2, 3), amount_lent=2 * LAKH
+    )
+    redeem(conn, ring, date(2026, 3, 5))
 
-    span = (date(2026, 2, 1), date(2026, 3, 31))
-    assert queries.principal_lent_between(conn, *span) == second_amount(conn, second)
-    assert queries.redemptions_between(conn, *span) == 1
+    assert (
+        queries.principal_lent_between(conn, date(2026, 2, 1), date(2026, 3, 31))
+        == 2 * LAKH
+    )
+    assert queries.redemptions_between(conn, date(2026, 2, 1), date(2026, 3, 31)) == 1
     assert queries.redemptions_between(conn, date(2026, 4, 1), date(2026, 4, 30)) == 0
-
-
-def second_amount(conn: Connection, mortgage: int) -> int:
-    row = queries.mortgage_with_customer(conn, mortgage)
-    assert row is not None
-    return row["amount_lent"]

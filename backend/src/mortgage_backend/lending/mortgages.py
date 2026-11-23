@@ -22,11 +22,12 @@ from mortgage_backend.lending.ledger import (
 )
 from mortgage_backend.lending.queries import (
     customer_name_of,
+    fetch_matching_mortgages,
+    matching_mortgages,
     mortgage_filter,
     mortgage_with_customer,
     names_like,
     photos_of,
-    select_with_customer,
 )
 from mortgage_backend.lending.replay import (
     Closure,
@@ -43,7 +44,7 @@ from mortgage_backend.payments.advances import (
 )
 from mortgage_backend.payments.grace_period import LedgerGrace, graces_of
 from mortgage_backend.payments.payments import PaymentMethod
-from mortgage_backend.people.customers import PersonSummary, phone_fragment
+from mortgage_backend.people.customers import PersonSummary
 from mortgage_backend.platform.clock import MonthQuery, TodayDep
 from mortgage_backend.platform.db import (
     EngineDep,
@@ -401,11 +402,8 @@ def list_mortgages(
     if as_of is not None and as_of > today:
         raise unprocessable("The date cannot be in the future")
     query = q.strip()
-    # Digits may be part of a Mortgage Name (its year) as well as of a phone number.
-    phone = phone_fragment(query)
     match = mortgage_filter(
         query=query,
-        phone=phone,
         customer_id=customer_id,
         as_of=as_of,
         status=mortgage_status,
@@ -414,14 +412,12 @@ def list_mortgages(
     )
     after_replay = sort if sort in _SORT_AFTER_REPLAY else None
     by_column = None if after_replay else sort
-    matching = select_with_customer().where(match)
+    matching = matching_mortgages(match)
     with engine.connect() as conn:
         if owing or not paged or after_replay:
             # Outstanding is computed, so these are listed after the replay.
-            rows = (
-                conn.execute(matching.order_by(*_SORTING.order(by_column, descending)))
-                .mappings()
-                .all()
+            rows = fetch_matching_mortgages(
+                conn, match, _SORTING.order(by_column, descending)
             )
             listed = [
                 row

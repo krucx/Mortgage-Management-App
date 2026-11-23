@@ -13,6 +13,7 @@ from sqlalchemy import ColumnElement, Row, Select, false, func, or_, select, tru
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.replay import MortgageStatus
+from mortgage_backend.people.customers import phone_fragment
 from mortgage_backend.platform.clock import month_span
 from mortgage_backend.platform.db import (
     customer_table,
@@ -70,7 +71,6 @@ def customer_name_of(conn: Connection, customer_id: int) -> str | None:
 def mortgage_filter(
     *,
     query: str = "",
-    phone: str | None = None,
     customer_id: int | None = None,
     as_of: date | None = None,
     status: MortgageStatus | None = None,
@@ -78,8 +78,9 @@ def mortgage_filter(
     closed_in: str | None = None,
 ) -> ColumnElement[bool]:
     """The WHERE of the Mortgage list over `select_with_customer()`: `query` matches a
-    Mortgage Name or Customer name, `phone` (part of a Primary Number) the Customer's;
-    the rest narrow as the list's filters do. `closed_in` is YYYY-MM."""
+    Mortgage Name, Customer name or (part of) the Customer's Primary Number; the rest narrow as the list's filters do. `closed_in` is YYYY-MM."""
+    # Digits may be part of a Mortgage Name (its year) as well as of a phone number.
+    phone = phone_fragment(query)
     match: ColumnElement[bool] = (
         or_(
             mortgage_table.c.name.icontains(query),
@@ -100,6 +101,17 @@ def mortgage_filter(
     if closed_in is not None:
         match = match & mortgage_table.c.closed_on.between(*month_span(closed_in))
     return match
+
+
+def matching_mortgages(match: ColumnElement[bool]) -> Select[Any]:
+    """The Mortgages with their Customer's name that satisfy `match`."""
+    return select_with_customer().where(match)
+
+
+def fetch_matching_mortgages(
+    conn: Connection, match: ColumnElement[bool], order_by: Sequence[Any]
+) -> Sequence[RowMapping]:
+    return conn.execute(matching_mortgages(match).order_by(*order_by)).mappings().all()
 
 
 def principal_lent_between(conn: Connection, first: date, last: date) -> int:

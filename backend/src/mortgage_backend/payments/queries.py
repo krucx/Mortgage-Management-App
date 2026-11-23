@@ -7,7 +7,7 @@ means (a 404, a 409).
 from collections.abc import Sequence
 from datetime import date
 
-from sqlalchemy import RowMapping, func, or_, select
+from sqlalchemy import ColumnElement, RowMapping, func, or_, select
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.platform.db import (
@@ -92,12 +92,18 @@ def instalment_with_closed_on(
     )
 
 
+def _unvoided_between(first: date, last: date) -> list[ColumnElement[bool]]:
+    return [
+        payment_table.c.voided_at.is_(None),
+        payment_table.c.paid_on.between(first, last),
+    ]
+
+
 def received_total(conn: Connection, first: date, last: date) -> int:
     """Paise received from `first` to `last` (inclusive), Voided Payments left out."""
     total: int = conn.execute(
         select(func.coalesce(func.sum(payment_table.c.amount), 0)).where(
-            payment_table.c.voided_at.is_(None),
-            payment_table.c.paid_on.between(first, last),
+            *_unvoided_between(first, last)
         )
     ).scalar_one()
     return total
@@ -111,9 +117,7 @@ def received_between(
         (paid_on, amount)
         for paid_on, amount in conn.execute(
             select(payment_table.c.paid_on, payment_table.c.amount).where(
-                payment_table.c.voided_at.is_(None),
-                payment_table.c.paid_on >= first,
-                payment_table.c.paid_on <= last,
+                *_unvoided_between(first, last)
             )
         )
     ]
