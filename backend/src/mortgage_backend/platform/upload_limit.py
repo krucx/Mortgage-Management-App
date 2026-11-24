@@ -12,7 +12,8 @@ TOO_LARGE_MESSAGE = "The file is too large (over 20 MB)."
 class UploadLimit:
     """ASGI middleware: a body whose Content-Length is over MAX_BODY_BYTES is refused at
     once (413); one sent without its length is counted as it arrives, and refused once it
-    passes the limit."""
+    passes the limit. It is the innermost middleware, just outside the app (see
+    `create_app`)."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app

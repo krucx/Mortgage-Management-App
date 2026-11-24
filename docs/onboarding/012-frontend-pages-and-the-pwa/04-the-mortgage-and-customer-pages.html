@@ -107,7 +107,7 @@ sequenceDiagram
 238       &lt;History query={mortgageHistoryQuery(client, id)} title={`History of ${mortgage.name}`} /&gt;
 </code></pre>
 </figure>
-<p>That's the recipe for a new panel: an <code>h3</code>, then a component in <code>src/components/</code> that takes <code>mortgage</code>. If it shows something the Mortgage already holds, it needs nothing else. If it asks for more, it uses a read from <code>requests.ts</code> as <code>CallNotes</code> and <code>ProjectionPanel</code> do. If it saves a change that returns the Mortgage, it calls <code>onChange={setMortgage}</code> as <code>TermsPanel</code>, <code>CollateralPanel</code> and <code>CloseMortgage</code> do. <code>mortgage.ledger.slice(-8)</code> takes the last 8 steps: a negative index counts from the end.</p>
+<p>That's the recipe for a new panel: an <code>h3</code>, then a component in <code>src/components/</code> that takes <code>mortgage</code>. If it shows something the Mortgage already holds, it needs nothing else. If it asks for more, it uses a read from <code>requests/</code> as <code>CallNotes</code> and <code>ProjectionPanel</code> do. If it saves a change that returns the Mortgage, it calls <code>onChange={setMortgage}</code> as <code>TermsPanel</code>, <code>CollateralPanel</code> and <code>CloseMortgage</code> do. <code>mortgage.ledger.slice(-8)</code> takes the last 8 steps: a negative index counts from the end.</p>
 
 <h3>3. History, grouped into changes</h3>
 <figure class="snippet">
