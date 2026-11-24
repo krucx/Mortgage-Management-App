@@ -141,7 +141,7 @@ run_tests() {
 # qa/test-results/app-logs/<service>.log, before the exit trap removes the containers.
 save_app_logs() {
   mkdir -p qa/test-results/app-logs
-  for svc in app app-fresh app-work; do
+  for svc in app app-fresh app-work; do  # the three apps of docker-compose.qa.yml
     qa_compose logs --no-color --timestamps "$svc" > "qa/test-results/app-logs/$svc.log" 2>&1 || true
   done
 }
