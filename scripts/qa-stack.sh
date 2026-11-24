@@ -140,7 +140,7 @@ run_tests() {
 # Keep each app's log (the JSON request log, with any unhandled_error traceback) in
 # qa/test-results/app-logs/<service>.log, before the exit trap removes the containers.
 save_app_logs() {
-  mkdir -p qa/test-results/app-logs
+  mkdir -p qa/test-results/app-logs || return 0
   for svc in app app-fresh app-work; do  # the three apps of docker-compose.qa.yml
     qa_compose logs --no-color --timestamps "$svc" > "qa/test-results/app-logs/$svc.log" 2>&1 || true
   done
