@@ -20,7 +20,7 @@
 
 <h2>The idea</h2>
 <p><strong>One file lists every URL.</strong> <code>App.tsx</code> maps each path to one page component in <code>src/pages/</code>, and draws the shell around it once.</p>
-<p><strong>A read page has one shape.</strong> Ask for the data with a read from <code>requests.ts</code> (<a href="../011-the-frontends-data-layer/02-reading-through-the-cache.html">chapter 011, lesson 2</a>). Until it arrives, show "Loading…", or the error in a <code>status error</code> paragraph. Then draw it with the shared CSS classes, and format every figure with <code>formatINR</code> and every date with <code>formatDate</code>.</p>
+<p><strong>A read page has one shape.</strong> Ask for the data with a read from <code>requests/</code> (<a href="../011-the-frontends-data-layer/02-reading-through-the-cache.html">chapter 011, lesson 2</a>). Until it arrives, show "Loading…", or the error in a <code>status error</code> paragraph. Then draw it with the shared CSS classes, and format every figure with <code>formatINR</code> and every date with <code>formatDate</code>.</p>
 <p><strong>Pages show figures; they never compute money.</strong> Every amount on a screen is a number the backend sent. The frontend only formats it.</p>
 
 <h2>The flow</h2>
@@ -140,7 +140,7 @@ flowchart TD
 </figure>
 <ol class="marks">
   <li><code>useParams()</code> gives the route's parameters as strings: <code>{ id: "23" }</code>.</li>
-  <li>The read, named in <code>requests.ts</code> and keyed <code>['payment', 23, 'receipt']</code>. <code>data</code> is <code>undefined</code> until the answer comes.</li>
+  <li>The read, named in <code>requests/</code> and keyed <code>['payment', 23, 'receipt']</code>. <code>data</code> is <code>undefined</code> until the answer comes.</li>
   <li>The shared CSS classes, from <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/index.css"><code>index.css</code></a>: <code>card</code> is the white panel every page sits in, <code>wide</code> lets it use the page's full width, <code>receipt</code> adds the print layout.</li>
   <li><code>row</code> lays its children out in a line (<code>spread</code>: at both ends). <code>no-print</code> hides this row on paper: <code>index.css</code>'s <code>@media print</code> also hides the header and menu.</li>
   <li><code>receipt.paid_on</code> is <code>"2026-09-10"</code>, as the backend sends dates; <code>formatDate</code> makes it readable.</li>

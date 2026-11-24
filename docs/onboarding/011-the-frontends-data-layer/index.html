@@ -19,7 +19,7 @@
 <h2>What you'll be able to do</h2>
 <ul>
   <li>Say how a backend Pydantic model becomes a TypeScript type, what to run when you change one, and what happens to a refusal and to a failure.</li>
-  <li>Write a read in <code>requests.ts</code> with the right query key, and say when it is asked for again.</li>
+  <li>Write a read in <code>requests/</code> with the right query key, and say when it is asked for again.</li>
   <li>Add a sortable, paged list whose sort lives in the URL.</li>
   <li>Wire a form to its Preview, and say exactly when its Save button is enabled.</li>
   <li>Save a change, and declare in <code>serverState.ts</code> what it makes stale.</li>
@@ -53,7 +53,7 @@ flowchart LR
   OJ -->|"npm run gen:types"| G["api.gen.ts<br/>L1"]
   G -->|"names"| A["api.ts"]
   G -->|"checks every path"| C["typed client<br/>serverState.ts  L1"]
-  P["a page"] -->|"useQuery(…Query)"| R["requests.ts<br/>reads  L2"]
+  P["a page"] -->|"useQuery(…Query)"| R["requests/<br/>reads  L2"]
   P -->|"useListPage"| LP["lists  L3"]
   P -->|"useProposedChange"| PV["previews  L4"]
   P -->|"useLedgerChange, useChange"| CH["changes  L5"]
@@ -66,7 +66,7 @@ flowchart LR
 </pre>
 <figcaption>Every request goes through the one typed client; every answer is kept in the one cache. The labels L1–L5 are the lessons.</figcaption>
 </figure>
-<p>Notice that no page talks to the backend directly. A page names what it wants from <code>requests.ts</code> and hands it to a hook. The hooks talk to the cache, and only the cache's query functions reach the client. The left-hand arrows run at build time, not in the browser: they turn the backend's models into the types every request is checked against.</p>
+<p>Notice that no page talks to the backend directly. A page names what it wants from <code>requests/</code> and hands it to a hook. The hooks talk to the cache, and only the cache's query functions reach the client. The left-hand arrows run at build time, not in the browser: they turn the backend's models into the types every request is checked against.</p>
 
 <h2>Where it lives</h2>
 <table class="wide">
@@ -74,7 +74,7 @@ flowchart LR
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/openapi.py"><code>backend/…/openapi.py</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/openapi.json"><code>frontend/openapi.json</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/api.gen.ts"><code>src/api.gen.ts</code></a></td><td>The backend's schema, the frontend's copy of it, and the TypeScript types generated from it (<code>npm run gen:types</code>)</td><td>1</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/api.ts"><code>src/api.ts</code></a></td><td>Short names for the generated types; each list's sort columns</td><td>1, 3</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/serverState.ts"><code>src/serverState.ts</code></a></td><td>The typed client, errors and retries, the cache's keys, what each change makes stale, and the save hooks</td><td>1, 2, 5</td></tr>
-<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts"><code>src/requests.ts</code></a></td><td>Everything the frontend asks, by name: reads (with their keys), lists, Previews and changes</td><td>1–5</td></tr>
+<tr><td><a href="https://github.com/krucx/Mortgage-Management-App/tree/main/frontend/src/requests"><code>src/requests/</code></a></td><td>Everything the frontend asks, by name: reads (with their keys), lists, Previews and changes</td><td>1–5</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/main.tsx"><code>src/main.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/ServerStateProvider.tsx"><code>components/ServerStateProvider.tsx</code></a></td><td>Where the one client and the one cache are made and handed to every page</td><td>2</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useListPage.tsx"><code>components/useListPage.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useUrlSort.ts"><code>useUrlSort.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/sort.ts"><code>src/sort.ts</code></a></td><td>A list a page at a time, its sort kept in the URL</td><td>3</td></tr>
 <tr><td><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/usePreview.ts"><code>components/usePreview.ts</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useProposedChange.tsx"><code>useProposedChange.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useCashWarning.tsx"><code>useCashWarning.tsx</code></a>, <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useConfirm.tsx"><code>useConfirm.tsx</code></a></td><td>A form's Preview as the Lender types; Save, with the Cash Limit's warning and the confirmation</td><td>4</td></tr>

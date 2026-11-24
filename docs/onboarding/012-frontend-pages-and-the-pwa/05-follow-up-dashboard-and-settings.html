@@ -37,7 +37,7 @@ flowchart LR
   WA -->|"onSent"| MS["POST …/sent"]
   S["SettingsPage: Reminder template"] -->|"PUT /api/settings/messages"| NP
 </pre>
-<figcaption>The morning's round. Every arrow out of a page is one request in <code>requests.ts</code>.</figcaption>
+<figcaption>The morning's round. Every arrow out of a page is one request in <code>requests/</code>.</figcaption>
 </figure>
 <p>Reminder the two arrows out of "Send": WhatsApp is opened in the browser, and the backend is told separately. The app never sees whether the Lender actually pressed Send in WhatsApp.</p>
 
@@ -188,7 +188,7 @@ $/, '')}&lt;/pre&gt;
   <li><code>useDraft</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/useDraft.ts"><code>useDraft.ts</code></a>) is a <code>useState</code> that starts from the saved value once it arrives, and starts again when the saved value changes.</li>
   <li>New templates reword the unsent Reminders and the Receipts, so the save marks <code>STALE_AFTER.messageSettings</code> stale: Payments (their Receipts), the Reminders list and the Dashboard.</li>
 </ol>
-<p>The Cash Limit and Discount confirmation sections are one component, <code>ThresholdSetting</code> (line 302), given their own heading, labels and wording for "cleared"; the backend stores both with the one <code>ThresholdSetting</code> class (chapter 010, lesson 3). That pair was a copy until architecture review pass 7. <code>TemplateField</code> (line 444) is a textarea with a <code>WhatsAppPreview</code> beside it, fed the draft as it's typed, and the list of placeholders the backend can fill in. To add a setting, add a section component here and a <code>settings.…</code> read and save in <code>requests.ts</code>; the backend half is <a href="../010-platform-database-and-migrations/03-settings-in-the-config-table.html">chapter 010, lesson 3</a>.</p>
+<p>The Cash Limit and Discount confirmation sections are one component, <code>ThresholdSetting</code> (line 302), given their own heading, labels and wording for "cleared"; the backend stores both with the one <code>ThresholdSetting</code> class (chapter 010, lesson 3). That pair was a copy until architecture review pass 7. <code>TemplateField</code> (line 444) is a textarea with a <code>WhatsAppPreview</code> beside it, fed the draft as it's typed, and the list of placeholders the backend can fill in. To add a setting, add a section component here and a <code>settings.…</code> read and save in <code>requests/settings.ts</code>; the backend half is <a href="../010-platform-database-and-migrations/03-settings-in-the-config-table.html">chapter 010, lesson 3</a>.</p>
 
 <h3>5. The Dashboard: one request, many links</h3>
 <figure class="snippet">
@@ -333,7 +333,7 @@ $/, '')}&lt;/pre&gt;
   <button class="opt">A new page at <code>/settings/signature</code> and a menu link</button>
   <button class="opt">A section in <code>SettingsPage</code>, with a read and save</button>
   <button class="opt">The Reminders page, which has the templates</button>
-  <div class="why">Settings is one component per group, listed in <code>SettingsPage</code> (lines 15–26), each with its own <code>settings.…</code> read and save in <code>requests.ts</code>. For a field of the message settings, it would go in <code>MessageSettingsForm</code>. The Reminders page only shows the messages.</div>
+  <div class="why">Settings is one component per group, listed in <code>SettingsPage</code> (lines 15–26), each with its own <code>settings.…</code> read and save in <code>requests/settings.ts</code>. For a field of the message settings, it would go in <code>MessageSettingsForm</code>. The Reminders page only shows the messages.</div>
 </div>
 <p><span class="score"></span></p>
 

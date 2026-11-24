@@ -21,7 +21,7 @@
 
 <h2>The idea</h2>
 <p><strong>The form only makes a draft.</strong> From its fields, a form works out <code>change</code>: exactly what saving would send, or <code>null</code> while it can't be saved. That's all it does.</p>
-<p><strong>A Preview is a key and a loader.</strong> <code>requests.ts</code>'s <code>previews</code> says, for each kind of change, what its Preview is called in the cache (the draft itself is in the key) and which route to ask.</p>
+<p><strong>A Preview is a key and a loader.</strong> <code>requests/previews.ts</code>'s <code>previews</code> says, for each kind of change, what its Preview is called in the cache (the draft itself is in the key) and which route to ask.</p>
 <p><strong>Ask once the draft has settled, and only show the answer for the draft on screen.</strong> <code>usePreview</code> waits until the draft has stopped changing for 400 ms, then asks. An answer for an older draft stays on screen, marked as loading, until the current one arrives.</p>
 <p><strong>One hook owns Save.</strong> <code>useProposedChange</code> decides when Save is enabled and runs the steps in order: the Cash Limit's warning, the confirmation, the save, and what happens after.</p>
 
@@ -50,20 +50,20 @@ flowchart TD
 <h2>The code</h2>
 <h3>1. A Preview, declared once</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>PreviewRequest</code>, <code>previews.payment</code> · lines 94–101 and 131–134, trimmed</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>94   /** A Preview of an unsaved change: which change it is, and how to ask for it. */
-95   export interface PreviewRequest&lt;T = PreviewOfChange&gt; {
-96     key: readonly unknown[]
-97     load: (client: ApiClient) =&gt; Promise&lt;T&gt;
-98   }
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests/previews.ts">frontend/src/requests/previews.ts</a> · <code>PreviewRequest</code>, <code>previews.payment</code> · lines 17–24 and 64–67, trimmed</figcaption>
+<pre data-file="frontend/src/requests/previews.ts"><code>17   /** A Preview of an unsaved change: which change it is, and how to ask for it. */
+18   export interface PreviewRequest&lt;T = PreviewOfChange&gt; {
+19     key: readonly unknown[]
+20     load: (client: ApiClient) =&gt; Promise&lt;T&gt;
+21   }
 ⋮
-100  /** The Preview of each change: what it would do, made and rolled back by the backend. */
-101  export const previews = {
+23   /** The Preview of each change: what it would do, made and rolled back by the backend. */
+24   export const previews = {
 ⋮
-131    payment: (payment: PaymentIn): PreviewRequest =&gt; ({
-132      key: ['payment', payment],                                       ◀
-133      load: (client) =&gt; dataOrThrow(client.POST('/api/payments/preview', { body: payment })),
-134    }),
+64     payment: (payment: PaymentIn): PreviewRequest =&gt; ({
+65       key: ['payment', payment],                                       ◀
+66       load: (client) =&gt; dataOrThrow(client.POST('/api/payments/preview', { body: payment })),
+67     }),
 </code></pre>
 </figure>
 <p>The whole draft, <code>payment</code>, is part of the key. Two drafts that differ in any field are two different Previews; the same draft typed twice is the same one. There are eleven entries in <code>previews</code>, one per kind of change, and most of them share <code>PreviewOfChange</code>, the before-and-after of each Mortgage the change touches. (The new-Mortgage and Collateral Previews have their own shapes; ADR 0007 explains why each Preview route is written out by hand on the backend.)</p>
