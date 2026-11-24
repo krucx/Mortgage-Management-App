@@ -116,11 +116,11 @@ def create_app(
     app.state.backups = backup
     app.state.daily_run = daily_run
     app.state.update_check = UpdateCheck(app.version, latest_release, now)
-    # Inside the daily jobs' middleware, which would turn its refusal of a body sent
-    # without its length into a 400; neither reads a body before it.
+    # Registered innermost first: each `add_middleware` wraps the ones before it, so the
+    # request runs request log > localhost-only > daily jobs > upload limit > app.
+    # The upload limit sits inside the daily jobs' middleware, which would turn its refusal
+    # of a body sent without its length into a 400; neither reads a body before it.
     app.add_middleware(UploadLimit)
-    app.add_middleware(LocalOnly)  # refuses before anything is read or run
-    app.add_middleware(RequestLog)  # outermost: logs every request, refused ones too
 
     @app.middleware("http")
     async def run_daily_jobs(
@@ -135,6 +135,9 @@ def create_app(
                 return JSONResponse({"detail": error.detail}, error.status_code)
             await run_in_threadpool(daily_run.run_if_due, day)
         return await call_next(request)
+
+    app.add_middleware(LocalOnly)  # refuses before anything is read or run
+    app.add_middleware(RequestLog)  # outermost: logs every request, refused ones too
 
     api_router = APIRouter(prefix="/api")
     api_router.include_router(default_terms.router)

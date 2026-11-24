@@ -1,0 +1,1 @@
+- **Request checks run in the intended order:** a request from another host is now refused before any daily job runs, and a bad `X-QA-Clock`, or an error in the daily jobs, is now in the request log (the error is logged and answered 500).
