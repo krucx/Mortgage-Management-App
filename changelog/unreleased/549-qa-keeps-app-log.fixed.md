@@ -1,1 +1,1 @@
-- **QA failures keep the app log:** a failing QA run now saves each app's JSON request log, including any `unhandled_error` traceback, in the published `qa-test-results` artifact.
+- **QA failures keep the app log:** a failing QA run now saves each app's log, including any `unhandled_error` traceback, in the published `qa-test-results` artifact.
