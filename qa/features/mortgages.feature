@@ -233,7 +233,7 @@ Feature: Mortgages
 
     @screen:/mortgages/:id
     Scenario: A photo added to a Mortgage can be deleted
-      Given "Sesame Photo Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
+      Given "Sesamesmall Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
       When the Lender opens the Mortgage on 15 Nov 2025
       Then the Mortgage has no photos
       When the Lender adds a photo to it
@@ -243,7 +243,7 @@ Feature: Mortgages
 
     @screen:/mortgages/:id
     Scenario: A photo over 20 MB is refused beside the photos, and not added
-      Given "Sesame Large Photo Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
+      Given "Sesamelarge Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
       When the Lender opens the Mortgage on 15 Nov 2025
       And the Lender adds a photo over 20 MB to it
       Then the Photos section says "The photo is too large (over 20 MB)."
