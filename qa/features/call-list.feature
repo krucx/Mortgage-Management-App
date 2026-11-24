@@ -189,7 +189,8 @@ Feature: Call List and Call Notes
       Then it is not on the Call List
       When the Lender sets the Call List to 3 Months Unpaid in Settings
       And the Lender confirms
-      And the Lender opens the Call List
+      Then the Call List thresholds are saved
+      When the Lender opens the Call List
       Then it is on the Call List for "3 months unpaid"
 
   Rule: The Dashboard counts the Call List
