@@ -1,1 +1,1 @@
-- **Request checks run in the intended order:** a request from another host is now refused before any daily job runs, and a bad `X-QA-Clock`, or an error in the daily jobs, is now in the request log (the error is logged and answered 500).
+- **Checks on each request run in the intended order:** a request from another computer is refused before the app does any daily work, and refused or failed requests now always appear in the request log.
