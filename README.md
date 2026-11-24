@@ -158,6 +158,15 @@ To go back to an earlier release, set `APP_VERSION` in `.env` and run the same t
 A newer release may have updated the database: restore the Backup taken before that
 update (see Backups) when going back past one.
 
+### Checking it is running
+
+`GET /api/health` (for example `curl http://localhost:<port>/api/health`) reports whether the
+database answers, whether its schema is at the latest migration, and whether the Backup engine is
+configured and running. It answers 200 when healthy and 503 when the database cannot be reached or
+its schema is behind. It reads no Customer or Mortgage data. The backend also writes one JSON log
+line per request (method, path, status, time taken) and logs the details of an unexpected error
+before answering 500; read them with `docker compose logs app`.
+
 ### Published images
 
 Each release is published to Docker Hub as one image,
