@@ -162,16 +162,14 @@ flowchart TD
 
 <h3>4. Who calls <code>sync</code></h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 79–87</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>79      def sync_reminders(day: date) -&gt; None:
-80          with engine.begin() as conn:
-81              reminders.sync(conn, day)
-82
-83      daily_run = DailyRun(
-84          engine,
-85          today,
-86          jobs={"backup": backup.start_if_due, "reminders": sync_reminders},   # ① the daily run
-87      )
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 83–89</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>83      def sync_reminders(day: date) -&gt; None:
+84          with write_transaction(engine) as conn:
+85              reminders.sync(conn, day)
+86
+87      daily_run = DailyRun(
+88          engine, jobs={"backup": backup.start_if_due, "reminders": sync_reminders}   # ① the daily run
+89      )
 </code></pre>
 </figure>
 <figure class="snippet">

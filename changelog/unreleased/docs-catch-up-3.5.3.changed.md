@@ -1,0 +1,1 @@
+- **Documentation:** the walkthrough's Dashboard tile says "so far this year", as the Dashboard now does, and the onboarding course's backend lessons show the `/api` master router, the request log, the health check skipping the daily jobs, and the daily run taking each request's date.
