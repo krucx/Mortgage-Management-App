@@ -42,7 +42,10 @@ When('the Lender voids it because {string}', async ({ page }, reason: string) =>
   await page.getByRole('button', { name: 'Void…' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Reason (kept on record)').fill(reason);
+  // Wait for the Void to be stored: the next step may read the API, or leave the page.
+  const voided = page.waitForResponse((r) => r.request().method() === 'POST' && /\/api\/payments\/\d+\/void$/.test(r.url()));
   await dialog.getByRole('button', { name: 'Void Payment' }).click();
+  expect((await voided).ok()).toBe(true);
 });
 
 Then('it shows {string} with the reason {string}', async ({ page }, heading: string, reason: string) => {
