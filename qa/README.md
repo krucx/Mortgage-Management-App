@@ -19,6 +19,16 @@ This file covers how to add to them without colliding with other work in flight.
   files that define it. The runner image runs the same check when `scripts/qa-stack.sh test`
   builds it.
 
+## The clock
+
+The QA apps run with `QA_MODE=true`, so each request's `X-QA-Clock` header (`YYYY-MM-DD`)
+sets the backend's today for that request alone. `today is <day>` (`Lender.on` in
+`steps/lender.ts`) sends it on every later request and fixes the browser's clock to the same
+day. The day also runs that date's daily jobs, Reminder queueing and the Backup-due check,
+even when it is earlier than a day already run, so a scenario tests Reminders by moving the
+date. A request that carries no header, such as a file download the browser starts, gets the
+container's real date: send the header yourself, as `steps/call-sheets.steps.ts` does.
+
 ## Settings are one value for the whole book
 
 A scenario that changes a setting (Default Terms, Cash Limit, Discount confirmation limit,

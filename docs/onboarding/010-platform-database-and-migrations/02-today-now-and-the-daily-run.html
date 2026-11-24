@@ -45,65 +45,75 @@ flowchart TD
 <h2>The code</h2>
 <h3>1. Today and now, as dependencies</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/clock.py">platform/clock.py</a> · <code>get_today()</code>, <code>TodayDep</code>, <code>get_now()</code>, <code>NowDep</code> · lines 1–25</figcaption>
-<pre data-file="backend/src/mortgage_backend/platform/clock.py"><code>1   """Today's date, injectable so tests can pin it (business dates follow the TZ setting)."""
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/clock.py">platform/clock.py</a> · <code>get_today()</code>, <code>TodayDep</code>, <code>get_now()</code>, <code>NowDep</code> · lines 1–71, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/clock.py"><code>1   """Today's date, injectable so tests can pin it (business dates follow the TZ setting).
 ⋮
-10  def get_today(request: Request) -&gt; date:
-11      """FastAPI dependency: today's business date."""
-12      today: Callable[[], date] = request.app.state.today            ◀
-13      return today()
-14
-15
-16  TodayDep = Annotated[date, Depends(get_today)]
+44  def get_today(request: Request) -&gt; date:
+45      """FastAPI dependency: today's business date."""
+46      if _QA_MODE:
+47          raw = request.headers.get("X-QA-Clock")
+48          if raw:
+49              return _parse_date(raw, "X-QA-Clock")
+50      today: Callable[[], date] = request.app.state.today            ◀
+51      return today()
+52
+53
+54  TodayDep = Annotated[date, Depends(get_today)]
 ⋮
-19  def get_now(request: Request) -&gt; datetime:
-20      """FastAPI dependency: the current local time, for audit entries."""
-21      now: Callable[[], datetime] = request.app.state.now
-22      return now()
-23
-24
-25  NowDep = Annotated[datetime, Depends(get_now)]
+57  def get_now(request: Request) -&gt; datetime:
+58      """FastAPI dependency: the current local time, for audit entries."""
+⋮
+67      now: Callable[[], datetime] = request.app.state.now
+68      return now()
+⋮
+71  NowDep = Annotated[datetime, Depends(get_now)]
 </code></pre>
 </figure>
 <p>The same pattern as <code>EngineDep</code> in lesson 1: read what <code>create_app</code> put on <code>app.state</code>. <code>today</code> is the <em>business date</em>: the day used for interest, Accrual Dates and Reminders. <code>now</code> is a full date and time, used where the minute matters: History entries (chapter 006) and Backup file names.</p>
+<p>The <code>_QA_MODE</code> branches (#447) matter only to the QA stack (<code>qa/README.md</code>). With <code>QA_MODE=true</code>, fixed when the process starts, a request's <code>X-QA-Clock</code> header (<code>YYYY-MM-DD</code>) and optional <code>X-QA-Clock-Now</code> set today and now for that request alone; a malformed one is a 400. The real app never sets <code>QA_MODE</code>, so it always calls <code>app.state.today</code>.</p>
 <p>The rest of <code>clock.py</code> is two small helpers for lists filtered by month: <code>MonthQuery</code> accepts a query parameter like <code>2026-04</code> (a regular expression rejects <code>2026-13</code>), and <code>month_span("2026-04")</code> gives its first and last days. The Payments list (<code>?month=</code>) and the Closures list (<code>?closed_in=</code>) use them.</p>
 
 <h3>2. The middleware</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>run_daily_jobs()</code> · lines 122–128</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>122     @app.middleware("http")
-123     async def run_daily_jobs(
-124         request: Request, call_next: Callable[[Request], Awaitable[Response]]
-125     ) -&gt; Response:
-126         if request.url.path.startswith("/api/"):                    # ①  ◀
-127             await run_in_threadpool(daily_run.run_if_due)           # ②
-128         return await call_next(request)                             # ③
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>run_daily_jobs()</code> · lines 125–137</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>125     @app.middleware("http")
+126     async def run_daily_jobs(
+127         request: Request, call_next: Callable[[Request], Awaitable[Response]]
+128     ) -&gt; Response:
+129         # The health probe reads no Customer data, so it runs no job that would.
+130         if request.url.path.startswith("/api/") and request.url.path != "/api/health":   # ①  ◀
+131             # The request's date, so in QA mode `X-QA-Clock` runs that day's jobs too.
+132             try:
+133                 day = get_today(request)
+134             except HTTPException as error:
+135                 return JSONResponse({"detail": error.detail}, error.status_code)
+136             await run_in_threadpool(daily_run.run_if_due, day)      # ②
+137         return await call_next(request)                             # ③
 </code></pre>
 </figure>
 <p>A <em>middleware</em> is a function FastAPI runs around every request, before the route.</p>
 <ol class="marks">
-  <li>Only API requests count. Loading a screen, a picture or <code>/docs</code> never runs the jobs.</li>
+  <li>Only API requests count. Loading a screen, a picture or <code>/docs</code> never runs the jobs, and neither does <code>GET /api/health</code> (#509). The day is the request's own, read with the same <code>get_today</code> as a route, so in QA mode a request's <code>X-QA-Clock</code> runs that day's jobs.</li>
   <li><code>run_if_due</code> is ordinary (blocking) code that talks to the database. <code>run_in_threadpool</code> runs it on a worker thread, so the server's async loop isn't stuck while it does. The request still <em>waits</em> for it (<code>await</code>).</li>
   <li>Then the request carries on to its route as usual.</li>
 </ol>
 
 <h3>3. The daily run</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/daily_run.py">platform/daily_run.py</a> · <code>_done_key</code>, <code>DailyRun</code> · lines 23–66, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/platform/daily_run.py"><code>23  def _done_key(name: str) -&gt; str:
-24      return f"daily_run_done_{name}"                                 # ①
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/platform/daily_run.py">platform/daily_run.py</a> · <code>_done_key</code>, <code>DailyRun</code> · lines 27–66, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/platform/daily_run.py"><code>27  def _done_key(name: str) -&gt; str:
+28      return f"daily_run_done_{name}"                                 # ①
 ⋮
-34          self.count = 0  # runs since the app started
-35          self._complete_on: date | None = None  # the day every job has succeeded
-36          self._lock = threading.Lock()                               # ②
-37
-38      def run_if_due(self) -&gt; None:
-39          """Run each job that has not succeeded today. Jobs must return quickly."""
-40          today = self.today()
-41          if self._complete_on == today:                              # ③
+35          self.count = 0  # runs since the app started
+36          self._complete: set[date] = set()  # the days every job has succeeded on
+37          self._lock = threading.Lock()                               # ②
+38
+39      def run_if_due(self, today: date) -&gt; None:
+40          """Run each job that has not succeeded on `today`. Jobs must return quickly."""
+41          if today in self._complete:                                 # ③
 42              return
 43          with self._lock:
-44              if self._complete_on == today:
+44              if today in self._complete:
 45                  return
 46              with self.engine.begin() as conn:
 47                  done = get_config(conn, [_done_key(name) for name in self.jobs])
@@ -123,13 +133,13 @@ flowchart TD
 63                  with self.engine.begin() as conn:
 64                      set_config(conn, _done_key(name), today.isoformat())
 65              if not failed:
-66                  self._complete_on = today
+66                  self._complete.add(today)
 </code></pre>
 </figure>
 <ol class="marks">
   <li>Each job's last successful day is its own row in the <code>config</code> table: <code>daily_run_done_backup</code> and <code>daily_run_done_reminders</code>, named by the keys <code>main.py</code> gives the jobs. Lesson 3 opens the table.</li>
   <li>The server answers several requests at once, each on its own thread. Without a lock, two requests arriving together could both read "not run today" and both run the jobs. <code>threading.Lock</code> lets one thread in at a time.</li>
-  <li>Once every job has succeeded today, later requests stop here, in memory, without touching the database. A restart forgets it, so the first request after one reads the rows again (and finds nothing due).</li>
+  <li>Once every job has succeeded on a day, later requests for that day stop here, in memory, without touching the database. It remembers every such day, not only the latest, because in QA mode the clock can move backwards. A restart forgets them, so the first request after one reads the rows again (and finds nothing due).</li>
   <li>A job is due unless its row says today.</li>
   <li>A job that fails is logged and left unmarked, and the next job still runs. The next request finds it due again and retries only it.</li>
 </ol>

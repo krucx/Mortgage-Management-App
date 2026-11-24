@@ -33,7 +33,7 @@ sequenceDiagram
   C->>CA: database_url, today, now, backup_dir, …
   CA->>CA: make_engine, Backups, DailyRun
   CA->>CA: app.state = engine, today, now, …
-  CA->>CA: middleware, 22 routers, screens last
+  CA->>CA: middleware, /api router, screens last
   CA-->>C: app (nothing has run yet)
   C->>LS: start the server
   LS->>LS: 1 · backup.clean_leftovers()
@@ -50,29 +50,27 @@ sequenceDiagram
 <h2>The code</h2>
 <h3>1. What can vary: the arguments</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 64–87</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>64  def create_app(
-65      database_url: str,
-66      today: Callable[[], date] = date.today,             # ①
-67      now: Callable[[], datetime] = datetime.now,
-68      backup_dir: Path | None = None,                     # ②
-69      backup_password: str = "",
-70      screens_dir: Path | None = None,
-71      latest_release: LatestRelease | None = None,
-72  ) -&gt; FastAPI:
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 68–89</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>68  def create_app(
+69      database_url: str,
+70      today: Callable[[], date] = date.today,             # ①
+71      now: Callable[[], datetime] = datetime.now,
+72      backup_dir: Path | None = None,                     # ②
+73      backup_password: str = "",
+74      screens_dir: Path | None = None,
+75      latest_release: LatestRelease | None = None,
+76  ) -&gt; FastAPI:
 ⋮    … docstring …
-76      engine = make_engine(database_url)                  # ③  ◀
-77      backup = Backups(engine, database_url, backup_dir, backup_password, now)
-78
-79      def sync_reminders(day: date) -&gt; None:
-80          with engine.begin() as conn:
-81              reminders.sync(conn, day)
+80      engine = make_engine(database_url)                  # ③  ◀
+81      backup = Backups(engine, database_url, backup_dir, backup_password, now)
 82
-83      daily_run = DailyRun(
-84          engine,
-85          today,
-86          jobs={"backup": backup.start_if_due, "reminders": sync_reminders},   # ④
-87      )
+83      def sync_reminders(day: date) -&gt; None:
+84          with write_transaction(engine) as conn:
+85              reminders.sync(conn, day)
+86
+87      daily_run = DailyRun(
+88          engine, jobs={"backup": backup.start_if_due, "reminders": sync_reminders}   # ④
+89      )
 </code></pre>
 </figure>
 <ol class="marks">
@@ -84,21 +82,21 @@ sequenceDiagram
 
 <h3>2. The start sequence: the lifespan</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>lifespan()</code> · lines 89–102</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>89      @asynccontextmanager
-90      async def lifespan(app: FastAPI) -&gt; AsyncIterator[None]:
-91          backup.clean_leftovers()                                    # ①
-92          # Every start brings the schema up to date, backing up the old one first.
-93          migrate(                                                    # ②  ◀
-94              database_url,
-95              before_update=(
-96                  (lambda: backup.make("before-update")) if backup.backup_dir else None
-97              ),
-98          )
-99          # Also retries a weekly Backup that a shutdown interrupted.
-100         backup.start_if_due(today())                                # ③
-101         yield                                                       # ④ the app serves here
-102         backup.wait(timeout=8)  # let a running Backup finish if it can   ⑤
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>lifespan()</code> · lines 91–104</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>91      @asynccontextmanager
+92      async def lifespan(app: FastAPI) -&gt; AsyncIterator[None]:
+93          backup.clean_leftovers()                                    # ①
+94          # Every start brings the schema up to date, backing up the old one first.
+95          migrate(                                                    # ②  ◀
+96              database_url,
+97              before_update=(
+98                  (lambda: backup.make("before-update")) if backup.backup_dir else None
+99              ),
+100         )
+101         # Also retries a weekly Backup that a shutdown interrupted.
+102         backup.start_if_due(today())                                # ③
+103         yield                                                       # ④ the app serves here
+104         backup.wait(timeout=8)  # let a running Backup finish if it can   ⑤
 </code></pre>
 </figure>
 <p>A <em>lifespan</em> is a FastAPI hook for "on start" and "on stop" work. It's written as an async generator: everything before <code>yield</code> runs as the server starts, everything after it runs as the server stops. <code>@asynccontextmanager</code> is the standard-library decorator that turns such a generator into something FastAPI can enter and leave.</p>
@@ -112,19 +110,19 @@ sequenceDiagram
 
 <h3>3. Putting the shared things where routes can find them</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 105–116</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>105     app = FastAPI(
-106         title="Mortgage Management",
-107         version=version("mortgage-backend"),
-108         lifespan=lifespan,
-109     )
-110     app.state.engine = engine                                       ◀
-111     app.state.photos_dir = photos_dir(database_url)
-112     app.state.today = today
-113     app.state.now = now
-114     app.state.backups = backup
-115     app.state.daily_run = daily_run
-116     app.state.update_check = UpdateCheck(app.version, latest_release, now)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 107–118</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>107     app = FastAPI(
+108         title="Mortgage Management",
+109         version=version("mortgage-backend"),
+110         lifespan=lifespan,
+111     )
+112     app.state.engine = engine                                       ◀
+113     app.state.photos_dir = photos_dir(database_url)
+114     app.state.today = today
+115     app.state.now = now
+116     app.state.backups = backup
+117     app.state.daily_run = daily_run
+118     app.state.update_check = UpdateCheck(app.version, latest_release, now)
 </code></pre>
 </figure>
 <p><code>app.state</code> is a plain bag of attributes that FastAPI keeps for you on the app. Routes never import the engine. They ask for it through a <em>dependency</em>, a function FastAPI calls for each request and whose result it passes in as an argument:</p>
@@ -141,54 +139,64 @@ sequenceDiagram
 </figure>
 <p><code>Annotated[Engine, Depends(get_engine)]</code> is FastAPI's way of saying "this argument is an <code>Engine</code>, and you get it by calling <code>get_engine</code>". So a route written <code>def read_default_terms(engine: EngineDep)</code> receives whichever engine <em>this</em> app was built with. <code>TodayDep</code> and <code>NowDep</code> work the same way (lesson 2).</p>
 
-<h3>4. Before any route: three middlewares</h3>
+<h3>4. Before any route: four middlewares</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 117–128</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>117     # Inside the daily jobs' middleware, which would turn its refusal of a body sent
-118     # without its length into a 400; neither reads a body before it.
-119     app.add_middleware(UploadLimit)                                 # ①
-120     app.add_middleware(LocalOnly)  # outermost: refuses before anything is read or run   ◀ ②
-121
-122     @app.middleware("http")
-123     async def run_daily_jobs(                                       # ③
-124         request: Request, call_next: Callable[[Request], Awaitable[Response]]
-125     ) -&gt; Response:
-126         if request.url.path.startswith("/api/"):
-127             await run_in_threadpool(daily_run.run_if_due)
-128         return await call_next(request)
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 119–137</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>119     # Inside the daily jobs' middleware, which would turn its refusal of a body sent
+120     # without its length into a 400; neither reads a body before it.
+121     app.add_middleware(UploadLimit)                                 # ①
+122     app.add_middleware(LocalOnly)  # refuses before anything is read or run   # ②
+123     app.add_middleware(RequestLog)  # outermost: logs every request, refused ones too   # ③
+124
+125     @app.middleware("http")
+126     async def run_daily_jobs(                                       # ④
+127         request: Request, call_next: Callable[[Request], Awaitable[Response]]
+128     ) -&gt; Response:
+129         # The health probe reads no Customer data, so it runs no job that would.
+130         if request.url.path.startswith("/api/") and request.url.path != "/api/health":
+131             # The request's date, so in QA mode `X-QA-Clock` runs that day's jobs too.
+132             try:
+133                 day = get_today(request)
+134             except HTTPException as error:
+135                 return JSONResponse({"detail": error.detail}, error.status_code)
+136             await run_in_threadpool(daily_run.run_if_due, day)
+137         return await call_next(request)
 </code></pre>
 </figure>
-<p>A <em>middleware</em> wraps every request before it reaches a route. The one added last runs first.</p>
+<p>A <em>middleware</em> wraps every request before it reaches a route. The one added last runs first, and <code>@app.middleware</code> adds one too, so from the outside in the order is ④, ③, ②, ①. <code>RequestLog</code>'s comment calls it outermost: it is the outermost of the three added with <code>add_middleware</code>, inside the daily jobs.</p>
 <ol class="marks">
   <li><code>UploadLimit</code> (<code>platform/upload_limit.py</code>) refuses a body over 20 MB with a 413 before it is read.</li>
-  <li><code>LocalOnly</code> (<code>platform/local_only.py</code>, added in 3.4.10, #368) is outermost. The app has no sign-in: it relies on being reached only from this PC. A request whose <code>Host</code> isn't <code>localhost</code>, <code>127.0.0.1</code> or <code>[::1]</code> gets 400 "Unknown host.", which stops a web page that points its own domain at 127.0.0.1 (DNS rebinding) from reading the API; a POST, PUT or DELETE whose <code>Origin</code> is another site gets 403. A request with no <code>Origin</code>, like <code>curl</code>, passes. This is why every <code>TestClient</code> in the tests and in <code>docs/sample-book</code> is built with <code>base_url="http://localhost"</code>: its default host, <code>testserver</code>, is refused (<a href="../013-testing/02-backend-tests-through-the-api.html">chapter 013, lesson 2</a>).</li>
-  <li>The daily jobs' middleware, lesson 2.</li>
+  <li><code>LocalOnly</code> (<code>platform/local_only.py</code>, added in 3.4.10, #368). The app has no sign-in: it relies on being reached only from this PC. A request whose <code>Host</code> isn't <code>localhost</code>, <code>127.0.0.1</code> or <code>[::1]</code> gets 400 "Unknown host.", which stops a web page that points its own domain at 127.0.0.1 (DNS rebinding) from reading the API; a POST, PUT or DELETE whose <code>Origin</code> is another site gets 403. A request with no <code>Origin</code>, like <code>curl</code>, passes. This is why every <code>TestClient</code> in the tests and in <code>docs/sample-book</code> is built with <code>base_url="http://localhost"</code>: its default host, <code>testserver</code>, is refused (<a href="../013-testing/02-backend-tests-through-the-api.html">chapter 013, lesson 2</a>).</li>
+  <li><code>RequestLog</code> (<code>platform/request_log.py</code>, #501) writes one JSON log line per request: method, path without its query string (which may carry a name or phone number), status and milliseconds. It sits outside <code>LocalOnly</code>, so refused requests are logged too. An error nothing handled is logged with its traceback, then answered 500.</li>
+  <li>The daily jobs' middleware, lesson 2. It skips <code>/api/health</code> (#509), which reads no Customer data.</li>
 </ol>
 
 <h3>5. The routes, and the screens last</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 130–161, trimmed</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>130     app.include_router(default_terms.router)
-131     app.include_router(customers.router)
-⋮    … 26 more routers, one per feature module …
-158     app.include_router(updates.router)
-159     if screens_dir is not None:
-160         serve_screens(app, screens_dir)  # last, so it never answers for the API   ◀
-161     return app
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · <code>create_app()</code> · lines 139–173, trimmed</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>139     api_router = APIRouter(prefix="/api")                           ◀
+140     api_router.include_router(default_terms.router)
+141     api_router.include_router(customers.router)
+⋮    … 27 more routers, one per feature module …
+169     api_router.include_router(health.router)
+170     app.include_router(api_router)
+171     if screens_dir is not None:
+172         serve_screens(app, screens_dir)  # last, so it never answers for the API   ◀
+173     return app
 </code></pre>
 </figure>
-<p>Each feature module (<code>customers.py</code>, <code>reminders.py</code>, …) declares its routes on its own <code>APIRouter</code>, all under <code>/api</code>. <code>include_router</code> adds them to the app. <code>serve_screens</code> adds one catch-all route, <code>/{path:path}</code>, that answers <em>any</em> path with a screen. FastAPI tries routes in the order they were added, so it must come last, or it would swallow <code>/api/customers</code> too. It also refuses any path starting <code>api/</code> itself, so a mistyped API path is a JSON 404, not a web page.</p>
+<p>Each feature module (<code>customers.py</code>, <code>reminders.py</code>, …) declares its routes on its own <code>APIRouter</code> without the <code>/api</code> prefix: <code>customers.py</code> says <code>/customers</code>. They all go into one master router, <code>api_router</code>, whose <code>prefix="/api"</code> (#508) makes that <code>/api/customers</code>, and <code>app.include_router</code> adds the master router to the app. <code>serve_screens</code> adds one catch-all route, <code>/{path:path}</code>, that answers <em>any</em> path with a screen. FastAPI tries routes in the order they were added, so it must come last, or it would swallow <code>/api/customers</code> too. It also refuses any path starting <code>api/</code> itself, so a mistyped API path is a JSON 404, not a web page.</p>
 
 <h3>6. The real app: built from the environment</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · module level · lines 164–170</figcaption>
-<pre data-file="backend/src/mortgage_backend/main.py"><code>164  app = create_app(                                                  ◀
-165      database_url_from_env(),
-166      backup_dir=backup_dir_from_env(),
-167      backup_password=backup_password_from_env(),
-168      screens_dir=screens_dir_from_env(),
-169      latest_release=latest_release_from_env(),
-170  )
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/backend/src/mortgage_backend/main.py">main.py</a> · module level · lines 176–182</figcaption>
+<pre data-file="backend/src/mortgage_backend/main.py"><code>176  app = create_app(                                                  ◀
+177      database_url_from_env(),
+178      backup_dir=backup_dir_from_env(),
+179      backup_password=backup_password_from_env(),
+180      screens_dir=screens_dir_from_env(),
+181      latest_release=latest_release_from_env(),
+182  )
 </code></pre>
 </figure>
 <figure class="snippet">

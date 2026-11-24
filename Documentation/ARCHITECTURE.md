@@ -54,15 +54,16 @@ flowchart TD
 
     subgraph Server["Unified Backend Process (Port 8080/8000)"]
         direction TB
+        DailyRun["DailyRun Middleware (Weekly backups, Reminders sync)"]
+        RequestLog["RequestLog Middleware (one JSON log line per request)"]
         LocalOnly["LocalOnly Middleware (Loopback 127.0.0.1 firewall)"]
         UploadLimit["UploadLimit Middleware (20 MB cap)"]
-        DailyRun["DailyRun Middleware (Weekly backups, Reminders sync)"]
         ScreensServer["Screens Server (platform/screens.py)"]
-        FastAPIApp["FastAPI REST Router (/api/*)"]
+        FastAPIApp["FastAPI master router (prefix /api)"]
 
-        LocalOnly --> UploadLimit --> DailyRun
-        DailyRun --> ScreensServer
-        DailyRun --> FastAPIApp
+        DailyRun --> RequestLog --> LocalOnly --> UploadLimit
+        UploadLimit --> ScreensServer
+        UploadLimit --> FastAPIApp
     end
 
     subgraph Persistence["Storage & File System (Host Laptop)"]
@@ -88,7 +89,8 @@ The frontend is a single-page application (SPA) built with **React 19**, **TypeS
 ### 2.1 State & Communication Stack
 - **Server State & Caching**: `@tanstack/react-query` handles caching, background invalidation, and optimistic state.
 - **Type-Safe API Client**: Built on `openapi-fetch`. Types are generated directly from the backend's OpenAPI specification (`openapi.json` -> `src/api.gen.ts`).
-- **Styling & Theming**: Custom CSS variables with light and dark mode toggling (`ThemeToggle.tsx`).
+- **Styling & Theming**: Custom CSS variables with light and dark mode toggling (`ThemeToggle.tsx`). Shared tokens and app-wide classes live in `src/index.css`; each page and component keeps its own styles in a scoped CSS module beside it (`Foo.module.css`, imported as `styles`).
+- **Failure handling**: `PageErrorBoundary` (in `App.tsx`) catches a page that throws while rendering and shows a short explanation with Reload page and Return to Dashboard; the top bar stays usable. Pages with an id in the address read it with `useNumericId`, so a non-numeric id such as `/mortgages/abc` shows Page not found without calling the backend.
 - **External Communications**: Click-to-send WhatsApp integration (`WhatsApp.tsx`) using `https://wa.me/` URLs without external API dependencies ([ADR 0002](adr/0002-whatsapp-click-to-send.md)).
 
 ### 2.2 UI Page Hierarchy & Routes
@@ -180,6 +182,7 @@ flowchart TD
         M1["LocalOnly: Loopback verification"]
         M2["UploadLimit: 20MB request body guard"]
         M3["DailyRun: Scheduled background tasks"]
+        M4["RequestLog: JSON log line per request, unhandled errors logged"]
     end
 
     subgraph DomainModules["Core Domain Modules"]
@@ -196,6 +199,7 @@ flowchart TD
         Clock["platform/clock.py: Date & Time Providers"]
         Screens["platform/screens.py: Static Screen Caching & Serving"]
         Updates["platform/updates.py: GitHub Release Checker"]
+        Health["platform/health.py: GET /api/health"]
     end
 
     Middlewares --> DomainModules
@@ -242,7 +246,7 @@ flowchart TD
 
 ## 4. API Endpoints Reference
 
-All API routes are prefixed with `/api` and strictly enforce local-only access.
+All API routes are prefixed with `/api` and strictly enforce local-only access. Each domain module declares its routes without the prefix on its own `APIRouter`; `create_app` mounts them all on one master router with `prefix="/api"`.
 
 | Module / Tag | Method | Endpoint Path | Summary / Description |
 | :--- | :--- | :--- | :--- |
@@ -325,6 +329,7 @@ All API routes are prefixed with `/api` and strictly enforce local-only access.
 | | `GET` | `/api/settings/messages/placeholders` | List available template placeholders. |
 | | `PUT` | `/api/settings/backups` | Configure backup retention and schedule. |
 | **Safekeeping** | `GET`, `POST` | `/api/backups` | View backup status / trigger immediate backup. |
+| **Health** | `GET` | `/api/health` | Database reachable, schema at the latest migration, Backup engine configured and running; 200 when healthy, 503 when the database is unreachable or behind. Reads no Customer or Mortgage data and runs no daily jobs. |
 | | `GET` | `/api/audit` | View system audit trail. |
 | **Utility** | `POST` | `/api/simulation` | Run what-if loan amortization simulation. |
 | | `GET` | `/api/search` | Global search across customers and mortgages. |

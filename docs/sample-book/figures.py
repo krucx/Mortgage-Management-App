@@ -248,7 +248,7 @@ def figures(book: ServedBook) -> dict[str, str]:
         "dashboard.principal": format_inr(dash["principal_outstanding"]),
         "dashboard.unpaid": f"plus {format_inr(dash['unpaid_interest'])} unpaid interest",
         "dashboard.collected": format_inr(dash["interest_collected_this_month"]),
-        "dashboard.collected-year": f"this month · {format_inr(dash['interest_collected_this_year'])} this year",
+        "dashboard.collected-year": f"this month · {format_inr(dash['interest_collected_this_year'])} so far this year",
         "dashboard.collateral": format_inr(dash["collateral_value"]),
         "dashboard.ltv": percent(dash["loan_to_value"]),
         "dashboard.ltv-tile": f"Loan-to-Value {percent(dash['loan_to_value'])}",
