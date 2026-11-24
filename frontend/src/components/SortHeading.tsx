@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import styles from './SortHeading.module.css'
 import type { Sorting } from './useUrlSort'
 
 /** A column heading that sorts the list: once by it, again to reverse; an arrow shows
@@ -36,11 +37,11 @@ export function SortButton<Column extends string>({
   return (
     <button
       type="button"
-      className={sorted ? 'sort-heading sorted' : 'sort-heading'}
+      className={sorted ? `${styles.heading} ${styles.sorted}` : styles.heading}
       onClick={() => sortBy({ column, firstDescending })}
     >
       {children}
-      <span className="sort-arrow" aria-hidden="true">
+      <span className={styles.arrow} aria-hidden="true">
         {sorted ? (sorted.descending ? '▼' : '▲') : '↕'}
       </span>
     </button>

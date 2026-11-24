@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import type { Mortgage } from '../api'
-import { formatDate } from '../format'
-import { changes, previews } from '../requests'
-import { useMortgageChange } from '../serverState'
-import { describeTerms } from '../terms'
-import { ChangePreview } from './BeforeAfter'
-import { useConfirm } from './useConfirm'
+import type { Mortgage } from '../../api'
+import { formatDate } from '../../format'
+import { changes, previews } from '../../requests'
+import { useMortgageChange } from '../../serverState'
+import { describeTerms } from '../../terms'
+import { ChangePreview } from '../../components/BeforeAfter'
+import { useConfirm } from '../../components/useConfirm'
+import styles from './TermsPanel.module.css'
 
 /** The Terms in force, and Term Changes past and coming. */
 export function TermsPanel({
@@ -45,7 +46,7 @@ export function TermsPanel({
         {mortgage.term_changes.length > 0 && <span className="hint"> (in force today)</span>}
       </p>
       {mortgage.term_changes.length > 0 && (
-        <ul className="term-changes">
+        <ul className={styles.changes} aria-label="Term Changes">
           {mortgage.term_changes.map((change) => (
             <li key={change.id}>
               <strong>From {formatDate(change.effective_on)}:</strong> {describeTerms(change.terms)}

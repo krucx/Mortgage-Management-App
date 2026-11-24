@@ -192,12 +192,12 @@ Then('their Mortgage that owes nothing reads {string} and can\'t be ticked', asy
 });
 
 Then('the form lists the problem {string}', async ({ page }, problem: string) => {
-  await expect(page.locator('.problems').getByText(problem, { exact: true })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Problems' }).getByText(problem, { exact: true })).toBeVisible();
 });
 
 Then('the form lists the problem that the Allocations add up to what the Mortgages owe, not {money}', async ({ page, lender }, received: Money) => {
   const owed = (await activeOn(lender)).reduce((sum, m) => sum + toPay(m), 0);
-  await expect(page.locator('.problems').getByText(`The Allocations add up to ${shownINR(owed)}, not ${received.shown}.`, { exact: true })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Problems' }).getByText(`The Allocations add up to ${shownINR(owed)}, not ${received.shown}.`, { exact: true })).toBeVisible();
 });
 
 Then("the Payment can't be recorded", async ({ page }) => {

@@ -1,0 +1,8 @@
+/* A Payment's row opens it when clicked anywhere. */
+tr.clickable {
+  cursor: pointer;
+}
+
+tr.clickable:hover td {
+  background: var(--accent-soft);
+}

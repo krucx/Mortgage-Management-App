@@ -3,6 +3,7 @@ import type { CallNote } from '../api'
 import { formatDate } from '../format'
 import { addCallNote, lists } from '../requests'
 import { STALE_AFTER, useChange } from '../serverState'
+import styles from './CallNotes.module.css'
 import { Summary } from './ConfirmDialog'
 import { useConfirm } from './useConfirm'
 import { useListPage } from './useListPage'
@@ -47,7 +48,7 @@ export function MarkCalled({
   }
 
   return (
-    <form onSubmit={submit} className="call-form">
+    <form onSubmit={submit} className={styles.form}>
       <input
         aria-label={`Call Note for ${mortgageName}`}
         placeholder="What was said, e.g. will pay Friday"
@@ -87,7 +88,7 @@ export function CallNotes({
       {!notes ? null : notes.length === 0 ? (
         <p className="hint">Not called yet.</p>
       ) : (
-        <ul className="call-notes">
+        <ul className={styles.notes} aria-label="Call Notes">
           {notes.map((note) => (
             <li key={note.id}>
               <strong>{formatDate(note.called_on)}</strong> {note.note || <em>no note</em>}

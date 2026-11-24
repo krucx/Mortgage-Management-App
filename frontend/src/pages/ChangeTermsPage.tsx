@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate } from 'react-router'
 import type { Mortgage } from '../api'
 import { PreviewSection } from '../components/BeforeAfter'
 import { Summary } from '../components/ConfirmDialog'
@@ -11,10 +11,11 @@ import { formatDate, todayIso } from '../format'
 import { changes, mortgageQuery, previews } from '../requests'
 import { useMortgageChange, useServerState } from '../serverState'
 import { describeTerms, fromDraft, sameTerms, toDraft, type TermsDraft } from '../terms'
+import { useNumericId } from '../useNumericId'
 
 /** Change a running Mortgage's Terms from an Accrual Date, seeing the effect first. */
 export function ChangeTermsPage() {
-  const id = Number(useParams().id)
+  const id = useNumericId()
   const { client } = useServerState()
   const loaded = useQuery(mortgageQuery(client, id))
   if (!loaded.data) {

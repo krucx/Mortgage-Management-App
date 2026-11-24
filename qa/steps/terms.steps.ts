@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { Given, Then, When, type Day } from './fixtures';
+import { beforeAfter } from './selectors';
 
 // The Change Terms form and the Terms panel on a Mortgage page.
 
@@ -15,9 +16,14 @@ function save(page: Page) {
   return page.getByRole('button', { name: 'Save Term Change' });
 }
 
+/** The Terms panel's Term Changes, one a line. */
+function termChanges(page: Page) {
+  return page.getByRole('list', { name: 'Term Changes' }).getByRole('listitem');
+}
+
 /** The Terms panel's line for the Term Change from `day`. */
 function termChange(page: Page, day: Day) {
-  return page.locator('.term-changes li', { hasText: `From ${day.shown}:` });
+  return termChanges(page).filter({ hasText: `From ${day.shown}:` });
 }
 
 function bps(percent: number) {
@@ -82,7 +88,7 @@ When('the Lender picks {day} and sets the rate to {float}% a month', async ({ pa
 });
 
 Then('the Preview shows what changes', async ({ page }) => {
-  await expect(page.locator('.before-after')).toBeVisible();
+  await expect(beforeAfter(page)).toBeVisible();
   await expect(save(page)).toBeEnabled();
 });
 
@@ -113,7 +119,7 @@ Then(
 
 Then('its Terms panel lists no Term Change', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Change Terms…' })).toBeVisible();
-  await expect(page.locator('.term-changes li')).toHaveCount(0);
+  await expect(termChanges(page)).toHaveCount(0);
 });
 
 When('the Lender starts to remove the Term Change from {day}', async ({ page }, day: Day) => {
@@ -122,7 +128,7 @@ When('the Lender starts to remove the Term Change from {day}', async ({ page }, 
 });
 
 Then('the dialog shows what changes', async ({ page }) => {
-  await expect(page.getByRole('dialog').locator('.before-after')).toBeVisible();
+  await expect(beforeAfter(page.getByRole('dialog'))).toBeVisible();
 });
 
 Then(

@@ -1,0 +1,21 @@
+/* A Mortgage before and after an unsaved change: what changes reads in the accent. */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+}
+
+.summary :global(.tile) {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.summary :global(.tile).changed {
+  border-color: var(--accent-edge);
+  background: var(--accent-soft);
+}
+
+.beforeAfter .changed {
+  color: var(--accent);
+  font-weight: 600;
+}

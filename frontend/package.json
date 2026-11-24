@@ -11,6 +11,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "gen:types": "cd ../backend && uv run python -m mortgage_backend.openapi ../frontend/openapi.json && cd ../frontend && openapi-typescript openapi.json -o src/api.gen.ts",
+    "gen:css-types": "node scripts/css-module-types.ts",
     "format": "prettier --write src tests",
     "format:check": "prettier --check src tests"
   },

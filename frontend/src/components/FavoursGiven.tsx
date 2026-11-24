@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { formatDate, formatDayMonth } from '../format'
 import { formatINR } from '../money'
 import { lists } from '../requests'
+import styles from './FavoursGiven.module.css'
 import { useListPage } from './useListPage'
 
 const KIND = { grace: 'Grace', discount: 'Discount', waived: 'Waived off' } as const
@@ -27,7 +28,7 @@ export function FavoursGiven({ customerId }: { customerId: number }) {
     <>
       <h3>Favours Given</h3>
       <div className="table-scroll">
-        <table className="favours" aria-label="Favours Given">
+        <table className={styles.favours} aria-label="Favours Given">
           <thead>
             <tr>
               <th>Date</th>

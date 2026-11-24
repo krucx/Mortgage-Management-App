@@ -2,6 +2,7 @@ import type { SimulatedPayment, SimulatedPoint } from '../api'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
 import { ChartFrame } from './ChartFrame'
+import styles from './SimulationChart.module.css'
 
 /** One Simulation's line: its Outstanding, with its planned Payments as dots. */
 export interface SimulationLine {
@@ -10,7 +11,7 @@ export interface SimulationLine {
   payments: SimulatedPayment[]
 }
 
-const CLASSES = ['outstanding', 'compared']
+const CLASSES = [styles.outstanding, styles.compared]
 
 /** Each Simulation's Outstanding from its start, with the day it closes on marked. */
 export function SimulationChart({
@@ -64,7 +65,7 @@ export function SimulationChart({
                       cx={x(payment.on)}
                       cy={y(after)}
                       r={3.5}
-                      className={`payment ${CLASSES[index]}`}
+                      className={`${styles.payment} ${CLASSES[index]}`}
                     >
                       <title>
                         {formatINR(payment.amount)} paid on {formatDate(payment.on)}

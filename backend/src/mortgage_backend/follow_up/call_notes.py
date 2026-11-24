@@ -94,7 +94,7 @@ def _mortgage(conn: Connection, mortgage_id: int) -> Any:
     return mortgage
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.post("/mortgages/{mortgage_id}/call-notes", status_code=status.HTTP_201_CREATED)

@@ -132,3 +132,14 @@ test('Principal lent steps by whole rupees and is saved with the paise typed', a
   await screen.findByText('Now at /mortgages/7')
   expect(sent).toEqual([expect.objectContaining({ amount_lent: 5_000_050 })])
 })
+
+test("a net weight above the gross weight says so beside it, and the edit can't be saved", async () => {
+  showEdit(mortgage, [])
+  const net = await screen.findByLabelText('Net weight, gold only (grams)')
+  fireEvent.change(net, { target: { value: '999' } })
+
+  expect(screen.getByText("Net weight can't be more than the gross weight")).toBeTruthy()
+  expect((screen.getByRole('button', { name: 'Save changes' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  )
+})

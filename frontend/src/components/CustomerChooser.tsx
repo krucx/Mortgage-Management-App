@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import styles from './CustomerChooser.module.css'
 import { useSearch } from './useSearch'
 
 /** Find a Customer by name or phone and pick them. */
@@ -25,10 +26,10 @@ export function CustomerChooser({
         />
       </label>
       {hits.length > 0 && (
-        <ul className="plain results">
+        <ul className={`plain ${styles.results}`}>
           {hits.map((hit) => (
             <li key={hit.id}>
-              <button type="button" className="result" onClick={() => onChoose(hit.id)}>
+              <button type="button" className={styles.result} onClick={() => onChoose(hit.id)}>
                 {hit.photo_url ? (
                   <img src={hit.photo_url} alt="" className="thumb" />
                 ) : (

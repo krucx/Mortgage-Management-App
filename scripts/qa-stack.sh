@@ -73,10 +73,11 @@ up() {
 
   url=http://127.0.0.1:$PORT
   i=0
-  until total=$(curl -fs "$url/api/customers" | python3 -c 'import json, sys; print(json.load(sys.stdin)["total"])' 2>/dev/null); do
+  until curl -fs "$url/api/health" >/dev/null; do
     i=$((i + 1)); [ $i -lt 60 ] || die "the API did not answer at $url; see: docker logs $PROJECT"
     sleep 1
   done
+  total=$(curl -fs "$url/api/customers" | python3 -c 'import json, sys; print(json.load(sys.stdin)["total"])')
   if [ "$fresh" = yes ] && [ "$total" != 0 ]; then
     die "scratch data was empty but the API lists $total Customers; run down"
   fi

@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
+import styles from './ReasonTip.module.css'
 
 const WIDEST = 300 // the bubble's widest, in px
 const EDGE = 8 // kept this far inside the window
@@ -56,7 +57,7 @@ export function Tip({
 
   return (
     <span
-      className={tone ? `reason-tip ${tone}` : 'reason-tip'}
+      className={tone ? `${styles.tip} ${styles[tone]}` : styles.tip}
       tabIndex={0}
       aria-describedby={id}
       onMouseEnter={show}
@@ -66,13 +67,13 @@ export function Tip({
       onBlur={hide}
     >
       {children}
-      <span className="reason-tip-icon" aria-hidden="true">
+      <span className={styles.icon} aria-hidden="true">
         i
       </span>
       <span
         id={id}
         role="tooltip"
-        className={`reason-bubble${place?.above ? ' above' : ''}`}
+        className={place?.above ? `${styles.bubble} ${styles.above}` : styles.bubble}
         hidden={!place}
         style={
           place

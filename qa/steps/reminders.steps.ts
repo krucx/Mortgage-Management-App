@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { Then, When, type Day } from './fixtures';
 import type { Lender } from './lender';
+import { dashboardFigure, whatsAppBubble } from './selectors';
 
 // The Reminders page: who is listed under which tab, sending on WhatsApp, skipping, and the
 // Reminder settings and Dashboard figure that shape the queue. What a Reminder says is checked
@@ -237,7 +238,7 @@ async function expectPreviewIsTheMessage(page: Page, lender: Lender) {
   const { customer, day } = current.get(page)!;
   const { message } = await reminderOf(lender, customer, day);
   expect(message).not.toBe('');
-  const bubble = dialog(page).locator('.bubble');
+  const bubble = whatsAppBubble(dialog(page));
   await expect.poll(async () => flat(await bubble.innerText())).toBe(shownMessage(message));
 }
 
@@ -250,7 +251,7 @@ Then('the Message is the Reminder text the app sent', async ({ page, lender }) =
 });
 
 Then('the Reminder preview begins {string}', async ({ page }, start: string) => {
-  await expect(dialog(page).locator('.bubble')).toHaveText(new RegExp(`^${escaped(start)}`));
+  await expect(whatsAppBubble(dialog(page))).toHaveText(new RegExp(`^${escaped(start)}`));
 });
 
 const actions = { approving: 'approve', sending: 'sent', skipping: 'skip' } as const;
@@ -351,7 +352,7 @@ Then('the Reminder template lists the placeholders the app can fill', async ({ p
 
 const noted = new WeakMap<Page, { toSend: number; tab: string }>();
 
-const figure = (page: Page) => page.locator('.tile.figure', { has: page.getByText('Reminders to send', { exact: true }) });
+const figure = (page: Page) => dashboardFigure(page, 'Reminders to send');
 
 When('notes the Reminders to send on the Dashboard', async ({ page }) => {
   const value = figure(page).locator('strong');

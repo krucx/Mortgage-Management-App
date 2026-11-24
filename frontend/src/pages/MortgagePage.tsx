@@ -1,169 +1,47 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Link, useParams } from 'react-router'
-import type { AdvanceInstalment, LedgerGrace, LedgerStep, Mortgage } from '../api'
-import { AdvancePanel } from '../components/AdvancePanel'
+import { useNumericId } from '../useNumericId'
+import type { Mortgage } from '../api'
 import { CallNotes } from '../components/CallNotes'
-import { ClosureSummary, CloseMortgage } from '../components/CloseMortgage'
-import { CollateralPanel } from '../components/CollateralPanel'
-import { ChangePreview } from '../components/BeforeAfter'
 import { History } from '../components/History'
 import { NotLoaded } from '../components/NotLoaded'
-import { PersonLink } from '../components/PersonLink'
-import { Photo } from '../components/Photo'
-import { PhotoSource } from '../components/PhotoSource'
-import { ProjectionPanel } from '../components/ProjectionPanel'
-import { ReasonDialog } from '../components/ReasonDialog'
-import { ScrollPopup } from '../components/ScrollPopup'
-import { TermsPanel } from '../components/TermsPanel'
-import { useConfirm } from '../components/useConfirm'
-import { lentThroughName, usePaymentMethods } from '../components/usePaymentMethods'
-import { useSaveWithPhotos } from '../components/useSaveWithPhotos'
-import { formatDate, formatDays, formatGraceDate, formatGrams } from '../format'
-import { formatINR } from '../money'
-import {
-  addMortgagePhoto,
-  changes,
-  mortgageHistoryQuery,
-  mortgageQuery,
-  previews,
-  removeMortgagePhoto,
-} from '../requests'
-import { keys, STALE_AFTER, useChange, useMortgageChange, useServerState } from '../serverState'
-import { describeTerms, formatRate, PART_MONTH_RULES } from '../terms'
+import { mortgageHistoryQuery, mortgageQuery } from '../requests'
+import { keys, useServerState } from '../serverState'
+import { AdvancePanel } from './mortgage/AdvancePanel'
+import { CollateralPanel } from './mortgage/CollateralPanel'
+import { Ledger } from './mortgage/Ledger'
+import { MortgageClosure } from './mortgage/MortgageClosure'
+import { MortgageOverview } from './mortgage/MortgageOverview'
+import { MortgagePhotos } from './mortgage/MortgagePhotos'
+import { ProjectionPanel } from './mortgage/ProjectionPanel'
+import { TermsPanel } from './mortgage/TermsPanel'
 
-/** Ledger steps shown on the page; the rest are in the complete Ledger popup. */
-const LEDGER_SHOWN = 8
-
+/** One Mortgage: what it owes, its Terms, Collateral, Call Notes, photos, Closure,
+ *  Ledger, Projection and History. Each section is its own component in ./mortgage. */
 export function MortgagePage() {
-  const id = Number(useParams().id)
+  const id = useNumericId()
   const { client, queryClient } = useServerState()
-  const changeMortgage = useMortgageChange()
   const loaded = useQuery(mortgageQuery(client, id))
   const mortgage = loaded.data
-  const methods = usePaymentMethods()
-  // A change that returns the Mortgage (photos, Collateral Value) is in its History too.
+  // A change that returns the Mortgage (Terms, Advances, Collateral Value, Closure) is in
+  // its History too.
   const setMortgage = (changed: Mortgage) => {
     queryClient.setQueryData(keys.mortgage(id), changed)
     void queryClient.invalidateQueries({ queryKey: keys.mortgageHistory(id) })
-  }
-  const [error, setError] = useState<string | null>(null)
-  const [confirm, confirmDialog] = useConfirm()
-  const [reopening, setReopening] = useState(false)
-  const [fullLedger, setFullLedger] = useState(false)
-
-  const photos = useSaveWithPhotos<Mortgage>({
-    noun: 'Mortgage',
-    stale: STALE_AFTER.mortgagePhoto,
-    id,
-  })
-  const changePhotos = useChange(STALE_AFTER.mortgagePhoto)
-
-  async function addPhotos(blobs: Blob[]) {
-    setError(null)
-    await photos.run(
-      null,
-      blobs.map((blob) => ({
-        key: blob,
-        send: (client, id) => addMortgagePhoto(client, id, blob),
-      })),
-    )
-  }
-
-  async function removePhoto(photoId: number) {
-    const confirmed = await confirm({
-      title: 'Delete this photo?',
-      confirmLabel: 'Delete',
-      cancelLabel: 'Cancel',
-      danger: true,
-    })
-    if (!confirmed) return
-    setError(null)
-    photos.clearError()
-    try {
-      await changePhotos((client) => removeMortgagePhoto(client, id, photoId))
-    } catch (err) {
-      setError((err as Error).message)
-    }
-  }
-
-  async function reopen(reason: string) {
-    await changeMortgage((client) => changes.reopen(client, id, reason))
   }
 
   if (!mortgage) {
     return <NotLoaded error={loaded.error} missing={`Mortgage ${id}`} />
   }
-  const { outstanding } = mortgage
-  const hasAdvance = mortgage.advance_instalments.length > 0
+  const active = mortgage.status === 'active'
 
   return (
     <section className="card wide">
-      <div className="row spread">
-        <h2>
-          {mortgage.name}{' '}
-          <span className={`badge status-${mortgage.status}`}>{mortgage.status}</span>
-        </h2>
-        <div className="row">
-          <span>
-            Customer: <PersonLink person={mortgage.customer} />
-          </span>
-          <Link className="button secondary small" to={`/mortgages/${mortgage.id}/edit`}>
-            Edit
-          </Link>
-          {mortgage.status === 'active' && (
-            <Link
-              className="button small"
-              to={`/payments/new?customer=${mortgage.customer.id}&mortgage=${mortgage.id}`}
-            >
-              Record a Payment
-            </Link>
-          )}
-        </div>
-      </div>
-      {(error ?? photos.error) && <p className="status error">{error ?? photos.error}</p>}
-
-      <div className="tiles">
-        <div className="tile">
-          <span className="hint">Outstanding on {formatDate(mortgage.as_of)}</span>
-          <strong>{formatINR(outstanding.total)}</strong>
-        </div>
-        <div className="tile">
-          <span className="hint">Principal</span>
-          <strong>{formatINR(outstanding.principal)}</strong>
-        </div>
-        <div className="tile">
-          <span className="hint">Unpaid interest</span>
-          <strong>{formatINR(outstanding.unpaid_interest)}</strong>
-        </div>
-        {hasAdvance && (
-          <div className="tile">
-            <span className="hint">Advance held</span>
-            <strong>{formatINR(mortgage.advance_held)}</strong>
-          </div>
-        )}
-      </div>
-
-      <dl>
-        <dt>Started</dt>
-        <dd>{formatDate(mortgage.start_date)}</dd>
-        <dt>Principal lent</dt>
-        <dd>{formatINR(mortgage.amount_lent)}</dd>
-        <dt>Lent Through</dt>
-        <dd>{lentThroughName(methods, mortgage.lent_through)}</dd>
-        <dt>Jewellery</dt>
-        <dd>{mortgage.description}</dd>
-        <dt>Weight</dt>
-        <dd>
-          {formatGrams(mortgage.gross_weight_mg)} gross, {formatGrams(mortgage.net_weight_mg)} net,{' '}
-          {mortgage.purity_karat}K
-        </dd>
-      </dl>
+      <MortgageOverview mortgage={mortgage} />
 
       <h3>Terms</h3>
       <TermsPanel mortgage={mortgage} onChange={setMortgage} />
 
-      {hasAdvance && (
+      {mortgage.advance_instalments.length > 0 && (
         <>
           <h3>Advances</h3>
           <AdvancePanel mortgage={mortgage} onChange={setMortgage} />
@@ -177,64 +55,14 @@ export function MortgagePage() {
       <CallNotes mortgageId={mortgage.id} mortgageName={mortgage.name} />
 
       <h3>Photos</h3>
-      {mortgage.photos.length > 0 ? (
-        <div className="gallery">
-          {mortgage.photos.map((photo, index) => (
-            <div key={photo.id} className="gallery-item">
-              <a href={photo.url} target="_blank" rel="noreferrer">
-                <Photo url={photo.url} alt={`Photo ${index + 1}`} />
-              </a>
-              <button type="button" className="danger small" onClick={() => removePhoto(photo.id)}>
-                Delete
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="hint">No photos yet.</p>
-      )}
-      <PhotoSource multiple onPhotos={addPhotos} />
+      <MortgagePhotos mortgage={mortgage} />
 
-      <h3>{mortgage.status === 'active' ? 'Close this Mortgage' : 'Closure'}</h3>
-      {mortgage.status === 'active' ? (
-        <CloseMortgage mortgage={mortgage} onClosed={setMortgage} />
-      ) : (
-        <div className="stack">
-          <ClosureSummary mortgage={mortgage} />
-          <div>
-            <button type="button" className="secondary small" onClick={() => setReopening(true)}>
-              Reopen…
-            </button>
-          </div>
-        </div>
-      )}
+      <MortgageClosure mortgage={mortgage} onChange={setMortgage} />
 
       <h3>Ledger</h3>
-      <p className="hint">
-        Calculated from the Terms up to {formatDate(mortgage.as_of)}; nothing here is stored.
-      </p>
-      <LedgerTable steps={mortgage.ledger.slice(-LEDGER_SHOWN)} mortgage={mortgage} />
-      {mortgage.ledger.length > LEDGER_SHOWN && (
-        <div className="row">
-          <span className="hint">
-            Showing the latest {LEDGER_SHOWN} of {mortgage.ledger.length} steps.
-          </span>
-          <button type="button" className="secondary small" onClick={() => setFullLedger(true)}>
-            Show complete Ledger
-          </button>
-        </div>
-      )}
-      {fullLedger && (
-        <ScrollPopup
-          title={`Ledger of ${mortgage.name}`}
-          start="bottom"
-          onClose={() => setFullLedger(false)}
-        >
-          <LedgerTable steps={mortgage.ledger} mortgage={mortgage} />
-        </ScrollPopup>
-      )}
+      <Ledger mortgage={mortgage} />
 
-      {mortgage.status === 'active' && (
+      {active && (
         <>
           <h3>Projection</h3>
           <ProjectionPanel mortgage={mortgage} />
@@ -246,151 +74,6 @@ export function MortgagePage() {
         query={(page) => mortgageHistoryQuery(client, id, page)}
         title={`History of ${mortgage.name}`}
       />
-      {reopening && (
-        <ReasonDialog
-          title={`Reopen ${mortgage.name}?`}
-          wide
-          body={
-            <>
-              <p>
-                It becomes Active again as if it had never been closed: interest is charged for the
-                whole time, up to today.
-                {mortgage.closure?.payment_id &&
-                  ' Its final Payment is voided, so it is no longer counted.'}
-              </p>
-              <ChangePreview request={previews.reopen(mortgage.id)} />
-            </>
-          }
-          confirmLabel="Reopen"
-          onConfirm={reopen}
-          onClose={() => setReopening(false)}
-        />
-      )}
-      {confirmDialog}
     </section>
   )
-}
-
-/** Ledger steps as a table, oldest first, then an Active Mortgage's upcoming Advance
- *  Instalments, in grey: not yet applied, so not yet in the Ledger. */
-function LedgerTable({ steps, mortgage }: { steps: LedgerStep[]; mortgage: Mortgage }) {
-  const graces = new Map(mortgage.graces.map((grace) => [grace.payment_id, grace]))
-  const instalments = new Map(mortgage.advance_instalments.map((i) => [i.id, i]))
-  const upcoming =
-    mortgage.status === 'active' ? mortgage.advance_instalments.filter((i) => i.upcoming) : []
-  return (
-    <div className="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Step</th>
-            <th className="num">Amount</th>
-            <th className="num">Discount</th>
-            <th className="num">Principal</th>
-            <th className="num">Unpaid interest</th>
-          </tr>
-        </thead>
-        <tbody>
-          {steps.map((step, index) => (
-            <tr key={index} className={`ledger-${step.event}`}>
-              <td>{dateOf(step, graces)}</td>
-              <td>
-                {step.payment_id ? (
-                  <Link to={`/payments/${step.payment_id}`}>
-                    {describe(step, mortgage, instalments.get(step.instalment_id ?? 0))}
-                  </Link>
-                ) : (
-                  describe(step, mortgage)
-                )}
-              </td>
-              <td className="num">{formatINR(step.amount)}</td>
-              <td className="num">{step.event === 'payment' ? formatINR(step.discount) : '—'}</td>
-              <td className="num">{formatINR(step.principal)}</td>
-              <td className="num">{formatINR(step.unpaid_interest)}</td>
-            </tr>
-          ))}
-          {upcoming.map((instalment) => (
-            <tr key={`upcoming-${instalment.id}`} className="ledger-upcoming">
-              <td>{formatDate(instalment.on)}</td>
-              <td>
-                <Link to={`/payments/${instalment.payment_id}`}>{instalmentName(instalment)}</Link>{' '}
-                <span className="badge">Upcoming</span>
-              </td>
-              <td className="num">{formatINR(instalment.amount)}</td>
-              <td className="num">—</td>
-              <td className="num">—</td>
-              <td className="num">—</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-/** A Ledger step's date; a Grace Payment's with the date it was received and what it
- *  let off on this Mortgage. */
-function dateOf(step: LedgerStep, graces: Map<number, LedgerGrace>): string {
-  // An Advance Instalment is dated its Accrual Date, never its Payment's (ADR 0021).
-  const grace =
-    step.payment_id == null || step.instalment_id ? undefined : graces.get(step.payment_id)
-  return grace ? formatGraceDate(step.on, grace.received_on, grace.let_off) : formatDate(step.on)
-}
-
-/** What Payments in the month had already paid of its interest, if anything. */
-function paidAhead(step: LedgerStep): string {
-  return step.paid_ahead ? `, ${formatINR(step.paid_ahead)} of it paid ahead` : ''
-}
-
-const instalmentName = (instalment: AdvanceInstalment) =>
-  `Advance Instalment ${instalment.number} of ${instalment.of}` +
-  (instalment.cancelled_on ? `, cancelled (due ${formatDate(instalment.on)})` : '')
-
-/** The calculation behind a Ledger step, in words; `instalment` when the step is an
- *  Advance Instalment's. */
-function describe(step: LedgerStep, mortgage: Mortgage, instalment?: AdvanceInstalment): string {
-  switch (step.event) {
-    case 'started':
-      return 'Mortgage started: Principal lent'
-    case 'interest':
-      return (
-        `Interest: ${formatRate(step.monthly_rate_bps)} of ${formatINR(step.charged_on)}` +
-        paidAhead(step)
-      )
-    case 'payment':
-      return (
-        `${instalment ? instalmentName(instalment) : 'Payment'}: ` +
-        `${formatINR(step.interest_paid)} cash to interest, ` +
-        `${formatINR(step.principal_paid)} cash to Principal` +
-        (step.discount
-          ? `; ${formatINR(step.discount_interest_paid)} Discount to interest, ` +
-            `${formatINR(step.discount_principal_paid)} Discount to Principal`
-          : '')
-      )
-    case 'interest_to_date': {
-      const rule = step.part_month_rule ?? mortgage.terms.part_month_rule
-      // Only while Active is it to date: a Closure fixes it.
-      const toDate =
-        mortgage.status !== 'active'
-          ? ''
-          : rule === 'pro_rata'
-            ? ', to date: grows each day until the next Accrual Date'
-            : ', to date: until the next Accrual Date'
-      return (
-        `Interest to Date: ${formatDays(step.interest_to_date_days)} of this month, ` +
-        `${mortgage.status === 'active' ? 'today' : 'its Closure'} included ` +
-        `(${PART_MONTH_RULES[rule]}) on ${formatINR(step.charged_on)}${toDate}` +
-        paidAhead(step)
-      )
-    }
-    case 'waived':
-      return 'Waived off: the Lender let off what was left'
-    case 'forfeited':
-      return 'Forfeited: the jewellery settles what was owed'
-    case 'capitalised':
-      return 'Unpaid interest capitalised into Principal'
-    case 'term_changed':
-      return `Terms changed: ${step.terms ? describeTerms(step.terms) : ''}`
-  }
 }

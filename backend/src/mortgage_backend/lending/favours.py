@@ -136,7 +136,7 @@ def favours_given(conn: Connection, customer_id: int, page: int) -> FavoursGiven
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/customers/{customer_id}/favours")

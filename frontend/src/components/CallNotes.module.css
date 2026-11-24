@@ -1,0 +1,16 @@
+/* A Mortgage's Call Notes, and the form to add one. */
+ul.notes {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+form.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+form.form input {
+  flex: 1 1 14rem;
+}

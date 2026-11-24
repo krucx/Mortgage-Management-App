@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'react-router'
+import { useNumericId } from '../useNumericId'
+
 import { NotLoaded } from '../components/NotLoaded'
 import { PersonList } from '../components/PersonLink'
 import { referrerQuery } from '../requests'
 import { useServerState } from '../serverState'
 
 export function ReferrerPage() {
-  const id = Number(useParams().id)
+  const id = useNumericId()
   const { client } = useServerState()
   const { data: referrer, error } = useQuery(referrerQuery(client, id))
 

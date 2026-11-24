@@ -1,0 +1,1 @@
+- **New Mortgage and Customer forms:** Save stays disabled while a field is wrong or the form is still being checked, and says why beside the field: a Contact number 1 that is not a 10-digit mobile number, an Existing person Referrer nobody has picked yet, or a net weight above the gross weight. A new Mortgage the backend would refuse says why before Create is pressed.

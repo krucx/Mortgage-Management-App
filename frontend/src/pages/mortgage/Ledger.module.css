@@ -1,0 +1,19 @@
+/* Ledger steps: a Payment in green, capitalising in bold, the Interest to Date in
+   italics; an Advance Instalment not yet applied, after the last step, in grey. */
+tr.payment td {
+  color: var(--ok);
+}
+
+tr.capitalised td {
+  font-weight: 600;
+}
+
+tr.interestToDate td {
+  font-style: italic;
+}
+
+tr.upcoming td {
+  color: var(--muted);
+  font-style: italic;
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+}

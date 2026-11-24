@@ -1,0 +1,9 @@
+/* Printing a Receipt: only the receipt, without its card's frame. */
+@media print {
+  :global(.card).receipt {
+    border: none;
+    box-shadow: none;
+    margin: 0;
+    max-width: none;
+  }
+}

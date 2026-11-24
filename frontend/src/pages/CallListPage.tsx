@@ -1,4 +1,4 @@
-import { Fragment, useId, useState, type ChangeEvent } from 'react'
+import { Fragment, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router'
 import {
   CALL_LIST_SORTS,
@@ -10,7 +10,6 @@ import {
 import { MarkCalled } from '../components/CallNotes'
 import { Summary } from '../components/ConfirmDialog'
 import { PersonLink } from '../components/PersonLink'
-import { Modal } from '../components/Modal'
 import { ScrollPopup } from '../components/ScrollPopup'
 import { SortHeading } from '../components/SortHeading'
 import { useListPage } from '../components/useListPage'
@@ -20,6 +19,7 @@ import { sender } from '../messaging'
 import { formatINR } from '../money'
 import { callSheet, lists } from '../requests'
 import { STALE_AFTER, useChange, useServerState } from '../serverState'
+import styles from './CallListPage.module.css'
 
 type Reason = CallListRow['reasons'][number]
 
@@ -70,14 +70,14 @@ function PhoneIcon() {
 /** A number to ring, and to message on WhatsApp, on one line. */
 function Reach({ phone }: { phone: string }) {
   return (
-    <span className="reach">
+    <span className={styles.reach}>
       <a className="button secondary small" href={`tel:+91${phone}`} aria-label={`Call ${phone}`}>
         <PhoneIcon />
         {phone}
       </a>
       <button
         type="button"
-        className="secondary small icon-only"
+        className={`secondary small ${styles.iconOnly}`}
         aria-label={`WhatsApp ${phone}`}
         title="WhatsApp"
         onClick={() => sender.chat(phone)}
@@ -111,10 +111,10 @@ export function CallListPage() {
             {listed.mortgages} Mortgage{listed.mortgages === 1 ? '' : 's'} for {listed.total}{' '}
             Customer{listed.total === 1 ? '' : 's'}
           </p>
-          <ul className="reason-legend" aria-label="What the markers mean">
+          <ul className={styles.legend} aria-label="What the markers mean">
             {REASON_NAMES.map(([reason, name]) => (
               <li key={reason}>
-                <span className={`reason ${reason}`}>{name}</span>
+                <span className={`${styles.reason} ${styles[reason]}`}>{name}</span>
               </li>
             ))}
           </ul>
@@ -126,7 +126,7 @@ export function CallListPage() {
         <p className="hint">Nobody to call today.</p>
       ) : (
         <div className="table-scroll">
-          <table className="call-table">
+          <table className={styles.table}>
             <thead>
               <tr>
                 <SortHeading sorting={sorting} column="customer">
@@ -290,7 +290,6 @@ function ImportPreview({
   onAdd: () => void
   onClose: () => void
 }) {
-  const titleId = useId()
   const adding = plural(result.adding.length, 'Call Note', 'Call Notes')
   const quiet = [
     result.skipped_empty > 0 &&
@@ -298,9 +297,23 @@ function ImportPreview({
     result.skipped_duplicates > 0 && `${result.skipped_duplicates} already there`,
   ].filter(Boolean)
   return (
-    <Modal onClose={onClose} className="scroll-popup" labelledBy={titleId}>
-      <h2 id={titleId}>Import Call Notes from {sheet.name}</h2>
-      <div className="scroll-popup-body stack">
+    <ScrollPopup
+      title={`Import Call Notes from ${sheet.name}`}
+      onClose={onClose}
+      footer={
+        <div className="row end">
+          <button type="button" className="secondary" autoFocus onClick={onClose}>
+            Keep editing
+          </button>
+          {result.adding.length > 0 && (
+            <button type="button" onClick={onAdd}>
+              Add {adding}
+            </button>
+          )}
+        </div>
+      }
+    >
+      <div className="stack">
         {result.adding.length > 0 ? (
           <>
             <h3>Adding {adding}</h3>
@@ -316,23 +329,13 @@ function ImportPreview({
         )}
         {result.not_imported.length > 0 && (
           <>
-            <h3 className="not-imported">{notImportedTitle(result.not_imported.length)}</h3>
+            <h3 className={styles.notImported}>{notImportedTitle(result.not_imported.length)}</h3>
             <NotImportedRows rows={result.not_imported} />
           </>
         )}
         {quiet.length > 0 && <p className="hint">Left out quietly: {quiet.join(' · ')}</p>}
       </div>
-      <div className="row end">
-        <button type="button" className="secondary" autoFocus onClick={onClose}>
-          Keep editing
-        </button>
-        {result.adding.length > 0 && (
-          <button type="button" onClick={onAdd}>
-            Add {adding}
-          </button>
-        )}
-      </div>
-    </Modal>
+    </ScrollPopup>
   )
 }
 
@@ -378,10 +381,10 @@ function CustomerRows({
   const count = `${rows.length} Mortgage${rows.length === 1 ? '' : 's'}`
   return rows.map((row, index) => (
     <Fragment key={row.mortgage_id}>
-      <tr className={index === 0 ? 'group-start' : undefined}>
+      <tr className={index === 0 ? styles.groupStart : undefined}>
         {index === 0 && (
-          <td className="call-customer" rowSpan={rows.length + (notingHere ? 1 : 0)}>
-            <div className="call-who">
+          <td className={styles.customer} rowSpan={rows.length + (notingHere ? 1 : 0)}>
+            <div className={styles.who}>
               <strong>
                 <PersonLink person={customer} />
               </strong>
@@ -399,9 +402,14 @@ function CustomerRows({
           <Link to={`/mortgages/${row.mortgage_id}`}>{row.mortgage_name}</Link>
         </td>
         <td>
-          <span className="reasons">
+          <span className={styles.reasons}>
             {reasonsOf(row).map(({ reason, short, full }) => (
-              <span key={reason} className={`reason ${reason}`} aria-label={full} title={full}>
+              <span
+                key={reason}
+                className={`${styles.reason} ${styles[reason]}`}
+                aria-label={full}
+                title={full}
+              >
                 <span aria-hidden="true">{short}</span>
               </span>
             ))}
@@ -410,8 +418,8 @@ function CustomerRows({
         <td className="num">{formatINR(row.outstanding)}</td>
         <td>
           {row.called ? (
-            <div className="called-cell">
-              <span className="called-mark">
+            <div className={styles.calledCell}>
+              <span className={styles.calledMark}>
                 <span aria-hidden="true">✓</span> Called
               </span>
               {row.called.note && <span className="hint">{row.called.note}</span>}
@@ -431,7 +439,7 @@ function CustomerRows({
         </td>
       </tr>
       {noting === row.mortgage_id && (
-        <tr className="call-noting">
+        <tr className={styles.noting}>
           <td colSpan={4}>
             <MarkCalled
               mortgageId={row.mortgage_id}

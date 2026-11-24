@@ -1,0 +1,43 @@
+/* A newer release's banner, under the top bar and as wide as the page below it. */
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  box-sizing: border-box;
+  width: calc(100% - 2rem);
+  max-width: calc(860px - 2rem); /* as wide as main */
+  margin: 1rem auto 0;
+  padding: 0.75rem 1rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-edge);
+  border-radius: 8px;
+}
+
+:global(.layout:has(.card.wide)) .banner {
+  max-width: calc(1100px - 2rem);
+}
+
+.banner details,
+.banner p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* The release's notes, under What's new. */
+.notes {
+  margin-top: 0.5rem;
+}
+
+.notes h4 {
+  margin: 0.75rem 0 0.25rem;
+}
+
+.notes p,
+.notes ul {
+  margin: 0 0 0.5rem;
+}
+
+.notes pre {
+  white-space: pre-wrap;
+}

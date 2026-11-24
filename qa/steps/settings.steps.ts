@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import { defineParameterType } from 'playwright-bdd';
 import { Given, Then, When, type Day, type Money } from './fixtures';
 import type { Lender } from './lender';
+import { whatsAppPreview } from './selectors';
 
 // The Settings screen: each section on its own, what saving says, and Backups. Settings are
 // one value for the whole book, so these scenarios run last on the @fresh app (settings.feature).
@@ -95,8 +96,8 @@ When('the Lender saves the WhatsApp messages', async ({ page }) => {
 });
 
 Then('the Receipt preview shows {string} in bold and {string} in italics', async ({ page }, bold: string, italic: string) => {
-  await expect(receiptPanel(page).locator('.whatsapp strong')).toHaveText(bold);
-  await expect(receiptPanel(page).locator('.whatsapp em')).toHaveText(italic);
+  await expect(whatsAppPreview(receiptPanel(page)).locator('strong')).toHaveText(bold);
+  await expect(whatsAppPreview(receiptPanel(page)).locator('em')).toHaveText(italic);
 });
 
 Then('the Receipt template lists the placeholders the app can fill', async ({ page, lender }) => {

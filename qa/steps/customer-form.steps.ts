@@ -118,7 +118,7 @@ When('enters the phone of the Standalone Referrer {string}', async ({ page, lend
 });
 
 When('adds their photo, Aadhaar card photo and PAN card photo', async ({ page }) => {
-  await page.locator('.photo-picker input[type="file"]').setInputFiles(await photoOf(page, 'Customer'));
+  await page.getByRole('group', { name: 'Photo', exact: true }).locator('input[type="file"]').setInputFiles(await photoOf(page, 'Customer'));
   await addIdPhoto(page, 'Aadhaar card', 'Aadhaar card');
   await addIdPhoto(page, 'PAN card', 'PAN card');
 });

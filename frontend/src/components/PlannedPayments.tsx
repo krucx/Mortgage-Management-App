@@ -8,6 +8,7 @@ import {
   type Run,
 } from '../calculator'
 import { FieldProblem } from './FieldProblem'
+import styles from './PlannedPayments.module.css'
 
 /** A Simulation's plan: a monthly amount and Lump Sums, each row with why it is refused or
  *  was left out; folded away unless one was entered. */
@@ -50,7 +51,12 @@ export function PlannedPayments({
         {lumps.map((lump, row) => {
           const answered = sent.findIndex((s) => s.row === row)
           return (
-            <div key={row} className="row lump-sum">
+            <div
+              key={row}
+              className={`row ${styles.lumpSum}`}
+              role="group"
+              aria-label={`Lump Sum ${row + 1}`}
+            >
               <label>
                 Date
                 <input

@@ -1,17 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { useNumericId } from '../useNumericId'
 import { NotLoaded } from '../components/NotLoaded'
 import { formatDate } from '../format'
 import { formatINR } from '../money'
 import { advanceReceiptQuery, receiptQuery } from '../requests'
 import { useServerState } from '../serverState'
+import styles from './ReceiptPage.module.css'
 
 /** A Receipt to print or save as PDF: the same content as the WhatsApp message. With
  *  an `instalment`, the Receipt for that cancelled Advance Instalment of the Payment. */
 export function ReceiptPage() {
-  const params = useParams()
-  const id = Number(params.id)
-  const instalment = params.instalment ? Number(params.instalment) : null
+  const id = useNumericId()
+  const { instalment: instalmentParam } = useParams()
+  const instalment = instalmentParam ? Number(instalmentParam) : null
   const { client } = useServerState()
   // Spread: the two queries' keys differ in type.
   const { data: receipt, error } = useQuery({
@@ -34,7 +36,7 @@ export function ReceiptPage() {
   const advanced = receipt.lines.some((line) => line.advance_parts.length > 0)
 
   return (
-    <section className="card wide receipt">
+    <section className={`card wide ${styles.receipt}`}>
       <div className="row spread no-print">
         <Link to={`/payments/${receipt.payment_id}`}>← Back to the Payment</Link>
         <div className="row">

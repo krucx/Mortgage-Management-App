@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link } from 'react-router'
 import { MORTGAGE_SORTS, type MortgagePage, type MortgageSort } from '../api'
 import { FavoursGiven } from '../components/FavoursGiven'
 import { History } from '../components/History'
@@ -14,9 +14,11 @@ import { useListPage } from '../components/useListPage'
 import type { Sorting } from '../components/useUrlSort'
 import { customerHistoryQuery, customerQuery, lists } from '../requests'
 import { useServerState } from '../serverState'
+import { useNumericId } from '../useNumericId'
+import idPhotos from './customerForm/IdPhotos.module.css'
 
 export function CustomerPage() {
-  const id = Number(useParams().id)
+  const id = useNumericId()
   const { client } = useServerState()
   const { data: customer, error } = useQuery(customerQuery(client, id))
   const activeList = useListPage(
@@ -82,7 +84,7 @@ export function CustomerPage() {
       {(customer.aadhaar_photo_url || customer.pan_photo_url) && (
         <>
           <h3>ID Photos</h3>
-          <div className="row id-photos">
+          <div className="row">
             {(
               [
                 ['Aadhaar card', customer.aadhaar_photo_url],
@@ -92,7 +94,7 @@ export function CustomerPage() {
               ([name, url]) =>
                 url && (
                   <a key={name} href={url} target="_blank" rel="noreferrer" aria-label={name}>
-                    <img src={url} alt={name} className="photo" />
+                    <img src={url} alt={name} className={`photo ${idPhotos.card}`} />
                   </a>
                 ),
             )}

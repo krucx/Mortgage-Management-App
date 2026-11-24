@@ -7,6 +7,7 @@ import type { AdvanceInstalment, Mortgage, PaymentRow, Receipt } from '../src/ap
 import { CustomerPage } from '../src/pages/CustomerPage'
 import { MortgagePage } from '../src/pages/MortgagePage'
 import { PaymentsPage } from '../src/pages/PaymentsPage'
+import ledger from '../src/pages/mortgage/Ledger.module.css'
 import { changePreview, fakeServer } from './fakeServer'
 import { mortgage, showPage } from './showPage'
 
@@ -274,7 +275,7 @@ test('the Ledger names a cancelled part, applied on the day it was cancelled', a
     await screen.findByText(/^Advance Instalment 2 of 3, cancelled \(due 10 Nov 2026\):/),
   ).toBeTruthy()
   // Only the upcoming 10 Dec part is listed after the Ledger, in grey.
-  const upcoming = document.querySelectorAll('tr.ledger-upcoming')
+  const upcoming = document.querySelectorAll(`tr.${ledger.upcoming}`)
   expect([...upcoming].map((row) => row.textContent)).toEqual([
     expect.stringContaining('Advance Instalment 3 of 3'),
   ])

@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import type { PersonSummary, ReferrerChoice } from '../api'
-import { PersonLink, ReferrerBadge } from './PersonLink'
-import { useNumberOwner } from './useNumberOwner'
-import { useSearch } from './useSearch'
+import type { PersonSummary, ReferrerChoice } from '../../api'
+import { FieldProblem } from '../../components/FieldProblem'
+import { PersonLink, ReferrerBadge } from '../../components/PersonLink'
+import { useNumberOwner } from '../../components/useNumberOwner'
+import { useSearch } from '../../components/useSearch'
+import styles from './ReferrerPicker.module.css'
 
 type Mode = 'none' | 'existing' | 'new'
 
@@ -84,6 +86,9 @@ export function ReferrerPicker({
               <ReferrerBadge person={picked} />
             </p>
           )}
+          <FieldProblem
+            problem={!picked && 'Pick the Referrer from the search results, or choose "None".'}
+          />
           <input
             type="search"
             aria-label="Search for the Referrer"
@@ -92,7 +97,7 @@ export function ReferrerPicker({
             onChange={(event) => setQuery(event.target.value)}
           />
           {hits.length > 0 && (
-            <ul className="plain picker">
+            <ul className={`plain ${styles.picker}`}>
               {hits.map((hit) => (
                 <li key={`${hit.kind}-${hit.id}`}>
                   <button type="button" className="link" onClick={() => pick(hit)}>

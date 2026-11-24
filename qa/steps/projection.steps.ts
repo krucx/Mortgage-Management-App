@@ -24,7 +24,8 @@ async function expectRow(page: Page, group: string, label: string, points: Point
   const values = HORIZONS.map((months) => cell(points.find((p) => p.months === months)!));
   // Each group's rows follow its heading row; the first row after it with this label is its own.
   const row = table(page)
-    .locator('tr.projection-group', { hasText: group })
+    // A group's heading row is the one whose only cell is a heading.
+    .locator('tbody tr:has(> th)', { hasText: group })
     .locator(`xpath=following-sibling::tr[td[1][normalize-space()="${label}"]][1]`);
   await expect(row.locator('td.num')).toHaveText(values);
 }

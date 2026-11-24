@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { applyTheme, chosenTheme, darkQuery, nextChoice, systemTheme, type Theme } from '../theme'
+import styles from './ThemeToggle.module.css'
 
 const SUN = (
   <svg
@@ -48,7 +49,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      className="theme-toggle"
+      className={styles.toggle}
       aria-label={`Switch to the ${other} theme`}
       title={`Switch to the ${other} theme${choice ? '' : ' (now following the browser)'}`}
       onClick={() => {

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { useLocation } from 'react-router'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Simulation, SimulationIn } from '../src/api'
+import simulationChart from '../src/components/SimulationChart.module.css'
 import { CalculatorPage } from '../src/pages/CalculatorPage'
 import { fakeServer } from './fakeServer'
 import { showPage } from './showPage'
@@ -309,6 +310,9 @@ test('a bookmarked plan opens with its rows', async () => {
   expect(asked[0].lump_sums).toEqual([{ on: '2026-06-01', amount: 2_000_000 }])
 })
 
+/** The Lump Sum row (its group of fields) an element is in. */
+const lumpSumRow = (element: Element) => element.closest('[role="group"][aria-label^="Lump Sum"]')
+
 test.each([
   ['Lump Sum 1 amount (₹)', '0', 'Enter an amount over ₹0'],
   ['Lump Sum 1 date', '2026-04-19', 'Must be on or after the start date'],
@@ -320,7 +324,8 @@ test.each([
   type(label, value)
 
   const shown = await screen.findByText(message)
-  expect(shown.closest('.lump-sum')).toBe(field(label).closest('.lump-sum'))
+  expect(lumpSumRow(shown)).toBe(lumpSumRow(field(label)))
+  expect(lumpSumRow(shown)).not.toBeNull()
   await new Promise((resolve) => setTimeout(resolve, 400))
   expect(asked.length).toBe(1)
 })
@@ -336,7 +341,7 @@ test('a Lump Sum after Closed on is ignored, with a hint on its row', async () =
   showCalculator(server, '/calculator?amount=100000&lumps=2026-06-01:20000,2027-05-01:5000')
 
   const hint = await screen.findByText('Ignored: after Closed on', {}, { timeout: 2000 })
-  expect(hint.closest('.lump-sum')).toBe(field('Lump Sum 2 date').closest('.lump-sum'))
+  expect(lumpSumRow(hint)).toBe(screen.getByRole('group', { name: 'Lump Sum 2' }))
   expect(screen.getAllByText(/Ignored/)).toHaveLength(1)
 })
 
@@ -358,7 +363,7 @@ test('a Lump Sum larger than what is owed on its date is refused on its row', as
   showCalculator(server, '/calculator?amount=100000&lumps=2026-05-01:1000,:,2026-05-15:200000')
 
   const refusal = await screen.findByText('Only ₹1,05,000 owed on 15 May', {}, { timeout: 2000 })
-  expect(refusal.closest('.lump-sum')).toBe(field('Lump Sum 3 date').closest('.lump-sum'))
+  expect(lumpSumRow(refusal)).toBe(screen.getByRole('group', { name: 'Lump Sum 3' }))
   expect(tile('Total interest earned')).toBe('₹0')
 })
 
@@ -407,7 +412,9 @@ test('planned Payments are dots on the line and rows of the table', async () => 
   showCalculator(server, '/calculator?amount=100000&monthly=3000')
   await worked()
 
-  expect(screen.getByRole('img').querySelectorAll('circle.payment')).toHaveLength(2)
+  expect(
+    screen.getByRole('img').querySelectorAll(`circle.${simulationChart.payment}`),
+  ).toHaveLength(2)
   const rows = [
     ...screen.getByText('Month by month').closest('details')!.querySelectorAll('tbody tr'),
   ]

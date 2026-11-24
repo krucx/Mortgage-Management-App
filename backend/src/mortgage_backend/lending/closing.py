@@ -21,8 +21,8 @@ from mortgage_backend.lending.mortgages import (
     MortgageRow,
     load_mortgage,
     mortgage_rows,
-    select_with_customer,
 )
+from mortgage_backend.lending.queries import select_with_customer
 from mortgage_backend.lending.refusals import check_replays, refusal_names_mortgage
 from mortgage_backend.lending.replay import (
     MortgageReplay,
@@ -413,7 +413,7 @@ def reopen(
     )
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/mortgages/{mortgage_id}/outstanding-on-closure")

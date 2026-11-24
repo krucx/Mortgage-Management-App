@@ -1,0 +1,9 @@
+/* ID Photos: card-shaped thumbnails, side by side; on the Customer's page they open full
+   size on click. */
+.picker :global(.photo),
+img.card {
+  width: 220px;
+  aspect-ratio: 1.6;
+  object-fit: contain;
+  background: var(--surface);
+}

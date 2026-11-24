@@ -102,7 +102,7 @@ def baseline(
     return _series(mortgage, today, _collateral_value(conn, mortgage, today), None)
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 @router.get("/mortgages/{mortgage_id}/projection")

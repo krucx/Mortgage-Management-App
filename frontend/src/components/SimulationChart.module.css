@@ -1,0 +1,26 @@
+/* A Simulation's Outstanding, on the Calculator, and the one it is compared with */
+:global(.series).outstanding,
+:global(.key).outstanding::before {
+  stroke: var(--accent);
+  background: var(--accent);
+}
+
+:global(.series).compared,
+:global(.key).compared::before {
+  stroke: var(--error);
+  background: var(--error);
+}
+
+/* A planned Payment on a Simulation's line */
+figure:global(.chart) circle.payment {
+  fill: var(--surface);
+  stroke-width: 2;
+}
+
+figure:global(.chart) circle.payment.outstanding {
+  stroke: var(--accent);
+}
+
+figure:global(.chart) circle.payment.compared {
+  stroke: var(--error);
+}

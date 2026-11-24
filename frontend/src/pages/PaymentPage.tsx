@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link } from 'react-router'
 import type { Payment } from '../api'
 import { NotLoaded } from '../components/NotLoaded'
 import { usePaymentMethods } from '../components/usePaymentMethods'
@@ -12,10 +12,11 @@ import { formatDate, formatDateTime, formatGraceDate } from '../format'
 import { formatINR } from '../money'
 import { changes, paymentQuery, previews, receiptQuery } from '../requests'
 import { keys, useLedgerChange, useServerState } from '../serverState'
+import { useNumericId } from '../useNumericId'
 
 /** One Payment and how it was allocated across Mortgages. */
 export function PaymentPage() {
-  const id = Number(useParams().id)
+  const id = useNumericId()
   const { client, queryClient } = useServerState()
   const { data: payment, error } = useQuery(paymentQuery(client, id))
   const setPayment = (voided: Payment) => queryClient.setQueryData(keys.payment(id), voided)

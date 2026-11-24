@@ -1,0 +1,10 @@
+/* The schedules under New Payment: a wide one scrolls within itself, never the page. */
+.schedules {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+/* An Advance Instalment that would pay Principal: a warning the Lender may accept. */
+tr.paysPrincipal td {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}

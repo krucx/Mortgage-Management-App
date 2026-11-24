@@ -27,6 +27,7 @@ import { rupeesToPaise } from '../money'
 import { settings, simulationQuery } from '../requests'
 import { useServerState } from '../serverState'
 import { draftFromParams, draftParams, fromDraft, toDraft, type TermsDraft } from '../terms'
+import styles from './CalculatorPage.module.css'
 
 /** The inputs, kept in the page's URL so a refresh or a bookmark keeps them; anything
  *  not there yet is a fresh Calculator's: today, a year on, the Default Terms. */
@@ -147,7 +148,7 @@ export function CalculatorPage() {
   }
 
   return (
-    <section className="card wide calculator">
+    <section className={`card wide ${styles.calculator}`}>
       <h2>Calculator</h2>
       <p className="hint">
         A Simulation: what a loan would come to, worked out exactly as a Mortgage's Ledger would be.

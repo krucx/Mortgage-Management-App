@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   PURITIES,
   type Customer,
   type Mortgage,
   type MortgageIn,
-  type NewMortgagePreview,
   type PaymentMethod,
   type Purity,
+  type Terms,
 } from '../api'
 import { NewMortgageForecast } from '../components/ChangeForecasts'
 import { CustomerChooser } from '../components/CustomerChooser'
@@ -18,12 +18,11 @@ import { PaymentMethodSelect } from '../components/PaymentMethodSelect'
 import { Photo } from '../components/Photo'
 import { PhotoSource } from '../components/PhotoSource'
 import { TermsFields } from '../components/TermsFields'
-import { useCashWarning } from '../components/useCashWarning'
-import { useConfirm } from '../components/useConfirm'
+import { FieldProblem } from '../components/FieldProblem'
 import { useDebounced } from '../components/useDebounced'
 import { useDraft } from '../components/useDraft'
 import { useSaveWithPhotos } from '../components/useSaveWithPhotos'
-import { previewQuery } from '../components/usePreview'
+import { useProposedChange } from '../components/useProposedChange'
 import { usePaymentMethods } from '../components/usePaymentMethods'
 import { WeightFields } from '../components/WeightFields'
 import { formatDate, todayIso } from '../format'
@@ -40,7 +39,7 @@ import {
 } from '../requests'
 import { STALE_AFTER, useLedgerChange, useServerState } from '../serverState'
 import { formatRate, fromDraft, INTEREST_MODES, toDraft } from '../terms'
-import { gramsToMg } from '../weight'
+import { gramsToMg, netAboveGross } from '../weight'
 import { RupeeInput } from '../components/RupeeInput'
 
 /**
@@ -149,7 +148,7 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
     lentThrough: 'cash' as PaymentMethod, // the usual way, so the one to change from
   })
   const methods = usePaymentMethods()
-  const { client, queryClient } = useServerState()
+  const { client } = useServerState()
   const changeLedger = useLedgerChange()
   const defaultTerms = useQuery({
     ...settings.defaultTerms(client),
@@ -164,12 +163,7 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
     noun: 'Mortgage',
     stale: STALE_AFTER.mortgagePhoto,
   })
-  const createdId = created.savedId
-  const saving = created.saving
-  // Why its Preview was refused, before anything is saved
-  const [error, setError] = useState<string | null>(null)
-  const [confirm, confirmDialog] = useConfirm()
-  const [warnCash, cashDialog] = useCashWarning()
+  const locked = created.savedId !== undefined
 
   // Suggest the Mortgage Name until the Lender types their own.
   const description = useDebounced(fields.description, 250)
@@ -179,7 +173,8 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
       startDate: fields.start_date,
       description,
     }),
-    enabled: !nameEdited && fields.start_date !== '',
+    // Not once created: the name it was created with stays shown for a photo retry.
+    enabled: !nameEdited && !locked && fields.start_date !== '',
     placeholderData: (previous) => previous,
   })
   const name = nameEdited ? typedName : (suggested.data?.name ?? '')
@@ -192,78 +187,87 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
   const set = (field: keyof typeof fields) => (value: string) =>
     setFields({ ...fields, [field]: value })
 
-  async function save(event: FormEvent) {
-    event.preventDefault()
-    if (!terms || !nameReady) return
-    const chosenTerms = fromDraft(terms)
-    const asked: MortgageIn = {
-      customer_id: customer.id,
-      name: name.trim() || null,
-      start_date: fields.start_date,
-      amount_lent: rupeesToPaise(fields.amountLent),
-      description: fields.description,
-      gross_weight_mg: gramsToMg(fields.gross),
-      net_weight_mg: gramsToMg(fields.net),
-      purity_karat: fields.purity,
-      lent_through: fields.lentThrough,
-      terms: chosenTerms,
-    }
-    if (createdId === undefined) {
-      // Warned from its Preview, as every change is: what it would lend in cash.
-      let preview: NewMortgagePreview
-      try {
-        preview = await queryClient.fetchQuery(previewQuery(client, previews.newMortgage(asked)))
-      } catch (err) {
-        setError((err as Error).message)
-        return
-      }
-      if (!(await warnCash(preview.cash))) return
-      const confirmed = await confirm({
-        title: `Create Mortgage ${name}?`,
-        body: (
-          <>
-            <Summary
-              rows={[
-                ['Customer', customer.name],
-                ['Start date', formatDate(fields.start_date)],
-                ['Amount lent', formatINR(rupeesToPaise(fields.amountLent))],
-                ['Lent Through', methods?.[fields.lentThrough] ?? ''],
-                ['Jewellery', fields.description],
-                [
-                  'Weight',
-                  `${fields.gross} grams gross, ${fields.net} grams net, ${fields.purity}K`,
-                ],
-                [
-                  'Terms',
-                  `${formatRate(chosenTerms.monthly_rate_bps)} a month · ` +
-                    INTEREST_MODES[chosenTerms.interest_mode],
-                ],
-                ['Photos', String(photos.length)],
-              ]}
-            />
-            <NewMortgageForecast mortgage={asked} />
-          </>
-        ),
-      })
-      if (!confirmed) return
-    }
-    setError(null)
-    const id = await created.run(
-      // A new Mortgage changes what the lending book is owed.
-      () => changeLedger((client) => createMortgage(client, asked)),
-      photos.map(({ blob }) => ({
-        key: blob,
-        send: (client, id) => addMortgagePhoto(client, id, blob),
-      })),
-    )
-    if (id !== undefined) navigate(`/mortgages/${id}`)
-    else setPhotos((all) => all.filter(({ blob }) => !created.isSent(blob))) // the ones left
-  }
+  // What saving would send, once every field it needs is filled in: whether what is typed
+  // can stand, the backend says through its Preview.
+  const chosenTerms = terms !== null && terms.ratePercent !== '' ? fromDraft(terms) : null
+  const asked: (MortgageIn & { terms: Terms }) | null =
+    chosenTerms !== null &&
+    nameReady &&
+    name.trim() !== '' &&
+    fields.start_date !== '' &&
+    fields.amountLent !== '' &&
+    fields.description.trim() !== '' &&
+    fields.gross !== '' &&
+    fields.net !== '' &&
+    !netAboveGross(fields)
+      ? {
+          customer_id: customer.id,
+          name: name.trim(),
+          start_date: fields.start_date,
+          amount_lent: rupeesToPaise(fields.amountLent),
+          description: fields.description,
+          gross_weight_mg: gramsToMg(fields.gross),
+          net_weight_mg: gramsToMg(fields.net),
+          purity_karat: fields.purity,
+          lent_through: fields.lentThrough,
+          terms: chosenTerms,
+        }
+      : null
 
-  const locked = createdId !== undefined
+  const { preview, submit, saving, canSave, error, confirmDialog } = useProposedChange({
+    change: asked,
+    // Warned from its Preview, as every change is: what it would lend in cash. Once
+    // created, a retry only sends the photos left: nothing more to preview or confirm.
+    preview: (mortgage) => (locked ? null : previews.newMortgage(mortgage)),
+    confirm: locked
+      ? null
+      : (mortgage) => ({
+          title: `Create Mortgage ${mortgage.name}?`,
+          body: (
+            <>
+              <Summary
+                rows={[
+                  ['Customer', customer.name],
+                  ['Start date', formatDate(mortgage.start_date)],
+                  ['Amount lent', formatINR(mortgage.amount_lent)],
+                  ['Lent Through', methods?.[fields.lentThrough] ?? ''],
+                  ['Jewellery', mortgage.description],
+                  [
+                    'Weight',
+                    `${fields.gross} grams gross, ${fields.net} grams net, ${fields.purity}K`,
+                  ],
+                  [
+                    'Terms',
+                    `${formatRate(mortgage.terms.monthly_rate_bps)} a month · ` +
+                      INTEREST_MODES[mortgage.terms.interest_mode],
+                  ],
+                  ['Photos', String(photos.length)],
+                ]}
+              />
+              <NewMortgageForecast mortgage={mortgage} />
+            </>
+          ),
+        }),
+    save: async (mortgage) => {
+      try {
+        return await created.run(
+          // A new Mortgage changes what the lending book is owed.
+          () => changeLedger((client) => createMortgage(client, mortgage)),
+          photos.map(({ blob }) => ({
+            key: blob,
+            send: (client, id) => addMortgagePhoto(client, id, blob),
+          })),
+        )
+      } catch (err) {
+        setPhotos((all) => all.filter(({ blob }) => !created.isSent(blob))) // the ones left
+        throw err
+      }
+    },
+    saved: (id) => navigate(`/mortgages/${id}`),
+  })
 
   return (
-    <form onSubmit={save}>
+    <form onSubmit={submit}>
       <h3>Mortgage details</h3>
       <div className="grid-2">
         <label>
@@ -342,11 +346,13 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
             setNameEdited(true)
           }}
         />
-        {!nameEdited && suggested.isError && (
-          <span className="status error">
-            No Mortgage Name could be suggested ({suggested.error.message}): type one.
-          </span>
-        )}
+        <FieldProblem
+          problem={
+            !nameEdited &&
+            suggested.isError &&
+            `No Mortgage Name could be suggested (${suggested.error.message}): type one.`
+          }
+        />
         <span className="hint">
           Must start with the start year. A number is added if the name is already taken.
         </span>
@@ -387,12 +393,11 @@ function MortgageForm({ customer, carried }: { customer: Customer; carried: Carr
       </fieldset>
 
       <div className="row">
-        <button type="submit" disabled={saving || !terms || !nameReady}>
+        <button type="submit" disabled={!canSave}>
           {saving ? 'Saving…' : locked ? 'Retry photo upload' : 'Create Mortgage'}
         </button>
       </div>
-      {(error ?? created.error) && <p className="status error">{error ?? created.error}</p>}
-      {cashDialog}
+      {(error ?? preview.error) && <p className="status error">{error ?? preview.error}</p>}
       {confirmDialog}
     </form>
   )

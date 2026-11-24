@@ -1,0 +1,103 @@
+/* The Call List: a row per Mortgage, grouped by Customer, who appears once beside them. */
+.table td {
+  vertical-align: middle;
+}
+
+.table tr.groupStart td {
+  border-top: 2px solid var(--border);
+}
+
+.table td.customer {
+  vertical-align: top;
+  border-right: 1px solid var(--border);
+  width: 16rem;
+}
+
+.table tr.noting td {
+  padding-top: 0;
+  border-top: none;
+}
+
+.who {
+  display: grid;
+  gap: 0.4rem;
+}
+
+/* A number to ring, and to message on WhatsApp, on one line. */
+.reach {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.reach .iconOnly {
+  display: inline-grid;
+  place-items: center;
+  padding-inline: 0.5rem;
+}
+
+.reach a:global(.button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+/* A reason a Mortgage is on the Call List, as an enclosed status marker in its colour. */
+.reason {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--reason);
+  color: var(--reason);
+  background: color-mix(in srgb, var(--reason) 10%, var(--surface));
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.reason.months_unpaid {
+  --reason: var(--warning);
+}
+
+.reason.loan_to_value {
+  --reason: var(--error);
+}
+
+.reason.accrues_today {
+  --reason: var(--tone-money-in);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calledCell {
+  display: grid;
+  gap: 0.1rem;
+  justify-items: start;
+}
+
+.calledMark {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+/* Rows an import left out: a warning, listed under it. */
+h3.notImported {
+  color: var(--warning);
+}
+
+h3.notImported::before {
+  content: '⚠ ';
+}

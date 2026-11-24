@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react'
+import styles from './ConfirmDialog.module.css'
 import { Modal } from './Modal'
 
 export interface ConfirmOptions {
@@ -24,13 +25,9 @@ export function ConfirmDialog({
   const titleId = useId()
 
   return (
-    <Modal
-      onClose={() => onClose(false)}
-      className={wide ? 'wide-dialog' : ''}
-      labelledBy={titleId}
-    >
+    <Modal onClose={() => onClose(false)} wide={wide} labelledBy={titleId}>
       <h2 id={titleId}>{title}</h2>
-      {body && <div className="confirm-body">{body}</div>}
+      {body && <div className={styles.body}>{body}</div>}
       <div className="row end">
         {/* Focused first, so a second accidental Enter goes back to editing, not saving. */}
         <button type="button" className="secondary" autoFocus onClick={() => onClose(false)}>

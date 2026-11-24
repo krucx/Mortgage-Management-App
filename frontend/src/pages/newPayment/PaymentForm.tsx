@@ -35,6 +35,7 @@ import {
 } from './confirmation'
 import { DateReceivedField } from './DateReceivedField'
 import { AdvanceSchedules } from './AdvanceSchedules'
+import styles from './PaymentForm.module.css'
 
 /** The Payment form for a chosen Customer: the date, amount and method, which Mortgages
  *  to pay and how to allocate across them, then the Preview and Save. */
@@ -351,7 +352,7 @@ export function PaymentForm({
         </label>
 
         {problems.length > 0 && (
-          <ul className="problems">
+          <ul className={styles.problems} aria-label="Problems">
             {problems.map((problem) => (
               <li key={problem}>{problem}</li>
             ))}

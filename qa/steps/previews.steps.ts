@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { Given, Then, type Day, type Money } from './fixtures';
 import type { Lender } from './lender';
 import { shownDay, shownINR } from './shown';
+import { beforeAfter } from './selectors';
 
 // The Preview a change form shows before saving (BeforeAfter), checked against the API.
 
@@ -66,7 +67,7 @@ Then(
   'the Preview shows what is outstanding in 3, 6 and 12 months, now and after the change',
   async ({ page, lender }) => {
     const { before, after } = await termChangePreview(page, lender);
-    const table = page.locator('.before-after table', { has: page.getByRole('columnheader', { name: 'After the change' }) });
+    const table = beforeAfter(page).locator('table', { has: page.getByRole('columnheader', { name: 'After the change' }) });
     await expect(table.getByRole('columnheader')).toHaveText(['Outstanding', 'Now', 'After the change', 'Difference']);
     for (const months of [3, 6, 12]) {
       const [was, will] = [at(before, months), at(after, months)];
