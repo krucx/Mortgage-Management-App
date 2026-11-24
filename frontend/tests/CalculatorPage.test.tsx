@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { useLocation } from 'react-router'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Simulation, SimulationIn } from '../src/api'
@@ -296,6 +296,22 @@ test('a monthly amount and dated Lump Sums are planned, added and removed, all i
     expect(asked.at(-1)?.lump_sums).toEqual([{ on: '2026-09-01', amount: 500_000 }]),
   )
   expect(search().lumps).toBe('2026-09-01:5000')
+})
+
+test('two edits made before the page re-renders both reach the URL', async () => {
+  const { server } = backend()
+  showCalculator(server, '/calculator?amount=100000')
+  await worked()
+  fireEvent.click(button('Add a Lump Sum'))
+
+  // Like a fast typist, or a test filling a date then an amount back to back.
+  act(() => {
+    type('Lump Sum 1 date', '2026-06-01')
+    type('Lump Sum 1 amount (₹)', '20000')
+  })
+
+  await settle(() => expect(search().lumps).toBe('2026-06-01:20000'))
+  expect(field('Lump Sum 1 date').value).toBe('2026-06-01')
 })
 
 test('a bookmarked plan opens with its rows', async () => {

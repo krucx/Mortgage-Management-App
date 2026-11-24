@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 
 type Changes = Record<string, string | null> // null removes the filter
@@ -5,16 +6,22 @@ type Changes = Record<string, string | null> // null removes the filter
 /**
  * A list's filters, kept in the page's URL so a narrowed list can be shared, bookmarked
  * or opened from a link (e.g. a Dashboard figure). Changing them replaces the history
- * entry rather than adding one per click.
+ * entry rather than adding one per click. Changes made before the page re-renders build
+ * on each other, as the URL only catches up after a render.
  */
 export function useUrlFilters(): [URLSearchParams, (changes: Changes) => void] {
   const [params, setParams] = useSearchParams()
+  const latest = useRef(params)
+  useLayoutEffect(() => {
+    latest.current = params
+  })
   function setFilters(changes: Changes) {
-    const next = new URLSearchParams(params)
+    const next = new URLSearchParams(latest.current)
     for (const [name, value] of Object.entries(changes)) {
       if (value === null) next.delete(name)
       else next.set(name, value)
     }
+    latest.current = next
     setParams(next, { replace: true })
   }
   return [params, setFilters]

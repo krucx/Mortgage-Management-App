@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   filledIn,
+  type Change,
   type Inputs,
   type LumpSumDraft,
   type Problems,
@@ -21,14 +22,16 @@ export function PlannedPayments({
 }: {
   inputs: Inputs
   problem: Problems
-  change: (changes: Partial<Inputs>) => void
+  change: Change
   refusal: Refusal | null
   runs: Run[] | null
 }) {
   const [open] = useState(() => !!(monthly || lumps.length))
   const sent = filledIn(lumps)
   function setLump(row: number, changes: Partial<LumpSumDraft>) {
-    change({ lumps: lumps.map((lump, i) => (i === row ? { ...lump, ...changes } : lump)) })
+    change((latest) => ({
+      lumps: latest.lumps.map((lump, i) => (i === row ? { ...lump, ...changes } : lump)),
+    }))
   }
   return (
     <details className="tucked" open={open}>
@@ -81,7 +84,9 @@ export function PlannedPayments({
                 type="button"
                 className="secondary small"
                 aria-label={`Remove Lump Sum ${row + 1}`}
-                onClick={() => change({ lumps: lumps.filter((_, i) => i !== row) })}
+                onClick={() =>
+                  change((latest) => ({ lumps: latest.lumps.filter((_, i) => i !== row) }))
+                }
               >
                 Remove
               </button>
@@ -96,7 +101,9 @@ export function PlannedPayments({
           <button
             type="button"
             className="secondary small"
-            onClick={() => change({ lumps: [...lumps, { on: '', amount: '' }] })}
+            onClick={() =>
+              change((latest) => ({ lumps: [...latest.lumps, { on: '', amount: '' }] }))
+            }
           >
             Add a Lump Sum
           </button>

@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { PURITIES, type Purity, type SimulationIn, type Terms } from '../api'
 import {
@@ -10,6 +10,7 @@ import {
   refusalOf,
   SPANS,
   termsLabel,
+  type Change,
   type Inputs,
   type Run,
   type Span,
@@ -31,7 +32,7 @@ import styles from './CalculatorPage.module.css'
 
 /** The inputs, kept in the page's URL so a refresh or a bookmark keeps them; anything
  *  not there yet is a fresh Calculator's: today, a year on, the Default Terms. */
-function useInputs(defaultTerms: Terms | undefined): [Inputs, (changes: Partial<Inputs>) => void] {
+function useInputs(defaultTerms: Terms | undefined): [Inputs, Change] {
   const [params, setParams] = useUrlFilters()
   const today = todayIso()
   const span = Number(params.get('span')) as Span
@@ -57,10 +58,20 @@ function useInputs(defaultTerms: Terms | undefined): [Inputs, (changes: Partial<
     purity: PURITIES.includes(purity) ? purity : 22,
     value: params.get('value') ?? '',
   }
+  // The latest inputs, including changes the URL has yet to catch up with: two edits before
+  // a re-render must build on each other, not on the render's inputs.
+  const latest = useRef(inputs)
+  useLayoutEffect(() => {
+    latest.current = inputs
+  })
   // Every input goes into the URL at once, so a bookmark keeps today's dates too; those
   // left empty are left out.
-  function change(changes: Partial<Inputs>) {
-    const next = { ...inputs, ...changes }
+  const change: Change = (changes) => {
+    const next = {
+      ...latest.current,
+      ...(typeof changes === 'function' ? changes(latest.current) : changes),
+    }
+    latest.current = next
     setParams({
       amount: next.amount,
       start: next.start,
