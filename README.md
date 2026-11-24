@@ -238,7 +238,7 @@ the sample book's helper `qa/fixtures/lending_book.py`) that the scenarios tagge
 only read, on its last day, and the work app, where every other scenario seeds the Customer
 and Mortgages it changes. The scenarios run in parallel. `--mode fresh`, `golden` or `work`
 runs only one of the sets; the default `all` runs every one. It exits 0 when every scenario
-passes and 1 otherwise, always removing its containers and volumes; failures leave screenshots in `qa/test-results`. `--ui` serves Playwright's UI on a local port instead, until Ctrl-C, with the golden book
+passes and 1 otherwise, always removing its containers and volumes; failures leave screenshots and each app's log (`app-logs/`, the JSON request log with any `unhandled_error` traceback) in `qa/test-results`. `--ui` serves Playwright's UI on a local port instead, until Ctrl-C, with the golden book
 for `all` or `--mode golden`.
 The `qa` job in `.github/workflows/test.yml` runs it on the `release/X.Y.Z` pull request
 and on demand (workflow_dispatch), not on every pull request; run it locally only with the owner's approval (see CONTRIBUTING.md).

@@ -130,8 +130,20 @@ run_tests() {
   fi
 
   echo "qa-stack: $MODE scenarios"
-  qa_compose up --build --exit-code-from qa-runner --attach qa-runner || die "tests failed; see qa/test-results"
+  if ! qa_compose up --build --exit-code-from qa-runner --attach qa-runner; then
+    save_app_logs
+    die "tests failed; see qa/test-results (app logs: qa/test-results/app-logs)"
+  fi
   echo "qa-stack: passed (--mode $MODE)"
+}
+
+# Keep each app's log (the JSON request log, with any unhandled_error traceback) in
+# qa/test-results/app-logs/<service>.log, before the exit trap removes the containers.
+save_app_logs() {
+  mkdir -p qa/test-results/app-logs
+  for svc in app app-fresh app-work; do
+    qa_compose logs --no-color --timestamps "$svc" > "qa/test-results/app-logs/$svc.log" 2>&1 || true
+  done
 }
 
 # Compose with the QA overlay, for run_tests (it sets PORT, SPECS, IMAGE, RUNNER_IMAGE and override). The base
