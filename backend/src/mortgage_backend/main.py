@@ -118,8 +118,8 @@ def create_app(
     app.state.update_check = UpdateCheck(app.version, latest_release, now)
     # Registered innermost first: each `add_middleware` wraps the ones before it, so the
     # request runs request log > localhost-only > daily jobs > upload limit > app.
-    # The upload limit sits inside the daily jobs' middleware, which would turn its refusal
-    # of a body sent without its length into a 400; neither reads a body before it.
+    # The upload limit is innermost: it counts a body as the route reads it, so the daily
+    # jobs run before it refuses an oversized one, and neither reads a body before it.
     app.add_middleware(UploadLimit)
 
     @app.middleware("http")
