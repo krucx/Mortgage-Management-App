@@ -52,18 +52,20 @@ sequenceDiagram
 <h2>The code</h2>
 <h3>1. The changes, by name</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>changes</code> · lines 177–208, trimmed</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>177  /** Each change that can alter what Mortgages owe; save them through useLedgerChange. */
-178  export const changes = {
-179    edit: (client: ApiClient, id: number, edit: MortgageEdit) =&gt;
-180      dataOrThrow(client.PUT('/api/mortgages/{mortgage_id}', { params: mortgagePath(id), body: edit })),
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests/changes.ts">frontend/src/requests/changes.ts</a> · <code>changes</code> · lines 12–47, trimmed</figcaption>
+<pre data-file="frontend/src/requests/changes.ts"><code>12   /** Each change that can alter what Mortgages owe; save them through useLedgerChange. */
+13   export const changes = {
+14     edit: (client: ApiClient, id: number, edit: MortgageEdit) =&gt;
+15       dataOrThrow(
+16         client.PUT('/api/mortgages/{mortgage_id}', { params: mortgagePath(id), body: edit }),
+17       ),
 ⋮    … addTermChange, removeTermChange …
-194    recordPayment: (client: ApiClient, payment: PaymentIn) =&gt;
-195      dataOrThrow(client.POST('/api/payments', { body: payment })),      ◀
-196    voidPayment: (client: ApiClient, paymentId: number, reason: string) =&gt;
+37     recordPayment: (client: ApiClient, payment: PaymentIn) =&gt;
+38       dataOrThrow(client.POST('/api/payments', { body: payment })),      ◀
+39     voidPayment: (client: ApiClient, paymentId: number, reason: string) =&gt;
 ⋮
-203    redeemAll: (client: ApiClient, redeem: RedeemAllIn) =&gt;
-204      dataOrThrow(client.POST('/api/closures/redeem', { body: redeem })),
+46     redeemAll: (client: ApiClient, redeem: RedeemAllIn) =&gt;
+47       dataOrThrow(client.POST('/api/closures/redeem', { body: redeem })),
 ⋮    … waiveAll, forfeitAll, reopen, setCollateral …
 </code></pre>
 </figure>
@@ -240,7 +242,7 @@ sequenceDiagram
 <ol>
   <li><strong>Backend:</strong> the change, its Preview twin and their routes, with Pydantic models (<a href="../006-changes-and-previews/05-adding-a-change-route.html">chapter 006, lesson 5</a>).</li>
   <li><strong>Types:</strong> in <code>frontend/</code>, <code>npm run gen:types</code>; commit <code>openapi.json</code> and <code>api.gen.ts</code> (lesson 1, trap #10). Name the new types in <code>api.ts</code> if pages need them.</li>
-  <li><strong>Requests:</strong> a function in <code>requests.ts</code>: in <code>changes</code> if it can alter what Mortgages owe, otherwise beside what it belongs to; and its entry in <code>previews</code> (lesson 4).</li>
+  <li><strong>Requests:</strong> a function in <code>requests/</code>: in <code>changes</code> if it can alter what Mortgages owe, otherwise beside what it belongs to; and its entry in <code>previews</code> (lesson 4).</li>
   <li><strong>Stale:</strong> a Ledger change needs nothing more. Anything else: pick the <code>STALE_AFTER</code> entry whose reason fits, or add one with its reason, and a test in <code>serverState.test.tsx</code>.</li>
   <li><strong>The page:</strong> <code>useProposedChange</code> with <code>save: (c) =&gt; changeLedger((client) =&gt; changes.yourChange(client, c))</code>, or <code>useChange(STALE_AFTER.yourEntry)</code>; <code>useMortgageChange</code> if it returns the Mortgage. Never <code>fetch</code> (trap #11), and no <code>invalidateQueries</code> of your own.</li>
 </ol>
