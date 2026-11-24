@@ -14,7 +14,7 @@ export function useUrlFilters(): [URLSearchParams, (changes: Changes) => void] {
   const latest = useRef(params)
   useLayoutEffect(() => {
     latest.current = params
-  })
+  }, [params]) // only when the URL changes, not on a render before it has caught up
   function setFilters(changes: Changes) {
     const next = new URLSearchParams(latest.current)
     for (const [name, value] of Object.entries(changes)) {

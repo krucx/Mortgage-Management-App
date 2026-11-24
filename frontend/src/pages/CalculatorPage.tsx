@@ -61,9 +61,12 @@ function useInputs(defaultTerms: Terms | undefined): [Inputs, Change] {
   // The latest inputs, including changes the URL has yet to catch up with: two edits before
   // a re-render must build on each other, not on the render's inputs.
   const latest = useRef(inputs)
+  // As in useUrlFilters: reset when what the inputs come from changes, not on a render
+  // before the URL has caught up.
   useLayoutEffect(() => {
     latest.current = inputs
-  })
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, defaultTerms])
   // Every input goes into the URL at once, so a bookmark keeps today's dates too; those
   // left empty are left out.
   const change: Change = (changes) => {
