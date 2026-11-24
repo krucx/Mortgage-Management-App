@@ -47,12 +47,21 @@ async function listedRow(page: Page, mortgage: string) {
   return row!;
 }
 
+/** `check` of the Mortgage's row, looking again from page 1 until it passes. The list holds
+ * whole Customers a page at a time, and the book changes under it (other scenarios add
+ * Customers, and the list is fetched again after a Call Note), so a look can come too early or
+ * find the row on a page that has since moved on; the row it returns is only good for that look. */
+async function onceListed(page: Page, mortgage: string, check: (row: Locator) => Promise<void>) {
+  await expect(async () => check(await listedRow(page, mortgage))).toPass({ timeout: 20_000 });
+}
+
 /** The Mortgage is listed for this reason alone (a marker's label is its full wording). */
 async function expectListedFor(page: Page, mortgage: string, reason: string) {
-  const row = await listedRow(page, mortgage);
-  // Each marker is titled with its full wording.
-  await expect(row.locator('span[title]')).toHaveCount(1);
-  await expect(row.getByLabel(reason, { exact: true })).toBeVisible();
+  await onceListed(page, mortgage, async (row) => {
+    // Each marker is titled with its full wording.
+    await expect(row.locator('span[title]')).toHaveCount(1, { timeout: 2_000 });
+    await expect(row.getByLabel(reason, { exact: true })).toBeVisible({ timeout: 2_000 });
+  });
 }
 
 async function loanToValueOf(lender: Lender, mortgage: string) {
@@ -343,10 +352,12 @@ When('the Lender marks {mortgage} called with {string}', async ({ page }, mortga
 });
 
 Then('its row shows Called with {string}, and offers Again', async ({ page, lender }, note: string) => {
-  const cell = (await listedRow(page, lender.mortgage!.name)).getByRole('cell').filter({ hasText: '✓ Called' });
-  await expect(cell).toContainText('Called');
-  await expect(cell).toContainText(note);
-  await expect(cell.getByRole('button', { name: 'Again…' })).toBeVisible();
+  await onceListed(page, lender.mortgage!.name, async (row) => {
+    const cell = row.getByRole('cell').filter({ hasText: '✓ Called' });
+    await expect(cell).toContainText('Called', { timeout: 2_000 });
+    await expect(cell).toContainText(note, { timeout: 2_000 });
+    await expect(cell.getByRole('button', { name: 'Again…' })).toBeVisible({ timeout: 2_000 });
+  });
 });
 
 /** A Mortgage's Call Notes, one an item. */

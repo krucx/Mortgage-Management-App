@@ -112,7 +112,10 @@ When('the Lender starts to cancel the part on {day}', async ({ page }, due: Day)
 
 When('the Lender cancels the part on {day}', async ({ page }, due: Day) => {
   await startCancelling(page, due);
+  // Wait for the cancellation to be stored: the next step opens another page.
+  const cancelled = page.waitForResponse((r) => r.request().method() === 'POST' && /\/advance-instalments\/\d+\/cancel$/.test(r.url()));
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel this Advance Instalment' }).click();
+  expect((await cancelled).ok()).toBe(true);
 });
 
 Then('the page shows the Receipt for the part due {day}', async ({ page }, due: Day) => {

@@ -35,7 +35,7 @@ Feature: Dialogs
 
     @screen:/payments/:id
     Scenario: Void Payment waits for a reason, and a click outside closes the dialog only while there is none
-      Given "Dialog Reason Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
+      Given "Voidreason Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
       And paid ₹1,000 on it on 5 Oct 2025
       And today is 15 Nov 2025
       When the Lender opens that Payment
@@ -59,7 +59,7 @@ Feature: Dialogs
 
     @screen:/payments/:id
     Scenario: A refusal from the app is shown in the dialog, which stays open with the reason
-      Given "Dialog Refusal Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
+      Given "Voidrefusal Customer" was lent ₹30,000 on 5 Sept 2025 against a Gold chain
       And paid ₹1,000 on it on 5 Oct 2025
       And today is 15 Nov 2025
       And the app refuses to void a Payment, saying "The book is closed for the year"
