@@ -7,6 +7,7 @@ never buffered or altered, and only the status line is looked at."""
 
 import json
 import logging
+import sys
 import time
 import traceback
 
@@ -14,6 +15,22 @@ from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 log = logging.getLogger(__name__)
+
+
+class _Stdout(logging.Handler):
+    """Writes to whatever sys.stdout is when a line is logged."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        print(self.format(record), file=sys.stdout, flush=True)
+
+
+def log_to_stdout() -> None:
+    """Python drops INFO records when nothing configures logging, and uvicorn configures only
+    its own loggers. Send ours to stdout, where `docker compose logs` reads it. Safe to call
+    again."""
+    if not any(isinstance(h, _Stdout) for h in log.handlers):
+        log.addHandler(_Stdout())
+    log.setLevel(logging.INFO)
 
 
 class RequestLog:

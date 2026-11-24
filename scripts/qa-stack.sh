@@ -137,7 +137,7 @@ run_tests() {
   echo "qa-stack: passed (--mode $MODE)"
 }
 
-# Keep each app's log (including any unhandled_error traceback) in
+# Keep each app's log (the JSON request log, with any unhandled_error traceback) in
 # qa/test-results/app-logs/<service>.log, before the exit trap removes the containers.
 save_app_logs() {
   mkdir -p qa/test-results/app-logs || return 0

@@ -91,3 +91,22 @@ def test_a_json_body_and_an_upload_still_reach_their_routes(client, caplog):
     assert client.post("/api/echo", json={"a": 1}).json() == {"a": 1}
     assert client.post("/api/upload", content=b"\0" * 5000).text == "5000"
     assert [r["status"] for r in records(caplog)] == [200, 200]
+
+
+def test_the_lines_reach_the_container_output(client, capsys):
+    """Without a handler Python drops INFO records, so `docker compose logs` showed no requests."""
+    client.get("/api/health")
+
+    out = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert [(r["event"], r["path"], r["status"]) for r in out] == [
+        ("request", "/api/health", 200)
+    ]
+
+
+def test_building_the_app_again_does_not_repeat_the_lines(client, capsys):
+    from mortgage_backend.platform.request_log import log_to_stdout
+
+    log_to_stdout()
+    client.get("/api/health")
+
+    assert len(capsys.readouterr().out.splitlines()) == 1
