@@ -28,7 +28,7 @@
 <p>Six lists, each solving these on its own, would solve them six slightly different ways.</p>
 
 <h2>The idea</h2>
-<p><strong>A list is a key and a loader.</strong> <code>requests.ts</code> declares each list once, in <code>lists</code>: which list it is (with its filters), and how to ask for page <em>n</em> in a given order.</p>
+<p><strong>A list is a key and a loader.</strong> <code>requests/lists.ts</code> declares each list once, in <code>lists</code>: which list it is (with its filters), and how to ask for page <em>n</em> in a given order.</p>
 <p><strong>One hook does the rest.</strong> <code>useListPage</code> keeps the page number, reads the sort from the URL, asks the cache for that page in that order, steps back when a page comes back empty, and hands the page a pager. Changing the sort or a filter starts again at page 1. The sort and the page are part of the query key, so each page in each order is its own cache entry.</p>
 
 <h2>The flow</h2>
@@ -113,37 +113,37 @@ flowchart TD
 
 <h3>2. A list, declared once</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>ListRequest</code>, <code>sortQuery</code>, <code>lists.customers</code> · lines 225–254</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>225  /** A list read a page at a time and sorted on the server: which list (with its
-226   *  filters), and how to ask for one page of it in one order. */
-227  export interface ListRequest&lt;Column extends string, Listed&gt; {
-228    key: readonly unknown[]
-229    load: (client: ApiClient, page: number, sort: Sort&lt;Column&gt; | null) =&gt; Promise&lt;Listed&gt;
-230  }
-231
-232  /** A sort as query parameters; none for the list's own order. */
-233  const sortQuery = &lt;Column extends string&gt;(sort: Sort&lt;Column&gt; | null) =&gt;
-234    sort ? { sort: sort.column, ...(sort.descending ? { descending: true } : {}) } : {}   ◀
-235
-236  /** Every list, by name, with the filters it can be narrowed by. */
-237  export const lists = {
-238    customers: (filters: { query: string; hasActiveMortgage: boolean }) =&gt;
-239      ({
-240        key: ['customers', filters],                                       // ①
-241        load: (client, page, sort) =&gt;
-242          dataOrThrow(
-243            client.GET('/api/customers', {
-244              params: {
-245                query: {
-246                  page,
-247                  q: filters.query,
-248                  ...(filters.hasActiveMortgage ? { has_active_mortgage: true } : {}),
-249                  ...sortQuery(sort),
-250                },
-251              },
-252            }),
-253          ),
-254      }) satisfies ListRequest&lt;CustomerSort, unknown&gt;,                     // ②
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests/lists.ts">frontend/src/requests/lists.ts</a> · <code>ListRequest</code>, <code>sortQuery</code>, <code>lists.customers</code> · lines 15–44</figcaption>
+<pre data-file="frontend/src/requests/lists.ts"><code>15   /** A list read a page at a time and sorted on the server: which list (with its
+16    *  filters), and how to ask for one page of it in one order. */
+17   export interface ListRequest&lt;Column extends string, Listed&gt; {
+18     key: readonly unknown[]
+19     load: (client: ApiClient, page: number, sort: Sort&lt;Column&gt; | null) =&gt; Promise&lt;Listed&gt;
+20   }
+21
+22   /** A sort as query parameters; none for the list's own order. */
+23   const sortQuery = &lt;Column extends string&gt;(sort: Sort&lt;Column&gt; | null) =&gt;
+24     sort ? { sort: sort.column, ...(sort.descending ? { descending: true } : {}) } : {}   ◀
+25
+26   /** Every list, by name, with the filters it can be narrowed by. */
+27   export const lists = {
+28     customers: (filters: { query: string; hasActiveMortgage: boolean }) =&gt;
+29       ({
+30         key: ['customers', filters],                                       // ①
+31         load: (client, page, sort) =&gt;
+32           dataOrThrow(
+33             client.GET('/api/customers', {
+34               params: {
+35                 query: {
+36                   page,
+37                   q: filters.query,
+38                   ...(filters.hasActiveMortgage ? { has_active_mortgage: true } : {}),
+39                   ...sortQuery(sort),
+40                 },
+41               },
+42             }),
+43           ),
+44       }) satisfies ListRequest&lt;CustomerSort, unknown&gt;,                     // ②
 </code></pre>
 </figure>
 <ol class="marks">
@@ -245,7 +245,7 @@ flowchart TD
 <p>The sort is in the URL, so the browser keeps it: Back to the Payments list from a Payment, or a reload, shows the same order. The page number isn't in the URL; it's React state, and starts at 1 whenever the list's page is drawn afresh. The filters vary by page: the Customers list keeps "Only Customers with an Active Mortgage" in the URL (<code>?active=true</code>), but not its search text.</p>
 
 <h3>(d) Adding a sortable column</h3>
-<p>Say the backend's Customers list gains a <code>created</code> sort. After <code>npm run gen:types</code>, <code>CustomerSort</code> includes <code>"created"</code>, and <code>CUSTOMER_SORTS</code> in <code>api.ts</code> stops compiling until you add <code>created: true</code> (lesson 1, nuance f). Then add a <code>&lt;SortHeading sorting={sorting} column="created" firstDescending&gt;</code> to the table in <code>CustomersPage.tsx</code>. Nothing in <code>requests.ts</code> or <code>useListPage</code> changes.</p>
+<p>Say the backend's Customers list gains a <code>created</code> sort. After <code>npm run gen:types</code>, <code>CustomerSort</code> includes <code>"created"</code>, and <code>CUSTOMER_SORTS</code> in <code>api.ts</code> stops compiling until you add <code>created: true</code> (lesson 1, nuance f). Then add a <code>&lt;SortHeading sorting={sorting} column="created" firstDescending&gt;</code> to the table in <code>CustomersPage.tsx</code>. Nothing in <code>requests/</code> or <code>useListPage</code> changes.</p>
 
 <h2>Quiz</h2>
 <div class="quiz" data-answer="1">

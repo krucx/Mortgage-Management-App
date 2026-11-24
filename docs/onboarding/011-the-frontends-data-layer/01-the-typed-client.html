@@ -139,15 +139,15 @@ flowchart LR
   <li>The cache (lesson 2) is made here too, with one retry rule for every read: below.</li>
 </ol>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>mortgageQuery()</code> · lines 53–60</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>53  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
-54  export function mortgageQuery(client: ApiClient, id: number) {
-55    return queryOptions({
-56      queryKey: keys.mortgage(id),
-57      queryFn: () =&gt;
-58        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),   ◀
-59    })
-60  }
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests/mortgages.ts">frontend/src/requests/mortgages.ts</a> · <code>mortgageQuery()</code> · lines 17–24</figcaption>
+<pre data-file="frontend/src/requests/mortgages.ts"><code>17  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
+18  export function mortgageQuery(client: ApiClient, id: number) {
+19    return queryOptions({
+20      queryKey: keys.mortgage(id),
+21      queryFn: () =&gt;
+22        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),   ◀
+23    })
+24  }
 </code></pre>
 </figure>
 <p>Line 58 is a typed request: the path is a string literal the compiler checks against <code>paths</code>, and <code>mortgagePath(id)</code> is <code>{ path: { mortgage_id: id } }</code>. Lesson 2 explains <code>queryOptions</code> and the key.</p>
@@ -224,15 +224,15 @@ flowchart LR
 <p>The <code>detail</code> was a string, so <code>errorMessage</code> passed it straight through. It was asked once: a 422 is a refusal. Lesson 4 shows why Save is disabled.</p>
 
 <h3>Hands-on: a path that doesn't exist</h3>
-<p>In <code>frontend/src/requests.ts</code>, line 58, change <code>'/api/mortgages/{mortgage_id}'</code> to <code>'/api/mortgage/{mortgage_id}'</code>. Then, from <code>frontend/</code>, run <code>npm run typecheck</code>.</p>
+<p>In <code>frontend/src/requests/mortgages.ts</code>, line 22, change <code>'/api/mortgages/{mortgage_id}'</code> to <code>'/api/mortgage/{mortgage_id}'</code>. Then, from <code>frontend/</code>, run <code>npm run typecheck</code>.</p>
 <div class="reveal">
   <p><strong>Predict:</strong> does it compile? If not, how many errors, and where?</p>
   <button class="show">I've made my prediction. Show me.</button>
   <div class="reveal-body">
-    <p><strong>51 errors.</strong> The first one that matters is the line you changed:</p>
-<pre><code>src/requests.ts(58,30): error TS2345: Argument of type '"/api/mortgage/{mortgage_id}"' is not assignable to parameter of type 'PathsWithMethod&lt;paths, "get"&gt;'.</code></pre>
-    <p>The other 50 are knock-on errors in the pages that read a Mortgage: 43 in <code>MortgagePage.tsx</code>, 5 in <code>RedeemPage.tsx</code>, 1 each in <code>ChangeTermsPage.tsx</code> and <code>EditMortgagePage.tsx</code>. With a path it doesn't know, the client can't tell which answer comes back, so it types the data as any route's answer (the errors list the Backups settings among them), and every <code>mortgage.name</code> downstream stops type-checking. Always read the error in <code>requests.ts</code> first. (Run at commit 87a96c7.)</p>
-    <p>Undo it: <code>git checkout -- src/requests.ts</code>.</p>
+    <p><strong>21 errors.</strong> The first one that matters is the line you changed:</p>
+<pre><code>src/requests/mortgages.ts(22,30): error TS2345: Argument of type '"/api/mortgage/{mortgage_id}"' is not assignable to parameter of type 'PathsWithMethod&lt;paths, "get"&gt;'.</code></pre>
+    <p>The other 20 are knock-on errors in the pages that read a Mortgage: 13 in <code>MortgagePage.tsx</code>, 5 in <code>RedeemPage.tsx</code>, 1 each in <code>ChangeTermsPage.tsx</code> and <code>EditMortgagePage.tsx</code>. With a path it doesn't know, the client can't tell which answer comes back, so it types the data as any route's answer (the errors list the Backups settings among them), and every <code>mortgage.name</code> downstream stops type-checking. Always read the error in <code>requests/</code> first. (Run at commit 859e29f.)</p>
+    <p>Undo it: <code>git checkout -- src/requests/mortgages.ts</code>.</p>
   </div>
 </div>
 
@@ -272,14 +272,14 @@ flowchart LR
 <p>The other test in <code>test_openapi.py</code>, <code>test_ready_to_redeem_is_retired_from_the_api</code>, checks that four words never appear in the schema: <code>ready_to_redeem</code>, <code>ready-to-redeem</code>, <code>ReadyToRedeem</code> and <code>received_with</code>. Paying the whole Outstanding Redeems a Mortgage (ADR 0011), so nothing waits to be Redeemed, and a Final Payment's link back to its first part is the backend's business (<a href="../007-payments-and-receipts/02-one-payment-several-parts.html">chapter 007, lesson 2</a>). If a field isn't in the schema, the frontend can't even name it.</p>
 
 <h3>(c) No <code>fetch</code> outside the client (trap #11)</h3>
-<div class="callout warn"><strong>Trap #11.</strong> The frontend never calls <code>fetch</code> itself: every request goes through the typed client, by way of a function in <code>requests.ts</code>. A request made with <code>fetch</code> isn't type-checked, isn't cached, and isn't made stale by any save.</div>
+<div class="callout warn"><strong>Trap #11.</strong> The frontend never calls <code>fetch</code> itself: every request goes through the typed client, by way of a function in <code>requests/</code>. A request made with <code>fetch</code> isn't type-checked, isn't cached, and isn't made stale by any save.</div>
 <p>Two things enforce it, and only one runs in CI:</p>
 <table class="steps text">
 <tr><th>Guard</th><th>What it catches</th><th>Runs in CI?</th></tr>
 <tr><td><code>.oxlintrc.json</code>: <code>no-restricted-globals</code> for <code>fetch</code>, and <code>no-restricted-properties</code> for <code>window.fetch</code>, <code>globalThis.fetch</code>, <code>self.fetch</code></td><td>Any use in the source, with the message "Ask the backend through the typed client (src/serverState.ts, src/requests.ts), never with fetch directly." <code>createServerState</code>'s line 169 switches it off for the one allowed use.</td><td><strong>No.</strong> <code>.github/workflows/test.yml</code> runs <code>npm run typecheck</code> and <code>npm test</code>, not <code>npm run lint</code>. Run it yourself.</td></tr>
 <tr class="changed"><td><code>tests/showPage.tsx</code> replaces the global <code>fetch</code> with one that throws "fetch called outside the typed client"</td><td>A page under test that calls <code>fetch</code>: the test fails</td><td>Yes, but only for code a page test reaches. <a href="../013-testing/04-frontend-tests-fakeserver-and-showpage.html">Chapter 013, lesson 4</a> opens the harness.</td></tr>
 </table>
-<p>Two near-misses are fine: a link the browser follows itself, such as the Call Sheet download (<code>callSheet.exportUrl</code> in <code>requests.ts</code> is just a URL string), and an <code>&lt;img&gt;</code> showing a photo from <code>/api/photos/…</code>. Neither is a request your code makes.</p>
+<p>Two near-misses are fine: a link the browser follows itself, such as the Call Sheet download (<code>callSheet.exportUrl</code> in <code>requests/outreach.ts</code> is just a URL string), and an <code>&lt;img&gt;</code> showing a photo from <code>/api/photos/…</code>. Neither is a request your code makes.</p>
 
 <h3>(d) A refusal is the answer; a failure is asked again</h3>
 <div class="reveal">

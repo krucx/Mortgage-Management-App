@@ -12,7 +12,7 @@
 <h1>Reading through one cache</h1>
 <p class="lede">No page calls the client directly to read something. It asks the cache, by key, and the cache decides whether to ask the backend. This lesson shows the keys, where the cache is made, and when an answer is shown from the cache and when it is asked for again.</p>
 
-<div class="callout win"><strong>By the end</strong> you can write a read in <code>requests.ts</code> with the right key, and say when it will be asked for again.</div>
+<div class="callout win"><strong>By the end</strong> you can write a read in <code>requests/</code> with the right key, and say when it will be asked for again.</div>
 
 <h2>The problem</h2>
 <p>Go from Meera's Customer page to her chain and back. If each page fetched its data in a <code>useEffect</code> and kept it in its own state, every visit would start with a blank page and a spinner, and the same answer would be fetched over and over. Keep answers forever instead, and after a Payment her page still shows the old Outstanding.</p>
@@ -134,25 +134,25 @@ sequenceDiagram
 
 <h3>3. A read, with its key</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>dormantCountQuery()</code>, <code>mortgageQuery()</code> · lines 43–60</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>43  /** How many Mortgages are Dormant: Active yet owing nothing, to be Redeemed. */
-44  export function dormantCountQuery(client: ApiClient) {
-45    return queryOptions({
-46      queryKey: keys.dormant,
-47      queryFn: () =&gt;
-48        dataOrThrow(client.GET('/api/closures/dormant', { params: { query: { page: 1 } } })),
-49      select: (dormant) =&gt; dormant.total,                       // ①
-50    })
-51  }
-52
-53  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
-54  export function mortgageQuery(client: ApiClient, id: number) {
-55    return queryOptions({                                    // ②
-56      queryKey: keys.mortgage(id),                            // ③  ◀
-57      queryFn: () =&gt;
-58        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),
-59    })
-60  }
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests/mortgages.ts">frontend/src/requests/mortgages.ts</a> · <code>dormantCountQuery()</code>, <code>mortgageQuery()</code> · lines 7–24</figcaption>
+<pre data-file="frontend/src/requests/mortgages.ts"><code>7   /** How many Mortgages are Dormant: Active yet owing nothing, to be Redeemed. */
+8   export function dormantCountQuery(client: ApiClient) {
+9     return queryOptions({
+10      queryKey: keys.dormant,
+11      queryFn: () =&gt;
+12        dataOrThrow(client.GET('/api/closures/dormant', { params: { query: { page: 1 } } })),
+13      select: (dormant) =&gt; dormant.total,                       // ①
+14    })
+15  }
+16
+17  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
+18  export function mortgageQuery(client: ApiClient, id: number) {
+19    return queryOptions({                                    // ②
+20      queryKey: keys.mortgage(id),                            // ③  ◀
+21      queryFn: () =&gt;
+22        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),
+23    })
+24  }
 </code></pre>
 </figure>
 <ol class="marks">
@@ -164,11 +164,11 @@ sequenceDiagram
 
 <h3>4. Read once</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>settingsQuery()</code> · lines 350–353</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>350  /** A settings group: read once, then known from what saving it returns. */
-351  function settingsQuery&lt;T&gt;(name: string, load: () =&gt; Promise&lt;T&gt;) {
-352    return queryOptions({ queryKey: [...keys.settings, name], queryFn: load, staleTime: Infinity })   ◀
-353  }
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests/settings.ts">frontend/src/requests/settings.ts</a> · <code>settingsQuery()</code> · lines 5–8</figcaption>
+<pre data-file="frontend/src/requests/settings.ts"><code>5    /** A settings group: read once, then known from what saving it returns. */
+6    function settingsQuery&lt;T&gt;(name: string, load: () =&gt; Promise&lt;T&gt;) {
+7      return queryOptions({ queryKey: [...keys.settings, name], queryFn: load, staleTime: Infinity })   ◀
+8    }
 </code></pre>
 </figure>
 <p>Each settings group (<code>default-terms</code>, <code>gold-rates</code>, <code>call-list</code>, <code>cash-limit</code>, <code>discount-confirmation-limit</code>, <code>messages</code>, <code>placeholders</code>) gets this. <code>paymentMethodsQuery</code> (line 681) and <code>updateStatusQuery</code> (line 691) set <code>staleTime: Infinity</code> too: the payment methods are fixed while the app runs, and the backend asks GitHub about updates at most once a day anyway.</p>
@@ -193,7 +193,7 @@ sequenceDiagram
 <tr class="changed"><td>Settings, second time</td><td><strong>1</strong>: <code>/api/backups</code></td></tr>
 </table>
 <p class="cite">From <code>scripts/network.mjs</code> (section L2).</p>
-<p>The seven settings groups have <code>staleTime: Infinity</code>, so the second visit asks none of them. <code>backupsQuery</code> (line 388) doesn't: whether a Backup is running changes on its own, so it's asked every time, and every second while one runs (<code>refetchInterval</code>).</p>
+<p>The seven settings groups have <code>staleTime: Infinity</code>, so the second visit asks none of them. <code>backupsQuery</code> (<code>requests/settings.ts</code>, line 55) doesn't: whether a Backup is running changes on its own, so it's asked every time, and every second while one runs (<code>refetchInterval</code>).</p>
 
 <h2>Nuances</h2>
 <h3>(a) A key is a path, on purpose</h3>
@@ -207,22 +207,22 @@ sequenceDiagram
 
 <h3>(b) A Receipt sits under its Payment</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>receiptQuery()</code> · lines 665–679</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>665  /** A Payment's Receipt for the Customer, worded from the Receipt template. */
-666  export function receiptQuery(client: ApiClient, paymentId: number) {
-667    return queryOptions({
-668      queryKey: [...keys.payment(paymentId), 'receipt'],          // ①  ◀
-669      queryFn: ({ client: cache }) =&gt; {
-670        // Not asked for once the Payment is known to be Voided: it has none.
-671        if (cache.getQueryData&lt;Payment&gt;(keys.payment(paymentId))?.voided_at) {   // ②
-672          throw new Error('A Voided Payment has no Receipt')
-673        }
-674        return dataOrThrow(
-675          client.GET('/api/payments/{payment_id}/receipt', { params: paymentPath(paymentId) }),
-676        )
-677      },
-678    })
-679  }
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests/payments.ts">frontend/src/requests/payments.ts</a> · <code>receiptQuery()</code> · lines 15–29</figcaption>
+<pre data-file="frontend/src/requests/payments.ts"><code>15   /** A Payment's Receipt for the Customer, worded from the Receipt template. */
+16   export function receiptQuery(client: ApiClient, paymentId: number) {
+17     return queryOptions({
+18       queryKey: [...keys.payment(paymentId), 'receipt'],          // ①  ◀
+19       queryFn: ({ client: cache }) =&gt; {
+20         // Not asked for once the Payment is known to be Voided: it has none.
+21         if (cache.getQueryData&lt;Payment&gt;(keys.payment(paymentId))?.voided_at) {   // ②
+22           throw new Error('A Voided Payment has no Receipt')
+23         }
+24         return dataOrThrow(
+25           client.GET('/api/payments/{payment_id}/receipt', { params: paymentPath(paymentId) }),
+26         )
+27       },
+28     })
+29   }
 </code></pre>
 </figure>
 <ol class="marks">
@@ -235,21 +235,21 @@ sequenceDiagram
 
 <h3>(d) A picker must never leave a Mortgage out</h3>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>everyMortgageQuery()</code> · lines 606–629, trimmed</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>606  /** Every one of a Customer's Mortgages that match, on one page, for choosing from: a
-607   *  picker must never leave one out. With `asOf`, Outstanding is worked out on that date. */
-608  export function everyMortgageQuery(
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests/mortgages.ts">frontend/src/requests/mortgages.ts</a> · <code>everyMortgageQuery()</code> · lines 100–117, trimmed</figcaption>
+<pre data-file="frontend/src/requests/mortgages.ts"><code>100  /** Every one of a Customer's Mortgages that match, on one page, for choosing from: a
+101   *  picker must never leave one out. With `asOf`, Outstanding is worked out on that date. */
+102  export function everyMortgageQuery(
 ⋮
-612    return queryOptions({
-613      queryKey: [...keys.list('mortgages'), 'every', filters],    // ①
+106    return queryOptions({
+107      queryKey: [...keys.list('mortgages'), 'every', filters],    // ①
 ⋮
-616          client.GET('/api/mortgages', {
+110          client.GET('/api/mortgages', {
 ⋮
-619                page: 1,
-620                customer_id: filters.customerId,
-621                status: filters.status,
-622                as_of: filters.asOf,                              // ②
-623                paged: false,                                     // ③  ◀
+113                page: 1,
+114                customer_id: filters.customerId,
+115                status: filters.status,
+116                as_of: filters.asOf,                              // ②
+117                paged: false,                                     // ③  ◀
 </code></pre>
 </figure>
 <ol class="marks">
@@ -284,7 +284,7 @@ sequenceDiagram
 <p><span class="score"></span></p>
 
 <h2>Go deeper</h2>
-<p>Read TanStack Query's <a href="https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults">Important defaults</a> (one page): it says why answers are stale at once, and when stale answers are asked again (a new page using them, the window regaining focus, the network coming back). Then skim <a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts"><code>requests.ts</code></a> from line 387 to the end: every read in the app, each with its key.</p>
+<p>Read TanStack Query's <a href="https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults">Important defaults</a> (one page): it says why answers are stale at once, and when stale answers are asked again (a new page using them, the window regaining focus, the network coming back). Then skim <a href="https://github.com/krucx/Mortgage-Management-App/tree/main/frontend/src/requests"><code>requests/</code></a> (<code>mortgages.ts</code>, <code>customers.ts</code>, <code>payments.ts</code>, <code>lists.ts</code>, <code>settings.ts</code>…): every read in the app, each with its key.</p>
 
 <nav class="lessons">
   <a href="01-the-typed-client.html">← The typed client and the generated types</a>

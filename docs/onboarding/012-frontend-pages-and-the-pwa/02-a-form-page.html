@@ -52,7 +52,7 @@ sequenceDiagram
 </pre>
 <figcaption>The page loads; the form drafts; <code>useProposedChange</code> does the asking and the saving.</figcaption>
 </figure>
-<p>Reminder that the form never talks to the backend itself. It only produces <code>change</code>; everything that crosses the network goes through the hook and <code>requests.ts</code>.</p>
+<p>Reminder that the form never talks to the backend itself. It only produces <code>change</code>; everything that crosses the network goes through the hook and <code>requests/</code>.</p>
 
 <h2>The code</h2>
 <h3>1. The page: load, then a form keyed by id</h3>
@@ -229,7 +229,7 @@ sequenceDiagram
 <h2>Build it: a throwaway page</h2>
 <p>Now make a page yourself, from nothing but the parts above. Add <code>/try/meera</code>: Meera's chain's Outstanding, with a link back to the Mortgage. Make the file <code>frontend/src/pages/TryPage.tsx</code>, and fill in the blanks before you open the solution.</p>
 <ul>
-  <li>Ask for Mortgage 2 with <code>mortgageQuery</code> (from <code>requests.ts</code>) and <code>useQuery</code>.</li>
+  <li>Ask for Mortgage 2 with <code>mortgageQuery</code> (from <code>requests/</code>) and <code>useQuery</code>.</li>
   <li>Use lesson 1's line 14 for loading and errors.</li>
   <li>Put it in a <code>section className="card"</code> with a <code>dl className="summary"</code>; show <code>chain.outstanding.total</code> with <code>formatINR</code> and <code>chain.as_of</code> with <code>formatDate</code>.</li>
   <li>A <code>Link</code> "Back to the Mortgage" to <code>/mortgages/2</code>.</li>
