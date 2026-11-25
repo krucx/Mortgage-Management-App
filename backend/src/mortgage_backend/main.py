@@ -49,7 +49,7 @@ from mortgage_backend.platform.db import (
     write_transaction,
 )
 from mortgage_backend.platform.local_only import LocalOnly
-from mortgage_backend.platform.request_log import RequestLog
+from mortgage_backend.platform.request_log import RequestLog, log_to_stdout
 from mortgage_backend.platform.screens import screens_dir_from_env, serve_screens
 from mortgage_backend.platform.updates import (
     LatestRelease,
@@ -137,6 +137,7 @@ def create_app(
         return await call_next(request)
 
     app.add_middleware(LocalOnly)  # refuses before anything is read or run
+    log_to_stdout()
     app.add_middleware(RequestLog)  # outermost: logs every request, refused ones too
 
     api_router = APIRouter(prefix="/api")
