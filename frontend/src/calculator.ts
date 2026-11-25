@@ -32,6 +32,10 @@ export interface Inputs {
   value: string // rupees: a Collateral Value typed by hand, overriding the weight
 }
 
+/** How an input is changed: by the new values, or from the latest inputs (those not yet in
+ *  the URL included), so edits made before a re-render build on each other. */
+export type Change = (changes: Partial<Inputs> | ((latest: Inputs) => Partial<Inputs>)) => void
+
 const OVER_NOTHING = 'Enter an amount over ₹0'
 const RATE_LIMITS = 'The rate must be over 0% and at most 100% a month'
 

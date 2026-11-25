@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PURITIES, type GoldRate, type Purity } from '../api'
-import { amountProblem, collateralOf, type Inputs } from '../calculator'
+import { amountProblem, collateralOf, type Change, type Inputs } from '../calculator'
 import { formatINR } from '../money'
 import { gramsToMg } from '../weight'
 import { FieldProblem } from './FieldProblem'
@@ -12,7 +12,7 @@ export function JewelleryValue({
   goldRates,
 }: {
   inputs: Inputs
-  change: (changes: Partial<Inputs>) => void
+  change: Change
   goldRates: GoldRate[] | undefined
 }) {
   const [open] = useState(() => !!(inputs.net || inputs.value))

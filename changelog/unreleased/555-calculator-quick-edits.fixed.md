@@ -1,0 +1,1 @@
+- **Calculator:** two edits made before the page re-renders (a pasted or autofilled date then amount, for example) no longer lose the first; filters on the other lists keep quick changes too.

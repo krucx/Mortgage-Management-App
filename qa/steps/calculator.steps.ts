@@ -203,11 +203,20 @@ When('the Lender plans {money} a month', async ({ page }, monthly: Money) => {
 
 When('the Lender plans a Lump Sum of {money} on {day}', async ({ page }, amount: Money, day: Day) => {
   await unfold(page, /^Planned Payments$/);
+  const before = await lumpSums(page).count();
   await page.getByRole('button', { name: 'Add a Lump Sum' }).click();
+  // The new row shows once the URL has it; until then `last()` is the previous row.
+  await expect(lumpSums(page)).toHaveCount(before + 1);
   const row = lumpSums(page).last();
+  // Each edit waits for the URL to hold it before the next, so it cannot be lost.
   await row.locator('input[type=date]').fill(day.iso);
+  await expect.poll(() => lumpsParam(page)).toContain(`${day.iso}:`);
   await row.locator('input[type=number]').fill(amount.typed);
+  await expect.poll(() => lumpsParam(page)).toContain(`${day.iso}:${amount.typed}`);
 });
+
+/** The `lumps` of the page's URL, as the Calculator keeps the planned Lump Sums there. */
+const lumpsParam = (page: Page) => new URL(page.url()).searchParams.get('lumps') ?? '';
 
 /** The planned Lump Sum's row dated `day`. */
 async function lumpSumOn(page: Page, day: Day) {
