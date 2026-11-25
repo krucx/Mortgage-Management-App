@@ -7,6 +7,12 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.5.4] - 2026-11-25
+
+### Fixed
+
+- **QA, Reminders tabs:** the scenario that walks the Reminders tabs waits for each tab's own list before looking for a row, so it no longer fails when the previous tab's list is still on screen.
+
 ## [3.5.3] - 2026-11-25
 
 ### Added
