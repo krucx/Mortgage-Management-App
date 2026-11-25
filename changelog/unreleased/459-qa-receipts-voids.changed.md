@@ -1,1 +1,0 @@
-- QA scenarios for Receipts, Voids and WhatsApp messages (#459).

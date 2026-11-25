@@ -1,1 +1,0 @@
-- **QA stack:** Gherkin scenarios for Discounts (beside cash or alone, on two Mortgages, Redeeming, the reduce and confirm prompts, Favours Given, Void and Reopen, and beside an Advance), in `qa/features/discounts.feature`.

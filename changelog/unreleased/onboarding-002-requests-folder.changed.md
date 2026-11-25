@@ -1,1 +1,0 @@
-- **Documentation:** onboarding chapter 002 points at `frontend/src/requests/`, the folder that replaced `requests.ts`, with `mortgageQuery` quoted from `requests/mortgages.ts`.

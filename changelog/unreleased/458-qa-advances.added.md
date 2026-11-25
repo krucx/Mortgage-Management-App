@@ -1,1 +1,0 @@
-- **QA scenarios for Advances and Advance Instalments:** filling and judging an Advance on the payment form, Advances on two Mortgages, the refusals, the Advances panel, cancelling a part and its Receipt, Voids and Closures are covered by `qa/features/advances.feature` and `qa/features/closures.feature`.

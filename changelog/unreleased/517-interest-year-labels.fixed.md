@@ -1,1 +1,0 @@
-- **Dashboard and Payments:** the Dashboard's year interest tile now reads "Interest collected so far in <year>" and the Payments list's year summary says it is the interest "for <year> (incl. future-dated Payments)", so the two figures for the same year are no longer unexplained. Labels only; neither figure changes.

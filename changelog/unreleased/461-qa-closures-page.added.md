@@ -1,1 +1,0 @@
-QA scenarios for the Closures page: Dormant Mortgages (red dot, list, kept off the Call List, Reminders and Payment form), Redeem for ₹0, bulk Forfeit and Waive off with refusals, sort, pager and empty states.

@@ -1,1 +1,0 @@
-- **QA suite:** the steps that void a Payment and cancel an Advance part wait for the app to have stored it, the Call List checks look the row up again until it shows, and Customers that could be given the same suggested Mortgage Name by scenarios running together now have names that differ. These scenarios no longer fail on timing alone.

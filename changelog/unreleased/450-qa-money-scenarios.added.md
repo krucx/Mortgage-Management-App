@@ -1,1 +1,0 @@
-- **Money worked out by hand:** QA scenarios check exact figures (Outstanding, Interest to Date, Ledger steps, Receipt lines) against arithmetic worked by hand from the glossary, for simple and yearly-compounded interest, the Part-Month Rule, a Term Change, Grace, Discounts, Advances, a Payment split across three Mortgages, and Redeeming or Waiving off.

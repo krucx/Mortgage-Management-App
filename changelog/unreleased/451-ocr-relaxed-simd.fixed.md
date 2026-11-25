@@ -1,1 +1,0 @@
-- **Reading ID Photos:** the Aadhaar Number and PAN are read from a new ID Photo again in current Chrome and Edge, which ask for a Tesseract engine the app did not serve.
