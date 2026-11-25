@@ -452,6 +452,7 @@ def preview_new_mortgage(
 ) -> NewMortgagePreview:
     with engine.connect() as conn:
         try:
+            conn.exec_driver_sql("BEGIN IMMEDIATE")  # see post_mortgage
             written = before_change(conn)
             mortgage_id = create_mortgage(conn, mortgage, today, now)
             created = _snapshot(conn, [mortgage_id], today)[mortgage_id]

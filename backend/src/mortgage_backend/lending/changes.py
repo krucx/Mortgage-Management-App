@@ -31,7 +31,12 @@ from mortgage_backend.lending.replay import MortgageStatus, mortgage_row, replay
 from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
 from mortgage_backend.payments.advances import cancel_instalment
 from mortgage_backend.platform.clock import NowDep, TodayDep
-from mortgage_backend.platform.db import EngineDep, mortgage_table, term_change_table
+from mortgage_backend.platform.db import (
+    EngineDep,
+    mortgage_table,
+    term_change_table,
+    write_transaction,
+)
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.safekeeping import audit
 
@@ -329,6 +334,7 @@ def post_instalment_cancel(
 def post_mortgage(
     mortgage: MortgageIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Mortgage:
-    with engine.begin() as conn:
+    # The name is picked from those taken and then written: no one may write in between.
+    with write_transaction(engine) as conn:
         mortgage_id = create_mortgage(conn, mortgage, today, now)
         return load_mortgage(conn, mortgage_id, today)
