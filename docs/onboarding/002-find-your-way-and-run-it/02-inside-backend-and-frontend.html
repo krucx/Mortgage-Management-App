@@ -25,7 +25,7 @@
 <pre class="mermaid">
 flowchart TD
   URL["Browser address<br/>/mortgages/2"] -->|"Route path, App.tsx"| Page["pages/MortgagePage.tsx"]
-  Page -->|"useQuery(mortgageQuery)"| Req["requests.ts<br/>mortgageQuery()"]
+  Page -->|"useQuery(mortgageQuery)"| Req["requests/mortgages.ts<br/>mortgageQuery()"]
   Req -->|"GET /api/mortgages/{mortgage_id}"| Main["main.py<br/>include_router(mortgages.router)"]
   Main --> Route["lending/mortgages.py<br/>read_mortgage()"]
   Route -->|"Mortgage JSON:<br/>ledger, outstanding"| Page
@@ -93,7 +93,7 @@ flowchart TD
 <tr><th>Path in <code>frontend/src/</code></th><th>What's there</th></tr>
 <tr><td><code>pages/</code></td><td>One file per screen, named <code>…Page.tsx</code>, each listed in <code>App.tsx</code></td></tr>
 <tr><td><code>components/</code></td><td>Parts pages share: panels, dialogs, and hooks (functions named <code>use…</code>, React's way of sharing stateful logic between components)</td></tr>
-<tr><td><code>requests.ts</code></td><td>Every request the screens make, as a named function</td></tr>
+<tr><td><code>requests/</code></td><td>Every request the screens make, as a named function, one file per concept (<code>mortgages.ts</code>, <code>customers.ts</code>, <code>payments.ts</code>, …); pages import them all from <code>requests/index.ts</code> as <code>../requests</code></td></tr>
 <tr><td><code>serverState.ts</code></td><td>The typed API client, the cache and its keys (<a href="../011-the-frontends-data-layer/index.html">chapter 011</a>)</td></tr>
 <tr><td><code>api.gen.ts</code>, <code>api.ts</code></td><td>Request and response types, <strong>generated</strong> from the backend (<code>npm run gen:types</code>); <code>api.ts</code> gives them short names. Never edit <code>api.gen.ts</code> by hand.</td></tr>
 <tr><td><code>money.ts</code>, <code>format.ts</code>, <code>terms.ts</code>, …</td><td>Small helpers: rupees in Indian grouping, dates, describing Terms</td></tr>
@@ -112,18 +112,18 @@ flowchart TD
 41    const mortgage = loaded.data
 </code></pre>
 </figure>
-<p><code>useQuery</code> comes from TanStack Query, a library that fetches data, caches it and re-renders the page when it arrives. The page doesn't build the request itself; it names one from <code>requests.ts</code>.</p>
+<p><code>useQuery</code> comes from TanStack Query, a library that fetches data, caches it and re-renders the page when it arrives. The page doesn't build the request itself; it names one from <code>requests/</code> (<code>import { mortgageQuery } from '../requests'</code>).</p>
 <p><strong>Hop 2: the request.</strong></p>
 <figure class="snippet">
-<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests.ts">frontend/src/requests.ts</a> · <code>mortgageQuery()</code> · lines 53–60</figcaption>
-<pre data-file="frontend/src/requests.ts"><code>53  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
-54  export function mortgageQuery(client: ApiClient, id: number) {
-55    return queryOptions({
-56      queryKey: keys.mortgage(id),
-57      queryFn: () =&gt;
-58        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),  ◀
-59    })
-60  }
+<figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/requests/mortgages.ts">frontend/src/requests/mortgages.ts</a> · <code>mortgageQuery()</code> · lines 17–24</figcaption>
+<pre data-file="frontend/src/requests/mortgages.ts"><code>17  /** A Mortgage as it stands today: its Ledger, Outstanding, Collateral and photos. */
+18  export function mortgageQuery(client: ApiClient, id: number) {
+19    return queryOptions({
+20      queryKey: keys.mortgage(id),
+21      queryFn: () =&gt;
+22        dataOrThrow(client.GET('/api/mortgages/{mortgage_id}', { params: mortgagePath(id) })),  ◀
+23    })
+24  }
 </code></pre>
 </figure>
 <p>The URL template <code>'/api/mortgages/{mortgage_id}'</code> is the thread. It is written exactly as the backend declares it, and TypeScript checks it against the generated types, so a typo won't compile. Copy it and search the backend.</p>
@@ -143,7 +143,7 @@ flowchart TD
 <tr><th>Hop</th><th>File</th><th>What you search for next</th></tr>
 <tr><td>Address</td><td><code>App.tsx</code></td><td><code>/mortgages/:id</code> → <code>MortgagePage</code></td></tr>
 <tr><td>Page</td><td><code>pages/MortgagePage.tsx</code></td><td><code>mortgageQuery</code></td></tr>
-<tr><td>Request</td><td><code>requests.ts</code></td><td><code>/mortgages/{mortgage_id}</code> in <code>backend/</code></td></tr>
+<tr><td>Request</td><td><code>requests/mortgages.ts</code></td><td><code>/mortgages/{mortgage_id}</code> in <code>backend/</code></td></tr>
 <tr class="changed"><td>Route</td><td><code>lending/mortgages.py</code></td><td><code>load_mortgage</code>, and down into the Ledger</td></tr>
 </table>
 <p class="cite">On the served sample book, <code>GET /api/mortgages/2</code> returns <code>"name": "2025-Meera-GoldChainPendant"</code> and <code>"outstanding": {"principal": 8000000, "unpaid_interest": 333300, "total": 8333300}</code>: amounts are in paise, so ₹83,333. Checked by <code>scripts/run_throughs.py</code>.</p>
@@ -184,9 +184,9 @@ flowchart TD
 <div class="quiz" data-answer="0">
   <p class="q">You change a field the backend returns. Which frontend file must you never edit by hand?</p>
   <button class="opt"><code>api.gen.ts</code>, it is generated from the backend</button>
-  <button class="opt"><code>requests.ts</code>, it is generated from the backend</button>
+  <button class="opt"><code>requests/mortgages.ts</code>, it is generated from the backend</button>
   <button class="opt"><code>App.tsx</code>, it is generated from the backend</button>
-  <div class="why"><code>api.gen.ts</code> is written by <code>npm run gen:types</code> from the backend's schema. <code>requests.ts</code> and <code>App.tsx</code> are written by people.</div>
+  <div class="why"><code>api.gen.ts</code> is written by <code>npm run gen:types</code> from the backend's schema. The files in <code>requests/</code> and <code>App.tsx</code> are written by people.</div>
 </div>
 <p><span class="score"></span></p>
 
