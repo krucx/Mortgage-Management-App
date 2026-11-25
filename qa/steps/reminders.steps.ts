@@ -74,10 +74,26 @@ When('the Lender opens the Reminders page on {day}', async ({ page, lender }, da
   await listLoaded(page);
 });
 
-When('the Lender opens the Reminders tab {string}', async ({ page }, tab: string) => {
+// The API's status for each tab; "All" asks for none.
+const TAB_STATUS: Record<string, string | undefined> = {
+  'To approve': 'awaiting_approval',
+  'To send': 'queued',
+  Sent: 'sent',
+  Skipped: 'skipped',
+  All: undefined,
+};
+
+When('the Lender opens the Reminders tab {string}', async ({ page, lender }, tab: string) => {
+  const status = TAB_STATUS[tab];
   await page.getByRole('radio', { name: tab, exact: true }).click();
   await expect(page.getByRole('radio', { name: tab, exact: true })).toBeChecked();
-  await listLoaded(page);
+  // The page keeps the previous tab's list on screen until the new one arrives, so a table or
+  // an empty note being visible says nothing about this tab. Wait for the list to show what
+  // the API holds for it, on page 1, before anything looks for a row.
+  const { total } = await lender.get('/api/reminders', status ? { status, page: '1' } : { page: '1' });
+  if (total === 0) await expect(page.getByText('No Reminders here.')).toBeVisible();
+  else await expect(pagerText(page)).toHaveText(new RegExp(`^Showing 1–\\d+ of ${total}$`));
+  if (status) await expect(page.locator('tbody .badge:not(.reminder-' + status + ')')).toHaveCount(0);
 });
 
 Then('no Reminder is listed for {string}', async ({ page }, customer: string) => {

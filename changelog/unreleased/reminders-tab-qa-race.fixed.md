@@ -1,0 +1,1 @@
+- **QA, Reminders tabs:** the scenario that walks the Reminders tabs waits for each tab's own list before looking for a row, so it no longer fails when the previous tab's list is still on screen.
