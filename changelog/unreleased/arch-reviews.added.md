@@ -1,1 +1,0 @@
-- **Documentation:** add comprehensive strategic vs tactical architecture reviews for backend, frontend, testing infrastructure, and project coherence (November 2026 pass).

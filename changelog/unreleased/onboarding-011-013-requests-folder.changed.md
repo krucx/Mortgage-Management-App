@@ -1,1 +1,0 @@
-- **Documentation:** onboarding chapters 011–013 and the frontend and traps reference sheets point at `frontend/src/requests/`, the folder that replaced `requests.ts`, with their code excerpts quoted from its files at current line numbers.

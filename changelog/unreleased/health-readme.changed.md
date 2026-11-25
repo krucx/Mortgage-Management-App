@@ -1,1 +1,0 @@
-- **Documentation:** the README now explains `GET /api/health` and the per-request server log, so the Lender can check the app is running.

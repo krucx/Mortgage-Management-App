@@ -7,6 +7,103 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.5.3] - 2026-11-25
+
+### Added
+
+- **CI:** the `frontend` job fails when a route in the router has no QA scenario tagged `@screen:<route>` and isn't listed by its ticket in `qa/screens-to-cover/<issue>.txt`.
+
+- **Money worked out by hand:** QA scenarios check exact figures (Outstanding, Interest to Date, Ledger steps, Receipt lines) against arithmetic worked by hand from the glossary, for simple and yearly-compounded interest, the Part-Month Rule, a Term Change, Grace, Discounts, Advances, a Payment split across three Mortgages, and Redeeming or Waiving off.
+
+- **QA:** scenarios for the Customers list, adding, editing and deleting Customers, Referrers and ID Photos.
+
+- **QA stack:** Gherkin scenarios for the Mortgages list, New Mortgage (with the Calculator's Lend this), a Mortgage's page and Edit Mortgage, in `qa/features/mortgages.feature`.
+
+- **QA stack:** scenarios for Term Changes (changing, removing, every refusal and the Advance Instalment warning), the Projection and its what-if, and the Preview change forms share, one section per Mortgage.
+
+- **QA scenarios for Gold Rates, Collateral Value and Loan-to-Value:** `qa/features/collateral.feature` covers saving Gold Rates in Settings, a Collateral Value set by hand and back, a falling Gold Rate putting a Mortgage on the Call List, the hints without a Gold Rate, closed Mortgages, and the refusal of a value of ₹0 or less.
+
+- **QA stack:** scenarios for recording Payments: the Payments list (filters, periods, Voided Payments, summary, sorting, pager, badges), starting one from the list, a Customer or a Mortgage, splitting it equally, by amount or by percentage, back-dating, paying the full Outstanding, Dormant Mortgages, the form's problems, the Cash Limit's warning and the app's refusals.
+
+- **QA stack:** Gherkin scenarios for Discounts (beside cash or alone, on two Mortgages, Redeeming, the reduce and confirm prompts, Favours Given, Void and Reopen, and beside an Advance), in `qa/features/discounts.feature`.
+
+- **QA scenarios for the Grace Period:** the Last Accrual Date colours, the "Date it" choices and tooltip, the Grace Payment on every screen, no Grace, Advance with Grace and the refusals are covered by `qa/features/grace.feature`.
+
+- **QA scenarios for Advances and Advance Instalments:** filling and judging an Advance on the payment form, Advances on two Mortgages, the refusals, the Advances panel, cancelling a part and its Receipt, Voids and Closures are covered by `qa/features/advances.feature` and `qa/features/closures.feature`.
+
+- **QA stack:** Gherkin scenarios for the Closure quote, Redeem (and its page), Waive off, Forfeit, Reopen and the refusals of a Closure, in `qa/features/closures.feature`.
+
+QA scenarios for the Closures page: Dormant Mortgages (red dot, list, kept off the Call List, Reminders and Payment form), Redeem for ₹0, bulk Forfeit and Waive off with refusals, sort, pager and empty states.
+
+- **QA scenarios for the Call List and Call Notes:** `qa/features/call-list.feature` covers why a Mortgage is listed (Months Unpaid, Loan-to-Value, accruing today) and the legend, Advance Instalments that cover or fall short of the month, grouping by Customer with Call and WhatsApp links, the default order, sorting and paging, marking a Mortgage called and the Call Notes it leaves, the thresholds in Settings and the Dashboard's figure.
+
+- **QA scenarios for the Call Sheet:** `qa/features/call-sheets.feature` covers exporting the Call List to Excel and PDF, importing the exported Excel with Call Notes filled in (the preview's Adding, Not imported and Left out quietly, then the status with Show them), each import error with its reason, and importing the same file twice adding nothing twice. The runner now has `exceljs` to read and write the sheets.
+
+- **QA scenarios for the Dashboard:** `qa/features/dashboard.feature` covers the Owed headline and its tiles with their links, the activity month and custom From and To (and the error when To is before From), Interest collected this month and year opening the filtered Payments list, the Collateral tiles with and without values, the Follow-up tiles, the Closed-in-month tiles opening the filtered Mortgages list, and the Looking ahead table and Payments chart. Each figure is read from the golden book and checked against what the app itself works out for the same day.
+
+- **QA stack:** scenarios for the Calculator and its Simulation in `qa/features/calculator.feature`: inputs kept in the address, results tiles and compared Terms, planned Payments and Lump Sums, jewellery value and Loan-to-Value, the Graph and Month by month, validation, and Lend this.
+
+- **A page that fails to display:** shows a short explanation with Reload page and Return to Dashboard, instead of a blank screen. The top bar stays usable, and the technical details are tucked under "Technical details".
+
+- **Server log:** the backend now writes one JSON line per request (method, path, status, time taken) and logs the details of any unexpected error before answering 500.
+
+- **Health check:** `GET /api/health` reports whether the database, its schema version and the Backup engine are working, answering 503 when the database can't be reached or the schema is behind. It reads no Customer or Mortgage data.
+
+- **Documentation:** add comprehensive strategic vs tactical architecture reviews for backend, frontend, testing infrastructure, and project coherence (November 2026 pass).
+
+### Changed
+
+- **QA stack:** the browser tests are Gherkin scenarios in `qa/features` (playwright-bdd), written in glossary terms and tagged `@fresh` and `@screen:<route>`; they replace `qa/e2e`. The empty and golden-book apps run at once and the scenarios run in parallel, and the CI `qa` job caches image layers in the GitHub Actions cache.
+
+- **QA stack:** in QA mode the request's `X-QA-Clock` date also runs that day's Reminder queueing and weekly Backup-due check, earlier dates included, so browser scenarios can test Reminders by moving the date. Outside QA mode nothing changes.
+
+- **QA stack:** the golden book is read-only and richer (split Payments, a Discount, Waived, Forfeited and Dormant Mortgages, a Term Change, a Collateral Value set by hand, a Standalone Referrer and Reminders in every state). Scenarios that change data seed their own Customer on a third, work app, and the sample book and golden book share one `Book` helper (`qa/fixtures/lending_book.py`).
+
+- QA scenarios for Receipts, Voids and WhatsApp messages (#459).
+
+- **Rupee amounts step by whole rupees:** the arrows and scrolling on Principal lent, Collateral Value, Received now and Recovered Amount move by ₹1 instead of ₹0.01, and an amount with paise can still be typed.
+
+- **Mortgage photos:** a photo that cannot be added or deleted now says why next to the photos, not at the top of the Mortgage page.
+
+- **New Mortgage and Customer forms:** Save stays disabled while a field is wrong or the form is still being checked, and says why beside the field: a Contact number 1 that is not a 10-digit mobile number, an Existing person Referrer nobody has picked yet, or a net weight above the gross weight. A new Mortgage the backend would refuse says why before Create is pressed.
+
+- **Documentation:** the walkthrough's Dashboard tile says "so far this year", as the Dashboard now does, and the onboarding course's backend lessons show the `/api` master router, the request log, the health check skipping the daily jobs, and the daily run taking each request's date.
+
+- **Documentation:** the README now explains `GET /api/health` and the per-request server log, so the Lender can check the app is running.
+
+- **Documentation:** onboarding chapter 002 points at `frontend/src/requests/`, the folder that replaced `requests.ts`, with `mortgageQuery` quoted from `requests/mortgages.ts`.
+
+- **Documentation:** onboarding chapters 011–013 and the frontend and traps reference sheets point at `frontend/src/requests/`, the folder that replaced `requests.ts`, with their code excerpts quoted from its files at current line numbers.
+
+### Fixed
+
+- **Reading ID Photos:** the Aadhaar Number and PAN are read from a new ID Photo again in current Chrome and Edge, which ask for a Tesseract engine the app did not serve.
+
+- **Ledger interest rate:** each Interest step shows the rate charged for that month, so the months before a Term Change keep the old rate instead of showing the current one.
+
+- **Payment form:** leaving both cash received and Discount empty now shows "Enter cash received or a Discount."; it was never displayed.
+
+- A Customer, Mortgage, Payment, Receipt or Referrer address with a bad number (such as `/mortgages/abc`) now shows Page not found instead of asking the backend for a record that cannot exist.
+
+- **Reminders and the Dashboard while the book changes:** opening the Reminders page or the
+  Dashboard while a Mortgage is being added or closed no longer fails, and a Reminder the Lender
+  sends at that moment is sent, or refused with a reason, instead of showing an error.
+
+- **Dashboard and Payments:** the Dashboard's year interest tile now reads "Interest collected so far in <year>" and the Payments list's year summary says it is the interest "for <year> (incl. future-dated Payments)", so the two figures for the same year are no longer unexplained. Labels only; neither figure changes.
+
+- **Part-Month Rule shown:** the Ledger's Interest to Date line and the Closure quote name the Part-Month Rule in force for the month they charge, not the Mortgage's current one, so a quote for a day before a Term Change no longer shows the new rule.
+
+- **Checks on each request run in the intended order:** a request from another computer is refused before the app does any daily work, and refused or failed requests now always appear in the request log.
+
+- **QA suite:** the steps that void a Payment and cancel an Advance part wait for the app to have stored it, the Call List checks look the row up again until it shows, and Customers that could be given the same suggested Mortgage Name by scenarios running together now have names that differ. These scenarios no longer fail on timing alone.
+
+- **Lending to several Customers at once:** two Mortgages started at the same moment could be given the same suggested Mortgage Name, and one failed with an error instead of taking the next free name (`-2`). Each now gets a name of its own.
+
+- **Request log in the container output:** the app's JSON request lines (method, path, status, time taken) now reach `docker compose logs app`; before, only errors did.
+- **QA failures keep the app log:** a failing QA run now saves each app's JSON request log, including any `unhandled_error` traceback, in the published `qa-test-results` artifact.
+
+- **Calculator:** two edits made before the page re-renders (a pasted or autofilled date then amount, for example) no longer lose the first; filters on the other lists keep quick changes too.
+
 ## [3.5.2] - 2026-11-20
 
 ### Changed

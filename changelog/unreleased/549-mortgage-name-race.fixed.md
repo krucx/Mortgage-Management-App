@@ -1,1 +1,0 @@
-- **Lending to several Customers at once:** two Mortgages started at the same moment could be given the same suggested Mortgage Name, and one failed with an error instead of taking the next free name (`-2`). Each now gets a name of its own.

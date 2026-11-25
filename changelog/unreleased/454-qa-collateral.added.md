@@ -1,1 +1,0 @@
-- **QA scenarios for Gold Rates, Collateral Value and Loan-to-Value:** `qa/features/collateral.feature` covers saving Gold Rates in Settings, a Collateral Value set by hand and back, a falling Gold Rate putting a Mortgage on the Call List, the hints without a Gold Rate, closed Mortgages, and the refusal of a value of ₹0 or less.

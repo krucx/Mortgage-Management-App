@@ -1,1 +1,0 @@
-- **QA:** scenarios for the Customers list, adding, editing and deleting Customers, Referrers and ID Photos.

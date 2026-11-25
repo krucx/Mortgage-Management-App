@@ -1,1 +1,0 @@
-- **Ledger interest rate:** each Interest step shows the rate charged for that month, so the months before a Term Change keep the old rate instead of showing the current one.

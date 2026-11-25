@@ -1,1 +1,0 @@
-- **Mortgage photos:** a photo that cannot be added or deleted now says why next to the photos, not at the top of the Mortgage page.

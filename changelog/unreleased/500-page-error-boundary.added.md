@@ -1,1 +1,0 @@
-- **A page that fails to display:** shows a short explanation with Reload page and Return to Dashboard, instead of a blank screen. The top bar stays usable, and the technical details are tucked under "Technical details".
