@@ -29,8 +29,14 @@ reviews:
   high_level_summary: true
   review_status: true
   poem: false
+  # Selective review (see CONTRIBUTING.md "Selective CodeRabbit review"). CodeRabbit cannot filter on
+  # the head branch, so a positive entry in `labels` is the opt-in: only a PR carrying at least one of
+  # them is reviewed automatically. `@coderabbitai review` in a comment still starts one by hand.
   auto_review:
     enabled: true
+    labels:
+      - 'coderabbit-review' # integration/* -> main PRs (required)
+      - 'critical' # money math, sign-in, migrations, security (opt-in)
     auto_incremental_review: true
     drafts: false
 chat:
