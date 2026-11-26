@@ -342,7 +342,12 @@ def test_interest_paid_ahead_is_not_charged_again_on_the_accrual_date():
 
 def test_payments_on_one_day_are_applied_in_payment_id_order():
     on = date(2026, 2, 5)
-    ledger = paid(on, (on, 1_000 * RUPEE), (on, 2_000 * RUPEE))
+    # Supplied in reverse, so the order seen is the engine's, not the input's.
+    allocations = [
+        Allocation(on, 2_000 * RUPEE, payment_id=2),
+        Allocation(on, 1_000 * RUPEE, payment_id=1),
+    ]
+    ledger = compute_ledger(START, LAKH, terms(), on, allocations)
     payments = [s for s in ledger if s.event == "payment"]
 
     assert [s.payment_id for s in payments] == [1, 2]
