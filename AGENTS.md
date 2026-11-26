@@ -14,6 +14,11 @@ simplifying, reusing, and eventually creating a cleaner, maintainable system.
   open a pull request targeting `main`, respond to automated findings, and leave the merge
   decision and approval to a human. The human records the approving review and merges; you
   open the pull request and stop. Never submit an approving review or merge, even if told to.
+- CodeRabbit review is selective; see [CONTRIBUTING.md](CONTRIBUTING.md#selective-coderabbit-review).
+  Don't request one (`@coderabbitai review`) on a ticket PR or an ordinary PR, and put
+  `@coderabbitai ignore` in its description. An `integration/*` -> `main` PR gets the
+  `coderabbit-review` label and needs a CodeRabbit review before the human merges. Add the `critical`
+  label when the diff touches money math, sign-in, migrations or security; the CONTRIBUTING section lists the paths.
 - For release work, follow the canonical
   [release checklist](Documentation/RELEASE_CHECKLIST.md). A release owner must supply and
   verify the version, release PR, changelog, and required credentials before any version tag

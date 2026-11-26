@@ -21,7 +21,8 @@ or merge a pull request.
 3. Open a pull request targeting `main`. Explain the user-visible change, verification,
    and any risk or migration impact. Link the issue and use a draft while work is
    unfinished.
-4. Wait for the required checks and the automated CodeRabbit review. Read the summary
+4. Wait for the required checks. CodeRabbit reviews only some pull requests (see
+   [Selective CodeRabbit review](#selective-coderabbit-review)); when it reviews yours, read the summary
    and every finding.
    Fix actionable findings in a follow-up commit. If a finding is incorrect or does not
    apply, reply on the pull request with the reason so the human reviewer can assess
@@ -63,6 +64,43 @@ If the CodeRabbit status check is required and cannot complete, a maintainer may
 documented bypass for that PR, recording the reason. Resume automated review on later
 pull requests.
 
+## Selective CodeRabbit review
+
+CodeRabbit reviews a pull request only when it carries a label from `.coderabbit.yaml`
+(`reviews.auto_review.labels`: a positive entry means at least one must be present). It cannot
+filter on the head branch, so the label is how a pull request opts in. Do not request a review
+(`@coderabbitai review`) outside the cases below, and do not label a pull request to get a
+second opinion.
+
+| Pull request | Label | CodeRabbit |
+| --- | --- | --- |
+| `integration/*` into `main` (a batch of tickets) | `coderabbit-review` | Required: a review must exist before the human merges. |
+| A ticket PR whose base is an `integration/*` branch | none | Not reviewed. |
+| Any other pull request into `main` | none | Not reviewed. |
+| Any other pull request that touches a critical area (below) | `critical` | Reviewed. |
+
+The author adds the label when opening the pull request, because CodeRabbit cannot trigger on paths. A
+pull request with no label has no CodeRabbit review; put `@coderabbitai ignore` in its description
+so nobody requests one by accident. The owner may also add `critical` to any pull request.
+
+Critical areas. If the diff touches any of these paths, add `critical`:
+
+- **Money math** (interest, balances, payments, allocations, discounts, closing):
+  `backend/src/mortgage_backend/lending/`, `backend/src/mortgage_backend/payments/`,
+  `backend/src/mortgage_backend/platform/money.py`, `frontend/src/money.ts`,
+  `frontend/src/allocate.ts`, `frontend/src/calculator.ts`.
+- **Auth / sign-in**: the app has no sign-in. Its access guard is
+  `backend/src/mortgage_backend/platform/local_only.py`; changing it, or adding any sign-in, is critical.
+- **Data migrations and the database**: `backend/src/mortgage_backend/migrations/`,
+  `backend/src/mortgage_backend/platform/db.py`, `backend/src/mortgage_backend/safekeeping/backups.py` (restore).
+- **Security**: `platform/local_only.py`, `platform/upload_limit.py`, `platform/photos.py`
+  (under `backend/src/mortgage_backend/`), `.github/workflows/`, `.github/rulesets/`, `Dockerfile`,
+  `windows/` installer scripts, and any change that handles untrusted input or secrets.
+
+`main`'s ruleset requires the `CodeRabbit` check, which CodeRabbit does not report on a pull request it
+skips. Those pull requests need a maintainer bypass, recorded on the pull request. The `integration/*` ->
+`main` pull request always gets the review, so it merges normally.
+
 ## Repository configuration
 
 ### Keeping CodeRabbit reviews timely
@@ -74,6 +112,9 @@ lockfiles and keeps incremental reviews enabled. It also uses CodeRabbit's balan
 people spend assessing it. The tradeoff is fewer nitpicky comments. No before-and-after
 review timing is available; changed source and configuration files remain in scope, and
 the required `CodeRabbit` check is unchanged.
+
+The reviewed set is selective (see above), so the notes about each push and the required check apply
+only to pull requests CodeRabbit reviews.
 
 CodeRabbit is selected because its Open Source plan is free for public repositories.
 The checked-in [`.coderabbit.yaml`](.coderabbit.yaml) configures review guidance; a
