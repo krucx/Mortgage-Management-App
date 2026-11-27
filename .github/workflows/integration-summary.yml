@@ -4,7 +4,7 @@ name: Integration review summary
 # updated in place. Runs from the base branch (pull_request_target / workflow_run) and
 # never checks out or runs the pull request's code; it only reads PR data through the API.
 on:
-  pull_request_target:
+  pull_request:
     branches: [main]
     types: [opened, reopened, synchronize, ready_for_review]
   workflow_run:
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   summary:
     if: >-
-      (github.event_name == 'pull_request_target' &&
+      (github.event_name == 'pull_request' &&
       startsWith(github.head_ref, 'integration/')) ||
       (github.event_name == 'workflow_run' &&
       startsWith(github.event.workflow_run.head_branch, 'integration/') &&
@@ -33,7 +33,7 @@ jobs:
       checks: read
     steps:
       # Default ref: the base branch for pull_request_target, the default branch for workflow_run.
-      - name: Check out the base branch
+      - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Post or update the summary comment
