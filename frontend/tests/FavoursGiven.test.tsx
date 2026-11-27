@@ -3,10 +3,13 @@
 // standing.
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { Favour, FavoursGiven } from '../src/api'
+import type { components } from '../src/api.gen'
 import { CustomerPage } from '../src/pages/CustomerPage'
 import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
+
+type Favour = components['schemas']['Favour']
+type FavoursGiven = components['schemas']['FavoursGiven']
 
 afterEach(() => {
   cleanup()
