@@ -9,7 +9,8 @@
 # checks. Add a case by editing the allowlist and its tests, never this file.
 #
 # Triggers: opened, reopened, ready_for_review, and a base-branch change (edited with
-# changes.base). It uses pull_request, not pull_request: GitHub did not run a
+# changes.base), plus synchronize for Dependabot only (it rebases its branches, and a rebase can
+# drop auto-merge). It uses pull_request, not pull_request: GitHub did not run a
 # pull_request_target workflow that exists only on a non-default base branch (tried on
 # PR #574), and agents open same-repository branches, which get a write token. Fork PRs
 # (read-only token) are skipped. The job checks out the BASE branch, so the scripts that run
@@ -23,7 +24,7 @@ name: Auto-merge
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, edited]
+    types: [opened, reopened, ready_for_review, edited, synchronize]
 
 permissions: {}
 
@@ -31,7 +32,8 @@ jobs:
   auto-merge:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.action != 'edited' || github.event.changes.base != null)
+      (github.event.action != 'edited' || github.event.changes.base != null) &&
+      (github.event.action != 'synchronize' || github.actor == 'dependabot[bot]')
     # Job-level, so a skipped title/body edit never cancels a running opened/reopened attempt.
     concurrency:
       group: auto-merge-${{ github.event.pull_request.number }}

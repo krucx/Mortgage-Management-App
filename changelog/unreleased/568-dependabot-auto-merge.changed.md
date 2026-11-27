@@ -1,0 +1,1 @@
+- **Pull request automation:** Dependabot pull requests whose updates are all patch or minor, touching no critical path, now merge themselves once required checks pass; any major bump, even inside a grouped pull request, still waits for the owner.

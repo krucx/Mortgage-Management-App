@@ -8,8 +8,8 @@ const ENABLE = `mutation($id: ID!, $method: PullRequestMergeMethod!) {
   enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: $method }) { clientMutationId }
 }`;
 
-export async function applyAutoMerge(pr, graphql, { log = console.log } = {}) {
-  const decision = autoMergeDecision(pr);
+export async function applyAutoMerge(pr, graphql, { log = console.log, api } = {}) {
+  const decision = await autoMergeDecision(pr, api);
   if (!decision.enable) {
     log(`PR #${pr?.number}: auto-merge not enabled (${decision.reason}).`);
     return decision;
@@ -36,13 +36,21 @@ function createGraphql(token, repository) {
   };
 }
 
+function createPrApi(token, repository, number) {
+  const { getAllPages } = createGitHubClient(token, repository);
+  return {
+    listCommits: () => getAllPages(`/pulls/${number}/commits?per_page=100`),
+    listFiles: () => getAllPages(`/pulls/${number}/files?per_page=100`),
+  };
+}
+
 async function main() {
   const token = process.env.GITHUB_TOKEN;
   const eventPath = process.env.GITHUB_EVENT_PATH;
   const repository = process.env.GITHUB_REPOSITORY;
   if (!token || !eventPath || !repository) throw new Error('GITHUB_TOKEN, GITHUB_EVENT_PATH and GITHUB_REPOSITORY are required.');
   const { pull_request: pr } = JSON.parse(readFileSync(eventPath, 'utf8'));
-  await applyAutoMerge(pr, createGraphql(token, repository));
+  await applyAutoMerge(pr, createGraphql(token, repository), { api: createPrApi(token, repository, pr.number) });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
