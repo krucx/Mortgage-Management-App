@@ -28,8 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: write
+      pull-requests: write
       checks: read
     steps:
       # Default ref: the base branch for pull_request_target, the default branch for workflow_run.
