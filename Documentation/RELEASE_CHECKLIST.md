@@ -1,131 +1,66 @@
 # Release checklist
 
-Use this checklist for every release. The **change author** prepares and verifies
-release content; the **release owner** decides when to publish, starts the automated
-flow, and verifies the published release. Mark steps not relevant to this release as
-not applicable and give a short reason.
+A release is automated after one action: the release owner triggers **Prepare release
+candidate**. The workflows do the rest and open a `release-blocked` issue if anything
+fails (decision: [ADR 0023](adr/0023-releases-are-fully-automated-after-the-trigger.md)).
+What a change must settle (release note, user docs, onboarding lessons, agent
+instructions) is ticked on each pull request's
+[template](../.github/pull_request_template.md), not here.
 
-## Start a release candidate
+## Trigger — release owner
 
-After the release notes and other applicable release preparation are ready, the
-release owner runs **Actions → Prepare release candidate → Run workflow** on `main`
-and supplies the requested `major.minor.patch` version: the next version after the latest
-published release, for example 3.4.8 after 3.4.7. The same entry point is available from
-GitHub CLI:
+- [ ] Run **Actions → Prepare release candidate → Run workflow** on `main` with the next
+  `major.minor.patch` version after the latest published release, or from GitHub CLI:
+
+  ```sh
+  gh workflow run release-candidate.yml --ref main -f version=3.4.8
+  ```
+
+That is the whole release. The workflow refuses a version that is not higher than the latest
+release and `main`'s `VERSION`, and stops when `changelog/unreleased/` has no authored
+fragment. Otherwise it prepares the candidate, runs the full `Tests` suite once, merges the
+release pull request itself when only machine-checked conditions hold, tags the merge commit
+and publishes the image and the GitHub Release. The GitHub Release and the in-app update
+banner announce it; there is no manual announcement. Never push a version tag or publish an
+image by hand.
+
+## If something fails — release owner
+
+Any failure or timeout opens (or comments on) one GitHub issue labelled `release-blocked`,
+titled `Release X.Y.Z blocked`. It names the failed stage, the run and the safe rerun
+command; GitHub's failed-run email reaches you too. Nothing retries, rolls back, or removes a
+tag or image by itself, and a later successful publish of that version closes the issue.
+
+- [ ] Read the issue, then the failed run's logs, and fix the cause. If no issue appears, the
+  release is not blocked.
+- [ ] Rerun with the command in the issue, which is safe to repeat:
+
+  | Stage | Rerun |
+  | --- | --- |
+  | preparation, preflight, merge | `gh workflow run release-candidate.yml --ref main -f version=X.Y.Z` (reuses the candidate branch and pull request) |
+  | validate, tag, publish | `gh workflow run publish-release.yml --ref main -f pull_request=N` |
+
+- [ ] The publisher reuses the version tag only when it still points at the merged release
+  commit. If the tag must point elsewhere, or anything was already published from a bad
+  commit, cut a new patch version: never move a tag after a release artifact exists.
+- [ ] If only some artifacts were published, the rerun replaces that version's image, notes
+  and ZIP. Never move `latest` back to an older version.
+- [ ] If users may have installed a broken release, publish a corrected release, explain the
+  affected version and recovery steps in its notes, and point to the pre-update Backup
+  guidance when a database migration is involved.
+- [ ] A missing `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` or `RELEASE_WORKFLOW_TOKEN` secret
+  (Contents and Workflows write) stops the release and raises the issue; the owner restores
+  it in repository settings, then reruns.
+
+### Approval fallback (temporary)
+
+While it exists, the repository variable `RELEASE_REQUIRE_APPROVAL` brings back the old rule:
+set to `true`, the release pull request is left unmerged for a human other than its author to
+approve and merge, and the publisher requires that approval. Only the owner changes it:
 
 ```sh
-gh workflow run release-candidate.yml --ref main -f version=3.4.8
+gh variable set RELEASE_REQUIRE_APPROVAL --body true   # switch the fallback on
+gh variable delete RELEASE_REQUIRE_APPROVAL            # back to automatic (also the default when unset)
 ```
 
-The workflow refuses an invalid or non-increasing version and stops before opening a
-pull request when `changelog/unreleased/` has no authored fragments. It collates those
-fragments into a dated `CHANGELOG.md` section, deletes the consumed files, synchronizes
-the shared version references, then runs the `Tests` workflow on the candidate branch.
-That preflight includes tests, type checks, lint, build, coverage reports, Windows setup
-checks, the browser QA scenarios and an isolated Docker image smoke test. It is the only
-full `Tests` run of the release: the release pull request, the push to `main` and the `Tests`
-call inside `release.yml` reuse its result for the same tree and show "Reused result from run
-<link>" (a changed tree runs in full; see CONTRIBUTING.md, *Reusing validated results by tree*).
-A passing run opens a pull request with
-its result and the pending release checklist. Failures report the candidate branch and
-preflight run so the owner can supply missing information or safely rerun the same
-version. A maintainer may need to approve the workflow run for the release pull
-request's checks in GitHub Actions before they start.
-
-The workflow token can write repository contents and pull requests and dispatch the
-preflight workflow. It does not publish a release or Docker image; only the tag-driven
-release flow in the Publish section does that.
-
-## Prepare — change author
-
-- [ ] Review merged changes since the last release and confirm each has a fragment under
-  `changelog/unreleased/` (add any missing ones). Do not edit `CHANGELOG.md` by hand;
-  older dated entries stay as they are.
-- [ ] Review user documentation for changed behavior, setup, upgrade, migration,
-  recovery, and screenshots; update applicable pages.
-- [ ] Review developer documentation and agent instructions for changed workflows,
-  commands, interfaces, and operational requirements.
-- [ ] Update applicable onboarding lessons, exercises, references, and notes when the
-  release changes what those lessons teach. Mark not applicable if none are affected.
-- [ ] Leave root `VERSION` alone on `main`. The candidate workflow sets it on the
-  `release/<version>` branch; a hand bump on `main` makes the workflow refuse that version
-  as not higher than `main` (Documentation/adr/0018).
-- [ ] On the candidate pull request, confirm the workflow collated
-  `changelog/unreleased/` fragments into a dated `## [<version>] - <date>` section of
-  `CHANGELOG.md` and removed those fragment files; the release extracts its GitHub
-  Release notes from that section with
-  `node .github/scripts/release.mjs release-notes`.
-- [ ] On the candidate pull request, confirm the workflow ran `sync-version.mjs`,
-  `uv lock` and `check-version.mjs`: the root, backend and frontend package versions, lock
-  metadata, generated API schema, and maintained current-version labels agree. To check
-  locally, run `node .github/scripts/check-version.mjs` on the candidate branch.
-- [ ] Run the full applicable verification: backend tests and type check, frontend tests,
-  type check and lint, container build/start check, Windows setup checks, and relevant
-  docs/onboarding build or checks. Review coverage reports and explain material
-  regressions. Mark genuinely inapplicable checks with a reason.
-- [ ] Confirm the release candidate branch comes from `main`, the version and changelog
-  section agree, and the intended version tag does not already exist remotely. After
-  merge, the publisher verifies or creates the tag at the actual merge commit. Never push
-  a version tag by hand.
-
-## Publish — release owner
-
-- [ ] Review the completed preparation checklist, diff since the previous release,
-  changelog entry, CI results, version consistency, and any skipped check explanations.
-- [ ] Confirm GitHub Actions has the required `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
-  and `RELEASE_WORKFLOW_TOKEN` secrets and Docker Hub access is available. The release
-  token needs repository Contents and Workflows write permissions so the workflow can
-  create a tag for a commit whose workflow files differ from the current `main`. If
-  unavailable, stop before merging the release PR and resolve access.
-- [ ] Before merging the release PR, supply/verify the exact semantic version, candidate
-  commit, matching `VERSION`, completed changelog section, and configured Docker Hub credentials.
-  These are the inputs the flow needs; it derives image tags and GitHub Release notes and
-  artifacts from the tag and changelog.
-- [ ] Merge the approved release candidate PR to `main` only after checking the version,
-  merged changes, changelog section, preflight results, human review and Docker Hub
-  credentials. `.github/workflows/publish-release.yml` creates or safely reuses the
-  matching version tag at the merge commit and dispatches `.github/workflows/release.yml`. Do not push a tag
-  or publish an image or GitHub Release by hand.
-- [ ] Watch the merge publisher and release workflow through tests, tag/version
-  validation, image publication, ready-built archive creation and post-publish checks.
-  Stop and recover if any job fails; do not announce a partial release.
-- [ ] Verify the GitHub Release has the intended notes and downloadable
-  `mortgage-management-<version>.zip`; verify Docker Hub has the version image and that
-  `latest` points to the same image only when this is the highest version. The workflow
-  checks the release notes, ZIP integrity and contents, and image manifest.
-- [ ] Verify the published install/download and a clean startup using the release's
-  documented path. Confirm the app reports the expected version and the key changed
-  behavior works.
-- [ ] Announce the release through the project's normal channel and link the GitHub
-  Release. Record any follow-up issue.
-
-## Recovery — release owner
-
-Any failure (or timeout) in preparation, preflight, merge, validation of the merged pull
-request, tag or publish opens one GitHub issue
-labelled `release-blocked` for the version (`Release X.Y.Z blocked`), or updates the open
-one with a comment: it names the failed stage, the run link (and the run it waited on) and
-the safe rerun command. GitHub's failed-run email reaches the owner too. Nothing retries,
-rolls back, or removes a tag or image by itself. A later successful publish of that version
-closes the issue. The logic is `.github/scripts/release-blocked.mjs`.
-
-| Stage | Rerun |
-| --- | --- |
-| preparation, preflight, merge | `gh workflow run release-candidate.yml --ref main -f version=X.Y.Z` (reuses the candidate branch and pull request) |
-| validate, tag, publish | `gh workflow run publish-release.yml --ref main -f pull_request=N` |
-
-- [ ] If the workflow fails before publication, inspect both workflow logs. After fixing
-  the cause, rerun the merged-PR publisher or dispatch it from `main` with the merged
-  release PR number: it verifies and reuses the tag only when it still points at the
-  same merge commit, then dispatches the release workflow again. If the tag must point
-  at a different commit, cut a new patch candidate; never move a tag after any release
-  artifact has been published.
-- [ ] If only some artifacts were published, pause announcements and inspect workflow
-  logs, Docker Hub tags, and the GitHub Release. Rerun the merged-PR publisher after
-  fixing the cause; the release workflow replaces the same version's image, notes and
-  ZIP safely. Never move `latest` back to an older version.
-- [ ] If users may have installed a broken release, publish a corrected release, explain
-  the affected version and recovery steps in its notes, and use the pre-update Backup
-  guidance when a database migration is involved.
-- [ ] Verify the recovery release and update the changelog/docs if the failure changed
-  user instructions.
+The switch is removed (with its tests) after the first clean auto-merged release (#573).

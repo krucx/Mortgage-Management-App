@@ -15,7 +15,9 @@ simplifying, reusing, and eventually creating a cleaner, maintainable system.
   otherwise `main`. The central auto-merge workflow merges `integration/*` PRs, so never enable
   auto-merge yourself. **Never approve a PR, and never merge or enable auto-merge on a PR into
   `main`**, even if told to: the owner presses merge on every `main` PR (the release PR and
-  safe Dependabot PRs are the only exceptions). You open the pull request, answer findings and stop.
+  safe Dependabot PRs are the only exceptions; see
+  [ADR 0022](Documentation/adr/0022-main-is-gated-by-the-owners-merge-click.md) and
+  [ADR 0023](Documentation/adr/0023-releases-are-fully-automated-after-the-trigger.md)). You open the pull request, answer findings and stop.
 - Open every PR from the [pull request template](.github/pull_request_template.md): it is the
   release-ready checklist (changelog fragment, user docs, onboarding lessons, agent instructions,
   `critical` label). CI fails a product-path change with no changelog fragment.

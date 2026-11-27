@@ -35,7 +35,7 @@ instructions, critical-area label) while the change is made, not at release time
    Fix actionable findings in a follow-up commit. If a finding is incorrect or does not
    apply, reply on the pull request with the reason so the reviewer can assess
    that disposition.
-5. For a pull request into `main`, the owner checks the diff, CI, automated findings and their
+5. For a pull request into `main` ([ADR 0022](Documentation/adr/0022-main-is-gated-by-the-owners-merge-click.md)), the owner checks the diff, CI, automated findings and their
    dispositions and presses merge. No approving review is required: agents act under the owner's
    GitHub account, so an approval could never be given. An
    agent **never approves** a pull request and **never merges, or enables auto-merge on, a
@@ -63,7 +63,7 @@ add a case by editing those two files, not the workflow.
   every GitHub Actions bump, which edits `.github/workflows/`), a missing or unreadable update type and
   a human commit on its branch all leave it for the owner to merge. It still waits for the required
   checks. How the update types are read: [Documentation/dependabot-auto-merge.md](Documentation/dependabot-auto-merge.md).
-- The `release/X.Y.Z` pull request into `main` is merged (merge commit) by the **Prepare release
+- The `release/X.Y.Z` pull request into `main` ([ADR 0023](Documentation/adr/0023-releases-are-fully-automated-after-the-trigger.md)) is merged (merge commit) by the **Prepare release
   candidate** workflow itself, right after it opens it, through the same allowlist's release case. It
   merges only when **all** the machine conditions in `.github/scripts/lib/release-conditions.mjs` hold:
   the branch is `release/X.Y.Z` with `VERSION` becoming X.Y.Z; the head is exactly the commit the
