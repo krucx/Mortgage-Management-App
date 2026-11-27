@@ -54,4 +54,10 @@ jobs:
       - name: Enable auto-merge when the allowlist says so
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node .github/scripts/auto-merge.mjs
+        run: |
+          # A base branch cut before this workflow landed has no script: nothing to decide, not an error.
+          if [ ! -f .github/scripts/auto-merge.mjs ]; then
+            echo "::notice::Base branch has no .github/scripts/auto-merge.mjs; leaving the PR alone."
+            exit 0
+          fi
+          node .github/scripts/auto-merge.mjs
