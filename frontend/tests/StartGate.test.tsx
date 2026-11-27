@@ -5,7 +5,7 @@ import { ServerStateProvider } from '../src/components/ServerStateProvider'
 import { StartGate, type StartGateProps } from '../src/components/StartGate'
 import { createServerState } from '../src/serverState'
 import { type FakeServer } from './fakeServer'
-import { typedFakeServer as fakeServer } from './typedFakeServer'
+import { offContract, typedFakeServer as fakeServer } from './typedFakeServer'
 
 afterEach(cleanup)
 
@@ -147,7 +147,7 @@ test('a bare 503 from a proxy, with no Health, counts as stopped', async () => {
 })
 
 test('a JSON error from a proxy that is not a Health counts as stopped', async () => {
-  const { server } = backend(() => Response.json({ detail: 'Bad Gateway' }, { status: 502 }))
+  const { server } = backend(() => offContract({ detail: 'Bad Gateway' }, 502))
   showGate(server)
 
   expect(await screen.findByRole('button', { name: 'Start Mortgage Management' })).toBeTruthy()

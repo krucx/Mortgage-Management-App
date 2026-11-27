@@ -164,7 +164,12 @@ const closureOf = (over: Partial<Closure>): Closure => ({
   note: null,
   ...over,
 })
-const side = (closure: MortgagePreview['before']['closure']) => ({ outstanding: 0, points: [], term_changes: [], closure })
+const side = (closure: MortgagePreview['before']['closure']) => ({
+  outstanding: 0,
+  points: [],
+  term_changes: [],
+  closure,
+})
 const previewOf = (closures: Record<number, MortgagePreview['before']['closure']>) =>
   changePreview(
     Object.entries(closures).map(([id, closure]) => ({

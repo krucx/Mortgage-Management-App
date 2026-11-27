@@ -70,7 +70,12 @@ async function waivePreview(request: Request) {
     profit_loss: null,
     note: null,
   })
-  const side = (closure: MortgagePreview['before']['closure']) => ({ outstanding: 0, points: [], term_changes: [], closure })
+  const side = (closure: MortgagePreview['before']['closure']) => ({
+    outstanding: 0,
+    points: [],
+    term_changes: [],
+    closure,
+  })
   return changePreview(
     mortgages.map((m) => ({
       mortgage_id: m.mortgage_id,
@@ -200,7 +205,12 @@ const forfeited = (recovered: number): Closure => ({
   profit_loss: recovered - 2_240_000,
   note: null,
 })
-const side = (closure: MortgagePreview['before']['closure']) => ({ outstanding: 0, points: [], term_changes: [], closure })
+const side = (closure: MortgagePreview['before']['closure']) => ({
+  outstanding: 0,
+  points: [],
+  term_changes: [],
+  closure,
+})
 
 /** The Forfeit-or-Waive list of `row` and `second`, with each one's Forfeiture as the
  *  Preview works it out from what was sent. */

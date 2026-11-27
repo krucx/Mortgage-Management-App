@@ -11,7 +11,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-
 const customer = {
   id: 5,
   name: 'Suresh Kumar',
@@ -187,7 +186,7 @@ test('a photo failing after the Customer is saved can be retried, sending only t
 
   expect(await screen.findByText('Now at /customers/5')).toBeTruthy()
   expect(server.requests.filter((r) => r === 'POST /api/customers')).toHaveLength(1)
-  expect(server.requests.filter((r) => r === 'PUT /api/customers/{customer_id}/photo')).toHaveLength(2)
+  expect(server.requests.filter((r) => r === 'PUT /api/customers/5/photo')).toHaveLength(2)
 })
 
 test('the Referrer search has a name', async () => {

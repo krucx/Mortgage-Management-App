@@ -80,7 +80,7 @@ test("deleting a Customer the backend won't delete shows why, and asks nothing",
 
   expect(await screen.findByText('A Customer with Mortgages cannot be deleted')).toBeTruthy()
   expect(screen.queryByRole('dialog')).toBeNull()
-  expect(server.requests).not.toContain('DELETE /api/customers/{customer_id}')
+  expect(server.requests).not.toContain('DELETE /api/customers/1')
 })
 
 test('deleting a Customer the backend would delete asks first, then deletes', async () => {
@@ -92,7 +92,7 @@ test('deleting a Customer the backend would delete asks first, then deletes', as
   expect(within(dialog).getByText('This cannot be undone.')).toBeTruthy()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
-  await vi.waitFor(() => expect(server.requests).toContain('DELETE /api/customers/{customer_id}'))
+  await vi.waitFor(() => expect(server.requests).toContain('DELETE /api/customers/1'))
 })
 
 test('the Customers filter has a name', async () => {

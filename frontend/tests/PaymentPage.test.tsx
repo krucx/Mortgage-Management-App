@@ -78,7 +78,7 @@ test('after a Void, the Payment shows as voided and its Receipt, which no longer
 
   expect(await screen.findByText('voided')).toBeTruthy()
   await new Promise((settle) => setTimeout(settle, 50))
-  const afterVoid = server.requests.slice(server.requests.indexOf('POST /api/payments/{payment_id}/void'))
+  const afterVoid = server.requests.slice(server.requests.indexOf('POST /api/payments/9/void'))
   expect(afterVoid).not.toContain('GET /api/payments/{payment_id}/receipt')
 })
 

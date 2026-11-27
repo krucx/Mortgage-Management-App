@@ -55,22 +55,26 @@ const side = (outstanding: number) => ({
 /** The Mortgage page with an Advance, whose 10 Nov part's cancel is previewed then
  *  made by `cancel`; the Mortgage is then as it returned. */
 function showAdvance(
-  cancel: (request: Request) => Mortgage | Response | Promise<Mortgage | Response> = () => cancelled,
+  cancel: (request: Request) => Mortgage | Response | Promise<Mortgage | Response> = () =>
+    cancelled,
 ) {
   let saved: Mortgage | null = null
   const server = fakeServer({
     'GET /api/mortgages/{mortgage_id}': () => saved ?? withAdvance,
-    'POST /api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel-preview': changePreview([
-      {
-        mortgage_id: 7,
-        mortgage_name: mortgage.name,
-        before: side(5_075_000),
-        after: side(5_000_000),
-        ledger_changes: [],
-        advance_warnings: [],
-      },
-    ]),
-    'POST /api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel': async (request: Request) => {
+    'POST /api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel-preview':
+      changePreview([
+        {
+          mortgage_id: 7,
+          mortgage_name: mortgage.name,
+          before: side(5_075_000),
+          after: side(5_000_000),
+          ledger_changes: [],
+          advance_warnings: [],
+        },
+      ]),
+    'POST /api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel': async (
+      request: Request,
+    ) => {
       const answer = await cancel(request)
       if (!(answer instanceof Response)) saved = answer
       return answer
@@ -150,8 +154,8 @@ test('cancelling an upcoming part shows its Preview first, then shows it Cancell
 
   expect(await screen.findByText('Cancelled on 18 Oct 2026')).toBeTruthy()
   expect(screen.getByText('Advance held').nextElementSibling!.textContent).toBe('₹750')
-  expect(server.requests).toContain('POST /api/mortgages/{id}/advance-instalments/22/cancel-preview')
-  expect(server.requests).toContain('POST /api/mortgages/{id}/advance-instalments/22/cancel')
+  expect(server.requests).toContain('POST /api/mortgages/7/advance-instalments/22/cancel-preview')
+  expect(server.requests).toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
 })
 
 test('a cancelled part has a Receipt to send on WhatsApp or print, shown once cancelled', async () => {
@@ -169,7 +173,7 @@ test('a cancelled part has a Receipt to send on WhatsApp or print, shown once ca
   expect(screen.getByRole('link', { name: 'Print or save as PDF' }).getAttribute('href')).toBe(
     '/payments/4/advance-instalments/22/receipt',
   )
-  expect(server.requests).toContain('GET /api/payments/{id}/advance-instalments/22/receipt')
+  expect(server.requests).toContain('GET /api/payments/4/advance-instalments/22/receipt')
 })
 
 test("a cancelled part's Receipt can be reopened", async () => {
@@ -196,7 +200,7 @@ test('keeping the part cancels nothing', async () => {
   )
 
   await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  expect(server.requests).not.toContain('POST /api/mortgages/{id}/advance-instalments/22/cancel')
+  expect(server.requests).not.toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
 })
 
 test.each([
@@ -215,7 +219,7 @@ test.each([
   close(await screen.findByRole('dialog'))
 
   await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  expect(server.requests).not.toContain('POST /api/mortgages/{id}/advance-instalments/22/cancel')
+  expect(server.requests).not.toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
 })
 
 test('a part cannot be cancelled again while its cancel is being saved', async () => {

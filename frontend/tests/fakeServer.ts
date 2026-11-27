@@ -14,6 +14,10 @@ export const changePreview = (
     Partial<Pick<MortgagePreview, 'discount_room' | 'over_threshold' | 'advance'>>)[],
   cash: number[] = [],
 ): PreviewOfChange => ({
-  mortgages: mortgages.map((mortgage) => ({ discount_room: 0, over_threshold: false, ...mortgage })),
+  mortgages: mortgages.map((mortgage) => ({
+    discount_room: 0,
+    over_threshold: false,
+    ...mortgage,
+  })),
   cash,
 })

@@ -114,7 +114,7 @@ test('the section is hidden when the Customer has no favours', async () => {
   const server = customerPage({ ...ONE_PAGE, items: [], total: 0, let_off: 0 })
 
   await screen.findByRole('heading', { name: 'Asha Rao' })
-  await vi.waitFor(() => expect(server.requests).toContain('GET /api/customers/{customer_id}/favours'))
+  await vi.waitFor(() => expect(server.requests).toContain('GET /api/customers/3/favours'))
   expect(screen.queryByRole('heading', { name: 'Favours Given' })).toBeNull()
   expect(screen.queryByRole('table', { name: 'Favours Given' })).toBeNull()
 })
@@ -127,7 +127,7 @@ test('a failure to load them says so under the heading', async () => {
 })
 
 test('favours come a page at a time, the total still counting every page', async () => {
-const favour = (day: number): Favour => ({
+  const favour = (day: number): Favour => ({
     on: `2026-03-${String(day).padStart(2, '0')}`,
     received_on: null,
     mortgage: { id: 7, description: 'Gold chain' },

@@ -41,7 +41,12 @@ const forfeited = (profitLoss: number): Closure => ({
   profit_loss: profitLoss,
   note: 'Auctioned',
 })
-const side = (closure: MortgagePreview['before']['closure']) => ({ outstanding: 0, points: [], term_changes: [], closure })
+const side = (closure: MortgagePreview['before']['closure']) => ({
+  outstanding: 0,
+  points: [],
+  term_changes: [],
+  closure,
+})
 const preview = changePreview(
   [3, 4].map((id, i) => ({
     mortgage_id: id,

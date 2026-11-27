@@ -82,7 +82,11 @@ test('the form takes an email, the Aadhaar Number, the PAN and ID Photos, and sa
   fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and save' }))
 
   expect(await screen.findByText('Now at /customers/5')).toBeTruthy()
-  expect(sent.map((s) => s.route)).toEqual(['PUT /api/customers/{customer_id}', 'PUT aadhaar', 'DELETE pan'])
+  expect(sent.map((s) => s.route)).toEqual([
+    'PUT /api/customers/{customer_id}',
+    'PUT aadhaar',
+    'DELETE pan',
+  ])
   expect(sent[0].body).toMatchObject({
     email: 'suresh@kumar.in',
     aadhaar_last4: '9012',

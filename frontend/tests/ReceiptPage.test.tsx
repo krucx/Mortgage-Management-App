@@ -221,7 +221,9 @@ test("a cancelled part's Receipt says what it paid on the day it was applied", a
     ],
     total_owed: 10_000_000,
   }
-  const server = fakeServer({ 'GET /api/payments/{payment_id}/advance-instalments/{instalment_id}/receipt': applied })
+  const server = fakeServer({
+    'GET /api/payments/{payment_id}/advance-instalments/{instalment_id}/receipt': applied,
+  })
   showPage(server, '/payments/9/advance-instalments/22/receipt', {
     '/payments/:id/advance-instalments/:instalment/receipt': <ReceiptPage />,
   })

@@ -143,7 +143,9 @@ function showComingChange() {
   let removed = false
   const server = fakeServer({
     'GET /api/mortgages/{mortgage_id}': () => (removed ? mortgage : withComingChange),
-    'POST /api/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview': changePreview([preview]),
+    'POST /api/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview': changePreview([
+      preview,
+    ]),
     'DELETE /api/mortgages/{mortgage_id}/term-changes/{change_id}': () => {
       removed = true
       return mortgage
@@ -165,8 +167,8 @@ test('a coming Term Change is removed from the Terms panel after its removal is 
 
   await vi.waitFor(() => expect(screen.queryByText('coming')).toBeNull())
   expect(screen.queryByText(/From 10 Nov 2099/)).toBeNull()
-  expect(server.requests).toContain('POST /api/mortgages/{id}/term-changes/4/remove-preview')
-  expect(server.requests).toContain('DELETE /api/mortgages/{id}/term-changes/4')
+  expect(server.requests).toContain('POST /api/mortgages/7/term-changes/4/remove-preview')
+  expect(server.requests).toContain('DELETE /api/mortgages/7/term-changes/4')
 })
 
 test('cancelling leaves the coming Term Change as it was', async () => {
@@ -178,5 +180,5 @@ test('cancelling leaves the coming Term Change as it was', async () => {
 
   await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   expect(screen.getByText('coming')).toBeTruthy()
-  expect(server.requests).not.toContain('DELETE /api/mortgages/{id}/term-changes/4')
+  expect(server.requests).not.toContain('DELETE /api/mortgages/7/term-changes/4')
 })
