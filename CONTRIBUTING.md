@@ -160,7 +160,7 @@ comment on each `integration/*` -> `main` pull request and edits it in place on 
 the `Tests` run finishes. It lists the merged worker pull requests with their tickets, the changed files
 grouped by the critical areas above (plus "other"), the status of the ruleset's required checks, and any
 linked ticket with unticked acceptance criteria. It is tool-neutral and is not posted on any other pull
-request. The critical paths are mirrored in `.github/scripts/lib/critical-paths.mjs` (used by the integration summary and the Dependabot auto-merge rule); `test-critical-paths.mjs` fails when the two disagree.
+request. The critical paths are mirrored in `.github/scripts/lib/classify.mjs` (the one module that classifies a path for the changed-paths job, the changelog check, the integration summary and the Dependabot auto-merge rule); `test-critical-paths.mjs` fails when the two disagree.
 
 No ruleset requires a `CodeRabbit` check (it never reports on a pull request it skips), so a
 pull request it skips merges normally. The review is advisory: for the `integration/*` -> `main`

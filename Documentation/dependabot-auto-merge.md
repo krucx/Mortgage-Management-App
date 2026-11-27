@@ -25,7 +25,7 @@ Verified against real PRs in this repository (#480, #314, #379 grouped or single
 ## Critical paths
 
 The PR's file list (including a renamed file's previous name) is checked against
-`.github/scripts/lib/critical-paths.mjs` (shared with the integration summary and mirrored from
+`.github/scripts/lib/classify.mjs` (shared with the integration summary and mirrored from
 CONTRIBUTING). Every GitHub Actions bump edits `.github/workflows/`, so those PRs are always manual;
 npm and uv bumps of non-critical manifests can auto-merge.
 

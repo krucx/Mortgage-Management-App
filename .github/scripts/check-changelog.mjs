@@ -1,30 +1,11 @@
 import { execFileSync } from 'node:child_process'
+import { classify } from './lib/classify.mjs'
 import { isReleaseCandidate } from './check-version-unchanged.mjs'
 
 const fragmentPath = /^changelog\/unreleased\/.+\.(added|changed|deprecated|removed|fixed|security)\.md$/
 
-const allowlistPrefixes = [
-  'Documentation/',
-  '.claude/',
-  '.agents/',
-  '.github/',
-  'changelog/',
-]
-
-const allowlistFiles = new Set([
-  'AGENTS.md',
-  'CLAUDE.md',
-  'CONTRIBUTING.md',
-  'LICENSE',
-  '.editorconfig',
-  '.gitignore',
-  '.coderabbit.yaml',
-])
-
-export function isAllowlistedPath(path) {
-  if (allowlistFiles.has(path)) return true
-  return allowlistPrefixes.some((prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix))
-}
+// A path needs release notes when the classifier calls it product.
+export const isAllowlistedPath = (path) => !classify(path).product
 
 export function checkChangelog({ read, pathsChanged, base, head, ...pullRequest }) {
   const errors = []
