@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, UploadFile
 from sqlalchemy import delete, insert, select
 from sqlalchemy.engine import Connection
 
@@ -11,6 +11,7 @@ from mortgage_backend.lending.replay import mortgage_row
 from mortgage_backend.platform import photos
 from mortgage_backend.platform.clock import NowDep, TodayDep
 from mortgage_backend.platform.db import EngineDep, mortgage_photo_table
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.photos import PhotosDirDep
 from mortgage_backend.safekeeping import audit
 
@@ -41,7 +42,7 @@ def remove_photo(
         )
     ).scalar()
     if file_name is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Photo not found")
+        raise Refusal("Photo not found", "not_found")
     conn.execute(
         delete(mortgage_photo_table).where(mortgage_photo_table.c.id == photo_id)
     )

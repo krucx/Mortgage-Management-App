@@ -12,7 +12,7 @@ handlers only parse, call and answer.
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Response, UploadFile, status
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.engine import Connection
 
@@ -37,7 +37,7 @@ from mortgage_backend.platform.db import (
     standalone_referrer_table,
     write_transaction,
 )
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.photos import PhotosDirDep
 from mortgage_backend.safekeeping import audit
 
@@ -68,18 +68,16 @@ def _audited(customer: Customer) -> dict[str, object]:
     }
 
 
-def _number_taken(phone: str, owner: PersonSummary) -> HTTPException:
+def _number_taken(phone: str, owner: PersonSummary) -> Refusal:
     label = "Customer" if owner.kind == "customer" else "Referrer"
-    return HTTPException(
-        status.HTTP_409_CONFLICT,
+    return Refusal(
         f"Contact number 1 {phone} already belongs to {label} {owner.name}",
+        "conflict",
     )
 
 
-def _pan_taken(pan: str, holder: str) -> HTTPException:
-    return HTTPException(
-        status.HTTP_409_CONFLICT, f"PAN {pan} already belongs to Customer {holder}"
-    )
+def _pan_taken(pan: str, holder: str) -> Refusal:
+    return Refusal(f"PAN {pan} already belongs to Customer {holder}", "conflict")
 
 
 def _is_themselves(
@@ -136,11 +134,11 @@ def _referrer_columns(
             return _link_to(None)
         case ExistingCustomerReferrer(id=referrer_id):
             if not exists(conn, customer_table, referrer_id):
-                raise unprocessable("Referrer Customer not found")
+                raise Refusal("Referrer Customer not found", "unprocessable")
             return _link_to(PersonSummary(kind="customer", id=referrer_id, name=""))
         case ExistingStandaloneReferrer(id=referrer_id):
             if not exists(conn, standalone_referrer_table, referrer_id):
-                raise unprocessable("Referrer not found")
+                raise Refusal("Referrer not found", "unprocessable")
             return _link_to(PersonSummary(kind="referrer", id=referrer_id, name=""))
         case NewStandaloneReferrer():
             existing = owner_of(conn, choice.phone)
@@ -184,7 +182,7 @@ def _checked(
         elif (owner.kind, owner.id) != ("customer", customer_id):
             raise _number_taken(customer.phone_1, owner)
     if _is_themselves(conn, customer.referrer, customer_id, customer.phone_1, owner):
-        raise unprocessable("A Customer cannot be their own Referrer")
+        raise Refusal("A Customer cannot be their own Referrer", "unprocessable")
     if customer.pan is not None:
         holder = conn.execute(
             select(customer_table.c.id, customer_table.c.name).where(
@@ -293,13 +291,11 @@ def remove_customer(conn: Connection, customer_id: int, now: datetime) -> list[s
         ).where(customer_table.c.id == customer_id)
     ).first()
     if customer is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+        raise Refusal("Customer not found", "not_found")
     if conn.execute(
         select(mortgage_table.c.id).where(mortgage_table.c.customer_id == customer_id)
     ).first():
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "A Customer with Mortgages cannot be deleted"
-        )
+        raise Refusal("A Customer with Mortgages cannot be deleted", "conflict")
     conn.execute(
         update(customer_table)
         .where(customer_table.c.referred_by_customer_id == customer_id)

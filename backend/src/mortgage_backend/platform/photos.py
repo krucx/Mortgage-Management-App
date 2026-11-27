@@ -20,7 +20,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.engine import Connection, Engine
 
 from mortgage_backend.platform.db import write_transaction
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 
 MAX_EDGE_PX = 1600
 _FILE_NAME = re.compile(r"^[a-z]+-\d+-[0-9a-f]{32}\.jpg$")
@@ -47,7 +47,7 @@ def _save_photo(
         # Phone photos carry their rotation in EXIF; bake it in.
         image = ImageOps.exif_transpose(Image.open(BytesIO(data))).convert("RGB")
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
-        raise unprocessable("Not an image file") from None
+        raise Refusal("Not an image file", "unprocessable") from None
     image.thumbnail((MAX_EDGE_PX, MAX_EDGE_PX))
 
     file_name = f"{owner}-{owner_id}-{uuid.uuid4().hex}.jpg"

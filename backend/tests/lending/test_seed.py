@@ -4,7 +4,6 @@ refuse fails at setup instead of starting a test from an impossible state."""
 from datetime import date
 
 import pytest
-from fastapi import HTTPException
 from seed import RUPEE, add_customer, add_mortgage, add_payment
 from sqlalchemy.engine import Connection
 
@@ -27,7 +26,7 @@ def test_a_seeded_customer_on_someone_elses_number_fails_at_setup(
 ) -> None:
     add_customer(conn)
 
-    with pytest.raises(HTTPException) as refused:
+    with pytest.raises(Refusal) as refused:
         add_customer(conn, name="Somebody Else")
 
-    assert refused.value.status_code == 409
+    assert refused.value.kind == "conflict"

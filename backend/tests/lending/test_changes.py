@@ -667,10 +667,10 @@ def test_a_collateral_value_is_refused_when_it_cannot_stand(conn: Connection) ->
     ring = add_mortgage(conn, ramesh, suffix="Ring")
     redeem(conn, ring, TODAY)
 
-    def refused_value(value: int) -> tuple[int, str]:
-        with pytest.raises(HTTPException) as refused:
+    def refused_value(value: int) -> tuple[str, str]:
+        with pytest.raises(Refusal) as refused:
             manual_value.set_collateral(conn, chain, value, TODAY, NOW)
-        return refusal(refused)
+        return refused.value.kind, refused.value.message
 
     with pytest.raises(Refusal) as missing:
         manual_value.set_collateral(conn, 404, 90_000 * RUPEE, TODAY, NOW)
@@ -678,7 +678,10 @@ def test_a_collateral_value_is_refused_when_it_cannot_stand(conn: Connection) ->
         "not_found",
         "Mortgage not found",
     )
-    assert refused_value(0) == (422, "A Collateral Value must be more than ₹0")
+    assert refused_value(0) == (
+        "unprocessable",
+        "A Collateral Value must be more than ₹0",
+    )
     with pytest.raises(Refusal) as closed:
         manual_value.set_collateral(conn, ring, 90_000 * RUPEE, TODAY, NOW)
     assert (closed.value.kind, closed.value.message) == (
@@ -712,11 +715,14 @@ def test_a_photo_is_refused_for_no_mortgage_or_removed_from_the_wrong_one(
 
     with pytest.raises(Refusal) as no_mortgage:
         mortgage_photos.add_photo(conn, 404, "mortgage-404-a.jpg", NOW)
-    with pytest.raises(HTTPException) as wrong_one:
+    with pytest.raises(Refusal) as wrong_one:
         mortgage_photos.remove_photo(conn, ring, photo, NOW)
 
     assert (no_mortgage.value.kind, no_mortgage.value.message) == (
         "not_found",
         "Mortgage not found",
     )
-    assert refusal(wrong_one) == (404, "Photo not found")
+    assert (wrong_one.value.kind, wrong_one.value.message) == (
+        "not_found",
+        "Photo not found",
+    )

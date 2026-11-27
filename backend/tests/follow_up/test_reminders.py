@@ -31,8 +31,6 @@ from mortgage_backend.follow_up.message_settings import (
 )
 from mortgage_backend.follow_up.reminders import (
     ReminderAction,
-    ReminderNotFound,
-    ReminderRefused,
     act,
     is_eligible,
     list_reminders,
@@ -41,6 +39,7 @@ from mortgage_backend.follow_up.reminders import (
 from mortgage_backend.lending.replay import replay
 from mortgage_backend.lending.terms import Terms
 from mortgage_backend.main import create_app
+from mortgage_backend.platform.errors import Refusal
 
 TODAY = date(2026, 5, 12)
 NOW = datetime(2026, 5, 12, 10, 0)
@@ -245,7 +244,9 @@ def test_the_daily_run_queues_reminders_the_lender_sends(app_client, clock) -> N
     sent = app_client.post(f"/api/reminders/{reminder['id']}/sent")
     assert sent.status_code == 200, sent.text
     assert sent.json()["status"] == "sent"
-    assert app_client.post(f"/api/reminders/{reminder['id']}/skip").status_code == 409
+    refused = app_client.post(f"/api/reminders/{reminder['id']}/skip")
+    assert refused.status_code == 409
+    assert refused.content == (b'{"detail":"This Reminder is already sent"}')
 
 
 def dated(day: str) -> dict[str, str]:
@@ -319,7 +320,9 @@ def test_an_awaiting_reminder_is_approved_or_skipped(app_client, clock) -> None:
     clock.today = date(2026, 5, 12)
     ring, anklet = app_client.get("/api/reminders").json()["items"]
 
-    assert app_client.post(f"/api/reminders/{ring['id']}/sent").status_code == 409
+    refused = app_client.post(f"/api/reminders/{ring['id']}/sent")
+    assert refused.status_code == 409
+    assert refused.content == b'{"detail":"This Reminder is already awaiting approval"}'
     approved = app_client.post(f"/api/reminders/{ring['id']}/approve").json()
     skipped = app_client.post(f"/api/reminders/{anklet['id']}/skip").json()
 
@@ -602,11 +605,13 @@ def test_a_reminder_is_refused_an_action_its_status_does_not_allow(
     settings(conn, reminder_approve_first=True)
     [reminder] = list_reminders(conn)
 
-    with pytest.raises(ReminderRefused, match="awaiting approval"):
+    with pytest.raises(Refusal, match="awaiting approval") as refused:
         act(conn, reminder.id, ReminderAction.SEND, NOW)
+    assert refused.value.kind == "conflict"
     act(conn, reminder.id, ReminderAction.SKIP, NOW)
-    with pytest.raises(ReminderRefused, match="already skipped"):
+    with pytest.raises(Refusal, match="already skipped") as refused:
         act(conn, reminder.id, ReminderAction.APPROVE, NOW)
+    assert refused.value.kind == "conflict"
 
 
 def test_a_reminder_with_nothing_to_say_cannot_be_approved_or_sent(
@@ -619,10 +624,12 @@ def test_a_reminder_with_nothing_to_say_cannot_be_approved_or_sent(
     [reminder] = list_reminders(conn)
     redeem(conn, chain, TODAY)
 
-    with pytest.raises(ReminderRefused, match="skip it"):
+    with pytest.raises(Refusal, match="skip it") as refused:
         act(conn, reminder.id, ReminderAction.APPROVE, NOW)
-    with pytest.raises(ReminderRefused, match="skip it"):
+    assert refused.value.kind == "conflict"
+    with pytest.raises(Refusal, match="skip it") as refused:
         act(conn, reminder.id, ReminderAction.SEND, NOW)
+    assert refused.value.kind == "conflict"
     assert act(conn, reminder.id, ReminderAction.SKIP, NOW).status == "skipped"
 
 
@@ -639,8 +646,9 @@ def test_sync_removes_a_fully_ineligible_unsent_reminder(conn: Connection) -> No
 
 
 def test_acting_on_a_missing_reminder_is_refused(conn: Connection) -> None:
-    with pytest.raises(ReminderNotFound):
+    with pytest.raises(Refusal) as refused:
         act(conn, 404, ReminderAction.SKIP, NOW)
+    assert refused.value.kind == "not_found"
 
 
 def test_saving_message_settings_syncs_the_reminders_at_once(conn: Connection) -> None:
@@ -664,6 +672,10 @@ def test_a_template_with_an_unknown_placeholder_is_refused(app_client) -> None:
     assert refused.status_code == 422
     assert "{name}" in refused.json()["detail"]
     assert "Reminder" in refused.json()["detail"]
+    assert refused.content == (
+        b'{"detail":"The Reminder template can\'t fill {name}. It can use: '
+        b'{customer_name} {date} {interest} {mortgages} {total_owed}"}'
+    )
     assert saved.status_code == 200
     assert (
         app_client.get("/api/settings/messages").json()["reminder_template"]
@@ -806,3 +818,10 @@ def test_cancelling_a_part_before_its_date_brings_its_reminder_back(
     assert [m["id"] for m in reminder["mortgages"]] == [chain["id"]]
     sent = app_client.post(f"/api/reminders/{reminder['id']}/sent")
     assert sent.status_code == 200, sent.text
+
+
+def test_acting_on_an_unknown_reminder_is_not_found(app_client):
+    response = app_client.post("/api/reminders/999/skip")
+
+    assert response.status_code == 404
+    assert response.content == b'{"detail":"Reminder not found"}'

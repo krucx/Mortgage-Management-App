@@ -102,6 +102,17 @@ def test_a_saved_removal_removes_the_file(engine, photos_dir):
     assert files(photos_dir) == []
 
 
+def test_removing_a_photo_that_isnt_there_is_a_domain_refusal(engine):
+    with engine.begin() as conn:
+        with pytest.raises(Refusal) as refused:
+            mortgage_photos.remove_photo(conn, 1, 404, NOW)
+
+    assert (refused.value.kind, refused.value.message) == (
+        "not_found",
+        "Photo not found",
+    )
+
+
 def test_a_photo_for_a_mortgage_that_isnt_there_leaves_no_file(client, tmp_path):
     response = client.post(
         "/api/mortgages/99/photos",

@@ -5,7 +5,6 @@ one place. A Primary Number identifies a person (ADR 0005)."""
 from datetime import datetime
 
 import pytest
-from fastapi import HTTPException
 from seed import add_mortgage, entries
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
@@ -19,6 +18,7 @@ from mortgage_backend.people.customers import (
     load_customer,
 )
 from mortgage_backend.platform.db import standalone_referrer_table
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.safekeeping.audit import customer_history
 
 NOW = datetime(2026, 4, 20, 11, 0)
@@ -43,11 +43,11 @@ def save(conn: Connection, details: CustomerIn, customer_id: int | None = None) 
 
 def refused_save(
     conn: Connection, details: CustomerIn, customer_id: int | None = None
-) -> tuple[int, str]:
-    """How saving `details` is refused: the status code and why."""
-    with pytest.raises(HTTPException) as refused:
+) -> tuple[str, str]:
+    """How saving `details` is refused: the domain kind and why."""
+    with pytest.raises(Refusal) as refused:
         save(conn, details, customer_id)
-    return refused.value.status_code, str(refused.value.detail)
+    return refused.value.kind, refused.value.message
 
 
 def referrer_ids(conn: Connection) -> list[int]:
@@ -62,6 +62,16 @@ def test_a_new_customer_is_saved_and_recorded(conn: Connection) -> None:
     assert (created["name"], created["phone_1"]) == ("Ramesh Kumar", "9829012345")
 
 
+def test_editing_a_missing_customer_is_a_domain_refusal(conn: Connection) -> None:
+    with pytest.raises(Refusal) as refused:
+        customer_changes.edit_customer(conn, 404, customer(), NOW)
+
+    assert (refused.value.kind, refused.value.message) == (
+        "not_found",
+        "Customer not found",
+    )
+
+
 def test_someone_elses_primary_number_is_refused_new_or_edited(
     conn: Connection,
 ) -> None:
@@ -69,7 +79,7 @@ def test_someone_elses_primary_number_is_refused_new_or_edited(
     suresh = save(conn, customer("Suresh Jain", "9000000002"))
 
     expected = (
-        409,
+        "conflict",
         "Contact number 1 9829012345 already belongs to Customer Ramesh Kumar",
     )
     assert refused_save(conn, customer("Somebody Else")) == expected
@@ -113,7 +123,7 @@ def test_a_customer_cannot_be_their_own_referrer(conn: Connection) -> None:
     ramesh = save(conn, customer())
     save(conn, customer("Sita Devi", "9000000003", referrer=MOHAN))
     [mohan_referrer] = referrer_ids(conn)
-    own = (422, "A Customer cannot be their own Referrer")
+    own = ("unprocessable", "A Customer cannot be their own Referrer")
 
     # Editing themselves as their Referrer
     themselves = ExistingCustomerReferrer(kind="customer", id=ramesh)
@@ -165,11 +175,11 @@ def test_a_customer_with_mortgages_cannot_be_deleted(conn: Connection) -> None:
     ramesh = save(conn, customer())
     add_mortgage(conn, ramesh)
 
-    with pytest.raises(HTTPException) as refused:
+    with pytest.raises(Refusal) as refused:
         customer_changes.remove_customer(conn, ramesh, NOW)
 
-    assert (refused.value.status_code, refused.value.detail) == (
-        409,
+    assert (refused.value.kind, refused.value.message) == (
+        "conflict",
         "A Customer with Mortgages cannot be deleted",
     )
 
@@ -224,6 +234,6 @@ def test_a_new_referrer_with_the_number_a_customer_had_before_an_edit_is_them(
     )
 
     assert refused_save(conn, moved, ramesh) == (
-        422,
+        "unprocessable",
         "A Customer cannot be their own Referrer",
     )

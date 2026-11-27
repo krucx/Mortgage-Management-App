@@ -26,6 +26,10 @@ def test_a_second_customer_cannot_take_someone_elses_contact_number_1(client):
 
     assert response.status_code == 409
     assert "Ramesh Kumar" in response.json()["detail"]
+    assert response.content == (
+        b'{"detail":"Contact number 1 9829012345 already belongs to Customer '
+        b'Ramesh Kumar"}'
+    )
 
 
 def test_the_same_name_with_a_different_number_is_a_different_customer(client):
