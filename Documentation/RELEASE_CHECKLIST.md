@@ -51,16 +51,3 @@ tag or image by itself, and a later successful publish of that version closes th
 - [ ] A missing `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` or `RELEASE_WORKFLOW_TOKEN` secret
   (Contents and Workflows write) stops the release and raises the issue; the owner restores
   it in repository settings, then reruns.
-
-### Approval fallback (temporary)
-
-While it exists, the repository variable `RELEASE_REQUIRE_APPROVAL` brings back the old rule:
-set to `true`, the release pull request is left unmerged for a human other than its author to
-approve and merge, and the publisher requires that approval. Only the owner changes it:
-
-```sh
-gh variable set RELEASE_REQUIRE_APPROVAL --body true   # switch the fallback on
-gh variable delete RELEASE_REQUIRE_APPROVAL            # back to automatic (also the default when unset)
-```
-
-The switch is removed (with its tests) after the first clean auto-merged release (#573).

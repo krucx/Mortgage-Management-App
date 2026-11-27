@@ -2,7 +2,7 @@
 // github-adapter.mjs (the real adapter) in memory, with no network or git calls,
 // and records what the Release module asked it to do.
 export function createFakeGithubAdapter({
-  pullRequests = {}, reviews = {}, checks = {}, files = {}, requiredChecks = [], preflightRuns = [], tags = {}, runs = [], releaseTags = [],
+  pullRequests = {}, checks = {}, files = {}, requiredChecks = [], preflightRuns = [], tags = {}, runs = [], releaseTags = [],
 } = {}) {
   const tagCommits = new Map(Object.entries(tags))
   const createdTags = []
@@ -19,9 +19,6 @@ export function createFakeGithubAdapter({
       const pullRequest = pullRequests[number]
       if (!pullRequest) throw new Error(`No fake pull request #${number}`)
       return pullRequest
-    },
-    getReviews(number) {
-      return reviews[number] ?? []
     },
     getChecks(number) {
       return checks[number] ?? []
