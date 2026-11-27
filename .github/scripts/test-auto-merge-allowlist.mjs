@@ -33,7 +33,8 @@ test('a malformed PR is left alone', async () => {
   assert.equal((await autoMergeDecision({})).enable, false);
 });
 
-import { applyAutoMerge } from './auto-merge.mjs';
+import { applyAutoMerge, mergeReleaseCandidate } from './auto-merge.mjs';
+import * as fixture from './release-candidate-fixture.mjs';
 
 // --- Dependabot into main -------------------------------------------------------------------------
 // Commit messages in the shape Dependabot really writes (see PRs #480, #314, #472).
@@ -205,4 +206,161 @@ test('applyAutoMerge warns instead of failing when GitHub refuses auto-merge for
 test('applyAutoMerge still fails on any other GitHub error', async () => {
   const graphql = async () => { throw new Error('GitHub GraphQL failed (401): Bad credentials'); };
   await assert.rejects(applyAutoMerge({ ...pr(), node_id: 'PR_1', number: 1 }, graphql, { log() {} }), /401/);
+});
+
+// --- Release pull request into main ----------------------------------------------------------------
+// Merged only from the Prepare release candidate workflow, which passes the commit it pushed and
+// preflighted (releaseCandidate.expectedHeadSha). The conditions themselves are tested in
+// test-release.mjs; these tests prove the allowlist case uses them and refuses each kind of failure.
+
+
+const releaseApi = ({ expectedHeadSha = fixture.headCommit, files = fixture.releaseFiles(), checks = fixture.releaseChecks(), required = fixture.requiredChecks, runs = fixture.preflightRuns() } = {}) => ({
+  releaseCandidate: expectedHeadSha ? { expectedHeadSha } : undefined,
+  listFiles: async () => files,
+  listChecks: async (sha) => (sha === fixture.headCommit ? checks : []),
+  requiredChecks: async () => required,
+  listPreflightRuns: async (sha) => runs.filter((run) => run.head_sha === sha),
+});
+
+test('release: the exact happy path is merged with a merge commit, pinned to the candidate commit', async () => {
+  assert.deepEqual(await autoMergeDecision(fixture.releasePullRequest(), releaseApi()), {
+    enable: true, method: 'MERGE', reason: 'release-candidate', expectedHeadOid: fixture.headCommit,
+  });
+});
+
+test('release: the central workflow (no candidate context) leaves a release PR alone', async () => {
+  const decision = await autoMergeDecision(fixture.releasePullRequest(), releaseApi({ expectedHeadSha: null }));
+  assert.equal(decision.enable, false);
+  assert.match(decision.reason, /release-.*candidate-workflow/);
+});
+
+test('release: refuses each failed condition', async () => {
+  const [run] = fixture.preflightRuns();
+  const cases = {
+    'wrong head branch': [fixture.releasePullRequest({ head: { ref: 'release/3.4.7', sha: fixture.headCommit } }), releaseApi()],
+    'VERSION not the branch version': [fixture.releasePullRequest(), releaseApi({ files: fixture.releaseFiles().map((f) => (f.filename === 'VERSION' ? { ...f, patch: '-3.4.5\n+3.4.7' } : f)) })],
+    'head moved after the candidate push': [fixture.releasePullRequest({ head: { ref: fixture.branch, sha: 'c'.repeat(40) } }), releaseApi()],
+    'head not preflight-validated': [fixture.releasePullRequest(), releaseApi({ runs: [{ ...run, conclusion: 'failure' }] })],
+    'red required check': [fixture.releasePullRequest(), releaseApi({ checks: fixture.releaseChecks().map((c) => (c.name === 'windows' ? { ...c, conclusion: 'FAILURE' } : c)) })],
+    'missing required check': [fixture.releasePullRequest(), releaseApi({ checks: fixture.releaseChecks().filter((c) => c.name !== 'Analyze (python)') })],
+    'extra file': [fixture.releasePullRequest(), releaseApi({ files: [...fixture.releaseFiles(), { filename: 'Dockerfile', status: 'modified', additions: 1, deletions: 0, patch: '+RUN x' }] })],
+    'not into main': [fixture.releasePullRequest({ base: { ref: 'integration/x' } }), releaseApi()],
+  };
+  for (const [name, [pullRequest, prApi]] of Object.entries(cases)) {
+    const decision = await autoMergeDecision(pullRequest, prApi);
+    if (name === 'not into main') {
+      assert.equal(decision.reason, 'integration-base', name); // the integration rule, not this one
+      continue;
+    }
+    assert.equal(decision.enable, false, name);
+    assert.match(decision.reason, /^release-/, name);
+  }
+});
+
+test('release: a draft or closed release PR is left alone', async () => {
+  assert.equal((await autoMergeDecision(fixture.releasePullRequest({ draft: true }), releaseApi())).enable, false);
+  assert.equal((await autoMergeDecision(fixture.releasePullRequest({ state: 'closed' }), releaseApi())).enable, false);
+});
+
+const ENABLE_RE = /enablePullRequestAutoMerge/;
+const MERGE_RE = /mergePullRequest\(/;
+const DISABLE_RE = /disablePullRequestAutoMerge/;
+
+function recordingGraphql({ enableError } = {}) {
+  const calls = [];
+  const graphql = async (query, variables) => {
+    const kind = ENABLE_RE.test(query) ? 'enable' : MERGE_RE.test(query) ? 'merge' : DISABLE_RE.test(query) ? 'disable' : 'other';
+    calls.push({ kind, ...variables });
+    if (kind === 'enable' && enableError) throw new Error(enableError);
+  };
+  return { calls, graphql };
+}
+
+test('applyAutoMerge pins the head commit when the decision names one', async () => {
+  const { calls, graphql } = recordingGraphql();
+  const result = await applyAutoMerge(fixture.releasePullRequest(), graphql, { log() {}, api: releaseApi() });
+  assert.equal(result.enabled, true);
+  assert.deepEqual(calls, [{ kind: 'enable', id: 'PR_266', method: 'MERGE', head: fixture.headCommit }]);
+});
+
+test('applyAutoMerge merges a pinned PR at once when GitHub says it is already clean', async () => {
+  const { calls, graphql } = recordingGraphql({ enableError: 'GitHub GraphQL failed: [{"type":"UNPROCESSABLE","message":"Pull request Pull request is in clean status"}]' });
+  const result = await applyAutoMerge(fixture.releasePullRequest(), graphql, { log() {}, api: releaseApi() });
+  assert.equal(result.merged, true);
+  assert.deepEqual(calls.map((call) => call.kind), ['enable', 'merge']);
+  assert.equal(calls[1].head, fixture.headCommit);
+  assert.equal(calls[1].method, 'MERGE');
+});
+
+test('applyAutoMerge never merges an unpinned (integration) PR directly, even when clean', async () => {
+  const { calls, graphql } = recordingGraphql({ enableError: 'GitHub GraphQL failed: [{"type":"UNPROCESSABLE","message":"Pull request is in clean status"}]' });
+  const result = await applyAutoMerge({ ...pr(), node_id: 'PR_1', number: 1 }, graphql, { log() {} });
+  assert.equal(result.enabled, false);
+  assert.deepEqual(calls.map((call) => call.kind), ['enable']);
+});
+
+const clock = () => {
+  let time = 0;
+  return { now: () => time, sleep: async (ms) => { time += ms; } };
+};
+
+test('mergeReleaseCandidate returns the merge commit once GitHub has merged the PR', async () => {
+  const { calls, graphql } = recordingGraphql();
+  const states = [fixture.releasePullRequest(), fixture.releasePullRequest({ state: 'closed', merged: true, merge_commit_sha: fixture.mergeCommit })];
+  const result = await mergeReleaseCandidate({
+    pullRequest: fixture.releasePullRequest(), expectedHeadSha: fixture.headCommit, api: releaseApi({ expectedHeadSha: null }), graphql,
+    getPullRequest: async () => states.shift(), log() {}, ...clock(),
+  });
+  assert.deepEqual(result, { pullRequest: 266, mergeCommit: fixture.mergeCommit, headCommit: fixture.headCommit });
+  assert.deepEqual(calls.map((call) => call.kind), ['enable']);
+});
+
+test('mergeReleaseCandidate refuses, touching nothing, when a condition fails', async () => {
+  const { calls, graphql } = recordingGraphql();
+  await assert.rejects(mergeReleaseCandidate({
+    pullRequest: fixture.releasePullRequest(), expectedHeadSha: 'c'.repeat(40), api: releaseApi(), graphql,
+    getPullRequest: async () => assert.fail('must not poll'), log() {}, ...clock(),
+  }), /not merged.*release-/);
+  assert.deepEqual(calls, []);
+});
+
+test('mergeReleaseCandidate turns auto-merge off again and fails if GitHub does not merge in time', async () => {
+  const { calls, graphql } = recordingGraphql();
+  await assert.rejects(mergeReleaseCandidate({
+    pullRequest: fixture.releasePullRequest(), expectedHeadSha: fixture.headCommit, api: releaseApi(), graphql,
+    getPullRequest: async () => fixture.releasePullRequest(), timeoutMs: 60_000, log() {}, ...clock(),
+  }), /did not merge within/);
+  assert.deepEqual(calls.map((call) => call.kind), ['enable', 'disable']);
+});
+
+test('mergeReleaseCandidate fails when GitHub refuses auto-merge', async () => {
+  const { graphql } = recordingGraphql({ enableError: 'GitHub GraphQL failed: [{"type":"UNPROCESSABLE","message":"Pull request is in blocked status"}]' });
+  await assert.rejects(mergeReleaseCandidate({
+    pullRequest: fixture.releasePullRequest(), expectedHeadSha: fixture.headCommit, api: releaseApi(), graphql,
+    getPullRequest: async () => fixture.releasePullRequest(), log() {}, ...clock(),
+  }), /refused/);
+});
+
+test('mergeReleaseCandidate waits while a check is only still running, then merges', async () => {
+  const { calls, graphql } = recordingGraphql();
+  const running = fixture.releaseChecks().map((c) => (c.name === 'CodeRabbit' ? { ...c, status: 'IN_PROGRESS', conclusion: null } : c));
+  const checks = [running, fixture.releaseChecks()];
+  const prApi = { ...releaseApi(), listChecks: async () => (checks.length > 1 ? checks.shift() : checks[0]) };
+  const states = [fixture.releasePullRequest(), fixture.releasePullRequest({ state: 'closed', merged: true, merge_commit_sha: fixture.mergeCommit })];
+  const result = await mergeReleaseCandidate({
+    pullRequest: fixture.releasePullRequest(), expectedHeadSha: fixture.headCommit, api: prApi, graphql,
+    getPullRequest: async () => (states.length > 1 ? states.shift() : states[0]), log() {}, ...clock(),
+  });
+  assert.equal(result.mergeCommit, fixture.mergeCommit);
+  assert.deepEqual(calls.map((call) => call.kind), ['enable']);
+});
+
+test('mergeReleaseCandidate gives up, merging nothing, when a check is still running at the timeout', async () => {
+  const { calls, graphql } = recordingGraphql();
+  const running = fixture.releaseChecks().map((c) => (c.name === 'qa' ? { ...c, status: 'QUEUED', conclusion: null } : c));
+  await assert.rejects(mergeReleaseCandidate({
+    pullRequest: fixture.releasePullRequest(), expectedHeadSha: fixture.headCommit, api: releaseApi({ checks: running }), graphql,
+    getPullRequest: async () => fixture.releasePullRequest(), timeoutMs: 60_000, log() {}, ...clock(),
+  }), /not merged.*checks still running: qa: QUEUED/);
+  assert.deepEqual(calls, []);
 });

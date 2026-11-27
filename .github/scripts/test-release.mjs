@@ -1,18 +1,21 @@
 import assert from 'node:assert/strict'
-import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { validateVersionRequest } from './release-candidate.mjs'
 import { createFakeGithubAdapter } from './fake-github-adapter.mjs'
+import * as fixture from './release-candidate-fixture.mjs'
+import { CHANGELOG_FILE, FRAGMENTS_DIR, VERSION_FILE, VERSION_REFERENCES } from './lib/release-candidate-files.mjs'
+import { judgeReleaseDiff } from './lib/release-conditions.mjs'
 import {
   dispatchAndWait,
   extractReleaseNotes,
   latestPublishedVersion,
   planAndCreateTag,
   planReleaseTag,
-  validateApprovedCandidate,
+  validateCandidate,
   validateMergedRelease,
   validateReviewAndChecks,
   verifyPublishedRelease,
@@ -79,7 +82,7 @@ test('requires an approved human review and every reported check to pass', () =>
   assert.throws(() => validateReviewAndChecks(approved, [], 'author', headCommit), /no completed checks/)
 })
 
-test('scenario: validates the merged PR and its current approval through the adapter', () => {
+test('fallback: with the approval switch on, validates the merged PR and its current approval through the adapter', () => {
   const pullRequest = { ...event.pull_request, user: { login: 'author' } }
   const approved = [{ user: { login: 'reviewer', type: 'User' }, state: 'APPROVED', commit_id: headCommit, submitted_at: '2026-11-09T09:00:00Z' }]
   const checks = [{ name: 'backend', conclusion: 'SUCCESS' }]
@@ -89,12 +92,12 @@ test('scenario: validates the merged PR and its current approval through the ada
     checks: { 266: checks },
   })
   assert.deepEqual(
-    validateApprovedCandidate(adapter, { prNumber: 266, version }),
+    validateCandidate(adapter, { prNumber: 266, version, requireApproval: true }),
     { version, commit, headCommit, pullRequest: 266 },
   )
 })
 
-test('scenario: refuses when the PR is not approved after its last push', () => {
+test('fallback: with the approval switch on, refuses when the PR is not approved after its last push', () => {
   const pullRequest = { ...event.pull_request, user: { login: 'author' } }
   const staleApproval = [{ user: { login: 'reviewer', type: 'User' }, state: 'APPROVED', commit_id: commit, submitted_at: '2026-11-09T09:00:00Z' }]
   const checks = [{ name: 'backend', conclusion: 'SUCCESS' }]
@@ -104,12 +107,12 @@ test('scenario: refuses when the PR is not approved after its last push', () => 
     checks: { 266: checks },
   })
   assert.throws(
-    () => validateApprovedCandidate(adapter, { prNumber: 266, version }),
+    () => validateCandidate(adapter, { prNumber: 266, version, requireApproval: true }),
     /no current human approval/,
   )
 })
 
-test('scenario: the release workflow re-verifies the approved PR against the tagged commit', () => {
+test('fallback: the release workflow re-verifies the approved PR against the tagged commit', () => {
   const pullRequest = { ...event.pull_request, user: { login: 'author' } }
   const approved = [{ user: { login: 'reviewer', type: 'User' }, state: 'APPROVED', commit_id: headCommit, submitted_at: '2026-11-09T09:00:00Z' }]
   const checks = [{ name: 'backend', conclusion: 'SUCCESS' }]
@@ -119,10 +122,10 @@ test('scenario: the release workflow re-verifies the approved PR against the tag
     checks: { 266: checks },
   })
   assert.throws(
-    () => validateApprovedCandidate(adapter, { prNumber: 266, version, expectCommit: 'c'.repeat(40) }),
+    () => validateCandidate(adapter, { prNumber: 266, version, expectCommit: 'c'.repeat(40), requireApproval: true }),
     /not the merged PR commit/,
   )
-  assert.doesNotThrow(() => validateApprovedCandidate(adapter, { prNumber: 266, version, expectCommit: commit }))
+  assert.doesNotThrow(() => validateCandidate(adapter, { prNumber: 266, version, expectCommit: commit, requireApproval: true }))
 })
 
 test('creates a missing tag, reuses the same tag, and refuses a moved tag', () => {
@@ -372,4 +375,171 @@ test('third-party workflow actions are pinned to full SHAs and release permissio
   assert.match(releaseWorkflow, /publish:[\s\S]*?permissions:\s*\n\s+contents: read\n\s+actions: write/)
   assert.match(releaseWorkflow, /github-release:[\s\S]*?permissions:\s*\n\s+contents: write/)
   assert.match(releaseWorkflow, /verify:[\s\S]*?permissions:\s*\n\s+contents: read/)
+})
+
+// --- Machine conditions (default): no human approval, only a version upgrade ---------------------
+
+function machineAdapter({ pullRequest = {}, files = fixture.releaseFiles(), checks = fixture.releaseChecks(), required = fixture.requiredChecks, runs = fixture.preflightRuns(), reviews = [] } = {}) {
+  const merged = fixture.releasePullRequest({ state: 'closed', merged: true, merge_commit_sha: fixture.mergeCommit, ...pullRequest })
+  return createFakeGithubAdapter({
+    pullRequests: { 266: merged },
+    reviews: { 266: reviews },
+    checks: { 266: checks },
+    files: { 266: files },
+    requiredChecks: required,
+    preflightRuns: runs,
+  })
+}
+
+const validateMachine = (adapter, options = {}) => validateCandidate(adapter, { prNumber: 266, version: fixture.version, ...options })
+
+test('machine: accepts the exact happy path with no approval at all', () => {
+  assert.deepEqual(validateMachine(machineAdapter()), {
+    version: fixture.version, commit: fixture.mergeCommit, headCommit: fixture.headCommit, pullRequest: 266,
+  })
+  assert.doesNotThrow(() => validateMachine(machineAdapter(), { expectCommit: fixture.mergeCommit }))
+})
+
+test('machine: refuses a head branch that is not release/<VERSION>', () => {
+  assert.throws(() => validateMachine(machineAdapter({ pullRequest: { head: { ref: 'release/3.4.7', sha: fixture.headCommit } } })), /does not match VERSION/)
+  assert.throws(() => validateMachine(machineAdapter({ pullRequest: { head: { ref: 'feature/x', sha: fixture.headCommit } } })), /does not match VERSION/)
+})
+
+test('machine: refuses when VERSION in the diff is not the branch version', () => {
+  const files = fixture.releaseFiles().map((file) => (file.filename === 'VERSION' ? { ...file, patch: '@@ -1 +1 @@\n-3.4.5\n+3.4.7' } : file))
+  assert.throws(() => validateMachine(machineAdapter({ files })), /VERSION/)
+  assert.throws(() => validateMachine(machineAdapter({ files: fixture.releaseFiles().filter((file) => file.filename !== 'VERSION') })), /VERSION/)
+  assert.throws(() => validateMachine(machineAdapter(), { version: '3.4.7' }), /does not match VERSION/)
+})
+
+test('machine: refuses a head commit that is not the preflight-validated candidate', () => {
+  const [run] = fixture.preflightRuns()
+  assert.throws(() => validateMachine(machineAdapter({ runs: [] })), /preflight/)
+  assert.throws(() => validateMachine(machineAdapter({ runs: [{ ...run, head_sha: 'c'.repeat(40) }] })), /preflight/)
+  assert.throws(() => validateMachine(machineAdapter({ runs: [{ ...run, conclusion: 'failure' }] })), /preflight/)
+  assert.throws(() => validateMachine(machineAdapter({ runs: [{ ...run, head_branch: 'release/3.4.7' }] })), /preflight/)
+  assert.throws(() => validateMachine(machineAdapter({ runs: [{ ...run, event: 'pull_request' }] })), /preflight/)
+  assert.throws(() => validateMachine(machineAdapter({ runs: [{ ...run, path: '.github/workflows/codeql.yml' }] })), /preflight/)
+})
+
+test('machine: refuses a red, pending or missing required check', () => {
+  const without = (name) => fixture.releaseChecks().filter((check) => check.name !== name)
+  const with_ = (name, change) => fixture.releaseChecks().map((check) => (check.name === name ? { ...check, ...change } : check))
+  assert.throws(() => validateMachine(machineAdapter({ checks: with_('qa', { conclusion: 'FAILURE' }) })), /qa: FAILURE/)
+  assert.throws(() => validateMachine(machineAdapter({ checks: with_('Analyze (python)', { status: 'IN_PROGRESS', conclusion: '' }) })), /Analyze \(python\)/)
+  assert.throws(() => validateMachine(machineAdapter({ checks: without('Analyze (actions)') })), /required check.*Analyze \(actions\).*not reported/)
+  assert.throws(() => validateMachine(machineAdapter({ checks: with_('release', { conclusion: 'FAILURE' }) })), /release: FAILURE/)
+  assert.throws(() => validateMachine(machineAdapter({ required: [] })), /no required checks/)
+})
+
+test('machine: refuses any file the candidate workflow does not write', () => {
+  const extra = { filename: 'backend/src/mortgage_backend/app.py', status: 'modified', additions: 1, deletions: 0, patch: '@@ -1 +1,2 @@\n+print(1)' }
+  assert.throws(() => validateMachine(machineAdapter({ files: [...fixture.releaseFiles(), extra] })), /backend\/src\/mortgage_backend\/app\.py/)
+  assert.throws(() => validateMachine(machineAdapter({ files: [...fixture.releaseFiles(), { ...extra, filename: '.github/workflows/release.yml' }] })), /release\.yml/)
+})
+
+test('machine: refuses a written file that changes more than the version', () => {
+  const change = (name, edit) => fixture.releaseFiles().map((file) => (file.filename === name ? { ...file, ...edit(file) } : file))
+  // A dependency slipped into the lockfile next to the version line.
+  assert.throws(() => validateMachine(machineAdapter({ files: change('frontend/package-lock.json', (file) => ({ additions: 3, patch: `${file.patch}\n+    "evil": "1.0.0",` })) })), /package-lock\.json/)
+  // A reference moved to some other version than the release.
+  assert.throws(() => validateMachine(machineAdapter({ files: change('frontend/package.json', (file) => ({ patch: file.patch.replace(`+  "version": "${fixture.version}"`, '+  "version": "9.9.9"') })) })), /package\.json changes more than the version/)
+  // The changelog loses text instead of only gaining the dated section.
+  assert.throws(() => validateMachine(machineAdapter({ files: change('CHANGELOG.md', (file) => ({ deletions: 1, patch: `${file.patch}\n-- an old note` })) })), /CHANGELOG\.md/)
+  // The changelog gains a section for some other version.
+  assert.throws(() => validateMachine(machineAdapter({ files: change('CHANGELOG.md', (file) => ({ patch: file.patch.replace(`[${fixture.version}]`, '[9.9.9]') })) })), /CHANGELOG\.md/)
+  // A fragment is added or edited rather than deleted, or the folder's README goes.
+  const fragment = 'changelog/unreleased/release-auto-merge.changed.md'
+  assert.throws(() => validateMachine(machineAdapter({ files: change(fragment, () => ({ status: 'added' })) })), /release-auto-merge/)
+  assert.throws(() => validateMachine(machineAdapter({ files: change(fragment, () => ({ filename: 'changelog/unreleased/README.md' })) })), /README/)
+  // A rename or a missing patch cannot be judged.
+  assert.throws(() => validateMachine(machineAdapter({ files: change('VERSION', () => ({ status: 'renamed', previous_filename: 'backend/src/x.py' })) })), /VERSION|renamed/)
+  assert.throws(() => validateMachine(machineAdapter({ files: change('docs/index.html', () => ({ patch: undefined })) })), /docs\/index\.html/)
+})
+
+test('machine: refuses an empty diff', () => {
+  assert.throws(() => validateMachine(machineAdapter({ files: [] })), /VERSION/)
+})
+
+test('switch: the old approval requirement comes back when requireApproval is on', () => {
+  assert.throws(() => validateMachine(machineAdapter(), { requireApproval: true }), /no current human approval/)
+  const reviews = [{ user: { login: 'owner', type: 'User' }, state: 'APPROVED', commit_id: fixture.headCommit, submitted_at: '2026-11-09T09:00:00Z' }]
+  assert.doesNotThrow(() => validateMachine(machineAdapter({ reviews }), { requireApproval: true }))
+})
+
+test('switch: the CLI reads --require-approval and defaults to machine conditions', () => {
+  const source = readFileSync(new URL('./release.mjs', import.meta.url), 'utf8')
+  assert.match(source, /requireApproval: option\(args, '--require-approval'\) === 'true'/)
+})
+
+test('the workflows wire the machine conditions and the fallback switch', () => {
+  const read = (name) => readFileSync(new URL(`../workflows/${name}`, import.meta.url), 'utf8')
+  const candidate = read('release-candidate.yml')
+  // The preflight reports every required check on the candidate commit, CodeQL included.
+  assert.match(candidate, /dispatch-and-wait \\\n\s+--repo "\$GITHUB_REPOSITORY" --workflow codeql\.yml --ref "\$BRANCH" \\\n\s+--match-sha "\$CANDIDATE_SHA"/)
+  assert.match(read('codeql.yml'), /^  workflow_dispatch:$/m)
+  // Merge through the allowlist's release case, pinned to the preflighted commit, then publish.
+  assert.match(candidate, /if: vars\.RELEASE_REQUIRE_APPROVAL != 'true'[\s\S]*?auto-merge\.mjs release \\\n\s+--pr-number "\$PR_NUMBER" --expected-head "\$CANDIDATE_SHA"/)
+  assert.match(candidate, /if: vars\.RELEASE_REQUIRE_APPROVAL != 'true'[\s\S]*?gh workflow run publish-release\.yml --repo "\$GITHUB_REPOSITORY" --ref main -f "pull_request=\$PR_NUMBER"/)
+  assert.match(candidate, /CANDIDATE_SHA: \$\{\{ steps\.candidate\.outputs\.sha \}\}\n\s+run: \|\n\s+set -euo pipefail\n\s+node \.github\/scripts\/auto-merge\.mjs release/)
+  // Publisher and release workflow: same conditions, same switch.
+  for (const name of ['publish-release.yml', 'release.yml']) {
+    const workflow = read(name)
+    assert.match(workflow, /REQUIRE_APPROVAL: \$\{\{ vars\.RELEASE_REQUIRE_APPROVAL == 'true' \}\}/, name)
+    assert.match(workflow, /validate-candidate \\\n[\s\S]*?--require-approval "\$REQUIRE_APPROVAL"/, name)
+  }
+})
+
+test('scenario: the diff the candidate writers really produce passes the release diff check', () => {
+  const repoRoot = new URL('../../', import.meta.url).pathname
+  // realpath: on macOS the temp folder is a symlink, which release-candidate.mjs's main-module check would not match.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'candidate-diff-')))
+  const git = (...args) => {
+    const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' })
+    assert.equal(result.status, 0, `git ${args.join(' ')}: ${result.stderr}`)
+    return result.stdout
+  }
+  try {
+    // A scratch repository holding exactly the files the writers touch, plus the writers themselves.
+    for (const path of [VERSION_FILE, CHANGELOG_FILE, ...VERSION_REFERENCES.map((reference) => reference.path), '.github/scripts']) {
+      mkdirSync(dirname(join(root, path)), { recursive: true })
+      cpSync(join(repoRoot, path), join(root, path), { recursive: true })
+    }
+    mkdirSync(join(root, FRAGMENTS_DIR), { recursive: true })
+    writeFileSync(join(root, FRAGMENTS_DIR, 'README.md'), 'How fragments work.\n')
+    writeFileSync(join(root, FRAGMENTS_DIR, 'a.fixed.md'), '- A fix.\n')
+    writeFileSync(join(root, FRAGMENTS_DIR, 'b.added.md'), '- A feature.\n')
+    git('init', '-q'); git('add', '-A'); git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'base')
+    const current = readFileSync(join(root, VERSION_FILE), 'utf8').trim()
+    const [major, minor, patch] = current.split('.').map(Number)
+    const next = `${major}.${minor}.${patch + 1}`
+    const script = (name, ...args) => {
+      const result = spawnSync(process.execPath, [join(root, '.github/scripts', name), ...args], { encoding: 'utf8' })
+      assert.equal(result.status, 0, result.stderr)
+    }
+    script('release-candidate.mjs', '--version', next, '--latest-published', current, '--current-version', current, '--root', root, '--date', '2026-11-27')
+    script('sync-version.mjs')
+    // The same shape GitHub's pull request files API returns.
+    git('add', '-A')
+    const files = git('diff', '--cached', '--name-status').trim().split('\n').map((line) => {
+      const [code, filename] = line.split('\t')
+      const diff = git('diff', '--cached', '--', filename)
+      const body = diff.slice(diff.indexOf('\n@@') + 1)
+      const lines = body.split('\n')
+      return {
+        filename,
+        status: { M: 'modified', D: 'removed', A: 'added' }[code],
+        additions: lines.filter((l) => l.startsWith('+')).length,
+        deletions: lines.filter((l) => l.startsWith('-')).length,
+        patch: body,
+      }
+    })
+    assert.ok(files.some((file) => file.filename === 'docs/index.html'), 'the docs version labels were synced')
+    assert.deepEqual(files.filter((file) => file.status === 'removed').map((file) => file.filename).sort(), [`${FRAGMENTS_DIR}/a.fixed.md`, `${FRAGMENTS_DIR}/b.added.md`])
+    assert.equal(judgeReleaseDiff(files, next), null)
+    // And it is the release version that makes it pass, not anything goes.
+    assert.match(judgeReleaseDiff(files, `${major}.${minor}.${patch + 2}`), /VERSION|CHANGELOG|version/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })

@@ -2,8 +2,11 @@
 # decided never need a human look, and nothing else.
 #
 # Decision rules live in one module, .github/scripts/lib/auto-merge-allowlist.mjs (tests:
-# .github/scripts/test-auto-merge-allowlist.mjs). Today's single case:
-#   - an open, non-draft PR whose base branch is integration/**  -> auto-merge, squash.
+# .github/scripts/test-auto-merge-allowlist.mjs). Its cases:
+#   - an open, non-draft PR whose base branch is integration/**  -> auto-merge, squash;
+#   - a safe Dependabot PR into main (patch/minor, no critical path) -> auto-merge, squash;
+#   - the release/X.Y.Z PR into main -> merge commit, but only when the Prepare release candidate
+#     workflow asks (auto-merge.mjs release); this workflow leaves it alone.
 # Everything else is left alone: a PR into main (the owner reviews it once and presses merge),
 # a draft PR, a closed PR, any other base. Auto-merge still waits for the base branch's required
 # checks. Add a case by editing the allowlist and its tests, never this file.

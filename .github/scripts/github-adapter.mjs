@@ -27,6 +27,21 @@ export function createGithubAdapter(repo) {
     getChecks(number) {
       return JSON.parse(gh(['pr', 'view', String(number), '--repo', repo, '--json', 'statusCheckRollup'])).statusCheckRollup
     },
+    getFiles(number) {
+      return JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls/${number}/files?per_page=100`])).flat()
+    },
+    // The status-check names main's rulesets require, as GitHub enforces them now.
+    getRequiredChecks(branch) {
+      return JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/rules/branches/${branch}?per_page=100`]))
+        .flat()
+        .filter((rule) => rule.type === 'required_status_checks')
+        .flatMap((rule) => rule.parameters?.required_status_checks ?? [])
+        .map((check) => check.context)
+    },
+    // Dispatched Tests runs at this commit: the release candidate preflight.
+    getPreflightRuns(headSha) {
+      return JSON.parse(gh(['api', `repos/${repo}/actions/workflows/test.yml/runs?event=workflow_dispatch&head_sha=${headSha}&per_page=100`])).workflow_runs
+    },
     getTagCommit(tag) {
       const output = git(['ls-remote', '--tags', 'origin', `refs/tags/${tag}`, `refs/tags/${tag}^{}`])
       let direct, peeled

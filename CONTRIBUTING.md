@@ -62,6 +62,21 @@ add a case by editing those two files, not the workflow.
   every GitHub Actions bump, which edits `.github/workflows/`), a missing or unreadable update type and
   a human commit on its branch all leave it for the owner to merge. It still waits for the required
   checks. How the update types are read: [Documentation/dependabot-auto-merge.md](Documentation/dependabot-auto-merge.md).
+- The `release/X.Y.Z` pull request into `main` is merged (merge commit) by the **Prepare release
+  candidate** workflow itself, right after it opens it, through the same allowlist's release case. It
+  merges only when **all** the machine conditions in `.github/scripts/lib/release-conditions.mjs` hold:
+  the branch is `release/X.Y.Z` with `VERSION` becoming X.Y.Z; the head is exactly the commit the
+  workflow pushed and its preflight (Tests and CodeQL dispatched on that commit) passed; every
+  required check of `main` is reported and green; and the diff holds only what the workflow writes
+  (`.github/scripts/lib/release-candidate-files.mjs`: version-only edits to `VERSION` and the synced
+  version references, the new dated `CHANGELOG.md` section, deleted fragments). Anything else leaves
+  it for the owner, and nothing is published. The workflow then starts **Publish merged release
+  candidate**, which, like `release.yml`, re-checks the same conditions instead of an approval.
+  Rollout fallback: the repository variable `RELEASE_REQUIRE_APPROVAL=true` restores the old rule
+  (the owner approves and merges; publishing requires that approval). This workflow never touches a
+  release pull request on its own: a pull request opened with `GITHUB_TOKEN` starts no workflow, so
+  its pull_request runs wait as "action_required" and are not needed (the preflight already reported
+  the required checks).
 - Any other pull request into `main`, a draft, a closed pull request and any other base are left alone. The owner
   reviews each `main` pull request and presses merge; this is a trust rule, so agents must not merge or
   enable auto-merge on them either.

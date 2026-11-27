@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { CHANGELOG_FILE, FRAGMENTS_DIR, FRAGMENTS_README, VERSION_FILE } from './lib/release-candidate-files.mjs'
 
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 
@@ -34,7 +35,7 @@ export function compareVersions(left, right) {
 }
 
 export function listFragments(dir) {
-  const entries = readdirSync(dir).filter((name) => name !== 'README.md' && name.endsWith('.md'))
+  const entries = readdirSync(dir).filter((name) => name !== FRAGMENTS_README && name.endsWith('.md'))
   const fragments = []
   for (const name of entries) {
     const match = fragmentName.exec(name)
@@ -63,9 +64,9 @@ export function assembleFragments(fragments) {
 }
 
 export function prepareRelease(root, version, date) {
-  const changelogPath = resolve(root, 'CHANGELOG.md')
+  const changelogPath = resolve(root, CHANGELOG_FILE)
   const changelog = readFileSync(changelogPath, 'utf8')
-  const fragmentsDir = resolve(root, 'changelog', 'unreleased')
+  const fragmentsDir = resolve(root, FRAGMENTS_DIR)
   const fragments = listFragments(fragmentsDir)
   const notes = assembleFragments(fragments)
   const parsedDate = new Date(`${date}T00:00:00Z`)
@@ -79,7 +80,7 @@ export function prepareRelease(root, version, date) {
   const nextSection = /^## \[/m.exec(remainder)
   const after = nextSection ? remainder.slice(nextSection.index) : ''
   const updated = `${changelog.slice(0, heading.index)}## Unreleased\n\n## [${version}] - ${date}\n\n${notes}\n\n${after}`
-  writeFileSync(resolve(root, 'VERSION'), `${version}\n`)
+  writeFileSync(resolve(root, VERSION_FILE), `${version}\n`)
   writeFileSync(changelogPath, updated)
   for (const fragment of fragments) unlinkSync(fragment.path)
 }
