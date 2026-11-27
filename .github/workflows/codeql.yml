@@ -42,8 +42,32 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node .github/scripts/tree-reuse.mjs lookup --workflow "CodeQL" --sha "$GITHUB_SHA"
 
+  # Path filter (.github/scripts/changed-paths.mjs): the languages a pull request touches.
+  # Anything but an ordinary pull request, a pull request from integration/* or release/*,
+  # and a change to the workflow files scan all of them. An untouched language's job still
+  # runs and reports success, with its scan steps skipped, so its required check reports. If this job fails, `languages` is unset and every
+  # language is analysed.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      languages: ${{ steps.paths.outputs.languages }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - id: paths
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/changed-paths.mjs
+
   analyze:
-    needs: reuse
+    needs: [reuse, changes]
     if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
@@ -56,22 +80,25 @@ jobs:
         language: [actions, javascript-typescript, python]
     steps:
       - name: Checkout repository
+        if: ${{ needs.changes.outputs.languages == '' || contains(fromJSON(needs.changes.outputs.languages), matrix.language) }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Initialize CodeQL
+        if: ${{ needs.changes.outputs.languages == '' || contains(fromJSON(needs.changes.outputs.languages), matrix.language) }}
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           languages: ${{ matrix.language }}
           queries: security-and-quality
 
       - name: Perform CodeQL Analysis
+        if: ${{ needs.changes.outputs.languages == '' || contains(fromJSON(needs.changes.outputs.languages), matrix.language) }}
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
 
   # Records the tree this run validated as the commit status validated-tree/CodeQL on the
   # PR head or main commit, for the reuse lookup above. Not on the schedule, nor for pull
   # requests from forks, whose token cannot write statuses.
   record:
-    needs: [reuse, analyze]
+    needs: [reuse, changes, analyze]
     if: >-
       !cancelled() &&
       (github.event_name == 'push' ||

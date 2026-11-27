@@ -178,6 +178,30 @@ vulnerabilities are caught; a reused `main` push leaves code-scanning results fo
 those schedules. The `image` job and the Container scan build the image from one shared
 layer cache (`type=gha`, scope `app-image`), so the same tree is not built from scratch twice.
 
+### Path-filtered jobs
+
+A pull request runs only the heavy jobs its changed paths can affect. The `changes` job in
+`Tests` and `CodeQL` lists the pull request's files and applies `.github/scripts/changed-paths.mjs`
+(unit-tested by `test-changed-paths.mjs`, with a table of example path sets):
+
+| Job | Runs when the pull request changes |
+| --- | --- |
+| `backend` | `backend/`, `VERSION`, or the scripts it runs |
+| `frontend` | `frontend/`, `qa/`, `VERSION`, or the scripts it runs |
+| `windows`, `image` | `backend/`, `frontend/`, `VERSION`, and `windows/` (`windows`) or `Dockerfile` / `.dockerignore` (`image`) |
+| CodeQL `Analyze (<language>)` | `backend/` (python); `frontend/`, `qa/`, `.github/scripts/` (javascript-typescript); `.github/workflows/` (actions) |
+
+The version-bump, changelog and every other cheap job always run. The full set runs, whatever
+the paths, for a change to `.github/workflows/`, a pull request from `integration/*` or
+`release/*`, and any event but a pull request (push to `main`, schedules, the release
+preflight, `release.yml`'s call). If the file list cannot be read, everything runs.
+
+A job skipped by the filter reports as skipped, which counts as passing for a required check
+(the `qa` job relies on the same rule). CodeQL's language jobs always run and report success,
+with their scan steps skipped for an untouched language, because a matrix job cannot be
+skipped by its own `if`. Add a new heavy job to `changes` and to the table, or
+it is never filtered. The Container scan (`trivy.yml`) is not filtered.
+
 ## Repository configuration
 
 ### Keeping CodeRabbit reviews timely

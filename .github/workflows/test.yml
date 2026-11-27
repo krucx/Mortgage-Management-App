@@ -46,6 +46,34 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node .github/scripts/tree-reuse.mjs lookup --workflow Tests --sha "$GITHUB_SHA"
 
+  # Path filter (.github/scripts/changed-paths.mjs): which heavy job groups a pull request
+  # can affect. Anything but an ordinary pull request (push, dispatch, the release preflight,
+  # release.yml's call), a pull request from integration/* or release/*, and a change to the
+  # workflow files run every group. The cheap jobs below do not look at it. A job skipped by
+  # this filter counts as passing for a required check, as qa's skip already relies on. If
+  # this job fails, the groups are unset and the jobs run (they test != 'false').
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.paths.outputs.backend }}
+      frontend: ${{ steps.paths.outputs.frontend }}
+      windows: ${{ steps.paths.outputs.windows }}
+      image: ${{ steps.paths.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - id: paths
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/changed-paths.mjs
+
   release-candidate:
     needs: reuse
     if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
@@ -82,6 +110,7 @@ jobs:
       - run: node --test .github/scripts/test-check-version-unchanged.mjs
       - run: node --test .github/scripts/test-check-changelog.mjs
       - run: node --test .github/scripts/test-auto-merge-allowlist.mjs
+      - run: node --test .github/scripts/test-changed-paths.mjs
       - name: Only the release candidate may change VERSION
         if: github.event_name == 'pull_request'
         env:
@@ -166,8 +195,8 @@ jobs:
       - run: node --test .github/scripts/test-coverage-summary.mjs
 
   backend:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
+    needs: [reuse, changes]
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' && needs.changes.outputs.backend != 'false' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -201,8 +230,8 @@ jobs:
           if-no-files-found: error
 
   frontend:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
+    needs: [reuse, changes]
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' && needs.changes.outputs.frontend != 'false' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -243,8 +272,8 @@ jobs:
   # serves the screens with their caching and answers /api. The release runs this first,
   # so a broken image is never published.
   image:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
+    needs: [reuse, changes]
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' && needs.changes.outputs.image != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -336,8 +365,8 @@ jobs:
   # The Windows setup without Docker, end to end on a real Windows PC: what a Lender's
   # double-click does, for the commit being tested.
   windows:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
+    needs: [reuse, changes]
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' && needs.changes.outputs.windows != 'false' }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -428,7 +457,7 @@ jobs:
   # Not for pull requests from forks, whose token cannot write statuses.
   # needs lists every job in this workflow: add a new job here too.
   record:
-    needs: [reuse, release-candidate, tree-reuse, version-bump, release, finding-reconciler, critical-finding-sync, secret-scanning-alert-sync, coverage-summary, backend, frontend, image, qa, pages, windows]
+    needs: [reuse, changes, release-candidate, tree-reuse, version-bump, release, finding-reconciler, critical-finding-sync, secret-scanning-alert-sync, coverage-summary, backend, frontend, image, qa, pages, windows]
     if: >-
       !cancelled() &&
       (github.event_name == 'push' ||
