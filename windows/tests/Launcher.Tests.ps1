@@ -659,3 +659,112 @@ Describe 'installing without Docker' {
         Should -Invoke npm -Times 2
     }
 }
+
+Describe 'waiting for the app to answer' {
+    BeforeAll {
+        # What Invoke-WebRequest throws for an answer that is not 2xx: the body is in ErrorDetails,
+        # as Windows PowerShell 5.1 and PowerShell 7 both give it.
+        function New-HttpError([int]$Status, [string]$Body) {
+            $exception = [Exception]::new("Response status code does not indicate success: $Status.")
+            $record = [Management.Automation.ErrorRecord]::new($exception, 'WebCmdletWebResponseException', 'InvalidOperation', $null)
+            if ($Body) { $record.ErrorDetails = [Management.Automation.ErrorDetails]::new($Body) }
+            return $record
+        }
+        function New-Health([string]$Status = 'ok', $Database = @{ connected = $true }, $Migrations = $null) {
+            return @{ status = $Status; database = $Database; migrations = $Migrations
+                backups = @{ enabled = $true; running = $false } } | ConvertTo-Json -Depth 4
+        }
+        # Nothing listening: the connection itself fails, as while the database is migrated (or
+        # created, or backed up first) at startup, before the server answers.
+        function New-Refused { [Net.WebException]::new('Unable to connect to the remote server') }
+    }
+
+    BeforeEach {
+        $script:warnings = [Collections.Generic.List[string]]::new()
+        Mock Write-Host { $script:warnings.Add([string]$Object) }
+        Mock Start-Sleep { [Threading.Thread]::Sleep(50) }
+    }
+
+    It 'is up when its health is ok, saying nothing more' {
+        Mock Invoke-WebRequest { [pscustomobject]@{ StatusCode = 200; Content = (New-Health) } }
+
+        Wait-Health 'http://127.0.0.1:8000/api/health' 5 | Should -BeTrue
+
+        Should -Invoke Invoke-WebRequest -Times 1 -ParameterFilter { $Uri -eq 'http://127.0.0.1:8000/api/health' }
+        $script:warnings | Should -BeNullOrEmpty
+    }
+
+    It 'is up, with one warning line, when the database cannot be reached (503)' {
+        Mock Invoke-WebRequest {
+            throw (New-HttpError 503 (New-Health 'unavailable' @{ connected = $false; error = 'OperationalError: no such host' }))
+        }
+
+        Wait-Health 'http://127.0.0.1:8000/api/health' 5 | Should -BeTrue
+
+        Should -Invoke Invoke-WebRequest -Times 1
+        $script:warnings.Count | Should -Be 1
+        $script:warnings[0] | Should -BeLike '*running, but reports a problem: *database*OperationalError: no such host*'
+    }
+
+    It 'is up, with one warning line, when the database is behind this version (503)' {
+        Mock Invoke-WebRequest {
+            throw (New-HttpError 503 (New-Health 'unavailable' @{ connected = $true } @{ current = 'a1'; head = 'b2'; up_to_date = $false }))
+        }
+
+        Wait-Health 'http://127.0.0.1:8000/api/health' 5 | Should -BeTrue
+
+        $script:warnings.Count | Should -Be 1
+        $script:warnings[0] | Should -BeLike '*running, but reports a problem: the database has not been updated to this version*'
+    }
+
+    It 'says a database error that runs over several lines in one line' {
+        Mock Invoke-WebRequest {
+            throw (New-HttpError 503 (New-Health 'unavailable' @{ connected = $false; error = "OperationalError: could not connect`n`tIs the server running?`r`n" }))
+        }
+
+        Wait-Health 'http://127.0.0.1:8000/api/health' 5 | Should -BeTrue
+
+        $script:warnings.Count | Should -Be 1
+        $script:warnings[0] | Should -BeLike '*(OperationalError: could not connect Is the server running?).'
+    }
+
+    It 'keeps waiting while nothing listens yet, as during a database update at startup' {
+        $script:asked = 0
+        Mock Invoke-WebRequest {
+            $script:asked++
+            if ($script:asked -lt 3) { throw (New-Refused) }
+            [pscustomobject]@{ StatusCode = 200; Content = (New-Health) }
+        }
+
+        Wait-Health 'http://127.0.0.1:8000/api/health' 30 | Should -BeTrue
+
+        Should -Invoke Invoke-WebRequest -Times 3
+    }
+
+    It 'is not up when nothing ever listens' {
+        Mock Invoke-WebRequest { throw (New-Refused) }
+
+        Wait-Health 'http://127.0.0.1:8000/api/health' 1 | Should -BeFalse
+    }
+
+    It 'is not up on a proxy error with no Health body' {
+        Mock Invoke-WebRequest { throw (New-HttpError 502 'Bad Gateway') }
+
+        Wait-Health 'http://127.0.0.1:8000/api/health' 1 | Should -BeFalse
+        $script:warnings | Should -BeNullOrEmpty
+    }
+
+    It 'is not up on a 503 whose body is not a Health' {
+        Mock Invoke-WebRequest { throw (New-HttpError 503 '{"detail": "Service Unavailable"}') }
+
+        Wait-Health 'http://127.0.0.1:8000/api/health' 1 | Should -BeFalse
+    }
+
+    It 'is what a new version is waited on, at its health' {
+        Mock Wait-Health { $true }
+
+        Wait-Version '8123' | Should -BeTrue
+
+        Should -Invoke Wait-Health -Times 1 -ParameterFilter { $Url -eq 'http://127.0.0.1:8123/api/health' }
+    }
+}

@@ -331,17 +331,54 @@ function Test-Command {
     return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
-function Wait-Url {
-    <# Whether `Url` answers within `Seconds`. #>
+function Get-Health {
+    <# The app's Health at `Url`, or $null when nothing answers with one. A 503 answers too:
+       the app runs, with a problem it reports; a proxy's error page or a refused connection
+       does not. #>
+    param([string]$Url)
+    try {
+        $body = (Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 5).Content
+    } catch {
+        # A non-2xx answer throws; its body is in ErrorDetails (PowerShell 5.1 and 7 alike).
+        if (-not $_.ErrorDetails) { return $null }
+        $body = $_.ErrorDetails.Message
+    }
+    try { $health = $body | ConvertFrom-Json } catch { return $null }
+    if (-not $health) { return $null }
+    $names = @($health.PSObject.Properties.Name)
+    if ($names -notcontains 'status' -or $names -notcontains 'database') { return $null }
+    return $health
+}
+
+function Get-HealthProblem {
+    <# What a Health that is not ok says is wrong, in a few words. #>
+    param($Health)
+    if (-not $Health.database.connected) {
+        # A driver's error can run over several lines; the warning is one.
+        return "the database cannot be reached ($(($Health.database.error -replace '\s+', ' ').Trim()))."
+    }
+    $migrations = $Health.migrations
+    if ($migrations -and -not $migrations.up_to_date) {
+        return 'the database has not been updated to this version of the app.'
+    }
+    return "its health is '$($Health.status)'."
+}
+
+function Wait-Health {
+    <# Whether the app answers its health check at `Url` within `Seconds`, with any Health.
+       One reporting a problem (503) still counts, as the app runs and shows what fails: it
+       is said in one line rather than waited out. #>
     param([string]$Url, [int]$Seconds = 120)
     $until = (Get-Date).AddSeconds($Seconds)
     while ((Get-Date) -lt $until) {
-        try {
-            Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 5 | Out-Null
+        $health = Get-Health $Url
+        if ($health) {
+            if ($health.status -ne 'ok') {
+                Write-Host "Mortgage Management is running, but reports a problem: $(Get-HealthProblem $health)" -ForegroundColor Yellow
+            }
             return $true
-        } catch {
-            Start-Sleep -Seconds 2
         }
+        Start-Sleep -Seconds 2
     }
     return $false
 }

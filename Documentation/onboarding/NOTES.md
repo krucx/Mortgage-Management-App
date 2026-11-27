@@ -97,7 +97,7 @@
 - Cash sums: ₹25,000 cash → [25,000]; UPI → []; Redeem in cash → [83,333]; Waive ₹50,000 cash → [50,000]; Forfeit, Reopen, Void → []; chain edited to ₹90,000 → [90,000], to ₹70,000 → []; bangles to cash → [1,50,000]. No `cash_limit` row on a fresh book; PUT null stores ''.
 - Rechecked at 15df77d (607 tests): `received_with=first,` → `None,` at `payments/recording.py` (`received_with=first`) fails exactly the 3 tests #158 named; 604 pass. At 0c54ef0 (826 tests, line 67) it is 4: the Grace Payment Receipt test joined.
 - Earlier chapters' "chapter 007" mentions now link to the lesson that covers them. `routes.html` gained the Payments list, payment methods and Cash Limit routes; `ledger.html` a "A Payment's Allocations and parts" section (`#allocations`); `traps.html` marks #2 and #16 as 007's.
-- Chapter 009 owns `receipt_text`, `_card_block` and the template; 007 only names them. Chapter 012 should note that `StartGate` pings `/api/payment-methods` to see if the backend answers.
+- Chapter 009 owns `receipt_text`, `_card_block` and the template; 007 only names them. Chapter 012 should note that `StartGate` asks `/api/health` whether the backend answers (any Health, a 503 one too).
 
 ## Chapter 008 (written at 575437c)
 
@@ -141,7 +141,7 @@
 - **There is one `invalidateQueries` in a page:** `MortgagePage.tsx:46` (a photo or Collateral Value change marks the Mortgage's History stale). Lesson 5 says so.
 - **Frontend tests: 230 at 87a96c7** (34 files), not 185. The exercise (`serverState.ts:157`, drop `refetchType: 'none'`) fails exactly the 2 tests #182 named; 228 pass. `closing.test.tsx` shows the extra `waive-preview` and `redeem-preview` after each save.
 - Misspelling `mortgageQuery`'s path (`requests.ts:58`) gives **51** typecheck errors: 1 in `requests.ts` (TS2345 … `PathsWithMethod<paths, "get">`), 43 in `MortgagePage.tsx`, 5 in `RedeemPage.tsx`, 1 each in `ChangeTermsPage.tsx` and `EditMortgagePage.tsx`.
-- In dev, `/api/payment-methods` appears 3 times on a fresh load: `StartGate`'s check twice (StrictMode) plus the query. Chapter 012 owns `StartGate` ("The app isn't running. Start its server…").
+- In dev, `/api/health` appears twice on a fresh load: `StartGate`'s check, run twice by StrictMode. Chapter 012 owns `StartGate` ("The app isn't running. Start its server…").
 - Figures worth reusing: the schema has 71 paths and 98 models; `openapi.json` 7,602 lines, `api.gen.ts` 5,483. Typing "8000" at 150 ms a key sends one Preview 408 ms after the last key. A fresh book's Cash Limit is the default ₹20,000 (no `config` row): ₹20,000 cash warns ("₹20,000 in cash", Go back focused), ₹19,999 doesn't. Payments list: 33 (Voided included by default), "Showing 21–33 of 33" on page 2, filter "Meera" → 11. Quick double click on Address: the slow ascending answer never shows.
 - **No test pins `useListPage`'s step-back from an emptied page**; lesson 3 shows it with a faked empty page 2 and says so. A candidate for chapter 013 or an issue.
 - **Chapter 003's snippets of `serverState.ts` and `requests.ts` have drifted** (`check_refs.py` reports 32 problems in 003 at 87a96c7, e.g. `useLedgerChange` is now at 200, `ledgerChanged` at 152, `receiptQuery` at 666). So have 007 · 5 (`replay.py`, 11 problems) and 010 · 1–2 (`main.py`, 42). Not fixed in this chapter; worth one pass over every chapter with `check_refs.py`.
