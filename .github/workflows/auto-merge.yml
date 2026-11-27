@@ -9,10 +9,12 @@
 # checks. Add a case by editing the allowlist and its tests, never this file.
 #
 # Triggers: opened, reopened, ready_for_review, and a base-branch change (edited with
-# changes.base). pull_request_target is used so the token can write on any PR; the
-# job checks out only the BASE branch (never PR head code) and reads the PR from the event payload.
-# GitHub reads this file from the PR's base branch, so an integration branch needs it too: cut
-# integration branches from a main that already has it.
+# changes.base). It uses pull_request, not pull_request: GitHub did not run a
+# pull_request_target workflow that exists only on a non-default base branch (tried on
+# PR #574), and agents open same-repository branches, which get a write token. Fork PRs
+# (read-only token) are skipped. The job checks out the BASE branch, so the scripts that run
+# are the base's, never the PR's; only this file comes from the PR. GitHub reads it from the
+# PR's merge ref, so an integration branch needs no copy, but the base must have the script.
 #
 # Permissions needed: GITHUB_TOKEN with contents: write and pull-requests: write (GraphQL
 # enablePullRequestAutoMerge). The repository's "Allow auto-merge" setting must be on. No PAT,
@@ -20,7 +22,7 @@
 name: Auto-merge
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, reopened, ready_for_review, edited]
 
 permissions: {}
@@ -31,7 +33,9 @@ concurrency:
 
 jobs:
   auto-merge:
-    if: github.event.action != 'edited' || github.event.changes.base != null
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'edited' || github.event.changes.base != null)
     runs-on: ubuntu-latest
     permissions:
       contents: write

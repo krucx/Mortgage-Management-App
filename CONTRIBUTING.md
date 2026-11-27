@@ -51,8 +51,9 @@ add a case by editing those two files, not the workflow.
 
 It runs on open, reopen, ready for review and a base-branch change, and uses `GITHUB_TOKEN` with
 `contents: write` and `pull-requests: write` (no PAT, bot account or secret). The repository's
-"Allow auto-merge" setting must stay on. GitHub reads the workflow from the pull request's base branch, so
-cut `integration/**` branches from a `main` that already contains it.
+"Allow auto-merge" setting must stay on. Pull requests from forks are skipped (read-only token). The job
+checks out the base branch, so cut `integration/**` branches from a `main` that already contains the
+workflow and script.
 
 ### Maintainer override
 
