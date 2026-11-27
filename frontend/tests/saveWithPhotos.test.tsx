@@ -6,7 +6,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { ServerStateProvider } from '../src/components/ServerStateProvider'
 import { useSaveWithPhotos, type PhotoUpload } from '../src/components/useSaveWithPhotos'
 import { createServerState } from '../src/serverState'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 
 afterEach(cleanup)
 

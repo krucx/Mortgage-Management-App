@@ -8,7 +8,8 @@ import { CustomerPage } from '../src/pages/CustomerPage'
 import { MortgagePage } from '../src/pages/MortgagePage'
 import { PaymentsPage } from '../src/pages/PaymentsPage'
 import ledger from '../src/pages/mortgage/Ledger.module.css'
-import { changePreview, fakeServer } from './fakeServer'
+import { changePreview } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -56,8 +57,8 @@ const side = (outstanding: number) => ({
 function showAdvance(cancel: (request: Request) => unknown = () => cancelled) {
   let saved: unknown = null
   const server = fakeServer({
-    'GET /api/mortgages/7': () => saved ?? withAdvance,
-    'POST /api/mortgages/7/advance-instalments/22/cancel-preview': changePreview([
+    'GET /api/mortgages/{mortgage_id}': () => saved ?? withAdvance,
+    'POST /api/mortgages/{id}/advance-instalments/22/cancel-preview': changePreview([
       {
         mortgage_id: 7,
         mortgage_name: mortgage.name,
@@ -67,12 +68,12 @@ function showAdvance(cancel: (request: Request) => unknown = () => cancelled) {
         advance_warnings: [],
       },
     ]),
-    'POST /api/mortgages/7/advance-instalments/22/cancel': (request: Request) => {
+    'POST /api/mortgages/{id}/advance-instalments/22/cancel': (request: Request) => {
       const answer = cancel(request)
       if (!(answer instanceof Response)) saved = answer
       return answer
     },
-    'GET /api/payments/4/advance-instalments/22/receipt': cancelReceipt,
+    'GET /api/payments/{id}/advance-instalments/22/receipt': cancelReceipt,
   })
   showPage(server, '/mortgages/7', { '/mortgages/:id': <MortgagePage /> })
   return server
@@ -124,7 +125,7 @@ test('the Mortgage page shows each part of an Advance and the Advance held', asy
 })
 
 test('a Mortgage without an Advance shows neither the panel nor the Advance held', async () => {
-  showPage(fakeServer({ 'GET /api/mortgages/7': mortgage }), '/mortgages/7', {
+  showPage(fakeServer({ 'GET /api/mortgages/{mortgage_id}': mortgage }), '/mortgages/7', {
     '/mortgages/:id': <MortgagePage />,
   })
 
@@ -147,8 +148,8 @@ test('cancelling an upcoming part shows its Preview first, then shows it Cancell
 
   expect(await screen.findByText('Cancelled on 18 Oct 2026')).toBeTruthy()
   expect(screen.getByText('Advance held').nextElementSibling!.textContent).toBe('₹750')
-  expect(server.requests).toContain('POST /api/mortgages/7/advance-instalments/22/cancel-preview')
-  expect(server.requests).toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
+  expect(server.requests).toContain('POST /api/mortgages/{id}/advance-instalments/22/cancel-preview')
+  expect(server.requests).toContain('POST /api/mortgages/{id}/advance-instalments/22/cancel')
 })
 
 test('a cancelled part has a Receipt to send on WhatsApp or print, shown once cancelled', async () => {
@@ -166,14 +167,14 @@ test('a cancelled part has a Receipt to send on WhatsApp or print, shown once ca
   expect(screen.getByRole('link', { name: 'Print or save as PDF' }).getAttribute('href')).toBe(
     '/payments/4/advance-instalments/22/receipt',
   )
-  expect(server.requests).toContain('GET /api/payments/4/advance-instalments/22/receipt')
+  expect(server.requests).toContain('GET /api/payments/{id}/advance-instalments/22/receipt')
 })
 
 test("a cancelled part's Receipt can be reopened", async () => {
   showPage(
     fakeServer({
-      'GET /api/mortgages/7': cancelled,
-      'GET /api/payments/4/advance-instalments/22/receipt': cancelReceipt,
+      'GET /api/mortgages/{mortgage_id}': cancelled,
+      'GET /api/payments/{id}/advance-instalments/22/receipt': cancelReceipt,
     }),
     '/mortgages/7',
     { '/mortgages/:id': <MortgagePage /> },
@@ -193,7 +194,7 @@ test('keeping the part cancels nothing', async () => {
   )
 
   await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  expect(server.requests).not.toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
+  expect(server.requests).not.toContain('POST /api/mortgages/{id}/advance-instalments/22/cancel')
 })
 
 test.each([
@@ -212,7 +213,7 @@ test.each([
   close(await screen.findByRole('dialog'))
 
   await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  expect(server.requests).not.toContain('POST /api/mortgages/7/advance-instalments/22/cancel')
+  expect(server.requests).not.toContain('POST /api/mortgages/{id}/advance-instalments/22/cancel')
 })
 
 test('a part cannot be cancelled again while its cancel is being saved', async () => {
@@ -266,7 +267,7 @@ test('the Ledger names a cancelled part, applied on the day it was cancelled', a
     instalment_id: 22,
   }
   showPage(
-    fakeServer({ 'GET /api/mortgages/7': { ...cancelled, ledger: [step] } }),
+    fakeServer({ 'GET /api/mortgages/{mortgage_id}': { ...cancelled, ledger: [step] } }),
     '/mortgages/7',
     { '/mortgages/:id': <MortgagePage /> },
   )
@@ -328,9 +329,9 @@ test('the Customer page shows the Advance held across their Mortgages', async ()
   const empty = { items: [], total: 0, page: 1, page_size: 20 }
   showPage(
     fakeServer({
-      'GET /api/customers/3': asha,
-      'GET /api/customers/3/favours': empty,
-      'GET /api/customers/3/history': empty,
+      'GET /api/customers/{customer_id}': asha,
+      'GET /api/customers/{customer_id}/favours': empty,
+      'GET /api/customers/{customer_id}/history': empty,
       'GET /api/mortgages': empty,
     }),
     '/customers/3',

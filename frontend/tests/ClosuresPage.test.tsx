@@ -3,7 +3,8 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ClosuresPage } from '../src/pages/ClosuresPage'
 import { formatDate, todayIso } from '../src/format'
-import { changePreview, fakeServer } from './fakeServer'
+import { changePreview } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { expectWholeRupeeSteps } from './rupeeField'
 import { showPage } from './showPage'
 
@@ -96,7 +97,7 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   const server = fakeServer({
     ...noneDormant,
     'GET /api/mortgages': () => ({ items: listed, total: listed.length, page: 1, page_size: 20 }),
-    'GET /api/mortgages/3/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
     'POST /api/closures/waive-preview': waivePreview,
     'POST /api/closures/waive': async (request: Request) => {
@@ -135,7 +136,7 @@ test("receiving all that is owed cannot be Waived off: the Preview gives the bac
   const server = fakeServer({
     ...noneDormant,
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
-    'GET /api/mortgages/3/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
   })
   showPage(server, '/closures', { '/closures': <ClosuresPage /> })
@@ -158,7 +159,7 @@ test('if the backend refuses the Waiver when it is saved, nothing is Waived off 
   const server = fakeServer({
     ...noneDormant,
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
-    'GET /api/mortgages/3/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
     'POST /api/closures/waive': () =>
       Response.json({ detail: '2025-Arjun-GoldRing is already forfeited' }, { status: 422 }),
@@ -195,8 +196,8 @@ function forfeitRoutes(extra: Record<string, unknown>) {
   return {
     ...noneDormant,
     'GET /api/mortgages': { items: [row, second], total: 2, page: 1, page_size: 20 },
-    'GET /api/mortgages/3/outstanding-on-closure': quote,
-    'GET /api/mortgages/4/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'POST /api/closures/forfeit-preview': async (request: Request) => {
       const { mortgages } = (await request.json()) as {
         mortgages: { mortgage_id: number; recovered_amount: number }[]

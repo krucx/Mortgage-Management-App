@@ -5,7 +5,8 @@ import { useState } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { useClosing, type Closing } from '../src/components/useClosing'
 import { formatINR } from '../src/money'
-import { changePreview, fakeServer, type FakeServer } from './fakeServer'
+import { changePreview, type FakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {

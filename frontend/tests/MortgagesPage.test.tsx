@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MortgagesPage } from '../src/pages/MortgagesPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -42,7 +42,7 @@ test("from the Call List's count, the Mortgages page shows only that Customer's,
             ]
       return { items, total: items.length, page: 1, page_size: 20 }
     },
-    'GET /api/customers/2': {
+    'GET /api/customers/{customer_id}': {
       id: 2,
       name: 'Arjun Patel',
       address: '',

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AppRoutes } from '../src/App'
 import { TopBar } from '../src/components/TopBar'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 // Rendering the Dashboard fails while `broken.dashboard` is set; every other page is untouched.

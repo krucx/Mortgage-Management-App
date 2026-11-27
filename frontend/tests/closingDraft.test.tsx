@@ -11,7 +11,8 @@ import {
   type DraftMortgage,
 } from '../src/pages/mortgage/useClosingDraft'
 import { createServerState } from '../src/serverState'
-import { changePreview, fakeServer } from './fakeServer'
+import { changePreview } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {

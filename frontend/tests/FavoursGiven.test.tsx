@@ -4,7 +4,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { CustomerPage } from '../src/pages/CustomerPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -34,9 +34,9 @@ const ONE_PAGE = { page: 1, page_size: 20 }
 
 function customerPage(favours: unknown) {
   const server = fakeServer({
-    'GET /api/customers/3': asha,
-    'GET /api/customers/3/favours': favours,
-    'GET /api/customers/3/history': { items: [], total: 0, page: 1, page_size: 20 },
+    'GET /api/customers/{customer_id}': asha,
+    'GET /api/customers/{customer_id}/favours': favours,
+    'GET /api/customers/{customer_id}/history': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 20 },
   })
   showPage(server, '/customers/3', { '/customers/:id': <CustomerPage /> })
@@ -110,7 +110,7 @@ test('the section is hidden when the Customer has no favours', async () => {
   const server = customerPage({ ...ONE_PAGE, items: [], total: 0, let_off: 0 })
 
   await screen.findByRole('heading', { name: 'Asha Rao' })
-  await vi.waitFor(() => expect(server.requests).toContain('GET /api/customers/3/favours'))
+  await vi.waitFor(() => expect(server.requests).toContain('GET /api/customers/{customer_id}/favours'))
   expect(screen.queryByRole('heading', { name: 'Favours Given' })).toBeNull()
   expect(screen.queryByRole('table', { name: 'Favours Given' })).toBeNull()
 })

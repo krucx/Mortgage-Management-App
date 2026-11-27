@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { readText } from '../src/ocr'
 import { CustomerFormPage } from '../src/pages/CustomerFormPage'
 import { CustomerPage } from '../src/pages/CustomerPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 // The text reader (Tesseract, in the browser) stands in for what a card's photo reads as.
@@ -44,11 +44,11 @@ function form(sent: { route: string; body?: unknown }[]) {
   const server = fakeServer({
     'GET /api/people/by-phone': { kind: 'customer', id: 5, name: 'Suresh Kumar' },
     'GET /api/search': [],
-    'GET /api/customers/5': suresh,
-    'PUT /api/customers/5/preview': () => new Response(null, { status: 204 }),
-    'PUT /api/customers/5': record('PUT /api/customers/5'),
-    'PUT /api/customers/5/id-photos/aadhaar': record('PUT aadhaar'),
-    'DELETE /api/customers/5/id-photos/pan': record('DELETE pan'),
+    'GET /api/customers/{customer_id}': suresh,
+    'PUT /api/customers/{customer_id}/preview': () => new Response(null, { status: 204 }),
+    'PUT /api/customers/{customer_id}': record('PUT /api/customers/{customer_id}'),
+    'PUT /api/customers/{id}/id-photos/aadhaar': record('PUT aadhaar'),
+    'DELETE /api/customers/{id}/id-photos/pan': record('DELETE pan'),
   })
   showPage(server, '/customers/5/edit', { '/customers/:id/edit': <CustomerFormPage /> })
   return server
@@ -81,7 +81,7 @@ test('the form takes an email, the Aadhaar Number, the PAN and ID Photos, and sa
   fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and save' }))
 
   expect(await screen.findByText('Now at /customers/5')).toBeTruthy()
-  expect(sent.map((s) => s.route)).toEqual(['PUT /api/customers/5', 'PUT aadhaar', 'DELETE pan'])
+  expect(sent.map((s) => s.route)).toEqual(['PUT /api/customers/{customer_id}', 'PUT aadhaar', 'DELETE pan'])
   expect(sent[0].body).toMatchObject({
     email: 'suresh@kumar.in',
     aadhaar_last4: '9012',
@@ -92,7 +92,7 @@ test('the form takes an email, the Aadhaar Number, the PAN and ID Photos, and sa
 test('the Customer page shows them, the Aadhaar Number masked, and the ID Photos to open', async () => {
   showPage(
     fakeServer({
-      'GET /api/customers/5': {
+      'GET /api/customers/{customer_id}': {
         ...suresh,
         email: 'suresh@kumar.in',
         aadhaar_last4: '9012',
@@ -100,7 +100,7 @@ test('the Customer page shows them, the Aadhaar Number masked, and the ID Photos
         aadhaar_photo_url: '/api/photos/customer-5-aadhaar.jpg',
       },
       'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 20 },
-      'GET /api/customers/5/history': { items: [], total: 0, page: 1, page_size: 20 },
+      'GET /api/customers/{customer_id}/history': { items: [], total: 0, page: 1, page_size: 20 },
     }),
     '/customers/5',
     { '/customers/:id': <CustomerPage /> },

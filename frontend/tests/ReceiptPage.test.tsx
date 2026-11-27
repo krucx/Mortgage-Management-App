@@ -3,7 +3,7 @@ import { cleanup, screen } from '@testing-library/react'
 import { afterEach, expect, test } from 'vitest'
 import type { Receipt } from '../src/api'
 import { ReceiptPage } from '../src/pages/ReceiptPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(cleanup)
@@ -24,7 +24,7 @@ const receipt: Receipt = {
 }
 
 test('from the printable Receipt, another Payment can be started for the same Customer, off the printout', async () => {
-  const server = fakeServer({ 'GET /api/payments/9/receipt': receipt })
+  const server = fakeServer({ 'GET /api/payments/{payment_id}/receipt': receipt })
   showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
 
   const link = await screen.findByRole('link', { name: 'Record another Payment for same customer' })
@@ -68,7 +68,7 @@ test("a Grace Payment's Receipt shows when it was received and what each Mortgag
     ],
     total_owed: 13_000_000,
   }
-  const server = fakeServer({ 'GET /api/payments/9/receipt': graced })
+  const server = fakeServer({ 'GET /api/payments/{payment_id}/receipt': graced })
   showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
 
   expect(
@@ -86,7 +86,7 @@ test("a Grace Payment's Receipt shows when it was received and what each Mortgag
 })
 
 test("an ordinary Payment's Receipt has no Grace", async () => {
-  const server = fakeServer({ 'GET /api/payments/9/receipt': receipt })
+  const server = fakeServer({ 'GET /api/payments/{payment_id}/receipt': receipt })
   showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
 
   expect(await screen.findByText('1 Oct 2026')).not.toBeNull()
@@ -116,7 +116,7 @@ test('the printed Receipt tells two Mortgages described alike apart by start dat
     ],
     total_owed: 18_000_000,
   }
-  const server = fakeServer({ 'GET /api/payments/9191/receipt': twins })
+  const server = fakeServer({ 'GET /api/payments/{payment_id}/receipt': twins })
   showPage(server, '/payments/9191/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
 
   expect(await screen.findByText('Silver anklet (from 14 Jan 2026)')).not.toBeNull()
@@ -156,7 +156,7 @@ test("a Receipt with an Advance shows what was paid now and each part's date and
     ],
     total_owed: 10_300_000,
   }
-  const server = fakeServer({ 'GET /api/payments/9/receipt': advanced })
+  const server = fakeServer({ 'GET /api/payments/{payment_id}/receipt': advanced })
   showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
 
   expect(await screen.findByRole('columnheader', { name: 'Paid now' })).not.toBeNull()
@@ -189,7 +189,7 @@ test("a Receipt's Paid now total leaves out what is held as an Advance", async (
     ],
     total_owed: 15_300_000,
   }
-  const server = fakeServer({ 'GET /api/payments/9/receipt': advanced })
+  const server = fakeServer({ 'GET /api/payments/{payment_id}/receipt': advanced })
   showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
 
   const total = await screen.findByRole('rowheader', { name: 'Total' })
@@ -197,7 +197,7 @@ test("a Receipt's Paid now total leaves out what is held as an Advance", async (
 })
 
 test('a Receipt without an Advance has no Advance column', async () => {
-  const server = fakeServer({ 'GET /api/payments/9/receipt': receipt })
+  const server = fakeServer({ 'GET /api/payments/{payment_id}/receipt': receipt })
   showPage(server, '/payments/9/receipt', { '/payments/:id/receipt': <ReceiptPage /> })
 
   expect(await screen.findByRole('columnheader', { name: 'Paid' })).not.toBeNull()
@@ -221,7 +221,7 @@ test("a cancelled part's Receipt says what it paid on the day it was applied", a
     ],
     total_owed: 10_000_000,
   }
-  const server = fakeServer({ 'GET /api/payments/9/advance-instalments/22/receipt': applied })
+  const server = fakeServer({ 'GET /api/payments/{id}/advance-instalments/22/receipt': applied })
   showPage(server, '/payments/9/advance-instalments/22/receipt', {
     '/payments/:id/advance-instalments/:instalment/receipt': <ReceiptPage />,
   })

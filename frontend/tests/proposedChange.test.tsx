@@ -3,7 +3,8 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { EditMortgagePage } from '../src/pages/EditMortgagePage'
-import { fakeServer, type FakeServer } from './fakeServer'
+import { type FakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -39,8 +40,8 @@ const saveButton = () => screen.getByRole('button', { name: 'Save changes' }) as
 
 test("while the Preview says the change would be refused, it can't be saved", async () => {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/edit-preview': () =>
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/edit-preview': () =>
       Response.json({ detail: 'There is a Payment before that start date' }, { status: 422 }),
   })
   await editPrincipal(server, '60000')
@@ -53,8 +54,8 @@ test("while the Preview says the change would be refused, it can't be saved", as
 
 test('going back from the confirmation saves nothing', async () => {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/edit-preview': preview,
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/edit-preview': preview,
   })
   await editPrincipal(server, '60000')
   await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 })
@@ -65,15 +66,15 @@ test('going back from the confirmation saves nothing', async () => {
   )
 
   expect(screen.queryByRole('dialog')).toBeNull()
-  expect(server.requests).not.toContain('PUT /api/mortgages/7')
+  expect(server.requests).not.toContain('PUT /api/mortgages/{mortgage_id}')
   expect(saveButton().disabled).toBe(false)
 })
 
 test('confirming saves the change, then goes where the page says', async () => {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/edit-preview': preview,
-    'PUT /api/mortgages/7': { ...mortgage, amount_lent: 6_000_000 },
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/edit-preview': preview,
+    'PUT /api/mortgages/{mortgage_id}': { ...mortgage, amount_lent: 6_000_000 },
   })
   await editPrincipal(server, '60000')
   await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 })
@@ -84,14 +85,14 @@ test('confirming saves the change, then goes where the page says', async () => {
   )
 
   expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()
-  expect(server.requests).toContain('PUT /api/mortgages/7')
+  expect(server.requests).toContain('PUT /api/mortgages/{mortgage_id}')
 })
 
 test("a refused save shows the backend's reason and can be tried again", async () => {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/edit-preview': preview,
-    'PUT /api/mortgages/7': () =>
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/edit-preview': preview,
+    'PUT /api/mortgages/{mortgage_id}': () =>
       Response.json({ detail: 'The Mortgage Name 2026GoldChain is already used' }, { status: 409 }),
   })
   await editPrincipal(server, '60000')
@@ -111,10 +112,10 @@ test("a refused save shows the backend's reason and can be tried again", async (
 /** Saving a change whose Preview writes `cash`, with the Cash Limit at `limit`. */
 async function saveWithCash(cash: number[], limit: number | null) {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
+    'GET /api/mortgages/{mortgage_id}': mortgage,
     'GET /api/settings/cash-limit': { cash_limit: limit },
-    'POST /api/mortgages/7/edit-preview': previewWith(cash),
-    'PUT /api/mortgages/7': { ...mortgage, amount_lent: 6_000_000 },
+    'POST /api/mortgages/{mortgage_id}/edit-preview': previewWith(cash),
+    'PUT /api/mortgages/{mortgage_id}': { ...mortgage, amount_lent: 6_000_000 },
   })
   await editPrincipal(server, '60000')
   await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 })
@@ -135,7 +136,7 @@ test('a sum in cash at or above the Cash Limit is warned about first, the larges
   fireEvent.click(within(dialog).getByRole('button', { name: 'Go back' }))
 
   await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  expect(server.requests).not.toContain('PUT /api/mortgages/7')
+  expect(server.requests).not.toContain('PUT /api/mortgages/{mortgage_id}')
 })
 
 test('the Lender can go on in cash anyway, to the confirmation as usual', async () => {
@@ -146,7 +147,7 @@ test('the Lender can go on in cash anyway, to the confirmation as usual', async 
   fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm and save' }))
 
   expect(await screen.findByText('Now at /mortgages/7')).toBeTruthy()
-  expect(server.requests).toContain('PUT /api/mortgages/7')
+  expect(server.requests).toContain('PUT /api/mortgages/{mortgage_id}')
 })
 
 test.each([

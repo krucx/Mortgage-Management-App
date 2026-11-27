@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Simulation, SimulationIn } from '../src/api'
 import simulationChart from '../src/components/SimulationChart.module.css'
 import { CalculatorPage } from '../src/pages/CalculatorPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 beforeEach(() => {

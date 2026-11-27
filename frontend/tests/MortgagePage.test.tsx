@@ -249,7 +249,7 @@ test('deleting a photo asks first, then shows the Mortgage without it', async ()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
   expect(await screen.findByText('No photos yet.')).toBeTruthy()
-  expect(server.requests).toContain('DELETE /api/mortgages/7/photos/5')
+  expect(server.requests).toContain('DELETE /api/mortgages/{id}/photos/5')
 })
 
 test("adding a photo shows it, and makes the Mortgage's and its Customer's History stale", async () => {
@@ -282,7 +282,7 @@ test('a photo over 20 MB is refused in plain words, and not sent', async () => {
   })
 
   expect(await screen.findByText('The photo is too large (over 20 MB).')).toBeTruthy()
-  expect(server.requests).not.toContain('POST /api/mortgages/7/photos')
+  expect(server.requests).not.toContain('POST /api/mortgages/{mortgage_id}/photos')
 })
 
 test("the backend's refusal of a photo too large is shown as it says it", async () => {
@@ -410,7 +410,7 @@ test('waiving off shows what is let off, asks first, then shows the Waiver', asy
     note: 'Small balance',
     mortgages: [{ mortgage_id: 7, amount_paid: 5_000_000 }],
   })
-  expect(server.requests).not.toContain('POST /api/mortgages/7/waive')
+  expect(server.requests).not.toContain('POST /api/mortgages/{mortgage_id}/waive')
 })
 
 test('a Waived Mortgage shows its final Payment and what was let off', async () => {
@@ -817,7 +817,7 @@ test("removing a coming Term Change asks first, then shows the Terms without it 
   fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove' }))
 
   await vi.waitFor(() => expect(screen.queryByText(/From 10 Nov 2099/)).toBeNull())
-  expect(server.requests).toContain('DELETE /api/mortgages/7/term-changes/3')
+  expect(server.requests).toContain('DELETE /api/mortgages/{id}/term-changes/3')
   expect(state.queryClient.getQueryState(history)?.isInvalidated).toBe(true)
 })
 
@@ -930,5 +930,5 @@ test('reopening a Closed Mortgage needs a reason, then shows it Active again', a
   fireEvent.click(dialog.getByRole('button', { name: 'Reopen' }))
 
   expect(await screen.findByRole('heading', { name: 'Close this Mortgage' })).toBeTruthy()
-  expect(server.requests).toContain('POST /api/mortgages/7/reopen')
+  expect(server.requests).toContain('POST /api/mortgages/{mortgage_id}/reopen')
 })

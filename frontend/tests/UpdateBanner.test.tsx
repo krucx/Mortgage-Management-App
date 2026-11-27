@@ -4,7 +4,8 @@ import { afterEach, expect, test } from 'vitest'
 import { ServerStateProvider } from '../src/components/ServerStateProvider'
 import { UpdateBanner, type UpdateBannerProps } from '../src/components/UpdateBanner'
 import { createServerState } from '../src/serverState'
-import { fakeServer, type FakeServer } from './fakeServer'
+import { type FakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 
 afterEach(() => {
   cleanup()

@@ -9,7 +9,7 @@ import {
   markStale,
   STALE_AFTER,
 } from '../src/serverState'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 
 test('a Ledger change makes every Mortgage, list, the Dashboard and the Dormant count stale', () => {
   const { queryClient } = createServerState()

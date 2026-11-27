@@ -3,7 +3,8 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { MortgageEdit } from '../src/api'
 import { EditMortgagePage } from '../src/pages/EditMortgagePage'
-import { changePreview, fakeServer } from './fakeServer'
+import { changePreview } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { expectWholeRupeeSteps } from './rupeeField'
 import { mortgage, showPage } from './showPage'
 
@@ -17,17 +18,17 @@ afterEach(() => {
  *  cash writes its Principal in cash. */
 function server(stored: object, sent: unknown[]) {
   return fakeServer({
-    'GET /api/mortgages/7': stored,
+    'GET /api/mortgages/{mortgage_id}': stored,
     'GET /api/payment-methods': [
       { method: 'cash', name: 'Cash' },
       { method: 'upi', name: 'UPI' },
     ],
     'GET /api/settings/cash-limit': { cash_limit: 2_000_000 },
-    'POST /api/mortgages/7/edit-preview': async (request: Request) => {
+    'POST /api/mortgages/{mortgage_id}/edit-preview': async (request: Request) => {
       const edit = (await request.json()) as MortgageEdit
       return changePreview([], edit.lent_through === 'cash' ? [edit.amount_lent] : [])
     },
-    'PUT /api/mortgages/7': async (request: Request) => {
+    'PUT /api/mortgages/{mortgage_id}': async (request: Request) => {
       sent.push(await request.json())
       return stored
     },
@@ -92,7 +93,7 @@ test('a Mortgage closing mid-edit drops the stale Terms draft, keeping other edi
   let status: 'active' | 'redeemed' = 'active'
   const state = showPage(
     fakeServer({
-      'GET /api/mortgages/7': () => ({ ...mortgage, status }),
+      'GET /api/mortgages/{mortgage_id}': () => ({ ...mortgage, status }),
       'GET /api/payment-methods': [{ method: 'upi', name: 'UPI' }],
       'GET /api/settings/cash-limit': { cash_limit: 2_000_000 },
     }),

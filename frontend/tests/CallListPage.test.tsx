@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { CallListPage as Listed } from '../src/api'
 import { CallListPage } from '../src/pages/CallListPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {

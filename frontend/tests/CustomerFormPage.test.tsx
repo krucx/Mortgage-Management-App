@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { CustomerFormPage } from '../src/pages/CustomerFormPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -19,7 +19,7 @@ function customerForm(owner: unknown, preview: () => Response, editing = false) 
   const server = fakeServer({
     'GET /api/people/by-phone': owner,
     'GET /api/search': [],
-    'GET /api/customers/5': {
+    'GET /api/customers/{customer_id}': {
       id: 5,
       name: 'Suresh Kumar',
       address: '',
@@ -31,7 +31,7 @@ function customerForm(owner: unknown, preview: () => Response, editing = false) 
       shares_phone_with: null,
     },
     'POST /api/customers/preview': preview,
-    'PUT /api/customers/5/preview': preview,
+    'PUT /api/customers/{customer_id}/preview': preview,
   })
   const at = editing ? '/customers/5/edit' : '/customers/new'
   showPage(server, at, {
@@ -136,12 +136,12 @@ test('a photo failing after the Customer is saved can be retried, sending only t
     'GET /api/search': [],
     'POST /api/customers/preview': allowed,
     'POST /api/customers': { id: 5, name: 'Suresh Kumar' },
-    'PUT /api/customers/5/photo': () => {
+    'PUT /api/customers/{customer_id}/photo': () => {
       if (!photoFails) return { id: 5 }
       photoFails = false
       return Response.json({ detail: 'The photo is too large' }, { status: 413 })
     },
-    'GET /api/customers/5': { id: 5, name: 'Suresh Kumar' },
+    'GET /api/customers/{customer_id}': { id: 5, name: 'Suresh Kumar' },
   })
   showPage(server, '/customers/new', { '/customers/new': <CustomerFormPage /> })
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:photo' }))
@@ -161,7 +161,7 @@ test('a photo failing after the Customer is saved can be retried, sending only t
 
   expect(await screen.findByText('Now at /customers/5')).toBeTruthy()
   expect(server.requests.filter((r) => r === 'POST /api/customers')).toHaveLength(1)
-  expect(server.requests.filter((r) => r === 'PUT /api/customers/5/photo')).toHaveLength(2)
+  expect(server.requests.filter((r) => r === 'PUT /api/customers/{customer_id}/photo')).toHaveLength(2)
 })
 
 test('the Referrer search has a name', async () => {
