@@ -13,11 +13,10 @@ function project(committed, live, key) {
   if (Array.isArray(committed)) {
     if (!Array.isArray(live)) return live;
     const sortKey = SORT_KEY[key] ?? ((v) => JSON.stringify(v));
-    const byKey = new Map(live.map((item) => [sortKey(item), item]));
-    // Keep every live item so an extra live rule/check shows as drift, matched by key where we can.
+    // Keep every live item so an extra live rule/check shows as drift; project those the file declares.
     return live.map((item) => {
       const mine = committed.find((c) => sortKey(c) === sortKey(item));
-      return mine === undefined ? item : project(mine, byKey.get(sortKey(item)), undefined);
+      return mine === undefined ? item : project(mine, item, undefined);
     });
   }
   if (committed && typeof committed === 'object') {
