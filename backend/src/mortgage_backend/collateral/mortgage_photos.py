@@ -51,7 +51,7 @@ def remove_photo(
 
 
 @router.post("/mortgages/{mortgage_id}/photos")
-async def post_photo(
+def post_photo(
     mortgage_id: int,
     photo: UploadFile,
     engine: EngineDep,
@@ -59,7 +59,7 @@ async def post_photo(
     today: TodayDep,
     now: NowDep,
 ) -> Mortgage:
-    new = photos.NewPhoto("mortgage", mortgage_id, await photo.read())
+    new = photos.NewPhoto("mortgage", mortgage_id, photo.file.read())
     with photos.photo_change(engine, photos_dir, new) as change:
         add_photo(change.conn, mortgage_id, change.file, now)
         return load_mortgage(change.conn, mortgage_id, today)

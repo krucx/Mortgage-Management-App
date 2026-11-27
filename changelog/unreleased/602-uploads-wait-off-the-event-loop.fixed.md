@@ -1,0 +1,1 @@
+- **Photos and Call Sheet imports while another change saves:** uploading a photo or importing a filled-in Call Sheet no longer freezes the rest of the app while it waits its turn behind another change.
