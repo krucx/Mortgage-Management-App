@@ -10,14 +10,20 @@ simplifying, reusing, and eventually creating a cleaner, maintainable system.
 
 ## Contribution and release workflow
 
-- Before changing code, follow [CONTRIBUTING.md](CONTRIBUTING.md): work on a branch,
-  open a pull request targeting `main`, respond to automated findings, and leave the merge
-  decision and approval to a human. The human records the approving review and merges; you
-  open the pull request and stop. Never submit an approving review or merge, even if told to.
-- CodeRabbit review is selective; see [CONTRIBUTING.md](CONTRIBUTING.md#selective-coderabbit-review).
-  Don't request one (`@coderabbitai review`) on a ticket PR or an ordinary PR, and put
+- Before changing code, follow [CONTRIBUTING.md](CONTRIBUTING.md): work on a branch and open a
+  pull request. Its base is the ticket's `integration/*` branch when the ticket belongs to one,
+  otherwise `main`. The central auto-merge workflow merges `integration/*` PRs, so never enable
+  auto-merge yourself. **Never approve a PR, and never merge or enable auto-merge on a PR into
+  `main`**, even if told to: the owner presses merge on every `main` PR (the release PR and
+  safe Dependabot PRs are the only exceptions). You open the pull request, answer findings and stop.
+- Open every PR from the [pull request template](.github/pull_request_template.md): it is the
+  release-ready checklist (changelog fragment, user docs, onboarding lessons, agent instructions,
+  `critical` label). CI fails a product-path change with no changelog fragment.
+- The automated reviewer (currently CodeRabbit) is selective; see
+  [CONTRIBUTING.md](CONTRIBUTING.md#selective-coderabbit-review), the one place that says when it runs.
+  Don't request a review (for CodeRabbit, `@coderabbitai review`) on a ticket PR or an ordinary PR, and put
   `@coderabbitai ignore` in its description. An `integration/*` -> `main` PR gets the
-  `coderabbit-review` label and needs a CodeRabbit review before the human merges. Add the `critical`
+  `coderabbit-review` label and needs an automated review before the owner merges. Add the `critical`
   label when the diff touches money math, sign-in, migrations or security; the CONTRIBUTING section lists the paths.
 - For release work, follow the canonical
   [release checklist](Documentation/RELEASE_CHECKLIST.md). A release owner must supply and

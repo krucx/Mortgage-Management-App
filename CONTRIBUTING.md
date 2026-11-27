@@ -1,8 +1,14 @@
 # Contributing
 
-Every change targeting `main` goes through a pull request. A human with merge
-permission owns the merge decision; automated review is advisory and cannot approve
-or merge a pull request.
+Every change goes through a pull request. A human with merge permission owns the
+merge decision for `main`; automated review is advisory and cannot approve or merge a
+pull request. The **automated reviewer** is currently CodeRabbit; where and when it runs
+is configured in one place, [Selective CodeRabbit review](#selective-coderabbit-review)
+with `.coderabbit.yaml`, so swapping the tool changes only those.
+
+Pull requests arrive release-ready: the [pull request template](.github/pull_request_template.md)
+lists what to settle (release note, user documentation, onboarding lessons, agent
+instructions, critical-area label) while the change is made, not at release time.
 
 ## Change and review flow
 
@@ -18,21 +24,26 @@ or merge a pull request.
    delete or edit when a listed route is covered now. Add steps as
    [qa/README.md](qa/README.md) says. The pull request CI runs the repository checks described in
    [README.md](README.md#tests-and-type-checks).
-3. Open a pull request targeting `main`. Explain the user-visible change, verification,
+3. Open a pull request. Its base is the ticket's `integration/*` branch when the ticket
+   belongs to one (the central [Auto-merge](#auto-merge) workflow then merges it once checks
+   pass; do not enable auto-merge yourself), otherwise `main`. Explain the user-visible change, verification,
    and any risk or migration impact. Link the issue and use a draft while work is
    unfinished.
-4. Wait for the required checks. CodeRabbit reviews only some pull requests (see
+4. Wait for the required checks. The automated reviewer reviews only some pull requests (see
    [Selective CodeRabbit review](#selective-coderabbit-review)); when it reviews yours, read the summary
    and every finding.
    Fix actionable findings in a follow-up commit. If a finding is incorrect or does not
-   apply, reply on the pull request with the reason so the human reviewer can assess
+   apply, reply on the pull request with the reason so the reviewer can assess
    that disposition.
-5. A human reviewer checks the diff, CI, automated findings and their dispositions,
-   then records an approving review. The author should not approve their own change.
-   The reviewer records the approval themselves: an agent never submits an approving
-   review or merges, even when told "yes, merge", and preparing, drafting or
-   summarising a review is not approval. The agent opens the pull request and stops.
-   Resolve conversations and wait for required checks before the human merges.
+5. For a pull request into `main`, the owner checks the diff, CI, automated findings and their
+   dispositions, records an approving review where one is required, and presses merge. An
+   agent **never approves** a pull request and **never merges, or enables auto-merge on, a
+   pull request into `main`**, even when told "yes, merge"; this is policy, not a technical
+   block. Preparing, drafting or summarising a review is not approval. The agent opens the
+   pull request, answers findings, and stops. The only `main` pull requests that merge
+   without the owner pressing merge are the release pull request and safe Dependabot
+   pull requests. A ticket pull request into an `integration/*` branch is merged by the
+   Auto-merge workflow, not by the agent.
 6. Merge with the repository's configured merge method. Do not push commits directly
    to `main`.
 
@@ -69,9 +80,9 @@ extends the PR-only override to maintainers.
 
 ### Emergency changes
 
-An emergency still uses a pull request targeting `main`. Mark it clearly as an
+An emergency still uses a pull request into `main`. Mark it clearly as an
 emergency, state the impact and why the normal turnaround is too slow, run the fastest
-relevant checks, and request an available human reviewer. The reviewer records an
+relevant checks, and request an available human reviewer. The owner records an
 approval before merging. A maintainer may use the override above when urgent
 circumstances require merging without all checks or approval; record the reason in the
 pull request. Follow up immediately with the remaining checks, documentation, and
@@ -79,7 +90,7 @@ release notes. Keep the change in a pull request.
 
 ### Automated reviewer unavailable
 
-If CodeRabbit is unavailable, record that on the pull request and ask a human reviewer
+If the automated reviewer is unavailable, record that on the pull request and ask a human reviewer
 to inspect the full diff and explicitly cover the automated review in their review.
 If the CodeRabbit status check is required and cannot complete, a maintainer may use the
 documented bypass for that PR, recording the reason. Resume automated review on later
@@ -129,7 +140,7 @@ request. The critical paths are mirrored in `.github/scripts/integration-summary
 
 `main`'s ruleset requires the `CodeRabbit` check, which CodeRabbit does not report on a pull request it
 skips. Those pull requests need a maintainer bypass, recorded on the pull request. The `integration/*` ->
-`main` pull request always gets the review, so it merges normally.
+`main` pull request always gets the review, so it merges normally (the owner presses merge).
 
 ## CI
 
@@ -197,7 +208,7 @@ human approval, and these status checks: `backend`, `frontend`, `image`, `qa`, `
 it, unless it is the `release/X.Y.Z` pull request from the Prepare release candidate workflow;
 add a fragment under `changelog/unreleased/` instead of editing `CHANGELOG.md`. The same job
 refuses non-release edits to `CHANGELOG.md`. A PR that changes product or user-facing files
-without a fragment still passes, with a warning (internal-only paths are allowlisted). `qa` runs only on that
+without a fragment fails the same job (internal-only paths are allowlisted, as are `dependabot/*` branches). `qa` runs only on that
 `release/X.Y.Z` pull request and when Tests is dispatched by hand; elsewhere it is skipped,
 which GitHub counts as passing. These are the exact check names GitHub reports. The ruleset
 blocks force pushes and deletion. A repository administrator should import and activate it under

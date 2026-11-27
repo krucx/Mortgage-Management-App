@@ -10,8 +10,8 @@ files into a dated section and deletes them. `VERSION` stays release-candidate-o
 Add one whenever the PR changes product behaviour, the Lender-facing GitHub Pages
 site under `docs/`, or anything else a release note should mention. Pure chore /
 internal-only paths (`Documentation/`, `.github/`, `.claude/`, `AGENTS.md`, and
-similar) do not need one; CI allowlists those. A product change with no fragment, such
-as a dependency bump, is not blocked: CI only warns. Editing `CHANGELOG.md` on a
+similar) do not need one; CI allowlists those. A product change with no fragment fails
+the `version-bump` job (only `dependabot/*` branches are exempt). Editing `CHANGELOG.md` on a
 non-release PR always fails.
 
 ## File name
