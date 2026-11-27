@@ -2,10 +2,10 @@
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { useLocation } from 'react-router'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import type { Simulation, SimulationIn } from '../src/api'
+import type { Simulation, SimulationIn, Terms } from '../src/api'
 import simulationChart from '../src/components/SimulationChart.module.css'
 import { CalculatorPage } from '../src/pages/CalculatorPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 beforeEach(() => {
@@ -19,7 +19,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const DEFAULT_TERMS = {
+const DEFAULT_TERMS: Terms = {
   monthly_rate_bps: 200,
   interest_mode: 'compounded_monthly',
   part_month_rule: 'full_month',
@@ -74,7 +74,7 @@ const simulation: Simulation = {
 }
 
 /** The backend, recording each Simulation asked for and answering with `answer`'s. */
-function backend(answer: (asked: SimulationIn) => unknown = () => simulation) {
+function backend(answer: (asked: SimulationIn) => Simulation | Response = () => simulation) {
   const asked: SimulationIn[] = []
   const server = fakeServer({
     'GET /api/settings/default-terms': DEFAULT_TERMS,

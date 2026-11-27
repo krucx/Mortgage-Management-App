@@ -1,0 +1,1 @@
+- **CI path rules:** one module, `.github/scripts/lib/classify.mjs`, now answers every path question (which job groups run, which critical area a file is in, whether a change needs a changelog fragment, whether Dependabot may merge it). Behaviour is unchanged; a new top-level folder is one edit.

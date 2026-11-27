@@ -3,7 +3,8 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { MortgageIn } from '../src/api'
 import { NewMortgagePage } from '../src/pages/NewMortgagePage'
-import { fakeServer, type FakeServer } from './fakeServer'
+import { type FakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { expectWholeRupeeSteps } from './rupeeField'
 import { mortgage, showPage } from './showPage'
 
@@ -15,20 +16,26 @@ afterEach(() => {
 const customer = {
   id: 3,
   name: 'Asha Rao',
+  advance_held: 0,
+  email: null,
+  aadhaar_last4: null,
+  pan: null,
+  aadhaar_photo_url: null,
+  pan_photo_url: null,
   address: '',
   phone_1: '9829012345',
   phone_2: null,
   photo_url: null,
   referrer: null,
   referred: [],
-  shares_phone_with: null,
+  shares_phone_with: [],
 }
 
 /** The backend, suggesting a Mortgage Name from the description a little later, as the
  *  real one does; what was asked to be created goes into `created`. */
 function server(created: unknown[], overrides: Record<string, unknown> = {}) {
   return fakeServer({
-    'GET /api/customers/3': customer,
+    'GET /api/customers/{customer_id}': customer,
     'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 1 },
     'GET /api/settings/default-terms': {
       monthly_rate_bps: 200,
@@ -54,7 +61,7 @@ function server(created: unknown[], overrides: Record<string, unknown> = {}) {
       created.push(await request.json())
       return mortgage
     },
-    'GET /api/mortgages/7': mortgage,
+    'GET /api/mortgages/{mortgage_id}': mortgage,
     'GET /api/payment-methods': [
       { method: 'cash', name: 'Cash' },
       { method: 'upi', name: 'UPI' },

@@ -3,9 +3,11 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { Closure, MortgagePreview } from '../src/api'
 import { useClosing, type Closing } from '../src/components/useClosing'
 import { formatINR } from '../src/money'
-import { changePreview, fakeServer, type FakeServer } from './fakeServer'
+import { changePreview, type FakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -25,10 +27,13 @@ const forfeiting: Closing = {
   },
 }
 
-const forfeited = (profitLoss: number) => ({
+const forfeited = (profitLoss: number): Closure => ({
   kind: 'forfeited',
   on: '2026-04-20',
   outstanding: 2_240_000,
+  advance_held: 0,
+  interest_to_date: 0,
+  interest_to_date_days: 0,
   payment_id: null,
   payment_amount: null,
   waived_amount: null,
@@ -36,7 +41,12 @@ const forfeited = (profitLoss: number) => ({
   profit_loss: profitLoss,
   note: 'Auctioned',
 })
-const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
+const side = (closure: MortgagePreview['before']['closure']) => ({
+  outstanding: 0,
+  points: [],
+  term_changes: [],
+  closure,
+})
 const preview = changePreview(
   [3, 4].map((id, i) => ({
     mortgage_id: id,

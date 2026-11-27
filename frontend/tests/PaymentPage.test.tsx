@@ -4,7 +4,8 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { Payment, Receipt } from '../src/api'
 import { PaymentPage } from '../src/pages/PaymentPage'
 import { formatDate } from '../src/format'
-import { changePreview, fakeServer } from './fakeServer'
+import { changePreview } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -56,11 +57,11 @@ const receipt: Receipt = {
 test('after a Void, the Payment shows as voided and its Receipt, which no longer exists, is not asked for', async () => {
   let voided = false
   const server = fakeServer({
-    'GET /api/payments/9': () => (voided ? voidedPayment : payment),
-    'GET /api/payments/9/receipt': () =>
+    'GET /api/payments/{payment_id}': () => (voided ? voidedPayment : payment),
+    'GET /api/payments/{payment_id}/receipt': () =>
       voided ? Response.json({ detail: 'Voided' }, { status: 409 }) : receipt,
-    'POST /api/payments/9/void-preview': changePreview([]),
-    'POST /api/payments/9/void': () => {
+    'POST /api/payments/{payment_id}/void-preview': changePreview([]),
+    'POST /api/payments/{payment_id}/void': () => {
       voided = true
       return voidedPayment
     },
@@ -78,15 +79,15 @@ test('after a Void, the Payment shows as voided and its Receipt, which no longer
   expect(await screen.findByText('voided')).toBeTruthy()
   await new Promise((settle) => setTimeout(settle, 50))
   const afterVoid = server.requests.slice(server.requests.indexOf('POST /api/payments/9/void'))
-  expect(afterVoid).not.toContain('GET /api/payments/9/receipt')
+  expect(afterVoid).not.toContain('GET /api/payments/{payment_id}/receipt')
 })
 
 test('a click outside the Void dialog closes it only until a reason is typed', async () => {
   showPage(
     fakeServer({
-      'GET /api/payments/9': payment,
-      'GET /api/payments/9/receipt': receipt,
-      'POST /api/payments/9/void-preview': changePreview([]),
+      'GET /api/payments/{payment_id}': payment,
+      'GET /api/payments/{payment_id}/receipt': receipt,
+      'POST /api/payments/{payment_id}/void-preview': changePreview([]),
       'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
     }),
     '/payments/9',
@@ -114,8 +115,8 @@ test('a click outside the Void dialog closes it only until a reason is typed', a
 
 test('from a recorded Payment, another Payment can be started for the same Customer', async () => {
   const server = fakeServer({
-    'GET /api/payments/9': payment,
-    'GET /api/payments/9/receipt': receipt,
+    'GET /api/payments/{payment_id}': payment,
+    'GET /api/payments/{payment_id}/receipt': receipt,
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
   })
   showPage(server, '/payments/9', { '/payments/:id': <PaymentPage /> })
@@ -133,8 +134,8 @@ test('a Grace Payment shows the date it has, the date it was received and what e
     allocations: [{ ...payment.allocations[0], let_off: 42_000 }],
   }
   const server = fakeServer({
-    'GET /api/payments/9': grace,
-    'GET /api/payments/9/receipt': receipt,
+    'GET /api/payments/{payment_id}': grace,
+    'GET /api/payments/{payment_id}/receipt': receipt,
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
   })
   showPage(server, '/payments/9', { '/payments/:id': <PaymentPage /> })
@@ -148,8 +149,8 @@ test('a Grace Payment shows the date it has, the date it was received and what e
 
 test('an ordinary Payment shows no Grace', async () => {
   const server = fakeServer({
-    'GET /api/payments/9': payment,
-    'GET /api/payments/9/receipt': receipt,
+    'GET /api/payments/{payment_id}': payment,
+    'GET /api/payments/{payment_id}/receipt': receipt,
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
   })
   showPage(server, '/payments/9', { '/payments/:id': <PaymentPage /> })

@@ -4,7 +4,8 @@ import { afterEach, expect, test } from 'vitest'
 import { ServerStateProvider } from '../src/components/ServerStateProvider'
 import { UpdateBanner, type UpdateBannerProps } from '../src/components/UpdateBanner'
 import { createServerState } from '../src/serverState'
-import { fakeServer, type FakeServer } from './fakeServer'
+import { type FakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 
 afterEach(() => {
   cleanup()
@@ -15,7 +16,7 @@ const NOTES = '### Added\n\n- Safe updates.'
 
 /** The backend's answer to "is there a newer release?". */
 function update(running: string, available: string | null) {
-  return { running, available: available && { version: available, notes: NOTES } }
+  return { running, available: available === null ? null : { version: available, notes: NOTES } }
 }
 
 /** The banner, checking every few milliseconds rather than seconds. */
