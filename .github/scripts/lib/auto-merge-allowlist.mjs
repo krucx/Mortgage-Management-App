@@ -53,7 +53,9 @@ async function releaseRule(pr, api) {
   ]);
   const version = pr.head.ref.slice('release/'.length);
   const verdict = judgeReleaseCandidate({ pullRequest: pr, version, files, checks, requiredChecks, preflightRuns });
-  if (!verdict.ok) return { enable: false, reason: `release-not-a-validated-version-upgrade (${verdict.reason})` };
+  if (!verdict.ok) {
+    return { enable: false, reason: `release-not-a-validated-version-upgrade (${verdict.reason})`, ...(verdict.waiting ? { waiting: true } : {}) };
+  }
   return { enable: true, method: 'MERGE', reason: 'release-candidate', expectedHeadOid: headSha };
 }
 

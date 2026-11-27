@@ -67,15 +67,16 @@ add a case by editing those two files, not the workflow.
   candidate** workflow itself, right after it opens it, through the same allowlist's release case. It
   merges only when **all** the machine conditions in `.github/scripts/lib/release-conditions.mjs` hold:
   the branch is `release/X.Y.Z` with `VERSION` becoming X.Y.Z; the head is exactly the commit the
-  workflow pushed and its preflight (Tests and CodeQL dispatched on that commit) passed; every
-  required check of `main` is reported and green; and the diff holds only what the workflow writes
+  workflow pushed and its preflight Tests run (dispatched on that commit) passed; every required
+  check of `main` is reported for that commit and green (the preflight dispatches CodeQL too, for the
+  `Analyze` checks); and the diff holds only what the workflow writes
   (`.github/scripts/lib/release-candidate-files.mjs`: version-only edits to `VERSION` and the synced
   version references, the new dated `CHANGELOG.md` section, deleted fragments). Anything else leaves
   it for the owner, and nothing is published. The workflow then starts **Publish merged release
   candidate**, which, like `release.yml`, re-checks the same conditions instead of an approval.
   Rollout fallback: the repository variable `RELEASE_REQUIRE_APPROVAL=true` restores the old rule
-  (the owner approves and merges; publishing requires that approval). This workflow never touches a
-  release pull request on its own: a pull request opened with `GITHUB_TOKEN` starts no workflow, so
+  (the owner approves and merges; publishing requires that approval). The Auto-merge workflow never
+  touches a release pull request on its own: a pull request opened with `GITHUB_TOKEN` starts no workflow, so
   its pull_request runs wait as "action_required" and are not needed (the preflight already reported
   the required checks).
 - Any other pull request into `main`, a draft, a closed pull request and any other base are left alone. The owner

@@ -482,6 +482,8 @@ test('the workflows wire the machine conditions and the fallback switch', () => 
   assert.match(candidate, /if: vars\.RELEASE_REQUIRE_APPROVAL != 'true'[\s\S]*?auto-merge\.mjs release \\\n\s+--pr-number "\$PR_NUMBER" --expected-head "\$CANDIDATE_SHA"/)
   assert.match(candidate, /if: vars\.RELEASE_REQUIRE_APPROVAL != 'true'[\s\S]*?gh workflow run publish-release\.yml --repo "\$GITHUB_REPOSITORY" --ref main -f "pull_request=\$PR_NUMBER"/)
   assert.match(candidate, /CANDIDATE_SHA: \$\{\{ steps\.candidate\.outputs\.sha \}\}\n\s+run: \|\n\s+set -euo pipefail\n\s+node \.github\/scripts\/auto-merge\.mjs release/)
+  // A merge by the candidate workflow is published only through its own dispatch, never twice.
+  assert.match(read('publish-release.yml'), /github\.event\.pull_request\.merged_by\.login != 'github-actions\[bot\]'/)
   // Publisher and release workflow: same conditions, same switch.
   for (const name of ['publish-release.yml', 'release.yml']) {
     const workflow = read(name)

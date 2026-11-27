@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createGitHubClient } from './lib/github-client.mjs';
 import { autoMergeDecision } from './lib/auto-merge-allowlist.mjs';
-import { CHECKS_RUNNING } from './lib/release-conditions.mjs';
+import { preflightRunsPath, requiredCheckNames } from './lib/release-conditions.mjs';
 
 const ENABLE = `mutation($id: ID!, $method: PullRequestMergeMethod!) {
   enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: $method }) { clientMutationId }
@@ -64,7 +64,7 @@ export async function mergeReleaseCandidate({
   let pr = pullRequest;
   for (;;) {
     const verdict = await autoMergeDecision(pr, releaseApi);
-    if (verdict.enable || !verdict.reason.includes(CHECKS_RUNNING) || now() - started >= timeoutMs) break;
+    if (verdict.enable || !verdict.waiting || now() - started >= timeoutMs) break;
     log(`Release PR #${pr.number}: waiting (${verdict.reason}).`);
     await sleep(pollIntervalMs);
     pr = await getPullRequest();
@@ -78,8 +78,14 @@ export async function mergeReleaseCandidate({
       return { pullRequest: current.number, mergeCommit: current.merge_commit_sha, headCommit: current.head?.sha };
     }
     if (current.state !== 'open' || now() - started >= timeoutMs) {
-      if (current.state === 'open') await graphql(DISABLE, { id: pullRequest.node_id });
-      throw new Error(`Release PR #${pullRequest.number} did not merge within ${Math.round(timeoutMs / 60_000)} minutes (state ${current.state}); auto-merge turned off.`);
+      if (current.state === 'open') {
+        // GitHub may merge between the last look and this call; then it fails, and the look below wins.
+        await graphql(DISABLE, { id: pullRequest.node_id }).catch((error) => log(`::warning::Could not turn auto-merge off: ${error.message}`));
+        const last = await getPullRequest();
+        if (last.merged) return { pullRequest: last.number, mergeCommit: last.merge_commit_sha, headCommit: last.head?.sha };
+      }
+      // "behind": main moved during the preflight, and main requires an up-to-date branch.
+      throw new Error(`Release PR #${pullRequest.number} did not merge within ${Math.round(timeoutMs / 60_000)} minutes (state ${current.state}, mergeable state ${current.mergeable_state ?? 'unknown'}); auto-merge turned off.`);
     }
     await sleep(pollIntervalMs);
   }
@@ -111,16 +117,10 @@ export function createPrApi(token, repository, number) {
       return [...runs, ...combined.statuses];
     },
     // The status-check names main's rulesets require, as GitHub enforces them now.
-    async requiredChecks() {
-      const rules = await getAllPages('/rules/branches/main?per_page=100');
-      return rules
-        .filter((rule) => rule.type === 'required_status_checks')
-        .flatMap((rule) => rule.parameters?.required_status_checks ?? [])
-        .map((check) => check.context);
-    },
+    requiredChecks: async () => requiredCheckNames(await getAllPages('/rules/branches/main?per_page=100')),
     // Dispatched Tests runs at this commit: the release candidate preflight.
     async listPreflightRuns(sha) {
-      const { data } = await request(`/actions/workflows/test.yml/runs?event=workflow_dispatch&head_sha=${sha}&per_page=100`);
+      const { data } = await request(preflightRunsPath(sha));
       return data.workflow_runs;
     },
   };

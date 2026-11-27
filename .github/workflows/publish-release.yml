@@ -2,7 +2,8 @@ name: Publish merged release candidate
 
 on:
   # A merge by the owner starts it here. A merge by the Prepare release candidate workflow
-  # (GITHUB_TOKEN) starts no pull_request run, so that workflow dispatches this one instead.
+  # (GITHUB_TOKEN) starts no pull_request run, so that workflow dispatches this one instead; if
+  # GitHub holds such a run for approval, the job skips it, so one merge never publishes twice.
   pull_request:
     types: [closed]
   workflow_dispatch:
@@ -29,6 +30,7 @@ jobs:
     if: >-
       (github.event_name == 'pull_request' &&
       github.event.pull_request.merged == true &&
+      github.event.pull_request.merged_by.login != 'github-actions[bot]' &&
       github.event.pull_request.base.ref == 'main' &&
       startsWith(github.event.pull_request.head.ref, 'release/')) ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')

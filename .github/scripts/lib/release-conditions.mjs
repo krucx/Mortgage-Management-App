@@ -28,9 +28,8 @@ export const PUBLISH_CHECKS = ['release-publish', 'Publish merged release candid
 const PASSING = ['SUCCESS', 'NEUTRAL', 'SKIPPED']
 // Not finished yet (check run status, or commit status state): a caller may wait and ask again.
 const RUNNING = ['QUEUED', 'IN_PROGRESS', 'PENDING', 'WAITING', 'REQUESTED', 'EXPECTED']
-export const CHECKS_RUNNING = 'checks still running:'
 
-const refuse = (reason) => ({ ok: false, reason })
+const refuse = (reason, waiting = false) => ({ ok: false, reason, ...(waiting ? { waiting } : {}) })
 
 function patchLines(patch) {
   const added = []
@@ -87,7 +86,7 @@ export function judgeReleaseDiff(files, version) {
 const checkName = (check) => String(check?.name ?? check?.context ?? '')
 const checkResult = (check) => String(check?.conclusion || check?.state || check?.status || 'missing').toUpperCase()
 
-export function judgeChecks(checks, requiredChecks) {
+function judgeChecks(checks, requiredChecks) {
   const required = Array.isArray(requiredChecks) ? requiredChecks.filter(Boolean) : []
   if (!required.length) return 'main has no required checks to wait for; refusing to merge unchecked'
   const reported = (Array.isArray(checks) ? checks : []).filter((check) => !PUBLISH_CHECKS.includes(checkName(check)))
@@ -98,11 +97,11 @@ export function judgeChecks(checks, requiredChecks) {
   const running = notPassing.filter((check) => RUNNING.includes(checkResult(check)))
   const failures = notPassing.filter((check) => !running.includes(check))
   if (failures.length) return `checks did not pass: ${describe(failures)}`
-  if (running.length) return `${CHECKS_RUNNING} ${describe(running)}`
+  if (running.length) return refuse(`checks still running: ${describe(running)}`, true)
   return null
 }
 
-export function judgePreflight(runs, headSha, branch) {
+function judgePreflight(runs, headSha, branch) {
   const passed = (Array.isArray(runs) ? runs : []).some((run) => (
     run?.path === PREFLIGHT_WORKFLOW &&
     run.event === 'workflow_dispatch' &&
@@ -114,8 +113,20 @@ export function judgePreflight(runs, headSha, branch) {
   return passed ? null : `head commit ${headSha} is not the candidate a successful preflight (Tests dispatched on ${branch}) validated`
 }
 
+// The status-check names main's rulesets require, from GitHub's "rules for a branch" response.
+export function requiredCheckNames(rules) {
+  return (Array.isArray(rules) ? rules : [])
+    .filter((rule) => rule?.type === 'required_status_checks')
+    .flatMap((rule) => rule.parameters?.required_status_checks ?? [])
+    .map((check) => check.context)
+}
+
+// Where the dispatched Tests runs at a commit (the preflight) are listed, under /repos/{repo}.
+export const preflightRunsPath = (headSha) => `/actions/workflows/test.yml/runs?event=workflow_dispatch&head_sha=${headSha}&per_page=100`
+
 // pullRequest: the REST pull request; version: VERSION as the caller read it. Returns
-// { ok: true } or { ok: false, reason }.
+// { ok: true } or { ok: false, reason }, with waiting: true when only unfinished checks stand in
+// the way (a caller may wait and ask again).
 export function judgeReleaseCandidate({ pullRequest, version, files, checks, requiredChecks, preflightRuns }) {
   if (!versionPattern.test(version ?? '')) return refuse(`invalid VERSION ${version}`)
   if (pullRequest?.base?.ref !== 'main') return refuse('the release pull request must target main')
@@ -126,5 +137,6 @@ export function judgeReleaseCandidate({ pullRequest, version, files, checks, req
   const problem = judgeReleaseDiff(files, version) ??
     judgePreflight(preflightRuns, headSha, branch) ??
     judgeChecks(checks, requiredChecks)
-  return problem ? refuse(problem) : { ok: true }
+  if (!problem) return { ok: true }
+  return typeof problem === 'string' ? refuse(problem) : problem
 }

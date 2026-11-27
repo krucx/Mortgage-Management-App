@@ -364,3 +364,23 @@ test('mergeReleaseCandidate gives up, merging nothing, when a check is still run
   }), /not merged.*checks still running: qa: QUEUED/);
   assert.deepEqual(calls, []);
 });
+
+test('mergeReleaseCandidate reports the merge when GitHub merges just as the timeout turns auto-merge off', async () => {
+  const { calls, graphql } = recordingGraphql();
+  const merged = fixture.releasePullRequest({ state: 'closed', merged: true, merge_commit_sha: fixture.mergeCommit });
+  const states = [fixture.releasePullRequest(), merged];
+  const result = await mergeReleaseCandidate({
+    pullRequest: fixture.releasePullRequest(), expectedHeadSha: fixture.headCommit, api: releaseApi(), graphql,
+    getPullRequest: async () => (states.length > 1 ? states.shift() : states[0]), timeoutMs: 0, log() {}, ...clock(),
+  });
+  assert.equal(result.mergeCommit, fixture.mergeCommit);
+  assert.deepEqual(calls.map((call) => call.kind), ['enable', 'disable']);
+});
+
+test('mergeReleaseCandidate names the mergeable state when the branch fell behind main', async () => {
+  const { graphql } = recordingGraphql();
+  await assert.rejects(mergeReleaseCandidate({
+    pullRequest: fixture.releasePullRequest(), expectedHeadSha: fixture.headCommit, api: releaseApi(), graphql,
+    getPullRequest: async () => fixture.releasePullRequest({ mergeable_state: 'behind' }), timeoutMs: 0, log() {}, ...clock(),
+  }), /mergeable state behind/);
+});
