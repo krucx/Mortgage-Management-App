@@ -3,7 +3,7 @@ import { cleanup, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PaymentRow } from '../src/api'
 import { PaymentsPage } from '../src/pages/PaymentsPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {

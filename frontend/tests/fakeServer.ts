@@ -1,8 +1,4 @@
-// A stand-in for the backend in page tests: answers requests by method and path, and
-// records what was asked. Anything it has no answer for is a 404, as the backend would say.
-
-// A route's answer: a JSON body, a Response, or a function of the request giving either.
-type Answer = unknown
+import type { MortgagePreview, PreviewOfChange } from '../src/api'
 
 export interface FakeServer {
   /** For the typed client. */
@@ -11,23 +7,17 @@ export interface FakeServer {
   requests: string[]
 }
 
-export function fakeServer(routes: Record<string, Answer>): FakeServer {
-  const requests: string[] = []
-  return {
-    requests,
-    fetch: async (request) => {
-      const route = `${request.method} ${new URL(request.url).pathname}`
-      requests.push(route)
-      if (!(route in routes)) {
-        return Response.json({ detail: 'Not Found' }, { status: 404 })
-      }
-      const answer = routes[route]
-      const body = typeof answer === 'function' ? await answer(request) : answer
-      return body instanceof Response ? body : Response.json(body)
-    },
-  }
-}
-
 /** A change's Preview as the backend answers it: each Mortgage it touches, and the sums
  *  it would write in cash (none, unless given). */
-export const changePreview = (mortgages: unknown[], cash: number[] = []) => ({ mortgages, cash })
+export const changePreview = (
+  mortgages: (Omit<MortgagePreview, 'discount_room' | 'over_threshold' | 'advance'> &
+    Partial<Pick<MortgagePreview, 'discount_room' | 'over_threshold' | 'advance'>>)[],
+  cash: number[] = [],
+): PreviewOfChange => ({
+  mortgages: mortgages.map((mortgage) => ({
+    discount_room: 0,
+    over_threshold: false,
+    ...mortgage,
+  })),
+  cash,
+})

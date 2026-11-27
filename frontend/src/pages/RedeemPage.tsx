@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
-import { CloseMortgage } from '../components/CloseMortgage'
+import { CloseMortgage } from './mortgage/CloseMortgage'
 import { NotLoaded } from '../components/NotLoaded'
 import { PersonLink } from '../components/PersonLink'
 import { mortgageQuery } from '../requests'

@@ -1,79 +1,35 @@
-import { useState } from 'react'
 import { PreviewSection } from '../../components/BeforeAfter'
-import { Summary } from '../../components/ConfirmDialog'
 import { Owed } from '../../components/Owed'
 import { RupeeInput } from '../../components/RupeeInput'
-import { useClosing, type Closing } from '../../components/useClosing'
 import { useQuotes } from '../../components/useQuotes'
-import { formatDate, todayIso } from '../../format'
-import { formatINR, rupeesToPaise } from '../../money'
+import { formatDate } from '../../format'
+import { formatINR } from '../../money'
+import { useClosingDraft } from '../mortgage/useClosingDraft'
 import type { Chosen } from './types'
 
-export /** Forfeit several Mortgages on one date, each with its own Recovered Amount: all of
- *  them, or none if the backend refuses any. */
-function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void }) {
-  const [on, setOn] = useState(todayIso())
-  const [recovered, setRecovered] = useState<Record<number, string>>({})
-  const [note, setNote] = useState('')
-  const quoteOf = useQuotes(chosen, on)
-
-  const entered = chosen.every((m) => recovered[m.id])
-  const closing: Closing | null = entered
-    ? {
-        kind: 'forfeit',
-        forfeit: {
-          forfeited_on: on,
-          note,
-          mortgages: chosen.map((m) => ({
-            mortgage_id: m.id,
-            recovered_amount: rupeesToPaise(recovered[m.id]),
-          })),
-        },
-      }
-    : null
-  const { preview, submit, saving, canSave, error, confirmDialog, closureOf } = useClosing({
-    closing,
-    confirm: () => ({
-      title: `Forfeit ${chosen.length} Mortgage${chosen.length > 1 ? 's' : ''}?`,
-      body: (
-        <Summary
-          rows={[
-            ['Forfeited on', formatDate(on)],
-            ...chosen.map((m): [string, string] => {
-              const closure = closureOf(m.id)
-              return [
-                m.name,
-                `Recovered ${formatINR(closure?.recovered_amount ?? 0)} of ${formatINR(closure?.outstanding ?? 0)}`,
-              ]
-            }),
-            [total >= 0 ? 'Total profit' : 'Total loss', formatINR(Math.abs(total))],
-          ]}
-        />
-      ),
-      confirmLabel: 'Confirm Forfeiture',
-      danger: true,
-    }),
-    saved: onDone,
-  })
-  // Each one's profit or loss, as the Preview works it out.
-  const profitLosses = chosen.map((m) => closureOf(m.id)?.profit_loss ?? null)
-  const previewed = closing !== null && !preview.error && profitLosses.every((r) => r !== null)
-  const total = profitLosses.reduce<number>((sum, r) => sum + (r ?? 0), 0)
+/** Render the fields for forfeiting several Mortgages; the draft owns the Closing. */
+export function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => void }) {
+  const draft = useClosingDraft({ kind: 'forfeit', mortgages: chosen, onSaved: onDone })
+  const quoteOf = useQuotes(chosen, draft.on.value)
+  const profitLosses = chosen.map((m) => draft.closureOf(m.id)?.profit_loss ?? null)
+  const previewed =
+    draft.closing !== null && !draft.preview.error && profitLosses.every((r) => r !== null)
+  const total = profitLosses.reduce<number>((sum, amount) => sum + (amount ?? 0), 0)
 
   return (
-    <form onSubmit={submit} className="stack close-panel">
+    <form onSubmit={draft.submit} className="stack close-panel">
       <strong>Forfeit the {chosen.length} chosen</strong>
       <div className="grid-2">
         <label>
           Forfeited on
-          <input type="date" required value={on} onChange={(event) => setOn(event.target.value)} />
+          <input type="date" required value={draft.on.value} onChange={draft.on.onChange} />
         </label>
         <label>
           Note (for all)
           <input
             placeholder="e.g. auctioned on…"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
+            value={draft.note.value}
+            onChange={draft.note.onChange}
           />
         </label>
       </div>
@@ -82,7 +38,7 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
           <thead>
             <tr>
               <th>Mortgage</th>
-              <th className="num">Outstanding on {formatDate(on)}</th>
+              <th className="num">Outstanding on {formatDate(draft.on.value)}</th>
               <th className="num">Recovered Amount (₹)</th>
               <th className="num">Profit / loss</th>
             </tr>
@@ -100,8 +56,7 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
                     aria-label={`Recovered Amount for ${m.name}`}
                     required
                     min="0"
-                    value={recovered[m.id] ?? ''}
-                    onChange={(event) => setRecovered({ ...recovered, [m.id]: event.target.value })}
+                    {...draft.amountOf(m.id)}
                   />
                 </td>
                 <td className="num">
@@ -118,10 +73,10 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
           </tbody>
         </table>
       </div>
-      {closing && <PreviewSection preview={preview} />}
+      {draft.closing && <PreviewSection preview={draft.preview} />}
       <div className="row">
-        <button type="submit" className="danger-solid" disabled={!canSave || !previewed}>
-          {saving ? 'Forfeiting…' : `Forfeit ${chosen.length}`}
+        <button type="submit" className="danger-solid" disabled={!draft.canSave || !previewed}>
+          {draft.saving ? 'Forfeiting…' : `Forfeit ${chosen.length}`}
         </button>
         {previewed && (
           <span className={`status ${total >= 0 ? 'saved' : 'error'}`}>
@@ -129,8 +84,8 @@ function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () => voi
           </span>
         )}
       </div>
-      {error && <p className="status error">{error}</p>}
-      {confirmDialog}
+      {draft.error && <p className="status error">{draft.error}</p>}
+      {draft.confirmDialog}
     </form>
   )
 }

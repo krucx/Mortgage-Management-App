@@ -1,20 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import type { Mortgage, PaymentMethod } from '../api'
-import { formatDate, formatDays, todayIso } from '../format'
-import { formatINR, rupeesToPaise } from '../money'
-import { outstandingOnClosureQuery } from '../requests'
-import { useServerState } from '../serverState'
-import { PART_MONTH_RULES } from '../terms'
-import { PreviewSection } from './BeforeAfter'
-import { Summary } from './ConfirmDialog'
-import { useClosing, type Closing } from './useClosing'
-import { PaymentMethodSelect } from './PaymentMethodSelect'
-import { usePaymentMethods } from './usePaymentMethods'
-import { RupeeInput } from './RupeeInput'
+import type { Mortgage } from '../../api'
+import { PreviewSection } from '../../components/BeforeAfter'
+import { Summary } from '../../components/ConfirmDialog'
+import { PaymentMethodSelect } from '../../components/PaymentMethodSelect'
+import { RupeeInput } from '../../components/RupeeInput'
+import { formatDate, formatDays } from '../../format'
+import { formatINR } from '../../money'
+import { outstandingOnClosureQuery } from '../../requests'
+import { useServerState } from '../../serverState'
+import { PART_MONTH_RULES } from '../../terms'
+import { useClosingDraft, type ClosingKind } from './useClosingDraft'
 
-type Action = 'redeem' | 'waive' | 'forfeit'
+type Action = ClosingKind
 
 const ACTION_NAMES: Record<Action, string> = {
   redeem: 'Redeem',
@@ -51,136 +50,23 @@ export function CloseMortgage({
   onCancel?: () => void
 }) {
   const [action, setAction] = useState<Action | null>(initialAction)
-  const [on, setOn] = useState(todayIso())
-  const [method, setMethod] = useState<PaymentMethod>('cash')
-  const methods = usePaymentMethods()
-  const [reference, setReference] = useState('')
-  const [recovered, setRecovered] = useState('')
-  const [received, setReceived] = useState('')
-  const [note, setNote] = useState('')
+  const draft = useClosingDraft({
+    kind: action,
+    mortgages: [mortgage],
+    onSaved: ([closed]) => onClosed(closed),
+  })
+  const { closing, preview, submit, canSave, error, confirmDialog, closureOf, methods } = draft
+  const amount = draft.amountOf(mortgage.id)
   const { client } = useServerState()
 
   // The Outstanding on the chosen date: a quote, even for a future date.
   const quoted = useQuery({
-    ...outstandingOnClosureQuery(client, mortgage.id, on),
-    enabled: Boolean(action && on),
+    ...outstandingOnClosureQuery(client, mortgage.id, draft.on.value),
+    enabled: Boolean(action && draft.on.value),
   })
   const quote = quoted.data ?? null
   const quoteError = quoted.error?.message
-  const receivedPaise = rupeesToPaise(received)
-  const paymentReference = reference.trim() || null
 
-  // What saving would send, as a closing of this one Mortgage; re-previewed as it changes.
-  const closing: Closing | null =
-    !action || !on
-      ? null
-      : action === 'redeem'
-        ? {
-            kind: 'redeem',
-            redeem: {
-              redeemed_on: on,
-              method,
-              reference: paymentReference,
-              mortgage_ids: [mortgage.id],
-            },
-          }
-        : action === 'waive'
-          ? received === ''
-            ? null
-            : {
-                kind: 'waive',
-                waive: {
-                  waived_on: on,
-                  method,
-                  reference: paymentReference,
-                  note,
-                  mortgages: [{ mortgage_id: mortgage.id, amount_paid: receivedPaise }],
-                },
-              }
-          : recovered === ''
-            ? null
-            : {
-                kind: 'forfeit',
-                forfeit: {
-                  forfeited_on: on,
-                  note,
-                  mortgages: [
-                    { mortgage_id: mortgage.id, recovered_amount: rupeesToPaise(recovered) },
-                  ],
-                },
-              }
-  const { preview, submit, canSave, error, confirmDialog, closureOf } = useClosing({
-    closing,
-    confirm: () => {
-      const closure = closureOf(mortgage.id)
-      return action === 'waive'
-        ? {
-            title: `Waive off ${mortgage.name}?`,
-            body: (
-              <>
-                <Summary
-                  rows={[
-                    ['Waived on', formatDate(on)],
-                    [`Outstanding on ${formatDate(on)}`, formatINR(closure?.outstanding ?? 0)],
-                    [
-                      'Final Payment',
-                      closure?.payment_amount
-                        ? `${formatINR(closure.payment_amount)} · ${methods?.[method] ?? ''}` +
-                          (paymentReference ? ` · ${paymentReference}` : '')
-                        : 'None',
-                    ],
-                    [
-                      'Waived off',
-                      <strong key="waived">{formatINR(closure?.waived_amount ?? 0)}</strong>,
-                    ],
-                    ['Reason', note.trim() || '—'],
-                  ]}
-                />
-                <p className="hint">Return the jewellery to {mortgage.customer.name}.</p>
-              </>
-            ),
-            confirmLabel: 'Confirm Waiver',
-          }
-        : action === 'redeem'
-          ? {
-              title: `Redeem ${mortgage.name}?`,
-              body: (
-                <>
-                  <Summary
-                    rows={[
-                      ['Redeemed on', formatDate(on)],
-                      ['Final Payment', formatINR(closure?.payment_amount ?? 0)],
-                      [
-                        'Method',
-                        (methods?.[method] ?? '') +
-                          (paymentReference ? ` · ${paymentReference}` : ''),
-                      ],
-                    ]}
-                  />
-                  <p className="hint">Return the jewellery to {mortgage.customer.name}.</p>
-                </>
-              ),
-              confirmLabel: 'Confirm Redemption',
-            }
-          : {
-              title: `Forfeit ${mortgage.name}?`,
-              body: (
-                <Summary
-                  rows={[
-                    ['Forfeited on', formatDate(on)],
-                    [`Outstanding on ${formatDate(on)}`, formatINR(closure?.outstanding ?? 0)],
-                    ['Recovered Amount', formatINR(closure?.recovered_amount ?? 0)],
-                    ['Profit / loss', formatINR(closure?.profit_loss ?? 0)],
-                    ['Note', note.trim() || '—'],
-                  ]}
-                />
-              ),
-              confirmLabel: 'Confirm Forfeiture',
-              danger: true,
-            }
-    },
-    saved: ([closed]) => onClosed(closed),
-  })
   // The Closure as the Preview has it; nothing while the backend would refuse it.
   const proposedClosure = preview.error ? null : closureOf(mortgage.id)
   const waived = proposedClosure?.waived_amount ?? null
@@ -220,13 +106,7 @@ export function CloseMortgage({
       </div>
       <label>
         {CLOSED_ON[action]}
-        <input
-          type="date"
-          required
-          min={mortgage.start_date}
-          value={on}
-          onChange={(event) => setOn(event.target.value)}
-        />
+        <input type="date" required min={mortgage.start_date} {...draft.on} />
       </label>
 
       {quoteError && <p className="status error">{quoteError}</p>}
@@ -241,7 +121,7 @@ export function CloseMortgage({
                 `the month, that day included; ${PART_MONTH_RULES[quote.part_month_rule]})`,
             ],
             [
-              `Outstanding on ${formatDate(on)}`,
+              `Outstanding on ${formatDate(draft.on.value)}`,
               quote.advance_held ? (
                 formatINR(quote.total)
               ) : (
@@ -262,67 +142,49 @@ export function CloseMortgage({
         <div className="grid-2">
           <label>
             Final Payment method
-            <PaymentMethodSelect methods={methods} value={method} onChange={setMethod} />
+            <PaymentMethodSelect methods={methods} {...draft.method} />
           </label>
           <label>
             Reference (optional)
-            <input value={reference} onChange={(event) => setReference(event.target.value)} />
+            <input {...draft.reference} />
           </label>
         </div>
       ) : action === 'waive' ? (
         <>
           <label>
             Received now (₹): the final Payment; the rest of the Outstanding is let off
-            <RupeeInput
-              required
-              min="0"
-              value={received}
-              onChange={(event) => setReceived(event.target.value)}
-            />
+            <RupeeInput required min="0" {...amount} />
             {waived !== null && (
               <span className="status warning">Waived off: {formatINR(waived)}</span>
             )}
           </label>
-          {receivedPaise > 0 && (
+          {draft.paying && (
             <div className="grid-2">
               <label>
                 Final Payment method
-                <PaymentMethodSelect methods={methods} value={method} onChange={setMethod} />
+                <PaymentMethodSelect methods={methods} {...draft.method} />
               </label>
               <label>
                 Reference (optional)
-                <input value={reference} onChange={(event) => setReference(event.target.value)} />
+                <input {...draft.reference} />
               </label>
             </div>
           )}
           <label>
             Reason
-            <input
-              placeholder="e.g. small balance let off"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
+            <input placeholder="e.g. small balance let off" {...draft.note} />
           </label>
         </>
       ) : (
         <>
           <label>
             Recovered Amount (₹): sale price, or value if you keep the jewellery
-            <RupeeInput
-              required
-              min="0"
-              value={recovered}
-              onChange={(event) => setRecovered(event.target.value)}
-            />
+            <RupeeInput required min="0" {...amount} />
             {profitLoss !== null && <ProfitLoss amount={profitLoss} />}
           </label>
           <label>
             Note
-            <input
-              placeholder="e.g. sold to whom"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
+            <input placeholder="e.g. sold to whom" {...draft.note} />
           </label>
         </>
       )}

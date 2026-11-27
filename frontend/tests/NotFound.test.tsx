@@ -2,7 +2,7 @@
 import { cleanup, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { AppRoutes } from '../src/App'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -43,7 +43,7 @@ test.each([
 
 test('any other refusal still shows what the backend said', async () => {
   const failing = Response.json({ detail: 'Database is locked' }, { status: 500 })
-  showPage(fakeServer({ 'GET /api/mortgages/7': failing }), '/mortgages/7', {
+  showPage(fakeServer({ 'GET /api/mortgages/{mortgage_id}': failing }), '/mortgages/7', {
     '/*': <AppRoutes />,
   })
 

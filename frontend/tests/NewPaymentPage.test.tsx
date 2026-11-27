@@ -4,28 +4,43 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { NewPaymentPage } from '../src/pages/NewPaymentPage'
 import grace from '../src/pages/newPayment/GraceTip.module.css'
 import { formatDate, todayIso } from '../src/format'
-import { changePreview, fakeServer } from './fakeServer'
+import { changePreview } from './fakeServer'
+import { typedFakeServer, type Routes } from './typedFakeServer'
 import { mortgage, showPage } from './showPage'
-import type { PaymentIn } from '../src/api'
+import type { components } from '../src/api.gen'
+import type {
+  Closure,
+  MortgagePreview,
+  MortgageRow,
+  Payment,
+  PaymentIn,
+  PreviewSide,
+} from '../src/api'
 
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
 })
 
-const customer = {
+const customer: components['schemas']['CustomerToday'] = {
   id: 3,
+  advance_held: 0,
   name: 'Asha Rao',
   address: '',
   phone_1: '9829012345',
   phone_2: null,
+  email: null,
+  pan: null,
+  aadhaar_last4: null,
   photo_url: null,
+  pan_photo_url: null,
+  aadhaar_photo_url: null,
   referrer: null,
   referred: [],
-  shares_phone_with: null,
+  shares_phone_with: [],
 }
 // The Mortgage as listed, owing ₹51,500 on the Payment date, its Interest to Date included.
-const row = {
+const row: MortgageRow = {
   id: 7,
   name: mortgage.name,
   customer: mortgage.customer,
@@ -34,14 +49,44 @@ const row = {
   status: 'active',
   outstanding_total: 5_150_000,
   advance_held: 0,
-  not_redeemable: null as string | null,
+  not_redeemable: null,
   unpaid_interest: 0,
   month_interest: 75_000,
 }
+const nothingOwed = (closure: PreviewSide['closure'] = null): PreviewSide => ({
+  outstanding: 0,
+  points: [],
+  term_changes: [],
+  closure,
+})
+/** A Mortgage's Preview that changes nothing and has ample Discount room. */
+const mortgagePreview = (over: Partial<MortgagePreview> = {}): MortgagePreview => ({
+  mortgage_id: 7,
+  mortgage_name: row.name,
+  before: nothingOwed(),
+  after: nothingOwed(),
+  ledger_changes: [],
+  advance_warnings: [],
+  discount_room: row.outstanding_total,
+  over_threshold: false,
+  ...over,
+})
+/** The Payment the backend answers with for the one asked for. */
+const recorded = (asked: PaymentIn): Payment => ({
+  ...asked,
+  id: 9,
+  customer: { kind: 'customer', id: 3, name: customer.name },
+  received_on: asked.received_on ?? null,
+  reference: asked.reference ?? null,
+  allocations: [],
+  voided_at: null,
+  void_reason: null,
+})
+
 /** The backend for recording a ₹50,750 UPI Payment, which leaves ₹750 Outstanding. */
-function server(extra: Record<string, unknown> = {}) {
-  return fakeServer({
-    'GET /api/customers/3': customer,
+function server(extra: Routes = {}) {
+  return typedFakeServer({
+    'GET /api/customers/{customer_id}': customer,
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 1 },
     'GET /api/payment-methods': [
       { method: 'cash', name: 'Cash' },
@@ -51,14 +96,7 @@ function server(extra: Record<string, unknown> = {}) {
       discount_confirmation_limit: 50_000,
     },
     'POST /api/payments/preview': changePreview([]),
-    'POST /api/payments': async (request: Request) => ({
-      ...((await request.json()) as Record<string, unknown>),
-      id: 9,
-      customer: { kind: 'customer', id: 3, name: customer.name },
-      allocations: [],
-      voided_at: null,
-      void_reason: null,
-    }),
+    'POST /api/payments': async (request: Request) => recorded((await request.json()) as PaymentIn),
     ...extra,
   })
 }
@@ -124,16 +162,14 @@ test('a Discount can be recorded without cash', async () => {
 function discountAwarePreview(rooms: Record<number, number> = {}, limit = 50_000) {
   return async (request: Request) => {
     const asked = (await request.json()) as PaymentIn
-    const mortgages = asked.allocations.map((allocation) => ({
-      mortgage_id: allocation.mortgage_id,
-      mortgage_name: row.name,
-      before: { outstanding: row.outstanding_total, points: [], term_changes: [], closure: null },
-      after: { outstanding: 0, points: [], term_changes: [], closure: null },
-      ledger_changes: [],
-      advance_warnings: [],
-      discount_room: rooms[allocation.mortgage_id] ?? row.outstanding_total,
-      over_threshold: allocation.discount > limit,
-    }))
+    const mortgages = asked.allocations.map((allocation) =>
+      mortgagePreview({
+        mortgage_id: allocation.mortgage_id,
+        before: { ...nothingOwed(), outstanding: row.outstanding_total },
+        discount_room: rooms[allocation.mortgage_id] ?? row.outstanding_total,
+        over_threshold: allocation.discount > limit,
+      }),
+    )
     return changePreview(mortgages)
   }
 }
@@ -165,14 +201,7 @@ test('an over-balance Discount is reduced to the room the Preview reports, not O
     'POST /api/payments/preview': discountAwarePreview({ 7: 30_000 }),
     'POST /api/payments': async (request: Request) => {
       saved = (await request.json()) as PaymentIn
-      return {
-        ...saved,
-        id: 9,
-        customer: { kind: 'customer', id: 3, name: customer.name },
-        allocations: [],
-        voided_at: null,
-        void_reason: null,
-      }
+      return recorded(saved)
     },
   })
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
@@ -226,14 +255,7 @@ test('declining the cap or the large-Discount confirmation saves nothing', async
     'POST /api/payments/preview': discountAwarePreview(),
     'POST /api/payments': async (request: Request) => {
       saves += 1
-      return {
-        ...((await request.json()) as Record<string, unknown>),
-        id: 9,
-        customer: { kind: 'customer', id: 3, name: customer.name },
-        allocations: [],
-        voided_at: null,
-        void_reason: null,
-      }
+      return recorded((await request.json()) as PaymentIn)
     },
   })
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })
@@ -270,16 +292,22 @@ const LATER_PAYMENT =
 function quoting(extra: Record<string, unknown> = {}) {
   const owed = (id: number, on: string) =>
     id === 8 ? 2_000_000 : on < '2026-04-01' ? 5_100_000 : 5_150_000
-  const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
-  const redeemed = (id: number, on: string) => ({
+  const redeemed = (id: number, on: string): Closure => ({
     kind: 'redeemed',
     on,
     outstanding: owed(id, on),
     interest_to_date: id === 8 ? 0 : on < '2026-04-01' ? 25_000 : 75_000,
     interest_to_date_days: 15,
+    advance_held: 0,
+    payment_id: null,
+    payment_amount: null,
+    waived_amount: null,
+    recovered_amount: null,
+    profit_loss: null,
+    note: null,
   })
-  return fakeServer({
-    'GET /api/customers/3': customer,
+  return typedFakeServer({
+    'GET /api/customers/{customer_id}': customer,
     'GET /api/mortgages': (request: Request) => {
       const on = new URL(request.url).searchParams.get('as_of') ?? ''
       const items = [row, ring].map((m) => ({
@@ -292,18 +320,17 @@ function quoting(extra: Record<string, unknown> = {}) {
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
     'POST /api/payments/preview': async (request: Request) => {
       const asked = (await request.json()) as PaymentIn
-      const mortgages = asked.allocations.map((a) => ({
-        mortgage_id: a.mortgage_id,
-        mortgage_name: a.mortgage_id === 8 ? ring.name : row.name,
-        before: side(null),
-        after: side(
-          a.amount === owed(a.mortgage_id, asked.paid_on)
-            ? redeemed(a.mortgage_id, asked.paid_on)
-            : null,
-        ),
-        ledger_changes: [],
-        advance_warnings: [],
-      }))
+      const mortgages = asked.allocations.map((a) =>
+        mortgagePreview({
+          mortgage_id: a.mortgage_id,
+          mortgage_name: a.mortgage_id === 8 ? ring.name : row.name,
+          after: nothingOwed(
+            a.amount === owed(a.mortgage_id, asked.paid_on)
+              ? redeemed(a.mortgage_id, asked.paid_on)
+              : null,
+          ),
+        }),
+      )
       return changePreview(mortgages)
     },
     ...extra,
@@ -344,8 +371,8 @@ test('a Mortgage owing nothing is not offered a Payment, but pointed to its Rede
   // Dormant (ADR 0012): nothing is owed, so no Payment can Redeem it.
   const paidUp = { ...ring, outstanding_total: 0 }
   showPage(
-    fakeServer({
-      'GET /api/customers/3': customer,
+    typedFakeServer({
+      'GET /api/customers/{customer_id}': customer,
       'GET /api/mortgages': { items: [row, paidUp], total: 2, page: 1, page_size: 2 },
       'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
     }),
@@ -379,16 +406,9 @@ function recording() {
   const saved: Record<string, unknown>[] = []
   const backend = quoting({
     'POST /api/payments': async (request: Request) => {
-      const asked = (await request.json()) as Record<string, unknown>
+      const asked = (await request.json()) as PaymentIn
       saved.push(asked)
-      return {
-        ...asked,
-        id: 9,
-        customer: { kind: 'customer', id: 3, name: customer.name },
-        allocations: [],
-        voided_at: null,
-        void_reason: null,
-      }
+      return recorded(asked)
     },
   })
   showPage(backend, '/payments/new?customer=3', { '/payments/new': <NewPaymentPage /> })
@@ -581,7 +601,7 @@ function graceServer() {
     'POST /api/payments': async (request: Request) => {
       const payment = (await request.json()) as PaymentIn
       saved.push(payment)
-      return { ...payment, id: 9, customer: { kind: 'customer', id: 3, name: customer.name } }
+      return recorded(payment)
     },
   })
   return { backend, saved }
@@ -780,17 +800,7 @@ test('an Advance is recorded with its months, and its schedule is shown from the
   const backend = server({
     'POST /api/payments/preview': async (request: Request) => {
       asked = (await request.json()) as PaymentIn
-      return changePreview([
-        {
-          mortgage_id: 7,
-          mortgage_name: row.name,
-          before: { outstanding: 0, points: [], term_changes: [], closure: null },
-          after: { outstanding: 0, points: [], term_changes: [], closure: null },
-          ledger_changes: [],
-          advance_warnings: [],
-          advance: { parts, verdict: 'reduces_principal' },
-        },
-      ])
+      return changePreview([mortgagePreview({ advance: { parts, verdict: 'reduces_principal' } })])
     },
   })
   showPage(backend, '/payments/new?customer=3&mortgage=7', { '/payments/new': <NewPaymentPage /> })

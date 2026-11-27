@@ -6,12 +6,14 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useServerState, type ApiClient } from '../serverState'
 import styles from './StartGate.module.css'
 
-/** Whether the backend answers: not when fetch itself fails, nor when what passes /api on
- *  says the backend behind it is down (5xx). */
+/** Whether the backend answers: with its Health, whatever that says. A 503 Health (the
+ *  database can't be reached, or isn't updated yet) still answers, and the app shows what
+ *  fails; fetch failing, or a proxy's 5xx with no Health, means it isn't running. */
 async function backendAnswers(client: ApiClient): Promise<boolean> {
   try {
-    const { response } = await client.GET('/api/payment-methods')
-    return response.status < 500
+    const { data, error } = await client.GET('/api/health')
+    const body: unknown = data ?? error
+    return typeof body === 'object' && body !== null && 'status' in body && 'database' in body
   } catch {
     return false
   }

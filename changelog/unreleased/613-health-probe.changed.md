@@ -1,0 +1,1 @@
+- **Starting the app on Windows:** Setup and the Desktop shortcut wait on the app's health check. When the app starts but reports a problem (say, its database can't be reached), the window says so in one line and goes on, instead of waiting until it gives up.

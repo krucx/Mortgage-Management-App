@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { checkChangelog, isAllowlistedPath } from './check-changelog.mjs'
+import { checkChangelog } from './check-changelog.mjs'
 import { isReleaseCandidate } from './check-version-unchanged.mjs'
 
 const pr = { headBranch: 'fix/thing', headRepo: 'o/r', baseRepo: 'o/r' }
@@ -19,16 +19,7 @@ const withStore = {
 }
 const reader = (refs) => (ref, path) => refs[ref][path] ?? null
 
-test('allowlists internal chore paths only', () => {
-  assert.equal(isAllowlistedPath('Documentation/RELEASE_CHECKLIST.md'), true)
-  assert.equal(isAllowlistedPath('.github/scripts/check-changelog.mjs'), true)
-  assert.equal(isAllowlistedPath('changelog/unreleased/README.md'), true)
-  assert.equal(isAllowlistedPath('AGENTS.md'), true)
-  assert.equal(isAllowlistedPath('backend/src/app.py'), false)
-  assert.equal(isAllowlistedPath('frontend/src/App.tsx'), false)
-  assert.equal(isAllowlistedPath('docs/index.html'), false)
-  assert.equal(isAllowlistedPath('CHANGELOG.md'), false)
-})
+// Which paths are product is pinned in test-critical-paths.mjs (classify).
 
 test('a product change with a new fragment passes', () => {
   assert.deepEqual(
