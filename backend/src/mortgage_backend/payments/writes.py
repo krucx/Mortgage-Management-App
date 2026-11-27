@@ -7,7 +7,6 @@ from collections.abc import Mapping
 from datetime import date, datetime
 from typing import NamedTuple
 
-from fastapi import HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import insert, select, update
 from sqlalchemy.engine import Connection, RowMapping
@@ -27,7 +26,7 @@ from mortgage_backend.platform.db import (
     mortgage_table,
     payment_table,
 )
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.safekeeping import audit
 
 
@@ -162,9 +161,9 @@ def refuse_payment(
 ) -> list[RowMapping]:
     """The Mortgages the Payment is allocated to, unless it cannot be made at all."""
     if payment.paid_on > today:
-        raise unprocessable("The Payment date cannot be in the future")
+        raise Refusal("The Payment date cannot be in the future", "unprocessable")
     if not exists(conn, customer_table, payment.customer_id):
-        raise unprocessable("Customer not found")
+        raise Refusal("Customer not found", "unprocessable")
     rows = []
     for allocation in payment.allocations:
         row = (
@@ -177,10 +176,14 @@ def refuse_payment(
             .first()
         )
         if row is None or row["customer_id"] != payment.customer_id:
-            raise unprocessable("Each Mortgage must belong to the paying Customer")
+            raise Refusal(
+                "Each Mortgage must belong to the paying Customer", "unprocessable"
+            )
         refuse_unless_active(row)
         if payment.paid_on < row["start_date"]:
-            raise unprocessable(f"{row['name']} had not started on that date")
+            raise Refusal(
+                f"{row['name']} had not started on that date", "unprocessable"
+            )
         rows.append(row)
     return rows
 
@@ -210,7 +213,7 @@ def payment_grace(conn: Connection, payment: PaymentIn, today: date) -> Grace | 
     if received_on is None:
         return None
     if received_on > today:
-        raise unprocessable("The date received cannot be in the future")
+        raise Refusal("The date received cannot be in the future", "unprocessable")
     offer = next(
         (
             offer
@@ -220,14 +223,16 @@ def payment_grace(conn: Connection, payment: PaymentIn, today: date) -> Grace | 
         None,
     )
     if offer is None:
-        raise unprocessable(
+        raise Refusal(
             f"A Payment received on {received_on:%d %b %Y} can't be dated "
-            f"{payment.paid_on:%d %b %Y}: that is not within the Grace Period"
+            f"{payment.paid_on:%d %b %Y}: that is not within the Grace Period",
+            "unprocessable",
         )
     if offer.let_off == 0:
-        raise unprocessable(
+        raise Refusal(
             f"Dating it {payment.paid_on:%d %b %Y} lets off nothing: record it as "
-            "an ordinary Payment"
+            "an ordinary Payment",
+            "unprocessable",
         )
     return Grace(received_on, {m.mortgage_id: m.let_off for m in offer.mortgages})
 
@@ -243,16 +248,16 @@ def void_payment(
         select(payment_table.c.voided_at).where(payment_table.c.id == payment_id)
     ).one_or_none()
     if found is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
+        raise Refusal("Payment not found", "not_found")
     if found.voided_at is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Already voided")
+        raise Refusal("Already voided", "conflict")
     rows = mortgages_of(conn, payment_id)
     for row in rows:
         if row["redemption_payment_id"] == payment_id:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
+            raise Refusal(
                 f"This is the final Payment of the closing of {row['name']}: "
                 "reopen the Mortgage instead, which voids it",
+                "conflict",
             )
         refuse_unless_active(row)
     write_void(conn, payment_id, reason, now)

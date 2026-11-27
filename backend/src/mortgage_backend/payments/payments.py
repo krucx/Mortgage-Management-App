@@ -5,7 +5,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from sqlalchemy import exists as sql_exists
 from sqlalchemy import func, or_, select, true
@@ -24,6 +24,7 @@ from mortgage_backend.platform.db import (
     mortgage_table,
     payment_table,
 )
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.paging import Page, PageNumber, Sorting, query_page
 
 
@@ -164,7 +165,7 @@ def load_payment(conn: Connection, payment_id: int) -> Payment:
         .where(payment_table.c.id == payment_id)
     ).first()
     if payment is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
+        raise Refusal("Payment not found", "not_found")
 
     mortgages = mortgages_of(conn, payment_id)
     voided = payment.voided_at is not None

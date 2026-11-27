@@ -25,7 +25,7 @@ from mortgage_backend.payments.writes import (
 )
 from mortgage_backend.platform.clock import NowDep, TodayDep
 from mortgage_backend.platform.db import EngineDep, write_transaction
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 
 
 def record_payment(
@@ -117,11 +117,13 @@ def _redeemed_by(
     if full_payment != mortgage.outstanding_on_closure(on).to_pay:
         return None
     if allocation.advance:
-        raise unprocessable("This Payment Redeems it, so it can't hold an Advance")
+        raise Refusal(
+            "This Payment Redeems it, so it can't hold an Advance", "unprocessable"
+        )
     # (Not a future date: the Payment's own checks refuse that.)
     refusal = mortgage.not_closable(on)
     if refusal is not None:
-        raise unprocessable(refusal)
+        raise Refusal(refusal, "unprocessable")
     return mortgage
 
 
