@@ -116,3 +116,48 @@ test('lookUpReuse runs in full when nothing recorded the tree', async () => {
   assert.equal(decision.reused, false)
   assert.equal(decision.tree, TREE)
 })
+
+// The release path (#572): the preflight records the candidate's tree on the candidate commit
+// (the release PR head). The release PR run, the push to main after the merge, and release.yml's
+// call to Tests on the version tag all look that record up through their commit's parents.
+const CANDIDATE = 'c'.repeat(40)
+const PREFLIGHT = 'https://github.com/o/r/actions/runs/500'
+
+test('release PR: its test merge commit has the candidate as a parent, so the preflight is reused', async () => {
+  const client = fakeClient({
+    commit: { sha: 'pr-merge-ref', commit: { tree: { sha: TREE } }, parents: [{ sha: 'main-tip' }, { sha: CANDIDATE }] },
+    statuses: { [CANDIDATE]: [passed(TREE, PREFLIGHT)] },
+  })
+  assert.deepEqual(await lookUpReuse(client, { sha: 'pr-merge-ref', workflow: 'Tests' }),
+    { reused: true, sha: CANDIDATE, runUrl: PREFLIGHT, tree: TREE })
+})
+
+test('release tag: the merge commit of the release PR reuses the preflight when main did not move', async () => {
+  const client = fakeClient({
+    commit: { sha: 'release-merge', commit: { tree: { sha: TREE } }, parents: [{ sha: 'main-tip' }, { sha: CANDIDATE }] },
+    pulls: [{ merged_at: '2026-11-27T00:00:00Z', head: { sha: CANDIDATE } }],
+    statuses: { [CANDIDATE]: [passed(TREE, PREFLIGHT)] },
+  })
+  const decision = await lookUpReuse(client, { sha: 'release-merge', workflow: 'Tests' })
+  assert.equal(decision.reused, true)
+  assert.equal(decision.runUrl, PREFLIGHT)
+})
+
+test('release tag: if main moved, the merged tree differs from the validated one and Tests run in full', async () => {
+  const client = fakeClient({
+    commit: { sha: 'release-merge', commit: { tree: { sha: OTHER_TREE } }, parents: [{ sha: 'main-moved' }, { sha: CANDIDATE }] },
+    pulls: [{ merged_at: '2026-11-27T00:00:00Z', head: { sha: CANDIDATE } }],
+    statuses: { [CANDIDATE]: [passed(TREE, PREFLIGHT)], 'main-moved': [passed('d'.repeat(40))] },
+  })
+  const decision = await lookUpReuse(client, { sha: 'release-merge', workflow: 'Tests' })
+  assert.equal(decision.reused, false)
+  assert.match(decision.reason, new RegExp(`${CANDIDATE}: validated a different tree`))
+})
+
+test('release PR: a failed run on the candidate after the preflight passed is not reused', async () => {
+  const client = fakeClient({
+    commit: { sha: 'pr-merge-ref', commit: { tree: { sha: TREE } }, parents: [{ sha: 'main-tip' }, { sha: CANDIDATE }] },
+    statuses: { [CANDIDATE]: [failed(TREE), passed(TREE, PREFLIGHT)] },
+  })
+  assert.equal((await lookUpReuse(client, { sha: 'pr-merge-ref', workflow: 'Tests' })).reused, false)
+})

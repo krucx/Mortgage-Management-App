@@ -33,9 +33,15 @@ env:
   IMAGE: krucx11/mortgage-management-app
 
 jobs:
+  # The suite already ran once, in the candidate preflight, which recorded the tree it validated
+  # on the candidate commit. The tag's merge commit has that tree when main did not move, so
+  # Tests reports "Reused result from run <link>" and skips its jobs; any other tree runs them
+  # all (.github/scripts/tree-reuse.mjs).
   tests:
     uses: ./.github/workflows/test.yml
-    # Tests' reuse and record jobs ask for these, though they do nothing on a release run.
+    with:
+      reuse-validated-tree: true
+    # Tests' reuse job reads the commit's statuses and pull requests; its record job writes one.
     permissions:
       contents: read
       pull-requests: read

@@ -190,6 +190,14 @@ Reuse relies on `main` keeping "require branches to be up to date before merging
 merge a pull request tested has the same tree as the merge commit. Do not turn that rule off.
 A pull request merged without being up to date (for example with a bypass) simply runs in full.
 
+A release runs the full `Tests` suite (QA, Windows and the image included) **once**: in the
+preflight that **Prepare release candidate** dispatches on the candidate commit, which records
+its tree there like any other run. The `release/X.Y.Z` pull request's own `Tests` run (when it
+runs: its test merge has the candidate as a parent), the `push` to `main` after the merge (when
+the owner merges it), and the `Tests` call inside `release.yml` on the version tag (the merge
+commit; `reuse-validated-tree: true`) each look that record up and report "Reused result from run
+<preflight link>". If `main` moved and the tree changed, they run the suite in full.
+
 The weekly CodeQL and daily Container scan schedules always run in full, so new
 vulnerabilities are caught; a reused `main` push leaves code-scanning results for `main` to
 those schedules. The `image` job and the Container scan build the image from one shared
