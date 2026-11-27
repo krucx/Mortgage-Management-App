@@ -3,9 +3,19 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MortgagePage } from '../src/pages/MortgagePage'
 import ledger from '../src/pages/mortgage/Ledger.module.css'
-import type { LedgerStep } from '../src/api'
+import type {
+  AuditEntry,
+  CallNote,
+  Closure,
+  Mortgage,
+  LedgerStep,
+  MortgagePreview,
+  OutstandingOnClosure,
+  PreviewSide,
+} from '../src/api'
 import { customerHistoryQuery, mortgageHistoryQuery } from '../src/requests'
-import { changePreview, fakeServer, type FakeServer } from './fakeServer'
+import { changePreview, type FakeServer } from './fakeServer'
+import { typedFakeServer, type Routes } from './typedFakeServer'
 import { expectWholeRupeeSteps } from './rupeeField'
 import { mortgage, showPage } from './showPage'
 
@@ -18,7 +28,7 @@ const showMortgagePage = (server: FakeServer) =>
   showPage(server, '/mortgages/7', { '/mortgages/:id': <MortgagePage /> })
 
 test('the Mortgage page shows what the Mortgage owes', async () => {
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': mortgage }))
+  showMortgagePage(typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': mortgage }))
 
   expect(screen.getByText('Loading…')).toBeTruthy()
   expect(await screen.findByRole('heading', { name: /2026GoldChain/ })).toBeTruthy()
@@ -26,31 +36,34 @@ test('the Mortgage page shows what the Mortgage owes', async () => {
 })
 
 test('weights are written in grams', async () => {
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': mortgage }))
+  showMortgagePage(typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': mortgage }))
 
   expect(await screen.findByText('20 grams gross, 18 grams net, 22K')).toBeTruthy()
 })
 
 test('how the Mortgage was lent is shown, or a dash if it was made before that was asked', async () => {
-  const methods = {
+  const methods: Routes = {
     'GET /api/payment-methods': [
       { method: 'cash', name: 'Cash' },
       { method: 'upi', name: 'UPI' },
     ],
   }
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': mortgage, ...methods }))
+  showMortgagePage(typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': mortgage, ...methods }))
   const lent = (await screen.findByText('Lent Through')).nextElementSibling!
   await vi.waitFor(() => expect(lent.textContent).toBe('UPI'))
   cleanup()
 
   showMortgagePage(
-    fakeServer({ 'GET /api/mortgages/7': { ...mortgage, lent_through: null }, ...methods }),
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': { ...mortgage, lent_through: null },
+      ...methods,
+    }),
   )
   expect((await screen.findByText('Lent Through')).nextElementSibling!.textContent).toBe('—')
 })
 
 test('setting how a Mortgage was lent shows in its History by name', async () => {
-  const entry = {
+  const entry: AuditEntry = {
     id: 1,
     at: '2026-10-18T10:00:00',
     entity: 'mortgage',
@@ -63,9 +76,14 @@ test('setting how a Mortgage was lent shows in its History by name', async () =>
     mortgage_name: mortgage.name,
   }
   showMortgagePage(
-    fakeServer({
-      'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/history': { items: [[entry]], total: 1, page: 1, page_size: 20 },
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': mortgage,
+      'GET /api/mortgages/{mortgage_id}/history': {
+        items: [[entry]],
+        total: 1,
+        page: 1,
+        page_size: 20,
+      },
       'GET /api/payment-methods': [{ method: 'bank_transfer', name: 'Bank transfer' }],
     }),
   )
@@ -81,7 +99,7 @@ test('setting how a Mortgage was lent shows in its History by name', async () =>
 
 test('History shows the latest changes, and the complete history a page of changes at a time', async () => {
   // Change n is an edit of the Jewellery (to "Jewellery n") on day n; a page holds 20 changes, newest first.
-  const change = (n: number) => [
+  const change = (n: number): AuditEntry[] => [
     {
       id: n,
       at: `2026-10-${String(n).padStart(2, '0')}T10:00:00`,
@@ -95,9 +113,9 @@ test('History shows the latest changes, and the complete history a page of chang
       mortgage_name: mortgage.name,
     },
   ]
-  const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'GET /api/mortgages/7/history': (request: Request) => {
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'GET /api/mortgages/{mortgage_id}/history': (request: Request) => {
       const page = Number(new URL(request.url).searchParams.get('page'))
       const newest = page === 1 ? 23 : 3
       const count = page === 1 ? 20 : 3
@@ -128,21 +146,20 @@ test('History shows the latest changes, and the complete history a page of chang
 })
 
 test("an Active pro-rata Mortgage's Ledger ends with its Interest to Date, growing daily", async () => {
-  const toDate = {
+  const toDate = ledgerStep({
     on: '2026-10-18',
-    event: 'interest_to_date' as const,
+    event: 'interest_to_date',
     amount: 22_500,
     principal: 5_000_000,
     unpaid_interest: 75_000,
     charged_on: 5_000_000,
     interest_to_date_days: 9,
-    part_month_rule: 'pro_rata' as const,
-    interest_paid: 0,
-    principal_paid: 0,
-    payment_id: null,
+    part_month_rule: 'pro_rata',
     terms: null,
-  }
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger: [toDate] } }))
+  })
+  showMortgagePage(
+    typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': { ...mortgage, ledger: [toDate] } }),
+  )
 
   expect(
     await screen.findByText(
@@ -153,23 +170,22 @@ test("an Active pro-rata Mortgage's Ledger ends with its Interest to Date, growi
 })
 
 test("the Interest to Date shows the Part-Month Rule of its month, not the Mortgage's current one", async () => {
-  const toDate = {
+  const toDate = ledgerStep({
     on: '2026-10-18',
-    event: 'interest_to_date' as const,
+    event: 'interest_to_date',
     amount: 50_000,
     principal: 5_000_000,
     unpaid_interest: 0,
     charged_on: 5_000_000,
     interest_to_date_days: 9,
-    part_month_rule: 'full_month' as const, // the Mortgage is now Pro-rata
-    interest_paid: 0,
-    principal_paid: 0,
-    payment_id: null,
+    part_month_rule: 'full_month', // the Mortgage is now Pro-rata
     terms: null,
-  }
+  })
   const now = { ...mortgage.terms, part_month_rule: 'pro_rata' as const }
   showMortgagePage(
-    fakeServer({ 'GET /api/mortgages/7': { ...mortgage, terms: now, ledger: [toDate] } }),
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': { ...mortgage, terms: now, ledger: [toDate] },
+    }),
   )
 
   expect(
@@ -181,9 +197,9 @@ test("the Interest to Date shows the Part-Month Rule of its month, not the Mortg
 })
 
 test('the Ledger says how much of a month was paid ahead', async () => {
-  const step = {
+  const step = ledgerStep({
     on: '2026-10-18',
-    event: 'interest' as const,
+    event: 'interest',
     amount: 75_000,
     principal: 5_000_000,
     unpaid_interest: 30_000,
@@ -191,20 +207,19 @@ test('the Ledger says how much of a month was paid ahead', async () => {
     monthly_rate_bps: 150,
     interest_to_date_days: 0,
     paid_ahead: 45_000,
-    interest_paid: 0,
-    principal_paid: 0,
-    payment_id: null,
     terms: null,
-  }
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger: [step] } }))
+  })
+  showMortgagePage(
+    typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': { ...mortgage, ledger: [step] } }),
+  )
 
   expect(await screen.findByText('Interest: 1.5% of ₹50,000, ₹450 of it paid ahead')).toBeTruthy()
 })
 
 test('an Interest step shows the rate charged then, not the Mortgage current rate', async () => {
-  const step = {
+  const step = ledgerStep({
     on: '2026-10-18',
-    event: 'interest' as const,
+    event: 'interest',
     amount: 100_000,
     principal: 5_000_000,
     unpaid_interest: 100_000,
@@ -212,21 +227,20 @@ test('an Interest step shows the rate charged then, not the Mortgage current rat
     monthly_rate_bps: 200, // the Mortgage's rate is now 1.5%
     interest_to_date_days: 0,
     paid_ahead: 0,
-    interest_paid: 0,
-    principal_paid: 0,
-    payment_id: null,
     terms: null,
-  }
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger: [step] } }))
+  })
+  showMortgagePage(
+    typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': { ...mortgage, ledger: [step] } }),
+  )
 
   expect(await screen.findByText('Interest: 2% of ₹50,000')).toBeTruthy()
 })
 
 test('deleting a photo asks first, then shows the Mortgage without it', async () => {
   let stored = { ...mortgage, photos: [{ id: 5, url: '/api/photos/mortgage-7-a.jpg' }] }
-  const server = fakeServer({
-    'GET /api/mortgages/7': () => stored,
-    'DELETE /api/mortgages/7/photos/5': () => (stored = mortgage),
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': () => stored,
+    'DELETE /api/mortgages/{mortgage_id}/photos/{photo_id}': () => (stored = mortgage),
   })
   showMortgagePage(server)
 
@@ -240,9 +254,9 @@ test('deleting a photo asks first, then shows the Mortgage without it', async ()
 
 test("adding a photo shows it, and makes the Mortgage's and its Customer's History stale", async () => {
   let stored = mortgage
-  const server = fakeServer({
-    'GET /api/mortgages/7': () => stored,
-    'POST /api/mortgages/7/photos': () =>
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': () => stored,
+    'POST /api/mortgages/{mortgage_id}/photos': () =>
       (stored = { ...mortgage, photos: [{ id: 5, url: '/api/photos/mortgage-7-a.jpg' }] }),
   })
   const state = showMortgagePage(server)
@@ -258,7 +272,7 @@ test("adding a photo shows it, and makes the Mortgage's and its Customer's Histo
 })
 
 test('a photo over 20 MB is refused in plain words, and not sent', async () => {
-  const server = fakeServer({ 'GET /api/mortgages/7': mortgage })
+  const server = typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': mortgage })
   showMortgagePage(server)
 
   fireEvent.change(await screen.findByLabelText('Upload photos'), {
@@ -272,9 +286,9 @@ test('a photo over 20 MB is refused in plain words, and not sent', async () => {
 })
 
 test("the backend's refusal of a photo too large is shown as it says it", async () => {
-  const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/photos': Response.json(
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/photos': Response.json(
       { detail: 'The file is too large (over 20 MB).' },
       { status: 413 },
     ),
@@ -289,8 +303,9 @@ test("the backend's refusal of a photo too large is shown as it says it", async 
 })
 
 // What the Mortgage owes on 20 Apr 2026, whatever the date asked.
-const quote = {
+const quote: OutstandingOnClosure = {
   on: '2026-04-20',
+  last_accrual_on: '2026-04-10',
   principal: 5_000_000,
   unpaid_interest: 75_000,
   interest_to_date_days: 6,
@@ -300,8 +315,11 @@ const quote = {
   advance_held: 0,
   to_pay: 5_075_000,
 }
-const closure = (fields: Record<string, unknown>) => ({
+const closure = (fields: Partial<Closure>): Closure => ({
+  kind: 'redeemed',
   on: '2026-04-20',
+  interest_to_date: 0,
+  interest_to_date_days: 0,
   outstanding: quote.total,
   advance_held: 0,
   payment_id: null,
@@ -312,11 +330,16 @@ const closure = (fields: Record<string, unknown>) => ({
   note: null,
   ...fields,
 })
-const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
+const side = (closure: Closure | null): PreviewSide => ({
+  outstanding: 0,
+  points: [],
+  term_changes: [],
+  closure,
+})
 /** A closing Preview of Mortgage 7, its Closure worked out from what was sent; or the
  *  backend's refusal. */
 const closingPreview =
-  (closureOf: (body: Record<string, unknown>) => unknown) => async (request: Request) => {
+  (closureOf: (body: Record<string, unknown>) => Closure | string) => async (request: Request) => {
     const body = (await request.json()) as Record<string, unknown>
     const made = closureOf(body)
     if (typeof made === 'string') return Response.json({ detail: made }, { status: 422 })
@@ -328,7 +351,9 @@ const closingPreview =
         after: side(made),
         ledger_changes: [],
         advance_warnings: [],
-      },
+        discount_room: 0,
+        over_threshold: false,
+      } satisfies MortgagePreview,
     ])
   }
 const paidOf = (body: Record<string, unknown>) =>
@@ -348,7 +373,7 @@ test('waiving off shows what is let off, asks first, then shows the Waiver', asy
     ...mortgage,
     status: 'waived' as const,
     closure: closure({
-      kind: 'waived' as const,
+      kind: 'waived',
       payment_id: 12,
       payment_amount: 5_000_000,
       waived_amount: 75_000,
@@ -356,9 +381,9 @@ test('waiving off shows what is let off, asks first, then shows the Waiver', asy
     }),
   }
   let body: unknown = null
-  const server = fakeServer({
-    'GET /api/mortgages/7': () => (body ? waived : mortgage),
-    'GET /api/mortgages/7/outstanding-on-closure': quote,
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': () => (body ? waived : mortgage),
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
     'POST /api/closures/waive': async (request: Request) => {
       body = await request.json()
@@ -392,19 +417,16 @@ test('a Waived Mortgage shows its final Payment and what was let off', async () 
   const waived = {
     ...mortgage,
     status: 'waived' as const,
-    closure: {
-      kind: 'waived' as const,
-      on: '2026-04-20',
+    closure: closure({
+      kind: 'waived',
       outstanding: 5_075_000,
       payment_id: 12,
       payment_amount: 5_000_000,
       waived_amount: 75_000,
-      recovered_amount: null,
-      profit_loss: null,
       note: 'Small balance',
-    },
+    }),
   }
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': waived }))
+  showMortgagePage(typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': waived }))
 
   const paid = await screen.findByRole('link', { name: '₹50,000 (receipt)' })
   expect(paid.getAttribute('href')).toBe('/payments/12')
@@ -417,9 +439,9 @@ test('a Redeemed Mortgage gives the Outstanding it was Redeemed for', async () =
   const redeemed = {
     ...mortgage,
     status: 'redeemed' as const,
-    closure: closure({ kind: 'redeemed' as const, payment_id: 12, payment_amount: 5_075_000 }),
+    closure: closure({ kind: 'redeemed', payment_id: 12, payment_amount: 5_075_000 }),
   }
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': redeemed }))
+  showMortgagePage(typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': redeemed }))
 
   expect(
     await screen.findByText(
@@ -440,9 +462,9 @@ test('the Projection shows one Outstanding per date, the Interest to Date includ
     loan_to_value: null,
   })
   showMortgagePage(
-    fakeServer({
-      'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/projection': {
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': mortgage,
+      'GET /api/mortgages/{mortgage_id}/projection': {
         as_of: '2026-04-20',
         collateral_value: null,
         monthly_payment: null,
@@ -471,9 +493,9 @@ test('the Projection shows one Outstanding per date, the Interest to Date includ
 
 test("waiving off the whole Outstanding is refused by the backend's Preview", async () => {
   showMortgagePage(
-    fakeServer({
-      'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/outstanding-on-closure': quote,
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': mortgage,
+      'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
       'POST /api/closures/waive-preview': waivePreview,
     }),
   )
@@ -501,10 +523,10 @@ test('forfeiting shows the profit or loss from the Preview, then Forfeits it alo
       recovered_amount: recovered,
       profit_loss: recovered - quote.total,
     })
-  const server = fakeServer({
-    'GET /api/mortgages/7': () =>
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': () =>
       body ? { ...mortgage, status: 'forfeited', closure: forfeited(4_000_000) } : mortgage,
-    'GET /api/mortgages/7/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'POST /api/closures/forfeit-preview': closingPreview((body) =>
       forfeited((body.mortgages as { recovered_amount: number }[])[0].recovered_amount),
     ),
@@ -532,13 +554,16 @@ test('forfeiting shows the profit or loss from the Preview, then Forfeits it alo
 
 test("the quote names the Part-Month Rule of the month it charges, not the Mortgage's current one", async () => {
   showMortgagePage(
-    fakeServer({
+    typedFakeServer({
       // The Mortgage is now Pro-rata; the month charged was under Full month.
-      'GET /api/mortgages/7': {
+      'GET /api/mortgages/{mortgage_id}': {
         ...mortgage,
         terms: { ...mortgage.terms, part_month_rule: 'pro_rata' },
       },
-      'GET /api/mortgages/7/outstanding-on-closure': { ...quote, part_month_rule: 'full_month' },
+      'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': {
+        ...quote,
+        part_month_rule: 'full_month',
+      },
     }),
   )
 
@@ -551,9 +576,9 @@ test("the quote names the Part-Month Rule of the month it charges, not the Mortg
 
 test('the quote takes the Advance held off the Outstanding, and Redeems for the rest', async () => {
   showMortgagePage(
-    fakeServer({
-      'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/outstanding-on-closure': {
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': mortgage,
+      'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': {
         ...quote,
         advance_held: 600_000,
         to_pay: 4_475_000,
@@ -578,13 +603,13 @@ test('a Redeemed Mortgage says how much of it the Advance held paid', async () =
     ...mortgage,
     status: 'redeemed' as const,
     closure: closure({
-      kind: 'redeemed' as const,
+      kind: 'redeemed',
       advance_held: 600_000,
       payment_id: 12,
       payment_amount: 4_475_000,
     }),
   }
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': redeemed }))
+  showMortgagePage(typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': redeemed }))
 
   expect(
     await screen.findByText(
@@ -598,9 +623,9 @@ test('a Redeemed Mortgage says how much of it the Advance held paid', async () =
 
 test('a future date is quoted, but the backend refuses to record it', async () => {
   showMortgagePage(
-    fakeServer({
-      'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/outstanding-on-closure': quote,
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': mortgage,
+      'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
       'POST /api/closures/redeem-preview': closingPreview(
         () =>
           `${mortgage.name}: A Redemption, Waiver or Forfeiture cannot be recorded for a future date`,
@@ -624,20 +649,18 @@ test('a future date is quoted, but the backend refuses to record it', async () =
 })
 
 test("a Grace Payment's Ledger row shows both dates and what this Mortgage was let off", async () => {
-  const payment = (id: number, on: string) => ({
-    on,
-    event: 'payment' as const,
-    amount: 100_000,
-    principal: 5_000_000,
-    unpaid_interest: 0,
-    interest_paid: 75_000,
-    principal_paid: 25_000,
-    payment_id: id,
-    terms: null,
-  })
+  const payment = (id: number, on: string) =>
+    ledgerStep({
+      on,
+      event: 'payment',
+      amount: 100_000,
+      interest_paid: 75_000,
+      principal_paid: 25_000,
+      payment_id: id,
+    })
   showMortgagePage(
-    fakeServer({
-      'GET /api/mortgages/7': {
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': {
         ...mortgage,
         ledger: [payment(8, '2026-10-01'), payment(9, '2026-11-06')],
         graces: [{ payment_id: 9, received_on: '2026-11-08', let_off: 42_000 }],
@@ -653,24 +676,14 @@ test("a Grace Payment's Ledger row shows both dates and what this Mortgage was l
 })
 
 test('the Ledger shows applied Advance Instalments on their dates and upcoming ones last, in grey', async () => {
-  const step = {
+  const step = ledgerStep({
     on: '2026-10-10',
-    event: 'payment' as const,
+    event: 'payment',
     amount: 75_000,
-    principal: 5_000_000,
-    unpaid_interest: 0,
-    charged_on: 0,
-    interest_to_date_days: 0,
-    paid_ahead: 0,
     interest_paid: 75_000,
-    principal_paid: 0,
-    discount: 0,
-    discount_interest_paid: 0,
-    discount_principal_paid: 0,
     payment_id: 4,
-    terms: null,
     instalment_id: 21,
-  }
+  })
   const instalment = (id: number, on: string, number: number, upcoming: boolean) => ({
     id,
     payment_id: 4,
@@ -683,8 +696,8 @@ test('the Ledger shows applied Advance Instalments on their dates and upcoming o
     cancelled_on: null,
   })
   showMortgagePage(
-    fakeServer({
-      'GET /api/mortgages/7': {
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': {
         ...mortgage,
         ledger: [step],
         advance_instalments: [
@@ -705,9 +718,9 @@ test('the Ledger shows applied Advance Instalments on their dates and upcoming o
 
 test('Collateral Value, Received now and Recovered Amount step by whole rupees', async () => {
   showMortgagePage(
-    fakeServer({
-      'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/outstanding-on-closure': quote,
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': mortgage,
+      'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     }),
   )
 
@@ -767,7 +780,7 @@ test('the Ledger shows its latest 8 steps, and the complete Ledger in a popup', 
     }),
     ledgerStep({ on: '2026-09-10', event: 'capitalised', amount: 75_000, principal: 5_050_000 }),
   ]
-  showMortgagePage(fakeServer({ 'GET /api/mortgages/7': { ...mortgage, ledger } }))
+  showMortgagePage(typedFakeServer({ 'GET /api/mortgages/{mortgage_id}': { ...mortgage, ledger } }))
 
   expect(await screen.findByText('Showing the latest 8 of 10 steps.')).toBeTruthy()
   expect(screen.queryByText('Mortgage started: Principal lent')).toBeNull()
@@ -792,9 +805,9 @@ test("removing a coming Term Change asks first, then shows the Terms without it 
     removable: true,
   }
   let stored: typeof mortgage = { ...mortgage, term_changes: [coming] }
-  const server = fakeServer({
-    'GET /api/mortgages/7': () => stored,
-    'DELETE /api/mortgages/7/term-changes/3': () => (stored = mortgage),
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': () => stored,
+    'DELETE /api/mortgages/{mortgage_id}/term-changes/{change_id}': () => (stored = mortgage),
   })
   const state = showMortgagePage(server)
   const history = mortgageHistoryQuery(state.client, 7, 1).queryKey
@@ -814,9 +827,9 @@ test("a Collateral Value set by hand shows on the page, and makes the Mortgage's
     collateral: { value: 9_000_000, source: 'manual', set_on: '2026-10-18', loan_to_value: 0.56 },
   }
   let stored = mortgage
-  const server = fakeServer({
-    'GET /api/mortgages/7': () => stored,
-    'PUT /api/mortgages/7/collateral': () => (stored = revalued),
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': () => stored,
+    'PUT /api/mortgages/{mortgage_id}/collateral': () => (stored = revalued),
   })
   const state = showMortgagePage(server)
   const history = mortgageHistoryQuery(state.client, 7, 1).queryKey
@@ -835,23 +848,23 @@ test("a Collateral Value set by hand shows on the page, and makes the Mortgage's
 })
 
 test('a Call Note recorded on the Mortgage page shows in its Call Notes', async () => {
-  const saved = {
+  const saved: CallNote = {
     id: 1,
     called_on: '2026-10-18',
     note: 'Will pay Friday',
     created_at: '2026-10-18T10:00:00',
   }
-  let notes: unknown[] = []
+  let notes: CallNote[] = []
   showMortgagePage(
-    fakeServer({
-      'GET /api/mortgages/7': mortgage,
-      'GET /api/mortgages/7/call-notes': () => ({
+    typedFakeServer({
+      'GET /api/mortgages/{mortgage_id}': mortgage,
+      'GET /api/mortgages/{mortgage_id}/call-notes': () => ({
         items: notes,
         total: notes.length,
         page: 1,
         page_size: 20,
       }),
-      'POST /api/mortgages/7/call-notes': () => {
+      'POST /api/mortgages/{mortgage_id}/call-notes': () => {
         notes = [saved]
         return saved
       },
@@ -871,12 +884,12 @@ test('a Call Note recorded on the Mortgage page shows in its Call Notes', async 
 })
 
 test('a refused photo deletion is shown with the photos', async () => {
-  const server = fakeServer({
-    'GET /api/mortgages/7': {
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': {
       ...mortgage,
       photos: [{ id: 5, url: '/api/photos/mortgage-7-a.jpg' }],
     },
-    'DELETE /api/mortgages/7/photos/5': Response.json(
+    'DELETE /api/mortgages/{mortgage_id}/photos/{photo_id}': Response.json(
       { detail: 'Photo is in use' },
       { status: 409 },
     ),
@@ -896,12 +909,12 @@ test('reopening a Closed Mortgage needs a reason, then shows it Active again', a
   const redeemed = {
     ...mortgage,
     status: 'redeemed' as const,
-    closure: closure({ kind: 'redeemed' as const, payment_id: 12, payment_amount: 5_075_000 }),
+    closure: closure({ kind: 'redeemed', payment_id: 12, payment_amount: 5_075_000 }),
   }
-  let stored: unknown = redeemed
-  const server = fakeServer({
-    'GET /api/mortgages/7': () => stored,
-    'POST /api/mortgages/7/reopen': async (request: Request) => {
+  let stored: Mortgage = redeemed
+  const server = typedFakeServer({
+    'GET /api/mortgages/{mortgage_id}': () => stored,
+    'POST /api/mortgages/{mortgage_id}/reopen': async (request: Request) => {
       expect(await request.json()).toEqual({ reason: 'Paid by mistake' })
       return (stored = mortgage)
     },

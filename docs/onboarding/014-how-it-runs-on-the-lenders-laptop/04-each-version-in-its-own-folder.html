@@ -37,7 +37,7 @@ sequenceDiagram
   Note over X: still running: Arjun's Payment can be saved
   I->>X: Stop-RunningApp
   I->>Y: Start-Version
-  I->>Y: Wait-Version: /api/backups, up to 7 minutes
+  I->>Y: Wait-Version: /api/health, up to 7 minutes
   Y-->>I: answers
   I->>J: Set-AppJunction: app now points at versions\Y
   I->>I: Remove-OldVersions: keep Y and X, remove older
@@ -101,7 +101,7 @@ sequenceDiagram
   <li>Before anything stops: are the data and Backup folders outside the version folders? See the nuances.</li>
   <li>When both versions run in Docker, X isn't stopped first: Y's <code>docker compose up -d --remove-orphans</code> replaces X's container in one step (below). Otherwise X is stopped, and <code>Stop-RunningApp</code> reports whether it was running.</li>
 </ol>
-<p><code>$AppDir</code> is the folder of the code running this script: Y's. <code>Wait-Version</code> asks <code>http://127.0.0.1:&lt;port&gt;/api/backups</code> for up to <code>$StartMinutes</code> (7) minutes, enough for Docker Desktop to start or a database update to take its Backup first.</p>
+<p><code>$AppDir</code> is the folder of the code running this script: Y's. <code>Wait-Version</code> asks <code>http://127.0.0.1:&lt;port&gt;/api/health</code> (any Health counts, a 503 one too) for up to <code>$StartMinutes</code> (7) minutes, enough for Docker Desktop to start or a database update to take its Backup first.</p>
 
 <figure class="snippet">
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/windows/install.ps1"><code>windows/install.ps1</code></a> · <code>Switch-ToThisVersion</code>, the catch · lines 232–248</figcaption>
@@ -167,7 +167,7 @@ sequenceDiagram
 <tr><td><code>Get-AppCode</code>: the ready-built zip into <code>versions\3.4.1</code></td><td>X</td><td><code>versions\3.4.0</code></td><td>+ <code>versions\3.4.1</code></td></tr>
 <tr><td>Y's <code>install.ps1</code>: <code>Copy-EnvForward</code>, <code>Initialize-EnvFile</code>, <code>Install-Local</code> (<code>uv sync</code>)</td><td>X</td><td><code>versions\3.4.0</code></td><td>+ <code>3.4.1\.env</code>, <code>3.4.1\backend\.venv</code></td></tr>
 <tr class="changed"><td><code>Stop-RunningApp</code> X, <code>Start-Version</code> Y, <code>Wait-Version</code></td><td>Y, starting</td><td><code>versions\3.4.0</code></td><td>the same</td></tr>
-<tr><td>Y answers <code>/api/backups</code>: <code>Set-AppJunction</code></td><td>Y</td><td><code>versions\3.4.1</code></td><td>the same</td></tr>
+<tr><td>Y answers <code>/api/health</code>: <code>Set-AppJunction</code></td><td>Y</td><td><code>versions\3.4.1</code></td><td>the same</td></tr>
 <tr><td><code>Remove-OldVersions -Previous 3.4.0</code></td><td>Y</td><td><code>versions\3.4.1</code></td><td><code>versions\3.4.0</code>, <code>versions\3.4.1</code> (older ones removed)</td></tr>
 </table>
 <p>The highlighted row is the only time the app isn't answering. In the browser, the update banner sees <code>/api/update</code> stop answering, then answer with a new <code>running</code> version, and reloads the page (<a href="../012-frontend-pages-and-the-pwa/06-the-installed-app.html">chapter 012, lesson 6</a>). CI's update step checks the same end state for real: <code>app</code> is a reparse point (a junction) whose target ends in <code>-2</code>, and there are exactly two version folders.</p>
