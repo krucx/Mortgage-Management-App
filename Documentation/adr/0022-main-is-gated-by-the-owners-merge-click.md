@@ -6,7 +6,7 @@ Agents act under the owner's GitHub identity. The owner is the sole developer, s
 
 Because every agent command and the owner's click arrive as the same GitHub user, GitHub cannot tell them apart. "An agent never approves, merges or enables auto-merge on a `main` pull request" is therefore a rule in `AGENTS.md` and `CONTRIBUTING.md`, not a technical block. We accept that: the alternative, a second identity for the agents, adds a credential to guard and a second account to keep alive for one developer's repository.
 
-No automated-reviewer check is required. The automated reviewer (today CodeRabbit, but the rule is tool-neutral) runs on `integration/*` -> `main` pull requests and pull requests labelled `critical`, its findings are answered on the pull request, and it never counts as an approval or blocks a merge. The owner may also skip it, recording why.
+No automated-reviewer check is required. The automated reviewer (today CodeRabbit, but the rule is tool-neutral) runs on `integration/*` -> `main` pull requests and pull requests labelled `critical`, its findings are answered on the pull request, and it never counts as an approval or blocks a merge. The owner may also skip it, recording why. The `coderabbit-review` label that opts an `integration/*` -> `main` pull request in is added automatically by the CodeRabbit label workflow, not by hand.
 
 Supersedes ADR 0019.
 

@@ -44,6 +44,12 @@ export function validateMergedRelease(event, version) {
 // It requires the machine conditions (lib/release-conditions.mjs): only a version upgrade, the
 // preflight-validated head commit, every required check green.
 export function validateCandidate(adapter, { prNumber, version, expectCommit }) {
+  const { result, verdict } = judgeCandidate(adapter, { prNumber, version, expectCommit })
+  if (!verdict.ok) throw new Error(`The release pull request is not only a validated version upgrade: ${verdict.reason}`)
+  return result
+}
+
+function judgeCandidate(adapter, { prNumber, version, expectCommit }) {
   const pullRequest = adapter.getPullRequest(prNumber)
   const result = validateMergedRelease({ action: 'closed', pull_request: pullRequest }, version)
   if (expectCommit && result.commit.toLowerCase() !== String(expectCommit).toLowerCase()) {
@@ -57,8 +63,27 @@ export function validateCandidate(adapter, { prNumber, version, expectCommit }) 
     requiredChecks: adapter.getRequiredChecks('main'),
     preflightRuns: adapter.getPreflightRuns(result.headCommit),
   })
-  if (!verdict.ok) throw new Error(`The release pull request is not only a validated version upgrade: ${verdict.reason}`)
-  return result
+  return { result, verdict }
+}
+
+// validateCandidate, but a check that is only still running (the container scan, say) is waited
+// for, up to waitMinutes, instead of refusing at once. Any other refusal, a check that failed
+// included, stops immediately with its reason, and a wait that runs out says what was pending.
+export async function waitForCandidate(adapter, options, {
+  waitMinutes = 0, pollSeconds = 30,
+  now = () => Date.now(), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), log = console.error,
+} = {}) {
+  const deadline = now() + waitMinutes * 60_000
+  for (;;) {
+    const { result, verdict } = judgeCandidate(adapter, options)
+    if (verdict.ok) return result
+    if (!verdict.waiting) throw new Error(`The release pull request is not only a validated version upgrade: ${verdict.reason}`)
+    if (now() >= deadline) {
+      throw new Error(`The release pull request's checks did not finish within ${waitMinutes} minutes: ${verdict.reason}`)
+    }
+    log(`Waiting for checks to finish (${verdict.reason}); asking again in ${pollSeconds}s.`)
+    await sleep(pollSeconds * 1000)
+  }
 }
 
 export function planReleaseTag(targetCommit, existingTagCommit) {
@@ -183,11 +208,11 @@ async function runCli(args) {
     return
   }
   if (command === 'validate-candidate') {
-    const result = validateCandidate(createGithubAdapter(option(args, '--repo')), {
+    const result = await waitForCandidate(createGithubAdapter(option(args, '--repo')), {
       prNumber: Number(option(args, '--pr-number')),
       version: option(args, '--version'),
       expectCommit: option(args, '--expect-commit'),
-    })
+    }, { waitMinutes: Number(option(args, '--wait-minutes') ?? 0) })
     console.log(JSON.stringify(result))
     return
   }

@@ -1,0 +1,1 @@
+- **Release and CI:** the publish step now waits up to 30 minutes for checks still running (such as the container scan) instead of failing, integration pull requests into `main` get the `coderabbit-review` label automatically, and a daily workflow reports any drift between the live and committed rulesets.

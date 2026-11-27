@@ -147,3 +147,31 @@ test('unknown flags are refused and write nothing', async () => {
   await assert.rejects(run({ args: ['--yes'], gh, log: () => {}, repo: 'o/r' }), /Unknown argument/);
   assert.equal(calls.length, 0);
 });
+
+// --- Workflows around the rulesets ------------------------------------------------------------
+
+test('ruleset drift workflow is a plain scheduled + manual run of the apply script in dry-run', () => {
+  const wf = workflow('ruleset-drift.yml');
+  assert.match(wf, /^\s+schedule:\n\s+- cron:/m);
+  assert.match(wf, /^\s+workflow_dispatch:/m);
+  assert.match(wf, /apply-rulesets\.mjs --dry-run/);
+  assert.doesNotMatch(wf, /--apply\b[^\n]*"\$REPO"|apply-rulesets\.mjs --apply "/);
+  assert.match(wf, /RULESETS_READ_TOKEN/);
+  assert.match(wf, /^permissions:\n\s+contents: read$/m);
+  assert.doesNotMatch(wf, /pull_request/);
+});
+
+test('CodeRabbit label workflow is pull_request_target-safe and labels integration PRs into main', () => {
+  const wf = workflow('coderabbit-label.yml');
+  assert.match(wf, /pull_request_target:\n\s+branches: \[main\]/);
+  assert.match(wf, /startsWith\(github\.event\.pull_request\.head\.ref, 'integration\/'\)/);
+  assert.match(wf, /head\.repo\.full_name == github\.repository/);
+  assert.match(wf, /action != 'edited' \|\| github\.event\.changes\.base != null/, 'a title edit never re-adds a removed label');
+  assert.match(wf, /^permissions: \{\}$/m);
+  assert.match(wf, /permissions:\n\s+pull-requests: write\n/);
+  assert.doesNotMatch(wf, /actions\/checkout|github\.event\.pull_request\.head\.(sha|ref)\s*\}\}/, 'never checks out or runs PR code');
+  assert.doesNotMatch(wf, /\$\{\{ *github\.(head_ref|event\.pull_request\.(title|body|head\.ref)) *\}\}/, 'no untrusted text in a script');
+  assert.match(wf, /coderabbit-review/);
+  // The label it adds is one .coderabbit.yaml opts in on.
+  assert.match(readFileSync(new URL('../../.coderabbit.yaml', import.meta.url), 'utf8'), /- 'coderabbit-review'/);
+});
