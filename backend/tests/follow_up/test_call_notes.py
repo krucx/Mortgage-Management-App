@@ -197,3 +197,10 @@ def test_call_notes_come_a_page_at_a_time_newest_first(client, chain):
 
 def test_the_call_notes_of_an_unknown_mortgage_are_not_found(client):
     assert client.get("/api/mortgages/999/call-notes").status_code == 404
+
+
+def test_a_call_note_on_an_unknown_mortgage_is_not_found(client):
+    response = client.post("/api/mortgages/999/call-notes", json={"note": "Called"})
+
+    assert response.status_code == 404
+    assert response.content == b'{"detail":"Mortgage not found"}'

@@ -818,3 +818,10 @@ def test_cancelling_a_part_before_its_date_brings_its_reminder_back(
     assert [m["id"] for m in reminder["mortgages"]] == [chain["id"]]
     sent = app_client.post(f"/api/reminders/{reminder['id']}/sent")
     assert sent.status_code == 200, sent.text
+
+
+def test_acting_on_an_unknown_reminder_is_not_found(app_client):
+    response = app_client.post("/api/reminders/999/skip")
+
+    assert response.status_code == 404
+    assert response.content == b'{"detail":"Reminder not found"}'
