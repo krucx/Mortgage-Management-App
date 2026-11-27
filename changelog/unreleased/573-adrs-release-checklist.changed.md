@@ -1,0 +1,1 @@
+- **Release process docs:** two new internal decisions (ADR 0022, 0023) describe the owner's merge click and the automated release, and the release checklist shrinks to the trigger and the `release-blocked` recovery steps.
