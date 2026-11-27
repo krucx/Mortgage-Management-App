@@ -45,11 +45,17 @@ add a case by editing those two files, not the workflow.
 
 - An open, non-draft pull request whose base is `integration/**` gets auto-merge (squash). It still waits
   for that branch's required checks.
-- A pull request into `main`, a draft, a closed pull request and any other base are left alone. The owner
+- A Dependabot pull request into `main` gets auto-merge (squash) only when **every** update in it is
+  a patch or minor bump, its diff touches no critical area (below), and every commit on its branch is
+  Dependabot's. Any major bump, including one inside a grouped pull request, any critical path (so
+  every GitHub Actions bump, which edits `.github/workflows/`), a missing or unreadable update type and
+  a human commit on its branch all leave it for the owner to merge. It still waits for the required
+  checks. How the update types are read: [Documentation/dependabot-auto-merge.md](Documentation/dependabot-auto-merge.md).
+- Any other pull request into `main`, a draft, a closed pull request and any other base are left alone. The owner
   reviews each `main` pull request and presses merge; this is a trust rule, so agents must not merge or
   enable auto-merge on them either.
 
-It runs on open, reopen, ready for review and a base-branch change, and uses `GITHUB_TOKEN` with
+It runs on open, reopen, ready for review, a base-branch change and (Dependabot only) a push, and uses `GITHUB_TOKEN` with
 `contents: write` and `pull-requests: write` (no PAT, bot account or secret). The repository's
 "Allow auto-merge" setting must stay on. Pull requests from forks are skipped (read-only token). The job
 checks out the base branch, so cut `integration/**` branches from a `main` that already contains the

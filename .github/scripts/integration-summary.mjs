@@ -2,19 +2,13 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGitHubClient } from './lib/github-client.mjs';
+import { AREAS, matchesPath } from './lib/critical-paths.mjs';
 
 export const MARKER = '<!-- integration-summary -->';
 const BOT = 'github-actions[bot]';
 const FILE_LIMIT = 50;
 
-// Critical areas, mirrored from CONTRIBUTING.md "Selective CodeRabbit review". Keep the two in step.
-const B = 'backend/src/mortgage_backend/';
-export const AREAS = [
-  { key: 'money', title: 'Money math', paths: [`${B}lending/`, `${B}payments/`, `${B}platform/money.py`, 'frontend/src/money.ts', 'frontend/src/allocate.ts', 'frontend/src/calculator.ts'] },
-  { key: 'auth', title: 'Sign-in / access guard', paths: [`${B}platform/local_only.py`] },
-  { key: 'migrations', title: 'Migrations and database', paths: [`${B}migrations/`, `${B}platform/db.py`, `${B}safekeeping/backups.py`] },
-  { key: 'security', title: 'Security', paths: [`${B}platform/local_only.py`, `${B}platform/upload_limit.py`, `${B}platform/photos.py`, '.github/workflows/', '.github/rulesets/', 'Dockerfile', 'windows/'] },
-];
+export { AREAS };
 
 export function isIntegrationPr(pr, repository) {
   return pr.base?.ref === 'main' && /^integration\/./.test(pr.head?.ref ?? '') && pr.head?.repo?.full_name === repository;
@@ -36,7 +30,7 @@ export function classifyFiles(files) {
   for (const file of files) {
     let critical = false;
     for (const { key, paths } of AREAS) {
-      if (paths.some((p) => (p.endsWith('/') ? file.startsWith(p) : file === p))) {
+      if (paths.some((p) => matchesPath(file, p))) {
         groups[key].push(file);
         critical = true;
       }
