@@ -27,6 +27,8 @@ permissions:
   actions: write
   checks: read
   statuses: read
+  # The release-blocked issue a failure opens or updates (.github/scripts/release-blocked.mjs).
+  issues: write
 
 jobs:
   prepare:
@@ -210,6 +212,7 @@ jobs:
           echo "- Release PR #$PR_NUMBER merged itself at $merge_commit (machine conditions held)." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Start the publish flow for the merged release pull request
+        id: dispatch
         if: vars.RELEASE_REQUIRE_APPROVAL != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -242,3 +245,20 @@ jobs:
             echo '- An opened release pull request was not merged unless the merge step completed; a refused condition is in that step log. Nothing was published.'
             echo '- Review the failed step, add any missing human-authored release information, then rerun with the same version.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # One issue per version, opened or updated; nothing is retried or rolled back.
+      - name: Open or update the release-blocked issue
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          STAGE: >-
+            ${{ steps.preflight.outcome == 'failure' && 'preflight' ||
+            (steps.pr.outcome == 'failure' || steps.merge.outcome == 'failure') && 'merge' ||
+            steps.dispatch.outcome == 'failure' && 'publish' || 'preparation' }}
+          DETAIL_URL: ${{ steps.preflight.outcome == 'failure' && steps.preflight.outputs.url || '' }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node .github/scripts/release-blocked.mjs report --version "$VERSION" --stage "$STAGE" \
+            --run-url "$RUN_URL" --detail-url "$DETAIL_URL" --pull-request "$PR_NUMBER"

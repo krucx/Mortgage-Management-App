@@ -19,6 +19,8 @@ permissions:
   checks: read
   statuses: read
   actions: write
+  # The release-blocked issue a failure opens or updates, and a success closes.
+  issues: write
 
 concurrency:
   group: publish-release-pr-${{ github.event.pull_request.number || inputs.pull_request }}
@@ -150,3 +152,28 @@ jobs:
             echo '- GitHub release notes and ZIP, versioned Docker image, and latest tag when applicable: verified.'
             echo "- Publisher run: $PUBLISHER_URL"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # One issue per version, opened or updated; nothing is retried, rolled back or removed.
+      - name: Open or update the release-blocked issue
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.candidate.outputs.version }}
+          STAGE: ${{ steps.tag.outcome == 'failure' && 'tag' || 'publish' }}
+          DETAIL_URL: ${{ steps.publisher.outputs.url }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pull_request }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          version="${VERSION:-$(cat VERSION 2>/dev/null || echo unknown)}"
+          node .github/scripts/release-blocked.mjs report --version "$version" --stage "$STAGE" \
+            --run-url "$RUN_URL" --detail-url "$DETAIL_URL" --pull-request "$PR_NUMBER"
+
+      # A hiccup closing the issue never fails a publish that succeeded.
+      - name: Close the version's release-blocked issue
+        if: success()
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.candidate.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node .github/scripts/release-blocked.mjs resolve --version "$VERSION" --run-url "$RUN_URL"

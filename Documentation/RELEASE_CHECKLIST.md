@@ -22,7 +22,11 @@ pull request when `changelog/unreleased/` has no authored fragments. It collates
 fragments into a dated `CHANGELOG.md` section, deletes the consumed files, synchronizes
 the shared version references, then runs the `Tests` workflow on the candidate branch.
 That preflight includes tests, type checks, lint, build, coverage reports, Windows setup
-checks and an isolated Docker image smoke test. A passing run opens a pull request with
+checks, the browser QA scenarios and an isolated Docker image smoke test. It is the only
+full `Tests` run of the release: the release pull request, the push to `main` and the `Tests`
+call inside `release.yml` reuse its result for the same tree and show "Reused result from run
+<link>" (a changed tree runs in full; see CONTRIBUTING.md, *Reusing validated results by tree*).
+A passing run opens a pull request with
 its result and the pending release checklist. Failures report the candidate branch and
 preflight run so the owner can supply missing information or safely rerun the same
 version. A maintainer may need to approve the workflow run for the release pull
@@ -96,6 +100,19 @@ release flow in the Publish section does that.
   Release. Record any follow-up issue.
 
 ## Recovery — release owner
+
+Any failure in preparation, preflight, merge, tag or publish opens one GitHub issue
+labelled `release-blocked` for the version (`Release X.Y.Z blocked`), or updates the open
+one with a comment: it names the failed stage, the run link (and the run it waited on) and
+the safe rerun command. GitHub's failed-run email reaches the owner too. Nothing retries,
+rolls back, or removes a tag or image by itself. A later successful publish of that version
+closes the issue. The logic is `.github/scripts/release-blocked.mjs`.
+
+| Stage | Rerun |
+| --- | --- |
+| preparation, preflight, merge | `gh workflow run release-candidate.yml --ref main -f version=X.Y.Z` (reuses the candidate branch and pull request) |
+| tag, publish | `gh workflow run publish-release.yml --ref main -f pull_request=N` |
+
 
 - [ ] If the workflow fails before publication, inspect both workflow logs. After fixing
   the cause, rerun the merged-PR publisher or dispatch it from `main` with the merged

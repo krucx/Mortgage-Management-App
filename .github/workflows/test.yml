@@ -9,8 +9,14 @@ on:
     branches: [main]
   pull_request:
     branches: [main, 'integration/**']
-  # The release workflow runs these before publishing images.
+  # The release workflow runs these before publishing images, reusing the preflight's result
+  # when the tagged tree is the one it validated (see reuse below).
   workflow_call:
+    inputs:
+      reuse-validated-tree:
+        description: Look up whether this tree already passed Tests, and skip the jobs if so
+        type: boolean
+        default: false
   workflow_dispatch:
 
 # Jobs that need more ask for it themselves. Under release.yml's call, a job without its own
@@ -23,6 +29,10 @@ jobs:
   # whether the merged tree already passed Tests on the pull request; if so every job below
   # is skipped and this job reports "Reused result from run <link>". It relies on main
   # requiring a branch to be up to date before merging, so the PR tested the same tree.
+  # The release path (#572) runs the suite once, in the preflight dispatched on the candidate
+  # commit, which records its tree there; the release/* pull request run (its test merge has the
+  # candidate as a parent) and release.yml's call on the version tag (the merge commit) look it
+  # up the same way. If main moved, the tree differs and they run in full.
   # Any other event, or a tree with no passing record, runs everything in full. A failed
   # lookup, or a failed reuse job, also runs in full (the jobs below check !cancelled()).
   reuse:
@@ -34,13 +44,19 @@ jobs:
     outputs:
       reused: ${{ steps.lookup.outputs.reused }}
       run-url: ${{ steps.lookup.outputs.run-url }}
+    env:
+      LOOK_UP: >-
+        ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') &&
+        github.event.pull_request.head.repo.full_name == github.repository) ||
+        inputs.reuse-validated-tree == true }}
     steps:
-      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - if: env.LOOK_UP == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: .github/scripts
       - id: lookup
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: env.LOOK_UP == 'true'
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -141,6 +157,7 @@ jobs:
         with:
           node-version: 24
       - run: node --test .github/scripts/test-release.mjs
+      - run: node --test .github/scripts/test-release-blocked.mjs
 
   finding-reconciler:
     needs: reuse
@@ -453,7 +470,8 @@ jobs:
           Get-ChildItem $kept
 
   # Records the tree this run validated (see reuse above) as the commit status
-  # validated-tree/Tests on the commit it ran for: the PR head, or the main commit. A
+  # validated-tree/Tests on the commit it ran for: the PR head, the main commit, or the
+  # dispatched commit (the release preflight's candidate; release.yml's version tag). A
   # failed run records failure, so a later pass on another run is needed to reuse it.
   # Not for pull requests from forks, whose token cannot write statuses.
   # needs lists every job in this workflow: add a new job here too.
@@ -461,7 +479,7 @@ jobs:
     needs: [reuse, changes, release-candidate, tree-reuse, version-bump, release, finding-reconciler, critical-finding-sync, secret-scanning-alert-sync, coverage-summary, backend, frontend, image, qa, pages, windows]
     if: >-
       !cancelled() &&
-      (github.event_name == 'push' ||
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-latest
     permissions:

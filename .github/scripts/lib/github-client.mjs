@@ -44,6 +44,9 @@ export function createGitHubClient(token, repository) {
         async update(number, changes) {
           return (await request(`/issues/${number}`, 'PATCH', changes)).data;
         },
+        async comment(number, body) {
+          return (await request(`/issues/${number}/comments`, 'POST', { body })).data;
+        },
       };
     },
     async ensureLabel({ name, color, description }) {
