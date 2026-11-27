@@ -118,3 +118,7 @@ def test_a_manual_collateral_value_must_be_positive(client, mortgage):
         f"/api/mortgages/{mortgage['id']}/collateral", json={"value": 0}
     )
     assert response.status_code == 422
+    assert response.content == (
+        b'{"detail":[{"type":"greater_than","loc":["body","value"],'
+        b'"msg":"Input should be greater than 0","input":0,"ctx":{"gt":0}}]}'
+    )

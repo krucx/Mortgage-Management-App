@@ -1,0 +1,1 @@
+- **Changes made at the same moment:** two changes saved at once, such as a Payment recorded on one screen while the Mortgage is edited on another, now wait their turn instead of one silently undoing the other.

@@ -48,6 +48,7 @@ from mortgage_backend.platform.db import (
     photos_dir,
     write_transaction,
 )
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.local_only import LocalOnly
 from mortgage_backend.platform.request_log import RequestLog, log_to_stdout
 from mortgage_backend.platform.screens import screens_dir_from_env, serve_screens
@@ -116,6 +117,16 @@ def create_app(
     app.state.backups = backup
     app.state.daily_run = daily_run
     app.state.update_check = UpdateCheck(app.version, latest_release, now)
+
+    @app.exception_handler(Refusal)
+    async def handle_refusal(request: Request, error: Refusal) -> JSONResponse:
+        status_code = {
+            "unprocessable": 422,
+            "conflict": 409,
+            "not_found": 404,
+        }[error.kind]
+        return JSONResponse({"detail": error.message}, status_code)
+
     # Registered innermost first: each `add_middleware` wraps the ones before it, so the
     # request runs request log > localhost-only > daily jobs > upload limit > app.
     # The upload limit is innermost: it counts a body as the route reads it, so the daily

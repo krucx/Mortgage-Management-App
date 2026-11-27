@@ -68,10 +68,24 @@ def test_now_header_overrides(qa_app):
         assert r.json()["now"] == "2026-12-25T08:30:00"
 
 
-def test_bad_header_returns_400(qa_app):
+@pytest.mark.parametrize(
+    ("headers", "bad"),
+    [
+        ({"X-QA-Clock": "not-a-date"}, "X-QA-Clock"),
+        ({"X-QA-Clock-Now": "not-a-time"}, "X-QA-Clock-Now"),
+        (
+            {"X-QA-Clock": "2026-12-25", "X-QA-Clock-Now": "2026-12-25"},
+            "X-QA-Clock-Now",
+        ),
+    ],
+)
+def test_bad_header_returns_400_naming_it(qa_app, headers, bad):
     with TestClient(qa_app, base_url="http://localhost") as c:
-        r = c.get("/_clock", headers={"X-QA-Clock": "not-a-date"})
-        assert r.status_code == 400
+        r = c.get("/_clock", headers=headers)
+        assert (r.status_code, r.content) == (
+            400,
+            f'{{"detail":"bad {bad}"}}'.encode(),
+        )
 
 
 def test_no_header_falls_back_to_process_clock(qa_app):

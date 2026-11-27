@@ -9,7 +9,6 @@ from datetime import date, datetime
 
 import pytest
 from conftest import TODAY
-from fastapi import HTTPException
 from seed import (
     LAKH,
     RUPEE,
@@ -30,6 +29,7 @@ from mortgage_backend.lending.replay import replay
 from mortgage_backend.lending.terms import InterestMode, PartMonthRule, Terms
 from mortgage_backend.payments import recording, writes
 from mortgage_backend.payments.writes import AllocationIn, PaymentIn
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.safekeeping.audit import mortgage_history
 
 NOW = datetime(2026, 4, 20, 11, 0)
@@ -47,8 +47,9 @@ def payment(customer_id: int, on: str, **allocations: int) -> PaymentIn:
     )
 
 
-def refusal(error: pytest.ExceptionInfo[HTTPException]) -> tuple[int, str]:
-    return error.value.status_code, str(error.value.detail)
+def refusal(error: pytest.ExceptionInfo[Refusal]) -> tuple[int, str]:
+    status = {"unprocessable": 422, "conflict": 409, "not_found": 404}[error.value.kind]
+    return status, error.value.message
 
 
 def test_a_payment_is_written_replayed_and_recorded(conn: Connection) -> None:
@@ -73,19 +74,22 @@ def test_a_payment_to_a_closed_mortgage_is_refused(conn: Connection) -> None:
     chain = add_mortgage(conn, ramesh)
     forfeit(conn, chain, date(2026, 4, 14))
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         recording.record_payment(
             conn, payment(ramesh, "2026-04-10", **{str(chain): RUPEE}), TODAY, NOW
         )
 
-    assert refusal(error) == (409, "2026-Ramesh-Chain is forfeited: reopen it first")
+    assert (error.value.kind, error.value.message) == (
+        "conflict",
+        "2026-Ramesh-Chain is forfeited: reopen it first",
+    )
 
 
 def test_a_payment_larger_than_what_is_owed_is_refused(conn: Connection) -> None:
     ramesh = add_customer(conn)
     chain = add_mortgage(conn, ramesh)
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         recording.record_payment(
             conn,
             payment(ramesh, "2026-02-20", **{str(chain): 1_10_000 * RUPEE}),
@@ -93,8 +97,8 @@ def test_a_payment_larger_than_what_is_owed_is_refused(conn: Connection) -> None
             NOW,
         )
 
-    assert refusal(error) == (
-        422,
+    assert (error.value.kind, error.value.message) == (
+        "unprocessable",
         "2026-Ramesh-Chain: the Payment on 20 Feb 2026 would be more than the "
         "₹1,06,000 owed then",  # its Interest to Date included
     )
@@ -108,7 +112,7 @@ def test_a_back_dated_payment_that_breaks_a_later_one_is_refused(
     # ₹1,09,000 owed on 15 Mar (its Interest to Date included); ₹1,08,500 paid.
     add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_08_500 * RUPEE})
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         recording.record_payment(
             conn,
             payment(ramesh, "2026-02-20", **{str(chain): 1_000 * RUPEE}),
@@ -117,8 +121,8 @@ def test_a_back_dated_payment_that_breaks_a_later_one_is_refused(
         )
 
     # After ₹1,000 on 20 Feb only ₹1,08,000 is owed on 15 Mar.
-    assert refusal(error) == (
-        422,
+    assert (error.value.kind, error.value.message) == (
+        "unprocessable",
         "2026-Ramesh-Chain: the Payment on 15 Mar 2026 would be more than the "
         "₹1,08,000 owed then",
     )
@@ -151,11 +155,11 @@ def test_a_redemptions_final_payment_is_voided_only_by_reopening(
     assert final is not None
     assert replay(conn, chain).steps_by_payment()[final].amount == 1_09_000 * RUPEE
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         writes.void_payment(conn, final, "mistake", TODAY, NOW)
 
-    assert error.value.status_code == 409
-    assert "reopen" in str(error.value.detail)
+    assert error.value.kind == "conflict"
+    assert "reopen" in error.value.message
 
 
 def test_a_payment_to_a_closed_mortgage_is_voided_only_after_reopening(
@@ -166,22 +170,28 @@ def test_a_payment_to_a_closed_mortgage_is_voided_only_after_reopening(
     paid = add_payment(conn, ramesh, date(2026, 2, 20), {chain: 1_000 * RUPEE})
     forfeit(conn, chain, date(2026, 4, 14))
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         writes.void_payment(conn, paid, "mistake", TODAY, NOW)
 
-    assert refusal(error) == (409, "2026-Ramesh-Chain is forfeited: reopen it first")
+    assert (error.value.kind, error.value.message) == (
+        "conflict",
+        "2026-Ramesh-Chain is forfeited: reopen it first",
+    )
 
 
 def test_a_term_change_on_a_closed_mortgage_is_refused(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
     forfeit(conn, chain, date(2026, 4, 14))
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         changes.add_term_change(
             conn, chain, TermChangeIn(monthly_rate_bps=200), TODAY, NOW
         )
 
-    assert refusal(error) == (409, "2026-Ramesh-Chain is forfeited: reopen it first")
+    assert (error.value.kind, error.value.message) == (
+        "conflict",
+        "2026-Ramesh-Chain is forfeited: reopen it first",
+    )
 
 
 def test_a_term_change_is_written_and_recorded(conn: Connection) -> None:
@@ -223,12 +233,12 @@ def test_an_edit_that_would_make_a_payment_too_large_is_refused(
     chain = add_mortgage(conn, ramesh)
     add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_06_000 * RUPEE})
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         changes.edit_mortgage(conn, chain, edit(amount_lent=50_000 * RUPEE), TODAY, NOW)
 
     # Lent ₹50,000: only ₹54,500 owed on 15 Mar, its Interest to Date included.
-    assert refusal(error) == (
-        422,
+    assert (error.value.kind, error.value.message) == (
+        "unprocessable",
         "2026-Ramesh-Chain: the Payment on 15 Mar 2026 would be more than the "
         "₹54,500 owed then",
     )
@@ -253,7 +263,7 @@ def test_correcting_terms_that_would_make_a_payment_too_large_is_refused(
     chain = add_mortgage(conn, ramesh)
     add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_06_000 * RUPEE})
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         changes.edit_mortgage(
             conn,
             chain,
@@ -269,8 +279,8 @@ def test_correcting_terms_that_would_make_a_payment_too_large_is_refused(
         )
 
     # At 0.5% a month: ₹1,000 unpaid by 14 Mar plus ₹500 Interest to Date on 15 Mar.
-    assert refusal(error) == (
-        422,
+    assert (error.value.kind, error.value.message) == (
+        "unprocessable",
         "2026-Ramesh-Chain: the Payment on 15 Mar 2026 would be more than the "
         "₹1,01,500 owed then",
     )
@@ -319,17 +329,17 @@ def test_a_term_change_is_refused_when_it_cannot_apply(
 ) -> None:
     chain = add_mortgage(conn, add_customer(conn))
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         changes.add_term_change(conn, chain, change, TODAY, NOW)
 
-    assert error.value.status_code == code, why
+    assert refusal(error)[0] == code, why
 
 
 def test_only_one_term_change_starts_on_a_date(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
     changes.add_term_change(conn, chain, TermChangeIn(monthly_rate_bps=200), TODAY, NOW)
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         changes.add_term_change(
             conn, chain, TermChangeIn(monthly_rate_bps=250), TODAY, NOW
         )
@@ -344,7 +354,7 @@ def test_an_edit_is_refused_when_its_details_cannot_stand(conn: Connection) -> N
     add_payment(conn, ramesh, date(2026, 2, 20), {chain: 1_000 * RUPEE})
 
     def refused(**overrides: object) -> tuple[int, str]:
-        with pytest.raises(HTTPException) as error:
+        with pytest.raises(Refusal) as error:
             changes.edit_mortgage(conn, chain, edit(**overrides), TODAY, NOW)
         return refusal(error)
 
@@ -363,24 +373,24 @@ def test_an_edit_cannot_strand_a_term_change(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
     changes.add_term_change(conn, chain, TermChangeIn(monthly_rate_bps=200), TODAY, NOW)
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         changes.edit_mortgage(
             conn, chain, edit(start_date=date(2026, 1, 15)), TODAY, NOW
         )
 
-    assert error.value.status_code == 422
-    assert "Term Change from 14 May 2026" in str(error.value.detail)
+    assert error.value.kind == "unprocessable"
+    assert "Term Change from 14 May 2026" in error.value.message
 
 
 def test_a_closed_mortgages_start_and_principal_are_locked(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
     forfeit(conn, chain, date(2026, 4, 14))
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         changes.edit_mortgage(conn, chain, edit(amount_lent=90_000 * RUPEE), TODAY, NOW)
     changes.edit_mortgage(conn, chain, edit(description="Two gold chains"), TODAY, NOW)
 
-    assert error.value.status_code == 409
+    assert error.value.kind == "conflict"
     assert replay(conn, chain).row["description"] == "Two gold chains"
 
 
@@ -388,7 +398,7 @@ def test_a_closed_mortgages_starting_terms_are_locked(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
     forfeit(conn, chain, date(2026, 4, 14))
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         changes.edit_mortgage(
             conn,
             chain,
@@ -415,7 +425,7 @@ def test_a_refused_change_records_no_history(conn: Connection) -> None:
     chain = add_mortgage(conn, ramesh)
     add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_06_000 * RUPEE})
 
-    with pytest.raises(HTTPException):
+    with pytest.raises(Refusal):
         changes.edit_mortgage(conn, chain, edit(amount_lent=50_000 * RUPEE), TODAY, NOW)
 
     # History is written only once the replay holds (the caller rolls back the rest).
@@ -467,10 +477,10 @@ def test_a_redemption_is_refused_on_a_date_it_cannot_close(
     chain = add_mortgage(conn, ramesh)
     add_payment(conn, ramesh, date(2026, 3, 15), {chain: 1_000 * RUPEE})
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         closing.redeem(conn, chain, redeem_in(on), TODAY, NOW)
 
-    assert detail in str(error.value.detail)
+    assert detail in error.value.message
     assert replay(conn, chain).row["status"] == "active"
 
 
@@ -478,7 +488,7 @@ def test_a_closed_mortgage_cannot_be_closed_again(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
     forfeit(conn, chain, date(2026, 4, 14))
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         closing.redeem(conn, chain, redeem_in(), TODAY, NOW)
 
     assert refusal(error) == (422, "2026-Ramesh-Chain is already forfeited")
@@ -535,7 +545,7 @@ def test_reopening_a_redemption_voids_its_final_payment(conn: Connection) -> Non
 def test_only_a_closed_mortgage_can_be_reopened(conn: Connection) -> None:
     chain = add_mortgage(conn, add_customer(conn))
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         closing.reopen(conn, chain, "why", TODAY, NOW)
 
     assert refusal(error) == (409, "2026-Ramesh-Chain is Active")
@@ -558,10 +568,13 @@ def test_a_term_change_on_a_closed_mortgage_stays(conn: Connection) -> None:
     [coming] = replay(conn, chain).term_changes
     forfeit(conn, chain, date(2026, 4, 14))
 
-    with pytest.raises(HTTPException) as error:
+    with pytest.raises(Refusal) as error:
         changes.remove_term_change(conn, chain, coming.id, TODAY, NOW)
 
-    assert refusal(error) == (409, "2026-Ramesh-Chain is forfeited: reopen it first")
+    assert (error.value.kind, error.value.message) == (
+        "conflict",
+        "2026-Ramesh-Chain is forfeited: reopen it first",
+    )
 
 
 def new_mortgage(customer_id: int, **fields: object) -> MortgageIn:
@@ -612,7 +625,7 @@ def test_a_new_mortgage_is_refused_when_it_cannot_stand(
     add_mortgage(conn, ramesh)  # named 2026-Ramesh-Chain
     asked = new_mortgage(ramesh).model_copy(update=changes_made)
 
-    with pytest.raises(HTTPException) as refused:
+    with pytest.raises(Refusal) as refused:
         changes.create_mortgage(conn, asked, TODAY, NOW)
 
     assert refusal(refused)[0] == code and why in refusal(refused)[1]
@@ -647,15 +660,25 @@ def test_a_collateral_value_is_refused_when_it_cannot_stand(conn: Connection) ->
     ring = add_mortgage(conn, ramesh, suffix="Ring")
     redeem(conn, ring, TODAY)
 
-    def refused(mortgage_id: int, value: int) -> tuple[int, str]:
-        with pytest.raises(HTTPException) as refused:
-            manual_value.set_collateral(conn, mortgage_id, value, TODAY, NOW)
-        return refusal(refused)
+    def refused_value(value: int) -> tuple[str, str]:
+        with pytest.raises(Refusal) as refused:
+            manual_value.set_collateral(conn, chain, value, TODAY, NOW)
+        return refused.value.kind, refused.value.message
 
-    assert refused(404, 90_000 * RUPEE)[0] == 404
-    assert refused(chain, 0) == (422, "A Collateral Value must be more than ₹0")
-    assert refused(ring, 90_000 * RUPEE) == (
-        409,
+    with pytest.raises(Refusal) as missing:
+        manual_value.set_collateral(conn, 404, 90_000 * RUPEE, TODAY, NOW)
+    assert (missing.value.kind, missing.value.message) == (
+        "not_found",
+        "Mortgage not found",
+    )
+    assert refused_value(0) == (
+        "unprocessable",
+        "A Collateral Value must be more than ₹0",
+    )
+    with pytest.raises(Refusal) as closed:
+        manual_value.set_collateral(conn, ring, 90_000 * RUPEE, TODAY, NOW)
+    assert (closed.value.kind, closed.value.message) == (
+        "conflict",
         "2026-Ramesh-Ring is redeemed: reopen it first",
     )
 
@@ -683,10 +706,16 @@ def test_a_photo_is_refused_for_no_mortgage_or_removed_from_the_wrong_one(
     ring = add_mortgage(conn, ramesh, suffix="Ring")
     photo = mortgage_photos.add_photo(conn, chain, "mortgage-1-a.jpg", NOW)
 
-    with pytest.raises(HTTPException) as no_mortgage:
+    with pytest.raises(Refusal) as no_mortgage:
         mortgage_photos.add_photo(conn, 404, "mortgage-404-a.jpg", NOW)
-    with pytest.raises(HTTPException) as wrong_one:
+    with pytest.raises(Refusal) as wrong_one:
         mortgage_photos.remove_photo(conn, ring, photo, NOW)
 
-    assert refusal(no_mortgage) == (404, "Mortgage not found")
-    assert refusal(wrong_one) == (404, "Photo not found")
+    assert (no_mortgage.value.kind, no_mortgage.value.message) == (
+        "not_found",
+        "Mortgage not found",
+    )
+    assert (wrong_one.value.kind, wrong_one.value.message) == (
+        "not_found",
+        "Photo not found",
+    )

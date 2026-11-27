@@ -37,8 +37,9 @@ from mortgage_backend.platform.db import (
     call_note_table,
     customer_table,
     mortgage_table,
+    write_transaction,
 )
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.money import RUPEE, format_inr
 
 
@@ -287,9 +288,10 @@ def _filled_rows(data: bytes) -> list[tuple[int, dict[str, Any]]]:
     try:
         sheet = load_workbook(BytesIO(data), read_only=True, data_only=True).active
     except (BadZipFile, KeyError, OSError, ValueError):
-        raise unprocessable(
+        raise Refusal(
             "This file is not an Excel sheet (.xlsx): import the Call List exported "
-            "as Excel, with the Call Notes filled in"
+            "as Excel, with the Call Notes filled in",
+            "unprocessable",
         ) from None
     rows = list(sheet.iter_rows(values_only=True)) if sheet is not None else []
     wanted = (_MORTGAGE_NAME, _CALLED_ON, _CALL_NOTE)
@@ -307,9 +309,10 @@ def _filled_rows(data: bytes) -> list[tuple[int, dict[str, Any]]]:
                 )
                 for number, row in enumerate(rows[at + 1 :], start=at + 2)
             ]
-    raise unprocessable(
+    raise Refusal(
         "This sheet has no Mortgage Name, Called on and Call Note columns: export the "
-        "Call List as Excel and fill that in"
+        "Call List as Excel and fill that in",
+        "unprocessable",
     )
 
 
@@ -429,12 +432,12 @@ async def preview_import(
 
 
 @router.post("/call-list/import")
-async def import_call_notes(
+def import_call_notes(
     file: UploadFile, engine: EngineDep, today: TodayDep
 ) -> CallNoteImport:
     """Add every Call Note a filled-in Call Sheet holds that can be added."""
-    data = await file.read()
-    with engine.begin() as conn:
+    data = file.file.read()
+    with write_transaction(engine) as conn:
         imported = read_import(conn, data, today)
         if imported.adding:
             conn.execute(

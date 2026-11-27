@@ -12,8 +12,8 @@ from mortgage_backend.lending.mortgages import Mortgage, load_mortgage
 from mortgage_backend.lending.refusals import refuse_unless_active
 from mortgage_backend.lending.replay import mortgage_row
 from mortgage_backend.platform.clock import NowDep, TodayDep
-from mortgage_backend.platform.db import EngineDep, mortgage_table
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.db import EngineDep, mortgage_table, write_transaction
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.safekeeping import audit
 
 router = APIRouter()
@@ -31,7 +31,7 @@ def set_collateral(
     before = mortgage_row(conn, mortgage_id)
     refuse_unless_active(before)
     if value is not None and value <= 0:
-        raise unprocessable("A Collateral Value must be more than ₹0")
+        raise Refusal("A Collateral Value must be more than ₹0", "unprocessable")
     conn.execute(
         update(mortgage_table)
         .where(mortgage_table.c.id == mortgage_id)
@@ -56,6 +56,6 @@ def put_collateral(
     now: NowDep,
 ) -> Mortgage:
     """Set the Collateral Value by hand, or clear it to value at the Gold Rate again."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         set_collateral(conn, mortgage_id, collateral.value, today, now)
         return load_mortgage(conn, mortgage_id, today)

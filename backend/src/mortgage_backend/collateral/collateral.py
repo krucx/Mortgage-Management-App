@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.platform.clock import TodayDep
-from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.db import EngineDep, write_transaction
 from mortgage_backend.platform.settings import ConfigGroup
 
 Purity = Literal[24, 22, 20, 18, 14]
@@ -123,7 +123,7 @@ def update_gold_rates(
     rates: list[GoldRateIn], engine: EngineDep, today: TodayDep
 ) -> list[GoldRate]:
     """Set the given Gold Rates; a rate's date moves only when the rate changes."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         current = gold_rates(conn)
         for rate in rates:
             if current[rate.purity_karat].rate_per_gram != rate.rate_per_gram:

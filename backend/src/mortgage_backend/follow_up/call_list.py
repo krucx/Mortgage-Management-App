@@ -21,6 +21,7 @@ from mortgage_backend.platform.db import (
     call_note_table,
     customer_table,
     mortgage_table,
+    write_transaction,
 )
 from mortgage_backend.platform.paging import Page, PageNumber, rows_page
 from mortgage_backend.platform.settings import ConfigGroup
@@ -224,6 +225,6 @@ def read_call_list_settings(engine: EngineDep) -> CallListSettings:
 def update_call_list_settings(
     settings: CallListSettings, engine: EngineDep, today: TodayDep
 ) -> CallListSettings:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         CALL_LIST_SETTINGS.set(conn, settings, today)
         return CALL_LIST_SETTINGS.get(conn)

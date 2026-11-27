@@ -20,7 +20,12 @@ from sqlalchemy.engine import Connection
 
 from mortgage_backend.lending.ledger import Allocation, accrual_date
 from mortgage_backend.lending.replay import MortgageReplay
-from mortgage_backend.platform.db import EngineDep, allocation_table, payment_table
+from mortgage_backend.platform.db import (
+    EngineDep,
+    allocation_table,
+    payment_table,
+    write_transaction,
+)
 from mortgage_backend.platform.settings import ThresholdSetting
 
 DEFAULT_GRACE_PERIOD_DAYS = 3
@@ -193,6 +198,6 @@ def read_grace_period(engine: EngineDep) -> GracePeriod:
 
 @router.put("/settings/grace-period")
 def update_grace_period(setting: GracePeriod, engine: EngineDep) -> GracePeriod:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         _GRACE_PERIOD.set(conn, setting)
         return get_grace_period(conn)

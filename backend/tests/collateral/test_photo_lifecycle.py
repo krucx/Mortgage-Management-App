@@ -5,7 +5,6 @@ import io
 from datetime import datetime
 
 import pytest
-from fastapi import HTTPException
 from PIL import Image
 from seed import add_customer, add_mortgage
 from sqlalchemy.engine import Engine
@@ -15,6 +14,7 @@ from mortgage_backend.lending import mortgages
 from mortgage_backend.people import customer_changes
 from mortgage_backend.platform import photos
 from mortgage_backend.platform.db import make_engine, migrate
+from mortgage_backend.platform.errors import Refusal
 
 NOW = datetime(2026, 4, 20, 10, 0)
 
@@ -41,7 +41,7 @@ def files(photos_dir) -> list[str]:
 
 
 def test_a_refused_change_leaves_no_new_file(engine, photos_dir):
-    with pytest.raises(HTTPException):
+    with pytest.raises(Refusal):
         with photos.photo_change(
             engine, photos_dir, photos.NewPhoto("mortgage", 99, jpeg())
         ) as change:
@@ -100,6 +100,17 @@ def test_a_saved_removal_removes_the_file(engine, photos_dir):
         change.remove_when_saved(removed)
 
     assert files(photos_dir) == []
+
+
+def test_removing_a_photo_that_isnt_there_is_a_domain_refusal(engine):
+    with engine.begin() as conn:
+        with pytest.raises(Refusal) as refused:
+            mortgage_photos.remove_photo(conn, 1, 404, NOW)
+
+    assert (refused.value.kind, refused.value.message) == (
+        "not_found",
+        "Photo not found",
+    )
 
 
 def test_a_photo_for_a_mortgage_that_isnt_there_leaves_no_file(client, tmp_path):

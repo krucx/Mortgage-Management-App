@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import case, func
 from sqlalchemy.engine import Connection, RowMapping
@@ -52,7 +52,7 @@ from mortgage_backend.platform.db import (
     customer_table,
     mortgage_table,
 )
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.paging import (
     Page,
     PageNumber,
@@ -213,7 +213,7 @@ def _customer_of(row: RowMapping) -> PersonSummary:
 def load_mortgage(conn: Connection, mortgage_id: int, today: date) -> Mortgage:
     row = mortgage_with_customer(conn, mortgage_id)
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
+        raise Refusal("Mortgage not found", "not_found")
     photos = photos_of(conn, mortgage_id)
     mortgage = replays(conn, [row])[mortgage_id]
     outstanding = mortgage.outstanding(today)
@@ -297,7 +297,7 @@ def _suggest_name(
 def _customer_name(conn: Connection, customer_id: int) -> str:
     name = customer_name_of(conn, customer_id)
     if name is None:
-        raise unprocessable("Customer not found")
+        raise Refusal("Customer not found", "unprocessable")
     return name
 
 
@@ -310,10 +310,7 @@ def name_for(conn: Connection, mortgage: MortgageIn) -> str:
             conn, customer_name, mortgage.start_date, mortgage.description
         )
     if _unique_name(conn, mortgage.name) != mortgage.name:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"The Mortgage Name {mortgage.name} is already used",
-        )
+        raise Refusal(f"The Mortgage Name {mortgage.name} is already used", "conflict")
     return mortgage.name
 
 
@@ -400,7 +397,7 @@ def list_mortgages(
     Mortgage out.
     """
     if as_of is not None and as_of > today:
-        raise unprocessable("The date cannot be in the future")
+        raise Refusal("The date cannot be in the future", "unprocessable")
     query = q.strip()
     match = mortgage_filter(
         query=query,

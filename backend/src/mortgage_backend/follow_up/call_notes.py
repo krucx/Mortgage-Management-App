@@ -9,15 +9,20 @@ Mortgage, date and note) is kept once.
 from datetime import date, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel
 from sqlalchemy import insert, select
 from sqlalchemy.engine import Connection
 
 from mortgage_backend.lending.replay import MortgageStatus
 from mortgage_backend.platform.clock import TodayDep
-from mortgage_backend.platform.db import EngineDep, call_note_table, mortgage_table
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.db import (
+    EngineDep,
+    call_note_table,
+    mortgage_table,
+    write_transaction,
+)
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.paging import Page, PageNumber, Sorting, query_page
 
 
@@ -57,7 +62,7 @@ def record_call_note(
     note = note.strip()
     reason = left_out_because(mortgage, today, note, today)
     if reason is not None:
-        raise unprocessable(f"{mortgage.name}: {reason}")
+        raise Refusal(f"{mortgage.name}: {reason}", "unprocessable")
     same = (
         conn.execute(
             select(call_note_table).where(
@@ -90,7 +95,7 @@ def _mortgage(conn: Connection, mortgage_id: int) -> Any:
         ).where(mortgage_table.c.id == mortgage_id)
     ).one_or_none()
     if mortgage is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
+        raise Refusal("Mortgage not found", "not_found")
     return mortgage
 
 
@@ -102,7 +107,7 @@ def add_call_note(
     mortgage_id: int, call_note: CallNoteIn, engine: EngineDep, today: TodayDep
 ) -> CallNote:
     """Mark a Mortgage as called today, with what was said."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         return record_call_note(conn, mortgage_id, call_note.note, today)
 
 

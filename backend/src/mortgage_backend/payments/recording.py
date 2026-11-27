@@ -24,8 +24,8 @@ from mortgage_backend.payments.writes import (
     write_payment,
 )
 from mortgage_backend.platform.clock import NowDep, TodayDep
-from mortgage_backend.platform.db import EngineDep
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.db import EngineDep, write_transaction
+from mortgage_backend.platform.errors import Refusal
 
 
 def record_payment(
@@ -117,11 +117,13 @@ def _redeemed_by(
     if full_payment != mortgage.outstanding_on_closure(on).to_pay:
         return None
     if allocation.advance:
-        raise unprocessable("This Payment Redeems it, so it can't hold an Advance")
+        raise Refusal(
+            "This Payment Redeems it, so it can't hold an Advance", "unprocessable"
+        )
     # (Not a future date: the Payment's own checks refuse that.)
     refusal = mortgage.not_closable(on)
     if refusal is not None:
-        raise unprocessable(refusal)
+        raise Refusal(refusal, "unprocessable")
     return mortgage
 
 
@@ -132,7 +134,7 @@ router = APIRouter()
 def post_payment(
     payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Payment:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         return load_payment(conn, record_payment(conn, payment, today, now))
 
 
@@ -141,6 +143,6 @@ def post_void(
     payment_id: int, body: VoidIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Payment:
     """Void a Payment entered by mistake; a corrected one is entered as a new Payment."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         void_payment(conn, payment_id, body.reason, today, now)
         return load_payment(conn, payment_id)

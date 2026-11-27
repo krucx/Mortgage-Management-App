@@ -14,7 +14,6 @@ from datetime import date, timedelta
 from enum import StrEnum
 from typing import Literal
 
-from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection, RowMapping
@@ -40,6 +39,7 @@ from mortgage_backend.platform.db import (
     payment_table,
     term_change_table,
 )
+from mortgage_backend.platform.errors import Refusal
 
 
 class MortgageStatus(StrEnum):
@@ -499,7 +499,7 @@ def mortgage_row(conn: Connection, mortgage_id: int) -> RowMapping:
         .first()
     )
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
+        raise Refusal("Mortgage not found", "not_found")
     return row
 
 

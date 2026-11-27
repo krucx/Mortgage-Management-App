@@ -175,6 +175,15 @@ def test_opening_a_mortgage_that_does_not_exist_is_404(client):
     assert client.get("/api/mortgages/999").status_code == 404
 
 
+def test_listing_mortgages_as_of_a_future_date_is_refused(client):
+    response = client.get("/api/mortgages", params={"as_of": "2026-04-21"})
+
+    assert (response.status_code, response.content) == (
+        422,
+        b'{"detail":"The date cannot be in the future"}',
+    )
+
+
 def test_mortgages_can_be_searched_by_name_or_customer(client, ramesh):
     sita = client.post(
         "/api/customers", json={"name": "Sita", "address": "", "phone_1": "9000000005"}

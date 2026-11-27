@@ -11,7 +11,7 @@ same change and roll it back.
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.engine import Connection
@@ -37,7 +37,7 @@ from mortgage_backend.platform.db import (
     term_change_table,
     write_transaction,
 )
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.safekeeping import audit
 
 
@@ -92,14 +92,14 @@ def add_term_change(
     )
     effective_on = change.effective_on or next_one
     if effective_on < today or not is_accrual_date(row["start_date"], effective_on):
-        raise unprocessable(
+        raise Refusal(
             "A Term Change starts on an Accrual Date, today or later "
-            f"(the next is {next_one:%d %b %Y})"
+            f"(the next is {next_one:%d %b %Y})",
+            "unprocessable",
         )
     if any(c.on == effective_on for c in mortgage.term_changes):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"There is already a Term Change on {effective_on:%d %b %Y}",
+        raise Refusal(
+            f"There is already a Term Change on {effective_on:%d %b %Y}", "conflict"
         )
     before = mortgage.terms_on(effective_on)
     # Only what differs is stored, so a later Term Change keeps its own effect.
@@ -109,7 +109,9 @@ def add_term_change(
         Terms.model_fields,
     )
     if not changed:
-        raise unprocessable("The Term Change must change the rate, mode or rule")
+        raise Refusal(
+            "The Term Change must change the rate, mode or rule", "unprocessable"
+        )
     conn.execute(
         insert(term_change_table).values(
             mortgage_id=mortgage_id,
@@ -136,7 +138,7 @@ def edit_mortgage(
 ) -> None:
     """Correct a Mortgage's details (or refuse); the Ledger follows from them."""
     if edit.start_date > today:
-        raise unprocessable("Start date cannot be in the future")
+        raise Refusal("Start date cannot be in the future", "unprocessable")
     mortgage = replay(conn, mortgage_id)
     before = mortgage.row
     after = edit.model_dump(exclude={"terms"})
@@ -155,10 +157,10 @@ def edit_mortgage(
         _LOCKED_WHEN_CLOSED[c.field] for c in changed if c.field in _LOCKED_WHEN_CLOSED
     )
     if before["status"] != MortgageStatus.ACTIVE and locked:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
+        raise Refusal(
             f"{before['name']} is {before['status']}: reopen it to change its "
             + _join(list(locked)),
+            "conflict",
         )
     taken = conn.execute(
         select(mortgage_table.c.id).where(
@@ -167,24 +169,23 @@ def edit_mortgage(
         )
     ).first()
     if taken:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"The Mortgage Name {edit.name} is already used",
-        )
+        raise Refusal(f"The Mortgage Name {edit.name} is already used", "conflict")
     stranded = [
         c.on
         for c in mortgage.term_changes
         if not is_accrual_date(edit.start_date, c.on)
     ]
     if stranded:
-        raise unprocessable(
+        raise Refusal(
             f"The Term Change from {stranded[0]:%d %b %Y} would no longer be on an "
-            "Accrual Date: keep the same day of the month, or remove it first"
+            "Accrual Date: keep the same day of the month, or remove it first",
+            "unprocessable",
         )
     first_payment = min((a.on for a in mortgage.allocations), default=None)
     if first_payment is not None and edit.start_date > first_payment:
-        raise unprocessable(
-            f"There is a Payment on {first_payment:%d %b %Y}, before that start date"
+        raise Refusal(
+            f"There is a Payment on {first_payment:%d %b %Y}, before that start date",
+            "unprocessable",
         )
     conn.execute(
         update(mortgage_table).where(mortgage_table.c.id == mortgage_id).values(**after)
@@ -216,7 +217,7 @@ def create_mortgage(
     """Lend against a packet of jewellery (or refuse): named if no name is given, on
     the Default Terms if none are."""
     if mortgage.start_date > today:
-        raise unprocessable("Start date cannot be in the future")
+        raise Refusal("Start date cannot be in the future", "unprocessable")
     name = name_for(conn, mortgage)
     terms = mortgage.terms or DEFAULT_TERMS.get(conn)
     mortgage_id: int = conn.execute(
@@ -252,11 +253,11 @@ def remove_term_change(
         )
     ).scalar()
     if effective_on is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Term Change not found")
+        raise Refusal("Term Change not found", "not_found")
     if effective_on <= today:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
+        raise Refusal(
             "This Term Change has taken effect; add another to change the Terms",
+            "conflict",
         )
     conn.execute(delete(term_change_table).where(term_change_table.c.id == change_id))
     check_replays(conn, [row], today)
@@ -283,7 +284,7 @@ def post_term_change(
     today: TodayDep,
     now: NowDep,
 ) -> Mortgage:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         add_term_change(conn, mortgage_id, change, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
@@ -297,7 +298,7 @@ def put_mortgage(
     now: NowDep,
 ) -> Mortgage:
     """Correct a Mortgage's details; its Ledger is replayed from them."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         edit_mortgage(conn, mortgage_id, edit, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
@@ -311,7 +312,7 @@ def delete_term_change(
     now: NowDep,
 ) -> Mortgage:
     """Remove a Term Change that has not taken effect yet."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         remove_term_change(conn, mortgage_id, change_id, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
@@ -325,7 +326,7 @@ def post_instalment_cancel(
     now: NowDep,
 ) -> Mortgage:
     """Cancel an upcoming Advance Instalment, applying its amount today."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         cancel_instalment(conn, mortgage_id, instalment_id, today, now)
         return load_mortgage(conn, mortgage_id, today)
 

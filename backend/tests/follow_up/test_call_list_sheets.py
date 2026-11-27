@@ -292,6 +292,10 @@ def test_a_file_that_is_not_an_exported_call_list_is_refused(client):
 
     assert response.status_code == 422
     assert "not an Excel" in response.json()["detail"]
+    assert response.content == (
+        b'{"detail":"This file is not an Excel sheet (.xlsx): import the Call List '
+        b'exported as Excel, with the Call Notes filled in"}'
+    )
 
 
 def test_a_title_row_added_above_the_headings_still_imports(client, book):
