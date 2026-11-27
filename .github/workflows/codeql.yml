@@ -11,6 +11,9 @@ on:
     branches: [main]
   schedule:
     - cron: '23 6 * * 1'
+  # The release candidate preflight dispatches it on release/X.Y.Z, so the release PR (opened with
+  # GITHUB_TOKEN, which starts no pull_request run) has its Analyze checks on the candidate commit.
+  workflow_dispatch:
 
 permissions: {}
 

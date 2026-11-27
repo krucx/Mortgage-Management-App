@@ -8,10 +8,25 @@ on:
         required: true
         type: string
 
+# RELEASE_REQUIRE_APPROVAL (repository variable) is the rollout fallback switch: unset (the
+# default) the release PR merges itself when the machine conditions hold
+# (.github/scripts/lib/release-conditions.mjs); set to true it is left for the owner to approve and
+# merge, as before. Removed once one release has auto-merged cleanly (#573).
+#
+# Why the preflight reports every required check: a pull request this workflow opens with
+# GITHUB_TOKEN starts no workflow by itself. GitHub creates its pull_request runs (Tests, CodeQL,
+# Container scan, Auto-merge) as "action_required", waiting for a maintainer's approval: confirmed on
+# release PRs #563, #559 and #557, whose runs only ran as attempt 2 after the owner approved them. So
+# the preflight dispatches Tests and CodeQL on the candidate commit itself, and their check runs
+# (backend, frontend, image, qa, windows, version-bump, Analyze (...)) are the release PR's required
+# checks. A merge made with GITHUB_TOKEN likewise starts no pull_request workflow, so this workflow
+# dispatches the publish flow itself after the merge.
 permissions:
   contents: write
   pull-requests: write
   actions: write
+  checks: read
+  statuses: read
 
 jobs:
   prepare:
@@ -114,20 +129,31 @@ jobs:
             --latest-published "$LATEST_PUBLISHED" \
             --current-version "$current_main" \
             --check-only
+          # CodeQL in parallel with Tests: both report required checks on the candidate commit.
+          node .github/scripts/release.mjs dispatch-and-wait \
+            --repo "$GITHUB_REPOSITORY" --workflow codeql.yml --ref "$BRANCH" \
+            --match-sha "$CANDIDATE_SHA" --timeout-minutes 60 > /tmp/codeql-preflight.json &
+          codeql_pid=$!
           set +e
           result=$(node .github/scripts/release.mjs dispatch-and-wait \
             --repo "$GITHUB_REPOSITORY" --workflow test.yml --ref "$BRANCH" \
             --match-sha "$CANDIDATE_SHA" --timeout-minutes 60)
           status=$?
+          wait "$codeql_pid"
+          codeql_status=$?
           set -e
           url=$(jq -r '.url // empty' <<< "$result")
           conclusion=$(jq -r '.conclusion // empty' <<< "$result")
+          codeql_url=$(jq -r '.url // empty' /tmp/codeql-preflight.json)
+          codeql_conclusion=$(jq -r '.conclusion // empty' /tmp/codeql-preflight.json)
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
           echo "Preflight run: ${url:-not found} (${conclusion:-failed})" >> "$GITHUB_STEP_SUMMARY"
-          [[ $status -eq 0 ]]
+          echo "CodeQL preflight run: ${codeql_url:-not found} (${codeql_conclusion:-failed})" >> "$GITHUB_STEP_SUMMARY"
+          [[ $status -eq 0 && $codeql_status -eq 0 ]]
 
       - name: Open the release pull request
+        id: pr
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.candidate.outputs.branch }}
@@ -156,14 +182,46 @@ jobs:
 
           - Candidate preflight: [all required checks passed]($PREFLIGHT_URL)
           - Release checklist: [Documentation/RELEASE_CHECKLIST.md](Documentation/RELEASE_CHECKLIST.md)
-          - Checklist status: preparation checks passed; release owner review and publish checklist remain pending.
-          - Human-authored fragments under changelog/unreleased/ were collated into the dated CHANGELOG section; review the wording and applicable documentation before merging.
+          - Human-authored fragments under changelog/unreleased/ were collated into the dated CHANGELOG section.
+          - Merge: this workflow merges the pull request itself when it is only a version upgrade of the preflight-validated commit with every required check green (.github/scripts/lib/release-conditions.mjs), then starts the publish flow. If the repository variable RELEASE_REQUIRE_APPROVAL is true, or a condition fails, it is left for the owner.
           EOF
             gh pr create --base main --head "$BRANCH" --title "Prepare release $REQUESTED_VERSION" \
               --body-file /tmp/release-pr-body.md
           fi
+          echo "number=$(gh pr view "$BRANCH" --json number --jq .number)" >> "$GITHUB_OUTPUT"
           echo "Candidate: $BRANCH ($CANDIDATE_SHA)" >> "$GITHUB_STEP_SUMMARY"
           echo "Preflight: $PREFLIGHT_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      # The allowlist's release case (.github/scripts/lib/auto-merge-allowlist.mjs) decides; nothing
+      # merges unless every machine condition holds for exactly the commit pushed and preflighted above.
+      - name: Merge the release pull request when it is only a version upgrade
+        id: merge
+        if: vars.RELEASE_REQUIRE_APPROVAL != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          node .github/scripts/auto-merge.mjs release \
+            --pr-number "$PR_NUMBER" --expected-head "$CANDIDATE_SHA" > /tmp/release-merge.json
+          merge_commit=$(jq -r .mergeCommit /tmp/release-merge.json)
+          echo "merge_commit=$merge_commit" >> "$GITHUB_OUTPUT"
+          echo "- Release PR #$PR_NUMBER merged itself at $merge_commit (machine conditions held)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start the publish flow for the merged release pull request
+        if: vars.RELEASE_REQUIRE_APPROVAL != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          gh workflow run publish-release.yml --repo "$GITHUB_REPOSITORY" --ref main -f "pull_request=$PR_NUMBER"
+          echo "- Started Publish merged release candidate for #$PR_NUMBER: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/publish-release.yml" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Leave the release pull request for the owner (approval switch on)
+        if: vars.RELEASE_REQUIRE_APPROVAL == 'true'
+        run: echo '- RELEASE_REQUIRE_APPROVAL is true; the release PR waits for the owner to approve and merge.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report incomplete preparation on failure
         if: failure()
@@ -181,5 +239,6 @@ jobs:
             fi
             echo "- Preflight run: ${PREFLIGHT_URL:-not started or not completed}"
             echo '- No release pull request was opened unless the previous step completed.'
+            echo '- An opened release pull request was not merged unless the merge step completed; a refused condition is in that step log. Nothing was published.'
             echo '- Review the failed step, add any missing human-authored release information, then rerun with the same version.'
           } >> "$GITHUB_STEP_SUMMARY"

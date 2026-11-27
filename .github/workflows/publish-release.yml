@@ -1,12 +1,15 @@
 name: Publish merged release candidate
 
 on:
+  # A merge by the owner starts it here. A merge by the Prepare release candidate workflow
+  # (GITHUB_TOKEN) starts no pull_request run, so that workflow dispatches this one instead; if
+  # GitHub holds such a run for approval, the job skips it, so one merge never publishes twice.
   pull_request:
     types: [closed]
   workflow_dispatch:
     inputs:
       pull_request:
-        description: Merged release candidate PR number to safely retry
+        description: Merged release candidate PR number to publish or safely retry
         required: true
         type: number
 
@@ -14,6 +17,7 @@ permissions:
   contents: write
   pull-requests: read
   checks: read
+  statuses: read
   actions: write
 
 concurrency:
@@ -26,6 +30,7 @@ jobs:
     if: >-
       (github.event_name == 'pull_request' &&
       github.event.pull_request.merged == true &&
+      github.event.pull_request.merged_by.login != 'github-actions[bot]' &&
       github.event.pull_request.base.ref == 'main' &&
       startsWith(github.event.pull_request.head.ref, 'release/')) ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
@@ -42,18 +47,21 @@ jobs:
         with:
           node-version: 24
 
-      - name: Validate the merged release PR and its review
+      # Machine conditions by default (.github/scripts/lib/release-conditions.mjs); the repository
+      # variable RELEASE_REQUIRE_APPROVAL=true restores the old human-approval rule instead.
+      - name: Validate the merged release PR
         id: candidate
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pull_request }}
+          REQUIRE_APPROVAL: ${{ vars.RELEASE_REQUIRE_APPROVAL == 'true' }}
         run: |
           set -euo pipefail
           version=$(cat VERSION)
           node .github/scripts/release.mjs validate-candidate \
             --repo "$GITHUB_REPOSITORY" --pr-number "$PR_NUMBER" --version "$version" \
-            > /tmp/release-candidate.json
+            --require-approval "$REQUIRE_APPROVAL" > /tmp/release-candidate.json
           commit=$(jq -r .commit /tmp/release-candidate.json)
           head_commit=$(jq -r .headCommit /tmp/release-candidate.json)
           pr=$(jq -r .pullRequest /tmp/release-candidate.json)
@@ -63,7 +71,11 @@ jobs:
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
           echo "head_commit=$head_commit" >> "$GITHUB_OUTPUT"
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
-          echo "- Approved release PR #$pr targets main and all reported checks passed." >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$REQUIRE_APPROVAL" == true ]]; then
+            echo "- Approved release PR #$pr targets main and all reported checks passed (approval switch on)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Release PR #$pr is only a version upgrade of its preflight-validated commit, with every required check green." >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "- VERSION $version and its dated changelog section are valid." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create or safely reuse the version tag
@@ -82,7 +94,7 @@ jobs:
           action=$(jq -r .action /tmp/release-tag.json)
           echo "action=$action" >> "$GITHUB_OUTPUT"
           echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "- Tag $VERSION is present at the approved release merge commit ($action)." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag $VERSION is present at the validated release merge commit ($action)." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Dispatch the image and GitHub release publisher
         id: publisher

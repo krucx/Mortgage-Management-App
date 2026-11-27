@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { preflightRunsPath, requiredCheckNames } from './lib/release-conditions.mjs'
 
 function gh(args) {
   return execFileSync('gh', args, { encoding: 'utf8' })
@@ -26,6 +27,17 @@ export function createGithubAdapter(repo) {
     },
     getChecks(number) {
       return JSON.parse(gh(['pr', 'view', String(number), '--repo', repo, '--json', 'statusCheckRollup'])).statusCheckRollup
+    },
+    getFiles(number) {
+      return JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls/${number}/files?per_page=100`])).flat()
+    },
+    // The status-check names main's rulesets require, as GitHub enforces them now.
+    getRequiredChecks(branch) {
+      return requiredCheckNames(JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/rules/branches/${branch}?per_page=100`])).flat())
+    },
+    // Dispatched Tests runs at this commit: the release candidate preflight.
+    getPreflightRuns(headSha) {
+      return JSON.parse(gh(['api', `repos/${repo}${preflightRunsPath(headSha)}`])).workflow_runs
     },
     getTagCommit(tag) {
       const output = git(['ls-remote', '--tags', 'origin', `refs/tags/${tag}`, `refs/tags/${tag}^{}`])

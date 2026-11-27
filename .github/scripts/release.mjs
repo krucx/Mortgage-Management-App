@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { createGithubAdapter } from './github-adapter.mjs'
+import { judgeReleaseCandidate } from './lib/release-conditions.mjs'
 
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 const commitPattern = /^[0-9a-f]{40}$/i
@@ -76,15 +77,30 @@ export function validateReviewAndChecks(reviews, checks, pullRequestAuthor, curr
   }
 }
 
-export function validateApprovedCandidate(adapter, { prNumber, version, expectCommit }) {
+// Validates a merged release pull request before anything is tagged or published.
+// By default it requires the machine conditions (lib/release-conditions.mjs): only a version
+// upgrade, the preflight-validated head commit, every required check green. requireApproval
+// is the rollout fallback switch (repository variable RELEASE_REQUIRE_APPROVAL=true): it
+// restores the old rule, a current human approval from someone other than the author.
+export function validateCandidate(adapter, { prNumber, version, expectCommit, requireApproval = false }) {
   const pullRequest = adapter.getPullRequest(prNumber)
   const result = validateMergedRelease({ action: 'closed', pull_request: pullRequest }, version)
   if (expectCommit && result.commit.toLowerCase() !== String(expectCommit).toLowerCase()) {
     throw new Error(`The release tag points to ${expectCommit}, not the merged PR commit ${result.commit}`)
   }
-  const reviews = adapter.getReviews(prNumber)
-  const checks = adapter.getChecks(prNumber)
-  validateReviewAndChecks(reviews, checks, pullRequest.user?.login, result.headCommit)
+  if (requireApproval) {
+    validateReviewAndChecks(adapter.getReviews(prNumber), adapter.getChecks(prNumber), pullRequest.user?.login, result.headCommit)
+    return result
+  }
+  const verdict = judgeReleaseCandidate({
+    pullRequest,
+    version,
+    files: adapter.getFiles(prNumber),
+    checks: adapter.getChecks(prNumber),
+    requiredChecks: adapter.getRequiredChecks('main'),
+    preflightRuns: adapter.getPreflightRuns(result.headCommit),
+  })
+  if (!verdict.ok) throw new Error(`The release pull request is not only a validated version upgrade: ${verdict.reason}`)
   return result
 }
 
@@ -210,10 +226,11 @@ async function runCli(args) {
     return
   }
   if (command === 'validate-candidate') {
-    const result = validateApprovedCandidate(createGithubAdapter(option(args, '--repo')), {
+    const result = validateCandidate(createGithubAdapter(option(args, '--repo')), {
       prNumber: Number(option(args, '--pr-number')),
       version: option(args, '--version'),
       expectCommit: option(args, '--expect-commit'),
+      requireApproval: option(args, '--require-approval') === 'true',
     })
     console.log(JSON.stringify(result))
     return
