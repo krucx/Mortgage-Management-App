@@ -10,7 +10,6 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Literal
 
-from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, func, insert, select, update
 from sqlalchemy.engine import Connection, RowMapping
@@ -27,7 +26,7 @@ from mortgage_backend.platform.db import (
     mortgage_table,
     payment_table,
 )
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.money import format_inr
 from mortgage_backend.safekeeping import audit
 
@@ -99,21 +98,23 @@ def refuse_overheld(
         _, held, owed = _over(mortgage, received_on)
         excess = held - owed
         if excess > 0:
-            raise unprocessable(
+            raise Refusal(
                 f"{name}: an Advance of {format_inr(advance)} would hold more "
                 f"than the {format_inr(owed)} it owes on {received_on:%d %b %Y}; at "
-                f"most {format_inr(max(0, advance - excess))} fits"
+                f"most {format_inr(max(0, advance - excess))} fits",
+                "unprocessable",
             )
     upcoming, held, owed = _over(mortgage, today)
     excess = held - owed
     if excess <= 0:
         return
     if advance:
-        raise unprocessable(
+        raise Refusal(
             f"{name}: with an Advance of {format_inr(advance)}, its Advance "
             f"Instalments still upcoming would hold {format_inr(held)}, more than the "
             f"{format_inr(owed)} it owes today, {today:%d %b %Y}. Record a smaller "
-            f"Advance, or cancel upcoming parts first"
+            f"Advance, or cancel upcoming parts first",
+            "unprocessable",
         )
     # Cancelling a part applies it at once, so the latest parts covering the excess
     # can pay that much of this Payment instead.
@@ -122,14 +123,15 @@ def refuse_overheld(
         cancel.insert(0, part)
         if sum(i.amount for i in cancel) >= excess:
             break
-    raise unprocessable(
+    raise Refusal(
         f"{name}: this would leave its upcoming Advance Instalments holding "
         f"{format_inr(held)}, more than the {format_inr(owed)} it would owe on "
         f"{today:%d %b %Y}. Take at most {format_inr(max(0, taking - excess))}, or "
         f"cancel the Advance Instalments on "
         f"{', '.join(f'{i.on:%d %b %Y}' for i in cancel)} first, which pay "
         f"{format_inr(sum(i.amount for i in cancel))} of it at once, and take that "
-        f"much less"
+        f"much less",
+        "unprocessable",
     )
 
 
@@ -330,18 +332,16 @@ def cancel_instalment(
         if i.id == instalment_id
     ]
     if not found:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Advance Instalment not found")
+        raise Refusal("Advance Instalment not found", "not_found")
     [instalment] = found
     if instalment.cancelled_on is not None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
+        raise Refusal(
             "This Advance Instalment was cancelled on "
             f"{instalment.cancelled_on:%d %b %Y}",
+            "conflict",
         )
     if not instalment.upcoming:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "This Advance Instalment has been applied"
-        )
+        raise Refusal("This Advance Instalment has been applied", "conflict")
     conn.execute(
         update(advance_instalment_table)
         .where(advance_instalment_table.c.id == instalment_id)

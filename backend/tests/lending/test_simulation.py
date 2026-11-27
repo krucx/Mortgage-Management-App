@@ -353,10 +353,13 @@ def test_a_lump_sum_larger_than_what_is_owed_is_refused_naming_it(client):
     )
 
     assert response.status_code == 422
-    detail = response.json()["detail"]
-    assert detail["lump_sum"] == 1
-    assert detail["on"] == "2026-02-15"
-    assert detail["owed"] == 1_05_000 * RUPEE
+    assert (
+        response.content
+        == (
+            '{"detail":{"lump_sum":1,"owed":10500000,"on":"2026-02-15",'
+            '"message":"The Lump Sum on 15 Feb 2026 is more than the ₹1,05,000 owed then"}}'
+        ).encode()
+    )
 
 
 @pytest.mark.parametrize(

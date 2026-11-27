@@ -6,7 +6,7 @@ later and still shows each Mortgage as it stood just after the Payment.
 
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy.engine import Connection, RowMapping
 
@@ -31,6 +31,7 @@ from mortgage_backend.payments.queries import (
 )
 from mortgage_backend.people.customers import PersonSummary, phones_of
 from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.errors import Refusal
 
 
 class ReceiptLineOut(ReceiptLine):
@@ -58,11 +59,9 @@ def _payment(conn: Connection, payment_id: int) -> RowMapping:
     """The Payment, with its Customer's name and numbers; refused once Voided."""
     payment = payment_with_customer(conn, payment_id)
     if payment is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
+        raise Refusal("Payment not found", "not_found")
     if payment["voided_at"] is not None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "This Payment was Voided: it has no Receipt"
-        )
+        raise Refusal("This Payment was Voided: it has no Receipt", "conflict")
     return payment
 
 
@@ -165,9 +164,7 @@ def load_advance_receipt(
     instalment = instalment_with_closed_on(conn, payment_id, instalment_id)
     applied_on = None if instalment is None else when_cancelled(instalment)
     if instalment is None or applied_on is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, "No cancelled Advance Instalment of this Payment"
-        )
+        raise Refusal("No cancelled Advance Instalment of this Payment", "not_found")
     row = mortgage_row(conn, instalment["mortgage_id"])
     mortgage = replay(conn, row["id"])
     [step] = [
