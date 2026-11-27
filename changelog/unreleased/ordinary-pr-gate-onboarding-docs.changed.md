@@ -1,1 +1,0 @@
-- **Onboarding course:** updated lessons 013·1, 016·1/5/99, trap #20, `commands.html` and `docs/index.html` to reflect ADR 0022 (the owner's merge click gates `main` with no approving review required; only release and safe Dependabot pull requests auto-merge) and added ADRs 0022 and 0023 to the landing page ADR list.

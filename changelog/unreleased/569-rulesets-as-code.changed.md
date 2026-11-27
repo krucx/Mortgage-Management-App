@@ -1,1 +1,0 @@
-- **Branch rules:** `main` no longer requires an approval or the `CodeRabbit` check, a new `integration/**` ruleset requires only the fast checks (no up-to-date requirement), and `node .github/scripts/apply-rulesets.mjs` shows the drift from GitHub (dry-run) and applies the committed rulesets (owner only). `Tests` now also runs on pull requests into `integration/**`.
