@@ -19,7 +19,7 @@ test('only integration/* into main in this repo qualifies', () => {
 });
 
 test('ticketRefs reads closing keywords, falling back to the title', () => {
-  assert.deepEqual(ticketRefs('Add thing (#12)', 'Closes #12\nFixes krucx/r#13, resolves #12'), [12, 13]);
+  assert.deepEqual(ticketRefs('Add thing (#12)', 'Closes #12\nFixes other/repo#13, resolves #12'), [12]);
   assert.deepEqual(ticketRefs('Add thing (#12)', 'no keyword'), [12]);
   assert.deepEqual(ticketRefs('Plain', null), []);
 });

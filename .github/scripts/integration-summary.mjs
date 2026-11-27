@@ -21,7 +21,7 @@ export function isIntegrationPr(pr, repository) {
 }
 
 export function ticketRefs(title, body) {
-  const closing = [...(body ?? '').matchAll(/\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:[\w.-]+\/[\w.-]+)?#(\d+)/gi)].map((m) => Number(m[1]));
+  const closing = [...(body ?? '').matchAll(/\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi)].map((m) => Number(m[1]));
   const found = closing.length ? closing : [...(title ?? '').matchAll(/#(\d+)/g)].map((m) => Number(m[1]));
   return [...new Set(found)];
 }
