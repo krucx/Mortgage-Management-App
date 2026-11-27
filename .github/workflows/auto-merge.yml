@@ -27,15 +27,15 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: auto-merge-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   auto-merge:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.action != 'edited' || github.event.changes.base != null)
+    # Job-level, so a skipped title/body edit never cancels a running opened/reopened attempt.
+    concurrency:
+      group: auto-merge-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: write
