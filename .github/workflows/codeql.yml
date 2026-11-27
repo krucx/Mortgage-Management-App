@@ -18,8 +18,9 @@ jobs:
   # Tree reuse (.github/scripts/tree-reuse.mjs): the push to main after a merge skips the
   # analysis when the merged tree already passed CodeQL on the pull request. The weekly
   # schedule always analyses main in full.
-  # It relies on main requiring a branch to be up to date before merging. A failed lookup,
-  # a tree with no passing record, and every other event (the schedule included) run in full.
+  # It relies on main requiring a branch to be up to date before merging. A failed lookup or
+  # reuse job, a tree with no passing record, and every other event (the schedule included)
+  # run in full.
   reuse:
     runs-on: ubuntu-latest
     permissions:
@@ -43,7 +44,7 @@ jobs:
 
   analyze:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:

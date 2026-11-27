@@ -109,7 +109,10 @@ CI does not re-run checks on a tree it has already validated. When a `Tests`, `C
 `Container scan` run on a pull request or on `main` finishes, its `record` job writes the git
 tree it tested as a commit status on the commit it ran for (the PR head, or the `main` commit):
 context `validated-tree/<workflow>`, description `Passed on tree <hash>` (or `Failed on ...`),
-linking to the run. These statuses are informational, not required checks. Pull requests
+linking to the run. These statuses are informational, not required checks. A commit status
+was chosen over check-run output because `GITHUB_TOKEN` writes it with `statuses: write`
+alone, GitHub lists a commit's statuses newest first (the latest result wins), and a status
+can link to any run, including the one a reused run points back to. Pull requests
 from forks record nothing, as their token cannot write statuses.
 
 On the `push` to `main` after a merge, each workflow's `reuse` job looks that record up on the

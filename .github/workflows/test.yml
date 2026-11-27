@@ -13,13 +13,18 @@ on:
   workflow_call:
   workflow_dispatch:
 
+# Jobs that need more ask for it themselves. Under release.yml's call, a job without its own
+# block would otherwise get everything the caller grants this workflow.
+permissions:
+  contents: read
+
 jobs:
   # Tree reuse (.github/scripts/tree-reuse.mjs). The push to main after a merge looks up
   # whether the merged tree already passed Tests on the pull request; if so every job below
   # is skipped and this job reports "Reused result from run <link>". It relies on main
   # requiring a branch to be up to date before merging, so the PR tested the same tree.
   # Any other event, or a tree with no passing record, runs everything in full. A failed
-  # lookup also runs in full.
+  # lookup, or a failed reuse job, also runs in full (the jobs below check !cancelled()).
   reuse:
     runs-on: ubuntu-latest
     permissions:
@@ -43,7 +48,7 @@ jobs:
 
   release-candidate:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,11 +56,21 @@ jobs:
         with:
           node-version: 24
       - run: node --test .github/scripts/test-release-candidate.mjs
+
+  tree-reuse:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
       - run: node --test .github/scripts/test-tree-reuse.mjs
 
   version-bump:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -87,7 +102,7 @@ jobs:
 
   release:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -98,7 +113,7 @@ jobs:
 
   finding-reconciler:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -109,7 +124,7 @@ jobs:
 
   critical-finding-sync:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -120,7 +135,7 @@ jobs:
 
   secret-scanning-alert-sync:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -131,7 +146,7 @@ jobs:
 
   coverage-summary:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,7 +157,7 @@ jobs:
 
   backend:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -177,7 +192,7 @@ jobs:
 
   frontend:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -219,7 +234,7 @@ jobs:
   # so a broken image is never published.
   image:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -274,7 +289,7 @@ jobs:
   qa:
     needs: reuse
     if: >-
-      needs.reuse.outputs.reused != 'true' &&
+      !cancelled() && needs.reuse.outputs.reused != 'true' &&
       (startsWith(github.head_ref, 'release/') || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -300,7 +315,7 @@ jobs:
 
   pages:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -312,7 +327,7 @@ jobs:
   # double-click does, for the commit being tested.
   windows:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -401,8 +416,9 @@ jobs:
   # validated-tree/Tests on the commit it ran for: the PR head, or the main commit. A
   # failed run records failure, so a later pass on another run is needed to reuse it.
   # Not for pull requests from forks, whose token cannot write statuses.
+  # needs lists every job in this workflow: add a new job here too.
   record:
-    needs: [reuse, release-candidate, version-bump, release, finding-reconciler, critical-finding-sync, secret-scanning-alert-sync, coverage-summary, backend, frontend, image, qa, pages, windows]
+    needs: [reuse, release-candidate, tree-reuse, version-bump, release, finding-reconciler, critical-finding-sync, secret-scanning-alert-sync, coverage-summary, backend, frontend, image, qa, pages, windows]
     if: >-
       !cancelled() &&
       (github.event_name == 'push' ||

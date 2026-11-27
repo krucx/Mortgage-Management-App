@@ -35,7 +35,7 @@ env:
 jobs:
   tests:
     uses: ./.github/workflows/test.yml
-    # Test's tree-reuse jobs ask for these, though they do nothing on a release run.
+    # Tests' reuse and record jobs ask for these, though they do nothing on a release run.
     permissions:
       contents: read
       pull-requests: read

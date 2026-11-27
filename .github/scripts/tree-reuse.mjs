@@ -34,13 +34,14 @@ export function decideReuse({ tree, context, candidates }) {
   const reasons = []
   for (const { sha, statuses } of candidates) {
     const latest = statuses.find((status) => status.context === context)
+    const recordedTree = treeFromDescription(latest?.description)
     if (!latest) {
       reasons.push(`${sha}: no record`)
     } else if (latest.state !== 'success') {
       reasons.push(`${sha}: latest run ${latest.state}`)
-    } else if (!treeFromDescription(latest.description)) {
+    } else if (!recordedTree) {
       reasons.push(`${sha}: record names no tree`)
-    } else if (treeFromDescription(latest.description) !== tree) {
+    } else if (recordedTree !== tree) {
       reasons.push(`${sha}: validated a different tree`)
     } else {
       return { reused: true, sha, runUrl: latest.target_url }
@@ -80,7 +81,7 @@ async function main() {
   const client = createGitHubClient(process.env.GITHUB_TOKEN, process.env.GITHUB_REPOSITORY)
 
   if (command === 'lookup') {
-    const decision = await lookUpReuse(client, values)
+    const decision = await lookUpReuse(client, { sha: values.sha, workflow: values.workflow })
     const message = decision.reused
       ? `Reused result from run ${decision.runUrl}: ${values.workflow} already passed on tree ${decision.tree} (commit ${decision.sha}).`
       : `Running ${values.workflow} in full: tree ${decision.tree} has no passing record (${decision.reason}).`

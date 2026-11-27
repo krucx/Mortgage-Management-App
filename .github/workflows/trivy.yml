@@ -17,8 +17,9 @@ jobs:
   # Tree reuse (.github/scripts/tree-reuse.mjs): the push to main after a merge skips the
   # scan when the merged tree already passed it on the pull request. The daily schedule
   # always scans main in full, so new vulnerabilities are caught.
-  # It relies on main requiring a branch to be up to date before merging. A failed lookup,
-  # a tree with no passing record, and every other event (the schedule included) run in full.
+  # It relies on main requiring a branch to be up to date before merging. A failed lookup or
+  # reuse job, a tree with no passing record, and every other event (the schedule included)
+  # run in full.
   reuse:
     runs-on: ubuntu-latest
     permissions:
@@ -42,7 +43,7 @@ jobs:
 
   trivy:
     needs: reuse
-    if: needs.reuse.outputs.reused != 'true'
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
