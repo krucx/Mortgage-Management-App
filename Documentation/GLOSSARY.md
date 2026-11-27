@@ -246,3 +246,4 @@ _Avoid_: Undo, unclose, revive
 **Recovered Amount**:
 What a Forfeited Mortgage's jewellery fetched (or is worth, if kept); its difference from the Outstanding on the Closure date is the Lender's profit or loss.
 _Avoid_: Sale value, realisation
+trial
