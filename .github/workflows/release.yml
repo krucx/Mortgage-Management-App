@@ -65,19 +65,18 @@ jobs:
       # The tag must be the version the app reports, so an image never claims the wrong one.
       - name: The tag matches the authoritative version
         run: node .github/scripts/check-version.mjs --tag "$GITHUB_REF_NAME"
-      # Same conditions as the publisher: machine conditions, or approval with the switch on.
+      # Verify that the tagged commit came from a release PR that passed the machine conditions.
       - name: Dispatch came from a validated release PR
         if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pull_request }}
-          REQUIRE_APPROVAL: ${{ vars.RELEASE_REQUIRE_APPROVAL == 'true' }}
         run: |
           set -euo pipefail
           node .github/scripts/release.mjs validate-candidate \
             --repo "$GITHUB_REPOSITORY" --pr-number "$PR_NUMBER" --version "$GITHUB_REF_NAME" \
-            --expect-commit "$GITHUB_SHA" --require-approval "$REQUIRE_APPROVAL" > /tmp/release-pr.json
+            --expect-commit "$GITHUB_SHA" > /tmp/release-pr.json
           echo "Verified release tag $GITHUB_REF_NAME against validated PR #$PR_NUMBER at $(jq -r .commit /tmp/release-pr.json)."
       # A fix for an older version (e.g. 1.1.3 after 1.2.0) must not move the latest back.
       - name: Is this the highest version tagged?

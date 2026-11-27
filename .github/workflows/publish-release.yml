@@ -49,21 +49,19 @@ jobs:
         with:
           node-version: 24
 
-      # Machine conditions by default (.github/scripts/lib/release-conditions.mjs); the repository
-      # variable RELEASE_REQUIRE_APPROVAL=true restores the old human-approval rule instead.
+      # Validate the release PR against the machine conditions in release-conditions.mjs.
       - name: Validate the merged release PR
         id: candidate
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pull_request }}
-          REQUIRE_APPROVAL: ${{ vars.RELEASE_REQUIRE_APPROVAL == 'true' }}
         run: |
           set -euo pipefail
           version=$(cat VERSION)
           node .github/scripts/release.mjs validate-candidate \
             --repo "$GITHUB_REPOSITORY" --pr-number "$PR_NUMBER" --version "$version" \
-            --require-approval "$REQUIRE_APPROVAL" > /tmp/release-candidate.json
+            > /tmp/release-candidate.json
           commit=$(jq -r .commit /tmp/release-candidate.json)
           head_commit=$(jq -r .headCommit /tmp/release-candidate.json)
           pr=$(jq -r .pullRequest /tmp/release-candidate.json)
@@ -73,11 +71,7 @@ jobs:
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
           echo "head_commit=$head_commit" >> "$GITHUB_OUTPUT"
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
-          if [[ "$REQUIRE_APPROVAL" == true ]]; then
-            echo "- Approved release PR #$pr targets main and all reported checks passed (approval switch on)." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "- Release PR #$pr is only a version upgrade of its preflight-validated commit, with every required check green." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "- Release PR #$pr is only a version upgrade of its preflight-validated commit, with every required check green." >> "$GITHUB_STEP_SUMMARY"
           echo "- VERSION $version and its dated changelog section are valid." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create or safely reuse the version tag

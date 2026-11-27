@@ -22,9 +22,6 @@ export function createGithubAdapter(repo) {
     getPullRequest(number) {
       return JSON.parse(gh(['api', `repos/${repo}/pulls/${number}`]))
     },
-    getReviews(number) {
-      return JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls/${number}/reviews?per_page=100`])).flat()
-    },
     getChecks(number) {
       return JSON.parse(gh(['pr', 'view', String(number), '--repo', repo, '--json', 'statusCheckRollup'])).statusCheckRollup
     },

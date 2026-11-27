@@ -40,57 +40,14 @@ export function validateMergedRelease(event, version) {
   return { version, commit: commit.toLowerCase(), headCommit: headCommit.toLowerCase(), pullRequest: pullRequest.number }
 }
 
-export function validateReviewAndChecks(reviews, checks, pullRequestAuthor, currentHead) {
-  if (!Array.isArray(reviews)) throw new Error('The release pull request has no review history')
-  const latestByReviewer = new Map()
-  for (const review of reviews) {
-    const login = review.user?.login
-    if (!login || review.commit_id?.toLowerCase() !== String(currentHead ?? '').toLowerCase()) continue
-    if (!['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(review.state)) continue
-    const previous = latestByReviewer.get(login)
-    const submittedAt = Date.parse(review.submitted_at ?? '') || 0
-    const previousSubmittedAt = Date.parse(previous?.submitted_at ?? '') || 0
-    if (!previous || submittedAt >= previousSubmittedAt) {
-      latestByReviewer.set(login, review)
-    }
-  }
-  const hasHumanApproval = [...latestByReviewer.entries()].some(([login, review]) => (
-    login.toLowerCase() !== String(pullRequestAuthor ?? '').toLowerCase() &&
-    review.user?.type !== 'Bot' && !login.toLowerCase().endsWith('[bot]') &&
-    review.state === 'APPROVED'
-  ))
-  if (!hasHumanApproval) throw new Error('The release pull request has no current human approval from someone other than its author')
-  const prePublishChecks = Array.isArray(checks)
-    ? checks.filter((check) => {
-      const name = String(check.name ?? check.context ?? '')
-      return !['release-publish', 'Publish merged release candidate / release-publish'].includes(name)
-    })
-    : []
-  if (prePublishChecks.length === 0) throw new Error('The release pull request has no completed checks')
-  const failures = prePublishChecks.filter((check) => {
-    const conclusion = String(check.conclusion ?? check.state ?? '').toUpperCase()
-    return !['SUCCESS', 'NEUTRAL', 'SKIPPED'].includes(conclusion)
-  })
-  if (failures.length) {
-    const failed = failures.map(({ name, context, conclusion, state }) => `${name ?? context ?? 'unnamed check'}: ${conclusion ?? state ?? 'incomplete'}`)
-    throw new Error(`The release pull request has checks that did not pass: ${failed.join(', ')}`)
-  }
-}
-
 // Validates a merged release pull request before anything is tagged or published.
-// By default it requires the machine conditions (lib/release-conditions.mjs): only a version
-// upgrade, the preflight-validated head commit, every required check green. requireApproval
-// is the rollout fallback switch (repository variable RELEASE_REQUIRE_APPROVAL=true): it
-// restores the old rule, a current human approval from someone other than the author.
-export function validateCandidate(adapter, { prNumber, version, expectCommit, requireApproval = false }) {
+// It requires the machine conditions (lib/release-conditions.mjs): only a version upgrade, the
+// preflight-validated head commit, every required check green.
+export function validateCandidate(adapter, { prNumber, version, expectCommit }) {
   const pullRequest = adapter.getPullRequest(prNumber)
   const result = validateMergedRelease({ action: 'closed', pull_request: pullRequest }, version)
   if (expectCommit && result.commit.toLowerCase() !== String(expectCommit).toLowerCase()) {
     throw new Error(`The release tag points to ${expectCommit}, not the merged PR commit ${result.commit}`)
-  }
-  if (requireApproval) {
-    validateReviewAndChecks(adapter.getReviews(prNumber), adapter.getChecks(prNumber), pullRequest.user?.login, result.headCommit)
-    return result
   }
   const verdict = judgeReleaseCandidate({
     pullRequest,
@@ -230,7 +187,6 @@ async function runCli(args) {
       prNumber: Number(option(args, '--pr-number')),
       version: option(args, '--version'),
       expectCommit: option(args, '--expect-commit'),
-      requireApproval: option(args, '--require-approval') === 'true',
     })
     console.log(JSON.stringify(result))
     return

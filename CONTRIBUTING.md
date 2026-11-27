@@ -74,11 +74,11 @@ add a case by editing those two files, not the workflow.
   version references, the new dated `CHANGELOG.md` section, deleted fragments). Anything else leaves
   it for the owner, and nothing is published. The workflow then starts **Publish merged release
   candidate**, which, like `release.yml`, re-checks the same conditions instead of an approval.
-  Rollout fallback: the repository variable `RELEASE_REQUIRE_APPROVAL=true` restores the old rule
-  (the owner approves and merges; publishing requires that approval). The Auto-merge workflow never
-  touches a release pull request on its own: a pull request opened with `GITHUB_TOKEN` starts no workflow, so
-  its pull_request runs wait as "action_required" and are not needed (the preflight already reported
-  the required checks).
+  The Auto-merge workflow does not process release pull requests. A pull request it opens with
+  `GITHUB_TOKEN` gets `pull_request` run records in `action_required` until a maintainer approves
+  them; the preflight dispatches Tests and CodeQL directly on the candidate commit and reports the
+  required checks there. A merge made with `GITHUB_TOKEN` starts no `push` workflow, so the
+  candidate workflow dispatches publishing itself.
 - Any other pull request into `main`, a draft, a closed pull request and any other base are left alone. The owner
   reviews each `main` pull request and presses merge; this is a trust rule, so agents must not merge or
   enable auto-merge on them either.

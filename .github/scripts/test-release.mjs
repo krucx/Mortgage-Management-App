@@ -17,7 +17,6 @@ import {
   planReleaseTag,
   validateCandidate,
   validateMergedRelease,
-  validateReviewAndChecks,
   verifyPublishedRelease,
 } from './release.mjs'
 
@@ -55,77 +54,6 @@ test('validates the merged release PR and derives its version and merge commit',
   assert.throws(() => validateMergedRelease({ ...event, pull_request: { ...event.pull_request, merged: false } }, version), /closed as merged/)
   assert.throws(() => validateMergedRelease({ ...event, pull_request: { ...event.pull_request, base: { ref: 'develop' } } }, version), /target main/)
   assert.throws(() => validateMergedRelease({ ...event, pull_request: { ...event.pull_request, head: { ref: 'release/3.4.5' } } }, version), /does not match VERSION/)
-})
-
-test('requires an approved human review and every reported check to pass', () => {
-  const checks = [
-    { name: 'backend', conclusion: 'SUCCESS' },
-    { name: 'CodeRabbit', conclusion: 'SUCCESS' },
-    { name: 'release-publish', status: 'IN_PROGRESS' },
-    { name: 'Publish merged release candidate / release-publish', status: 'IN_PROGRESS' },
-  ]
-  const approved = [{ user: { login: 'reviewer', type: 'User' }, state: 'APPROVED', commit_id: headCommit, submitted_at: '2026-11-09T09:00:00Z' }]
-  assert.doesNotThrow(() => validateReviewAndChecks(approved, checks, 'author', headCommit))
-  assert.throws(() => validateReviewAndChecks([], checks, 'author', headCommit), /no current human approval/)
-  assert.throws(() => validateReviewAndChecks([{ user: { login: 'author', type: 'User' }, state: 'APPROVED', commit_id: headCommit }], checks, 'author', headCommit), /no current human approval/)
-  assert.throws(() => validateReviewAndChecks([{ user: { login: 'review-bot[bot]', type: 'Bot' }, state: 'APPROVED', commit_id: headCommit }], checks, 'author', headCommit), /no current human approval/)
-  assert.throws(() => validateReviewAndChecks([{ ...approved[0], commit_id: commit }], checks, 'author', headCommit), /no current human approval/)
-  assert.throws(() => validateReviewAndChecks([
-    ...approved,
-    { user: { login: 'reviewer', type: 'User' }, state: 'CHANGES_REQUESTED', commit_id: headCommit, submitted_at: '2026-11-09T10:00:00Z' },
-  ], checks, 'author', headCommit), /no current human approval/)
-  assert.doesNotThrow(() => validateReviewAndChecks([
-    ...approved,
-    { user: { login: 'reviewer', type: 'User' }, state: 'COMMENTED', commit_id: headCommit, submitted_at: '2026-11-09T10:00:00Z' },
-  ], checks, 'author', headCommit))
-  assert.throws(() => validateReviewAndChecks(approved, [{ name: 'backend', conclusion: 'FAILURE' }], 'author', headCommit), /backend.*FAILURE/)
-  assert.throws(() => validateReviewAndChecks(approved, [], 'author', headCommit), /no completed checks/)
-})
-
-test('fallback: with the approval switch on, validates the merged PR and its current approval through the adapter', () => {
-  const pullRequest = { ...event.pull_request, user: { login: 'author' } }
-  const approved = [{ user: { login: 'reviewer', type: 'User' }, state: 'APPROVED', commit_id: headCommit, submitted_at: '2026-11-09T09:00:00Z' }]
-  const checks = [{ name: 'backend', conclusion: 'SUCCESS' }]
-  const adapter = createFakeGithubAdapter({
-    pullRequests: { 266: pullRequest },
-    reviews: { 266: approved },
-    checks: { 266: checks },
-  })
-  assert.deepEqual(
-    validateCandidate(adapter, { prNumber: 266, version, requireApproval: true }),
-    { version, commit, headCommit, pullRequest: 266 },
-  )
-})
-
-test('fallback: with the approval switch on, refuses when the PR is not approved after its last push', () => {
-  const pullRequest = { ...event.pull_request, user: { login: 'author' } }
-  const staleApproval = [{ user: { login: 'reviewer', type: 'User' }, state: 'APPROVED', commit_id: commit, submitted_at: '2026-11-09T09:00:00Z' }]
-  const checks = [{ name: 'backend', conclusion: 'SUCCESS' }]
-  const adapter = createFakeGithubAdapter({
-    pullRequests: { 266: pullRequest },
-    reviews: { 266: staleApproval },
-    checks: { 266: checks },
-  })
-  assert.throws(
-    () => validateCandidate(adapter, { prNumber: 266, version, requireApproval: true }),
-    /no current human approval/,
-  )
-})
-
-test('fallback: the release workflow re-verifies the approved PR against the tagged commit', () => {
-  const pullRequest = { ...event.pull_request, user: { login: 'author' } }
-  const approved = [{ user: { login: 'reviewer', type: 'User' }, state: 'APPROVED', commit_id: headCommit, submitted_at: '2026-11-09T09:00:00Z' }]
-  const checks = [{ name: 'backend', conclusion: 'SUCCESS' }]
-  const adapter = createFakeGithubAdapter({
-    pullRequests: { 266: pullRequest },
-    reviews: { 266: approved },
-    checks: { 266: checks },
-  })
-  assert.throws(
-    () => validateCandidate(adapter, { prNumber: 266, version, expectCommit: 'c'.repeat(40), requireApproval: true }),
-    /not the merged PR commit/,
-  )
-  assert.doesNotThrow(() => validateCandidate(adapter, { prNumber: 266, version, expectCommit: commit, requireApproval: true }))
 })
 
 test('creates a missing tag, reuses the same tag, and refuses a moved tag', () => {
@@ -379,11 +307,10 @@ test('third-party workflow actions are pinned to full SHAs and release permissio
 
 // --- Machine conditions (default): no human approval, only a version upgrade ---------------------
 
-function machineAdapter({ pullRequest = {}, files = fixture.releaseFiles(), checks = fixture.releaseChecks(), required = fixture.requiredChecks, runs = fixture.preflightRuns(), reviews = [] } = {}) {
+function machineAdapter({ pullRequest = {}, files = fixture.releaseFiles(), checks = fixture.releaseChecks(), required = fixture.requiredChecks, runs = fixture.preflightRuns() } = {}) {
   const merged = fixture.releasePullRequest({ state: 'closed', merged: true, merge_commit_sha: fixture.mergeCommit, ...pullRequest })
   return createFakeGithubAdapter({
     pullRequests: { 266: merged },
-    reviews: { 266: reviews },
     checks: { 266: checks },
     files: { 266: files },
     requiredChecks: required,
@@ -461,34 +388,26 @@ test('machine: refuses an empty diff', () => {
   assert.throws(() => validateMachine(machineAdapter({ files: [] })), /VERSION/)
 })
 
-test('switch: the old approval requirement comes back when requireApproval is on', () => {
-  assert.throws(() => validateMachine(machineAdapter(), { requireApproval: true }), /no current human approval/)
-  const reviews = [{ user: { login: 'owner', type: 'User' }, state: 'APPROVED', commit_id: fixture.headCommit, submitted_at: '2026-11-09T09:00:00Z' }]
-  assert.doesNotThrow(() => validateMachine(machineAdapter({ reviews }), { requireApproval: true }))
-})
-
-test('switch: the CLI reads --require-approval and defaults to machine conditions', () => {
-  const source = readFileSync(new URL('./release.mjs', import.meta.url), 'utf8')
-  assert.match(source, /requireApproval: option\(args, '--require-approval'\) === 'true'/)
-})
-
-test('the workflows wire the machine conditions and the fallback switch', () => {
+test('the workflows always use the machine conditions to merge and publish releases', () => {
   const read = (name) => readFileSync(new URL(`../workflows/${name}`, import.meta.url), 'utf8')
   const candidate = read('release-candidate.yml')
   // The preflight reports every required check on the candidate commit, CodeQL included.
   assert.match(candidate, /dispatch-and-wait \\\n\s+--repo "\$GITHUB_REPOSITORY" --workflow codeql\.yml --ref "\$BRANCH" \\\n\s+--match-sha "\$CANDIDATE_SHA"/)
   assert.match(read('codeql.yml'), /^  workflow_dispatch:$/m)
   // Merge through the allowlist's release case, pinned to the preflighted commit, then publish.
-  assert.match(candidate, /if: vars\.RELEASE_REQUIRE_APPROVAL != 'true'[\s\S]*?auto-merge\.mjs release \\\n\s+--pr-number "\$PR_NUMBER" --expected-head "\$CANDIDATE_SHA"/)
-  assert.match(candidate, /if: vars\.RELEASE_REQUIRE_APPROVAL != 'true'[\s\S]*?gh workflow run publish-release\.yml --repo "\$GITHUB_REPOSITORY" --ref main -f "pull_request=\$PR_NUMBER"/)
+  assert.doesNotMatch(candidate, /repository variable.+approval|vars\.[A-Z_]*APPROVAL/i)
+  assert.match(candidate, /- name: Merge the release pull request when it is only a version upgrade\n\s+id: merge\n(?!\s+if:)[\s\S]*?auto-merge\.mjs release \\\n\s+--pr-number "\$PR_NUMBER" --expected-head "\$CANDIDATE_SHA"/)
+  assert.match(candidate, /- name: Start the publish flow for the merged release pull request\n\s+id: dispatch\n(?!\s+if:)[\s\S]*?gh workflow run publish-release\.yml --repo "\$GITHUB_REPOSITORY" --ref main -f "pull_request=\$PR_NUMBER"/)
   assert.match(candidate, /CANDIDATE_SHA: \$\{\{ steps\.candidate\.outputs\.sha \}\}\n\s+run: \|\n\s+set -euo pipefail\n\s+node \.github\/scripts\/auto-merge\.mjs release/)
   // A merge by the candidate workflow is published only through its own dispatch, never twice.
   assert.match(read('publish-release.yml'), /github\.event\.pull_request\.merged_by\.login != 'github-actions\[bot\]'/)
-  // Publisher and release workflow: same conditions, same switch.
+  // Publisher and release workflow: validate the candidate without an approval switch.
   for (const name of ['publish-release.yml', 'release.yml']) {
     const workflow = read(name)
-    assert.match(workflow, /REQUIRE_APPROVAL: \$\{\{ vars\.RELEASE_REQUIRE_APPROVAL == 'true' \}\}/, name)
-    assert.match(workflow, /validate-candidate \\\n[\s\S]*?--require-approval "\$REQUIRE_APPROVAL"/, name)
+    assert.doesNotMatch(workflow, /vars\.[A-Z_]*APPROVAL|--[a-z-]*approval/, name)
+    assert.match(workflow, name === 'release.yml'
+      ? /validate-candidate \\\n[\s\S]*?--expect-commit "\$GITHUB_SHA"/
+      : /validate-candidate \\\n[\s\S]*?--version "\$version" \\\n\s*> \/tmp\/release-candidate\.json/, name)
   }
 })
 

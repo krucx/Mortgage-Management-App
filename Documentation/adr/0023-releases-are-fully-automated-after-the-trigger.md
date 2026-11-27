@@ -8,7 +8,7 @@ The full suite, QA and Windows included, runs once per release, in the preflight
 
 A failure at any stage (preparation, preflight, merge, validate, tag, publish), or a timeout, opens or updates one `release-blocked` issue for the version. It names the stage, the run and the safe rerun command, and a later successful publish closes it. Nothing retries and nothing rolls back: a published image or GitHub Release may already be installed on a Lender's laptop and cannot be recalled, so a second automatic attempt could make a partial release worse. A person reads the issue and reruns, or cuts a new patch version.
 
-This replaces the approval the old flow required (ADR 0018), which the owner could not give under their own identity (ADR 0022). The repository variable `RELEASE_REQUIRE_APPROVAL=true` restores that approve-and-merge path; it is a temporary rollout fallback that is removed after one release has auto-merged and published cleanly while the owner watched.
+This replaces the approval the old flow required (ADR 0018), which the owner could not give under their own identity (ADR 0022). The temporary approval fallback was removed after the owner watched release 3.6.1 auto-merge and publish cleanly (release PR [#598](https://github.com/krucx/Mortgage-Management-App/pull/598), [release 3.6.1](https://github.com/krucx/Mortgage-Management-App/releases/tag/3.6.1)).
 
 Supersedes ADR 0018.
 
