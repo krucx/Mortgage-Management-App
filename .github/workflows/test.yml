@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, 'integration/**']
   # The release workflow runs these before publishing images.
   workflow_call:
   workflow_dispatch:
@@ -110,6 +110,7 @@ jobs:
       - run: node --test .github/scripts/test-check-version-unchanged.mjs
       - run: node --test .github/scripts/test-check-changelog.mjs
       - run: node --test .github/scripts/test-auto-merge-allowlist.mjs
+      - run: node --test .github/scripts/test-rulesets.mjs
       - run: node --test .github/scripts/test-changed-paths.mjs
       - name: Only the release candidate may change VERSION
         if: github.event_name == 'pull_request'
