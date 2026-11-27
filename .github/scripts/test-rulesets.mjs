@@ -53,6 +53,9 @@ test('one job discovers every script test without running any twice', () => {
   const scriptTests = readdirSync(new URL('.', import.meta.url)).filter((name) => /^test-.*\.mjs$/.test(name));
   assert.ok(scriptTests.length > 0);
   assert.match(wf, /node --test \.github\/scripts\/test-\*\.mjs/);
+  const versionBump = wf.match(/^  version-bump:\n([\s\S]*?)^  backend:/m)?.[1];
+  assert.ok(versionBump);
+  assert.match(versionBump, /^    if: \$\{\{ !cancelled\(\) \}\}$/m, 'script tests also run when a tree is reused');
   for (const name of scriptTests) {
     assert.equal(wf.split(name).length - 1, 0, `${name} should be discovered by the glob, not hand-listed`);
   }

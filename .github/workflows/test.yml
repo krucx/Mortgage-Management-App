@@ -14,7 +14,7 @@ on:
   workflow_call:
     inputs:
       reuse-validated-tree:
-        description: Look up whether this tree already passed Tests, and skip the jobs if so
+        description: Look up whether this tree already passed Tests, and skip the heavy jobs if so
         type: boolean
         default: false
   workflow_dispatch:
@@ -26,8 +26,9 @@ permissions:
 
 jobs:
   # Tree reuse (.github/scripts/tree-reuse.mjs). The push to main after a merge looks up
-  # whether the merged tree already passed Tests on the pull request; if so every job below
-  # is skipped and this job reports "Reused result from run <link>". It relies on main
+  # whether the merged tree already passed Tests on the pull request; if so the heavy jobs below
+  # are skipped and this job reports "Reused result from run <link>". The version-bump job still
+  # runs the inexpensive script-test suite so every script test keeps running on every event. It relies on main
   # requiring a branch to be up to date before merging, so the PR tested the same tree.
   # The release path (#572) runs the suite once, in the preflight dispatched on the candidate
   # commit, which records its tree there; the release/* pull request run (its test merge has the
@@ -92,7 +93,7 @@ jobs:
 
   version-bump:
     needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
