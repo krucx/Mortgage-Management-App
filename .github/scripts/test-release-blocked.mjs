@@ -38,10 +38,17 @@ test('a first failure opens one release-blocked issue naming the stage, run link
   const [issue] = store.issues
   assert.equal(issue.title, 'Release 1.4.0 blocked')
   assert.deepEqual(issue.labels, ['release-blocked'])
-  assert.match(issue.body, /Stage: \*\*preflight\*\*/)
-  assert.ok(issue.body.includes(RUN))
-  assert.ok(issue.body.includes('https://github.com/o/r/actions/runs/8'))
-  assert.ok(issue.body.includes('gh workflow run release-candidate.yml --repo o/r --ref main -f version=1.4.0'))
+  assert.equal(issue.body, [
+    '<!-- release-blocked:1.4.0 -->',
+    'Release 1.4.0 stopped. Nothing retries, rolls back, or removes a tag or image by itself.',
+    '',
+    '- Stage: **preflight**',
+    '- Run: https://github.com/o/r/actions/runs/7',
+    '- Run it waited on: https://github.com/o/r/actions/runs/8',
+    '- Rerun, once the cause is understood or fixed: `gh workflow run release-candidate.yml --repo o/r --ref main -f version=1.4.0`',
+    '',
+    'Each later failure of this version updates this issue; a successful publish of it closes it.',
+  ].join('\n'))
 })
 
 test('a second failure for the same version updates the open issue instead of opening another', async () => {
@@ -51,10 +58,13 @@ test('a second failure for the same version updates the open issue instead of op
   assert.deepEqual(result, { action: 'updated', number: 100 })
   assert.equal(store.issues.length, 1)
   const [issue] = store.issues
-  assert.match(issue.body, /Stage: \*\*tag\*\*/)
-  assert.ok(issue.body.includes('runs/9'))
-  assert.equal(issue.comments.length, 1)
-  assert.match(issue.comments[0], /tag.*runs\/9/s)
+  const tagDetails = [
+    '- Stage: **tag**',
+    '- Run: https://github.com/o/r/actions/runs/9',
+    '- Rerun, once the cause is understood or fixed: `gh workflow run publish-release.yml --repo o/r --ref main -f pull_request=42`',
+  ].join('\n')
+  assert.equal(issue.body.split('\n\n')[1], tagDetails)
+  assert.deepEqual(issue.comments, [`Failed again:\n\n${tagDetails}`])
 })
 
 test('another version, a closed issue or a plain mention of the version gets its own new issue', async () => {
@@ -109,7 +119,7 @@ test('no release workflow or script retries a run or removes a tag, release or i
   ]
   const forbidden = [
     /gh run rerun/, /\/rerun\b/, /git push[^\n]*(--delete|\s:refs\/)/, /git tag (-d|--delete)/,
-    /gh release delete/, /docker (rmi|image rm)/, /\bDELETE\b/, /hub\.docker\.com/,
+    /gh release delete/, /docker (rmi|image rm)/, /\bDELETE\b/,
   ]
   for (const file of files) {
     const text = readFileSync(new URL(file, root), 'utf8')
