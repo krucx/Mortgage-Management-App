@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { createGitHubClient } from './lib/github-client.mjs';
 import { autoMergeDecision } from './lib/auto-merge-allowlist.mjs';
 
 const ENABLE = `mutation($id: ID!, $method: PullRequestMergeMethod!) {
@@ -26,25 +27,22 @@ export async function applyAutoMerge(pr, graphql, { log = console.log } = {}) {
   return { ...decision, enabled: true };
 }
 
-function createGraphql(token) {
+function createGraphql(token, repository) {
+  const { request } = createGitHubClient(token, repository);
   return async (query, variables) => {
-    const response = await fetch('https://api.github.com/graphql', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, variables }),
-    });
-    const body = await response.json();
-    if (!response.ok || body.errors) throw new Error(`GitHub GraphQL failed (${response.status}): ${JSON.stringify(body.errors ?? body)}`);
-    return body.data;
+    const { data } = await request('https://api.github.com/graphql', 'POST', { query, variables });
+    if (data.errors) throw new Error(`GitHub GraphQL failed: ${JSON.stringify(data.errors)}`);
+    return data.data;
   };
 }
 
 async function main() {
   const token = process.env.GITHUB_TOKEN;
   const eventPath = process.env.GITHUB_EVENT_PATH;
-  if (!token || !eventPath) throw new Error('GITHUB_TOKEN and GITHUB_EVENT_PATH are required.');
+  const repository = process.env.GITHUB_REPOSITORY;
+  if (!token || !eventPath || !repository) throw new Error('GITHUB_TOKEN, GITHUB_EVENT_PATH and GITHUB_REPOSITORY are required.');
   const { pull_request: pr } = JSON.parse(readFileSync(eventPath, 'utf8'));
-  await applyAutoMerge(pr, createGraphql(token));
+  await applyAutoMerge(pr, createGraphql(token, repository));
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
