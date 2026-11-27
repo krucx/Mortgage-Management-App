@@ -26,6 +26,7 @@ from mortgage_backend.platform.db import (
     mortgage_table,
     standalone_referrer_table,
 )
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.paging import Page, PageNumber, Sorting, query_page
 from mortgage_backend.platform.photos import photo_url
 
@@ -276,7 +277,7 @@ def load_customer(conn: Connection, customer_id: int) -> Customer:
         .first()
     )
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+        raise Refusal("Customer not found", "not_found")
     return Customer(
         **_customer_row(conn, row).model_dump(),
         referred=_customers_referred_by(

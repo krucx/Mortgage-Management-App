@@ -62,6 +62,16 @@ def test_a_new_customer_is_saved_and_recorded(conn: Connection) -> None:
     assert (created["name"], created["phone_1"]) == ("Ramesh Kumar", "9829012345")
 
 
+def test_editing_a_missing_customer_is_a_domain_refusal(conn: Connection) -> None:
+    with pytest.raises(Refusal) as refused:
+        customer_changes.edit_customer(conn, 404, customer(), NOW)
+
+    assert (refused.value.kind, refused.value.message) == (
+        "not_found",
+        "Customer not found",
+    )
+
+
 def test_someone_elses_primary_number_is_refused_new_or_edited(
     conn: Connection,
 ) -> None:
