@@ -118,6 +118,15 @@ Critical areas. If the diff touches any of these paths, add `critical`:
   (under `backend/src/mortgage_backend/`), `.github/workflows/`, `.github/rulesets/`, `Dockerfile`,
   `windows/` installer scripts, and any change that handles untrusted input or secrets.
 
+### Integration review summary
+
+The **Integration review summary** workflow (`.github/workflows/integration-summary.yml`) posts one
+comment on each `integration/*` -> `main` pull request and edits it in place on later pushes and when
+the `Tests` run finishes. It lists the merged worker pull requests with their tickets, the changed files
+grouped by the critical areas above (plus "other"), the status of the ruleset's required checks, and any
+linked ticket with unticked acceptance criteria. It is tool-neutral and is not posted on any other pull
+request. The critical paths are mirrored in `.github/scripts/integration-summary.mjs`; update both together.
+
 `main`'s ruleset requires the `CodeRabbit` check, which CodeRabbit does not report on a pull request it
 skips. Those pull requests need a maintainer bypass, recorded on the pull request. The `integration/*` ->
 `main` pull request always gets the review, so it merges normally.
