@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Mortgage } from '../../api'
 import { ChangePreview } from '../../components/BeforeAfter'
-import { ClosureSummary, CloseMortgage } from '../../components/CloseMortgage'
+import { ClosureSummary, CloseMortgage } from './CloseMortgage'
 import { ReasonDialog } from '../../components/ReasonDialog'
 import { changes, previews } from '../../requests'
 import { useMortgageChange } from '../../serverState'
