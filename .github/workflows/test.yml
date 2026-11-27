@@ -34,6 +34,7 @@ jobs:
           node-version: 24
       - run: node --test .github/scripts/test-check-version-unchanged.mjs
       - run: node --test .github/scripts/test-check-changelog.mjs
+      - run: node --test .github/scripts/test-auto-merge-allowlist.mjs
       - name: Only the release candidate may change VERSION
         if: github.event_name == 'pull_request'
         env:

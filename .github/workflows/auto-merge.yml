@@ -1,0 +1,53 @@
+# Central auto-merge: enables auto-merge (squash) on exactly the pull requests the owner has
+# decided never need a human look, and nothing else.
+#
+# Decision rules live in one module, .github/scripts/lib/auto-merge-allowlist.mjs (tests:
+# .github/scripts/test-auto-merge-allowlist.mjs). Today's single case:
+#   - an open, non-draft PR whose base branch is integration/**  -> auto-merge, squash.
+# Everything else is left alone: a PR into main (the owner reviews it once and presses merge),
+# a draft PR, a closed PR, any other base. Auto-merge still waits for the base branch's required
+# checks. Add a case by editing the allowlist and its tests, never this file.
+#
+# Triggers: opened, reopened, ready_for_review, and a base-branch change (edited with
+# changes.base). pull_request_target is used so the token can write on any PR; the
+# job checks out only the BASE branch (never PR head code) and reads the PR from the event payload.
+# GitHub reads this file from the PR's base branch, so an integration branch needs it too: cut
+# integration branches from a main that already has it.
+#
+# Permissions needed: GITHUB_TOKEN with contents: write and pull-requests: write (GraphQL
+# enablePullRequestAutoMerge). The repository's "Allow auto-merge" setting must be on. No PAT,
+# bot account or new secret.
+name: Auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, edited]
+
+permissions: {}
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-merge:
+    if: github.event.action != 'edited' || github.event.changes.base != null
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out the base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Enable auto-merge when the allowlist says so
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/auto-merge.mjs
