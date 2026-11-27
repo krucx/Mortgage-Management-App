@@ -715,11 +715,14 @@ def test_a_photo_is_refused_for_no_mortgage_or_removed_from_the_wrong_one(
 
     with pytest.raises(Refusal) as no_mortgage:
         mortgage_photos.add_photo(conn, 404, "mortgage-404-a.jpg", NOW)
-    with pytest.raises(HTTPException) as wrong_one:
+    with pytest.raises(Refusal) as wrong_one:
         mortgage_photos.remove_photo(conn, ring, photo, NOW)
 
     assert (no_mortgage.value.kind, no_mortgage.value.message) == (
         "not_found",
         "Mortgage not found",
     )
-    assert refusal(wrong_one) == (404, "Photo not found")
+    assert (wrong_one.value.kind, wrong_one.value.message) == (
+        "not_found",
+        "Photo not found",
+    )
