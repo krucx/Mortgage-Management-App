@@ -51,9 +51,10 @@ def test_two_writers_that_read_then_write_on_what_they_read_lose_no_update(
 
 
 def test_only_the_database_module_opens_a_transaction() -> None:
-    """A new `.begin()` would be an ordinary transaction, which loses an update when
-    another writer commits between its read and its write: use `write_transaction`."""
-    opening = re.compile(r"\.begin\(")
+    """A new `.begin()`, or a `.commit()` on a plain connection, would be an ordinary
+    transaction, which loses an update when another writer commits between its read
+    and its write: use `write_transaction`."""
+    opening = re.compile(r"\.(begin|commit)\(")
     found = [
         f"{path.relative_to(SOURCE)}:{number}"
         for path in sorted(SOURCE.rglob("*.py"))
