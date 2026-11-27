@@ -6,7 +6,6 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from datetime import date
 
-from fastapi import HTTPException
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.ledger import Overpayment
@@ -46,9 +45,4 @@ def refusal_names_mortgage(conn: Connection, mortgage_id: int) -> Iterator[None]
         name = mortgage_row(conn, mortgage_id)["name"]
         if name not in refused.message:
             refused.message = f"{name}: {refused.message}"
-        raise
-    except HTTPException as refused:
-        name = mortgage_row(conn, mortgage_id)["name"]
-        if name not in str(refused.detail):
-            refused.detail = f"{name}: {refused.detail}"
         raise

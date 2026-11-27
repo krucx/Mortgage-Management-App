@@ -9,7 +9,6 @@ from datetime import date, datetime
 
 import pytest
 from conftest import TODAY
-from fastapi import HTTPException
 from seed import (
     LAKH,
     RUPEE,
@@ -48,15 +47,9 @@ def payment(customer_id: int, on: str, **allocations: int) -> PaymentIn:
     )
 
 
-def refusal(
-    error: pytest.ExceptionInfo[Refusal | HTTPException],
-) -> tuple[int, str]:
-    if isinstance(error.value, Refusal):
-        status = {"unprocessable": 422, "conflict": 409, "not_found": 404}[
-            error.value.kind
-        ]
-        return status, error.value.message
-    return error.value.status_code, str(error.value.detail)
+def refusal(error: pytest.ExceptionInfo[Refusal]) -> tuple[int, str]:
+    status = {"unprocessable": 422, "conflict": 409, "not_found": 404}[error.value.kind]
+    return status, error.value.message
 
 
 def test_a_payment_is_written_replayed_and_recorded(conn: Connection) -> None:

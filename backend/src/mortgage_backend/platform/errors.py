@@ -1,8 +1,7 @@
-"""HTTP errors the Lender sees as messages in the app."""
+"""Refusals the Lender sees as messages in the app; `main` turns each into its HTTP
+response, so domain code never speaks HTTP."""
 
 from typing import Literal
-
-from fastapi import HTTPException, status
 
 RefusalKind = Literal["unprocessable", "conflict", "not_found"]
 
@@ -17,8 +16,3 @@ class Refusal(Exception):
 
     def __str__(self) -> str:
         return self.message
-
-
-def unprocessable(message: str) -> HTTPException:
-    """The request can't be carried out as asked (422), with a message for the Lender."""
-    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, message)
