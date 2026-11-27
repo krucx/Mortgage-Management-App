@@ -28,7 +28,10 @@ const health = (problem?: string) =>
 
 /** A backend that is stopped until `start()`: until then it answers as `stopped` does,
  *  and then with `running`. */
-function backend(stopped: () => unknown = nothingAnswers, running: () => unknown = health) {
+function backend(
+  stopped: () => Response | Promise<Response> = nothingAnswers,
+  running: () => Response | Promise<Response> = health,
+) {
   let started = false
   const server = fakeServer({
     'GET /api/health': () => (started ? running() : stopped()),

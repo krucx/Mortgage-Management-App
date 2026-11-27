@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { MortgageEdit } from '../src/api'
+import type { Mortgage, MortgageEdit } from '../src/api'
 import { EditMortgagePage } from '../src/pages/EditMortgagePage'
 import { changePreview } from './fakeServer'
 import { typedFakeServer as fakeServer } from './typedFakeServer'
@@ -16,7 +16,7 @@ afterEach(() => {
 /** The backend for editing Mortgage 7 (₹50,000 lent) as `stored`, with a ₹20,000 Cash
  *  Limit; what is sent to be saved goes into `sent`. Its Preview says an edit lent in
  *  cash writes its Principal in cash. */
-function server(stored: object, sent: unknown[]) {
+function server(stored: Mortgage, sent: unknown[]) {
   return fakeServer({
     'GET /api/mortgages/{mortgage_id}': stored,
     'GET /api/payment-methods': [
@@ -35,7 +35,7 @@ function server(stored: object, sent: unknown[]) {
   })
 }
 
-const showEdit = (stored: object, sent: unknown[]) =>
+const showEdit = (stored: Mortgage, sent: unknown[]) =>
   showPage(server(stored, sent), '/mortgages/7/edit', {
     '/mortgages/:id/edit': <EditMortgagePage />,
   })

@@ -70,6 +70,8 @@ export type CustomerIn = Schemas['CustomerIn']
 export type CustomerRow = Schemas['CustomerRow']
 export type CustomerPage = Schemas['Page_CustomerRow_']
 export type Customer = Schemas['Customer']
+export type Favour = Schemas['Favour']
+export type FavoursGiven = Schemas['FavoursGiven']
 export type StandaloneReferrer = Schemas['StandaloneReferrer']
 
 export type Purity = Schemas['MortgageIn']['purity_karat']

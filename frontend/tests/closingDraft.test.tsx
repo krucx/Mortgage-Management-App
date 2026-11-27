@@ -4,6 +4,7 @@
 import { act, cleanup, fireEvent, renderHook, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { Closure, MortgagePreview } from '../src/api'
 import { ServerStateProvider } from '../src/components/ServerStateProvider'
 import {
   useClosingDraft,
@@ -148,10 +149,13 @@ test('a Waive is paying only when some amount is above nothing', () => {
 
 // ---- The confirmation ------------------------------------------------------------
 
-const closureOf = (over: Record<string, unknown>) => ({
+const closureOf = (over: Partial<Closure>): Closure => ({
   kind: 'forfeited',
   on: '2026-04-20',
   outstanding: 2_240_000,
+  advance_held: 0,
+  interest_to_date: 0,
+  interest_to_date_days: 0,
   payment_id: null,
   payment_amount: null,
   waived_amount: null,
@@ -160,8 +164,8 @@ const closureOf = (over: Record<string, unknown>) => ({
   note: null,
   ...over,
 })
-const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
-const previewOf = (closures: Record<number, unknown>) =>
+const side = (closure: MortgagePreview['before']['closure']) => ({ outstanding: 0, points: [], term_changes: [], closure })
+const previewOf = (closures: Record<number, MortgagePreview['before']['closure']>) =>
   changePreview(
     Object.entries(closures).map(([id, closure]) => ({
       mortgage_id: Number(id),

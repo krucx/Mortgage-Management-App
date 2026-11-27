@@ -54,11 +54,13 @@ const side = (outstanding: number) => ({
 
 /** The Mortgage page with an Advance, whose 10 Nov part's cancel is previewed then
  *  made by `cancel`; the Mortgage is then as it returned. */
-function showAdvance(cancel: (request: Request) => unknown = () => cancelled) {
-  let saved: unknown = null
+function showAdvance(
+  cancel: (request: Request) => Mortgage | Response | Promise<Mortgage | Response> = () => cancelled,
+) {
+  let saved: Mortgage | null = null
   const server = fakeServer({
     'GET /api/mortgages/{mortgage_id}': () => saved ?? withAdvance,
-    'POST /api/mortgages/{id}/advance-instalments/22/cancel-preview': changePreview([
+    'POST /api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel-preview': changePreview([
       {
         mortgage_id: 7,
         mortgage_name: mortgage.name,
@@ -68,12 +70,12 @@ function showAdvance(cancel: (request: Request) => unknown = () => cancelled) {
         advance_warnings: [],
       },
     ]),
-    'POST /api/mortgages/{id}/advance-instalments/22/cancel': (request: Request) => {
-      const answer = cancel(request)
+    'POST /api/mortgages/{mortgage_id}/advance-instalments/{instalment_id}/cancel': async (request: Request) => {
+      const answer = await cancel(request)
       if (!(answer instanceof Response)) saved = answer
       return answer
     },
-    'GET /api/payments/{id}/advance-instalments/22/receipt': cancelReceipt,
+    'GET /api/payments/{payment_id}/advance-instalments/{instalment_id}/receipt': cancelReceipt,
   })
   showPage(server, '/mortgages/7', { '/mortgages/:id': <MortgagePage /> })
   return server
@@ -174,7 +176,7 @@ test("a cancelled part's Receipt can be reopened", async () => {
   showPage(
     fakeServer({
       'GET /api/mortgages/{mortgage_id}': cancelled,
-      'GET /api/payments/{id}/advance-instalments/22/receipt': cancelReceipt,
+      'GET /api/payments/{payment_id}/advance-instalments/{instalment_id}/receipt': cancelReceipt,
     }),
     '/mortgages/7',
     { '/mortgages/:id': <MortgagePage /> },
@@ -256,6 +258,7 @@ test('the Ledger names a cancelled part, applied on the day it was cancelled', a
     unpaid_interest: 0,
     charged_on: 0,
     interest_to_date_days: 0,
+    monthly_rate_bps: 150,
     paid_ahead: 0,
     interest_paid: 75_000,
     principal_paid: 0,
@@ -330,7 +333,7 @@ test('the Customer page shows the Advance held across their Mortgages', async ()
   showPage(
     fakeServer({
       'GET /api/customers/{customer_id}': asha,
-      'GET /api/customers/{customer_id}/favours': empty,
+      'GET /api/customers/{customer_id}/favours': { ...empty, let_off: 0 },
       'GET /api/customers/{customer_id}/history': empty,
       'GET /api/mortgages': empty,
     }),

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { PersonSummary } from '../src/api'
 import { CustomerFormPage } from '../src/pages/CustomerFormPage'
 import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
@@ -10,25 +11,50 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+
+const customer = {
+  id: 5,
+  name: 'Suresh Kumar',
+  address: '',
+  phone_1: '9000000002',
+  phone_2: null,
+  photo_url: null,
+  referrer: null,
+  referred: [],
+  shares_phone_with: [],
+  email: null,
+  aadhaar_last4: null,
+  pan: null,
+  aadhaar_photo_url: null,
+  pan_photo_url: null,
+  advance_held: 0,
+}
+
 const refused = (detail: string) => () => Response.json({ detail }, { status: 409 })
 const allowed = () => new Response(null, { status: 204 })
 
 /** The Customer form (new, or editing Suresh, Customer 5), with 9829012345 belonging to
  *  `owner` and the backend's save Preview answering `preview`. */
-function customerForm(owner: unknown, preview: () => Response, editing = false) {
+function customerForm(owner: PersonSummary | null, preview: () => Response, editing = false) {
   const server = fakeServer({
     'GET /api/people/by-phone': owner,
     'GET /api/search': [],
     'GET /api/customers/{customer_id}': {
       id: 5,
       name: 'Suresh Kumar',
+      advance_held: 0,
       address: '',
       phone_1: '9000000002',
       phone_2: null,
       photo_url: null,
       referrer: null,
       referred: [],
-      shares_phone_with: null,
+      shares_phone_with: [],
+      email: null,
+      aadhaar_last4: null,
+      pan: null,
+      aadhaar_photo_url: null,
+      pan_photo_url: null,
     },
     'POST /api/customers/preview': preview,
     'PUT /api/customers/{customer_id}/preview': preview,
@@ -135,13 +161,13 @@ test('a photo failing after the Customer is saved can be retried, sending only t
     'GET /api/people/by-phone': null,
     'GET /api/search': [],
     'POST /api/customers/preview': allowed,
-    'POST /api/customers': { id: 5, name: 'Suresh Kumar' },
+    'POST /api/customers': customer,
     'PUT /api/customers/{customer_id}/photo': () => {
-      if (!photoFails) return { id: 5 }
+      if (!photoFails) return customer
       photoFails = false
       return Response.json({ detail: 'The photo is too large' }, { status: 413 })
     },
-    'GET /api/customers/{customer_id}': { id: 5, name: 'Suresh Kumar' },
+    'GET /api/customers/{customer_id}': customer,
   })
   showPage(server, '/customers/new', { '/customers/new': <CustomerFormPage /> })
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:photo' }))

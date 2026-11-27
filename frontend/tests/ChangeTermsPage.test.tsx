@@ -143,8 +143,8 @@ function showComingChange() {
   let removed = false
   const server = fakeServer({
     'GET /api/mortgages/{mortgage_id}': () => (removed ? mortgage : withComingChange),
-    'POST /api/mortgages/{id}/term-changes/4/remove-preview': changePreview([preview]),
-    'DELETE /api/mortgages/{id}/term-changes/4': () => {
+    'POST /api/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview': changePreview([preview]),
+    'DELETE /api/mortgages/{mortgage_id}/term-changes/{change_id}': () => {
       removed = true
       return mortgage
     },

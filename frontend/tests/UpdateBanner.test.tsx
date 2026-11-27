@@ -16,7 +16,7 @@ const NOTES = '### Added\n\n- Safe updates.'
 
 /** The backend's answer to "is there a newer release?". */
 function update(running: string, available: string | null) {
-  return { running, available: available && { version: available, notes: NOTES } }
+  return { running, available: available === null ? null : { version: available, notes: NOTES } }
 }
 
 /** The banner, checking every few milliseconds rather than seconds. */

@@ -21,6 +21,7 @@ afterEach(() => {
 const suresh = {
   id: 5,
   name: 'Suresh Kumar',
+  advance_held: 0,
   address: '',
   phone_1: '9000000002',
   phone_2: null,
@@ -47,8 +48,8 @@ function form(sent: { route: string; body?: unknown }[]) {
     'GET /api/customers/{customer_id}': suresh,
     'PUT /api/customers/{customer_id}/preview': () => new Response(null, { status: 204 }),
     'PUT /api/customers/{customer_id}': record('PUT /api/customers/{customer_id}'),
-    'PUT /api/customers/{id}/id-photos/aadhaar': record('PUT aadhaar'),
-    'DELETE /api/customers/{id}/id-photos/pan': record('DELETE pan'),
+    'PUT /api/customers/{customer_id}/id-photos/{card}': record('PUT aadhaar'),
+    'DELETE /api/customers/{customer_id}/id-photos/{card}': record('DELETE pan'),
   })
   showPage(server, '/customers/5/edit', { '/customers/:id/edit': <CustomerFormPage /> })
   return server

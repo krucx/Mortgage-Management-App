@@ -16,13 +16,19 @@ afterEach(() => {
 const customer = {
   id: 3,
   name: 'Asha Rao',
+  advance_held: 0,
+  email: null,
+  aadhaar_last4: null,
+  pan: null,
+  aadhaar_photo_url: null,
+  pan_photo_url: null,
   address: '',
   phone_1: '9829012345',
   phone_2: null,
   photo_url: null,
   referrer: null,
   referred: [],
-  shares_phone_with: null,
+  shares_phone_with: [],
 }
 
 /** The backend, suggesting a Mortgage Name from the description a little later, as the

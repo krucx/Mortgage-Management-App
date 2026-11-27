@@ -3,6 +3,7 @@
 // standing.
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { Favour, FavoursGiven } from '../src/api'
 import { CustomerPage } from '../src/pages/CustomerPage'
 import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
@@ -15,6 +16,7 @@ afterEach(() => {
 const asha = {
   id: 3,
   name: 'Asha Rao',
+  advance_held: 0,
   address: '',
   phone_1: '9000000001',
   phone_2: null,
@@ -32,7 +34,9 @@ const asha = {
 /** The page fields of a Customer's favours that all fit on one page. */
 const ONE_PAGE = { page: 1, page_size: 20 }
 
-function customerPage(favours: unknown) {
+function customerPage(
+  favours: FavoursGiven | Response | ((request: Request) => FavoursGiven | Promise<FavoursGiven>),
+) {
   const server = fakeServer({
     'GET /api/customers/{customer_id}': asha,
     'GET /api/customers/{customer_id}/favours': favours,
@@ -123,7 +127,7 @@ test('a failure to load them says so under the heading', async () => {
 })
 
 test('favours come a page at a time, the total still counting every page', async () => {
-  const favour = (day: number) => ({
+const favour = (day: number): Favour => ({
     on: `2026-03-${String(day).padStart(2, '0')}`,
     received_on: null,
     mortgage: { id: 7, description: 'Gold chain' },

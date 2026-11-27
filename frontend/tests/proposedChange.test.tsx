@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { EditMortgagePage } from '../src/pages/EditMortgagePage'
+import { changePreview } from './fakeServer'
 import { type FakeServer } from './fakeServer'
 import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { mortgage, showPage } from './showPage'
@@ -14,8 +15,7 @@ afterEach(() => {
 
 const side = (outstanding: number) => ({ outstanding, points: [], term_changes: [], closure: null })
 /** The edit's Preview, writing `cash`: the sums in cash, as the backend works them out. */
-const previewWith = (cash: number[]) => ({
-  mortgages: [
+const previewWith = (cash: number[]) => changePreview([
     {
       mortgage_id: 7,
       mortgage_name: mortgage.name,
@@ -24,9 +24,7 @@ const previewWith = (cash: number[]) => ({
       ledger_changes: [],
       advance_warnings: [],
     },
-  ],
-  cash,
-})
+  ], cash)
 const preview = previewWith([])
 
 function editPrincipal(server: FakeServer, rupees: string) {

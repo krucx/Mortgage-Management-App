@@ -54,7 +54,17 @@ const ramesh = customer(1, 'Ramesh Kumar')
 function customersServer(deletePreview: () => Response) {
   return fakeServer({
     'GET /api/customers': { items: [ramesh], total: 1, page: 1, page_size: 20 },
-    'GET /api/customers/{customer_id}': { ...ramesh, referred: [], shares_phone_with: null },
+    'GET /api/customers/{customer_id}': {
+      ...ramesh,
+      advance_held: 0,
+      email: null,
+      aadhaar_last4: null,
+      pan: null,
+      aadhaar_photo_url: null,
+      pan_photo_url: null,
+      referred: [],
+      shares_phone_with: [],
+    },
     'POST /api/customers/{customer_id}/delete-preview': deletePreview,
     'DELETE /api/customers/{customer_id}': () => new Response(null, { status: 204 }),
   })
