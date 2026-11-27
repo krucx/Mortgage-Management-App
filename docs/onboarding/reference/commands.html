@@ -159,13 +159,13 @@
 </table>
 
 <h2 id="workflow">Issues, branches and pull requests</h2>
-<p>Taught in <a href="../016-your-first-change/01-from-an-idea-to-an-issue.html">016 · Lesson 1</a>. Work from an issue, use its glossary terms, commit on a branch, and open a pull request targeting <code>main</code>; a human merges it after review (<a href="traps.html#t20">trap #20</a>). The local practice branch is never opened as a pull request.</p>
+<p>Taught in <a href="../016-your-first-change/01-from-an-idea-to-an-issue.html">016 · Lesson 1</a>. Work from an issue, use its glossary terms, commit on a branch, and open a pull request targeting <code>main</code>; the owner views it and presses merge once checks are green (<a href="traps.html#t20">trap #20</a>). The local practice branch is never opened as a pull request.</p>
 <table class="wide"><tr><th>From</th><th>Command</th><th>What it does</th></tr>
 <tr><td>repo root</td><td><code>gh issue view 213 --json number,title,body,labels,comments</code></td><td>Reads an issue and its full specification</td></tr>
 <tr><td>repo root</td><td><code>git log -5 --oneline</code></td><td>Recent commit messages show the behavior and issue number style</td></tr>
 <tr><td>repo root</td><td><code>git switch -c practice/edit-a-term-change</code></td><td>Creates the chapter's local practice branch; delete it after finishing</td></tr>
 <tr><td>repo root</td><td><code>git branch -D practice/edit-a-term-change</code></td><td>Removes the finished practice branch after switching to main</td></tr>
-<tr><td>repo root</td><td><code>git switch -c fix/&lt;what-it-fixes&gt; origin/main</code>, then <code>gh pr create --base main</code></td><td>Real work: a focused branch from an up-to-date main, and its pull request. Answer every CodeRabbit finding on it; never merge your own</td></tr>
+<tr><td>repo root</td><td><code>git switch -c fix/&lt;what-it-fixes&gt; origin/main</code>, then <code>gh pr create --base main</code></td><td>Real work: a focused branch from an up-to-date main, and its pull request. Answer any CodeRabbit finding on it; never merge into <code>main</code> yourself (the owner presses merge)</td></tr>
 <tr><td>repo root</td><td><code>gh pr checks</code> · <code>gh pr view --comments</code></td><td>The required checks and the review findings on your pull request</td></tr></table>
 
 <h2 id="laptop">How it runs on the Lender's laptop</h2>

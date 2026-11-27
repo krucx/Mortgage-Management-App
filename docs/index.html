@@ -675,7 +675,7 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
         <div class="nuance rule"><b>An update never breaks the app</b><span>Each version is installed beside the one in use and switched to only once it starts; if anything fails, the old one keeps running. Starting a new version takes a Backup, then brings the database up to date.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0009-each-version-in-its-own-folder.md">ADR-0009</a></div>
         <div class="nuance"><b>Told when a release is out</b><span>The app asks GitHub at most once a day, never sends anything, and stays silent offline.</span></div>
         <div class="nuance"><b>Unprivileged in Docker</b><span>The one image runs as a fixed, ordinary user (uid 1000) rather than root. Docker Desktop on Mac and Windows needs no change; a Linux host gives that user ownership of the data and Backup folders first (see the install guide).</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0013-one-image-backend-serves-screens-in-docker.md">ADR-0013</a></div>
-        <div class="nuance"><b>Checked before it reaches you</b><span>Every change arrives through a reviewed pull request; the code and the image are scanned on GitHub (CodeQL, Trivy, Dependabot, Secret scanning), and a release is published by a workflow only after its candidate has passed the full test suite and every machine-checked release condition.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0019-changes-reach-main-through-reviewed-pull-requests.md">ADR-0019</a></div>
+        <div class="nuance"><b>Checked before it reaches you</b><span>Every change arrives through a reviewed pull request; the code and the image are scanned on GitHub (CodeQL, Trivy, Dependabot, Secret scanning), and a release is published by a workflow only after its candidate has passed the full test suite and every machine-checked release condition.</span><a class="adr" href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0022-main-is-gated-by-the-owners-merge-click.md">ADR-0022</a></div>
       </div>
     </div>
 
@@ -747,6 +747,8 @@ footer { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
     <li><span class="no">0019</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0019-changes-reach-main-through-reviewed-pull-requests.md">Changes reach main only through reviewed pull requests</a></li>
     <li><span class="no">0020</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0020-grace-amount-let-off-is-stored.md">The amount a Grace Period let off is stored, not replayed</a></li>
     <li><span class="no">0021</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0021-advances-are-scheduled-allocations.md">An Advance is cash received today, applied on later Accrual Dates</a></li>
+    <li><span class="no">0022</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0022-main-is-gated-by-the-owners-merge-click.md">Main is gated by the owner's merge click, as policy</a></li>
+    <li><span class="no">0023</span><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/Documentation/adr/0023-releases-are-fully-automated-after-the-trigger.md">Releases are fully automated after the trigger</a></li>
   </ul>
 </section>
 
