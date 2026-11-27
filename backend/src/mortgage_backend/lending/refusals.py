@@ -6,20 +6,20 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from datetime import date
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.engine import Connection, RowMapping
 
 from mortgage_backend.lending.ledger import Overpayment
 from mortgage_backend.lending.replay import MortgageStatus, mortgage_row, replays
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.money import format_inr
 
 
 def refuse_unless_active(row: RowMapping) -> None:
     if row["status"] != MortgageStatus.ACTIVE:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
+        raise Refusal(
             f"{row['name']} is {row['status']}: reopen it first",
+            "conflict",
         )
 
 
@@ -30,9 +30,10 @@ def check_replays(conn: Connection, rows: Sequence[RowMapping], today: date) -> 
         try:
             replayed[row["id"]].ledger(today)
         except Overpayment as over:
-            raise unprocessable(
+            raise Refusal(
                 f"{row['name']}: the Payment on {over.on:%d %b %Y} would be more than "
-                f"the {format_inr(over.outstanding)} owed then"
+                f"the {format_inr(over.outstanding)} owed then",
+                "unprocessable",
             ) from None
 
 
@@ -41,6 +42,11 @@ def refusal_names_mortgage(conn: Connection, mortgage_id: int) -> Iterator[None]
     """A refusal of one of several Mortgages says which, unless it already does."""
     try:
         yield
+    except Refusal as refused:
+        name = mortgage_row(conn, mortgage_id)["name"]
+        if name not in refused.message:
+            refused.message = f"{name}: {refused.message}"
+        raise
     except HTTPException as refused:
         name = mortgage_row(conn, mortgage_id)["name"]
         if name not in str(refused.detail):
