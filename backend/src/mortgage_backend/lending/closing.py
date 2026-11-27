@@ -11,7 +11,7 @@ from collections.abc import Callable
 from datetime import date, datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import update
 from sqlalchemy.engine import Connection
@@ -45,7 +45,7 @@ from mortgage_backend.payments.writes import (
 )
 from mortgage_backend.platform.clock import NowDep, TodayDep
 from mortgage_backend.platform.db import EngineDep, mortgage_table, write_transaction
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.money import format_inr
 from mortgage_backend.platform.paging import Page, PageNumber, rows_page
 from mortgage_backend.safekeeping import audit
@@ -127,12 +127,13 @@ def closable(
         and on > today
         and not quote_only
     ):
-        raise unprocessable(
-            "A Redemption, Waiver or Forfeiture cannot be recorded for a future date"
+        raise Refusal(
+            "A Redemption, Waiver or Forfeiture cannot be recorded for a future date",
+            "unprocessable",
         )
     refusal = mortgage.not_closable(on)
     if refusal is not None:
-        raise unprocessable(refusal)
+        raise Refusal(refusal, "unprocessable")
     return mortgage
 
 
@@ -265,13 +266,15 @@ def waive(
     mortgage = closable(conn, mortgage_id, waive.waived_on, today)
     owed = mortgage.outstanding_on_closure(waive.waived_on).to_pay
     if owed == 0:
-        raise unprocessable(
-            f"{mortgage.row['name']} owes nothing then: Redeem it instead"
+        raise Refusal(
+            f"{mortgage.row['name']} owes nothing then: Redeem it instead",
+            "unprocessable",
         )
     if waive.amount_paid >= owed:
-        raise unprocessable(
+        raise Refusal(
             f"{format_inr(waive.amount_paid)} covers the {format_inr(owed)} owed: "
-            "Redeem it instead"
+            "Redeem it instead",
+            "unprocessable",
         )
     _close_with_payment(
         conn,
@@ -389,7 +392,7 @@ def reopen(
     once the Mortgage is Active again."""
     row = mortgage_row(conn, mortgage_id)
     if row["status"] == MortgageStatus.ACTIVE:
-        raise HTTPException(status.HTTP_409_CONFLICT, f"{row['name']} is Active")
+        raise Refusal(f"{row['name']} is Active", "conflict")
     _set_closure(
         conn,
         mortgage_id,
