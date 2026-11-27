@@ -52,7 +52,7 @@ from mortgage_backend.platform.db import (
     customer_table,
     mortgage_table,
 )
-from mortgage_backend.platform.errors import Refusal, unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.paging import (
     Page,
     PageNumber,
@@ -397,7 +397,7 @@ def list_mortgages(
     Mortgage out.
     """
     if as_of is not None and as_of > today:
-        raise unprocessable("The date cannot be in the future")
+        raise Refusal("The date cannot be in the future", "unprocessable")
     query = q.strip()
     match = mortgage_filter(
         query=query,

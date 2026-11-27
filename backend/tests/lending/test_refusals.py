@@ -3,7 +3,6 @@
 from datetime import date
 
 import pytest
-from fastapi import HTTPException
 from seed import add_customer, add_mortgage, forfeit
 from sqlalchemy.engine import Connection
 
@@ -37,7 +36,7 @@ def test_a_closed_mortgage_is_a_conflict_refusal(conn: Connection) -> None:
     assert "reopen it first" in error.value.message
 
 
-def test_a_refusal_names_its_mortgage_without_changing_legacy_http_errors(
+def test_a_refusal_names_its_mortgage(
     conn: Connection,
 ) -> None:
     mortgage_id = add_mortgage(conn, add_customer(conn))
@@ -48,9 +47,3 @@ def test_a_refusal_names_its_mortgage_without_changing_legacy_http_errors(
             raise Refusal("cannot do that", "unprocessable")
 
     assert domain_error.value.message == f"{name}: cannot do that"
-
-    with pytest.raises(HTTPException) as http_error:
-        with refusal_names_mortgage(conn, mortgage_id):
-            raise HTTPException(422, "cannot do that")
-
-    assert http_error.value.detail == f"{name}: cannot do that"

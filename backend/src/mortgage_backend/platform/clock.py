@@ -21,32 +21,34 @@ from fastapi import Depends, HTTPException, Query, Request, status
 _QA_MODE = os.getenv("QA_MODE") == "true"
 
 
-def _parse_date(raw: str, header: str) -> date:
-    try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"bad {header}",
-        ) from None
+_DAY = "%Y-%m-%d"
+_TIME = "%Y-%m-%dT%H:%M:%S"
 
 
-def _parse_datetime(raw: str, header: str) -> datetime:
+class _BadHeader(Exception):
+    """A QA clock header that doesn't parse; the dependency answers 400, naming it."""
+
+
+def _qa_clock(request: Request, name: str, pattern: str) -> datetime | None:
+    """The QA clock header `name`, parsed with `pattern`; None when it is absent."""
+    raw = request.headers.get(name)
+    if not raw:
+        return None
     try:
-        return datetime.strptime(raw, "%Y-%m-%dT%H:%M:%S")
+        return datetime.strptime(raw, pattern)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"bad {header}",
-        ) from None
+        raise _BadHeader(name) from None
 
 
 def get_today(request: Request) -> date:
     """FastAPI dependency: today's business date."""
     if _QA_MODE:
-        raw = request.headers.get("X-QA-Clock")
-        if raw:
-            return _parse_date(raw, "X-QA-Clock")
+        try:
+            day = _qa_clock(request, "X-QA-Clock", _DAY)
+        except _BadHeader as bad:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"bad {bad}") from None
+        if day:
+            return day.date()
     today: Callable[[], date] = request.app.state.today
     return today()
 
@@ -55,17 +57,20 @@ TodayDep = Annotated[date, Depends(get_today)]
 
 
 def get_now(request: Request) -> datetime:
-    """FastAPI dependency: the current local time, for audit entries."""
+    """FastAPI dependency: the current local time, for audit entries; with only
+    `X-QA-Clock`, noon on that day."""
     if _QA_MODE:
-        raw = request.headers.get("X-QA-Clock-Now")
-        if raw:
-            return _parse_datetime(raw, "X-QA-Clock-Now")
-        day = request.headers.get("X-QA-Clock")
+        try:
+            now = _qa_clock(request, "X-QA-Clock-Now", _TIME)
+            day = None if now else _qa_clock(request, "X-QA-Clock", _DAY)
+        except _BadHeader as bad:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"bad {bad}") from None
+        if now:
+            return now
         if day:
-            parsed = _parse_date(day, "X-QA-Clock")
-            return datetime(parsed.year, parsed.month, parsed.day, 12, 0, 0)
-    now: Callable[[], datetime] = request.app.state.now
-    return now()
+            return day.replace(hour=12)
+    clock: Callable[[], datetime] = request.app.state.now
+    return clock()
 
 
 NowDep = Annotated[datetime, Depends(get_now)]
