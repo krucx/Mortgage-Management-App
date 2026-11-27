@@ -21,7 +21,7 @@ from datetime import date, datetime, timedelta
 from enum import StrEnum
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import delete, false, insert, not_, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -52,6 +52,7 @@ from mortgage_backend.platform.db import (
     reminder_table,
     write_transaction,
 )
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.paging import Page, PageNumber, rows_page
 
 
@@ -391,33 +392,27 @@ _ACTIONS: dict[ReminderAction, tuple[set[ReminderStatus], ReminderStatus]] = {
 }
 
 
-class ReminderNotFound(LookupError):
-    """No Reminder has that id."""
-
-
-class ReminderRefused(Exception):
-    """The Reminder can't be acted on as asked; the message is for the Lender."""
-
-
 def act(
     conn: Connection, reminder_id: int, action: ReminderAction, now: datetime
 ) -> Reminder:
     """Approve, skip or send one Reminder, or refuse to."""
     found = list_reminders(conn, reminder_id=reminder_id)
     if not found:
-        raise ReminderNotFound(reminder_id)
+        raise Refusal("Reminder not found", "not_found")
     reminder = found[0]
     if (
         action in {ReminderAction.APPROVE, ReminderAction.SEND}
         and not reminder.mortgages
     ):
-        raise ReminderRefused(
-            "None of their Mortgages accruing that day still owes anything: skip it"
+        raise Refusal(
+            "None of their Mortgages accruing that day still owes anything: skip it",
+            "conflict",
         )
     allowed, becomes = _ACTIONS[action]
     if reminder.status not in allowed:
-        raise ReminderRefused(
-            f"This Reminder is already {reminder.status.value.replace('_', ' ')}"
+        raise Refusal(
+            f"This Reminder is already {reminder.status.value.replace('_', ' ')}",
+            "conflict",
         )
     values: dict[str, object] = {"status": becomes}
     if action == ReminderAction.APPROVE:
@@ -437,7 +432,7 @@ def act(
         .values(**values)
     )
     if changed.rowcount == 0:
-        raise ReminderNotFound(reminder_id)
+        raise Refusal("Reminder not found", "not_found")
     if becomes not in _UNSENT and reminder.mortgages:
         conn.execute(
             insert(reminder_mortgage_table),
@@ -474,13 +469,8 @@ def read_reminders(
 def _answer(
     engine: EngineDep, reminder_id: int, action: ReminderAction, now: datetime
 ) -> Reminder:
-    try:
-        with write_transaction(engine) as conn:
-            return act(conn, reminder_id, action, now)
-    except ReminderNotFound:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Reminder not found") from None
-    except ReminderRefused as refused:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(refused)) from None
+    with write_transaction(engine) as conn:
+        return act(conn, reminder_id, action, now)
 
 
 @router.post("/reminders/{reminder_id}/approve")

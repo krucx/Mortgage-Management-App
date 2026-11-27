@@ -85,6 +85,9 @@ def test_a_pan_already_on_another_customer_is_refused_naming_them(client):
         response.json()["detail"]
         == "PAN ABCDE1234F already belongs to Customer Ramesh Kumar"
     )
+    assert response.content == (
+        b'{"detail":"PAN ABCDE1234F already belongs to Customer Ramesh Kumar"}'
+    )
 
 
 def test_an_edit_sets_and_clears_them_and_history_keeps_both(client):

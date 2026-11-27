@@ -660,10 +660,10 @@ def test_a_collateral_value_is_refused_when_it_cannot_stand(conn: Connection) ->
     ring = add_mortgage(conn, ramesh, suffix="Ring")
     redeem(conn, ring, TODAY)
 
-    def refused_value(value: int) -> tuple[int, str]:
-        with pytest.raises(HTTPException) as refused:
+    def refused_value(value: int) -> tuple[str, str]:
+        with pytest.raises(Refusal) as refused:
             manual_value.set_collateral(conn, chain, value, TODAY, NOW)
-        return refusal(refused)
+        return refused.value.kind, refused.value.message
 
     with pytest.raises(Refusal) as missing:
         manual_value.set_collateral(conn, 404, 90_000 * RUPEE, TODAY, NOW)
@@ -671,7 +671,10 @@ def test_a_collateral_value_is_refused_when_it_cannot_stand(conn: Connection) ->
         "not_found",
         "Mortgage not found",
     )
-    assert refused_value(0) == (422, "A Collateral Value must be more than ₹0")
+    assert refused_value(0) == (
+        "unprocessable",
+        "A Collateral Value must be more than ₹0",
+    )
     with pytest.raises(Refusal) as closed:
         manual_value.set_collateral(conn, ring, 90_000 * RUPEE, TODAY, NOW)
     assert (closed.value.kind, closed.value.message) == (

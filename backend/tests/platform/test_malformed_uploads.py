@@ -65,6 +65,7 @@ def test_a_decompression_bomb_image_is_refused_on_every_photo_route_and_nothing_
 
         assert response.status_code == 422, path
         assert response.json()["detail"] == "Not an image file"
+        assert response.content == b'{"detail":"Not an image file"}', path
     assert stored_photos(database_url) == []
 
 

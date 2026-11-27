@@ -381,7 +381,9 @@ def test_deleting_a_customer_clears_them_as_referrer_of_others(client):
 
 
 def test_deleting_a_customer_that_does_not_exist_is_404(client):
-    assert client.delete("/api/customers/999").status_code == 404
+    response = client.delete("/api/customers/999")
+    assert response.status_code == 404
+    assert response.content == b'{"detail":"Customer not found"}'
 
 
 def test_the_preview_of_deleting_a_customer_with_mortgages_gives_the_refusal(client):
@@ -392,6 +394,9 @@ def test_the_preview_of_deleting_a_customer_with_mortgages_gives_the_refusal(cli
 
     assert response.status_code == 409
     assert response.json()["detail"] == "A Customer with Mortgages cannot be deleted"
+    assert response.content == (
+        b'{"detail":"A Customer with Mortgages cannot be deleted"}'
+    )
     assert client.get(f"/api/customers/{ramesh['id']}").status_code == 200
 
 

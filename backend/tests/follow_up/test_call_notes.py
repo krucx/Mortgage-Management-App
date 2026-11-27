@@ -93,6 +93,9 @@ def test_a_call_note_on_a_closed_mortgage_is_refused_with_why(client, redeemed):
 
     assert response.status_code == 422
     assert response.json()["detail"] == f"{redeemed['name']}: it is redeemed"
+    assert response.content == (
+        f'{{"detail":"{redeemed["name"]}: it is redeemed"}}'.encode()
+    )
     assert notes_of(client, redeemed) == []
 
 

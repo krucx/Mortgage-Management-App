@@ -9,7 +9,7 @@ Mortgage, date and note) is kept once.
 from datetime import date, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel
 from sqlalchemy import insert, select
 from sqlalchemy.engine import Connection
@@ -22,7 +22,7 @@ from mortgage_backend.platform.db import (
     mortgage_table,
     write_transaction,
 )
-from mortgage_backend.platform.errors import unprocessable
+from mortgage_backend.platform.errors import Refusal
 from mortgage_backend.platform.paging import Page, PageNumber, Sorting, query_page
 
 
@@ -62,7 +62,7 @@ def record_call_note(
     note = note.strip()
     reason = left_out_because(mortgage, today, note, today)
     if reason is not None:
-        raise unprocessable(f"{mortgage.name}: {reason}")
+        raise Refusal(f"{mortgage.name}: {reason}", "unprocessable")
     same = (
         conn.execute(
             select(call_note_table).where(
@@ -95,7 +95,7 @@ def _mortgage(conn: Connection, mortgage_id: int) -> Any:
         ).where(mortgage_table.c.id == mortgage_id)
     ).one_or_none()
     if mortgage is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mortgage not found")
+        raise Refusal("Mortgage not found", "not_found")
     return mortgage
 
 
