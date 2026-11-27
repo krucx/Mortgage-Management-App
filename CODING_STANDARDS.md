@@ -22,7 +22,7 @@ If a check below fails or is missing, fix the check; don't add a review comment 
   customer-message test, PR [#367](https://github.com/krucx/Mortgage-Management-App/pull/367).
 - Domain code refuses with a `Refusal`, never an `HTTPException`; one is made only
   directly in a route handler, a FastAPI dependency or a listed middleware site, and
-  domain modules import nothing from FastAPI: the HTTP boundary test,
+  domain modules import nothing from FastAPI or Starlette: the HTTP boundary test,
   `backend/tests/platform/test_http_boundary.py` (#606).
 - `VERSION` changes only through the release candidate: the VERSION check,
   PR [#371](https://github.com/krucx/Mortgage-Management-App/pull/371).

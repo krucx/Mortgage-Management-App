@@ -29,13 +29,13 @@ class _BadHeader(Exception):
     """A QA clock header that doesn't parse; the dependency answers 400, naming it."""
 
 
-def _header(request: Request, name: str, format: str) -> datetime | None:
-    """The QA clock header `name`, parsed with `format`; None when it is absent."""
+def _qa_clock(request: Request, name: str, pattern: str) -> datetime | None:
+    """The QA clock header `name`, parsed with `pattern`; None when it is absent."""
     raw = request.headers.get(name)
     if not raw:
         return None
     try:
-        return datetime.strptime(raw, format)
+        return datetime.strptime(raw, pattern)
     except ValueError:
         raise _BadHeader(name) from None
 
@@ -44,7 +44,7 @@ def get_today(request: Request) -> date:
     """FastAPI dependency: today's business date."""
     if _QA_MODE:
         try:
-            day = _header(request, "X-QA-Clock", _DAY)
+            day = _qa_clock(request, "X-QA-Clock", _DAY)
         except _BadHeader as bad:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"bad {bad}") from None
         if day:
@@ -61,8 +61,8 @@ def get_now(request: Request) -> datetime:
     `X-QA-Clock`, noon on that day."""
     if _QA_MODE:
         try:
-            now = _header(request, "X-QA-Clock-Now", _TIME)
-            day = None if now else _header(request, "X-QA-Clock", _DAY)
+            now = _qa_clock(request, "X-QA-Clock-Now", _TIME)
+            day = None if now else _qa_clock(request, "X-QA-Clock", _DAY)
         except _BadHeader as bad:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"bad {bad}") from None
         if now:
