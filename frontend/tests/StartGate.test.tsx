@@ -13,13 +13,26 @@ const nothingAnswers = () => {
   throw new TypeError('Failed to fetch')
 }
 
-/** A backend that is stopped until `start()`: until then it answers as `stopped` does. */
-function backend(stopped: () => unknown = nothingAnswers) {
-  let running = false
+/** The backend's Health; `problem` makes it a 503, as when the database can't be reached. */
+const health = (problem?: string) =>
+  Response.json(
+    {
+      status: problem ? 'unavailable' : 'ok',
+      database: problem ? { connected: false, error: problem } : { connected: true },
+      migrations: null,
+      backups: { enabled: true, running: false },
+    },
+    { status: problem ? 503 : 200 },
+  )
+
+/** A backend that is stopped until `start()`: until then it answers as `stopped` does,
+ *  and then with `running`. */
+function backend(stopped: () => unknown = nothingAnswers, running: () => unknown = health) {
+  let started = false
   const server = fakeServer({
-    'GET /api/payment-methods': () => (running ? [] : stopped()),
+    'GET /api/health': () => (started ? running() : stopped()),
   })
-  return { server, start: () => (running = true) }
+  return { server, start: () => (started = true) }
 }
 
 /** The app inside the gate, checking every few milliseconds rather than seconds. */
@@ -97,4 +110,41 @@ test('a 502 from a proxy in front of a stopped backend counts as stopped, and th
 
   start()
   await waitFor(() => expect(reloads()).toBe(1))
+})
+
+test('a backend whose Health reports a problem (503) still answers: the app opens', async () => {
+  const { server, start } = backend(nothingAnswers, () =>
+    health('OperationalError: could not connect to server'),
+  )
+  start()
+  showGate(server)
+
+  expect(await screen.findByText('The app')).toBeTruthy()
+})
+
+test('the app loads once the backend answers, even with a Health reporting a problem', async () => {
+  const { server, start } = backend(nothingAnswers, () => health('schema behind head'))
+  const { reloads } = showGate(server)
+
+  expect(await screen.findByRole('button', { name: 'Start Mortgage Management' })).toBeTruthy()
+  start()
+  await waitFor(() => expect(reloads()).toBe(1))
+})
+
+test('a bare 503 from a proxy, with no Health, counts as stopped', async () => {
+  const { server, start } = backend(() => new Response('Service Unavailable', { status: 503 }))
+  const { reloads } = showGate(server)
+
+  expect(await screen.findByRole('button', { name: 'Start Mortgage Management' })).toBeTruthy()
+  expect(screen.queryByText('The app')).toBeNull()
+
+  start()
+  await waitFor(() => expect(reloads()).toBe(1))
+})
+
+test('a JSON error from a proxy that is not a Health counts as stopped', async () => {
+  const { server } = backend(() => Response.json({ detail: 'Bad Gateway' }, { status: 502 }))
+  showGate(server)
+
+  expect(await screen.findByRole('button', { name: 'Start Mortgage Management' })).toBeTruthy()
 })

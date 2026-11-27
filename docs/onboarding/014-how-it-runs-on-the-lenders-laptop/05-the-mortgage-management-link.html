@@ -32,7 +32,7 @@ sequenceDiagram
   participant K as link.ps1
   participant A as app (backend)
   L->>G: taps the icon
-  G->>A: GET /api/payment-methods
+  G->>A: GET /api/health
   A--xG: no connection
   G->>L: "The app isn't running on this laptop." Start
   L->>G: Start Mortgage Management
@@ -40,8 +40,8 @@ sequenceDiagram
   W->>L: allow this site to open the link? (once)
   W->>K: powershell -File link.ps1 "mortgage-management://start"
   K->>A: Run.bat -NoBrowser
-  G->>A: GET /api/payment-methods, every 2 s
-  A-->>G: 200
+  G->>A: GET /api/health, every 2 s
+  A-->>G: its Health (200, or 503 with a problem)
   G->>G: reload: Meera's page loads
 </pre>
 <figcaption>Start, from tap to figures. The PWA never learns whether the link worked; it just keeps asking until the backend answers.</figcaption>
@@ -135,7 +135,7 @@ sequenceDiagram
 <h2>Run-through: Meera's payment day</h2>
 <table class="steps">
 <tr><th>Moment</th><th>What runs</th><th>What the Lender sees</th></tr>
-<tr><td>Taps the icon</td><td>The service worker serves the cached screens; <code>StartGate</code>'s <code>GET /api/payment-methods</code> fails</td><td>"The app isn't running on this laptop." and <strong>Start Mortgage Management</strong></td></tr>
+<tr><td>Taps the icon</td><td>The service worker serves the cached screens; <code>StartGate</code>'s <code>GET /api/health</code> fails</td><td>"The app isn't running on this laptop." and <strong>Start Mortgage Management</strong></td></tr>
 <tr><td>Presses Start</td><td><code>window.location.assign('mortgage-management://start')</code></td><td>The first time only: the browser asks whether to open Mortgage Management</td></tr>
 <tr class="changed"><td>Allows it</td><td>Windows runs <code>powershell … link.ps1 "mortgage-management://start"</code>; <code>Select-LinkAction</code> → <code>start</code>; <code>Run.bat -NoBrowser</code></td><td>A console window: "Starting Mortgage Management..."</td></tr>
 <tr><td>The backend answers</td><td><code>StartGate</code>'s check, every 2 s, gets a 200; <code>reload()</code></td><td>The app, with Meera's figures</td></tr>

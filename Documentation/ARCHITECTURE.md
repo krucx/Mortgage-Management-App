@@ -370,7 +370,7 @@ sequenceDiagram
 
     Lender->>PWA: Opens app shortcut
     PWA->>StartGate: Mounts app shell from cache
-    StartGate->>Backend: GET /api/payment-methods (Healthcheck)
+    StartGate->>Backend: GET /api/health
     Backend--xStartGate: Connection Refused (Server offline)
     StartGate->>Lender: Displays "The app isn't running on this laptop" + [Start] button
     Lender->>StartGate: Clicks "Start Mortgage Management"
@@ -381,9 +381,9 @@ sequenceDiagram
     LinkScript->>Launcher: Executes Run.bat -NoBrowser
     Launcher->>Backend: Spawns Docker stack or local Python uvicorn
     loop Polling every 2 seconds
-        StartGate->>Backend: GET /api/payment-methods
+        StartGate->>Backend: GET /api/health
     end
-    Backend-->>StartGate: HTTP 200 OK
+    Backend-->>StartGate: a Health body (200, or 503 reporting a problem)
     StartGate->>PWA: window.location.reload()
     PWA->>Lender: Renders active Dashboard
 ```

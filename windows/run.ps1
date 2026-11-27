@@ -54,7 +54,7 @@ function Start-Locally {
         -ArgumentList '-m', 'uvicorn', 'mortgage_backend.main:app', '--host', '127.0.0.1', '--port', $port
     try {
         # Starting can take a while: a database update takes a Backup first.
-        if (-not (Wait-Url "http://127.0.0.1:$port/api/backups" 300)) {
+        if (-not (Wait-Health "http://127.0.0.1:$port/api/health" 300)) {
             throw 'The app did not start (see the messages above).'
         }
         Open-App
