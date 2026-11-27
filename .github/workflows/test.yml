@@ -6,9 +6,9 @@ concurrency:
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'test/567-base']
   pull_request:
-    branches: [main]
+    branches: [main, 'test/567-base']
   # The release workflow runs these before publishing images.
   workflow_call:
   workflow_dispatch:
