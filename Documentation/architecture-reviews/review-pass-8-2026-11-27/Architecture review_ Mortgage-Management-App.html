@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Architecture review: Mortgage-Management-App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+  </script>
+  <style>
+    .seam { border-left: 2px dashed #64748b; }
+    .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+    .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .leakbox { border: 2px solid #dc2626; color: #991b1b; }
+  </style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+
+<header class="space-y-3">
+  <h1 class="font-serif text-4xl">Architecture review, pass 8</h1>
+  <p class="text-sm text-slate-600">Mortgage-Management-App · 27 Nov 2026 · <span class="font-mono">main</span> at <span class="font-mono">521c389</span> (3.6.1). This pass comes after the refactor run (#500 to #511), the bug run (#528) and the CI overhaul (#566 to #573). The text version is in <span class="font-mono">README.md</span> in this folder.</p>
+  <p class="text-sm">The refactor run landed what the strategic-vs-tactical review asked for: one <span class="font-mono">/api</span> router, query modules for Lending and Payments, request logging, <span class="font-mono">/api/health</span>, an error boundary, CSS modules, <span class="font-mono">useNumericId</span> and forms on <span class="font-mono">useProposedChange</span>. The friction left is about <i>where rules live</i>. The Closing draft is built three times. Refusals carry HTTP status codes into the domain. The CI path rules are kept in five lists. And choosing the right write transaction is left to every route.</p>
+  <div class="flex flex-wrap gap-4 text-xs text-slate-600 pt-2">
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500 bg-white"></span>module</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 seam"></span>seam</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 leakbox"></span>leak / duplicated rule</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 deep"></span>deep module</span>
+  </div>
+</header>
+
+<section id="summary" class="rounded-xl border-2 border-slate-800 bg-white p-6 space-y-3">
+  <h2 class="font-serif text-2xl">Summary: top 5 findings</h2>
+  <ol class="list-decimal pl-5 text-sm space-y-2">
+    <li><b>The Closing draft is written three times</b> (Strong, M). <span class="font-mono">CloseMortgage.tsx</span>, <span class="font-mono">WaiveChosen.tsx</span> and <span class="font-mono">ForfeitChosen.tsx</span> each build a <span class="font-mono">Closing</span> from their own fields. <span class="font-mono">useClosing</span> is deep, but its input is not.</li>
+    <li><b>Refusals are HTTP errors all the way down</b> (Strong, M). 30 backend modules raise <span class="font-mono">HTTPException</span>, including <span class="font-mono">replay.py</span> and <span class="font-mono">refusals.py</span>. The fix is a domain <span class="font-mono">Refusal</span>, turned into HTTP once in <span class="font-mono">create_app</span>.</li>
+    <li><b>The path rules are kept in five places</b> (Strong, S). Critical areas, CI job groups, changelog needs, the Dependabot allowlist and CONTRIBUTING each keep a list, and the CONTRIBUTING pointer is already wrong.</li>
+    <li><b>Choosing a write transaction is every route's job</b> (Worth exploring, S-M). 6 sites use <span class="font-mono">write_transaction</span> and 30 use <span class="font-mono">engine.begin()</span>, though #515 showed read-then-write needs the former.</li>
+    <li><b>The page tests' fake backend is untyped</b> (Worth exploring, S-M). <span class="font-mono">fakeServer.ts</span> takes free-string routes and <span class="font-mono">unknown</span> answers, so API drift passes 33 page tests.</li>
+  </ol>
+</section>
+
+<section id="decisions" class="space-y-3">
+  <h2 class="font-serif text-2xl">Settled since pass 7</h2>
+  <ul class="list-disc pl-5 text-sm space-y-1">
+    <li>ADR 0022: the owner merges every <span class="font-mono">main</span> PR. ADR 0023: releases are fully automated after the trigger.</li>
+    <li>Pass 7's top candidate landed: <span class="font-mono">release.mjs</span> sits behind <span class="font-mono">github-adapter.mjs</span> and <span class="font-mono">fake-github-adapter.mjs</span>, two adapters, so the seam is real.</li>
+    <li>From the strategic-vs-tactical review: #500, #501, #502, #503 to #505, #506, #507, #508, #509, #510 and #511 are all closed. The recheck is in <span class="font-mono">strategic-vs-tactical-reviews/recheck-2026-11-27.md</span>.</li>
+    <li>ADR 0007: Preview routes stay hand-written. Nothing below generates them.</li>
+  </ul>
+</section>
+
+<section id="candidates" class="space-y-10">
+<h2 class="font-serif text-2xl">Candidates</h2>
+
+<!-- 1 -->
+<article id="c1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">01 · One Closing-draft module</h3>
+    <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">size M</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>frontend/src/components/CloseMortgage.tsx (426 lines, 8 useState; draft → Closing at :73-111)</li>
+    <li>frontend/src/pages/closures/WaiveChosen.tsx · ForfeitChosen.tsx</li>
+    <li>frontend/src/components/useClosing.tsx (deep: Preview, confirm and save for each kind)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · three drafts, one deep hook</div>
+      <pre class="mermaid">
+flowchart TB
+  CM[CloseMortgage<br/>redeem · waive · forfeit]:::shallow --> D1["fields → Closing<br/>ready rule · Summary rows"]:::leak
+  WC[WaiveChosen]:::shallow --> D2["fields → Closing<br/>ready rule · Summary rows"]:::leak
+  FC[ForfeitChosen]:::shallow --> D3["fields → Closing<br/>ready rule · Summary rows"]:::leak
+  D1 & D2 & D3 --> UC["useClosing<br/>Preview · confirm · save"]:::deep
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  classDef shallow fill:#fff;
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After · the draft is part of the module</div>
+      <pre class="mermaid">
+flowchart TB
+  MC["pages/mortgage/CloseMortgage<br/>(one Mortgage)"] --> CD
+  WC[WaiveChosen] --> CD
+  FC[ForfeitChosen] --> CD
+  CD["Closing draft (kind, Mortgages)<br/>fields · ready rule · body per kind<br/>confirmation rows · Preview · save"]:::deep
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> Each caller keeps its own <span class="font-mono">on</span>, <span class="font-mono">note</span>, <span class="font-mono">method</span>, <span class="font-mono">reference</span> and amount fields, its own ready rule, its own date field name (<span class="font-mono">redeemed_on</span>, <span class="font-mono">waived_on</span> or <span class="font-mono">forfeited_on</span>), its own rupees-to-paise conversion and its own confirmation rows. <span class="font-mono">CloseMortgage</span> is the one-Mortgage case of what the Closures page does for many, yet it shares none of that code, and it sits in <span class="font-mono">components/</span> although only two pages use it. <span class="font-mono">ClosuresPage</span> and <span class="font-mono">CloseMortgage</span> have 43 touches since October.</p>
+  <p class="text-sm"><b>Solution.</b> Add a Closing-draft module (<span class="font-mono">useClosingDraft(kind, mortgages)</span>, or a draft input to <span class="font-mono">useClosing</span>). It owns the fields, the ready rule, the request bodies and the confirmation rows, so the three callers only render. Move <span class="font-mono">CloseMortgage</span> into <span class="font-mono">pages/mortgage/</span>.</p>
+  <p class="text-sm"><b>Benefits.</b> Locality: the Closing rules for each kind live in one place. Leverage: three callers today. Tests sit at the draft's interface ("a Waive with no amount gives no Closing"), and the page tests only check rendering.</p>
+</article>
+
+<!-- 2 -->
+<article id="c2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">02 · Refusals as domain errors, mapped to HTTP once</h3>
+    <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">size M · critical</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/platform/errors.py (unprocessable → HTTPException)</li>
+    <li>lending/refusals.py :19 refuse_unless_active (409) · :43 refusal_names_mortgage rewrites .detail</li>
+    <li>lending/replay.py · changes.py · closing.py · payments/writes.py · recording.py · +23 (30 modules)</li>
+    <li>lending/previews.py :180-195 (a Preview is refused because the same exception propagates)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · FastAPI inside the domain</div>
+      <pre class="mermaid">
+flowchart TB
+  R[routes] --> C["change functions<br/>record_payment · redeem_all · edit_mortgage"]
+  J["daily jobs · reminders.sync · Simulation"] --> C
+  C --> RF["refusals.py"]
+  RF -->|"raise HTTPException(409/422)"| H((HTTP)):::leak
+  C -->|"raise HTTPException"| H
+  RP[replay.py] -->|"raise HTTPException"| H
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After · one handler at the edge</div>
+      <pre class="mermaid">
+flowchart TB
+  R[routes] --> C
+  J["daily jobs · Simulation"] --> C
+  C["change functions + Ledger<br/>raise Refusal(message, kind)"]:::deep
+  C -.-> X["create_app: exception_handler(Refusal)<br/>→ same JSON as today"]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> The interface of every change function includes FastAPI status codes. Domain tests assert <span class="font-mono">status_code == 422</span>. <span class="font-mono">refusal_names_mortgage</span> changes a framework object's field in place. The newest modules already follow the opposite rule: <span class="font-mono">lending/queries.py</span> says "No HTTP in here".</p>
+  <p class="text-sm"><b>Solution.</b> Add <span class="font-mono">Refusal(message, kind)</span> to <span class="font-mono">platform/errors.py</span>, with kind <span class="font-mono">unprocessable</span>, <span class="font-mono">conflict</span> or <span class="font-mono">not_found</span>, and one exception handler in <span class="font-mono">create_app</span>. The change is mechanical, file by file, and the API's responses stay the same. ADR 0007 is untouched.</p>
+  <p class="text-sm"><b>Benefits.</b> Locality: one place maps refusals to HTTP. Leverage: the domain can be used without FastAPI. Domain tests assert on <span class="font-mono">Refusal</span>, and only the route tests see status codes.</p>
+</article>
+
+<!-- 3 -->
+<article id="c3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">03 · One path classifier for CI and review rules</h3>
+    <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">size S</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>.github/scripts/lib/critical-paths.mjs ("Keep the two in step")</li>
+    <li>.github/scripts/changed-paths.mjs :19-32 · check-changelog.mjs :6-22 · lib/auto-merge-allowlist.mjs</li>
+    <li>CONTRIBUTING.md :141-162 (line 162 points at integration-summary.mjs, but the list moved in #587)</li>
+    <li>.github/workflows/test.yml (498 lines, 20 jobs; required check "version-bump" runs 5 unrelated script tests)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · five lists answer path questions</div>
+      <pre class="mermaid">
+flowchart TB
+  P((changed path)) --> A["critical-paths.mjs"]:::leak
+  P --> B["changed-paths.mjs"]:::leak
+  P --> C["check-changelog.mjs"]:::leak
+  P --> D["auto-merge-allowlist.mjs"]:::leak
+  P --> E["CONTRIBUTING.md table"]:::leak
+  E -. "stale pointer" .-> A
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After · one classify(path)</div>
+      <pre class="mermaid">
+flowchart TB
+  P((changed path)) --> K["lib/paths.mjs classify()<br/>product · critical areas · job groups"]:::deep
+  K --> U1[integration summary]
+  K --> U2[changed-paths]
+  K --> U3[changelog check]
+  K --> U4[auto-merge]
+  T["test-paths.mjs checks the CONTRIBUTING table"] -.-> K
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> Each list is shallow and sits beside its one caller. The docs copy has already drifted. A new top-level folder means editing three lists and remembering two more. <span class="font-mono">test.yml</span> is the most-edited file since October apart from generated code (47 touches).</p>
+  <p class="text-sm"><b>Solution.</b> Add one classifier, with the current scripts as its callers, and a table test that checks the CONTRIBUTING rows against it. While there, fold the hand-listed <span class="font-mono">node --test</span> jobs into one job that runs <span class="font-mono">test-*.mjs</span>. Keep the required check names in <span class="font-mono">.github/rulesets/</span>, or change them in the same PR.</p>
+</article>
+
+<!-- 4 -->
+<article id="c4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">04 · The safe write transaction as the only write</h3>
+    <span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">local-substitutable</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">size S-M · critical</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>backend/…/platform/db.py :302 write_transaction (BEGIN IMMEDIATE, #515 / #528)</li>
+    <li>6 write_transaction sites vs 30 engine.begin() in 17 files (e.g. payments/recording.py :135, follow_up/call_list.py :227)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · each route picks a transaction</div>
+      <pre class="mermaid">
+flowchart TB
+  R1["reminders · settings · changes (6)"] --> W["write_transaction<br/>BEGIN IMMEDIATE"]
+  R2["recording · closing · call list … (30)"] --> B["engine.begin()<br/>deferred"]:::leak
+  B -. "read-then-write race (#515)" .-> X((lost write / 500)):::leak
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After · db.py owns the rule</div>
+      <pre class="mermaid">
+flowchart TB
+  R["every writing route"] --> W["book.write()<br/>always takes the write lock"]:::deep
+  Q["every reading route"] --> C["book.read()"]
+  T["parallel-writers test"] -.-> W
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> The concurrency rule lives in a docstring, and every route author has to classify their own transaction. Recording a Payment replays the Mortgage and then writes, inside a deferred transaction.</p>
+  <p class="text-sm"><b>Solution.</b> Make the immediate transaction the only way to write: wrap the engine, or add a test that fails on <span class="font-mono">engine.begin()</span> outside <span class="font-mono">db.py</span>. One parallel-writers test at the seam then covers every route. On a one-Lender SQLite book, queueing writers costs nothing.</p>
+</article>
+
+<!-- 5 -->
+<article id="c5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">05 · A typed fake backend for page tests</h3>
+    <span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">size S-M</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+    <li>frontend/tests/fakeServer.ts (33 lines; Record&lt;string, unknown&gt;)</li>
+    <li>33 page tests, e.g. NewPaymentPage.test.tsx (40 KB) · MortgagePage.test.tsx (33 KB)</li>
+    <li>frontend/src/api.gen.ts (paths)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">Before · the test adapter checks nothing</div>
+      <pre class="mermaid">
+flowchart LR
+  Pg[page] --> TC[typed client]
+  TC --> BE[backend]
+  TC --> F["fakeServer<br/>'POST /api/…' → unknown"]:::leak
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+      </pre>
+    </div>
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="lbl text-slate-500 mb-2">After · two real adapters at one seam</div>
+      <pre class="mermaid">
+flowchart LR
+  Pg[page] --> TC["typed client (paths)"]:::deep
+  TC --> BE[backend]
+  TC --> F["typed fake<br/>keys and answers from paths"]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+      </pre>
+    </div>
+  </div>
+  <p class="text-sm"><b>Problem.</b> A route renamed in <span class="font-mono">api.gen.ts</span>, or a response field dropped, still passes the page tests. The strategic-vs-tactical testing review asked for this (its recommendation 4), and it has not been started.</p>
+  <p class="text-sm"><b>Solution.</b> Type the fake's routes and answers from <span class="font-mono">paths</span>, then move the tests over gradually. API drift then fails <span class="font-mono">tsc</span>, not QA.</p>
+</article>
+
+<!-- 6 -->
+<article id="c6" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">06 · The Call Sheet import, out of CallListPage</h3>
+    <span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">in-process · size S</span>
+  </div>
+  <p class="font-mono text-sm text-slate-700">frontend/src/pages/CallListPage.tsx (456 lines; CallSheet · ImportPreview · NotImportedRows at :168-370, 5 useState)</p>
+  <p class="text-sm">The page holds two concepts: the Call List table, and the Call Sheet export and import, which is its own state machine. Move it to <span class="font-mono">pages/callList/CallSheet.tsx</span> with a <span class="font-mono">useCallSheetImport</span> behind it, following the <span class="font-mono">pages/closures/</span> pattern, so the import flow can be tested on its own.</p>
+</article>
+
+<!-- 7 -->
+<article id="c7" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <div class="flex flex-wrap items-center gap-2">
+    <h3 class="font-serif text-xl">07 · A People query module (only the shared queries)</h3>
+    <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-xs font-semibold">Speculative</span>
+    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">local-substitutable · size S</span>
+  </div>
+  <p class="font-mono text-sm text-slate-700">people/customers.py (14 query builders) · customer_changes.py (16) · lending/queries.py :16 imports phone_fragment from a route module</p>
+  <p class="text-sm">Move only the shared Customer search queries (<span class="font-mono">phone_fragment</span>, <span class="font-mono">_customer_matches</span>, <span class="font-mono">owner_of</span>, Customers sharing a phone) into <span class="font-mono">people/queries.py</span>. Single-use SQL stays where it is, because moving it would fail the deletion test. Do it the next time Customer search changes.</p>
+</article>
+</section>
+
+<section id="leftovers" class="space-y-2">
+  <h2 class="font-serif text-2xl">Smaller leftovers</h2>
+  <ul class="list-disc pl-5 text-sm space-y-1">
+    <li><span class="font-mono">windows/run.ps1:57</span> and <span class="font-mono">install.ps1:179</span> wait on <span class="font-mono">/api/backups</span>, and <span class="font-mono">StartGate.tsx:13</span> probes <span class="font-mono">/api/payment-methods</span>. Point them at <span class="font-mono">/api/health</span>.</li>
+    <li>Lending and Payments still import each other (<span class="font-mono">recording.py:11</span> and <span class="font-mono">closing.py:36</span>). A Final Payment closing a Mortgage is real domain coupling, so there's no candidate until a third caller appears.</li>
+    <li><span class="font-mono">backend/pyproject.toml:22</span> still pins <span class="font-mono">uv_build</span> to <span class="font-mono">&lt;0.13.0</span>.</li>
+  </ul>
+</section>
+
+<section id="top" class="rounded-xl deep p-6 space-y-2">
+  <h2 class="font-serif text-2xl">Top recommendation</h2>
+  <p class="text-sm">Start with <b>01, the Closing draft</b>. It is in one of the most-changed parts of the frontend, touches no money-math path, finishes what #511 started and clears the last page-specific component out of <span class="font-mono">components/</span>. <b>03</b> is the cheapest next step and fixes a doc drift that already exists. <b>02</b> has the most leverage in the backend, but it is <span class="font-mono">critical</span> and wide, so give it its own PR.</p>
+</section>
+
+</main>
+</body>
+</html>

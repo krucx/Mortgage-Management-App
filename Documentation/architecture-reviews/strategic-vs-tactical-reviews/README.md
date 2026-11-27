@@ -9,6 +9,8 @@ The review evaluated the codebase along the spectrum of:
 
 The review is divided into three focused documents covering 21 total architectural dimensions across the backend, frontend, testing infrastructure, and cross-cutting project coherence.
 
+> **Recheck, 27 November 2026:** after the refactor run (#500 to #511) the totals are **19 Strategic, 2 Mixed, 0 Tactical**. See [recheck-2026-11-27.md](./recheck-2026-11-27.md).
+
 ---
 
 ## Overall Scorecard
