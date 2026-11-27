@@ -3,9 +3,13 @@
 // standing.
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { components } from '../src/api.gen'
 import { CustomerPage } from '../src/pages/CustomerPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
+
+type Favour = components['schemas']['Favour']
+type FavoursGiven = components['schemas']['FavoursGiven']
 
 afterEach(() => {
   cleanup()
@@ -15,6 +19,7 @@ afterEach(() => {
 const asha = {
   id: 3,
   name: 'Asha Rao',
+  advance_held: 0,
   address: '',
   phone_1: '9000000001',
   phone_2: null,
@@ -32,11 +37,13 @@ const asha = {
 /** The page fields of a Customer's favours that all fit on one page. */
 const ONE_PAGE = { page: 1, page_size: 20 }
 
-function customerPage(favours: unknown) {
+function customerPage(
+  favours: FavoursGiven | Response | ((request: Request) => FavoursGiven | Promise<FavoursGiven>),
+) {
   const server = fakeServer({
-    'GET /api/customers/3': asha,
-    'GET /api/customers/3/favours': favours,
-    'GET /api/customers/3/history': { items: [], total: 0, page: 1, page_size: 20 },
+    'GET /api/customers/{customer_id}': asha,
+    'GET /api/customers/{customer_id}/favours': favours,
+    'GET /api/customers/{customer_id}/history': { items: [], total: 0, page: 1, page_size: 20 },
     'GET /api/mortgages': { items: [], total: 0, page: 1, page_size: 20 },
   })
   showPage(server, '/customers/3', { '/customers/:id': <CustomerPage /> })
@@ -123,7 +130,7 @@ test('a failure to load them says so under the heading', async () => {
 })
 
 test('favours come a page at a time, the total still counting every page', async () => {
-  const favour = (day: number) => ({
+  const favour = (day: number): Favour => ({
     on: `2026-03-${String(day).padStart(2, '0')}`,
     received_on: null,
     mortgage: { id: 7, description: 'Gold chain' },

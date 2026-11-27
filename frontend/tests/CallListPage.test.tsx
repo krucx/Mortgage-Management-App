@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { CallNoteImport } from '../src/api'
 import type { CallListPage as Listed } from '../src/api'
 import { CallListPage } from '../src/pages/CallListPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -172,7 +173,7 @@ function chooseSheet() {
   })
 }
 
-function showImporting(preview: unknown, saved: unknown = preview) {
+function showImporting(preview: CallNoteImport, saved: CallNoteImport = preview) {
   const server = fakeServer({
     'GET /api/call-list': listed,
     'POST /api/call-list/import-preview': async (request: Request) => {

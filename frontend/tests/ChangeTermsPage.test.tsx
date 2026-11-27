@@ -4,7 +4,8 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { MortgagePreview, TermChangeIn } from '../src/api'
 import { ChangeTermsPage } from '../src/pages/ChangeTermsPage'
 import { MortgagePage } from '../src/pages/MortgagePage'
-import { changePreview, fakeServer } from './fakeServer'
+import { changePreview } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -28,12 +29,12 @@ test('a new rate is previewed, then saved as a Term Change from the chosen Accru
   const previewed: TermChangeIn[] = []
   const saved: TermChangeIn[] = []
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/term-changes/preview': async (request: Request) => {
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/term-changes/preview': async (request: Request) => {
       previewed.push(await request.json())
       return changePreview([preview])
     },
-    'POST /api/mortgages/7/term-changes': async (request: Request) => {
+    'POST /api/mortgages/{mortgage_id}/term-changes': async (request: Request) => {
       saved.push(await request.json())
       return mortgage
     },
@@ -57,8 +58,8 @@ test('a new rate is previewed, then saved as a Term Change from the chosen Accru
 
 test('the Preview warns of each upcoming Advance Instalment that would now reduce Principal', async () => {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/term-changes/preview': changePreview([
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/term-changes/preview': changePreview([
       {
         ...preview,
         advance_warnings: [
@@ -101,9 +102,9 @@ test('back on the Mortgage page, the saved Term Change shows at once, before the
   let saved = false
   const server = fakeServer({
     // Once saved, asking again never answers: only what the save returned can be shown.
-    'GET /api/mortgages/7': () => (saved ? new Promise(() => {}) : mortgage),
-    'POST /api/mortgages/7/term-changes/preview': changePreview([preview]),
-    'POST /api/mortgages/7/term-changes': () => {
+    'GET /api/mortgages/{mortgage_id}': () => (saved ? new Promise(() => {}) : mortgage),
+    'POST /api/mortgages/{mortgage_id}/term-changes/preview': changePreview([preview]),
+    'POST /api/mortgages/{mortgage_id}/term-changes': () => {
       saved = true
       return changed
     },
@@ -141,9 +142,11 @@ const withComingChange = {
 function showComingChange() {
   let removed = false
   const server = fakeServer({
-    'GET /api/mortgages/7': () => (removed ? mortgage : withComingChange),
-    'POST /api/mortgages/7/term-changes/4/remove-preview': changePreview([preview]),
-    'DELETE /api/mortgages/7/term-changes/4': () => {
+    'GET /api/mortgages/{mortgage_id}': () => (removed ? mortgage : withComingChange),
+    'POST /api/mortgages/{mortgage_id}/term-changes/{change_id}/remove-preview': changePreview([
+      preview,
+    ]),
+    'DELETE /api/mortgages/{mortgage_id}/term-changes/{change_id}': () => {
       removed = true
       return mortgage
     },

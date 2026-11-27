@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { Closure, MortgagePreview, OutstandingOnClosure, MortgageRow } from '../src/api'
 import { ClosuresPage } from '../src/pages/ClosuresPage'
 import { formatDate, todayIso } from '../src/format'
-import { changePreview, fakeServer } from './fakeServer'
+import { changePreview } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { expectWholeRupeeSteps } from './rupeeField'
 import { showPage } from './showPage'
 
@@ -12,22 +14,27 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const row = {
+const row: MortgageRow = {
   id: 3,
   name: '2025-Arjun-GoldRing',
   customer: { kind: 'customer', id: 2, name: 'Arjun Patel' },
   start_date: '2025-06-15',
   amount_lent: 2_000_000,
+  advance_held: 0,
+  month_interest: 40_000,
+  not_redeemable: null,
   status: 'active',
   outstanding_total: 2_180_000,
+  unpaid_interest: 180_000,
 }
-const quote = {
+const quote: OutstandingOnClosure = {
   on: '2026-04-20',
   principal: 2_000_000,
   unpaid_interest: 180_000,
   last_accrual_on: '2026-04-14',
   interest_to_date_days: 6,
   interest_to_date: 60_000,
+  part_month_rule: 'pro_rata',
   total: 2_240_000,
   advance_held: 0,
   to_pay: 2_240_000,
@@ -49,10 +56,13 @@ async function waivePreview(request: Request) {
       { detail: '2025-Arjun-GoldRing: ₹22,400 covers the ₹22,400 owed: Redeem it instead' },
       { status: 422 },
     )
-  const closure = (paid: number) => ({
+  const closure = (paid: number): Closure => ({
     kind: 'waived',
     on: '2026-04-20',
     outstanding: quote.total,
+    advance_held: quote.advance_held,
+    interest_to_date: quote.interest_to_date,
+    interest_to_date_days: quote.interest_to_date_days,
     payment_id: paid > 0 ? 50 : null,
     payment_amount: paid > 0 ? paid : null,
     waived_amount: quote.total - paid,
@@ -60,7 +70,12 @@ async function waivePreview(request: Request) {
     profit_loss: null,
     note: null,
   })
-  const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
+  const side = (closure: MortgagePreview['before']['closure']) => ({
+    outstanding: 0,
+    points: [],
+    term_changes: [],
+    closure,
+  })
   return changePreview(
     mortgages.map((m) => ({
       mortgage_id: m.mortgage_id,
@@ -96,7 +111,7 @@ test('the chosen Mortgages can be Waived off instead of Forfeited, each with wha
   const server = fakeServer({
     ...noneDormant,
     'GET /api/mortgages': () => ({ items: listed, total: listed.length, page: 1, page_size: 20 }),
-    'GET /api/mortgages/3/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'GET /api/payment-methods': [{ method: 'cash', name: 'Cash' }],
     'POST /api/closures/waive-preview': waivePreview,
     'POST /api/closures/waive': async (request: Request) => {
@@ -135,7 +150,7 @@ test("receiving all that is owed cannot be Waived off: the Preview gives the bac
   const server = fakeServer({
     ...noneDormant,
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
-    'GET /api/mortgages/3/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
   })
   showPage(server, '/closures', { '/closures': <ClosuresPage /> })
@@ -158,7 +173,7 @@ test('if the backend refuses the Waiver when it is saved, nothing is Waived off 
   const server = fakeServer({
     ...noneDormant,
     'GET /api/mortgages': { items: [row], total: 1, page: 1, page_size: 20 },
-    'GET /api/mortgages/3/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'POST /api/closures/waive-preview': waivePreview,
     'POST /api/closures/waive': () =>
       Response.json({ detail: '2025-Arjun-GoldRing is already forfeited' }, { status: 422 }),
@@ -176,10 +191,13 @@ test('if the backend refuses the Waiver when it is saved, nothing is Waived off 
 })
 
 const second = { ...row, id: 4, name: '2025-Arjun-Bangles' }
-const forfeited = (recovered: number) => ({
+const forfeited = (recovered: number): Closure => ({
   kind: 'forfeited',
   on: '2026-04-20',
   outstanding: 2_240_000,
+  advance_held: 0,
+  interest_to_date: 0,
+  interest_to_date_days: 0,
   payment_id: null,
   payment_amount: null,
   waived_amount: null,
@@ -187,7 +205,12 @@ const forfeited = (recovered: number) => ({
   profit_loss: recovered - 2_240_000,
   note: null,
 })
-const side = (closure: unknown) => ({ outstanding: 0, points: [], term_changes: [], closure })
+const side = (closure: MortgagePreview['before']['closure']) => ({
+  outstanding: 0,
+  points: [],
+  term_changes: [],
+  closure,
+})
 
 /** The Forfeit-or-Waive list of `row` and `second`, with each one's Forfeiture as the
  *  Preview works it out from what was sent. */
@@ -195,8 +218,7 @@ function forfeitRoutes(extra: Record<string, unknown>) {
   return {
     ...noneDormant,
     'GET /api/mortgages': { items: [row, second], total: 2, page: 1, page_size: 20 },
-    'GET /api/mortgages/3/outstanding-on-closure': quote,
-    'GET /api/mortgages/4/outstanding-on-closure': quote,
+    'GET /api/mortgages/{mortgage_id}/outstanding-on-closure': quote,
     'POST /api/closures/forfeit-preview': async (request: Request) => {
       const { mortgages } = (await request.json()) as {
         mortgages: { mortgage_id: number; recovered_amount: number }[]

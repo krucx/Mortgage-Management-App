@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ForfeitChosen } from '../src/pages/closures/ForfeitChosen'
 import { WaiveChosen } from '../src/pages/closures/WaiveChosen'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {

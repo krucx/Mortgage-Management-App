@@ -4,7 +4,8 @@ import { afterEach, expect, test } from 'vitest'
 import { ServerStateProvider } from '../src/components/ServerStateProvider'
 import { StartGate, type StartGateProps } from '../src/components/StartGate'
 import { createServerState } from '../src/serverState'
-import { fakeServer, type FakeServer } from './fakeServer'
+import { type FakeServer } from './fakeServer'
+import { offContract, typedFakeServer as fakeServer } from './typedFakeServer'
 
 afterEach(cleanup)
 
@@ -27,7 +28,10 @@ const health = (problem?: string) =>
 
 /** A backend that is stopped until `start()`: until then it answers as `stopped` does,
  *  and then with `running`. */
-function backend(stopped: () => unknown = nothingAnswers, running: () => unknown = health) {
+function backend(
+  stopped: () => Response | Promise<Response> = nothingAnswers,
+  running: () => Response | Promise<Response> = health,
+) {
   let started = false
   const server = fakeServer({
     'GET /api/health': () => (started ? running() : stopped()),
@@ -143,7 +147,7 @@ test('a bare 503 from a proxy, with no Health, counts as stopped', async () => {
 })
 
 test('a JSON error from a proxy that is not a Health counts as stopped', async () => {
-  const { server } = backend(() => Response.json({ detail: 'Bad Gateway' }, { status: 502 }))
+  const { server } = backend(() => offContract({ detail: 'Bad Gateway' }, 502))
   showGate(server)
 
   expect(await screen.findByRole('button', { name: 'Start Mortgage Management' })).toBeTruthy()

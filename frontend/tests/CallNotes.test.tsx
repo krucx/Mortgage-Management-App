@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { CallNotes } from '../src/components/CallNotes'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -13,7 +13,7 @@ afterEach(() => {
 
 function showCallNotes(routes: Record<string, unknown> = {}) {
   const server = fakeServer({
-    'GET /api/mortgages/7/call-notes': { items: [], total: 0, page: 1, page_size: 20 },
+    'GET /api/mortgages/{mortgage_id}/call-notes': { items: [], total: 0, page: 1, page_size: 20 },
     ...routes,
   })
   showPage(server, '/mortgages/7', {
@@ -37,7 +37,7 @@ test('a Call Note needs something written in it', async () => {
 
 test('a Call Note the backend refuses shows its reason', async () => {
   showCallNotes({
-    'POST /api/mortgages/7/call-notes': () =>
+    'POST /api/mortgages/{mortgage_id}/call-notes': () =>
       Response.json({ detail: '2026GoldRing: it is redeemed' }, { status: 422 }),
   })
   fireEvent.change(await screen.findByLabelText('Call Note for 2026GoldRing'), {
@@ -60,7 +60,7 @@ test('Call Notes come a page at a time, newest first', async () => {
     created_at: '2026-04-20T10:00:00',
   })
   const server = showCallNotes({
-    'GET /api/mortgages/7/call-notes': (request: Request) => {
+    'GET /api/mortgages/{mortgage_id}/call-notes': (request: Request) => {
       const page = Number(new URL(request.url).searchParams.get('page'))
       return {
         items: page === 1 ? [note(22), note(21)] : [note(2), note(1)],

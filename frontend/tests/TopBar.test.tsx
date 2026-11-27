@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { TopBar } from '../src/components/TopBar'
 import styles from '../src/components/TopBar.module.css'
 import { APP_VERSION } from '../src/version'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {

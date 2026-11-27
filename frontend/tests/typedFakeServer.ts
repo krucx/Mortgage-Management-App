@@ -40,6 +40,10 @@ export type Answer<R extends Route> =
 
 export type Routes = { [R in Route]?: Answer<R> }
 
+/** Deliberately return malformed JSON when a test covers how a page handles a bad backend body. */
+export const offContract = (body: unknown, status = 200): Response =>
+  Response.json(body, { status })
+
 const templateMatcher = (template: string) =>
   new RegExp(`^${template.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[^}]+\}/g, '[^/]+')}$`)
 
