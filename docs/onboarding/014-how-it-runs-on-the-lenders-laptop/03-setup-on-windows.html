@@ -144,7 +144,7 @@ flowchart TD
 52      $backend = Start-Process -FilePath $python -NoNewWindow -PassThru `
 54          -ArgumentList '-m', 'uvicorn', 'mortgage_backend.main:app', '--host', '127.0.0.1', '--port', $port   ②
 ⋮
-57          if (-not (Wait-Url "http://127.0.0.1:$port/api/backups" 300)) {     ③
+57          if (-not (Wait-Health "http://127.0.0.1:$port/api/health" 300)) {     ③
 ⋮
 64          Wait-Process -Id $backend.Id
 </code></pre>
@@ -152,7 +152,7 @@ flowchart TD
 <ol class="marks">
   <li>The same three variables as the image's line 33 (lesson 1), from <code>.env</code>. With <code>SCREENS_DIR</code> set, the backend serves the screens (lesson 2).</li>
   <li>The venv's own <code>python.exe -m uvicorn</code>, not <code>uv run</code>. When the window closes, the <code>finally</code> below stops the process it started. Started through <code>uv run</code>, that process would be uv, and uvicorn under it could keep running. This way the window <em>is</em> the app: close it and the app stops.</li>
-  <li>Ready means <code>/api/backups</code> answers. Up to five minutes: a start that migrates the database takes a Backup first (<a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">chapter 010, lesson 5</a>).</li>
+  <li>Ready means <code>/api/health</code> answers with the app's Health, even a 503 one: then the app runs, with a problem it reports (say, the database can't be reached), and the window says so in one yellow line rather than waiting it out. Up to five minutes: a start that migrates the database takes a Backup first (<a href="../010-platform-database-and-migrations/05-how-the-app-migrates.html">chapter 010, lesson 5</a>).</li>
 </ol>
 <p>With Docker, <code>run.ps1</code> instead starts Docker Desktop if needed, runs <code>docker compose up -d --remove-orphans</code> (lesson 4 says why <code>--remove-orphans</code>), and waits for the app. The window can close; the container keeps running.</p>
 
