@@ -283,7 +283,7 @@ def post_term_change(
     today: TodayDep,
     now: NowDep,
 ) -> Mortgage:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         add_term_change(conn, mortgage_id, change, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
@@ -297,7 +297,7 @@ def put_mortgage(
     now: NowDep,
 ) -> Mortgage:
     """Correct a Mortgage's details; its Ledger is replayed from them."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         edit_mortgage(conn, mortgage_id, edit, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
@@ -311,7 +311,7 @@ def delete_term_change(
     now: NowDep,
 ) -> Mortgage:
     """Remove a Term Change that has not taken effect yet."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         remove_term_change(conn, mortgage_id, change_id, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
@@ -325,7 +325,7 @@ def post_instalment_cancel(
     now: NowDep,
 ) -> Mortgage:
     """Cancel an upcoming Advance Instalment, applying its amount today."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         cancel_instalment(conn, mortgage_id, instalment_id, today, now)
         return load_mortgage(conn, mortgage_id, today)
 

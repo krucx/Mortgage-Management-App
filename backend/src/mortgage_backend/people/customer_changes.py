@@ -35,6 +35,7 @@ from mortgage_backend.platform.db import (
     exists,
     mortgage_table,
     standalone_referrer_table,
+    write_transaction,
 )
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.photos import PhotosDirDep
@@ -315,7 +316,7 @@ router = APIRouter()
 
 @router.post("/customers", status_code=status.HTTP_201_CREATED)
 def post_customer(customer: CustomerIn, engine: EngineDep, now: NowDep) -> Customer:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         return load_customer(conn, create_customer(conn, customer, now))
 
 
@@ -323,7 +324,7 @@ def post_customer(customer: CustomerIn, engine: EngineDep, now: NowDep) -> Custo
 def put_customer(
     customer_id: int, customer: CustomerIn, engine: EngineDep, now: NowDep
 ) -> Customer:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         edit_customer(conn, customer_id, customer, now)
         return load_customer(conn, customer_id)
 

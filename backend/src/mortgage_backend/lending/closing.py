@@ -44,7 +44,7 @@ from mortgage_backend.payments.writes import (
     write_payment,
 )
 from mortgage_backend.platform.clock import NowDep, TodayDep
-from mortgage_backend.platform.db import EngineDep, mortgage_table
+from mortgage_backend.platform.db import EngineDep, mortgage_table, write_transaction
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.money import format_inr
 from mortgage_backend.platform.paging import Page, PageNumber, rows_page
@@ -467,7 +467,7 @@ def post_redeem(
     mortgage_id: int, body: RedeemIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Mortgage:
     """Record the final Payment of the Outstanding and mark the Mortgage Redeemed."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         redeem(conn, mortgage_id, body, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
@@ -478,7 +478,7 @@ def post_waive(
 ) -> Mortgage:
     """Record a final Payment short of the Outstanding, waive the rest, and mark
     the Mortgage Waived."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         waive(conn, mortgage_id, body, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
@@ -488,7 +488,7 @@ def post_forfeit(
     mortgage_id: int, body: ForfeitIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Mortgage:
     """Mark the Mortgage Forfeited, recording what the jewellery recovered."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         forfeit(conn, mortgage_id, body, today, now)
         return load_mortgage(conn, mortgage_id, today)
 
@@ -498,7 +498,7 @@ def post_redeem_all(
     body: RedeemAllIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> list[Mortgage]:
     """Redeem several Mortgages at once: all of them, or (if any is refused) none."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         redeem_all(conn, body, today, now)
         return [load_mortgage(conn, m, today) for m in body.mortgage_ids]
 
@@ -508,7 +508,7 @@ def post_waive_all(
     body: WaiveAllIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> list[Mortgage]:
     """Waive off several Mortgages at once: all of them, or (if any is refused) none."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         waive_all(conn, body, today, now)
         return [load_mortgage(conn, m.mortgage_id, today) for m in body.mortgages]
 
@@ -518,7 +518,7 @@ def post_forfeit_all(
     body: ForfeitAllIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> list[Mortgage]:
     """Forfeit several Mortgages at once: all of them, or (if any is refused) none."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         forfeit_all(conn, body, today, now)
         return [load_mortgage(conn, m.mortgage_id, today) for m in body.mortgages]
 
@@ -528,6 +528,6 @@ def post_reopen(
     mortgage_id: int, body: VoidIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Mortgage:
     """Undo a Closure; a Redemption's or Waiver's final Payment is Voided."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         reopen(conn, mortgage_id, body.reason, today, now)
         return load_mortgage(conn, mortgage_id, today)

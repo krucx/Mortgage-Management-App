@@ -300,11 +300,12 @@ def make_engine(database_url: str) -> Engine:
 
 @contextmanager
 def write_transaction(engine: Engine) -> Iterator[Connection]:
-    """A transaction that holds the database's write lock from its first statement,
-    waiting its turn behind any other writer, so what it reads stays true until it
-    commits. For one that reads and then writes on what it read, such as syncing the
-    Reminders: in an ordinary transaction a write committed between the two is missed
-    (#515)."""
+    """The only way the backend writes (#602): a transaction that holds the database's
+    write lock from its first statement, waiting its turn behind any other writer, so
+    what it reads stays true until it commits. In an ordinary transaction a write
+    committed between a read and a write on what it read is lost (#515). Reads use a
+    plain `engine.connect()`. Never open one inside another on the same request: the
+    inner one would wait out the busy timeout behind the outer."""
     with engine.begin() as conn:
         conn.exec_driver_sql("BEGIN IMMEDIATE")
         yield conn

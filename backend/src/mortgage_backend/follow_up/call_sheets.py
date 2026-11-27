@@ -37,6 +37,7 @@ from mortgage_backend.platform.db import (
     call_note_table,
     customer_table,
     mortgage_table,
+    write_transaction,
 )
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.money import RUPEE, format_inr
@@ -434,7 +435,7 @@ async def import_call_notes(
 ) -> CallNoteImport:
     """Add every Call Note a filled-in Call Sheet holds that can be added."""
     data = await file.read()
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         imported = read_import(conn, data, today)
         if imported.adding:
             conn.execute(

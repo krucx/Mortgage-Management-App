@@ -17,7 +17,7 @@ from datetime import date
 
 from sqlalchemy.engine import Engine
 
-from mortgage_backend.platform.db import get_config, set_config
+from mortgage_backend.platform.db import get_config, set_config, write_transaction
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class DailyRun:
         with self._lock:
             if today in self._complete:
                 return
-            with self.engine.begin() as conn:
+            with self.engine.connect() as conn:
                 done = get_config(conn, [_done_key(name) for name in self.jobs])
             due = [
                 name
@@ -60,7 +60,7 @@ class DailyRun:
                     failed = True
                     log.exception("Daily job %s failed", name)
                     continue
-                with self.engine.begin() as conn:
+                with write_transaction(self.engine) as conn:
                     set_config(conn, _done_key(name), today.isoformat())
             if not failed:
                 self._complete.add(today)

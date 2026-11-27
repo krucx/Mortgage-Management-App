@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.db import EngineDep, write_transaction
 from mortgage_backend.platform.settings import ThresholdSetting
 
 _KEY = "discount_confirmation_limit"
@@ -40,6 +40,6 @@ def read_discount_confirmation_limit(engine: EngineDep) -> DiscountConfirmationL
 def update_discount_confirmation_limit(
     setting: DiscountConfirmationLimit, engine: EngineDep
 ) -> DiscountConfirmationLimit:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         _DISCOUNT_CONFIRMATION_LIMIT.set(conn, setting)
         return get_discount_confirmation_limit(conn)
