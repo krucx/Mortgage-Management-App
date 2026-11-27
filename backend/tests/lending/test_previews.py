@@ -104,6 +104,20 @@ def test_an_edit_that_would_be_refused_cannot_be_previewed(client, payment, mort
     assert response.status_code == 422
 
 
+def test_a_missing_mortgage_preview_is_refused_like_saving(client):
+    asked = details()
+
+    previewed = client.post("/api/mortgages/404/edit-preview", json=asked)
+    saved = client.put("/api/mortgages/404", json=asked)
+
+    assert (previewed.status_code, previewed.content) == (
+        saved.status_code,
+        saved.content,
+    )
+    assert previewed.status_code == 404
+    assert previewed.content == b'{"detail":"Mortgage not found"}'
+
+
 def test_a_term_change_preview_shows_the_coming_difference(client, mortgage):
     shown = preview(
         client,
