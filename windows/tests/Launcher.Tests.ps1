@@ -714,7 +714,18 @@ Describe 'waiting for the app to answer' {
         Wait-Health 'http://127.0.0.1:8000/api/health' 5 | Should -BeTrue
 
         $script:warnings.Count | Should -Be 1
-        $script:warnings[0] | Should -BeLike '*running, but reports a problem: *a1*b2*'
+        $script:warnings[0] | Should -BeLike '*running, but reports a problem: the database has not been updated to this version*'
+    }
+
+    It 'says a database error that runs over several lines in one line' {
+        Mock Invoke-WebRequest {
+            throw (New-HttpError 503 (New-Health 'unavailable' @{ connected = $false; error = "OperationalError: could not connect`n`tIs the server running?`r`n" }))
+        }
+
+        Wait-Health 'http://127.0.0.1:8000/api/health' 5 | Should -BeTrue
+
+        $script:warnings.Count | Should -Be 1
+        $script:warnings[0] | Should -BeLike '*(OperationalError: could not connect Is the server running?).'
     }
 
     It 'keeps waiting while nothing listens yet, as during a database update at startup' {

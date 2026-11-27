@@ -331,21 +331,6 @@ function Test-Command {
     return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
-function Wait-Url {
-    <# Whether `Url` answers within `Seconds`. #>
-    param([string]$Url, [int]$Seconds = 120)
-    $until = (Get-Date).AddSeconds($Seconds)
-    while ((Get-Date) -lt $until) {
-        try {
-            Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 5 | Out-Null
-            return $true
-        } catch {
-            Start-Sleep -Seconds 2
-        }
-    }
-    return $false
-}
-
 function Get-Health {
     <# The app's Health at `Url`, or $null when nothing answers with one. A 503 answers too:
        the app runs, with a problem it reports; a proxy's error page or a refused connection
@@ -368,10 +353,13 @@ function Get-Health {
 function Get-HealthProblem {
     <# What a Health that is not ok says is wrong, in a few words. #>
     param($Health)
-    if (-not $Health.database.connected) { return "the database cannot be reached ($($Health.database.error))." }
+    if (-not $Health.database.connected) {
+        # A driver's error can run over several lines; the warning is one.
+        return "the database cannot be reached ($(($Health.database.error -replace '\s+', ' ').Trim()))."
+    }
     $migrations = $Health.migrations
     if ($migrations -and -not $migrations.up_to_date) {
-        return "the database is at version $($migrations.current), but this version of the app needs $($migrations.head)."
+        return 'the database has not been updated to this version of the app.'
     }
     return "its health is '$($Health.status)'."
 }

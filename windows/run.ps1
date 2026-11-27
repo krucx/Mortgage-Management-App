@@ -21,7 +21,7 @@ function Open-App {
 function Start-WithDocker {
     Start-DockerDesktop
     Start-AppContainers $AppDir
-    if (-not (Wait-Url $url 180)) { throw "The app did not answer at $url." }
+    if (-not (Wait-Health "$url/api/health" 180)) { throw "The app did not answer at $url." }
     Open-App
     Write-Host "Mortgage Management is running at $url (in Docker)." -ForegroundColor Green
     Write-Host 'It keeps running after this window closes.'
@@ -33,7 +33,7 @@ function Start-Locally {
     if (-not (Test-Path $python)) { throw 'The backend is not installed: run Setup again.' }
     $screens = Join-Path $AppDir 'frontend\dist'
     if (-not (Test-Path (Join-Path $screens 'index.html'))) { throw 'The app screens are not built: run Setup again.' }
-    if (Wait-Url "http://127.0.0.1:$port" 2) {
+    if (Wait-Health "http://127.0.0.1:$port/api/health" 2) {
         Write-Host "Mortgage Management is already running at $url."
         Open-App
         return
