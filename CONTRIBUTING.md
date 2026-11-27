@@ -36,7 +36,8 @@ instructions, critical-area label) while the change is made, not at release time
    apply, reply on the pull request with the reason so the reviewer can assess
    that disposition.
 5. For a pull request into `main`, the owner checks the diff, CI, automated findings and their
-   dispositions, records an approving review where one is required, and presses merge. An
+   dispositions and presses merge. No approving review is required: agents act under the owner's
+   GitHub account, so an approval could never be given. An
    agent **never approves** a pull request and **never merges, or enables auto-merge on, a
    pull request into `main`**, even when told "yes, merge"; this is policy, not a technical
    block. Preparing, drafting or summarising a review is not approval. The agent opens the
@@ -92,9 +93,11 @@ without that ruleset gets a run warning instead of auto-merge.
 ### Maintainer override
 
 A repository maintainer may use GitHub's **bypass rules** option on a pull request to
-merge without satisfying the ruleset's checks or approval requirements. Use this only
-when intentionally overriding those gates, and record the reason in the pull request.
-The active ruleset grants this to the `maintain` repository role. The bypass is available
+merge without satisfying the ruleset's checks. Use this only when intentionally
+overriding those gates, and record the reason in the pull request. It is not part of
+the normal flow: a green pull request merges without it, and no pull request needs it
+for a skipped automated reviewer.
+The `main` and `integration/**` rulesets grant this to the `maintain` repository role. The bypass is available
 only for PR merges; direct pushes to `main` remain blocked. The repository's existing
 branch protection also lets repository admins bypass its checks; this ruleset bypass
 extends the PR-only override to maintainers.
@@ -103,19 +106,17 @@ extends the PR-only override to maintainers.
 
 An emergency still uses a pull request into `main`. Mark it clearly as an
 emergency, state the impact and why the normal turnaround is too slow, run the fastest
-relevant checks, and request an available human reviewer. The owner records an
-approval before merging. A maintainer may use the override above when urgent
-circumstances require merging without all checks or approval; record the reason in the
-pull request. Follow up immediately with the remaining checks, documentation, and
+relevant checks, and ask the owner to look at it first. A maintainer may use the override
+above when urgent circumstances require merging without all checks; record the reason in
+the pull request. Follow up immediately with the remaining checks, documentation, and
 release notes. Keep the change in a pull request.
 
 ### Automated reviewer unavailable
 
 If the automated reviewer is unavailable, record that on the pull request and ask a human reviewer
 to inspect the full diff and explicitly cover the automated review in their review.
-If the CodeRabbit status check is required and cannot complete, a maintainer may use the
-documented bypass for that PR, recording the reason. Resume automated review on later
-pull requests.
+No ruleset requires the automated reviewer, so its outage blocks no merge. Resume automated
+review on later pull requests.
 
 ## Selective CodeRabbit review
 
@@ -127,7 +128,7 @@ second opinion.
 
 | Pull request | Label | CodeRabbit |
 | --- | --- | --- |
-| `integration/*` into `main` (a batch of tickets) | `coderabbit-review` | Required: a review must exist before the human merges. |
+| `integration/*` into `main` (a batch of tickets) | `coderabbit-review` | Expected: the owner waits for a review before merging (convention, not a required check). |
 | A ticket PR whose base is an `integration/*` branch | none | Not reviewed. |
 | Any other pull request into `main` | none | Not reviewed. |
 | Any other pull request that touches a critical area (below) | `critical` | Reviewed. |
@@ -159,9 +160,9 @@ grouped by the critical areas above (plus "other"), the status of the ruleset's 
 linked ticket with unticked acceptance criteria. It is tool-neutral and is not posted on any other pull
 request. The critical paths are mirrored in `.github/scripts/integration-summary.mjs`; update both together.
 
-`main`'s ruleset requires the `CodeRabbit` check, which CodeRabbit does not report on a pull request it
-skips. Those pull requests need a maintainer bypass, recorded on the pull request. The `integration/*` ->
-`main` pull request always gets the review, so it merges normally (the owner presses merge).
+No ruleset requires a `CodeRabbit` check (it never reports on a pull request it skips), so a
+pull request it skips merges normally. The review is advisory: for the `integration/*` -> `main`
+pull request the owner waits for it by convention, not because GitHub enforces it.
 
 ## CI
 
@@ -227,10 +228,10 @@ lockfiles and keeps incremental reviews enabled. It also uses CodeRabbit's balan
 `chill` profile, which is expected to reduce low-signal, style-level feedback and the time
 people spend assessing it. The tradeoff is fewer nitpicky comments. No before-and-after
 review timing is available; changed source and configuration files remain in scope, and
-the required `CodeRabbit` check is unchanged.
+no required check depends on it.
 
-The reviewed set is selective (see above), so the notes about each push and the required check apply
-only to pull requests CodeRabbit reviews.
+The reviewed set is selective (see above), so the notes about each push apply only to pull requests
+CodeRabbit reviews.
 
 CodeRabbit is selected because its Open Source plan is free for public repositories.
 The checked-in [`.coderabbit.yaml`](.coderabbit.yaml) configures review guidance; a
@@ -239,27 +240,44 @@ reviews on pull requests. This app integration cannot be enabled by a repository
 If the repository becomes private or the free plan changes, disable this integration
 and choose a no-cost reviewer before relying on it.
 
-The ruleset template requires the `CodeRabbit` status check along with CI. Install the
-app and confirm its exact check name on a reviewed pull request before importing the
-template; if GitHub shows a different name, replace `CodeRabbit` in the template with
-that exact name. Until the app is installed and the ruleset activated, automated review
-is not enforced. Automated findings never count as approval.
+The CodeRabbit status is deliberately not a required check. Install the app so it reviews the pull
+requests that opt in; until it is installed, automated review simply does not happen. Automated
+findings never count as approval.
 
-The importable [main ruleset](.github/rulesets/main.json) targets `main`, allows the
-`maintain` role to bypass its rules on pull requests, and requires a pull request, one
-human approval, and these status checks: `backend`, `frontend`, `image`, `qa`, `windows`,
-`version-bump`, `Analyze (actions)`, `Analyze (javascript-typescript)`, `Analyze (python)`, and
-`CodeRabbit`. `version-bump` fails a pull request that changes `VERSION` or the package versions synced from
+### Rulesets as code
+
+The branch rules live in [`.github/rulesets/`](.github/rulesets/), one importable JSON per ruleset:
+
+| Ruleset | Branches | Rules |
+| --- | --- | --- |
+| [`main.json`](.github/rulesets/main.json) | `main` | A pull request, **no approval required** (the owner is the only developer and agents act under the owner's account, so none could be given), review threads resolved, branch **up to date** before merge, and the checks `backend`, `frontend`, `image`, `qa`, `windows`, `version-bump`, `Analyze (actions)`, `Analyze (javascript-typescript)` and `Analyze (python)`. No force push, no deletion. |
+| [`integration.json`](.github/rulesets/integration.json) | `integration/**` | A pull request, no approval, only the fast checks `backend`, `frontend` and `version-bump`, branch **not** required to be up to date (parallel worker pull requests do not keep re-running CI), no force push. Branch deletion stays allowed so a finished integration branch can be cleaned up. All three merge methods are allowed; the [Auto-merge](#auto-merge) workflow squashes by default. |
+
+Both let the `maintain` role bypass on a pull request only (see [Maintainer override](#maintainer-override)).
+The heavy checks (`image`, `windows`, CodeQL) are required on `main` only, so they gate
+`integration/*` -> `main`. `version-bump` fails a pull request that changes `VERSION` or the package versions synced from
 it, unless it is the `release/X.Y.Z` pull request from the Prepare release candidate workflow;
 add a fragment under `changelog/unreleased/` instead of editing `CHANGELOG.md`. The same job
 refuses non-release edits to `CHANGELOG.md`. A PR that changes product or user-facing files
 without a fragment fails the same job (internal-only paths are allowlisted, as are `dependabot/*` branches). `qa` runs only on that
 `release/X.Y.Z` pull request and when Tests is dispatched by hand; elsewhere it is skipped,
-which GitHub counts as passing. These are the exact check names GitHub reports. The ruleset
-blocks force pushes and deletion. A repository administrator should import and activate it under
-Settings → Rules → Rulesets. GitHub Free supports branch protection and rulesets for public repositories;
-private repository availability depends on the repository plan. If rulesets are not
-available, configure equivalent branch protection for `main` manually.
+which GitHub counts as passing, and path filtering skips the heavy jobs the same way (see
+[CI](#ci)). These are the exact check names GitHub reports, and `Tests` also runs on pull
+requests into `integration/**` so its required checks report there. A test
+(`.github/scripts/test-rulesets.mjs`) fails if a required name stops matching a job.
+
+**Applying.** Only the owner changes repository settings. Compare, then apply:
+
+```sh
+node .github/scripts/apply-rulesets.mjs             # dry-run (default): prints committed vs live, changes nothing
+node .github/scripts/apply-rulesets.mjs --apply     # creates or updates both rulesets by name
+```
+
+The dry-run compares only the fields the committed file sets and exits 1 on drift. An agent never runs
+`--apply`: it opens the pull request, shows the dry-run diff, and waits for the owner's explicit
+approval (the owner runs it, or tells the agent to). Edit the JSON in a pull request first and apply
+after it merges, so the committed file and the live rules stay equal. It uses your signed-in `gh`.
+GitHub Free supports rulesets for public repositories; private repository availability depends on the repository plan.
 
 Release notes for a feature PR: add a file under `changelog/unreleased/` named
 `<unique>.<added|changed|fixed|removed|deprecated|security>.md` with Keep a Changelog

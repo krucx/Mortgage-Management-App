@@ -19,10 +19,10 @@
     {
       "type": "pull_request",
       "parameters": {
-        "required_approving_review_count": 1,
+        "required_approving_review_count": 0,
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": false,
-        "require_last_push_approval": true,
+        "require_last_push_approval": false,
         "required_review_thread_resolution": true,
         "allowed_merge_methods": ["merge", "squash", "rebase"]
       }
@@ -39,8 +39,7 @@
           {"context": "version-bump"},
           {"context": "Analyze (actions)"},
           {"context": "Analyze (javascript-typescript)"},
-          {"context": "Analyze (python)"},
-          {"context": "CodeRabbit"}
+          {"context": "Analyze (python)"}
         ],
         "strict_required_status_checks_policy": true
       }
