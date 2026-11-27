@@ -176,7 +176,7 @@ function Start-Version {
 function Wait-Version {
     <# Whether the app answers on `Port` within $StartMinutes. #>
     param([string]$Port)
-    return Wait-Url "http://127.0.0.1:$Port/api/backups" ($StartMinutes * 60)
+    return Wait-Health "http://127.0.0.1:$Port/api/health" ($StartMinutes * 60)
 }
 
 function Find-UpdateBackup {

@@ -3,7 +3,9 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { EditMortgagePage } from '../src/pages/EditMortgagePage'
-import { fakeServer, type FakeServer } from './fakeServer'
+import { changePreview } from './fakeServer'
+import { type FakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { mortgage, showPage } from './showPage'
 
 afterEach(() => {
@@ -13,19 +15,20 @@ afterEach(() => {
 
 const side = (outstanding: number) => ({ outstanding, points: [], term_changes: [], closure: null })
 /** The edit's Preview, writing `cash`: the sums in cash, as the backend works them out. */
-const previewWith = (cash: number[]) => ({
-  mortgages: [
-    {
-      mortgage_id: 7,
-      mortgage_name: mortgage.name,
-      before: side(5_075_000),
-      after: side(6_075_000),
-      ledger_changes: [],
-      advance_warnings: [],
-    },
-  ],
-  cash,
-})
+const previewWith = (cash: number[]) =>
+  changePreview(
+    [
+      {
+        mortgage_id: 7,
+        mortgage_name: mortgage.name,
+        before: side(5_075_000),
+        after: side(6_075_000),
+        ledger_changes: [],
+        advance_warnings: [],
+      },
+    ],
+    cash,
+  )
 const preview = previewWith([])
 
 function editPrincipal(server: FakeServer, rupees: string) {
@@ -39,8 +42,8 @@ const saveButton = () => screen.getByRole('button', { name: 'Save changes' }) as
 
 test("while the Preview says the change would be refused, it can't be saved", async () => {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/edit-preview': () =>
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/edit-preview': () =>
       Response.json({ detail: 'There is a Payment before that start date' }, { status: 422 }),
   })
   await editPrincipal(server, '60000')
@@ -53,8 +56,8 @@ test("while the Preview says the change would be refused, it can't be saved", as
 
 test('going back from the confirmation saves nothing', async () => {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/edit-preview': preview,
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/edit-preview': preview,
   })
   await editPrincipal(server, '60000')
   await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 })
@@ -71,9 +74,9 @@ test('going back from the confirmation saves nothing', async () => {
 
 test('confirming saves the change, then goes where the page says', async () => {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/edit-preview': preview,
-    'PUT /api/mortgages/7': { ...mortgage, amount_lent: 6_000_000 },
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/edit-preview': preview,
+    'PUT /api/mortgages/{mortgage_id}': { ...mortgage, amount_lent: 6_000_000 },
   })
   await editPrincipal(server, '60000')
   await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 })
@@ -89,9 +92,9 @@ test('confirming saves the change, then goes where the page says', async () => {
 
 test("a refused save shows the backend's reason and can be tried again", async () => {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
-    'POST /api/mortgages/7/edit-preview': preview,
-    'PUT /api/mortgages/7': () =>
+    'GET /api/mortgages/{mortgage_id}': mortgage,
+    'POST /api/mortgages/{mortgage_id}/edit-preview': preview,
+    'PUT /api/mortgages/{mortgage_id}': () =>
       Response.json({ detail: 'The Mortgage Name 2026GoldChain is already used' }, { status: 409 }),
   })
   await editPrincipal(server, '60000')
@@ -111,10 +114,10 @@ test("a refused save shows the backend's reason and can be tried again", async (
 /** Saving a change whose Preview writes `cash`, with the Cash Limit at `limit`. */
 async function saveWithCash(cash: number[], limit: number | null) {
   const server = fakeServer({
-    'GET /api/mortgages/7': mortgage,
+    'GET /api/mortgages/{mortgage_id}': mortgage,
     'GET /api/settings/cash-limit': { cash_limit: limit },
-    'POST /api/mortgages/7/edit-preview': previewWith(cash),
-    'PUT /api/mortgages/7': { ...mortgage, amount_lent: 6_000_000 },
+    'POST /api/mortgages/{mortgage_id}/edit-preview': previewWith(cash),
+    'PUT /api/mortgages/{mortgage_id}': { ...mortgage, amount_lent: 6_000_000 },
   })
   await editPrincipal(server, '60000')
   await screen.findByText(/No change to the Ledger so far/, {}, { timeout: 2000 })

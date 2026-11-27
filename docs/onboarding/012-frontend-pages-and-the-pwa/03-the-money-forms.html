@@ -206,7 +206,7 @@ flowchart TD
   <li>The save returns each closed Mortgage; they go straight into the cache.</li>
   <li><code>closureOf(id)</code>: that Mortgage's Closure as the Preview has it: its Outstanding, Final Payment, amount waived, Recovered Amount, profit or loss. The forms show these and compute none.</li>
 </ol>
-<p>Two forms use it. <code>CloseMortgage</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/components/CloseMortgage.tsx">CloseMortgage.tsx</a>, line 40) closes one Mortgage, with three buttons: Redeem…, Waive off…, Forfeit…. It sits on the Mortgage page, and on <code>RedeemPage</code> at <code>/mortgages/:id/redeem</code>. The Closures page's <code>ForfeitChosen</code> (line 214) and <code>WaiveChosen</code> (line 343) close several at once.</p>
+<p>Two forms use it. <code>CloseMortgage</code> (<a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/mortgage/CloseMortgage.tsx">CloseMortgage.tsx</a>, line 40) closes one Mortgage, with three buttons: Redeem…, Waive off…, Forfeit…. It sits on the Mortgage page, and on <code>RedeemPage</code> at <code>/mortgages/:id/redeem</code>. The Closures page's <code>ForfeitChosen</code> (line 214) and <code>WaiveChosen</code> (line 343) close several at once.</p>
 <figure class="snippet">
 <figcaption><a href="https://github.com/krucx/Mortgage-Management-App/blob/main/frontend/src/pages/ClosuresPage.tsx">frontend/src/pages/ClosuresPage.tsx</a> · <code>ForfeitChosen</code> · lines 214–261, trimmed</figcaption>
 <pre data-file="frontend/src/pages/ClosuresPage.tsx"><code>214 function ForfeitChosen({ chosen, onDone }: { chosen: Chosen[]; onDone: () =&gt; void }) {

@@ -12,56 +12,23 @@
 import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-
-const startsWithAny = (path, prefixes) => prefixes.some((prefix) => path.startsWith(prefix))
-const anyPath = (paths, prefixes) => paths.some((path) => startsWithAny(path, prefixes))
-
-const WORKFLOWS = ['.github/workflows/']
-const BACKEND = ['backend/']
-const FRONTEND = ['frontend/']
-// The scripts the heavy jobs themselves run.
-const BACKEND_SCRIPTS = ['.github/scripts/check-version.mjs', '.github/scripts/coverage-summary.mjs']
-const FRONTEND_SCRIPTS = [
-  '.github/scripts/check-version.mjs',
-  '.github/scripts/coverage-summary.mjs',
-  '.github/scripts/check-screen-coverage.mjs',
-  '.github/scripts/test-check-screen-coverage.mjs',
-]
-// Files outside backend/ that backend tests read: the documentation layout test reads
-// Documentation/, docs/ and GLOSSARY.md; the OpenAPI test reads frontend/openapi.json. A test that
-// reads a new outside path adds it here (and to the CONTRIBUTING.md table).
-const BACKEND_READS = ['Documentation/', 'docs/', 'GLOSSARY.md', 'frontend/openapi.json']
-// check-screen-coverage reads the QA scenarios and the screens still to cover.
-const QA = ['qa/']
-const IMAGE = ['Dockerfile', '.dockerignore']
-
-const ALL_LANGUAGES = ['actions', 'javascript-typescript', 'python']
-
-export function languagesFor(paths) {
-  return ALL_LANGUAGES.filter((language) => {
-    if (language === 'python') return anyPath(paths, BACKEND)
-    if (language === 'actions') return anyPath(paths, WORKFLOWS)
-    return anyPath(paths, [...FRONTEND, ...QA, '.github/scripts/'])
-  })
-}
+import { ALL_LANGUAGES, classify } from './lib/classify.mjs'
 
 const everything = () => ({ backend: true, frontend: true, windows: true, image: true, codeql: true, languages: [...ALL_LANGUAGES] })
 
+export function languagesFor(paths) {
+  const found = new Set(paths.flatMap((path) => classify(path).languages))
+  return ALL_LANGUAGES.filter((language) => found.has(language))
+}
+
 export function jobsFor({ event, headRef = '', paths }) {
   if (event !== 'pull_request' || headRef.startsWith('integration/') || headRef.startsWith('release/')) return everything()
-  if (!Array.isArray(paths) || anyPath(paths, WORKFLOWS)) return everything()
-  const version = paths.includes('VERSION')
-  const backend = anyPath(paths, BACKEND)
-  const frontend = anyPath(paths, FRONTEND)
+  if (!Array.isArray(paths)) return everything()
+  const classified = paths.map(classify)
+  if (classified.some((c) => c.runsAll)) return everything()
+  const runs = (job) => classified.some((c) => c.jobs.includes(job))
   const languages = languagesFor(paths)
-  return {
-    backend: backend || version || anyPath(paths, [...BACKEND_SCRIPTS, ...BACKEND_READS]),
-    frontend: frontend || version || anyPath(paths, [...QA, ...FRONTEND_SCRIPTS]),
-    windows: backend || frontend || version || anyPath(paths, ['windows/']),
-    image: backend || frontend || version || anyPath(paths, IMAGE),
-    codeql: languages.length > 0,
-    languages,
-  }
+  return { backend: runs('backend'), frontend: runs('frontend'), windows: runs('windows'), image: runs('image'), codeql: languages.length > 0, languages }
 }
 
 function changedFiles(repository, number) {

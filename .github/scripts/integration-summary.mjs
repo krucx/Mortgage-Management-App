@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGitHubClient } from './lib/github-client.mjs';
-import { AREAS, matchesPath } from './lib/critical-paths.mjs';
+import { AREAS, classify } from './lib/classify.mjs';
 
 export const MARKER = '<!-- integration-summary -->';
 const BOT = 'github-actions[bot]';
@@ -28,14 +28,9 @@ export function uncheckedCriteria(issueBody) {
 export function classifyFiles(files) {
   const groups = { money: [], auth: [], migrations: [], security: [], other: [] };
   for (const file of files) {
-    let critical = false;
-    for (const { key, paths } of AREAS) {
-      if (paths.some((p) => matchesPath(file, p))) {
-        groups[key].push(file);
-        critical = true;
-      }
-    }
-    if (!critical) groups.other.push(file);
+    const { critical } = classify(file);
+    for (const key of critical) groups[key].push(file);
+    if (!critical.length) groups.other.push(file);
   }
   return groups;
 }

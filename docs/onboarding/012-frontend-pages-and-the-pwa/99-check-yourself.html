@@ -16,7 +16,7 @@
 <div class="quiz" data-answer="1">
   <p class="q">1. A bug report says: "the screen at <code>/mortgages/4/redeem</code> shows the wrong button label". Which file draws the button?</p>
   <button class="opt"><code>pages/MortgagePage.tsx</code>, the Mortgage's own page</button>
-  <button class="opt"><code>components/CloseMortgage.tsx</code>, inside <code>RedeemPage</code></button>
+  <button class="opt"><code>pages/mortgage/CloseMortgage.tsx</code>, inside <code>RedeemPage</code></button>
   <button class="opt"><code>pages/ClosuresPage.tsx</code>, where Redeem… was pressed</button>
   <div class="why"><code>App.tsx</code> maps <code>/mortgages/:id/redeem</code> to <code>RedeemPage</code>, a read page that hands the Mortgage to <code>CloseMortgage</code> with <code>initialAction="redeem"</code>. The button ("Redeem for ₹…") is drawn there. (Lessons 1 and 3.)</div>
 </div>

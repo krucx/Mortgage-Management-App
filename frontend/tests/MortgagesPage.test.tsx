@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { MortgageRow } from '../src/api'
 import { MortgagesPage } from '../src/pages/MortgagesPage'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
@@ -14,14 +15,18 @@ afterEach(() => {
 const onlyNote = (name: string) => (_: string, el: Element | null) =>
   el?.tagName === 'SPAN' && el.textContent === `Only ${name}'s Mortgages`
 
-const row = (id: number, name: string) => ({
+const row = (id: number, name: string): MortgageRow => ({
   id,
   name,
   customer: { kind: 'customer', id: 2, name: 'Arjun Patel' },
   start_date: '2025-06-15',
   amount_lent: 6_000_000,
+  advance_held: 0,
+  month_interest: 120_000,
+  not_redeemable: null,
   status: 'active',
   outstanding_total: 8_483_100,
+  unpaid_interest: 0,
 })
 
 test("from the Call List's count, the Mortgages page shows only that Customer's, and can show everyone's again", async () => {
@@ -37,14 +42,20 @@ test("from the Call List's count, the Mortgages page shows only that Customer's,
               row(3, '2025-Arjun-GoldRingRuby'),
               {
                 ...row(1, '2025-Meera-GoldChainPendant'),
-                customer: { kind: 'customer', id: 1, name: 'Meera Sharma' },
+                customer: { kind: 'customer' as const, id: 1, name: 'Meera Sharma' },
               },
             ]
       return { items, total: items.length, page: 1, page_size: 20 }
     },
-    'GET /api/customers/2': {
+    'GET /api/customers/{customer_id}': {
       id: 2,
       name: 'Arjun Patel',
+      advance_held: 0,
+      email: null,
+      aadhaar_last4: null,
+      pan: null,
+      aadhaar_photo_url: null,
+      pan_photo_url: null,
       address: '',
       phone_1: '9820023456',
       phone_2: null,

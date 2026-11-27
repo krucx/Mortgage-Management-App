@@ -2,7 +2,7 @@
 import { cleanup, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { Nav } from '../src/components/Nav'
-import { fakeServer } from './fakeServer'
+import { typedFakeServer as fakeServer } from './typedFakeServer'
 import { showPage } from './showPage'
 
 afterEach(() => {
