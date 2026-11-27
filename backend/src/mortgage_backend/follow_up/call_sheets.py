@@ -432,11 +432,11 @@ async def preview_import(
 
 
 @router.post("/call-list/import")
-async def import_call_notes(
+def import_call_notes(
     file: UploadFile, engine: EngineDep, today: TodayDep
 ) -> CallNoteImport:
     """Add every Call Note a filled-in Call Sheet holds that can be added."""
-    data = await file.read()
+    data = file.file.read()
     with write_transaction(engine) as conn:
         imported = read_import(conn, data, today)
         if imported.adding:

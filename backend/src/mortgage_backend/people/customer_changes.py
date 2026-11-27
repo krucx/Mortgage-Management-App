@@ -353,14 +353,14 @@ def preview_customer_edit(
 
 
 @router.put("/customers/{customer_id}/photo")
-async def put_customer_photo(
+def put_customer_photo(
     customer_id: int,
     photo: UploadFile,
     engine: EngineDep,
     photos_dir: PhotosDirDep,
     now: NowDep,
 ) -> Customer:
-    new = photos.NewPhoto("customer", customer_id, await photo.read())
+    new = photos.NewPhoto("customer", customer_id, photo.file.read())
     with photos.photo_change(engine, photos_dir, new) as change:
         change.remove_when_saved(
             replace_photo(change.conn, customer_id, change.file, now)
@@ -369,7 +369,7 @@ async def put_customer_photo(
 
 
 @router.put("/customers/{customer_id}/id-photos/{card}")
-async def put_id_photo(
+def put_id_photo(
     customer_id: int,
     card: IdCard,
     photo: UploadFile,
@@ -378,7 +378,7 @@ async def put_id_photo(
     now: NowDep,
 ) -> Customer:
     """Add or replace one of the Customer's ID Photos."""
-    new = photos.NewPhoto("customer", customer_id, await photo.read())
+    new = photos.NewPhoto("customer", customer_id, photo.file.read())
     with photos.photo_change(engine, photos_dir, new) as change:
         change.remove_when_saved(
             replace_id_photo(change.conn, customer_id, card, change.file, now)
