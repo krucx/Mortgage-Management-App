@@ -14,7 +14,36 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Tree reuse (.github/scripts/tree-reuse.mjs). The push to main after a merge looks up
+  # whether the merged tree already passed Tests on the pull request; if so every job below
+  # is skipped and this job reports "Reused result from run <link>". It relies on main
+  # requiring a branch to be up to date before merging, so the PR tested the same tree.
+  # Any other event, or a tree with no passing record, runs everything in full. A failed
+  # lookup also runs in full.
+  reuse:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    outputs:
+      reused: ${{ steps.lookup.outputs.reused }}
+      run-url: ${{ steps.lookup.outputs.run-url }}
+    steps:
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - id: lookup
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/tree-reuse.mjs lookup --workflow Tests --sha "$GITHUB_SHA"
+
   release-candidate:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -22,8 +51,11 @@ jobs:
         with:
           node-version: 24
       - run: node --test .github/scripts/test-release-candidate.mjs
+      - run: node --test .github/scripts/test-tree-reuse.mjs
 
   version-bump:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,6 +86,8 @@ jobs:
         run: node .github/scripts/check-changelog.mjs
 
   release:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,6 +97,8 @@ jobs:
       - run: node --test .github/scripts/test-release.mjs
 
   finding-reconciler:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -72,6 +108,8 @@ jobs:
       - run: node --test .github/scripts/test-reconciler.mjs
 
   critical-finding-sync:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,6 +119,8 @@ jobs:
       - run: node --test .github/scripts/test-critical-findings.mjs
 
   secret-scanning-alert-sync:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,6 +130,8 @@ jobs:
       - run: node --test .github/scripts/test-secret-scanning-alerts.mjs
 
   coverage-summary:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -99,6 +141,8 @@ jobs:
       - run: node --test .github/scripts/test-coverage-summary.mjs
 
   backend:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -132,6 +176,8 @@ jobs:
           if-no-files-found: error
 
   frontend:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -172,10 +218,19 @@ jobs:
   # serves the screens with their caching and answers /api. The release runs this first,
   # so a broken image is never published.
   image:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: docker build -t mortgage-management-app:ci .
+      # Layers go to the GitHub Actions cache under the scope the Container scan builds
+      # from too, so the same tree is not built from scratch twice.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+      - name: Build the image
+        run: >
+          docker buildx build --load -t mortgage-management-app:ci
+          --cache-from type=gha,scope=app-image --cache-to type=gha,mode=max,scope=app-image .
       - name: The app starts, serves its screens, answers /api, runs non-root and backs up
         run: |
           mkdir -p "$RUNNER_TEMP/data" "$RUNNER_TEMP/backups"
@@ -217,7 +272,10 @@ jobs:
   # preflight (workflow_dispatch), or when dispatched by hand. Feature pull requests skip it,
   # and a skipped required check counts as passing; their authors run it locally instead.
   qa:
-    if: startsWith(github.head_ref, 'release/') || github.event_name == 'workflow_dispatch'
+    needs: reuse
+    if: >-
+      needs.reuse.outputs.reused != 'true' &&
+      (startsWith(github.head_ref, 'release/') || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -241,6 +299,8 @@ jobs:
           if-no-files-found: ignore
 
   pages:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -251,6 +311,8 @@ jobs:
   # The Windows setup without Docker, end to end on a real Windows PC: what a Lender's
   # double-click does, for the commit being tested.
   windows:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -334,3 +396,29 @@ jobs:
           if (Test-Path $installed) { throw "$installed is still there: $(Get-ChildItem -Recurse $installed | Select-Object -First 20)" }
           if (-not (Get-ChildItem $kept -Filter 'mortgage-backup-*.zip')) { throw 'The latest Backup was not kept.' }
           Get-ChildItem $kept
+
+  # Records the tree this run validated (see reuse above) as the commit status
+  # validated-tree/Tests on the commit it ran for: the PR head, or the main commit. A
+  # failed run records failure, so a later pass on another run is needed to reuse it.
+  # Not for pull requests from forks, whose token cannot write statuses.
+  record:
+    needs: [reuse, release-candidate, version-bump, release, finding-reconciler, critical-finding-sync, secret-scanning-alert-sync, coverage-summary, backend, frontend, image, qa, pages, windows]
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - name: Record the validated tree
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          STATE: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'failure' || 'success' }}
+          RUN_URL: ${{ needs.reuse.outputs.run-url || format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+        run: node .github/scripts/tree-reuse.mjs record --workflow Tests --sha "$SHA" --state "$STATE" --run-url "$RUN_URL"

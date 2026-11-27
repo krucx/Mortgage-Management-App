@@ -15,7 +15,35 @@ on:
 permissions: {}
 
 jobs:
+  # Tree reuse (.github/scripts/tree-reuse.mjs): the push to main after a merge skips the
+  # analysis when the merged tree already passed CodeQL on the pull request. The weekly
+  # schedule always analyses main in full.
+  # It relies on main requiring a branch to be up to date before merging. A failed lookup,
+  # a tree with no passing record, and every other event (the schedule included) run in full.
+  reuse:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    outputs:
+      reused: ${{ steps.lookup.outputs.reused }}
+      run-url: ${{ steps.lookup.outputs.run-url }}
+    steps:
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - id: lookup
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/tree-reuse.mjs lookup --workflow "CodeQL" --sha "$GITHUB_SHA"
+
   analyze:
+    needs: reuse
+    if: needs.reuse.outputs.reused != 'true'
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
@@ -37,3 +65,28 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+
+  # Records the tree this run validated as the commit status validated-tree/CodeQL on the
+  # PR head or main commit, for the reuse lookup above. Not on the schedule, nor for pull
+  # requests from forks, whose token cannot write statuses.
+  record:
+    needs: [reuse, analyze]
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - name: Record the validated tree
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          STATE: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'failure' || 'success' }}
+          RUN_URL: ${{ needs.reuse.outputs.run-url || format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+        run: node .github/scripts/tree-reuse.mjs record --workflow "CodeQL" --sha "$SHA" --state "$STATE" --run-url "$RUN_URL"
