@@ -255,8 +255,8 @@ the setup without Docker end to end on a Windows runner, then the uninstall. `se
 Pull requests targeting `main` run the `backend` and `frontend` test jobs in
 `.github/workflows/test.yml`. Their summaries show line coverage and their artifacts
 retain the detailed reports. The main ruleset requires the backend, frontend, image,
-qa (skipped, so passing, outside release pull requests), Windows, and CodeQL checks, as well as CodeRabbit. The importable ruleset template
-specifies one human approval and blocks direct pushes; see
+qa (skipped, so passing, outside release pull requests), version-bump, Windows, and CodeQL checks. No approval and no
+CodeRabbit check is required. The importable ruleset template blocks direct pushes; see
 [CONTRIBUTING.md](CONTRIBUTING.md) for required check names, automated review setup,
 and plan limitations. A failed test,
 missing coverage report, invalid coverage summary, or failed report upload blocks the
