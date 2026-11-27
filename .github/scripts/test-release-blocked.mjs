@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { reportBlocked, rerunCommand, resolveBlocked } from './release-blocked.mjs'
 
@@ -73,12 +74,12 @@ test('an issue whose title was edited is still found by its marker', async () =>
   assert.equal(store.issues.length, 1)
 })
 
-test('the rerun command restarts preparation for early stages and the publisher for tag and publish', () => {
+test('the rerun command restarts preparation for early stages and the publisher once the pull request merged', () => {
   for (const stage of ['preparation', 'preflight', 'merge']) {
     assert.equal(rerunCommand({ repo: REPO, version: '1.4.0', stage }),
       'gh workflow run release-candidate.yml --repo o/r --ref main -f version=1.4.0')
   }
-  for (const stage of ['tag', 'publish']) {
+  for (const stage of ['validate', 'tag', 'publish']) {
     assert.equal(rerunCommand({ repo: REPO, version: '1.4.0', stage, pullRequest: 42 }),
       'gh workflow run publish-release.yml --repo o/r --ref main -f pull_request=42')
   }
@@ -101,7 +102,6 @@ test('a successful publish closes the open issue for its version, and nothing el
 
 // The release path reports and stops: no automatic retry, rollback, or tag/image removal (#572).
 test('no release workflow or script retries a run or removes a tag, release or image', async () => {
-  const { readFileSync } = await import('node:fs')
   const root = new URL('../', import.meta.url)
   const files = [
     'workflows/release-candidate.yml', 'workflows/publish-release.yml', 'workflows/release.yml',

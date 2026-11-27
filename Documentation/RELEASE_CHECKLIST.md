@@ -101,7 +101,8 @@ release flow in the Publish section does that.
 
 ## Recovery — release owner
 
-Any failure in preparation, preflight, merge, tag or publish opens one GitHub issue
+Any failure (or timeout) in preparation, preflight, merge, validation of the merged pull
+request, tag or publish opens one GitHub issue
 labelled `release-blocked` for the version (`Release X.Y.Z blocked`), or updates the open
 one with a comment: it names the failed stage, the run link (and the run it waited on) and
 the safe rerun command. GitHub's failed-run email reaches the owner too. Nothing retries,
@@ -111,8 +112,7 @@ closes the issue. The logic is `.github/scripts/release-blocked.mjs`.
 | Stage | Rerun |
 | --- | --- |
 | preparation, preflight, merge | `gh workflow run release-candidate.yml --ref main -f version=X.Y.Z` (reuses the candidate branch and pull request) |
-| tag, publish | `gh workflow run publish-release.yml --ref main -f pull_request=N` |
-
+| validate, tag, publish | `gh workflow run publish-release.yml --ref main -f pull_request=N` |
 
 - [ ] If the workflow fails before publication, inspect both workflow logs. After fixing
   the cause, rerun the merged-PR publisher or dispatch it from `main` with the merged

@@ -1,6 +1,6 @@
 // One `release-blocked` issue per version: the release path's alarm, since no human watches it.
 //
-// Any failure in preparation, preflight, merge, tag or publish opens the issue for that version
+// Any failure (or timeout) in preparation, preflight, merge, validation, tag or publish opens the issue for that version
 // (or, if one is already open, updates it and adds a comment), naming the stage, the run link and
 // the safe rerun command. GitHub's failed-run email reaches the owner too. Nothing here retries,
 // rolls back, or removes a tag or image: the owner reads the run and reruns by hand. A later
@@ -15,7 +15,8 @@ import { parseArgs } from 'node:util'
 import { createGitHubClient } from './lib/github-client.mjs'
 
 export const LABEL = 'release-blocked'
-export const STAGES = ['preparation', 'preflight', 'merge', 'tag', 'publish']
+// validate: publish-release.yml refused the merged release pull request before tagging.
+export const STAGES = ['preparation', 'preflight', 'merge', 'validate', 'tag', 'publish']
 
 const marker = (version) => `<!-- ${LABEL}:${version} -->`
 
@@ -23,7 +24,7 @@ const marker = (version) => `<!-- ${LABEL}:${version} -->`
 // publisher reuses a tag only at the same merge commit and replaces the same versioned image.
 export function rerunCommand({ repo, version, stage, pullRequest }) {
   if (!STAGES.includes(stage)) throw new Error(`Unknown release stage ${stage}; expected one of ${STAGES.join(', ')}`)
-  if (stage === 'tag' || stage === 'publish') {
+  if (['validate', 'tag', 'publish'].includes(stage)) {
     if (!pullRequest) throw new Error(`The ${stage} stage needs the release pull request number for its rerun command`)
     return `gh workflow run publish-release.yml --repo ${repo} --ref main -f pull_request=${pullRequest}`
   }

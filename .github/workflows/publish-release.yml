@@ -153,13 +153,16 @@ jobs:
             echo "- Publisher run: $PUBLISHER_URL"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # One issue per version, opened or updated; nothing is retried, rolled back or removed.
+      # One issue per version, opened or updated, also when the job times out; nothing is retried,
+      # rolled back or removed.
       - name: Open or update the release-blocked issue
-        if: failure()
+        if: failure() || cancelled()
         env:
           GITHUB_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.candidate.outputs.version }}
-          STAGE: ${{ steps.tag.outcome == 'failure' && 'tag' || 'publish' }}
+          STAGE: >-
+            ${{ steps.tag.outcome == 'success' && 'publish' ||
+            steps.candidate.outcome == 'success' && 'tag' || 'validate' }}
           DETAIL_URL: ${{ steps.publisher.outputs.url }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pull_request }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

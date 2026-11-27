@@ -246,17 +246,20 @@ jobs:
             echo '- Review the failed step, add any missing human-authored release information, then rerun with the same version.'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # One issue per version, opened or updated; nothing is retried or rolled back.
+      # One issue per version, opened or updated, also when the job times out; nothing is retried or
+      # rolled back.
       - name: Open or update the release-blocked issue
-        if: failure()
+        if: failure() || cancelled()
         env:
           GITHUB_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
+          # The stage after the last step that succeeded (opening the pull request is preparation).
           STAGE: >-
-            ${{ steps.preflight.outcome == 'failure' && 'preflight' ||
-            (steps.pr.outcome == 'failure' || steps.merge.outcome == 'failure') && 'merge' ||
-            steps.dispatch.outcome == 'failure' && 'publish' || 'preparation' }}
-          DETAIL_URL: ${{ steps.preflight.outcome == 'failure' && steps.preflight.outputs.url || '' }}
+            ${{ steps.merge.outcome == 'success' && 'publish' ||
+            steps.pr.outcome == 'success' && 'merge' ||
+            steps.preflight.outcome == 'success' && 'preparation' ||
+            steps.candidate.outcome == 'success' && 'preflight' || 'preparation' }}
+          DETAIL_URL: ${{ steps.preflight.outcome != 'success' && steps.preflight.outputs.url || '' }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
