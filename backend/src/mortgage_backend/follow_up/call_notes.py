@@ -16,7 +16,12 @@ from sqlalchemy.engine import Connection
 
 from mortgage_backend.lending.replay import MortgageStatus
 from mortgage_backend.platform.clock import TodayDep
-from mortgage_backend.platform.db import EngineDep, call_note_table, mortgage_table
+from mortgage_backend.platform.db import (
+    EngineDep,
+    call_note_table,
+    mortgage_table,
+    write_transaction,
+)
 from mortgage_backend.platform.errors import unprocessable
 from mortgage_backend.platform.paging import Page, PageNumber, Sorting, query_page
 
@@ -102,7 +107,7 @@ def add_call_note(
     mortgage_id: int, call_note: CallNoteIn, engine: EngineDep, today: TodayDep
 ) -> CallNote:
     """Mark a Mortgage as called today, with what was said."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         return record_call_note(conn, mortgage_id, call_note.note, today)
 
 

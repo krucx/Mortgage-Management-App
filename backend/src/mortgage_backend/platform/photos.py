@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.engine import Connection, Engine
 
+from mortgage_backend.platform.db import write_transaction
 from mortgage_backend.platform.errors import unprocessable
 
 MAX_EDGE_PX = 1600
@@ -97,7 +98,7 @@ def photo_change(
     )
     replaced: list[str | None] = []
     try:
-        with engine.begin() as conn:
+        with write_transaction(engine) as conn:
             yield PhotoChange(conn, file_name, replaced.append)
     except BaseException:
         _delete_photo(photos_dir, file_name)

@@ -24,7 +24,7 @@ from mortgage_backend.payments.writes import (
     write_payment,
 )
 from mortgage_backend.platform.clock import NowDep, TodayDep
-from mortgage_backend.platform.db import EngineDep
+from mortgage_backend.platform.db import EngineDep, write_transaction
 from mortgage_backend.platform.errors import unprocessable
 
 
@@ -132,7 +132,7 @@ router = APIRouter()
 def post_payment(
     payment: PaymentIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Payment:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         return load_payment(conn, record_payment(conn, payment, today, now))
 
 
@@ -141,6 +141,6 @@ def post_void(
     payment_id: int, body: VoidIn, engine: EngineDep, today: TodayDep, now: NowDep
 ) -> Payment:
     """Void a Payment entered by mistake; a corrected one is entered as a new Payment."""
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         void_payment(conn, payment_id, body.reason, today, now)
         return load_payment(conn, payment_id)

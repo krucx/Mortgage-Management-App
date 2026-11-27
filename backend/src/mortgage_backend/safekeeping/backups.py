@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.engine import Engine
 
-from mortgage_backend.platform.db import database_file, photos_dir
+from mortgage_backend.platform.db import database_file, photos_dir, write_transaction
 from mortgage_backend.platform.settings import ConfigGroup
 
 log = logging.getLogger(__name__)
@@ -94,7 +94,7 @@ class Backups:
         self._thread: threading.Thread | None = None
 
     def _record(self, **values: object) -> None:
-        with self.engine.begin() as conn:
+        with write_transaction(self.engine) as conn:
             last = _LAST_BACKUP.get(conn).model_dump()
             _LAST_BACKUP.set(
                 conn, _LastBackup.model_validate(last | values), self.now().date()
@@ -105,7 +105,7 @@ class Backups:
 
     def set_keep(self, keep: int) -> None:
         """Keep the last `keep` Backups; any older ones go now, not at the next Backup."""
-        with self.engine.begin() as conn:
+        with write_transaction(self.engine) as conn:
             _SETTINGS.set(conn, _StoredBackupSettings(keep=keep), self.now().date())
         # A running Backup prunes when it finishes; pruning now could count its
         # unfinished file as the newest.

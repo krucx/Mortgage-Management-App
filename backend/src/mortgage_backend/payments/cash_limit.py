@@ -10,7 +10,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from mortgage_backend.platform.db import EngineDep, mortgage_table, payment_table
+from mortgage_backend.platform.db import (
+    EngineDep,
+    mortgage_table,
+    payment_table,
+    write_transaction,
+)
 from mortgage_backend.platform.settings import ThresholdSetting
 
 _KEY = "cash_limit"
@@ -101,6 +106,6 @@ def read_cash_limit(engine: EngineDep) -> CashLimit:
 
 @router.put("/settings/cash-limit")
 def update_cash_limit(cash_limit: CashLimit, engine: EngineDep) -> CashLimit:
-    with engine.begin() as conn:
+    with write_transaction(engine) as conn:
         _CASH_LIMIT.set(conn, cash_limit)
         return get_cash_limit(conn)
