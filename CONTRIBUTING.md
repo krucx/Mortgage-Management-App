@@ -36,6 +36,27 @@ or merge a pull request.
 6. Merge with the repository's configured merge method. Do not push commits directly
    to `main`.
 
+### Auto-merge
+
+The **Auto-merge** workflow (`.github/workflows/auto-merge.yml`) enables squash auto-merge on exactly the
+pull requests the owner has decided never need a human look. The rules are one module,
+`.github/scripts/lib/auto-merge-allowlist.mjs`, with tests in `.github/scripts/test-auto-merge-allowlist.mjs`;
+add a case by editing those two files, not the workflow.
+
+- An open, non-draft pull request whose base is `integration/**` gets auto-merge (squash). It still waits
+  for that branch's required checks.
+- A pull request into `main`, a draft, a closed pull request and any other base are left alone. The owner
+  reviews each `main` pull request and presses merge; this is a trust rule, so agents must not merge or
+  enable auto-merge on them either.
+
+It runs on open, reopen, ready for review and a base-branch change, and uses `GITHUB_TOKEN` with
+`contents: write` and `pull-requests: write` (no PAT, bot account or secret). The repository's
+"Allow auto-merge" setting must stay on. Pull requests from forks are skipped (read-only token). The job
+checks out the base branch, so cut `integration/**` branches from a `main` that already contains the
+workflow and script.
+GitHub only accepts auto-merge on a branch that requires status checks, so an `integration/**` branch
+without that ruleset gets a run warning instead of auto-merge.
+
 ### Maintainer override
 
 A repository maintainer may use GitHub's **bypass rules** option on a pull request to

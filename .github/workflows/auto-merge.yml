@@ -1,0 +1,63 @@
+# Central auto-merge: enables auto-merge (squash) on exactly the pull requests the owner has
+# decided never need a human look, and nothing else.
+#
+# Decision rules live in one module, .github/scripts/lib/auto-merge-allowlist.mjs (tests:
+# .github/scripts/test-auto-merge-allowlist.mjs). Today's single case:
+#   - an open, non-draft PR whose base branch is integration/**  -> auto-merge, squash.
+# Everything else is left alone: a PR into main (the owner reviews it once and presses merge),
+# a draft PR, a closed PR, any other base. Auto-merge still waits for the base branch's required
+# checks. Add a case by editing the allowlist and its tests, never this file.
+#
+# Triggers: opened, reopened, ready_for_review, and a base-branch change (edited with
+# changes.base). It uses pull_request, not pull_request: GitHub did not run a
+# pull_request_target workflow that exists only on a non-default base branch (tried on
+# PR #574), and agents open same-repository branches, which get a write token. Fork PRs
+# (read-only token) are skipped. The job checks out the BASE branch, so the scripts that run
+# are the base's, never the PR's; only this file comes from the PR. GitHub reads it from the
+# PR's merge ref, so an integration branch needs no copy, but the base must have the script.
+#
+# Permissions needed: GITHUB_TOKEN with contents: write and pull-requests: write (GraphQL
+# enablePullRequestAutoMerge). The repository's "Allow auto-merge" setting must be on. No PAT,
+# bot account or new secret.
+name: Auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, edited]
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'edited' || github.event.changes.base != null)
+    # Job-level, so a skipped title/body edit never cancels a running opened/reopened attempt.
+    concurrency:
+      group: auto-merge-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out the base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Enable auto-merge when the allowlist says so
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # A base branch cut before this workflow landed has no script: nothing to decide, not an error.
+          if [ ! -f .github/scripts/auto-merge.mjs ]; then
+            echo "::notice::Base branch has no .github/scripts/auto-merge.mjs; leaving the PR alone."
+            exit 0
+          fi
+          node .github/scripts/auto-merge.mjs
