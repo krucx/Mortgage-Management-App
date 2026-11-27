@@ -6,48 +6,24 @@ const pr = (paths, overrides = {}) => jobsFor({ event: 'pull_request', headRef: 
 const NONE = { backend: false, frontend: false, windows: false, image: false, codeql: false };
 const ALL = { backend: true, frontend: true, windows: true, image: true, codeql: true };
 
-// Each row: what a pull request touches -> the heavy job groups that run.
-const table = [
-  ['README and agent files only', ['README.md', 'AGENTS.md', 'CONTRIBUTING.md'], NONE],
-  // The backend tests read these (test_documentation_layout.py, test_openapi.py).
-  ['Documentation/', ['Documentation/adr/0001.md'], { ...NONE, backend: true }],
-  ['the published docs/', ['docs/install.html'], { ...NONE, backend: true }],
-  ['the checked-in OpenAPI schema', ['frontend/openapi.json'], { ...NONE, backend: true, frontend: true, windows: true, image: true, codeql: true }],
-  ['GLOSSARY.md at the root', ['GLOSSARY.md'], { ...NONE, backend: true }],
-  ['changelog fragment only', ['changelog/unreleased/567-x.changed.md'], NONE],
-  ['nothing changed', [], NONE],
-  ['backend source', ['backend/src/mortgage_backend/app.py'], { ...NONE, backend: true, windows: true, image: true, codeql: true }],
-  ['backend lockfile', ['backend/uv.lock'], { ...NONE, backend: true, windows: true, image: true, codeql: true }],
-  ['frontend source', ['frontend/src/App.tsx'], { ...NONE, frontend: true, windows: true, image: true, codeql: true }],
-  ['frontend lockfile', ['frontend/package-lock.json'], { ...NONE, frontend: true, windows: true, image: true, codeql: true }],
-  ['a QA scenario', ['qa/features/a.feature'], { ...NONE, frontend: true, codeql: true }],
-  ['the Windows setup', ['windows/setup.ps1'], { ...NONE, windows: true }],
-  ['the Dockerfile', ['Dockerfile'], { ...NONE, image: true }],
-  ['the .dockerignore', ['.dockerignore'], { ...NONE, image: true }],
-  ['VERSION', ['VERSION'], { ...NONE, backend: true, frontend: true, windows: true, image: true }],
-  ['a workflow file', ['.github/workflows/test.yml'], ALL],
-  ['a CI script both jobs run', ['.github/scripts/check-version.mjs'], { ...NONE, backend: true, frontend: true, codeql: true }],
-  ['an unrelated CI script', ['.github/scripts/auto-merge.mjs'], { ...NONE, codeql: true }],
-  ['docs plus backend', ['README.md', 'backend/src/a.py'], { ...NONE, backend: true, windows: true, image: true, codeql: true }],
-];
+// Which job groups each path starts is pinned per path in test-critical-paths.mjs (classify).
+// These tests cover how a pull request's paths combine.
+test('a pull request with only chore paths runs nothing', () => {
+  const { languages, ...groups } = pr(['README.md', 'AGENTS.md', 'changelog/unreleased/567-x.changed.md']);
+  assert.deepEqual(groups, NONE);
+  assert.deepEqual(languages, []);
+  assert.deepEqual(pr([]).codeql, false);
+});
 
-for (const [name, paths, expected] of table) {
-  test(`a pull request touching ${name} runs ${JSON.stringify(expected)}`, () => {
-    const { languages, ...groups } = pr(paths);
-    assert.deepEqual(groups, expected);
-    // A workflow change runs everything, every CodeQL language included.
-    assert.deepEqual(languages, expected === ALL ? ['actions', 'javascript-typescript', 'python'] : languagesFor(paths));
-    assert.equal(groups.codeql, languages.length > 0);
-  });
-}
+test('the job groups of every changed path are combined', () => {
+  const { languages, ...groups } = pr(['README.md', 'backend/src/a.py', 'windows/setup.ps1']);
+  assert.deepEqual(groups, { ...NONE, backend: true, windows: true, image: true, codeql: true });
+  assert.deepEqual(languages, ['python']);
+});
 
-test('CodeQL languages follow the paths scanned', () => {
-  assert.deepEqual(languagesFor(['backend/src/a.py']), ['python']);
-  assert.deepEqual(languagesFor(['frontend/src/a.ts']), ['javascript-typescript']);
-  assert.deepEqual(languagesFor(['.github/scripts/a.mjs']), ['javascript-typescript']);
-  assert.deepEqual(languagesFor(['.github/workflows/a.yml']), ['actions']);
+test('CodeQL languages are combined across paths', () => {
   assert.deepEqual(languagesFor(['README.md']), []);
-  assert.deepEqual(languagesFor(['backend/a.py', 'frontend/a.ts', '.github/workflows/a.yml']).sort(), ['actions', 'javascript-typescript', 'python']);
+  assert.deepEqual(languagesFor(['backend/a.py', 'frontend/a.ts', '.github/workflows/a.yml']), ['actions', 'javascript-typescript', 'python']);
 });
 
 test('a workflow change scans every CodeQL language and runs everything', () => {
@@ -71,10 +47,4 @@ test('a pull request with an unknown file list runs the full set', () => {
 
 test('a branch merely named like integration is filtered', () => {
   assert.deepEqual(pr(['README.md'], { headRef: 'feature/integration/x' }).backend, false);
-});
-
-test('every path a backend test reads outside backend/ runs the backend job', () => {
-  for (const path of ['Documentation/architecture-reviews/review-pass-9/a.html', 'docs/shots/a.png', 'frontend/openapi.json']) {
-    assert.equal(pr([path]).backend, true, path);
-  }
 });

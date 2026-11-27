@@ -8,7 +8,7 @@
 // commit GitHub may merge. Rules only run on open, non-draft PRs. A PR no rule accepts is left alone:
 // the owner reviews it and presses merge.
 
-import { isCriticalPath } from './critical-paths.mjs';
+import { classify } from './classify.mjs';
 import { judgeUpdates } from './dependabot-metadata.mjs';
 import { judgeReleaseCandidate } from './release-conditions.mjs';
 
@@ -29,7 +29,7 @@ async function dependabotRule(pr, api) {
   if (!verdict.safe) return { enable: false, reason: verdict.reason };
 
   const files = await api.listFiles();
-  const critical = files.flatMap((f) => [f.filename, f.previous_filename]).filter(Boolean).find(isCriticalPath);
+  const critical = files.flatMap((f) => [f.filename, f.previous_filename]).filter(Boolean).find((path) => classify(path).critical.length);
   if (critical) return { enable: false, reason: `dependabot-critical-path (${critical})` };
 
   return { enable: true, reason: 'dependabot-patch-minor' };
