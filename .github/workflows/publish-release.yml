@@ -59,8 +59,11 @@ jobs:
         run: |
           set -euo pipefail
           version=$(cat VERSION)
+          # Checks still running (the container scan, say) are waited for, up to 20 minutes (the job has 90, the publisher up to 60); a
+          # failed check, or one still running after that, fails this step with its name.
           node .github/scripts/release.mjs validate-candidate \
             --repo "$GITHUB_REPOSITORY" --pr-number "$PR_NUMBER" --version "$version" \
+            --wait-minutes 20 \
             > /tmp/release-candidate.json
           commit=$(jq -r .commit /tmp/release-candidate.json)
           head_commit=$(jq -r .headCommit /tmp/release-candidate.json)

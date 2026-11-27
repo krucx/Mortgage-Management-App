@@ -134,9 +134,10 @@ second opinion.
 | Any other pull request into `main` | none | Not reviewed. |
 | Any other pull request that touches a critical area (below) | `critical` | Reviewed. |
 
-The author adds the label when opening the pull request, because CodeRabbit cannot trigger on paths. A
-pull request with no label has no CodeRabbit review; put `@coderabbitai ignore` in its description
-so nobody requests one by accident. The owner may also add `critical` to any pull request.
+The **CodeRabbit label** workflow adds `coderabbit-review` to every `integration/*` -> `main` pull request
+automatically, so nobody adds it by hand (and it never removes it). `critical` is still the author's to add,
+because CodeRabbit cannot trigger on paths. A pull request with no label has no CodeRabbit review;
+put `@coderabbitai ignore` in its description so nobody requests one by accident. The owner may also add `critical` to any pull request.
 
 Critical areas. If the diff touches any of these paths, add `critical`:
 
@@ -159,7 +160,7 @@ comment on each `integration/*` -> `main` pull request and edits it in place on 
 the `Tests` run finishes. It lists the merged worker pull requests with their tickets, the changed files
 grouped by the critical areas above (plus "other"), the status of the ruleset's required checks, and any
 linked ticket with unticked acceptance criteria. It is tool-neutral and is not posted on any other pull
-request. The critical paths are mirrored in `.github/scripts/integration-summary.mjs`; update both together.
+request. The critical paths are mirrored in `.github/scripts/lib/critical-paths.mjs` (used by the integration summary and the Dependabot auto-merge rule); `test-critical-paths.mjs` fails when the two disagree.
 
 No ruleset requires a `CodeRabbit` check (it never reports on a pull request it skips), so a
 pull request it skips merges normally. The review is advisory: for the `integration/*` -> `main`
@@ -211,7 +212,7 @@ A pull request runs only the heavy jobs its changed paths can affect. The `chang
 
 | Job | Runs when the pull request changes |
 | --- | --- |
-| `backend` | `backend/`, `VERSION`, or the scripts it runs |
+| `backend` | `backend/`, `VERSION`, the scripts it runs, or a file its tests read: `Documentation/`, `docs/`, `GLOSSARY.md`, `frontend/openapi.json` |
 | `frontend` | `frontend/`, `qa/`, `VERSION`, or the scripts it runs |
 | `windows`, `image` | `backend/`, `frontend/`, `VERSION`, and `windows/` (`windows`) or `Dockerfile` / `.dockerignore` (`image`) |
 | CodeQL `Analyze (<language>)` | `backend/` (python); `frontend/`, `qa/`, `.github/scripts/` (javascript-typescript); `.github/workflows/` (actions) |
@@ -287,6 +288,12 @@ The dry-run compares only the fields the committed file sets and exits 1 on drif
 approval (the owner runs it, or tells the agent to). Edit the JSON in a pull request first and apply
 after it merges, so the committed file and the live rules stay equal. It uses your signed-in `gh`.
 GitHub Free supports rulesets for public repositories; private repository availability depends on the repository plan.
+
+The **Ruleset drift** workflow (`.github/workflows/ruleset-drift.yml`, daily and on demand) runs that same
+dry-run on GitHub and fails the run, with the diff in its log and summary, when the live rulesets differ from
+the committed ones. It needs the repository secret `RULESETS_READ_TOKEN`: a fine-grained personal access token
+for this repository with only *Administration: Read-only* (`GITHUB_TOKEN` cannot read rulesets fully). Without
+it the run fails and says so.
 
 Release notes for a feature PR: add a file under `changelog/unreleased/` named
 `<unique>.<added|changed|fixed|removed|deprecated|security>.md` with Keep a Changelog

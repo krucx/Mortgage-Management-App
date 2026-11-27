@@ -16,6 +16,7 @@ import {
   planAndCreateTag,
   planReleaseTag,
   validateCandidate,
+  waitForCandidate,
   validateMergedRelease,
   verifyPublishedRelease,
 } from './release.mjs'
@@ -407,7 +408,7 @@ test('the workflows always use the machine conditions to merge and publish relea
     assert.doesNotMatch(workflow, /vars\.[A-Z_]*APPROVAL|--[a-z-]*approval/, name)
     assert.match(workflow, name === 'release.yml'
       ? /validate-candidate \\\n[\s\S]*?--expect-commit "\$GITHUB_SHA"/
-      : /validate-candidate \\\n[\s\S]*?--version "\$version" \\\n\s*> \/tmp\/release-candidate\.json/, name)
+      : /validate-candidate \\\n[\s\S]*?--version "\$version" \\\n(\s*--wait-minutes \d+ \\\n)?\s*> \/tmp\/release-candidate\.json/, name)
   }
 })
 
@@ -463,4 +464,60 @@ test('scenario: the diff the candidate writers really produce passes the release
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+// --- The publish waits for checks still running (the 3.6.1 container-scan race) ------------------
+
+const scanRunning = () => fixture.releaseChecks().map((c) => (c.name === 'qa' ? { ...c, status: 'IN_PROGRESS', conclusion: '' } : c))
+// An adapter whose checks can be swapped between polls.
+function changingAdapter(initial) {
+  const adapter = machineAdapter({ checks: initial })
+  let current = initial
+  return { adapter: { ...adapter, getChecks: () => current }, set: (checks) => { current = checks } }
+}
+function clock(adapterFor) {
+  let t = 0
+  const sleeps = []
+  return { sleeps, now: () => t, sleep: async (ms) => { sleeps.push(ms); t += ms; adapterFor?.(sleeps.length) }, log: () => {} }
+}
+
+test('wait: a running check is waited for, then the candidate validates', async () => {
+  const { adapter, set } = changingAdapter(scanRunning())
+  const c = clock((n) => { if (n === 2) set(fixture.releaseChecks()) })
+  const result = await waitForCandidate(adapter, { prNumber: 266, version: fixture.version }, { waitMinutes: 10, pollSeconds: 30, ...c })
+  assert.equal(result.version, fixture.version)
+  assert.deepEqual(c.sleeps, [30_000, 30_000])
+})
+
+test('wait: a check that fails while waiting stops at once with its name', async () => {
+  const { adapter, set } = changingAdapter(scanRunning())
+  const c = clock(() => { set(fixture.releaseChecks().map((x) => (x.name === 'qa' ? { ...x, conclusion: 'FAILURE' } : x))) })
+  await assert.rejects(waitForCandidate(adapter, { prNumber: 266, version: fixture.version }, { waitMinutes: 10, ...c }), /qa: FAILURE/)
+  assert.equal(c.sleeps.length, 1)
+})
+
+test('wait: a check still running at the deadline fails clearly', async () => {
+  const c = clock()
+  await assert.rejects(
+    waitForCandidate(machineAdapter({ checks: scanRunning() }), { prNumber: 266, version: fixture.version }, { waitMinutes: 2, pollSeconds: 30, ...c }),
+    /did not finish within 2 minutes: checks still running: qa: IN_PROGRESS/,
+  )
+  assert.equal(c.sleeps.length, 4)
+})
+
+test('wait: with no wait budget a running check refuses at once, as before', async () => {
+  const c = clock()
+  await assert.rejects(waitForCandidate(machineAdapter({ checks: scanRunning() }), { prNumber: 266, version: fixture.version }, c), /did not finish within 0 minutes/)
+  assert.equal(c.sleeps.length, 0)
+})
+
+test('wait: a non-waiting refusal (wrong files) never polls', async () => {
+  const c = clock()
+  await assert.rejects(waitForCandidate(machineAdapter({ files: [] }), { prNumber: 266, version: fixture.version }, { waitMinutes: 10, ...c }), /VERSION/)
+  assert.equal(c.sleeps.length, 0)
+})
+
+test('publish workflow waits for checks, bounded below the job timeout', () => {
+  const wf = readFileSync(new URL('../workflows/publish-release.yml', import.meta.url), 'utf8')
+  assert.match(wf, /validate-candidate[\s\S]*?--wait-minutes 20/)
 })

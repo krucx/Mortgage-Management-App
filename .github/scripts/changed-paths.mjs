@@ -27,6 +27,10 @@ const FRONTEND_SCRIPTS = [
   '.github/scripts/check-screen-coverage.mjs',
   '.github/scripts/test-check-screen-coverage.mjs',
 ]
+// Files outside backend/ that backend tests read: the documentation layout test reads
+// Documentation/, docs/ and GLOSSARY.md; the OpenAPI test reads frontend/openapi.json. A test that
+// reads a new outside path adds it here (and to the CONTRIBUTING.md table).
+const BACKEND_READS = ['Documentation/', 'docs/', 'GLOSSARY.md', 'frontend/openapi.json']
 // check-screen-coverage reads the QA scenarios and the screens still to cover.
 const QA = ['qa/']
 const IMAGE = ['Dockerfile', '.dockerignore']
@@ -51,7 +55,7 @@ export function jobsFor({ event, headRef = '', paths }) {
   const frontend = anyPath(paths, FRONTEND)
   const languages = languagesFor(paths)
   return {
-    backend: backend || version || anyPath(paths, BACKEND_SCRIPTS),
+    backend: backend || version || anyPath(paths, [...BACKEND_SCRIPTS, ...BACKEND_READS]),
     frontend: frontend || version || anyPath(paths, [...QA, ...FRONTEND_SCRIPTS]),
     windows: backend || frontend || version || anyPath(paths, ['windows/']),
     image: backend || frontend || version || anyPath(paths, IMAGE),

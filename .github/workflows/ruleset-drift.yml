@@ -1,0 +1,64 @@
+name: Ruleset drift
+
+# The rulesets are code (.github/rulesets, ADR/#588) and the owner applies them with
+# `node .github/scripts/apply-rulesets.mjs --apply`. This compares the live rulesets with the
+# committed ones every day and fails the run, with the readable diff in the log and the run
+# summary, when they differ. A failed scheduled run emails the repository owner and shows on the
+# Actions tab, needs no issue permission, and turns green again on its own once the live rulesets
+# or the code are brought back in line, so there is no issue to remember to close.
+#
+# It reuses the apply script's dry-run (exit 1 on drift, 2 on an error) and changes nothing.
+#
+# Reading rulesets in full (bypass actors included) needs more than GITHUB_TOKEN can do: the token
+# has no `administration` permission. The owner adds a repository secret RULESETS_READ_TOKEN: a
+# fine-grained personal access token for this repository only, with the single permission
+# Administration: Read-only. Until it exists the run fails and says so.
+on:
+  schedule:
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ruleset-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Always the default branch: the committed rulesets that count are main's.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            .github/scripts
+            .github/rulesets
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Compare live rulesets with the committed ones
+        env:
+          GH_TOKEN: ${{ secrets.RULESETS_READ_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret RULESETS_READ_TOKEN is not set. Add a fine-grained personal access token for this repository with Administration: Read-only (see the comment in .github/workflows/ruleset-drift.yml)."
+            exit 2
+          fi
+          set +e
+          node .github/scripts/apply-rulesets.mjs --dry-run --repo "$REPO" 2>&1 | tee /tmp/drift.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          {
+            echo '## Ruleset drift check'
+            echo '```'
+            cat /tmp/drift.txt
+            echo '```'
+            if [ "$status" = 1 ]; then
+              echo 'The live rulesets differ from `.github/rulesets`. Either the code is stale (update the JSON in a PR) or someone changed the rulesets by hand (the owner re-applies with `node .github/scripts/apply-rulesets.mjs --apply`).'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"

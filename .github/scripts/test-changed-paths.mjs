@@ -8,7 +8,12 @@ const ALL = { backend: true, frontend: true, windows: true, image: true, codeql:
 
 // Each row: what a pull request touches -> the heavy job groups that run.
 const table = [
-  ['docs only', ['Documentation/adr/0001.md', 'README.md', 'docs/install.html'], NONE],
+  ['README and agent files only', ['README.md', 'AGENTS.md', 'CONTRIBUTING.md'], NONE],
+  // The backend tests read these (test_documentation_layout.py, test_openapi.py).
+  ['Documentation/', ['Documentation/adr/0001.md'], { ...NONE, backend: true }],
+  ['the published docs/', ['docs/install.html'], { ...NONE, backend: true }],
+  ['the checked-in OpenAPI schema', ['frontend/openapi.json'], { ...NONE, backend: true, frontend: true, windows: true, image: true, codeql: true }],
+  ['GLOSSARY.md at the root', ['GLOSSARY.md'], { ...NONE, backend: true }],
   ['changelog fragment only', ['changelog/unreleased/567-x.changed.md'], NONE],
   ['nothing changed', [], NONE],
   ['backend source', ['backend/src/mortgage_backend/app.py'], { ...NONE, backend: true, windows: true, image: true, codeql: true }],
@@ -66,4 +71,10 @@ test('a pull request with an unknown file list runs the full set', () => {
 
 test('a branch merely named like integration is filtered', () => {
   assert.deepEqual(pr(['README.md'], { headRef: 'feature/integration/x' }).backend, false);
+});
+
+test('every path a backend test reads outside backend/ runs the backend job', () => {
+  for (const path of ['Documentation/architecture-reviews/review-pass-9/a.html', 'docs/shots/a.png', 'frontend/openapi.json']) {
+    assert.equal(pr([path]).backend, true, path);
+  }
 });
