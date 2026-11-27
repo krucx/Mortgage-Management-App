@@ -54,6 +54,8 @@ It runs on open, reopen, ready for review and a base-branch change, and uses `GI
 "Allow auto-merge" setting must stay on. Pull requests from forks are skipped (read-only token). The job
 checks out the base branch, so cut `integration/**` branches from a `main` that already contains the
 workflow and script.
+GitHub only accepts auto-merge on a branch that requires status checks, so an `integration/**` branch
+without that ruleset gets a run warning instead of auto-merge.
 
 ### Maintainer override
 

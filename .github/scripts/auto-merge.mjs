@@ -13,9 +13,17 @@ export async function applyAutoMerge(pr, graphql, { log = console.log } = {}) {
     log(`PR #${pr?.number}: auto-merge not enabled (${decision.reason}).`);
     return decision;
   }
-  await graphql(ENABLE, { id: pr.node_id, method: decision.method });
+  try {
+    await graphql(ENABLE, { id: pr.node_id, method: decision.method });
+  } catch (error) {
+    // GitHub refuses (UNPROCESSABLE) when the base branch has no required checks to wait for, or
+    // the PR is not in a mergeable status. Warn so it shows on the run, but do not fail the PR.
+    if (!String(error.message).includes('UNPROCESSABLE')) throw error;
+    log(`::warning::PR #${pr.number}: GitHub refused auto-merge (${error.message}). Does the base branch require status checks?`);
+    return { ...decision, enabled: false };
+  }
   log(`PR #${pr.number}: auto-merge (${decision.method}) enabled (${decision.reason}).`);
-  return decision;
+  return { ...decision, enabled: true };
 }
 
 function createGraphql(token) {

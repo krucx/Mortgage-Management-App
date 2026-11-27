@@ -43,3 +43,17 @@ test('applyAutoMerge enables squash auto-merge only when the allowlist says so',
   await applyAutoMerge({ ...pr({ draft: true }), node_id: 'PR_3', number: 3 }, graphql, quiet);
   assert.deepEqual(calls, [{ id: 'PR_1', method: 'SQUASH' }]);
 });
+
+test('applyAutoMerge warns instead of failing when GitHub refuses auto-merge for the PR status', async () => {
+  const logs = [];
+  const graphql = async () => { throw new Error('GitHub GraphQL failed (200): [{"type":"UNPROCESSABLE","message":"Pull request is in unstable status"}]'); };
+  const decision = await applyAutoMerge({ ...pr(), node_id: 'PR_1', number: 1 }, graphql, { log: (line) => logs.push(line) });
+  assert.equal(decision.enable, true);
+  assert.equal(decision.enabled, false);
+  assert.match(logs.join('\n'), /::warning::.*#1.*unstable status/);
+});
+
+test('applyAutoMerge still fails on any other GitHub error', async () => {
+  const graphql = async () => { throw new Error('GitHub GraphQL failed (401): Bad credentials'); };
+  await assert.rejects(applyAutoMerge({ ...pr(), node_id: 'PR_1', number: 1 }, graphql, { log() {} }), /401/);
+});
