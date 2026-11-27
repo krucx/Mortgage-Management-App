@@ -1,0 +1,42 @@
+name: Integration review summary
+
+# Posts one summary comment on an integration/* -> main pull request and keeps it
+# updated in place. Runs from the base branch (pull_request_target / workflow_run) and
+# never checks out or runs the pull request's code; it only reads PR data through the API.
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: integration-summary-${{ github.event.pull_request.number || github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  summary:
+    if: >-
+      (github.event_name == 'pull_request_target' &&
+      startsWith(github.head_ref, 'integration/')) ||
+      (github.event_name == 'workflow_run' &&
+      startsWith(github.event.workflow_run.head_branch, 'integration/') &&
+      github.event.workflow_run.event == 'pull_request')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+      checks: read
+    steps:
+      # Default ref: the base branch for pull_request_target, the default branch for workflow_run.
+      - name: Check out the base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Post or update the summary comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/integration-summary.mjs
