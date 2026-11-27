@@ -1,1 +1,0 @@
-- **Backend:** a test now keeps HTTP errors at the API boundary; the last HTTP-building refusal helper is gone. API responses are unchanged.

@@ -1,1 +1,0 @@
-- **Closures:** Waive and Forfeit use the shared Closing draft.

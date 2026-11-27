@@ -1,1 +1,0 @@
-- **Closing a Mortgage:** no change you can see; Redeem, Waive off and Forfeit now share one draft behind the scenes, ready for closing several Mortgages the same way.

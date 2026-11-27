@@ -1,1 +1,0 @@
-- **Internal:** the frontend page tests can now fake the backend with routes and answers typed from the generated API, so a renamed route or dropped response field fails the typecheck. No change to the app.

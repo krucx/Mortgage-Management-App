@@ -7,6 +7,43 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.6.2] - 2026-11-27
+
+### Changed
+
+- **Release workflow:** removed the temporary approval fallback after release 3.6.1 auto-merged and published cleanly.
+
+- Lending and Payment refusals now stay in the domain layer while API responses remain unchanged.
+
+- **Backend:** keep business refusals as domain errors until the API boundary; API responses stay unchanged.
+
+- **Backend:** a test now keeps HTTP errors at the API boundary; the last HTTP-building refusal helper is gone. API responses are unchanged.
+
+- **Closing a Mortgage:** no change you can see; Redeem, Waive off and Forfeit now share one draft behind the scenes, ready for closing several Mortgages the same way.
+
+- **Closures:** Waive and Forfeit use the shared Closing draft.
+
+- **Internal:** the frontend page tests can now fake the backend with routes and answers typed from the generated API, so a renamed route or dropped response field fails the typecheck. No change to the app.
+
+- **CI path rules:** one module, `.github/scripts/lib/classify.mjs`, now answers every path question (which job groups run, which critical area a file is in, whether a change needs a changelog fragment, whether Dependabot may merge it). Behaviour is unchanged; a new top-level folder is one edit.
+
+- **Starting the app on Windows:** Setup and the Desktop shortcut wait on the app's health check. When the app starts but reports a problem (say, its database can't be reached), the window says so in one line and goes on, instead of waiting until it gives up.
+
+- Backend builds accept uv's `uv_build` 0.13.x releases.
+
+- **Release and CI:** the publish step now waits up to 30 minutes for checks still running (such as the container scan) instead of failing, integration pull requests into `main` get the `coderabbit-review` label automatically, and a daily workflow reports any drift between the live and committed rulesets.
+- **CI path filter:** a pull request that changes `Documentation/`, `docs/`, `GLOSSARY.md` or `frontend/openapi.json` now runs the backend tests that read them (a docs-only merge had skipped them and left `main` red), the review-pass test no longer counts reports, and a test keeps CONTRIBUTING.md's critical paths in step with `lib/critical-paths.mjs`.
+
+### Fixed
+
+- **Photos and Call Sheet imports while another change saves:** uploading a photo or importing a filled-in Call Sheet no longer freezes the rest of the app while it waits its turn behind another change.
+
+- **Changes made at the same moment:** two changes saved at once, such as a Payment recorded on one screen while the Mortgage is edited on another, now wait their turn instead of one silently undoing the other.
+
+- **Domain refusals:** map Ledger and shared refusal errors to the API's existing error response.
+
+Page tests now use API-typed fake responses so invalid routes and response shapes are caught during type checking.
+
 ## [3.6.1] - 2026-11-27
 
 ### Changed
