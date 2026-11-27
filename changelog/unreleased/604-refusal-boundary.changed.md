@@ -1,1 +1,0 @@
-- Lending and Payment refusals now stay in the domain layer while API responses remain unchanged.

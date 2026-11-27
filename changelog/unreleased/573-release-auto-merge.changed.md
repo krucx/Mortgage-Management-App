@@ -1,1 +1,0 @@
-- **Release workflow:** removed the temporary approval fallback after release 3.6.1 auto-merged and published cleanly.

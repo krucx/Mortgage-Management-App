@@ -1,1 +1,0 @@
-- **Backend:** keep business refusals as domain errors until the API boundary; API responses stay unchanged.

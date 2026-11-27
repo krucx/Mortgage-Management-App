@@ -1,1 +1,0 @@
-- **Domain refusals:** map Ledger and shared refusal errors to the API's existing error response.
