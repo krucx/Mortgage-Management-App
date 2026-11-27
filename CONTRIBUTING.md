@@ -180,7 +180,9 @@ the paths, for a change to `.github/workflows/`, a pull request from `integratio
 preflight, `release.yml`'s call). If the file list cannot be read, everything runs.
 
 A job skipped by the filter reports as skipped, which counts as passing for a required check
-(the `qa` job relies on the same rule). Add a new heavy job to `changes` and to the table, or
+(the `qa` job relies on the same rule). CodeQL's language jobs always run and report success,
+with their scan steps skipped for an untouched language, because a matrix job cannot be
+skipped by its own `if`. Add a new heavy job to `changes` and to the table, or
 it is never filtered. The Container scan (`trivy.yml`) is not filtered.
 
 ## Repository configuration
