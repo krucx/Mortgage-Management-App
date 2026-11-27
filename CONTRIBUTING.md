@@ -101,6 +101,36 @@ Critical areas. If the diff touches any of these paths, add `critical`:
 skips. Those pull requests need a maintainer bypass, recorded on the pull request. The `integration/*` ->
 `main` pull request always gets the review, so it merges normally.
 
+## CI
+
+### Reusing validated results by tree
+
+CI does not re-run checks on a tree it has already validated. When a `Tests`, `CodeQL` or
+`Container scan` run on a pull request or on `main` finishes, its `record` job writes the git
+tree it tested as a commit status on the commit it ran for (the PR head, or the `main` commit):
+context `validated-tree/<workflow>`, description `Passed on tree <hash>` (or `Failed on ...`),
+linking to the run. These statuses are informational, not required checks. A commit status
+was chosen over check-run output because `GITHUB_TOKEN` writes it with `statuses: write`
+alone, GitHub lists a commit's statuses newest first (the latest result wins), and a status
+can link to any run, including the one a reused run points back to. Pull requests
+from forks record nothing, as their token cannot write statuses.
+
+On the `push` to `main` after a merge, each workflow's `reuse` job looks that record up on the
+merge commit's parents and on the head of the pull request it merged. When the latest record
+there passed on exactly the merged tree, every other job is skipped and the run reports
+"Reused result from run <link>". Otherwise (no record, a failed latest run, a different tree
+because `main` moved, or a failed lookup) everything runs in full, as before. The logic is
+`.github/scripts/tree-reuse.mjs`, unit-tested by `test-tree-reuse.mjs`.
+
+Reuse relies on `main` keeping "require branches to be up to date before merging": then the
+merge a pull request tested has the same tree as the merge commit. Do not turn that rule off.
+A pull request merged without being up to date (for example with a bypass) simply runs in full.
+
+The weekly CodeQL and daily Container scan schedules always run in full, so new
+vulnerabilities are caught; a reused `main` push leaves code-scanning results for `main` to
+those schedules. The `image` job and the Container scan build the image from one shared
+layer cache (`type=gha`, scope `app-image`), so the same tree is not built from scratch twice.
+
 ## Repository configuration
 
 ### Keeping CodeRabbit reviews timely

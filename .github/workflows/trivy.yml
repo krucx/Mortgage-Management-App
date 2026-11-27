@@ -14,7 +14,36 @@ on:
 permissions: {}
 
 jobs:
+  # Tree reuse (.github/scripts/tree-reuse.mjs): the push to main after a merge skips the
+  # scan when the merged tree already passed it on the pull request. The daily schedule
+  # always scans main in full, so new vulnerabilities are caught.
+  # It relies on main requiring a branch to be up to date before merging. A failed lookup or
+  # reuse job, a tree with no passing record, and every other event (the schedule included)
+  # run in full.
+  reuse:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    outputs:
+      reused: ${{ steps.lookup.outputs.reused }}
+      run-url: ${{ steps.lookup.outputs.run-url }}
+    steps:
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - id: lookup
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/tree-reuse.mjs lookup --workflow "Container scan" --sha "$GITHUB_SHA"
+
   trivy:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,8 +53,14 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Built from the layers the Tests image job caches under the same scope (and the other
+      # way round), so the same tree is not built from scratch twice.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
       - name: Build the combined application image
-        run: docker build -t mortgage-management-app:trivy .
+        run: >
+          docker buildx build --load -t mortgage-management-app:trivy
+          --cache-from type=gha,scope=app-image --cache-to type=gha,mode=max,scope=app-image .
 
       - name: Scan the combined image
         id: scan
@@ -63,3 +98,28 @@ jobs:
           path: trivy-results.sarif
           if-no-files-found: ignore
           retention-days: 30
+
+  # Records the tree this run validated as the commit status validated-tree/Container scan on the
+  # PR head or main commit, for the reuse lookup above. Not on the schedule, nor for pull
+  # requests from forks, whose token cannot write statuses.
+  record:
+    needs: [reuse, trivy]
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - name: Record the validated tree
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          STATE: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'failure' || 'success' }}
+          RUN_URL: ${{ needs.reuse.outputs.run-url || format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+        run: node .github/scripts/tree-reuse.mjs record --workflow "Container scan" --sha "$SHA" --state "$STATE" --run-url "$RUN_URL"
