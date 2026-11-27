@@ -1,0 +1,1 @@
+- **CI:** pull requests run only the heavy jobs (backend, frontend, Windows, image, CodeQL languages) their changed paths can affect; docs-only and changelog-only pull requests run just the cheap jobs, while workflow changes, `integration/*` and `release/*` pull requests, and `main` runs still run everything.
