@@ -30,6 +30,8 @@ export function checkChangelog({ read, pathsChanged, base, head, ...pullRequest 
   const errors = []
   const warnings = []
   if (isReleaseCandidate(pullRequest)) return { errors, warnings }
+  // Dependency updates are Dependabot's own class of safe PR; they carry no release note.
+  const isDependabot = (pullRequest.headBranch ?? '').startsWith('dependabot/')
   if (!read(base, 'changelog/unreleased/README.md')) return { errors, warnings }
 
   if ((read(base, 'CHANGELOG.md') ?? '') !== (read(head, 'CHANGELOG.md') ?? '')) {
@@ -40,9 +42,9 @@ export function checkChangelog({ read, pathsChanged, base, head, ...pullRequest 
 
   const needsNotes = pathsChanged.some((path) => !isAllowlistedPath(path))
   const addedFragment = pathsChanged.some((path) => fragmentPath.test(path))
-  if (needsNotes && !addedFragment) {
-    warnings.push(
-      'This pull request changes product or user-facing files but adds no changelog fragment. If it needs a release note, add a file under changelog/unreleased/ named <unique>.<added|changed|fixed|removed|deprecated|security>.md. See Documentation/agents/changelog.md.',
+  if (needsNotes && !addedFragment && !isDependabot) {
+    errors.push(
+      'This pull request changes product or user-facing files but adds no changelog fragment. Add a file under changelog/unreleased/ named <unique>.<added|changed|fixed|removed|deprecated|security>.md. See Documentation/agents/changelog.md.',
     )
   }
   return { errors, warnings }

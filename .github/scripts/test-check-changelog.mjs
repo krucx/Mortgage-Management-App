@@ -43,7 +43,7 @@ test('a product change with a new fragment passes', () => {
   )
 })
 
-test('a product change without a fragment passes with a warning', () => {
+test('a product change without a fragment fails', () => {
   const { errors, warnings } = checkChangelog({
     read: reader(withStore),
     pathsChanged: ['backend/src/app.py'],
@@ -51,9 +51,24 @@ test('a product change without a fragment passes with a warning', () => {
     head: 'head',
     ...pr,
   })
-  assert.deepEqual(errors, [])
-  assert.equal(warnings.length, 1)
-  assert.match(warnings[0], /changelog\/unreleased\//)
+  assert.deepEqual(warnings, [])
+  assert.equal(errors.length, 1)
+  assert.match(errors[0], /changelog\/unreleased\//)
+})
+
+test('a Dependabot update needs no fragment', () => {
+  assert.deepEqual(
+    checkChangelog({
+      read: reader(withStore),
+      pathsChanged: ['frontend/package.json'],
+      base: 'base',
+      head: 'head',
+      headBranch: 'dependabot/npm_and_yarn/frontend/x-1.2.3',
+      headRepo: 'o/r',
+      baseRepo: 'o/r',
+    }),
+    { errors: [], warnings: [] },
+  )
 })
 
 test('an allowlisted-only change passes without a warning', () => {
