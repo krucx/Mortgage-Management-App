@@ -1,1 +1,0 @@
-- **Pull request automation:** worker pull requests into `integration/**` branches now enable auto-merge by themselves once required checks pass; pull requests into `main` are untouched.

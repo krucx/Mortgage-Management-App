@@ -1,1 +1,0 @@
-- **Pull request rules:** every pull request now starts from a release-ready checklist template, and CI fails (instead of warning) a product change with no changelog fragment. Agent rules say a ticket PR targets its `integration/*` branch, and that agents never merge or enable auto-merge on a `main` PR.

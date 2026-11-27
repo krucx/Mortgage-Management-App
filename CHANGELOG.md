@@ -7,6 +7,38 @@ Every release of Mortgage Management, newest first. The format follows
 
 ## Unreleased
 
+## [3.6.1] - 2026-11-27
+
+### Changed
+
+- **CI:** the push to `main` after a merge reuses the pull request's passing Tests, CodeQL and Container scan results for the same tree instead of running them again, and the Container scan builds the image from the Tests image cache.
+
+- **Pull request automation:** worker pull requests into `integration/**` branches now enable auto-merge by themselves once required checks pass; pull requests into `main` are untouched.
+
+- **Integration pull requests:** a workflow now posts and updates one review summary comment (worker PRs, critical-area files, required checks, unticked acceptance criteria) on `integration/*` to `main` pull requests. Internal tooling; no app change.
+
+- **CI:** pull requests run only the heavy jobs (backend, frontend, Windows, image, CodeQL languages) their changed paths can affect; docs-only and changelog-only pull requests run just the cheap jobs, while workflow changes, `integration/*` and `release/*` pull requests, and `main` runs still run everything.
+
+- **Pull request automation:** Dependabot pull requests whose updates are all patch or minor, touching no critical path, now merge themselves once required checks pass; any major bump, even inside a grouped pull request, still waits for the owner.
+
+- **Branch rules:** `main` no longer requires an approval or the `CodeRabbit` check, a new `integration/**` ruleset requires only the fast checks (no up-to-date requirement), and `node .github/scripts/apply-rulesets.mjs` shows the drift from GitHub (dry-run) and applies the committed rulesets (owner only). `Tests` now also runs on pull requests into `integration/**`.
+
+- **Pull request rules:** every pull request now starts from a release-ready checklist template, and CI fails (instead of warning) a product change with no changelog fragment. Agent rules say a ticket PR targets its `integration/*` branch, and that agents never merge or enable auto-merge on a `main` PR.
+
+- **Releases:** after the owner starts **Prepare release candidate**, the release pull request merges itself and publishing starts, with no approval step, but only when it is purely a version upgrade of the commit the preflight validated and every required check passed; anything else stops and is left for the owner. Setting the repository variable `RELEASE_REQUIRE_APPROVAL` to `true` restores the old approve-and-merge path.
+
+- **Releases:** the full `Tests` suite runs once per release, in the candidate preflight; the release pull request, the push to `main` and the publish step reuse that result for the same tree (and run in full if `main` moved). Any failed release stage opens or updates one `release-blocked` issue for the version, naming the stage, the run and the safe rerun command; nothing retries or rolls back by itself.
+
+- **Release process docs:** two new internal decisions (ADR 0022, 0023) describe the owner's merge click and the automated release, and the release checklist shrinks to the trigger and the `release-blocked` recovery steps.
+
+- **Onboarding course:** updated lessons 013·1, 016·1/5/99, trap #20, `commands.html` and `docs/index.html` to reflect ADR 0022 (the owner's merge click gates `main` with no approving review required; only release and safe Dependabot pull requests auto-merge) and added ADRs 0022 and 0023 to the landing page ADR list.
+
+- **Onboarding course:** the lesson "Cutting a release" and the pages that mention it now describe the automatic release (no approval step, machine-checked merge conditions, one test run, a `release-blocked` issue on failure) and release notes as fragments under `changelog/unreleased/`.
+
+### Fixed
+
+- **Release preflight:** preserve checks for the existing ADRs while allowing new decisions to be added.
+
 ## [3.6.0] - 2026-11-27
 
 ### Changed

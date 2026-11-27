@@ -1,1 +1,0 @@
-- **Onboarding course:** the lesson "Cutting a release" and the pages that mention it now describe the automatic release (no approval step, machine-checked merge conditions, one test run, a `release-blocked` issue on failure) and release notes as fragments under `changelog/unreleased/`.

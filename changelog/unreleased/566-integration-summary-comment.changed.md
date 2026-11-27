@@ -1,1 +1,0 @@
-- **Integration pull requests:** a workflow now posts and updates one review summary comment (worker PRs, critical-area files, required checks, unticked acceptance criteria) on `integration/*` to `main` pull requests. Internal tooling; no app change.

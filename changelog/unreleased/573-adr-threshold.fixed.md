@@ -1,1 +1,0 @@
-- **Release preflight:** preserve checks for the existing ADRs while allowing new decisions to be added.

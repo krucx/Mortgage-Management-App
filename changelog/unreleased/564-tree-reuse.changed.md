@@ -1,1 +1,0 @@
-- **CI:** the push to `main` after a merge reuses the pull request's passing Tests, CodeQL and Container scan results for the same tree instead of running them again, and the Container scan builds the image from the Tests image cache.
