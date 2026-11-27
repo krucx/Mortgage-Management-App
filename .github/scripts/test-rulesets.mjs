@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { diffRulesets, planApply } from './lib/rulesets.mjs';
 
 const read = (name) => JSON.parse(readFileSync(new URL(`../rulesets/${name}.json`, import.meta.url), 'utf8'));
@@ -46,6 +46,17 @@ test('every required check name is a job that Tests or CodeQL reports', () => {
 
 test('Tests runs on pull requests into integration/**, or its required checks never report', () => {
   assert.match(workflow('test.yml'), /pull_request:\s*\n\s*branches: \[main, 'integration\/\*\*'\]/);
+});
+
+test('one job discovers every script test without running any twice', () => {
+  const wf = workflow('test.yml');
+  const scriptTests = readdirSync(new URL('.', import.meta.url)).filter((name) => /^test-.*\.mjs$/.test(name));
+  assert.ok(scriptTests.length > 0);
+  assert.match(wf, /node --test \.github\/scripts\/test-\*\.mjs/);
+  for (const name of scriptTests) {
+    assert.equal(wf.split(name).length - 1, 0, `${name} should be discovered by the glob, not hand-listed`);
+  }
+  assert.equal([...wf.matchAll(/node --test \.github\/scripts\/test-\*\.mjs/g)].length, 1);
 });
 
 // --- diffRulesets -----------------------------------------------------------------------------

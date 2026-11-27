@@ -90,28 +90,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: node .github/scripts/changed-paths.mjs
 
-  release-candidate:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-      - run: node --test .github/scripts/test-release-candidate.mjs
-
-  tree-reuse:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-      - run: node --test .github/scripts/test-tree-reuse.mjs
-
   version-bump:
     needs: reuse
     if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
@@ -123,12 +101,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-      - run: node --test .github/scripts/test-check-version-unchanged.mjs
-      - run: node --test .github/scripts/test-check-changelog.mjs
-      - run: node --test .github/scripts/test-auto-merge-allowlist.mjs
-      - run: node --test .github/scripts/test-rulesets.mjs
-      - run: node --test .github/scripts/test-changed-paths.mjs
-      - run: node --test .github/scripts/test-critical-paths.mjs
+      - name: Run all script tests
+        run: node --test .github/scripts/test-*.mjs
       - name: Only the release candidate may change VERSION
         if: github.event_name == 'pull_request'
         env:
@@ -147,71 +121,6 @@ jobs:
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
         run: node .github/scripts/check-changelog.mjs
-
-  release:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-      - run: node --test .github/scripts/test-release.mjs
-      - run: node --test .github/scripts/test-release-blocked.mjs
-
-  finding-reconciler:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-      - run: node --test .github/scripts/test-reconciler.mjs
-
-  critical-finding-sync:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-      - run: node --test .github/scripts/test-critical-findings.mjs
-
-  secret-scanning-alert-sync:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-      - run: node --test .github/scripts/test-secret-scanning-alerts.mjs
-
-  integration-summary:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-      - run: node --test .github/scripts/test-integration-summary.mjs
-
-  coverage-summary:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reused != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-      - run: node --test .github/scripts/test-coverage-summary.mjs
 
   backend:
     needs: [reuse, changes]
@@ -266,7 +175,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
-      - run: node --test ../.github/scripts/test-check-screen-coverage.mjs
       - name: Every screen in the router is covered by a QA scenario
         working-directory: .
         run: node .github/scripts/check-screen-coverage.mjs
@@ -477,7 +385,7 @@ jobs:
   # Not for pull requests from forks, whose token cannot write statuses.
   # needs lists every job in this workflow: add a new job here too.
   record:
-    needs: [reuse, changes, release-candidate, tree-reuse, version-bump, release, finding-reconciler, critical-finding-sync, secret-scanning-alert-sync, coverage-summary, backend, frontend, image, qa, pages, windows]
+    needs: [reuse, changes, version-bump, backend, frontend, image, qa, pages, windows]
     if: >-
       !cancelled() &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
