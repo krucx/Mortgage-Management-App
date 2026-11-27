@@ -160,7 +160,7 @@ comment on each `integration/*` -> `main` pull request and edits it in place on 
 the `Tests` run finishes. It lists the merged worker pull requests with their tickets, the changed files
 grouped by the critical areas above (plus "other"), the status of the ruleset's required checks, and any
 linked ticket with unticked acceptance criteria. It is tool-neutral and is not posted on any other pull
-request. The critical paths are mirrored in `.github/scripts/integration-summary.mjs`; update both together.
+request. The critical paths are mirrored in `.github/scripts/lib/critical-paths.mjs` (used by the integration summary and the Dependabot auto-merge rule); `test-critical-paths.mjs` fails when the two disagree.
 
 No ruleset requires a `CodeRabbit` check (it never reports on a pull request it skips), so a
 pull request it skips merges normally. The review is advisory: for the `integration/*` -> `main`
@@ -212,7 +212,7 @@ A pull request runs only the heavy jobs its changed paths can affect. The `chang
 
 | Job | Runs when the pull request changes |
 | --- | --- |
-| `backend` | `backend/`, `VERSION`, or the scripts it runs |
+| `backend` | `backend/`, `VERSION`, the scripts it runs, or a file its tests read: `Documentation/`, `docs/`, `GLOSSARY.md`, `frontend/openapi.json` |
 | `frontend` | `frontend/`, `qa/`, `VERSION`, or the scripts it runs |
 | `windows`, `image` | `backend/`, `frontend/`, `VERSION`, and `windows/` (`windows`) or `Dockerfile` / `.dockerignore` (`image`) |
 | CodeQL `Analyze (<language>)` | `backend/` (python); `frontend/`, `qa/`, `.github/scripts/` (javascript-typescript); `.github/workflows/` (actions) |

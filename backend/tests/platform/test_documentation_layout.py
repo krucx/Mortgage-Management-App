@@ -39,14 +39,10 @@ def test_canonical_domain_docs_and_architecture_records_are_present():
 
     for name in ("domain.md", "issue-tracker.md", "triage-labels.md"):
         assert (DOCUMENTATION / "agents" / name).is_file()
-    assert (
-        len(
-            list(
-                (DOCUMENTATION / "architecture-reviews").glob("review-pass-*/**/*.html")
-            )
-        )
-        == 7
-    )
+    # Every review pass keeps its HTML report; new passes are added, so no fixed count.
+    passes = sorted((DOCUMENTATION / "architecture-reviews").glob("review-pass-*"))
+    assert len(passes) >= 7
+    assert all(list(folder.glob("*.html")) for folder in passes)
     assert not (REPO / "GLOSSARY.md").exists()
 
 
