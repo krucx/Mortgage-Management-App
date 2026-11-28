@@ -3,7 +3,6 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createGitHubClient } from './lib/github-client.mjs';
 import { autoMergeDecision } from './lib/auto-merge-allowlist.mjs';
-import { deleteAfterAutoMerge, deleteMergedBranch, deleteRefApi } from './lib/branch-cleanup.mjs';
 import { preflightRunsPath, requiredCheckNames } from './lib/release-conditions.mjs';
 
 const ENABLE = `mutation($id: ID!, $method: PullRequestMergeMethod!) {
@@ -153,24 +152,13 @@ async function main() {
       getPullRequest,
       log: (line) => console.error(line),
     });
-    // The merge is done and published from here; a branch that cannot be deleted only warns.
-    await deleteMergedBranch(await getPullRequest(), { repository, deleteRef: deleteRefApi(request), log: (line) => console.error(line) });
     console.log(JSON.stringify(result));
     return;
   }
   const eventPath = process.env.GITHUB_EVENT_PATH;
   if (!eventPath) throw new Error('GITHUB_EVENT_PATH is required.');
   const { pull_request: pr } = JSON.parse(readFileSync(eventPath, 'utf8'));
-  const result = await applyAutoMerge(pr, createGraphql(token, repository), { api: createPrApi(token, repository, pr.number) });
-  if (!result.enabled && !result.merged) return;
-  // GitHub merges once the required checks pass, with no pull_request closed event for a GITHUB_TOKEN
-  // merge, and the repository's delete-head-branch setting ignores it: wait for the merge, then delete.
-  const { request } = createGitHubClient(token, repository);
-  await deleteAfterAutoMerge(pr.number, {
-    repository,
-    getPullRequest: async (number) => (await request(`/pulls/${number}`)).data,
-    deleteRef: deleteRefApi(request),
-  });
+  await applyAutoMerge(pr, createGraphql(token, repository), { api: createPrApi(token, repository, pr.number) });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

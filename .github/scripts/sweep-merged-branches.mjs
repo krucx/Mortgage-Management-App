@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createGitHubClient } from './lib/github-client.mjs';
-import { deleteRefApi, listRecentlyClosedPulls, sweepMergedBranches } from './lib/branch-cleanup.mjs';
+import { deleteRefApi, refExistsApi, sweepMergedBranches } from './lib/branch-cleanup.mjs';
 
-// Run by sweep-merged-branches.yml: deletes the head branches of PRs merged in the last 7 days that
-// the auto-merge poll missed. Logic and tests: lib/branch-cleanup.mjs, test-branch-cleanup.mjs.
+// Run by sweep-merged-branches.yml: deletes the head branches of PRs merged at least 7 days ago
+// (--dry-run only lists them). Logic and tests: lib/branch-cleanup.mjs, test-branch-cleanup.mjs.
 async function main() {
   const token = process.env.GITHUB_TOKEN;
   const repository = process.env.GITHUB_REPOSITORY;
@@ -12,9 +12,11 @@ async function main() {
   const { request, getAllPages } = createGitHubClient(token, repository);
   await sweepMergedBranches({
     repository,
-    listClosedPulls: () => listRecentlyClosedPulls(request, Date.now()),
+    listClosedPulls: () => getAllPages('/pulls?state=closed&per_page=100'),
     listOpenPulls: () => getAllPages('/pulls?state=open&per_page=100'),
     deleteRef: deleteRefApi(request),
+    refExists: refExistsApi(request),
+    dryRun: process.argv.includes('--dry-run'),
   });
 }
 

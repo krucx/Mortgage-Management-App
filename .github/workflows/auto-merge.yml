@@ -20,11 +20,6 @@
 # are the base's, never the PR's; only this file comes from the PR. GitHub reads it from the
 # PR's merge ref, so an integration branch needs no copy, but the base must have the script.
 #
-# After enabling auto-merge the job waits for GitHub to merge the PR, then deletes its head branch
-# (.github/scripts/lib/branch-cleanup.mjs): the repository's "Automatically delete head branches"
-# setting ignores a merge made with GITHUB_TOKEN, and that merge starts no pull_request closed
-# workflow. The release candidate workflow does the same for release/* in auto-merge.mjs release.
-#
 # Permissions needed: GITHUB_TOKEN with contents: write and pull-requests: write (GraphQL
 # enablePullRequestAutoMerge). The repository's "Allow auto-merge" setting must be on. No PAT,
 # bot account or new secret.
@@ -47,8 +42,6 @@ jobs:
       group: auto-merge-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    # After enabling auto-merge the job waits (up to 30 minutes) for GitHub to merge, then deletes the head branch.
-    timeout-minutes: 40
     permissions:
       contents: write
       pull-requests: write

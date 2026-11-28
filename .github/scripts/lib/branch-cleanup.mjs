@@ -42,55 +42,39 @@ export async function deleteMergedBranch(pr, { repository, deleteRef, log = cons
   return { ...decision, deleted: true };
 }
 
-// A PR with auto-merge on is merged by GitHub once its required checks pass. Wait for that
-// (bounded), then delete. A PR with no auto-merge pending is the owner's to merge, and GitHub's
-// own setting deletes that branch.
-export async function deleteAfterAutoMerge(number, {
-  repository, getPullRequest, deleteRef, log = console.log,
-  timeoutMs = 30 * 60_000, pollIntervalMs = 20_000,
-  now = () => Date.now(), sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
-}) {
-  const started = now();
-  let pr = await getPullRequest(number);
-  while (!pr.merged && pr.state === 'open' && pr.auto_merge && now() - started < timeoutMs) {
-    await sleep(pollIntervalMs);
-    pr = await getPullRequest(number);
-  }
-  return deleteMergedBranch(pr, { repository, deleteRef, log });
-}
-
 export const deleteRefApi = (request) => (ref) =>
-  request(`/git/refs/heads/${ref.split('/').map(encodeURIComponent).join('/')}`, 'DELETE');
+  request(refPath('refs', ref), 'DELETE');
 
-// The safety net for merges the poll above never saw (the PR's checks failed, a fix was pushed and
-// it merged hours later): closed PRs, newest-updated first, until one was last touched before the
-// cutoff. `request(path)` returns { data, next }. A PR's closed_at never exceeds its updated_at.
-export async function listRecentlyClosedPulls(request, nowMs, days = 7) {
-  const cutoff = nowMs - days * 86_400_000;
-  const pulls = [];
-  for (let next = '/pulls?state=closed&sort=updated&direction=desc&per_page=100'; next;) {
-    const page = await request(next);
-    for (const pr of page.data) {
-      if (Date.parse(pr.updated_at) < cutoff) return pulls;
-      pulls.push(pr);
-    }
-    next = page.next;
+export const refExistsApi = (request) => async (ref) => {
+  try {
+    await request(refPath('ref', ref));
+    return true;
+  } catch (error) {
+    if (alreadyGone(error)) return false;
+    throw error;
   }
-  return pulls;
-}
+};
 
-// Runs every PR merged in the last `days` through the same decision and deletion as above, once per
-// branch. A branch an open PR still uses as its head or base stays, whatever merged from it.
+// GET is /git/ref/heads/<branch>, DELETE is /git/refs/heads/<branch>.
+const refPath = (kind, ref) => `/git/${kind}/heads/${ref.split('/').map(encodeURIComponent).join('/')}`;
+
+// The weekly sweep. The repository setting "Automatically delete head branches" ignores merges made
+// with GITHUB_TOKEN (auto-merge, the release candidate workflow), which leave their head branch
+// behind. This runs every PR merged at least `minAgeDays` days ago through the same decision and
+// deletion as above, once per branch, so nothing merged this week is touched. A branch an open PR
+// still uses as its head or base stays, whatever merged from it. With `dryRun` it only reports the
+// branches that still exist and would be deleted.
 export async function sweepMergedBranches({
-  repository, listClosedPulls, listOpenPulls, deleteRef, log = console.log, now = () => Date.now(), days = 7,
+  repository, listClosedPulls, listOpenPulls, deleteRef, refExists, dryRun = false,
+  log = console.log, now = () => Date.now(), minAgeDays = 7,
 }) {
-  const cutoff = now() - days * 86_400_000;
+  const cutoff = now() - minAgeDays * 86_400_000;
   const inUse = new Set((await listOpenPulls()).flatMap((pr) => [pr.head?.ref, pr.base?.ref]));
   const seen = new Set();
   const results = [];
   for (const pr of await listClosedPulls()) {
     // The list payload has merged_at, not the boolean `merged` of a single PR.
-    if (!pr.merged_at || Date.parse(pr.merged_at) < cutoff) continue;
+    if (!pr.merged_at || Date.parse(pr.merged_at) > cutoff) continue;
     const ref = pr.head?.ref;
     // Once per branch, but only a PR the rules accept counts: an earlier PR that must keep the branch
     // (an integration branch merged elsewhere) must not hide a later one that ends it.
@@ -98,6 +82,13 @@ export async function sweepMergedBranches({
     seen.add(ref);
     if (inUse.has(ref)) {
       log(`PR #${pr.number}: head branch ${ref} kept (an open PR uses it).`);
+      continue;
+    }
+    if (dryRun) {
+      if (await refExists(ref)) {
+        log(`PR #${pr.number}: would delete branch ${ref}.`);
+        results.push({ delete: true, ref, reason: 'merged', deleted: false, dryRun: true });
+      }
       continue;
     }
     results.push(await deleteMergedBranch({ ...pr, merged: true }, { repository, deleteRef, log }));

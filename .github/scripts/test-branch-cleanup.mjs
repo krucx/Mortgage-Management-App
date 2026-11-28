@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { branchDeletionDecision, deleteMergedBranch, deleteAfterAutoMerge } from './lib/branch-cleanup.mjs';
+import { branchDeletionDecision, deleteMergedBranch, sweepMergedBranches } from './lib/branch-cleanup.mjs';
 
 const REPO = 'o/r';
 const pr = (overrides = {}) => ({
@@ -80,57 +80,11 @@ test('any other failure warns and does not throw', async () => {
   assert.ok(lines.some((line) => line.startsWith('::warning') && line.includes('fix/thing')));
 });
 
-// deleteAfterAutoMerge: the Tests run finished; GitHub merges the PR a moment later when auto-merge is on.
-const sequence = (...states) => {
-  let call = 0;
-  return async () => states[Math.min(call++, states.length - 1)];
-};
-const waitOptions = (extra = {}) => ({
-  repository: REPO, deleteRef: async () => {}, log: () => {}, sleep: async () => {}, timeoutMs: 1000, pollIntervalMs: 100, ...extra,
-});
-
-test('deleteAfterAutoMerge waits for a pending auto-merge, then deletes', async () => {
-  const deleted = [];
-  const pending = pr({ merged: false, state: 'open', auto_merge: { merge_method: 'squash' } });
-  let now = 0;
-  const result = await deleteAfterAutoMerge(1, {
-    ...waitOptions({ deleteRef: async (ref) => deleted.push(ref), sleep: async (ms) => { now += ms; } }),
-    now: () => now,
-    getPullRequest: sequence(pending, pending, pr()),
-  });
-  assert.deepEqual(deleted, ['fix/thing']);
-  assert.equal(result.deleted, true);
-});
-
-test('deleteAfterAutoMerge leaves an open PR without auto-merge alone', async () => {
-  const deleted = [];
-  const result = await deleteAfterAutoMerge(1, {
-    ...waitOptions({ deleteRef: async (ref) => deleted.push(ref) }),
-    now: () => 0,
-    getPullRequest: sequence(pr({ merged: false, state: 'open', auto_merge: null })),
-  });
-  assert.deepEqual(deleted, []);
-  assert.equal(result.deleted, false);
-});
-
-test('deleteAfterAutoMerge gives up after the timeout and keeps the branch', async () => {
-  const deleted = [];
-  let now = 0;
-  const result = await deleteAfterAutoMerge(1, {
-    ...waitOptions({ deleteRef: async (ref) => deleted.push(ref), sleep: async (ms) => { now += ms; } }),
-    now: () => now,
-    getPullRequest: sequence(pr({ merged: false, state: 'open', auto_merge: { merge_method: 'squash' } })),
-  });
-  assert.deepEqual(deleted, []);
-  assert.equal(result.deleted, false);
-});
-
-// The sweep: a scheduled safety net for merges the poll missed (checks failed, fix pushed, merged much later).
-import { listRecentlyClosedPulls, sweepMergedBranches } from './lib/branch-cleanup.mjs';
+// The sweep: the weekly sweep of branches that GITHUB_TOKEN merges left behind.
 
 const NOW = Date.parse('2026-11-28T12:00:00Z');
 const daysAgo = (days) => new Date(NOW - days * 86_400_000).toISOString();
-const listed = (number, ref, { base = 'integration/arch8-backend', mergedDaysAgo = 1, closedDaysAgo = mergedDaysAgo, repo = REPO } = {}) => ({
+const listed = (number, ref, { base = 'integration/arch8-backend', mergedDaysAgo = 10, closedDaysAgo = mergedDaysAgo, repo = REPO } = {}) => ({
   number,
   state: 'closed',
   merged_at: mergedDaysAgo === null ? null : daysAgo(mergedDaysAgo),
@@ -146,20 +100,23 @@ const sweep = (closed, opened = [], extra = {}) => {
   return sweepMergedBranches({
     repository: REPO, now: () => NOW, log,
     listClosedPulls: async () => closed, listOpenPulls: async () => opened,
+    refExists: async (ref) => !ref.includes('gone'),
     deleteRef: async (ref) => deleted.push(ref), ...extra,
   }).then((results) => ({ results, deleted, lines }));
 };
 
-test('the sweep deletes the heads of recently merged PRs and keeps the rest', async () => {
+test('the sweep deletes the heads of PRs merged at least 7 days ago and keeps the rest', async () => {
   const { deleted } = await sweep([
     listed(615, 'fix/a'),
     listed(616, 'fix/closed-unmerged', { mergedDaysAgo: null }),
-    listed(617, 'fix/old', { mergedDaysAgo: 8 }),
+    listed(617, 'fix/this-week', { mergedDaysAgo: 6 }),
+    listed(621, 'fix/very-old', { mergedDaysAgo: 120 }),
+    listed(622, 'fix/just-over-a-week', { mergedDaysAgo: 7.01 }),
     listed(618, 'fix/fork', { repo: 'someone/r' }),
     listed(619, 'integration/arch8-backend', { base: 'integration/other' }),
     listed(620, 'integration/arch8-backend', { base: 'main' }),
   ]);
-  assert.deepEqual(deleted, ['fix/a', 'integration/arch8-backend']);
+  assert.deepEqual(deleted, ['fix/a', 'fix/very-old', 'fix/just-over-a-week', 'integration/arch8-backend']);
 });
 
 test('the sweep keeps a head that another open PR uses as its head or base', async () => {
@@ -192,13 +149,14 @@ test('the sweep survives a failed or missing branch and still handles the rest',
   assert.ok(!lines.some((line) => line.startsWith('::warning') && line.includes('fix/gone')));
 });
 
-test('listRecentlyClosedPulls pages newest-updated first and stops at the cutoff', async () => {
-  const pages = {
-    '/pulls?state=closed&sort=updated&direction=desc&per_page=100': { data: [listed(3, 'a', { closedDaysAgo: 1 }), listed(2, 'b', { closedDaysAgo: 6 })], next: '/p2' },
-    '/p2': { data: [listed(1, 'c', { closedDaysAgo: 9 })], next: '/p3' },
-  };
-  const requested = [];
-  const pulls = await listRecentlyClosedPulls(async (path) => { requested.push(path); return pages[path]; }, NOW, 7);
-  assert.deepEqual(pulls.map((p) => p.number), [3, 2]);
-  assert.deepEqual(requested, Object.keys(pages));
+test('a dry run lists the existing branches it would delete and deletes nothing', async () => {
+  const { deleted, lines, results } = await sweep(
+    [listed(1, 'fix/a'), listed(2, 'fix/gone'), listed(3, 'fix/b', { mergedDaysAgo: 2 })],
+    [],
+    { dryRun: true },
+  );
+  assert.deepEqual(deleted, []);
+  assert.deepEqual(results.map((r) => r.ref), ['fix/a']);
+  assert.match(lines.join('\n'), /would delete branch fix\/a/);
+  assert.ok(!lines.join('\n').includes('fix/gone'));
 });
