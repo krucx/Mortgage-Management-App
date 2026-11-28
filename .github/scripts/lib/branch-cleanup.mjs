@@ -61,3 +61,46 @@ export async function deleteAfterAutoMerge(number, {
 
 export const deleteRefApi = (request) => (ref) =>
   request(`/git/refs/heads/${ref.split('/').map(encodeURIComponent).join('/')}`, 'DELETE');
+
+// The safety net for merges the poll above never saw (the PR's checks failed, a fix was pushed and
+// it merged hours later): closed PRs, newest-updated first, until one was last touched before the
+// cutoff. `request(path)` returns { data, next }. A PR's closed_at never exceeds its updated_at.
+export async function listRecentlyClosedPulls(request, nowMs, days = 7) {
+  const cutoff = nowMs - days * 86_400_000;
+  const pulls = [];
+  for (let next = '/pulls?state=closed&sort=updated&direction=desc&per_page=100'; next;) {
+    const page = await request(next);
+    for (const pr of page.data) {
+      if (Date.parse(pr.updated_at) < cutoff) return pulls;
+      pulls.push(pr);
+    }
+    next = page.next;
+  }
+  return pulls;
+}
+
+// Runs every PR merged in the last `days` through the same decision and deletion as above, once per
+// branch. A branch an open PR still uses as its head or base stays, whatever merged from it.
+export async function sweepMergedBranches({
+  repository, listClosedPulls, listOpenPulls, deleteRef, log = console.log, now = () => Date.now(), days = 7,
+}) {
+  const cutoff = now() - days * 86_400_000;
+  const inUse = new Set((await listOpenPulls()).flatMap((pr) => [pr.head?.ref, pr.base?.ref]));
+  const seen = new Set();
+  const results = [];
+  for (const pr of await listClosedPulls()) {
+    // The list payload has merged_at, not the boolean `merged` of a single PR.
+    if (!pr.merged_at || Date.parse(pr.merged_at) < cutoff) continue;
+    const ref = pr.head?.ref;
+    // Once per branch, but only a PR the rules accept counts: an earlier PR that must keep the branch
+    // (an integration branch merged elsewhere) must not hide a later one that ends it.
+    if (seen.has(ref) || !branchDeletionDecision({ ...pr, merged: true }, repository).delete) continue;
+    seen.add(ref);
+    if (inUse.has(ref)) {
+      log(`PR #${pr.number}: head branch ${ref} kept (an open PR uses it).`);
+      continue;
+    }
+    results.push(await deleteMergedBranch({ ...pr, merged: true }, { repository, deleteRef, log }));
+  }
+  return results;
+}

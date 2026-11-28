@@ -124,3 +124,81 @@ test('deleteAfterAutoMerge gives up after the timeout and keeps the branch', asy
   assert.deepEqual(deleted, []);
   assert.equal(result.deleted, false);
 });
+
+// The sweep: a scheduled safety net for merges the poll missed (checks failed, fix pushed, merged much later).
+import { listRecentlyClosedPulls, sweepMergedBranches } from './lib/branch-cleanup.mjs';
+
+const NOW = Date.parse('2026-11-28T12:00:00Z');
+const daysAgo = (days) => new Date(NOW - days * 86_400_000).toISOString();
+const listed = (number, ref, { base = 'integration/arch8-backend', mergedDaysAgo = 1, closedDaysAgo = mergedDaysAgo, repo = REPO } = {}) => ({
+  number,
+  state: 'closed',
+  merged_at: mergedDaysAgo === null ? null : daysAgo(mergedDaysAgo),
+  closed_at: daysAgo(closedDaysAgo),
+  updated_at: daysAgo(closedDaysAgo),
+  head: { ref, repo: { full_name: repo } },
+  base: { ref: base },
+});
+const open = (number, ref, base = 'main') => ({ number, state: 'open', head: { ref, repo: { full_name: REPO } }, base: { ref: base } });
+const sweep = (closed, opened = [], extra = {}) => {
+  const deleted = [];
+  const { lines, log } = logs();
+  return sweepMergedBranches({
+    repository: REPO, now: () => NOW, log,
+    listClosedPulls: async () => closed, listOpenPulls: async () => opened,
+    deleteRef: async (ref) => deleted.push(ref), ...extra,
+  }).then((results) => ({ results, deleted, lines }));
+};
+
+test('the sweep deletes the heads of recently merged PRs and keeps the rest', async () => {
+  const { deleted } = await sweep([
+    listed(615, 'fix/a'),
+    listed(616, 'fix/closed-unmerged', { mergedDaysAgo: null }),
+    listed(617, 'fix/old', { mergedDaysAgo: 8 }),
+    listed(618, 'fix/fork', { repo: 'someone/r' }),
+    listed(619, 'integration/arch8-backend', { base: 'integration/other' }),
+    listed(620, 'integration/arch8-backend', { base: 'main' }),
+  ]);
+  assert.deepEqual(deleted, ['fix/a', 'integration/arch8-backend']);
+});
+
+test('the sweep keeps a head that another open PR uses as its head or base', async () => {
+  const { deleted, lines } = await sweep(
+    [listed(1, 'fix/shared'), listed(2, 'fix/stacked'), listed(3, 'fix/free')],
+    [open(10, 'fix/shared'), open(11, 'fix/other', 'fix/stacked')],
+  );
+  assert.deepEqual(deleted, ['fix/free']);
+  assert.match(lines.join('\n'), /fix\/shared.*open PR/);
+});
+
+test('the sweep tries a branch once even when several merged PRs used it', async () => {
+  const { deleted } = await sweep([listed(1, 'fix/again'), listed(2, 'fix/again')]);
+  assert.deepEqual(deleted, ['fix/again']);
+});
+
+test('the sweep survives a failed or missing branch and still handles the rest', async () => {
+  const reached = [];
+  const { lines } = await sweep(
+    [listed(1, 'fix/boom'), listed(2, 'fix/gone'), listed(3, 'fix/fine')],
+    [],
+    { deleteRef: async (ref) => {
+      reached.push(ref);
+      if (ref === 'fix/boom') throw new Error('GitHub API DELETE failed (403): forbidden');
+      if (ref === 'fix/gone') throw new Error('failed (422): Reference does not exist');
+    } },
+  );
+  assert.deepEqual(reached, ['fix/boom', 'fix/gone', 'fix/fine']);
+  assert.ok(lines.some((line) => line.startsWith('::warning') && line.includes('fix/boom')));
+  assert.ok(!lines.some((line) => line.startsWith('::warning') && line.includes('fix/gone')));
+});
+
+test('listRecentlyClosedPulls pages newest-updated first and stops at the cutoff', async () => {
+  const pages = {
+    '/pulls?state=closed&sort=updated&direction=desc&per_page=100': { data: [listed(3, 'a', { closedDaysAgo: 1 }), listed(2, 'b', { closedDaysAgo: 6 })], next: '/p2' },
+    '/p2': { data: [listed(1, 'c', { closedDaysAgo: 9 })], next: '/p3' },
+  };
+  const requested = [];
+  const pulls = await listRecentlyClosedPulls(async (path) => { requested.push(path); return pages[path]; }, NOW, 7);
+  assert.deepEqual(pulls.map((p) => p.number), [3, 2]);
+  assert.deepEqual(requested, Object.keys(pages));
+});

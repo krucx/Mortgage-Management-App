@@ -1,0 +1,35 @@
+# Safety net for Auto-merge's branch cleanup: deletes the head branch of any PR merged in the last
+# 7 days that still has one. The Auto-merge job only waits 30 minutes for its merge, so a PR whose
+# checks failed, got a fix push and merged hours later keeps its branch (the "Automatically delete
+# head branches" setting ignores GITHUB_TOKEN merges). Same rules as there, in
+# .github/scripts/lib/branch-cleanup.mjs (tests: .github/scripts/test-branch-cleanup.mjs); a head that
+# an open PR still uses as its head or base is kept. The repository is public, so listing PRs needs no
+# pull-requests permission.
+name: Sweep merged branches
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Delete the heads of recently merged pull requests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/sweep-merged-branches.mjs
