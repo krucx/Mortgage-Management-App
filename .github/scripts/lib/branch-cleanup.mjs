@@ -45,12 +45,12 @@ export async function deleteMergedBranch(pr, { repository, deleteRef, log = cons
 export const deleteRefApi = (request) => (ref) =>
   request(refPath('refs', ref), 'DELETE');
 
-export const refExistsApi = (request) => async (ref) => {
+// The branch's current head SHA, or null when it is already gone.
+export const refShaApi = (request) => async (ref) => {
   try {
-    await request(refPath('ref', ref));
-    return true;
+    return (await request(refPath('ref', ref))).data.object.sha;
   } catch (error) {
-    if (alreadyGone(error)) return false;
+    if (alreadyGone(error)) return null;
     throw error;
   }
 };
@@ -62,36 +62,44 @@ const refPath = (kind, ref) => `/git/${kind}/heads/${ref.split('/').map(encodeUR
 // with GITHUB_TOKEN (auto-merge, the release candidate workflow), which leave their head branch
 // behind. This runs every PR merged at least `minAgeDays` days ago through the same decision and
 // deletion as above, once per branch, so nothing merged this week is touched. A branch an open PR
-// still uses as its head or base stays, whatever merged from it. With `dryRun` it only reports the
-// branches that still exist and would be deleted.
+// still uses as its head or base stays, whatever merged from it. Branch names get reused, so a
+// branch whose tip is not the head SHA of one of its merged PRs holds newer work and stays
+// ("reused"). With `dryRun` it only reports the branches that still exist and would be deleted.
 export async function sweepMergedBranches({
-  repository, listClosedPulls, listOpenPulls, deleteRef, refExists, dryRun = false,
+  repository, listClosedPulls, listOpenPulls, deleteRef, refSha, dryRun = false,
   log = console.log, now = () => Date.now(), minAgeDays = 7,
 }) {
   const cutoff = now() - minAgeDays * 86_400_000;
   const inUse = new Set((await listOpenPulls()).flatMap((pr) => [pr.head?.ref, pr.base?.ref]));
-  const seen = new Set();
-  const results = [];
+  // Only a PR the rules accept counts: an earlier PR that must keep the branch (an integration
+  // branch merged elsewhere) must not hide a later one that ends it. The list payload has
+  // merged_at, not the boolean `merged` of a single PR.
+  const byBranch = new Map();
   for (const pr of await listClosedPulls()) {
-    // The list payload has merged_at, not the boolean `merged` of a single PR.
     if (!pr.merged_at || Date.parse(pr.merged_at) > cutoff) continue;
-    const ref = pr.head?.ref;
-    // Once per branch, but only a PR the rules accept counts: an earlier PR that must keep the branch
-    // (an integration branch merged elsewhere) must not hide a later one that ends it.
-    if (seen.has(ref) || !branchDeletionDecision({ ...pr, merged: true }, repository).delete) continue;
-    seen.add(ref);
+    if (!branchDeletionDecision({ ...pr, merged: true }, repository).delete) continue;
+    byBranch.set(pr.head.ref, [...(byBranch.get(pr.head.ref) ?? []), pr]);
+  }
+  const results = [];
+  for (const [ref, prs] of byBranch) {
+    const [first] = prs;
     if (inUse.has(ref)) {
-      log(`PR #${pr.number}: head branch ${ref} kept (an open PR uses it).`);
+      log(`PR #${first.number}: head branch ${ref} kept (an open PR uses it).`);
+      continue;
+    }
+    const tip = await refSha(ref);
+    if (!tip) continue; // already gone
+    const merged = prs.find((pr) => pr.head.sha === tip);
+    if (!merged) {
+      log(`PR #${first.number}: head branch ${ref} kept (reused: it has commits no merged PR had).`);
       continue;
     }
     if (dryRun) {
-      if (await refExists(ref)) {
-        log(`PR #${pr.number}: would delete branch ${ref}.`);
-        results.push({ delete: true, ref, reason: 'merged', deleted: false, dryRun: true });
-      }
+      log(`PR #${merged.number}: would delete branch ${ref}.`);
+      results.push({ delete: true, ref, reason: 'merged', deleted: false, dryRun: true });
       continue;
     }
-    results.push(await deleteMergedBranch({ ...pr, merged: true }, { repository, deleteRef, log }));
+    results.push(await deleteMergedBranch({ ...merged, merged: true }, { repository, deleteRef, log }));
   }
   const acted = results.filter((r) => r.deleted || r.dryRun).length;
   log(`Sweep ${dryRun ? '(dry run) would delete' : 'deleted'} ${acted} branch${acted === 1 ? '' : 'es'}.`);

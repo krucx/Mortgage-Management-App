@@ -88,7 +88,7 @@ const listed = (number, ref, { base = 'integration/arch8-backend', mergedDaysAgo
   number,
   state: 'closed',
   merged_at: mergedDaysAgo === null ? null : daysAgo(mergedDaysAgo),
-  head: { ref, repo: { full_name: repo } },
+  head: { ref, sha: `sha-${ref}`, repo: { full_name: repo } },
   base: { ref: base },
 });
 const open = (number, ref, base = 'main') => ({ number, state: 'open', head: { ref, repo: { full_name: REPO } }, base: { ref: base } });
@@ -98,7 +98,7 @@ const sweep = (closed, opened = [], extra = {}) => {
   return sweepMergedBranches({
     repository: REPO, now: () => NOW, log,
     listClosedPulls: async () => closed, listOpenPulls: async () => opened,
-    refExists: async (ref) => !ref.includes('gone'),
+    refSha: async (ref) => (ref.includes('gone') ? null : `sha-${ref}`),
     deleteRef: async (ref) => deleted.push(ref), ...extra,
   }).then((results) => ({ results, deleted, lines }));
 };
@@ -136,7 +136,7 @@ test('the sweep survives a failed or missing branch and still handles the rest',
   const { lines } = await sweep(
     [listed(1, 'fix/boom'), listed(2, 'fix/gone'), listed(3, 'fix/fine')],
     [],
-    { deleteRef: async (ref) => {
+    { refSha: async (ref) => `sha-${ref}`, deleteRef: async (ref) => {
       reached.push(ref);
       if (ref === 'fix/boom') throw new Error('GitHub API DELETE failed (403): forbidden');
       if (ref === 'fix/gone') throw new Error('failed (422): Reference does not exist');
@@ -157,4 +157,24 @@ test('a dry run lists the existing branches it would delete and deletes nothing'
   assert.deepEqual(results.map((r) => r.ref), ['fix/a']);
   assert.match(lines.join('\n'), /would delete branch fix\/a/);
   assert.ok(!lines.join('\n').includes('fix/gone'));
+});
+
+test('the sweep keeps a reused branch whose tip is not the head of a merged PR, in a dry run too', async () => {
+  for (const dryRun of [false, true]) {
+    const { deleted, lines, results } = await sweep(
+      [listed(1, 'fix/reused'), listed(2, 'fix/same')],
+      [],
+      { dryRun, refSha: async (ref) => (ref === 'fix/reused' ? 'sha-new-work' : `sha-${ref}`) },
+    );
+    assert.deepEqual(results.map((r) => r.ref), ['fix/same']);
+    assert.deepEqual(deleted, dryRun ? [] : ['fix/same']);
+    assert.match(lines.join('\n'), /fix\/reused kept \(reused/);
+  }
+});
+
+test('a branch reused by a later PR is deleted when its tip is the head of one old merged PR', async () => {
+  const older = listed(1, 'fix/again');
+  const newer = { ...listed(2, 'fix/again'), head: { ref: 'fix/again', sha: 'sha-second', repo: { full_name: REPO } } };
+  const { deleted } = await sweep([newer, older], [], { refSha: async () => 'sha-fix/again' });
+  assert.deepEqual(deleted, ['fix/again']);
 });
