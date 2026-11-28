@@ -84,12 +84,10 @@ test('any other failure warns and does not throw', async () => {
 
 const NOW = Date.parse('2026-11-28T12:00:00Z');
 const daysAgo = (days) => new Date(NOW - days * 86_400_000).toISOString();
-const listed = (number, ref, { base = 'integration/arch8-backend', mergedDaysAgo = 10, closedDaysAgo = mergedDaysAgo, repo = REPO } = {}) => ({
+const listed = (number, ref, { base = 'integration/arch8-backend', mergedDaysAgo = 10, repo = REPO } = {}) => ({
   number,
   state: 'closed',
   merged_at: mergedDaysAgo === null ? null : daysAgo(mergedDaysAgo),
-  closed_at: daysAgo(closedDaysAgo),
-  updated_at: daysAgo(closedDaysAgo),
   head: { ref, repo: { full_name: repo } },
   base: { ref: base },
 });
