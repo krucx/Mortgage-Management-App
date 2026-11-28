@@ -95,6 +95,5 @@ export async function sweepMergedBranches({
   }
   const acted = results.filter((r) => r.deleted || r.dryRun).length;
   log(`Sweep ${dryRun ? '(dry run) would delete' : 'deleted'} ${acted} branch${acted === 1 ? '' : 'es'}.`);
-  log(`Sweep ${dryRun ? 'dry run' : 'done'}: ${results.filter((r) => r.dryRun || r.deleted).length} branch(es) ${dryRun ? 'would be deleted' : 'deleted'}.`);
   return results;
 }
