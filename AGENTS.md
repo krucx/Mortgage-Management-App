@@ -37,6 +37,7 @@ simplifying, reusing, and eventually creating a cleaner, maintainable system.
 
 ## Pointers
 
+- CI map: [.github/README.md](.github/README.md) lists every workflow, its triggers, scripts and ADR; read it before opening workflow files.
 - Issues are tracked in GitHub Issues on krucx/Mortgage-Management-App, using the `gh` CLI.
   See [Documentation/agents/issue-tracker.md](Documentation/agents/issue-tracker.md).
 - Triage labels: the five defaults (`needs-triage`, `needs-info`, `ready-for-agent`,
