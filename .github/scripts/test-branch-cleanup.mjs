@@ -158,5 +158,6 @@ test('a dry run lists the existing branches it would delete and deletes nothing'
   assert.deepEqual(deleted, []);
   assert.deepEqual(results.map((r) => r.ref), ['fix/a']);
   assert.match(lines.join('\n'), /would delete branch fix\/a/);
+  assert.match(lines.at(-1), /dry run: 1 branch\(es\) would be deleted/);
   assert.ok(!lines.join('\n').includes('fix/gone'));
 });

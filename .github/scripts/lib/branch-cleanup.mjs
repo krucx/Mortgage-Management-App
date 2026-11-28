@@ -1,7 +1,7 @@
 // Deleting a merged pull request's head branch. The repository's "Automatically delete head
 // branches" setting only fires for merges a person makes; a merge made with GITHUB_TOKEN (the
 // central auto-merge, the release candidate workflow) leaves the branch behind, and starts no
-// pull_request closed workflow either. So the workflows that merge call this themselves.
+// pull_request closed workflow either. So a weekly sweep (sweepMergedBranches, below) deletes them.
 //
 // The decision is pure (branchDeletionDecision); the API is injected so tests need no network.
 
@@ -93,5 +93,8 @@ export async function sweepMergedBranches({
     }
     results.push(await deleteMergedBranch({ ...pr, merged: true }, { repository, deleteRef, log }));
   }
+  const acted = results.filter((r) => r.deleted || r.dryRun).length;
+  log(`Sweep ${dryRun ? '(dry run) would delete' : 'deleted'} ${acted} branch${acted === 1 ? '' : 'es'}.`);
+  log(`Sweep ${dryRun ? 'dry run' : 'done'}: ${results.filter((r) => r.dryRun || r.deleted).length} branch(es) ${dryRun ? 'would be deleted' : 'deleted'}.`);
   return results;
 }
